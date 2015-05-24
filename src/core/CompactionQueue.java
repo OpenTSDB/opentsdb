@@ -27,7 +27,6 @@ import com.stumbleupon.async.Deferred;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.hbase.async.Bytes;
 import org.hbase.async.HBaseRpc;
 import org.hbase.async.KeyValue;
@@ -286,6 +285,10 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     // KeyValue containing the longest qualifier for the datapoint, used to optimize
     // checking if the compacted qualifier already exists.
     private KeyValue longest;
+    
+    // the latest append column. If set then we don't want to re-write the row
+    // and if we only had a single column with a single value, we return this.
+    private KeyValue last_append_column;
 
     public Compaction(ArrayList<KeyValue> row, KeyValue[] compacted, List<Annotation> annotations) {
       nkvs = row.size();
@@ -387,21 +390,26 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           deferred = deferred.addCallbacks(new DeleteCompactedCB(to_delete), handle_write_error);
         }
         return deferred;
-      } else {
+      } else if (last_append_column == null) {
         // We had nothing to write, because one of the cells is already the
         // correctly compacted version, so we can go ahead and delete the
         // individual cells directly.
         new DeleteCompactedCB(to_delete).call(null);
         return null;
+      } else {
+        return null;
       }
     }
 
     /**
-     * Find the first datapoint column in a row.
+     * Find the first datapoint column in a row. It may be an appended column
      *
      * @return the first found datapoint column in the row, or null if none
      */
     private KeyValue findFirstDatapointColumn() {
+      if (last_append_column != null) {
+        return last_append_column;
+      }
       for (final KeyValue kv : row) {
         if (isDatapoint(kv)) {
           return kv;
@@ -419,12 +427,26 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     private int buildHeapProcessAnnotations() {
       int tot_values = 0;
       for (final KeyValue kv : row) {
-        final byte[] qual = kv.qualifier();
-        final int len = qual.length;
+        byte[] qual = kv.qualifier();
+        int len = qual.length;
         if ((len & 1) != 0) {
           // process annotations and other extended formats
           if (qual[0] == Annotation.PREFIX()) {
             annotations.add(JSON.parseToObject(kv.value(), Annotation.class));
+          } else if (qual[0] == AppendDataPoints.APPEND_COLUMN_PREFIX){
+            final AppendDataPoints adp = new AppendDataPoints();
+            tot_values += adp.parseKeyValue(tsdb, kv).size();
+            last_append_column = new KeyValue(kv.key(), kv.family(), 
+                adp.qualifier(), kv.timestamp(), adp.value());
+            if (longest == null || 
+                longest.qualifier().length < last_append_column.qualifier().length) {
+              longest = last_append_column;
+            }
+            final ColumnDatapointIterator col = 
+                new ColumnDatapointIterator(last_append_column);
+            if (col.hasMoreData()) {
+              heap.add(col);
+            }
           } else {
             LOG.warn("Ignoring unexpected extended format type " + qual[0]);
           }
@@ -523,11 +545,19 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     /**
      * Make sure we don't delete the row that is the result of the compaction, so we
      * remove the compacted value from the list of values to delete if it is there.
+     * Also, if one or more columns were appends then we don't want to mess with
+     * the row for now.
      *
      * @param compact the compacted column
      * @return true if we need to write the compacted value
      */
     private boolean updateDeletesCheckForWrite(KeyValue compact) {
+      if (last_append_column != null) {
+        // TODO appends are involved so we may want to squash dps into the 
+        // append or vice-versa. 
+        return false;
+      }
+      
       // if the longest entry isn't as long as the compacted one, obviously the compacted
       // one can't have already existed
       if (longest != null && longest.qualifier().length >= compact.qualifier().length) {

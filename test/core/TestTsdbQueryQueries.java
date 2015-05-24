@@ -14,6 +14,7 @@ package net.opentsdb.core;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
@@ -479,12 +480,11 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     final Field compact = Config.class.getDeclaredField("enable_compactions");
     compact.setAccessible(true);
     compact.set(config, true);
-
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.AVG, false);
     assertNotNull(query.run());
-    
+
     // this should only compact the rows for the time series that we fetched and
     // leave the others alone
     
@@ -539,7 +539,6 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     int value = 1;
     long timestamp = 1356998430000L;
     for (DataPoint dp : dps[0]) {
-      System.out.println(timestamp);
       assertEquals(value, dp.longValue());
       assertEquals(timestamp, dp.timestamp());
       value++;
@@ -579,7 +578,11 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     
     System.arraycopy(Bytes.fromInt(1356998400), 0, key_b, 
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
-    assertEquals(119, storage.numColumns(key_b));
+    if (config.enable_appends()) {
+      assertEquals(1, storage.numColumns(key_b));
+    } else {
+      assertEquals(119, storage.numColumns(key_b));
+    }
     
     System.arraycopy(Bytes.fromInt(1357002000), 0, key_a, 
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
@@ -587,15 +590,23 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     
     System.arraycopy(Bytes.fromInt(1357002000), 0, key_b, 
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
-    assertEquals(120, storage.numColumns(key_b));
-
+    if (config.enable_appends()) {
+      assertEquals(1, storage.numColumns(key_b));
+    } else {
+      assertEquals(120, storage.numColumns(key_b));
+    }
+    
     System.arraycopy(Bytes.fromInt(1357005600), 0, key_a, 
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     assertEquals(1, storage.numColumns(key_a));
     
     System.arraycopy(Bytes.fromInt(1357005600), 0, key_b, 
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
-    assertEquals(61, storage.numColumns(key_b));
+    if (config.enable_appends()) {
+      assertEquals(1, storage.numColumns(key_b));
+    } else {
+      assertEquals(61, storage.numColumns(key_b));
+    }
 
     // run it again to verify the compacted data uncompacts properly
     dps = query.run();
@@ -618,7 +629,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.run();
   }
 
-  @Test (expected = IllegalDataException.class)
+  @Test
   public void runFloatAndIntSameTSNoFix() throws Exception {
     // if a row has an integer and a float for the same timestamp, there will be
     // two different qualifiers that will resolve to the same offset. This no
@@ -629,8 +640,32 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     tsdb.addPoint(METRIC_STRING, 1356998430, 42.5F, tags).joinUninterruptibly();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
-    query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, true);
-    query.run();
+    query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
+    
+    if (config.enable_appends()) {
+      DataPoints[] dps = query.run();
+      assertMeta(dps, 0, false, false);
+      
+      int value = 1;
+      long timestamp = 1356998430000L;
+      for (DataPoint dp : dps[0]) {
+        if (value == 1) {
+          // first value was replaced in the append
+          assertEquals(42.5, dp.doubleValue(), 0.0001);
+        } else {
+          assertEquals(value, dp.longValue());
+        }
+        assertEquals(timestamp, dp.timestamp());
+        value++;
+        timestamp += 30000;
+      }
+      assertEquals(300, dps[0].size());
+    } else {
+      try {
+        query.run();
+        fail("Expected an IllegalDataException");
+      } catch (IllegalDataException ide) { }
+    }
   }
   
   @Test
@@ -711,14 +746,18 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     final byte[] key_b = 
         IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags_copy);
     RowKey.prefixKeyWithSalt(key_b);
-    
+
     System.arraycopy(Bytes.fromInt(1356998400), 0, key_a, 
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     assertEquals(2, storage.numColumns(key_a));
     
     System.arraycopy(Bytes.fromInt(1356998400), 0, key_b, 
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
-    assertEquals(119, storage.numColumns(key_b));
+    if (config.enable_appends()) {
+      assertEquals(1, storage.numColumns(key_b));
+    } else {
+      assertEquals(119, storage.numColumns(key_b));
+    }
     
     System.arraycopy(Bytes.fromInt(1357002000), 0, key_a, 
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
@@ -726,7 +765,11 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     
     System.arraycopy(Bytes.fromInt(1357002000), 0, key_b, 
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
-    assertEquals(120, storage.numColumns(key_b));
+    if (config.enable_appends()) {
+      assertEquals(1, storage.numColumns(key_b));
+    } else {
+      assertEquals(120, storage.numColumns(key_b));
+    }
 
     System.arraycopy(Bytes.fromInt(1357005600), 0, key_a, 
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
@@ -734,7 +777,11 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     
     System.arraycopy(Bytes.fromInt(1357005600), 0, key_b, 
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
-    assertEquals(61, storage.numColumns(key_b));
+    if (config.enable_appends()) {
+      assertEquals(1, storage.numColumns(key_b));
+    } else {
+      assertEquals(61, storage.numColumns(key_b));
+    }
     
     dps = query.run();
     assertMeta(dps, 0, false, true);
@@ -830,7 +877,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
-    
+    storage.dumpToSystemOut();
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
     

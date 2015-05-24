@@ -186,8 +186,10 @@ test_SRC := \
 	test/core/TestTsdbQuery.java	\
 	test/core/TestTsdbQueryAggregators.java	\
 	test/core/TestTsdbQueryAggregatorsSalted.java	\
+	test/core/TestTsdbQueryAppend.java	\
 	test/core/TestTsdbQueryQueries.java	\
 	test/core/TestTsdbQuerySalted.java	\
+	test/core/TestTsdbQuerySaltedAppend.java	\
 	test/core/TestTSQuery.java	\
 	test/core/TestTSSubQuery.java	\
 	test/plugin/DummyPlugin.java \
