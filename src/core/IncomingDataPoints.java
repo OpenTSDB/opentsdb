@@ -22,6 +22,7 @@ import java.util.Map;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import org.hbase.async.AppendRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Bytes.ByteMap;
@@ -296,8 +297,6 @@ final class IncomingDataPoints implements WritableDataPoints {
     // Java is so stupid with its auto-promotion of int to float.
     final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
 
-    final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY,
-        qualifier, value);
     // TODO(tsuna): The following timing is rather useless. First of all,
     // the histogram never resets, so it tends to converge to a certain
     // distribution and never changes. What we really want is a moving
@@ -318,8 +317,18 @@ final class IncomingDataPoints implements WritableDataPoints {
     // };
 
     // TODO(tsuna): Add an errback to handle some error cases here.
-    point.setDurable(!batch_import);
-    return tsdb.client.put(point)/* .addBoth(cb) */;
+    if (tsdb.getConfig().enable_appends()) {
+      final AppendDataPoints kv = new AppendDataPoints(qualifier, value);
+      final AppendRequest point = new AppendRequest(tsdb.table, row, TSDB.FAMILY, 
+          AppendDataPoints.APPEND_COLUMN_QUALIFIER, kv.getBytes());
+      point.setDurable(!batch_import);
+      return tsdb.client.append(point);/* .addBoth(cb) */
+    } else {
+      final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY, 
+          qualifier, value);
+      point.setDurable(!batch_import);
+      return tsdb.client.put(point)/* .addBoth(cb) */;
+    }
   }
 
   private void grow() {

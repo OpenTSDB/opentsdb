@@ -41,6 +41,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.powermock.reflect.Whitebox;
 
 import com.stumbleupon.async.Deferred;
 
@@ -825,6 +826,141 @@ public final class TestTSDB extends BaseTsdbTest {
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
+  }
+  
+  @Test
+  public void addPointAppend() throws Exception {
+    Whitebox.setInternalState(config, "enable_appends", true);
+    setupAddPointStorage();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, 
+        AppendDataPoints.APPEND_COLUMN_QUALIFIER);
+    assertArrayEquals(new byte[] { 0, 0, 42 }, value);
+  }
+  
+  @Test
+  public void addPointAppendWithOffset() throws Exception {
+    Whitebox.setInternalState(config, "enable_appends", true);
+    setupAddPointStorage();
+
+    tsdb.addPoint(METRIC_STRING, 1356998430, 42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, 
+        AppendDataPoints.APPEND_COLUMN_QUALIFIER);
+    assertArrayEquals(new byte[] { 1, -32, 42 }, value);
+  }
+  
+  @Test
+  public void addPointAppendAppending() throws Exception {
+    Whitebox.setInternalState(config, "enable_appends", true);
+    setupAddPointStorage();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998430, 24, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998460, 1, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, 
+        AppendDataPoints.APPEND_COLUMN_QUALIFIER);
+    assertArrayEquals(new byte[] { 0, 0, 42, 1, -32, 24, 3, -64, 1 }, value);
+  }
+  
+  @Test
+  public void addPointAppendAppendingOutOfOrder() throws Exception {
+    Whitebox.setInternalState(config, "enable_appends", true);
+    setupAddPointStorage();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998460, 1, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998430, 24, tags).joinUninterruptibly();
+
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, 
+        AppendDataPoints.APPEND_COLUMN_QUALIFIER);
+    assertArrayEquals(new byte[] { 0, 0, 42, 3, -64, 1, 1, -32, 24 }, value);
+  }
+  
+  @Test
+  public void addPointAppendAppendingDuplicates() throws Exception {
+    Whitebox.setInternalState(config, "enable_appends", true);
+    setupAddPointStorage();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998430, 24, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998430, 1, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, 
+        AppendDataPoints.APPEND_COLUMN_QUALIFIER);
+    assertArrayEquals(new byte[] { 0, 0, 42, 1, -32, 24, 1, -32, 1 }, value);
+  }
+  
+  @Test
+  public void addPointAppendMS() throws Exception {
+    Whitebox.setInternalState(config, "enable_appends", true);
+    setupAddPointStorage();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400050L, 42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, 
+        AppendDataPoints.APPEND_COLUMN_QUALIFIER);
+    assertArrayEquals(new byte[] { (byte) 0xF0, 0, 12, -128, 42 }, value);
+  }
+  
+  @Test
+  public void addPointAppendAppendingMixMS() throws Exception {
+    Whitebox.setInternalState(config, "enable_appends", true);
+    setupAddPointStorage();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998400050L, 1, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998430, 24, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, 
+        AppendDataPoints.APPEND_COLUMN_QUALIFIER);
+    assertArrayEquals(new byte[] { 
+        0, 0, 42, (byte) 0xF0, 0, 12, -128, 1, 1, -32, 24 }, value);
+  }
+  
+  @Test
+  public void addPointAppendWithSalt() throws Exception {
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(20);
+    Whitebox.setInternalState(config, "enable_appends", true);
+    setupAddPointStorage();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 8, 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, 
+        AppendDataPoints.APPEND_COLUMN_QUALIFIER);
+    assertArrayEquals(new byte[] { 0, 0, 42 }, value);
+  }
+  
+  @Test
+  public void addPointAppendAppendingWithSalt() throws Exception {
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(20);
+    Whitebox.setInternalState(config, "enable_appends", true);
+    setupAddPointStorage();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998430, 24, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998460, 1, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 8, 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, 
+        AppendDataPoints.APPEND_COLUMN_QUALIFIER);
+    assertArrayEquals(new byte[] { 0, 0, 42, 1, -32, 24, 3, -64, 1 }, value);
   }
   
   /**

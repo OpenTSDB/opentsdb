@@ -25,6 +25,7 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.hbase.async.AppendRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.ClientStats;
@@ -139,8 +140,7 @@ public final class TSDB {
     } else {
       this.client = client;
     }
-
-    this.client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
+    
     table = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
     uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
@@ -719,12 +719,21 @@ public final class TSDB {
     Bytes.setInt(row, (int) base_time, metrics.width() + Const.SALT_WIDTH());
     RowKey.prefixKeyWithSalt(row);
     
-    scheduleForCompaction(row, (int) base_time);
-    final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
+    Deferred<Object> result = null;
+    if (config.enable_appends()) {
+      final AppendDataPoints kv = new AppendDataPoints(qualifier, value);
+      final AppendRequest point = new AppendRequest(table, row, FAMILY, 
+          AppendDataPoints.APPEND_COLUMN_QUALIFIER, kv.getBytes());
+      result = client.append(point);
+    } else {
+      scheduleForCompaction(row, (int) base_time);
+      final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
+      result = client.put(point);
+    }
     
     // TODO(tsuna): Add a callback to time the latency of HBase and store the
     // timing in a moving Histogram (once we have a class for this).
-    Deferred<Object> result = client.put(point);
+    
     if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() && 
         !config.enable_tsuid_tracking() && rt_publisher == null) {
       return result;
