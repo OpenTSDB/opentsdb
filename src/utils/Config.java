@@ -73,6 +73,12 @@ public class Config {
   /** tsd.storage.enable_compaction */
   private boolean enable_compactions = true;
   
+  /** tsd.storage.enable_appends */
+  private boolean enable_appends = false;
+  
+  /** tsd.storage.repair_appends */
+  private boolean repair_appends = false;
+  
   /** tsd.core.meta.enable_realtime_ts */
   private boolean enable_realtime_ts = false;
   
@@ -181,6 +187,17 @@ public class Config {
   /** @return the enable_compaction value */
   public boolean enable_compactions() {
     return enable_compactions;
+  }
+  
+  /** @return whether or not to write data in the append format */
+  public boolean enable_appends() {
+    return enable_appends;
+  }
+  
+  /** @return whether or not to re-write appends with duplicates or out of order
+   * data when queried. */
+  public boolean repair_appends() {
+    return repair_appends;
   }
   
   /** @return whether or not to record new TSMeta objects in real time */
@@ -486,6 +503,8 @@ public class Config {
     default_map.put("tsd.storage.hbase.meta_table", "tsdb-meta");
     default_map.put("tsd.storage.hbase.zk_quorum", "localhost");
     default_map.put("tsd.storage.hbase.zk_basedir", "/hbase");
+    default_map.put("tsd.storage.enable_appends", "false");
+    default_map.put("tsd.storage.repair_appends", "false");
     default_map.put("tsd.storage.enable_compaction", "true");
     default_map.put("tsd.storage.compaction.flush_interval", "10");
     default_map.put("tsd.storage.compaction.min_flush_threshold", "100");
@@ -597,6 +616,8 @@ public class Config {
     auto_tagk = this.getBoolean("tsd.core.auto_create_tagks");
     auto_tagv = this.getBoolean("tsd.core.auto_create_tagvs");
     enable_compactions = this.getBoolean("tsd.storage.enable_compaction");
+    enable_appends = this.getBoolean("tsd.storage.enable_appends");
+    repair_appends = this.getBoolean("tsd.storage.repair_appends");
     enable_chunked_requests = this.getBoolean("tsd.http.request.enable_chunked");
     enable_realtime_ts = this.getBoolean("tsd.core.meta.enable_realtime_ts");
     enable_realtime_uid = this.getBoolean("tsd.core.meta.enable_realtime_uid");
