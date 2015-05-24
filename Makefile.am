@@ -34,6 +34,7 @@ tsdb_SRC := \
 	src/core/AggregationIterator.java	\
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
+	src/core/AppendDataPoints.java	\
 	src/core/BatchedDataPoints.java \
 	src/core/ByteBufferList.java	\
 	src/core/ColumnDatapointIterator.java	\
@@ -163,6 +164,7 @@ test_SRC := \
 	test/core/BaseTsdbTest.java \
 	test/core/TestAggregationIterator.java \
 	test/core/TestAggregators.java \
+	test/core/TestAppendDataPoints.java \
 	test/core/TestBatchedDataPoints.java \
 	test/core/TestCompactionQueue.java	\
 	test/core/TestDownsampler.java \

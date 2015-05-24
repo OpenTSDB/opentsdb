@@ -36,6 +36,7 @@ import net.opentsdb.core.TSDB;
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.Bytes.ByteMap;
+import org.hbase.async.AppendRequest;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
@@ -72,6 +73,7 @@ import com.stumbleupon.async.Deferred;
  * <li>HBaseClient</li>
  * <li>GetRequest</li>
  * <li>PutRequest</li>
+ * <li>AppendRequest</li>
  * <li>KeyValue</li>
  * <li>Scanner</li>
  * <li>DeleteRequest</li>
@@ -155,7 +157,8 @@ public final class MockBase {
     when(client.atomicIncrement((AtomicIncrementRequest)any()))
       .then(new MockAtomicIncrement());
     when(client.bufferAtomicIncrement((AtomicIncrementRequest)any()))
-    .then(new MockAtomicIncrement());
+      .then(new MockAtomicIncrement());
+    when(client.append((AppendRequest)any())).thenAnswer(new MockAppend());
   }
 
   /** @param family Sets the family for calls that need it */
@@ -674,6 +677,65 @@ public final class MockBase {
           current_timestamp++, put.values()[i]);
       }
       
+      return Deferred.fromResult(true);
+    }
+  }
+  
+  /**
+   * Stores one or more columns in a row. If the row does not exist, it's
+   * created.
+   */
+  private class MockAppend implements Answer<Deferred<Boolean>> {
+    @Override
+    public Deferred<Boolean> answer(final InvocationOnMock invocation) 
+      throws Throwable {
+      final Object[] args = invocation.getArguments();
+      final AppendRequest append = (AppendRequest)args[0];
+
+      ByteMap<ByteMap<TreeMap<Long, byte[]>>> row = storage.get(append.key());
+      if (row == null) {
+        row = new ByteMap<ByteMap<TreeMap<Long, byte[]>>>();
+        storage.put(append.key(), row);
+      }
+      
+      ByteMap<TreeMap<Long, byte[]>> cf = row.get(append.family());
+      if (cf == null) {
+        cf = new ByteMap<TreeMap<Long, byte[]>>();
+        row.put(append.family(), cf);
+      }
+      
+      TreeMap<Long, byte[]> column = cf.get(append.qualifier());
+      if (column == null) {
+        column = new TreeMap<Long, byte[]>();
+        cf.put(append.qualifier(), column);
+      }
+      
+      final byte[] values;
+      long column_timestamp = 0;
+      if (append.timestamp() != Long.MAX_VALUE) {
+        values = column.get(append.timestamp());
+        column_timestamp = append.timestamp();
+      } else {
+        if (column.isEmpty()) {
+          values = null;
+        } else {
+          values = column.firstEntry().getValue();
+          column_timestamp = column.firstKey();
+        }
+      }
+      if (column_timestamp == 0) {
+        column_timestamp = current_timestamp++;
+      }
+
+      final int current_len = values != null ? values.length : 0;
+      final byte[] append_value = new byte[current_len + append.value().length];
+      if (current_len > 0) {
+        System.arraycopy(values, 0, append_value, 0, values.length);
+      }
+      
+      System.arraycopy(append.value(), 0, append_value, current_len, 
+          append.value().length);
+      column.put(column_timestamp, append_value);
       return Deferred.fromResult(true);
     }
   }
