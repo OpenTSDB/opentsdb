@@ -911,9 +911,7 @@ public final class TestUniqueIdRpc {
    */
   private void setupUID() throws Exception {
     final Config config = new Config(false);
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(client, config);
     
     storage = new MockBase(tsdb, client, true, true, true, true);
     
@@ -942,9 +940,7 @@ public final class TestUniqueIdRpc {
    */
   private void setupTSUID() throws Exception {
     final Config config = new Config(false);
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(client, config);
     
     Field met = tsdb.getClass().getDeclaredField("metrics");
     met.setAccessible(true);

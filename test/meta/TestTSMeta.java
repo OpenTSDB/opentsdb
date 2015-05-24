@@ -19,7 +19,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -42,7 +41,6 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -74,10 +72,8 @@ public final class TestTSMeta {
     when(config.getString("tsd.storage.hbase.tree_table")).thenReturn("tsdb-tree");
     when(config.enable_tsuid_incrementing()).thenReturn(true);
     when(config.enable_realtime_ts()).thenReturn(true);
-    
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
+
+    tsdb = new TSDB(client, config);
     storage = new MockBase(tsdb, client, true, true, true, true);
     
     storage.addColumn(new byte[] { 0, 0, 1 },

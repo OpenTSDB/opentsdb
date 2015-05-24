@@ -55,10 +55,8 @@ public class TestBatchedDataPoints {
   @SuppressWarnings("unchecked")
   @Before
   public void before() throws Exception {
-    PowerMockito.whenNew(HBaseClient.class)
-        .withArguments(anyString(), anyString()).thenReturn(client);
     config = new Config(false);
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(client, config);
 
     // replace the "real" field objects with mocks
     Field met = tsdb.getClass().getDeclaredField("metrics");
