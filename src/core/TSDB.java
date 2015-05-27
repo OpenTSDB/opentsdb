@@ -132,9 +132,9 @@ public final class TSDB {
       } else {
         async_config = new org.hbase.async.Config();
       }
-      async_config.overrideConfig("asynchbase.zk.base_path", 
+      async_config.overrideConfig("hbase.zookeeper.znode.parent", 
           config.getString("tsd.storage.hbase.zk_basedir"));
-      async_config.overrideConfig("asynchbase.zk.quorum", 
+      async_config.overrideConfig("hbase.zookeeper.quorum", 
           config.getString("tsd.storage.hbase.zk_quorum"));
       this.client = new HBaseClient(async_config);
     } else {
