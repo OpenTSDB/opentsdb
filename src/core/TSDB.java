@@ -339,16 +339,37 @@ public final class TSDB {
    * @since 2.0
    */
   public byte[] getUID(final UniqueIdType type, final String name) {
+    try {
+      return getUIDAsync(type, name).join();
+    } catch (NoSuchUniqueName e) {
+      throw e;
+    } catch (IllegalArgumentException e) {
+      throw e;
+    } catch (Exception e) {
+      LOG.error("Unexpected exception", e);
+      throw new RuntimeException(e);
+    }
+  }
+  
+  /**
+   * Attempts to find the UID matching a given name asynchronously
+   * @param type The type of UID
+   * @param name The name to search for
+   * @throws IllegalArgumentException if the type is not valid
+   * @throws NoSuchUniqueName if the name was not found
+   * @since 2.2
+   */
+  public Deferred<byte[]> getUIDAsync(final UniqueIdType type, final String name) {
     if (name == null || name.isEmpty()) {
       throw new IllegalArgumentException("Missing UID name");
     }
     switch (type) {
       case METRIC:
-        return this.metrics.getId(name);
+        return this.metrics.getIdAsync(name);
       case TAGK:
-        return this.tag_names.getId(name);
+        return this.tag_names.getIdAsync(name);
       case TAGV:
-        return this.tag_values.getId(name);
+        return this.tag_values.getIdAsync(name);
       default:
         throw new IllegalArgumentException("Unrecognized UID type");
     }

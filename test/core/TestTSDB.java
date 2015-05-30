@@ -256,7 +256,7 @@ public final class TestTSDB extends BaseTsdbTest {
     tsdb.getUID(UniqueIdType.TAGV, NSUN_TAGV);
   }
   
-  @Test (expected = NullPointerException.class)
+  @Test (expected = RuntimeException.class)
   public void getUIDNullType() {
     tsdb.getUID(null, METRIC_STRING);
   }

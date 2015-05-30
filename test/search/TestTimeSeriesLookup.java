@@ -41,6 +41,8 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import com.stumbleupon.async.Deferred;
+
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
@@ -89,22 +91,33 @@ public class TestTimeSeriesLookup {
     tagv.set(tsdb, tag_values);
     
     // mock UniqueId
-    when(metrics.getId("sys.cpu.user")).thenReturn(new byte[] { 0, 0, 1 });
-    when(metrics.getId("sys.cpu.system"))
-      .thenThrow(new NoSuchUniqueName("sys.cpu.system", "metric"));
-    when(metrics.getId("sys.cpu.nice")).thenReturn(new byte[] { 0, 0, 2 });
-    when(metrics.getId("sys.cpu.idle")).thenReturn(new byte[] { 0, 0, 3 });
-    when(metrics.getId("no.values")).thenReturn(new byte[] { 0, 0, 11 });
+    when(metrics.getIdAsync("sys.cpu.user"))
+      .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
+    when(metrics.getIdAsync("sys.cpu.system"))
+      .thenReturn(Deferred.<byte[]>fromError(
+          new NoSuchUniqueName("sys.cpu.system", "metric")));
+    when(metrics.getIdAsync("sys.cpu.nice"))
+      .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
+    when(metrics.getIdAsync("sys.cpu.idle"))
+      .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 3 }));
+    when(metrics.getIdAsync("no.values"))
+      .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 11 }));
     
-    when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_names.getId("dc"))
-      .thenThrow(new NoSuchUniqueName("dc", "metric"));
-    when(tag_names.getId("owner")).thenReturn(new byte[] { 0, 0, 4 });
+    when(tag_names.getIdAsync("host"))
+      .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
+    when(tag_names.getIdAsync("dc"))
+      .thenReturn(Deferred.<byte[]>fromError(
+          new NoSuchUniqueName("dc", "metric")));
+    when(tag_names.getIdAsync("owner"))
+      .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 4 }));
     
-    when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
-    when(tag_values.getId("web03"))
-      .thenThrow(new NoSuchUniqueName("web03", "metric"));
+    when(tag_values.getIdAsync("web01"))
+      .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
+    when(tag_values.getIdAsync("web02"))
+      .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
+    when(tag_values.getIdAsync("web03"))
+      .thenReturn(Deferred.<byte[]>fromError(
+          new NoSuchUniqueName("web03", "metric")));
     
     when(metrics.width()).thenReturn((short)3);
     when(tag_names.width()).thenReturn((short)3);

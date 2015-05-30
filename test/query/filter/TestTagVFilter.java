@@ -72,7 +72,7 @@ public class TestTagVFilter extends BaseTsdbTest {
   
   @Test
   public void getFilterLiteral() throws Exception {
-    assertNull(TagVFilter.getFilter(TAGK_STRING, "web01"));
+    assertNull(TagVFilter.getFilter(TAGK_STRING, TAGV_STRING));
   }
   
   @Test
@@ -189,7 +189,7 @@ public class TestTagVFilter extends BaseTsdbTest {
   
   @Test
   public void resolveNameLiteral() throws Exception {
-    final TagVFilter filter = new TagVLiteralOrFilter(TAGK_STRING, "web01");
+    final TagVFilter filter = new TagVLiteralOrFilter(TAGK_STRING, TAGV_STRING);
     filter.resolveTagkName(tsdb).join();
     assertArrayEquals(TAGK_BYTES, filter.getTagkBytes());
     assertEquals(1, filter.getTagVUids().size());    
