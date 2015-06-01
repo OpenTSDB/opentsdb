@@ -23,7 +23,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.hbase.async.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -158,7 +160,7 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
    * @param tags The tag map to use for looking up the value for the tagk 
    * @return True if the tag value matches, false if it doesn't.
    */
-  public abstract boolean match(final Map<String, String> tags);
+  public abstract Deferred<Boolean> match(final Map<String, String> tags);
   
   /**
    * The name of this filter as used in queries. When used in URL queries the
@@ -211,9 +213,9 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
     final int paren = filter.indexOf('(');
     if (paren > -1) {
       final String prefix = filter.substring(0, paren).toLowerCase();
-      return new Builder().withTagk(tagk)
-                          .withFilter(stripParentheses(filter))
-                          .withType(prefix)
+      return new Builder().setTagk(tagk)
+                          .setFilter(stripParentheses(filter))
+                          .setType(prefix)
                           .build();
     } else if (filter.contains("*")) {
       // a shortcut for wildcards since we don't allow asterisks to be stored
@@ -245,13 +247,23 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
   }
   
   /**
-   * Loads plugins from the plugin directory and 
+   * Loads plugins from the plugin directory and loads them into the map.
+   * Built-in filters don't need to go through this process.
+   * @param tsdb A TSDB to use to initialize plugins
    * @throws ClassNotFoundException If we found a class that we didn't... find?
    * @throws NoSuchMethodException If the discovered plugin didn't have the
    *         proper (tagk, filter) ctor 
+   * @throws InvocationTargetException if the static "initialize(tsdb)" method
+   *         doesn't exist. 
+   * @throws IllegalAccessException if something went really pear shaped 
+   * @throws SecurityException if the JVM is really unhappy with the user
+   * @throws IllegalArgumentException really shouldn't happen but you know,
+   *         checked exceptions...
    */
-  public static void initializeFilterMap() 
-      throws ClassNotFoundException, NoSuchMethodException, NoSuchFieldException {
+  public static void initializeFilterMap(final TSDB tsdb) 
+      throws ClassNotFoundException, NoSuchMethodException, NoSuchFieldException, 
+      IllegalArgumentException, SecurityException, IllegalAccessException, 
+      InvocationTargetException {
     final List<TagVFilter> filter_plugins = 
         PluginLoader.loadPlugins(TagVFilter.class);
     if (filter_plugins != null) {
@@ -261,11 +273,15 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
         filter.getClass().getDeclaredMethod("examples");
         filter.getClass().getDeclaredField("FILTER_NAME");
         
+        final Method initialize = filter.getClass()
+            .getDeclaredMethod("initialize", TSDB.class);
+        initialize.invoke(null, tsdb);
+        
         final Constructor<? extends TagVFilter> ctor = 
             filter.getClass().getDeclaredConstructor(String.class, String.class);
         
-        final Constructor<? extends TagVFilter> existing = 
-            tagv_filter_map.get(filter.getType()).getValue();
+        final Pair<Class<?>, Constructor<? extends TagVFilter>> existing = 
+            tagv_filter_map.get(filter.getType());
         if (existing != null) {
           LOG.warn("Overloading existing filter " + 
               existing.getClass().getCanonicalName() + 
@@ -274,6 +290,8 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
         tagv_filter_map.put(filter.getType().toLowerCase(), 
             new Pair<Class<?>, Constructor<? extends TagVFilter>>(
                 filter.getClass(), ctor));
+        LOG.info("Successfully loaded TagVFilter plugin: " + 
+            filter.getClass().getCanonicalName());
       }
       LOG.info("Loaded " + tagv_filter_map.size() + " filters");
     }
@@ -515,12 +533,18 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
     return Bytes.memcmpMaybeNull(tagk_bytes, filter.tagk_bytes);
   }
 
+  /** @return a TagVFilter builder for constructing filters */
+  public static Builder Builder() {
+    return new Builder();
+  }
+  
   /**
    * Builder class used for deserializing filters from JSON queries via Jackson
    * since we don't want the user to worry about the class name. The type,
    * tagk and filter must be configured or the build will fail.
    */
-  @JsonPOJOBuilder()
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  @JsonPOJOBuilder(buildMethodName = "build", withPrefix = "set")
   public static class Builder {
     private String type;
     private String tagk;
@@ -529,25 +553,25 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
     private boolean group_by;
     
     /** @param type The type of filter matching a valid filter name */
-    public Builder withType(final String type) {
+    public Builder setType(final String type) {
       this.type = type;
       return this;
     }
     
     /** @param tagk The tag key to match on for this filter */
-    public Builder withTagk(final String tagk) {
+    public Builder setTagk(final String tagk) {
       this.tagk = tagk;
       return this;
     }
 
     /** @param filter The filter expression to use for matching */
-    public Builder withFilter(final String filter) {
+    public Builder setFilter(final String filter) {
       this.filter = filter;
       return this;
     }
     
     /** @param group_by Whether or not the filter should group results */
-    public Builder withGroupBy(final boolean group_by) {
+    public Builder setGroupBy(final boolean group_by) {
       this.group_by = group_by;
       return this;
     }

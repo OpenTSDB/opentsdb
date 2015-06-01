@@ -79,12 +79,13 @@ public class TagVLiteralOrFilter extends TagVFilter {
   }
   
   @Override
-  public boolean match(final Map<String, String> tags) {
+  public Deferred<Boolean> match(final Map<String, String> tags) {
     final String tagv = tags.get(tagk);
     if (tagv == null) {
-      return false;
+      return Deferred.fromResult(false);
     }
-    return literals.contains(case_insensitive ? tagv.toLowerCase() : tagv);
+    return Deferred.fromResult(
+        literals.contains(case_insensitive ? tagv.toLowerCase() : tagv));
   }
 
   @Override

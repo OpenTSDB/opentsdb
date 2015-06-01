@@ -23,110 +23,110 @@ public class TestTagVWildcardFilter {
   @Test
   public void matchAll() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, "*");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchAllNoSuchKey() throws Exception {
     TagVFilter filter = new TagVWildcardFilter("hobbes", "*");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test
   public void matchPostfix() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, "*.morpork.com");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchPrefix() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "ogg*");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchInfix() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "ogg*com");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchDoubleInfix() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "ogg*ops*ank*com");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchTripleInfix() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "ogg*ops*com");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchPreAndPostfix() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "*morpork*");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchPostAndInfix() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "*ops*com");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchPostAndDoubleInfix() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "*ops*mor*com");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchPreAndInfix() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "ogg*ops*");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchPreAndDoubleInfix() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "ogg*ops*mor*");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchMultiWildcardInfix() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "ogg***com");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchMultiWildcardPrefix() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "ogg*****");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchMultiWildcardPostfix() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "****com");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchWildcardsEverywhere() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "****ogg*****mor****com****");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
@@ -134,7 +134,7 @@ public class TestTagVWildcardFilter {
     tags.put(TAGK, "*ops*mor");
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "*ops*mor");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
@@ -142,7 +142,7 @@ public class TestTagVWildcardFilter {
     tags.put(TAGK, "ogg*ops*");
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "ogg*ops*");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
@@ -150,7 +150,7 @@ public class TestTagVWildcardFilter {
     tags.put(TAGK, "ogg*ops*mor");
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "ogg*ops*mor");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   // Make sure this file is encoded in UTF-8 of the following will fail
@@ -159,7 +159,7 @@ public class TestTagVWildcardFilter {
     tags.put(TAGK, "Здравей'_хора");
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "*хора");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
@@ -167,7 +167,7 @@ public class TestTagVWildcardFilter {
     tags.put(TAGK, "Здравей'_хора");
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "Здр*");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
@@ -175,35 +175,35 @@ public class TestTagVWildcardFilter {
     tags.put(TAGK, "Здравей'_хора");
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "Здр*ра");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
 
   @Test
   public void matchPostfixFail() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "*.morpork.org");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test
   public void matchPrefixFail() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "magrat*");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test
   public void matchInfixFail() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "magrat*com");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test
   public void matchPreAndPostfixFail() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "*quirm*");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -235,48 +235,48 @@ public class TestTagVWildcardFilter {
   public void matchPostfixCaseFail() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "*.MorPork.com");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test
   public void matchPrefixCaseFail() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "Ogg*");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test
   public void matchInfixCaseFail() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "ogG*Com");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test
   public void matchPostfixCaseInsensitive() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "*.MorPork.com", true);
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchPrefixCaseInsensitive() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "Ogg*", true);
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchInfixCaseInsensitive() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "ogG*Com", true);
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchNothingButStars() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, "****");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
@@ -284,7 +284,7 @@ public class TestTagVWildcardFilter {
     final TagVFilter filter = new TagVWildcardFilter(TAGK, "*.morpork.com");
     tags.remove("host");
     tags.put("colo", "lga");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test
@@ -292,7 +292,7 @@ public class TestTagVWildcardFilter {
     TagVFilter filter = new TagVWildcardFilter(TAGK, "*.morpork.com", true);
     tags.remove("host");
     tags.put("colo", "lga");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test

@@ -19,6 +19,7 @@ import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Objects;
+import com.stumbleupon.async.Deferred;
 
 /**
  * A filter that lets the user list one or more explicit strings that should
@@ -72,12 +73,13 @@ public class TagVNotLiteralOrFilter extends TagVFilter {
   }
   
   @Override
-  public boolean match(final Map<String, String> tags) {
+  public Deferred<Boolean> match(final Map<String, String> tags) {
     final String tagv = tags.get(tagk);
     if (tagv == null) {
-      return true;
+      return Deferred.fromResult(true);
     }
-    return !(literals.contains(case_insensitive ? tagv.toLowerCase() : tagv));
+    return Deferred.fromResult(
+        !(literals.contains(case_insensitive ? tagv.toLowerCase() : tagv)));
   }
   
   @Override

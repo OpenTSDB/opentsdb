@@ -24,52 +24,52 @@ public class TestTagVRegexFilter {
   @Test
   public void matchExact() throws Exception {
     TagVFilter filter = new TagVRegexFilter(TAGK, "ogg-01.ops.ankh.morpork.com");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchPostfix() throws Exception {
     TagVFilter filter = new TagVRegexFilter(TAGK, ".*.ops.ankh.morpork.com");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchPrefix() throws Exception {
     TagVFilter filter = new TagVRegexFilter(TAGK, "ogg-01.ops.ankh.*");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchAnything() throws Exception {
     TagVFilter filter = new TagVRegexFilter(TAGK, ".*");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchFailed() throws Exception {
     TagVFilter filter = new TagVRegexFilter(TAGK, "ogg-01.ops.qurim.*");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test
   public void matchGrouping() throws Exception {
     TagVFilter filter = new TagVRegexFilter(TAGK, 
         "ogg-01.ops.(ankh|quirm|tsort).morpork.com");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchNumbers() throws Exception {
     TagVFilter filter = new TagVRegexFilter(TAGK, 
         "ogg-\\d+.ops.ankh.morpork.com");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchNotEnoughNumbers() throws Exception {
     TagVFilter filter = new TagVRegexFilter(TAGK, 
         "ogg-\\d(3).ops.ankh.morpork.com");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test (expected = IllegalArgumentException.class)

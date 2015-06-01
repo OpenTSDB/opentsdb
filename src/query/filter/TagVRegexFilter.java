@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import com.google.common.base.Objects;
+import com.stumbleupon.async.Deferred;
 
 /**
  * A filter that allows for regular expression matching on tag values.
@@ -45,12 +46,12 @@ public class TagVRegexFilter extends TagVFilter {
   }
   
   @Override
-  public boolean match(final Map<String, String> tags) {
+  public Deferred<Boolean> match(final Map<String, String> tags) {
     final String tagv = tags.get(tagk);
     if (tagv == null) {
-      return false;
+      return Deferred.fromResult(false);
     }
-    return pattern.matcher(tagv).find();
+    return Deferred.fromResult(pattern.matcher(tagv).find());
   }
 
   @Override

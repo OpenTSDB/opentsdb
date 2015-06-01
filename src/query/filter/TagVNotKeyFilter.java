@@ -3,6 +3,7 @@ package net.opentsdb.query.filter;
 import java.util.Map;
 
 import com.google.common.base.Objects;
+import com.stumbleupon.async.Deferred;
 
 public class TagVNotKeyFilter extends TagVFilter {
   /** Name of this filter */
@@ -18,11 +19,11 @@ public class TagVNotKeyFilter extends TagVFilter {
   }
 
   @Override
-  public boolean match(Map<String, String> tags) {
+  public Deferred<Boolean> match(Map<String, String> tags) {
     if (tags.containsKey(tagk)) {
-      return false;
+      return Deferred.fromResult(false);
     }
-    return true;
+    return Deferred.fromResult(true);
   }
 
   @Override

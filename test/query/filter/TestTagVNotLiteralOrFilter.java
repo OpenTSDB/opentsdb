@@ -24,7 +24,7 @@ public class TestTagVNotLiteralOrFilter {
   public void matchMiddle() throws Exception {
     TagVFilter filter = new TagVNotLiteralOrFilter(TAGK, 
         "LutZe|CMTDibbler|Slant");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
     assertFalse(((TagVNotLiteralOrFilter)filter).isCaseInsensitive());
   }
   
@@ -32,56 +32,56 @@ public class TestTagVNotLiteralOrFilter {
   public void matchStart() throws Exception {
     TagVFilter filter = new TagVNotLiteralOrFilter(TAGK, 
         "CMTDibbler|LutZe|Slant");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test
   public void matchEnd() throws Exception {
     TagVFilter filter = new TagVNotLiteralOrFilter(TAGK, 
         "LutZe|Slant|CMTDibbler");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test
   public void matchNoPipes() throws Exception {
     TagVFilter filter = new TagVNotLiteralOrFilter(TAGK, 
         "CMTDibbler");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test
   public void matchPipeNoValueAfter() throws Exception {
     TagVFilter filter = new TagVNotLiteralOrFilter(TAGK, 
         "CMTDibbler|");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test
   public void matchPipeNoValueBefore() throws Exception {
     TagVFilter filter = new TagVNotLiteralOrFilter(TAGK, 
         "|CMTDibbler");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test
   public void matchFail() throws Exception {
     TagVFilter filter = new TagVNotLiteralOrFilter(TAGK, 
         "LutZe|Keli|Slant");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchFailCase() throws Exception {
     TagVFilter filter = new TagVNotLiteralOrFilter(TAGK, 
         "LutZe|CMtDibbler|Slant");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchCaseInsensitive() throws Exception {
     TagVFilter filter = new TagVNotLiteralOrFilter(TAGK, 
         "LutZe|CMtDibbler|Slant", true);
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
     assertTrue(((TagVNotLiteralOrFilter)filter).isCaseInsensitive());
   }
   
@@ -89,7 +89,7 @@ public class TestTagVNotLiteralOrFilter {
   public void matchCaseInsensitiveFail() throws Exception {
     TagVFilter filter = new TagVNotLiteralOrFilter(TAGK, 
         "LutZe|CMtDibble|Slant", true);
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
     assertTrue(((TagVNotLiteralOrFilter)filter).isCaseInsensitive());
   }
   
@@ -98,7 +98,7 @@ public class TestTagVNotLiteralOrFilter {
     TagVFilter filter = new TagVNotLiteralOrFilter(TAGK, "LutZe|Keli|Slant");
     tags.clear();
     tags.put("colo", "lga");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
@@ -106,20 +106,20 @@ public class TestTagVNotLiteralOrFilter {
     TagVFilter filter = new TagVNotLiteralOrFilter(TAGK, "LutZe|Keli|Slant", true);
     tags.clear();
     tags.put("colo", "lga");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test
   public void matchSingle() throws Exception {
     TagVFilter filter = new TagVNotLiteralOrFilter(TAGK, "CMTDibbler");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
     assertFalse(((TagVNotLiteralOrFilter)filter).isCaseInsensitive());
   }
   
   @Test
   public void matchSingleCaseInsensitive() throws Exception {
     TagVFilter filter = new TagVNotLiteralOrFilter(TAGK, "cmtDibbler", true);
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
     assertTrue(((TagVNotLiteralOrFilter)filter).isCaseInsensitive());
   }
   

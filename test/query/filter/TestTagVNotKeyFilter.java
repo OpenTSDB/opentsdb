@@ -25,13 +25,13 @@ public class TestTagVNotKeyFilter {
   @Test
   public void matchHasKey() throws Exception {
     TagVFilter filter = new TagVNotKeyFilter(TAGK, "");
-    assertFalse(filter.match(tags));
+    assertFalse(filter.match(tags).join());
   }
   
   @Test
   public void matchDoesNotHaveKey() throws Exception {
     TagVFilter filter = new TagVNotKeyFilter("colo", "");
-    assertTrue(filter.match(tags));
+    assertTrue(filter.match(tags).join());
   }
   
   @Test

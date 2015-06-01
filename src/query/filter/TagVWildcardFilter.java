@@ -19,6 +19,7 @@ import net.opentsdb.core.Tags;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Objects;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Performs basic wild card searching. It supports prefix, postfix, infix,
@@ -110,31 +111,31 @@ public class TagVWildcardFilter extends TagVFilter {
   }
 
   @Override
-  public boolean match(final Map<String, String> tags) {
+  public Deferred<Boolean> match(final Map<String, String> tags) {
     String tagv = tags.get(tagk);
     if (tagv == null) {
-      return false;
+      return Deferred.fromResult(false);
     } else if (components.length == 1 && components[0].equals("*")) {
       // match all
-      return true;
+      return Deferred.fromResult(true);
     } else if (case_insensitive) {
       tags.get(tagk).toLowerCase();
     }
     if (has_postfix && !has_prefix && 
         !tagv.endsWith(components[components.length-1])) {
-      return false;
+      return Deferred.fromResult(false);
     }
     if (has_prefix && !has_postfix && !tagv.startsWith(components[0])) {
-      return false;
+      return Deferred.fromResult(false);
     }
     int idx = 0;
     for (int i = 0; i < components.length; i++) {
       if (tagv.indexOf(components[i], idx) < 0) {
-        return false;
+        return Deferred.fromResult(false);
       }
       idx += components[i].length();
     }
-    return true;
+    return Deferred.fromResult(true);
   }
 
   @Override

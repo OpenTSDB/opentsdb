@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import net.opentsdb.query.filter.TagVFilter;
+
 import com.google.common.base.Objects;
 
 /**
@@ -64,6 +66,10 @@ public final class TSSubQuery {
   
   /** Parsed downsampling specification. */
   private DownsamplingSpecification downsample_specifier;
+  
+  /** A list of filters for this query. For now these are pulled out of the
+   * tags map. In the future we'll have special JSON objects for them. */
+  private List<TagVFilter> filters;
   
   /**
    * Default constructor necessary for POJO de/serialization
