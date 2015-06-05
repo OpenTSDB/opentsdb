@@ -110,6 +110,7 @@ public class TimeSeriesLookup {
    */
   public List<byte[]> lookup() {
     LOG.info(query.toString());
+    boolean limit_reached = false;
     final StringBuilder tagv_filter = new StringBuilder();
     final Scanner scanner = getScanner(tagv_filter);
     final List<byte[]> tsuids = new ArrayList<byte[]>();
@@ -166,8 +167,16 @@ public class TimeSeriesLookup {
             }
             buf.setLength(0);   // reset the buffer so we can re-use it
           } else {
-            tsuids.add(tsuid);
+            if(tsuids.size() < query.getLimit()) {
+              tsuids.add(tsuid);
+            } else {
+              limit_reached = true;
+              break;
+            }
           }
+        }
+        if(limit_reached) {
+          break;
         }
       }
     } catch (Exception e) {
