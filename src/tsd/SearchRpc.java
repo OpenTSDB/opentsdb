@@ -109,6 +109,15 @@ final class SearchRpc implements HttpRpc {
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("Unable to parse query", e);
       }
+      if (query.hasQueryStringParam("limit")) {
+        final String limit = query.getQueryStringParam("limit");
+        try {
+          search_query.setLimit(Integer.parseInt(limit));
+        } catch (NumberFormatException e) {
+          throw new BadRequestException(
+                  "Unable to convert 'limit' to a valid number");
+        }
+      }
       return search_query;
     }
     
