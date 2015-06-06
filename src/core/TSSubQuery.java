@@ -12,7 +12,9 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -20,6 +22,7 @@ import java.util.NoSuchElementException;
 import net.opentsdb.query.filter.TagVFilter;
 
 import com.google.common.base.Objects;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * Represents the parameters for an individual sub query on a metric or specific
@@ -47,11 +50,7 @@ public final class TSSubQuery {
   
   /** User provided list of timeseries UIDs */
   private List<String> tsuids;
-  
-  /** User supplied list of tags for specificity or grouping. May be null or 
-   * empty */
-  private Map<String, String> tags;
-  
+
   /** User given downsampler */
   private String downsample;
   
@@ -83,8 +82,8 @@ public final class TSSubQuery {
   public int hashCode() {
     // NOTE: Do not add any non-user submitted variables to the hash. We don't
     // want the hash to change after validation.
-    return Objects.hashCode(aggregator, metric, tsuids, tags, downsample, rate, 
-        rate_options);
+    return Objects.hashCode(aggregator, metric, tsuids, downsample, rate, 
+        rate_options, filters);
   }
   
   @Override
@@ -105,27 +104,25 @@ public final class TSSubQuery {
     return Objects.equal(aggregator, query.aggregator)
         && Objects.equal(metric, query.metric)
         && Objects.equal(tsuids, query.tsuids)
-        && Objects.equal(tags, query.tags)
         && Objects.equal(downsample, query.downsample)
         && Objects.equal(rate, query.rate)
-        && Objects.equal(rate_options, query.rate_options);
+        && Objects.equal(rate_options, query.rate_options)
+        && Objects.equal(filters, query.filters);
   }
   
   public String toString() {
     final StringBuilder buf = new StringBuilder();
     buf.append("TSSubQuery(metric=")
       .append(metric == null || metric.isEmpty() ? "" : metric);
-    buf.append(", tags=[");
-    if (tags != null && !tags.isEmpty()) {
+    buf.append(", filters=[");
+    if (filters != null && !filters.isEmpty()) {
       int counter = 0;
-      for (Map.Entry<String, String> entry : tags.entrySet()) {
+      for (final TagVFilter filter : filters) {
         if (counter > 0) {
           buf.append(", ");
         }
-        buf.append(entry.getKey())
-          .append("=")
-          .append(entry.getValue());
-        counter++;
+        buf.append(filter);
+        ++counter;
       }
     }
     buf.append("], tsuids=[");
@@ -180,6 +177,11 @@ public final class TSSubQuery {
           "Missing the metric or tsuids, provide at least one");
     }
     
+    // Make sure we have a filter list
+    if (filters == null) {
+      filters = new ArrayList<TagVFilter>();
+    }
+
     // parse the downsampler if we have one
     if (downsample != null && !downsample.isEmpty()) {
       // downsampler given, so parse it
@@ -228,12 +230,22 @@ public final class TSSubQuery {
     return tsuids;
   }
 
-  /** @return the user supplied list of query tags, may be empty */
+  /** @return the user supplied list of group by query tags, may be empty.
+   * Note that as of version 2.2 this is an immutable list of tags built from
+   * the filter list.
+   * @deprecated */
   public Map<String, String> getTags() {
-    if (tags == null) {
+    if (filters == null) {
       return Collections.emptyMap();
     }
-    return tags;
+    final Map<String, String> tags = new HashMap<String, String>(filters.size());
+    for (final TagVFilter filter : filters) {
+      if (filter.isGroupBy()) {
+        tags.put(filter.getTagk(), filter.getType() + 
+            "(" + filter.getFilter() + ")");
+      }
+    }
+    return ImmutableMap.copyOf(tags);
   }
 
   /** @return the raw downsampling function request from the user, 
@@ -252,6 +264,15 @@ public final class TSSubQuery {
     return rate_options;
   }
   
+  /** @return the filters pulled from the tags object 
+   * @since 2.2 */
+  public List<TagVFilter> getFilters() {
+    if (filters == null) {
+      filters = new ArrayList<TagVFilter>();
+    }
+    return filters;
+  }
+  
   /** @param aggregator the name of an aggregation function */
   public void setAggregator(String aggregator) {
     this.aggregator = aggregator;
@@ -267,9 +288,16 @@ public final class TSSubQuery {
     this.tsuids = tsuids;
   }
 
-  /** @param tags an optional list of tags for specificity or grouping */
+  /** @param tags an optional list of tags for specificity or grouping
+   * As of 2.2 this will convert the existing tags to filter
+   * @deprecated */
   public void setTags(Map<String, String> tags) {
-    this.tags = tags;
+    if (filters == null) {
+      filters = new ArrayList<TagVFilter>(tags.size());
+    } else {
+      filters.clear();
+    }
+    TagVFilter.tagsToFilters(tags, filters);
   }
 
   /** @param downsample the downsampling function to use, e.g. "2h-avg" */
@@ -286,4 +314,11 @@ public final class TSSubQuery {
   public void setRateOptions(RateOptions options) {
     this.rate_options = options;
   }
+  
+  /** @param filters A list of filters to use when querying
+   * @since 2.2 */
+  public void setFilters(List<TagVFilter> filters) {
+    this.filters = filters;
+  }
+  
 }

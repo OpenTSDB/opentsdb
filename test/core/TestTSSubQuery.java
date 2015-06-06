@@ -19,8 +19,14 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.filter.TagVLiteralOrFilter;
+import net.opentsdb.query.filter.TagVWildcardFilter;
 
 import org.junit.Test;
 
@@ -36,8 +42,8 @@ public final class TestTSSubQuery {
     TSSubQuery sub = getMetricForValidate();
     sub.validateAndSetQuery();
     assertEquals("sys.cpu.0", sub.getMetric());
-    assertEquals("*", sub.getTags().get("host"));
-    assertEquals("lga", sub.getTags().get("dc"));
+    assertEquals("wildcard(*)", sub.getTags().get("host"));
+    assertEquals("literal_or(lga)", sub.getTags().get("dc"));
     assertEquals(Aggregators.SUM, sub.aggregator());
     assertEquals(Aggregators.AVG, sub.downsampler());
     assertEquals(300000, sub.downsampleInterval());
@@ -52,8 +58,8 @@ public final class TestTSSubQuery {
     sub.setTsuids(tsuids);
     sub.validateAndSetQuery();
     assertNotNull(sub.getTsuids());
-    assertEquals("*", sub.getTags().get("host"));
-    assertEquals("lga", sub.getTags().get("dc"));
+    assertEquals("wildcard(*)", sub.getTags().get("host"));
+    assertEquals("literal_or(lga)", sub.getTags().get("dc"));
     assertEquals(Aggregators.SUM, sub.aggregator());
     assertEquals(Aggregators.AVG, sub.downsampler());
     assertEquals(300000, sub.downsampleInterval());
@@ -65,8 +71,8 @@ public final class TestTSSubQuery {
     sub.setDownsample(null);
     sub.validateAndSetQuery();
     assertEquals("sys.cpu.0", sub.getMetric());
-    assertEquals("*", sub.getTags().get("host"));
-    assertEquals("lga", sub.getTags().get("dc"));
+    assertEquals("wildcard(*)", sub.getTags().get("host"));
+    assertEquals("literal_or(lga)", sub.getTags().get("dc"));
     assertEquals(Aggregators.SUM, sub.aggregator());
     assertNull(sub.downsampler());
     assertEquals(0, sub.downsampleInterval());
@@ -116,6 +122,69 @@ public final class TestTSSubQuery {
     sub.validateAndSetQuery();
   }
   
+  @Test
+  public void validateWithFilter() {
+    TSSubQuery sub = getMetricForValidate();
+    sub.setFilters(Arrays.asList(TagVFilter.Builder()
+        .setFilter("*nari").setType("wildcard").setTagk("host").build()));
+    sub.validateAndSetQuery();
+    assertEquals("sys.cpu.0", sub.getMetric());
+    assertEquals(1, sub.getFilters().size());
+    assertTrue(sub.getFilters().get(0) instanceof TagVWildcardFilter);
+    assertEquals(0, sub.getTags().size());
+    assertEquals(Aggregators.SUM, sub.aggregator());
+    assertEquals(Aggregators.AVG, sub.downsampler());
+    assertEquals(300000, sub.downsampleInterval());
+  }
+  
+  @Test
+  public void validateWithFilterViaTags() {
+    TSSubQuery sub = getMetricForValidate();
+    
+    final Map<String, String> tags = new HashMap<String, String>();
+    tags.put("host", TagVWildcardFilter.FILTER_NAME + "(*nari)");
+    sub.setTags(tags);
+    sub.validateAndSetQuery();
+    assertEquals("sys.cpu.0", sub.getMetric());
+    assertEquals(1, sub.getFilters().size());
+    assertTrue(sub.getFilters().get(0) instanceof TagVWildcardFilter);
+    assertEquals("wildcard(*nari)", sub.getTags().get("host"));
+    assertEquals(Aggregators.SUM, sub.aggregator());
+    assertEquals(Aggregators.AVG, sub.downsampler());
+    assertEquals(300000, sub.downsampleInterval());
+  }
+  
+  @Test
+  public void validateGroupByFilterMissingParensViaTags() {
+    TSSubQuery sub = getMetricForValidate();
+    final Map<String, String> tags = new HashMap<String, String>();
+    tags.put("host", TagVWildcardFilter.FILTER_NAME);
+    sub.setTags(tags);
+    sub.validateAndSetQuery();
+    assertEquals("sys.cpu.0", sub.getMetric());
+    assertEquals(1, sub.getFilters().size());
+    assertTrue(sub.getFilters().get(0) instanceof TagVLiteralOrFilter);
+    assertEquals(Aggregators.SUM, sub.aggregator());
+    assertEquals(Aggregators.AVG, sub.downsampler());
+    assertEquals(300000, sub.downsampleInterval());
+  }
+
+  @Test
+  public void validateWithGroupByFilter() {
+    TSSubQuery sub = getMetricForValidate();
+    sub.setFilters(Arrays.asList(TagVFilter.Builder()
+        .setFilter("*nari").setType("wildcard").setTagk("host")
+        .setGroupBy(true).build()));
+    sub.validateAndSetQuery();
+    assertEquals("sys.cpu.0", sub.getMetric());
+    assertEquals("wildcard(*nari)", sub.getTags().get("host"));
+    assertEquals(1, sub.getFilters().size());
+    assertTrue(sub.getFilters().get(0) instanceof TagVWildcardFilter);
+    assertEquals(Aggregators.SUM, sub.aggregator());
+    assertEquals(Aggregators.AVG, sub.downsampler());
+    assertEquals(300000, sub.downsampleInterval());
+  }
+
   // NOTE: Each of the hash and equals  tests should make sure that we the code
   // doesn't change after validation.
   
@@ -241,15 +310,18 @@ public final class TestTSSubQuery {
   public void testHashCodeandEqualsTag() {
     final TSSubQuery sub1 = getBaseQuery();
     final int hash_a = sub1.hashCode();
-
-    sub1.getTags().put("host", "web02");
+    Map<String, String> tags = new HashMap<String, String>();
+    tags.put("host", "web02");
+    sub1.setTags(tags);
     final int hash_b = sub1.hashCode();
     assertFalse(hash_a == sub1.hashCode());
     sub1.validateAndSetQuery();
     assertEquals(hash_b, sub1.hashCode());
     
     TSSubQuery sub2 = getBaseQuery();
-    sub2.getTags().put("host", "web02");
+    tags = new HashMap<String, String>();
+    tags.put("host", "web02");
+    sub2.setTags(tags);
     
     assertEquals(hash_b, sub2.hashCode());
     assertEquals(sub1, sub2);
@@ -260,17 +332,20 @@ public final class TestTSSubQuery {
   public void testHashCodeandEqualsTags() {
     final TSSubQuery sub1 = getBaseQuery();
     final int hash_a = sub1.hashCode();
-
-    sub1.getTags().put("host", "web02");
-    sub1.getTags().put("foo", "bar");
+    Map<String, String> tags = new HashMap<String, String>();
+    tags.put("host", "web02");
+    tags.put("foo", "bar");
+    sub1.setTags(tags);
     final int hash_b = sub1.hashCode();
     assertFalse(hash_a == sub1.hashCode());
     sub1.validateAndSetQuery();
     assertEquals(hash_b, sub1.hashCode());
     
     TSSubQuery sub2 = getBaseQuery();
-    sub2.getTags().put("host", "web02");
-    sub2.getTags().put("foo", "bar");
+    tags = new HashMap<String, String>();
+    tags.put("host", "web02");
+    tags.put("foo", "bar");
+    sub2.setTags(tags);
     
     assertEquals(hash_b, sub2.hashCode());
     assertEquals(sub1, sub2);
@@ -454,6 +529,29 @@ public final class TestTSSubQuery {
   public void testEqualsSame() {
     final TSSubQuery sub1 = getBaseQuery();
     assertTrue(sub1.equals(sub1));
+  }
+
+  @Test
+  public void testHashCodeandEqualsFilter() {
+    TSSubQuery sub1 = getBaseQuery();
+    final int hash_a = sub1.hashCode();
+    sub1.setFilters(Arrays.asList(TagVFilter.Builder()
+        .setFilter("*nari").setType("wildcard").setTagk("host")
+        .setGroupBy(true).build()));    
+    assertFalse(hash_a == sub1.hashCode());
+    sub1.validateAndSetQuery();
+    final int has_b = sub1.hashCode();
+    assertEquals(has_b, sub1.hashCode());
+    
+    TSSubQuery sub2 = getBaseQuery();
+    sub2.setFilters(Arrays.asList(TagVFilter.Builder()
+        .setFilter("*nari").setType("wildcard").setTagk("host")
+        .setGroupBy(true).build()));    
+    sub2.validateAndSetQuery();
+    
+    assertEquals(has_b, sub2.hashCode());
+    assertEquals(sub1, sub2);
+    assertFalse(sub1 == sub2);
   }
   
   /** @return a sub query object with some defaults set for testing */
