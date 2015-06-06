@@ -18,6 +18,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.filter.TagVLiteralOrFilter;
+import net.opentsdb.query.filter.TagVLiteralOrFilter.TagVILiteralOrFilter;
+import net.opentsdb.query.filter.TagVRegexFilter;
+import net.opentsdb.query.filter.TagVWildcardFilter;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -43,6 +48,7 @@ import com.stumbleupon.async.Deferred;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -380,6 +386,121 @@ public final class TestTags {
     Tags.parseWithMetric("{=}", tags);
   }
   
+  @Test
+  public void parseWithMetricAndFilters() {
+    final List<TagVFilter> filters = new ArrayList<TagVFilter>();
+    String metric = Tags.parseWithMetricAndFilters("sys.cpu.user", filters);
+    assertEquals("sys.cpu.user", metric);
+    assertEquals(0, filters.size());
+    
+    filters.clear();
+    metric = Tags.parseWithMetricAndFilters("sys.cpu.user{host=web01}", filters);
+    assertEquals("sys.cpu.user", metric);
+    assertEquals(1, filters.size());
+    assertEquals("host", filters.get(0).getTagk());
+    assertTrue(filters.get(0).isGroupBy());
+    assertTrue(filters.get(0) instanceof TagVLiteralOrFilter);
+    
+    filters.clear();
+    metric = Tags.parseWithMetricAndFilters("sys.cpu.user{host=*}", filters);
+    assertEquals("sys.cpu.user", metric);
+    assertEquals(1, filters.size());
+    assertEquals("host", filters.get(0).getTagk());
+    assertTrue(filters.get(0).isGroupBy());
+    assertTrue(filters.get(0) instanceof TagVWildcardFilter);
+    
+    filters.clear();
+    metric = Tags.parseWithMetricAndFilters("sys.cpu.user{host=web01}{}", filters);
+    assertEquals("sys.cpu.user", metric);
+    assertEquals(1, filters.size());
+    assertEquals("host", filters.get(0).getTagk());
+    assertTrue(filters.get(0).isGroupBy());
+    assertTrue(filters.get(0) instanceof TagVLiteralOrFilter);
+    
+    filters.clear();
+    metric = Tags.parseWithMetricAndFilters(
+        "sys.cpu.user{host=*,owner=regexp(.*ob)}", filters);
+    assertEquals("sys.cpu.user", metric);
+    assertEquals(2, filters.size());
+    for (final TagVFilter filter : filters) {
+      if (filter instanceof TagVWildcardFilter) {
+        assertEquals("host", filter.getTagk());
+      } else if (filter instanceof TagVRegexFilter) {
+        assertEquals("owner", filter.getTagk());
+      }
+      assertTrue(filter.isGroupBy());
+    }
+    
+    filters.clear();
+    metric = Tags.parseWithMetricAndFilters("sys.cpu.user{}{host=web01}", filters);
+    assertEquals("sys.cpu.user", metric);
+    assertEquals(1, filters.size());
+    assertEquals("host", filters.get(0).getTagk());
+    assertFalse(filters.get(0).isGroupBy());
+    assertTrue(filters.get(0) instanceof TagVLiteralOrFilter);
+    
+    filters.clear();
+    metric = Tags.parseWithMetricAndFilters(
+        "sys.cpu.user{}{host=iliteral_or(web01|Web02)}", filters);
+    assertEquals("sys.cpu.user", metric);
+    assertEquals(1, filters.size());
+    assertEquals("host", filters.get(0).getTagk());
+    assertFalse(filters.get(0).isGroupBy());
+    assertTrue(filters.get(0) instanceof TagVILiteralOrFilter);
+    
+    filters.clear();
+    metric = Tags.parseWithMetricAndFilters(
+        "sys.cpu.user{}{host=iliteral_or(web01|Web02),owner=*}", filters);
+    assertEquals("sys.cpu.user", metric);
+    assertEquals(2, filters.size());
+    for (final TagVFilter filter : filters) {
+      if (filter instanceof TagVWildcardFilter) {
+        assertEquals("owner", filter.getTagk());
+      } else if (filter instanceof TagVILiteralOrFilter) {
+        assertEquals("host", filter.getTagk());
+      }
+      assertFalse(filter.isGroupBy());
+    }
+    
+    filters.clear();
+    metric = Tags.parseWithMetricAndFilters(
+        "sys.cpu.user{host=iliteral_or(web01|Web02)}{owner=*}", filters);
+    assertEquals("sys.cpu.user", metric);
+    System.out.println(filters);
+    assertEquals(2, filters.size());
+    for (final TagVFilter filter : filters) {
+      if (filter instanceof TagVWildcardFilter) {
+        assertEquals("owner", filter.getTagk());
+        assertFalse(filter.isGroupBy());
+      } else if (filter instanceof TagVILiteralOrFilter) {
+        assertEquals("host", filter.getTagk());
+        assertTrue(filter.isGroupBy());
+      }
+    }
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void parseWithMetricAndFiltersMissingTrailingCurly() {
+    final List<TagVFilter> filters = new ArrayList<TagVFilter>();
+    Tags.parseWithMetricAndFilters("sys.cpu.user{}{host=web01", filters);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void parseWithMetricAndFiltersNullString() {
+    final List<TagVFilter> filters = new ArrayList<TagVFilter>();
+    Tags.parseWithMetricAndFilters(null, filters);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void parseWithMetricAndFiltersEmptyString() {
+    final List<TagVFilter> filters = new ArrayList<TagVFilter>();
+    Tags.parseWithMetricAndFilters("", filters);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void parseWithMetricAndFiltersNullFilters() {
+    Tags.parseWithMetricAndFilters("sys.cpu.user{}{host=web01}", null);
+  }
   @Test
   public void parseSuccessful() {
     final HashMap<String, String> tags = new HashMap<String, String>(2);

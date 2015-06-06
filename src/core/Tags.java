@@ -28,6 +28,7 @@ import com.stumbleupon.async.Deferred;
 import org.hbase.async.Bytes;
 import org.hbase.async.Bytes.ByteMap;
 
+import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.Pair;
@@ -203,6 +204,72 @@ public final class Tags {
     return metric.substring(0, curly);
   }
   
+  /**
+   * Parses the metric and tags out of the given string.
+   * @param metric A string of the form "metric" or "metric{tag=value,...}" or
+   * now "metric{groupby=filter}{filter=filter}".
+   * @param filters A list of filters to write the results to. May not be null
+   * @return The name of the metric.
+   * @throws IllegalArgumentException if the metric is malformed or the filter
+   * list is null.
+   * @since 2.2
+   */
+  public static String parseWithMetricAndFilters(final String metric, 
+      final List<TagVFilter> filters) {
+    if (metric == null || metric.isEmpty()) {
+      throw new IllegalArgumentException("Metric cannot be null or empty");
+    }
+    if (filters == null) {
+      throw new IllegalArgumentException("Filters cannot be null");
+    }
+    final int curly = metric.indexOf('{');
+    if (curly < 0) {
+      return metric;
+    }
+    final int len = metric.length();
+    if (metric.charAt(len - 1) != '}') {  // "foo{"
+      throw new IllegalArgumentException("Missing '}' at the end of: " + metric);
+    } else if (curly == len - 2) {  // "foo{}"
+      return metric.substring(0, len - 2);
+    }
+    final int close = metric.indexOf('}');
+    final HashMap<String, String> filter_map = new HashMap<String, String>();
+    if (close != metric.length() - 1) { // "foo{...}{tagk=filter}" 
+      final int filter_bracket = metric.lastIndexOf('{');
+      for (final String filter : splitString(metric.substring(filter_bracket + 1, 
+          metric.length() - 1), ',')) {
+        if (filter.isEmpty()) {
+          break;
+        }
+        filter_map.clear();
+        try {
+          parse(filter_map, filter);
+          TagVFilter.mapToFilters(filter_map, filters, false);
+        } catch (IllegalArgumentException e) {
+          throw new IllegalArgumentException("When parsing filter '" + filter
+              + "': " + e.getMessage(), e);
+        }
+      }
+    }
+    
+    // substring the tags out of "foo{a=b,...,x=y}" and parse them.
+    for (final String tag : splitString(metric.substring(curly + 1, close), ',')) {
+      try {
+        if (tag.isEmpty() && close != metric.length() - 1){
+          break;
+        }
+        filter_map.clear();
+        parse(filter_map, tag);
+        TagVFilter.tagsToFilters(filter_map, filters);
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException("When parsing tag '" + tag
+                                           + "': " + e.getMessage(), e);
+      }
+    }
+    // Return the "foo" part of "foo{a=b,...,x=y}"
+    return metric.substring(0, curly);
+  }
+      
   /**
    * Parses an integer value as a long from the given character sequence.
    * <p>
