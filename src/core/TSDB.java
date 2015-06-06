@@ -13,6 +13,7 @@
 package net.opentsdb.core;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,6 +49,7 @@ import net.opentsdb.utils.PluginLoader;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.Histogram;
@@ -211,6 +213,25 @@ public final class TSDB {
         throw new RuntimeException("Error loading plugins from plugin path: " + 
             plugin_path, e);
       }
+    }
+    
+    try {
+      TagVFilter.initializeFilterMap(this);
+      // @#$@%$%#$ing typed exceptions
+    } catch (SecurityException e) {
+      throw new RuntimeException("Failed to instantiate filters", e);
+    } catch (IllegalArgumentException e) {
+      throw new RuntimeException("Failed to instantiate filters", e);
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("Failed to instantiate filters", e);
+    } catch (NoSuchMethodException e) {
+      throw new RuntimeException("Failed to instantiate filters", e);
+    } catch (NoSuchFieldException e) {
+      throw new RuntimeException("Failed to instantiate filters", e);
+    } catch (IllegalAccessException e) {
+      throw new RuntimeException("Failed to instantiate filters", e);
+    } catch (InvocationTargetException e) {
+      throw new RuntimeException("Failed to instantiate filters", e);
     }
 
     // load the search plugin if enabled
