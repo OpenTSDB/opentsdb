@@ -276,17 +276,12 @@ final class AggregationIterator implements SeekableView, DataPoint,
       SeekableView it = iterators[i];
       it.seek(start_time);
       final DataPoint dp;
-      try {
-        dp = it.next();
-      } catch (NoSuchElementException e) {
-        // It should be rare but could happen after downsampling when
-        // we throw away some data points at the beginning after aligning
-        // start time by downsmpling interval and there are no data points
-        // left for the current span.
+      if (!it.hasNext()) {
         ++num_empty_spans;
         endReached(i);
         continue;
       }
+      dp = it.next();
       //LOG.debug("Creating iterator #" + i);
       if (dp.timestamp() >= start_time) {
         //LOG.debug("First DP in range for #" + i + ": "
