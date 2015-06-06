@@ -42,6 +42,7 @@ import net.opentsdb.core.TSSubQuery;
 import net.opentsdb.core.Tags;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSUIDQuery;
+import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
@@ -494,9 +495,9 @@ final class QueryRpc implements HttpRpc {
     sub_query.setAggregator(parts[0]);
     
     i--; // Move to the last part (the metric name).
-    HashMap<String, String> tags = new HashMap<String, String>();
-    sub_query.setMetric(Tags.parseWithMetric(parts[i], tags));
-    sub_query.setTags(tags);
+    List<TagVFilter> filters = new ArrayList<TagVFilter>();
+    sub_query.setMetric(Tags.parseWithMetricAndFilters(parts[i], filters));
+    sub_query.setFilters(filters);
     
     // parse out the rate and downsampler 
     for (int x = 1; x < parts.length - 1; x++) {

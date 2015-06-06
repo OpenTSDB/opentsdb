@@ -46,8 +46,8 @@ public final class TestTSQuery {
     assertEquals(1356998400000L, q.startTime());
     assertEquals(1356998460000L, q.endTime());
     assertEquals("sys.cpu.0", q.getQueries().get(0).getMetric());
-    assertEquals("*", q.getQueries().get(0).getTags().get("host"));
-    assertEquals("lga", q.getQueries().get(0).getTags().get("dc"));
+    assertEquals("wildcard(*)", q.getQueries().get(0).getTags().get("host"));
+    assertEquals("literal_or(lga)", q.getQueries().get(0).getTags().get("dc"));
     assertEquals(Aggregators.SUM, q.getQueries().get(0).aggregator());
     assertEquals(Aggregators.AVG, q.getQueries().get(0).downsampler());
     assertEquals(300000, q.getQueries().get(0).downsampleInterval());

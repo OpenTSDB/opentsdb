@@ -29,6 +29,9 @@ import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.TSSubQuery;
+import net.opentsdb.query.filter.TagVLiteralOrFilter;
+import net.opentsdb.query.filter.TagVRegexFilter;
+import net.opentsdb.query.filter.TagVWildcardFilter;
 import net.opentsdb.storage.MockDataPoints;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
@@ -169,7 +172,135 @@ public final class TestQueryRpc {
     TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
     TSSubQuery sub = tsq.getQueries().get(0);
     assertNotNull(sub.getTags());
-    assertEquals("web01", sub.getTags().get("host"));
+    assertEquals("literal_or(web01)", sub.getTags().get("host"));
+  }
+  
+  @Test
+  public void parseQueryMTypeWGroupByRegex() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=" + 
+          TagVRegexFilter.FILTER_NAME + "(something(foo|bar))}");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    TSSubQuery sub = tsq.getQueries().get(0);
+    sub.validateAndSetQuery();
+    assertEquals(1, sub.getFilters().size());
+    assertTrue(sub.getFilters().get(0) instanceof TagVRegexFilter);
+  }
+  
+  @Test
+  public void parseQueryMTypeWGroupByWildcardExplicit() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=" + 
+          TagVWildcardFilter.FILTER_NAME + "(*quirm)}");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    TSSubQuery sub = tsq.getQueries().get(0);
+    sub.validateAndSetQuery();
+    assertEquals(1, sub.getFilters().size());
+    assertTrue(sub.getFilters().get(0) instanceof TagVWildcardFilter);
+  }
+  
+  @Test
+  public void parseQueryMTypeWGroupByWildcardImplicit() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=*quirm}");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    TSSubQuery sub = tsq.getQueries().get(0);
+    sub.validateAndSetQuery();
+    assertEquals(1, sub.getFilters().size());
+    assertTrue(sub.getFilters().get(0) instanceof TagVWildcardFilter);
+  }
+  
+  @Test
+  public void parseQueryMTypeWWildcardFilterExplicit() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:sys.cpu.0{}{host=wildcard(*quirm)}");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    TSSubQuery sub = tsq.getQueries().get(0);
+    sub.validateAndSetQuery();
+    assertEquals(1, sub.getFilters().size());
+    assertTrue(sub.getFilters().get(0) instanceof TagVWildcardFilter);
+  }
+  
+  @Test
+  public void parseQueryMTypeWWildcardFilterImplicit() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:sys.cpu.0{}{host=*quirm}");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    TSSubQuery sub = tsq.getQueries().get(0);
+    sub.validateAndSetQuery();
+    assertEquals(1, sub.getFilters().size());
+    assertTrue(sub.getFilters().get(0) instanceof TagVWildcardFilter);
+  }
+  
+  @Test
+  public void parseQueryMTypeWGroupByAndWildcardFilterExplicit() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:sys.cpu.0{colo=lga}{host=wildcard(*quirm)}");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    TSSubQuery sub = tsq.getQueries().get(0);
+    sub.validateAndSetQuery();
+    assertTrue(sub.getFilters().get(0) instanceof TagVWildcardFilter);
+    assertTrue(sub.getFilters().get(1) instanceof TagVLiteralOrFilter);
+  }
+  
+  @Test
+  public void parseQueryMTypeWGroupByAndWildcardFilterSameTagK() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=quirm|tsort}"
+      + "{host=wildcard(*quirm)}");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    TSSubQuery sub = tsq.getQueries().get(0);
+    sub.validateAndSetQuery();
+    assertTrue(sub.getFilters().get(0) instanceof TagVWildcardFilter);
+    assertTrue(sub.getFilters().get(1) instanceof TagVLiteralOrFilter);
+  }
+  
+  @Test
+  public void parseQueryMTypeWGroupByFilterAndWildcardFilterSameTagK() 
+      throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=wildcard(*tsort)}"
+      + "{host=wildcard(*quirm)}");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    TSSubQuery sub = tsq.getQueries().get(0);
+    sub.validateAndSetQuery();
+    assertEquals(2, sub.getFilters().size());
+    assertTrue(sub.getFilters().get(0) instanceof TagVWildcardFilter);
+    assertTrue(sub.getFilters().get(1) instanceof TagVWildcardFilter);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void parseQueryMTypeWGroupByFilterMissingClose() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=wildcard(*tsort)}"
+      + "{host=wildcard(*quirm)");
+    parseQuery.invoke(rpc, tsdb, query);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void parseQueryMTypeWGroupByFilterMissingEquals() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=wildcard(*tsort)}"
+      + "{hostwildcard(*quirm)}");
+    parseQuery.invoke(rpc, tsdb, query);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void parseQueryMTypeWGroupByNoSuchFilter() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:sys.cpu.0{host=nosuchfilter(*tsort)}"
+      + "{host=dummyfilter(*quirm)}");
+    parseQuery.invoke(rpc, tsdb, query);
+  }
+  
+  @Test
+  public void parseQueryMTypeWEmptyFilterBrackets() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:sys.cpu.0{}{}");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    TSSubQuery sub = tsq.getQueries().get(0);
+    sub.validateAndSetQuery();
+    assertEquals(0, sub.getFilters().size());
   }
   
   @Test
