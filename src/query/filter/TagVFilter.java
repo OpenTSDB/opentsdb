@@ -306,11 +306,25 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
    */
   public static void tagsToFilters(final Map<String, String> tags, 
       final List<TagVFilter> filters) {
-    if (tags == null || tags.isEmpty()) {
+    mapToFilters(tags, filters, true);
+  }
+
+  /**
+   * Converts the  map to a filter list. If a filter already exists for a
+   * tag group by and we're told to process group bys, then the duplicate 
+   * is skipped. 
+   * @param map A set of tag keys and values. May be null or empty.
+   * @param filters A set of filters to add the converted filters to. This may
+   * not be null.
+   * @param group_by Whether or not to set the group by flag and kick dupes
+   */
+  public static void mapToFilters(final Map<String, String> map, 
+      final List<TagVFilter> filters, final boolean group_by) {
+    if (map == null || map.isEmpty()) {
       return;
     }
 
-    for (final Map.Entry<String, String> entry : tags.entrySet()) {
+    for (final Map.Entry<String, String> entry : map.entrySet()) {
       TagVFilter filter = getFilter(entry.getKey(), entry.getValue());
 
       if (filter == null && entry.getValue().equals("*")) {
@@ -319,23 +333,27 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
         filter = new TagVLiteralOrFilter(entry.getKey(), entry.getValue());
       }
       
-      filter.setGroupBy(true);
-      boolean duplicate = false;
-      for (final TagVFilter existing : filters) {
-        if (filter.equals(existing)) {
-          LOG.debug("Skipping duplicate filter: " + existing);
-          existing.setGroupBy(true);
-          duplicate = true;
-          break;
+      if (group_by) {
+        filter.setGroupBy(true);
+        boolean duplicate = false;
+        for (final TagVFilter existing : filters) {
+          if (filter.equals(existing)) {
+            LOG.debug("Skipping duplicate filter: " + existing);
+            existing.setGroupBy(true);
+            duplicate = true;
+            break;
+          }
         }
-      }
-      
-      if (!duplicate) {
+        
+        if (!duplicate) {
+          filters.add(filter);
+        }
+      } else {
         filters.add(filter);
       }
     }
   }
-
+  
   /**
    * Runs through the loaded plugin map and dumps the names, description and
    * examples into a map to serialize via the API.
