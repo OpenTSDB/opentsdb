@@ -741,6 +741,20 @@ public abstract class HttpSerializer {
   }
   
   /**
+   * Format the loaded filter configurations
+   * @param config The filters to serialize
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatFilterConfigV1(
+      final Map<String, Map<String, String>> config) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatFilterConfigV1");
+  }
+  
+  /**
    * Formats a 404 error when an endpoint or file wasn't found
    * <p>
    * <b>WARNING:</b> If overriding, make sure this method catches all errors and

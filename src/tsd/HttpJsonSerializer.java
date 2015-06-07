@@ -1081,6 +1081,17 @@ class HttpJsonSerializer extends HttpSerializer {
   }
   
   /**
+   * Format the loaded filter configurations
+   * @param config The filters to serialize
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatFilterConfigV1(
+      final Map<String, Map<String, String>> config) {
+    return serializeJSON(config);
+  }
+  
+  /**
    * Helper object for the format calls to wrap the JSON response in a JSONP
    * function if requested. Used for code dedupe.
    * @param obj The object to serialize

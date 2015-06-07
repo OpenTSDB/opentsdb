@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import net.opentsdb.tools.BuildData;
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
@@ -714,15 +715,32 @@ public final class RpcManager {
             "] is not permitted for this endpoint");
       }
       
-      switch (query.apiVersion()) {
+      final String[] uri = query.explodeAPIPath();
+      final String endpoint = uri.length > 1 ? uri[1].toLowerCase() : "";
+      
+      if (endpoint.equals("filters")) {
+        switch (query.apiVersion()) {
         case 0:
         case 1:
-          query.sendReply(query.serializer().formatConfigV1(tsdb.getConfig()));
+          query.sendReply(query.serializer().formatFilterConfigV1(
+              TagVFilter.loadedFilters()));
           break;
         default: 
           throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
               "Requested API version not implemented", "Version " + 
               query.apiVersion() + " is not implemented");
+        }
+      } else {
+        switch (query.apiVersion()) {
+          case 0:
+          case 1:
+            query.sendReply(query.serializer().formatConfigV1(tsdb.getConfig()));
+            break;
+          default: 
+            throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+                "Requested API version not implemented", "Version " + 
+                query.apiVersion() + " is not implemented");
+        }
       }
     }
   }
