@@ -15,12 +15,16 @@ package net.opentsdb.core;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.KeyValue;
@@ -85,6 +89,9 @@ public class SaltScanner {
    * are done.*/
   private long start_time; // milliseconds.
 
+  /** A list of filters to iterate over when processing rows */
+  private final List<TagVFilter> filters;
+  
   /** A holder for storing the first exception thrown by a scanner if something
    * goes pear shaped. Make sure to synchronize on this object when checking
    * for null or assigning from a scanner's callback. */
@@ -97,12 +104,14 @@ public class SaltScanner {
    * @param metric The metric we're expecting to fetch
    * @param scanners A list of HBase scanners, one for each bucket
    * @param spans The span map to store results in
+   * @param filters A list of filters for processing
    * @throws IllegalArgumentException if any required data was missing or
    * we had invalid parameters.
    */
   public SaltScanner(final TSDB tsdb, final byte[] metric, 
                                       final List<Scanner> scanners, 
-                                      final TreeMap<byte[], Span> spans) {
+                                      final TreeMap<byte[], Span> spans,
+                                      final List<TagVFilter> filters) {
     if (Const.SALT_WIDTH() < 1) {
       throw new IllegalArgumentException(
           "Salting is disabled. Use the regular scanner");
@@ -137,6 +146,7 @@ public class SaltScanner {
     this.spans = spans;
     this.metric = metric;
     this.tsdb = tsdb;
+    this.filters = filters;
   }
 
   /**
@@ -247,6 +257,8 @@ public class SaltScanner {
     private final List<KeyValue> kvs = new ArrayList<KeyValue>();
     private final ByteMap<List<Annotation>> annotations = 
             new ByteMap<List<Annotation>>();
+    private final Set<String> skips = new HashSet<String>();
+    private final Set<String> keepers = new HashSet<String>();
     
     public ScannerCB(final Scanner scanner) {
       this.scanner = scanner;
@@ -290,6 +302,11 @@ public class SaltScanner {
           return null;
         }
 
+        // used for UID resolution if a filter is involved
+        final List<Deferred<Object>> lookups = 
+            filters != null && !filters.isEmpty() ? 
+                new ArrayList<Deferred<Object>>(rows.size()) : null;
+                
         for (final ArrayList<KeyValue> row : rows) {
           final byte[] key = row.get(0).key();
           if (RowKey.rowKeyContainsMetric(metric, key) != 0) {
@@ -301,34 +318,106 @@ public class SaltScanner {
             return null;
           }
 
-          List<Annotation> notes = annotations.get(key);
-          if (notes == null) {
-            notes = new ArrayList<Annotation>();
-            annotations.put(key, notes);
-          }
+          // If any filters have made it this far then we need to resolve
+          // the row key UIDs to their names for string comparison. We'll
+          // try to avoid the resolution with some sets but we may dupe
+          // resolve a few times.
+          // TODO - more efficient resolution
+          // TODO - byte set instead of a string for the uid may be faster
+          if (filters != null && !filters.isEmpty()) {
+            lookups.clear();
+            final String tsuid = 
+                UniqueId.uidToString(UniqueId.getTSUIDFromKey(key, 
+                TSDB.metrics_width(), Const.TIMESTAMP_BYTES));
+            if (skips.contains(tsuid)) {
+              continue;
+            }
+            if (!keepers.contains(tsuid)) {
+              /** CB to called after all of the UIDs have been resolved */
+              class MatchCB implements Callback<Object, ArrayList<Boolean>> {
+                @Override
+                public Object call(final ArrayList<Boolean> matches) 
+                    throws Exception {
+                  for (final boolean matched : matches) {
+                    if (!matched) {
+                      skips.add(tsuid);
+                      return null;
+                    }
+                  }
+                  // matched all, good data
+                  keepers.add(tsuid);
+                  processRow(key, row);
+                  return null;
+                }
+              }
 
-          final KeyValue compacted;
-          try{
-            compacted = tsdb.compact(row, notes);
-          } catch (final IllegalDataException idex) {
-            LOG.error("Caught IllegalDataException exception while parsing the "
-               + "row " + key + ", skipping it on scanner " + this, idex);
-            scanner.close();
-            handleException(idex);
-            return null;
-          }
-          
-          if (compacted != null) { // Can be null if we ignored all KVs.
-            kvs.add(compacted);
+              /** Resolves all of the row key UIDs to their strings for filtering */
+              class GetTagsCB implements
+                  Callback<Deferred<ArrayList<Boolean>>, Map<String, String>> {
+                @Override
+                public Deferred<ArrayList<Boolean>> call(
+                    final Map<String, String> tags) throws Exception {
+                  final List<Deferred<Boolean>> matches =
+                      new ArrayList<Deferred<Boolean>>(filters.size());
+
+                  for (final TagVFilter filter : filters) {
+                    matches.add(filter.match(tags));
+                  }
+                  
+                  return Deferred.group(matches);
+                }
+              }
+ 
+              lookups.add(Tags.getTagsAsync(tsdb, key)
+                  .addCallbackDeferring(new GetTagsCB())
+                  .addBoth(new MatchCB()));
+            } else {
+              processRow(key, row);
+            }
+          } else {
+            processRow(key, row);
           }
         }
            
-        return scan();
+        // either we need to wait on the UID resolutions or we can go ahead
+        // if we don't have filters.
+        if (lookups != null && lookups.size() > 0) {
+          class GroupCB implements Callback<Object, ArrayList<Object>> {
+            @Override
+            public Object call(final ArrayList<Object> group) throws Exception {
+              return scan();
+            }
+          }
+          return Deferred.group(lookups).addCallback(new GroupCB());
+        } else {
+          return scan();
+        }
       } catch (final RuntimeException e) {
         LOG.error("Unexpected exception on scanner " + this, e);
         scanner.close();
         handleException(e);
         return null;
+      }
+    }
+    
+    /**
+     * Finds or creates the span for this row, compacts it and stores it.
+     * @param key The row key to use for fetching the span
+     * @param row The row to add
+     */
+    void processRow(final byte[] key, final ArrayList<KeyValue> row) {
+      List<Annotation> notes = annotations.get(key);
+      if (notes == null) {
+        notes = new ArrayList<Annotation>();
+        annotations.put(key, notes);
+      }
+
+      final KeyValue compacted;
+      // let IllegalDataExceptions bubble up so the handler above can close
+      // the scanner
+      compacted = tsdb.compact(row, notes);
+      if (compacted != null) { // Can be null if we ignored all KVs.
+        kvs.add(compacted);
       }
     }
   }

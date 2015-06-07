@@ -19,10 +19,12 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import net.opentsdb.core.TsdbQuery.ForTesting;
-import net.opentsdb.storage.MockBase;
+import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.filter.TagVWildcardFilter;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.DateTime;
 
@@ -128,6 +130,14 @@ public final class TestTsdbQuery extends BaseTsdbTest {
   public void setTimeSeries() throws Exception {
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
     assertNotNull(query);
+    assertArrayEquals(METRIC_BYTES, ForTesting.getMetric(query));
+    assertEquals(1, ForTesting.getFilters(query).size());
+    assertEquals(1, ForTesting.getGroupBys(query).size());
+    assertArrayEquals(TAGK_BYTES, ForTesting.getGroupBys(query).get(0));
+    assertEquals(1, ForTesting.getRowKeyLiterals(query).size());
+    assertEquals(1, ForTesting.getRowKeyLiterals(query).get(TAGV_BYTES).length);
+    assertArrayEquals(TAGV_BYTES, 
+        ForTesting.getRowKeyLiterals(query).get(TAGV_BYTES)[0]);
   }
   
   @Test (expected = NullPointerException.class)
@@ -197,11 +207,9 @@ public final class TestTsdbQuery extends BaseTsdbTest {
     query.configureFromQuery(ts_query, 0).joinUninterruptibly();
     
     assertArrayEquals(METRIC_BYTES, ForTesting.getMetric(query));
-    assertEquals(1, ForTesting.getTags(query).size());
-    assertArrayEquals(MockBase.concatByteArrays(TAGK_BYTES, TAGV_BYTES), 
-        ForTesting.getTags(query).get(0));
-    assertNull(ForTesting.getGroupBys(query));
-    assertNull(ForTesting.getGroupByValues(query));
+    assertEquals(1, ForTesting.getFilters(query).size());
+    assertArrayEquals(TAGK_BYTES, ForTesting.getGroupBys(query).get(0));
+    assertEquals(1, ForTesting.getGroupBys(query).size());
     assertNotNull(ForTesting.getRateOptions(query));
   }
   
@@ -217,11 +225,9 @@ public final class TestTsdbQuery extends BaseTsdbTest {
     query.configureFromQuery(ts_query, 0).joinUninterruptibly();
     
     assertArrayEquals(METRIC_BYTES, ForTesting.getMetric(query));
-    assertEquals(1, ForTesting.getTags(query).size());
-    assertArrayEquals(MockBase.concatByteArrays(TAGK_BYTES, TAGV_BYTES), 
-        ForTesting.getTags(query).get(0));
-    assertNull(ForTesting.getGroupBys(query));
-    assertNull(ForTesting.getGroupByValues(query));
+    assertEquals(1, ForTesting.getFilters(query).size());
+    assertArrayEquals(TAGK_BYTES, ForTesting.getGroupBys(query).get(0));
+    assertEquals(1, ForTesting.getGroupBys(query).size());
     assertTrue(rate_options == ForTesting.getRateOptions(query));
   }
   
@@ -229,55 +235,119 @@ public final class TestTsdbQuery extends BaseTsdbTest {
   public void configureFromQueryNoTags() throws Exception {
     setDataPointStorage();
     final TSQuery ts_query = getTSQuery();
-    ts_query.getQueries().get(0).setTags(null);
+    ts_query.getQueries().get(0).setTags(Collections.EMPTY_MAP);
     ts_query.validateAndSetQuery();
     query = new TsdbQuery(tsdb);
     query.configureFromQuery(ts_query, 0).joinUninterruptibly();
     
     assertArrayEquals(METRIC_BYTES, ForTesting.getMetric(query));
-    assertEquals(0, ForTesting.getTags(query).size());
+    assertEquals(0, ForTesting.getFilters(query).size());
     assertNull(ForTesting.getGroupBys(query));
-    assertNull(ForTesting.getGroupByValues(query));
+    assertNull(ForTesting.getRowKeyLiterals(query));
   }
   
   @Test
   public void configureFromQueryGroupByAll() throws Exception {
     setDataPointStorage();
     final TSQuery ts_query = getTSQuery();
-    ts_query.getQueries().get(0).getTags().put(TAGK_STRING, "*");
+    tags.clear();
+    tags.put(TAGK_STRING, "*");
+    ts_query.getQueries().get(0).setTags(tags);
     ts_query.validateAndSetQuery();
     query = new TsdbQuery(tsdb);
     query.configureFromQuery(ts_query, 0).joinUninterruptibly();
     
     assertArrayEquals(METRIC_BYTES, ForTesting.getMetric(query));
-    assertEquals(0, ForTesting.getTags(query).size());
+    assertEquals(1, ForTesting.getFilters(query).size());
     assertEquals(1, ForTesting.getGroupBys(query).size());
     assertArrayEquals(TAGK_BYTES, 
         ForTesting.getGroupBys(query).get(0));
-    assertNull(ForTesting.getGroupByValues(query));
+    assertEquals(1, ForTesting.getRowKeyLiterals(query).size());
+    assertNull(ForTesting.getRowKeyLiterals(query).get(TAGV_BYTES));
   }
   
   @Test
   public void configureFromQueryGroupByPipe() throws Exception {
     setDataPointStorage();
     final TSQuery ts_query = getTSQuery();
-    ts_query.getQueries().get(0).getTags().put(TAGK_STRING, 
-        TAGV_STRING + "|" + TAGV_B_STRING);
+    tags.clear();
+    tags.put(TAGK_STRING, TAGV_STRING + "|" + TAGV_B_STRING);
+    ts_query.getQueries().get(0).setTags(tags);
     ts_query.validateAndSetQuery();
     query = new TsdbQuery(tsdb);
     query.configureFromQuery(ts_query, 0).joinUninterruptibly();
     
     assertArrayEquals(METRIC_BYTES, ForTesting.getMetric(query));
-    assertEquals(0, ForTesting.getTags(query).size());
+    assertEquals(1, ForTesting.getFilters(query).size());
     assertEquals(1, ForTesting.getGroupBys(query).size());
-    assertArrayEquals(TAGK_BYTES, 
-        ForTesting.getGroupBys(query).get(0));
-    assertEquals(1, ForTesting.getGroupByValues(query).size());
-    final byte[][] tag_values = ForTesting.getGroupByValues(query)
-        .iterator().next().getValue();
-    assertEquals(2, tag_values.length);
-    assertArrayEquals(TAGK_BYTES, tag_values[0]);
-    assertArrayEquals(new byte[] { 0, 0, 2 }, tag_values[1]);
+    assertArrayEquals(TAGK_BYTES, ForTesting.getGroupBys(query).get(0));
+    assertEquals(1, ForTesting.getRowKeyLiterals(query).size());
+    assertEquals(2, ForTesting.getRowKeyLiterals(query).get(TAGV_BYTES).length);
+    assertArrayEquals(TAGV_BYTES, 
+        ForTesting.getRowKeyLiterals(query).get(TAGV_BYTES)[0]);
+    assertArrayEquals(TAGV_B_BYTES, 
+        ForTesting.getRowKeyLiterals(query).get(TAGV_BYTES)[1]);
+  }
+  
+  @Test
+  public void configureFromQueryWithGroupByFilter() throws Exception {
+    setDataPointStorage();
+    final TSQuery ts_query = getTSQuery();
+    tags.clear();
+    tags.put("host", TagVWildcardFilter.FILTER_NAME + "(*imes)");
+    ts_query.getQueries().get(0).setTags(tags);
+    ts_query.validateAndSetQuery();
+    query = new TsdbQuery(tsdb);
+    query.configureFromQuery(ts_query, 0).joinUninterruptibly();
+    
+    assertArrayEquals(METRIC_BYTES, ForTesting.getMetric(query));
+    assertEquals(1, ForTesting.getFilters(query).size());
+    assertEquals(1, ForTesting.getGroupBys(query).size());
+    assertArrayEquals(TAGK_BYTES, ForTesting.getGroupBys(query).get(0));
+    assertEquals(1, ForTesting.getRowKeyLiterals(query).size());
+    assertNull(ForTesting.getRowKeyLiterals(query).get(TAGV_BYTES));
+    assertNotNull(ForTesting.getRateOptions(query));
+  }
+
+  @Test
+  public void configureFromQueryWithFilter() throws Exception {
+    setDataPointStorage();
+    final TSQuery ts_query = getTSQuery();
+    final List<TagVFilter> filters = new ArrayList<TagVFilter>(1);
+    filters.add(new TagVWildcardFilter("host", "*imes"));
+    ts_query.getQueries().get(0).setFilters(filters);
+    ts_query.validateAndSetQuery();
+    query = new TsdbQuery(tsdb);
+    query.configureFromQuery(ts_query, 0).joinUninterruptibly();
+    
+    assertArrayEquals(METRIC_BYTES, ForTesting.getMetric(query));
+    assertEquals(1, ForTesting.getFilters(query).size());
+    assertNull(ForTesting.getGroupBys(query));
+    assertEquals(1, ForTesting.getRowKeyLiterals(query).size());
+    assertNull(ForTesting.getRowKeyLiterals(query).get(TAGV_BYTES));
+    assertNotNull(ForTesting.getRateOptions(query));
+  }
+  
+  @Test
+  public void configureFromQueryWithGroupByAndRegularFilters() throws Exception {
+    setDataPointStorage();
+    final TSQuery ts_query = getTSQuery();
+    final List<TagVFilter> filters = new ArrayList<TagVFilter>(1);
+    filters.add(new TagVWildcardFilter("host", "*imes"));
+    filters.add(TagVFilter.Builder().setFilter("*").setTagk("host")
+        .setType("wildcard").setGroupBy(true).build());
+    ts_query.getQueries().get(0).setFilters(filters);
+    ts_query.validateAndSetQuery();
+
+    query = new TsdbQuery(tsdb);
+    query.configureFromQuery(ts_query, 0).joinUninterruptibly();
+    assertArrayEquals(METRIC_BYTES, ForTesting.getMetric(query));
+    assertEquals(2, ForTesting.getFilters(query).size());
+    assertEquals(1, ForTesting.getGroupBys(query).size());
+    assertArrayEquals(TAGK_BYTES, ForTesting.getGroupBys(query).get(0));
+    assertEquals(1, ForTesting.getRowKeyLiterals(query).size());
+    assertNull(ForTesting.getRowKeyLiterals(query).get(TAGK_BYTES));
+    assertNotNull(ForTesting.getRateOptions(query));
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -319,7 +389,9 @@ public final class TestTsdbQuery extends BaseTsdbTest {
   public void configureFromQueryNSUTagk() throws Exception {
     setDataPointStorage();
     final TSQuery ts_query = getTSQuery();
-    ts_query.getQueries().get(0).getTags().put(NSUN_TAGK, TAGV_STRING);
+    tags.clear();
+    tags.put(NSUN_TAGK, TAGV_STRING);
+    ts_query.getQueries().get(0).setTags(tags);
     ts_query.validateAndSetQuery();
     query = new TsdbQuery(tsdb);
     query.configureFromQuery(ts_query, 0).joinUninterruptibly();
@@ -329,7 +401,9 @@ public final class TestTsdbQuery extends BaseTsdbTest {
   public void configureFromQueryNSUTagv() throws Exception {
     setDataPointStorage();
     final TSQuery ts_query = getTSQuery();
-    ts_query.getQueries().get(0).getTags().put(TAGK_STRING, NSUN_TAGV);
+    tags.clear();
+    tags.put(TAGK_STRING, NSUN_TAGV);
+    ts_query.getQueries().get(0).setTags(tags);
     ts_query.validateAndSetQuery();
     query = new TsdbQuery(tsdb);
     query.configureFromQuery(ts_query, 0).joinUninterruptibly();
@@ -339,8 +413,9 @@ public final class TestTsdbQuery extends BaseTsdbTest {
   public void configureFromQueryGroupByPipeNSUTagk() throws Exception {
     setDataPointStorage();
     final TSQuery ts_query = getTSQuery();
-    ts_query.getQueries().get(0).getTags().put(NSUN_TAGK, 
-        TAGV_STRING + "|" + TAGV_B_STRING);
+    tags.clear();
+    tags.put(NSUN_TAGK, TAGV_STRING + "|" + TAGV_B_STRING);
+    ts_query.getQueries().get(0).setTags(tags);
     ts_query.validateAndSetQuery();
     query = new TsdbQuery(tsdb);
     query.configureFromQuery(ts_query, 0).joinUninterruptibly();
@@ -350,8 +425,9 @@ public final class TestTsdbQuery extends BaseTsdbTest {
   public void configureFromQueryGroupByPipeNSUTagv() throws Exception {
     setDataPointStorage();
     final TSQuery ts_query = getTSQuery();
-    ts_query.getQueries().get(0).getTags().put(TAGK_STRING, 
-        TAGV_STRING + "|" + NSUN_TAGV);
+    tags.clear();
+    tags.put(TAGK_STRING, TAGV_STRING + "|" + NSUN_TAGV);
+    ts_query.getQueries().get(0).setTags(tags);
     ts_query.validateAndSetQuery();
     query = new TsdbQuery(tsdb);
     query.configureFromQuery(ts_query, 0).joinUninterruptibly();
@@ -363,23 +439,18 @@ public final class TestTsdbQuery extends BaseTsdbTest {
     config.overrideConfig("tsd.query.skip_unresolved_tagvs", "true");
     setDataPointStorage();
     final TSQuery ts_query = getTSQuery();
-    ts_query.getQueries().get(0).getTags().put(TAGK_STRING, 
-        TAGV_STRING + "|" + NSUN_TAGV);
+    tags.clear();
+    tags.put(TAGK_STRING, TAGV_STRING + "|" + NSUN_TAGV);
+    ts_query.getQueries().get(0).setTags(tags);
     ts_query.validateAndSetQuery();
     query = new TsdbQuery(tsdb);
     query.configureFromQuery(ts_query, 0).joinUninterruptibly();
     
     assertArrayEquals(METRIC_BYTES, ForTesting.getMetric(query));
-    assertEquals(0, ForTesting.getTags(query).size());
+    assertEquals(1, ForTesting.getFilters(query).size());
     assertEquals(1, ForTesting.getGroupBys(query).size());
     assertArrayEquals(TAGK_BYTES, 
         ForTesting.getGroupBys(query).get(0));
-    assertEquals(1, ForTesting.getGroupByValues(query).size());
-    final byte[][] tag_values = ForTesting.getGroupByValues(query)
-        .iterator().next().getValue();
-    assertEquals(2, tag_values.length);
-    assertArrayEquals(TAGV_BYTES, tag_values[0]);
-    assertArrayEquals(new byte[] { 0, 0, 0 }, tag_values[1]);
   }
   
   /** @return a simple TSQuery object for testing */

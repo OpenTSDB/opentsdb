@@ -17,11 +17,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.Map.Entry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,8 +36,11 @@ import org.hbase.async.Bytes.ByteMap;
 import com.google.common.annotations.VisibleForTesting;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
 
+import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.stats.Histogram;
+import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.DateTime;
@@ -79,14 +84,6 @@ final class TsdbQuery implements Query {
   private byte[] metric;
 
   /**
-   * Tags of the metrics being looked up.
-   * Each tag is a byte array holding the ID of both the name and value
-   * of the tag.
-   * Invariant: an element cannot be both in this array and in group_bys.
-   */
-  private ArrayList<byte[]> tags;
-
-  /**
    * Tags by which we must group the results.
    * Each element is a tag ID.
    * Invariant: an element cannot be both in this array and in {@code tags}.
@@ -94,13 +91,9 @@ final class TsdbQuery implements Query {
   private ArrayList<byte[]> group_bys;
 
   /**
-   * Values we may be grouping on.
-   * For certain elements in {@code group_bys}, we may have a specific list of
-   * values IDs we're looking for.  Those IDs are stored in this map.  The key
-   * is an element of {@code group_bys} (so a tag name ID) and the values are
-   * tag value IDs (at least two).
+   * Tag key and values to use in the row key filter, all pre-sorted
    */
-  private ByteMap<byte[][]> group_by_values;
+  private ByteMap<byte[][]> row_key_literals;
 
   /** If true, use rate of change instead of actual values. */
   private boolean rate;
@@ -128,6 +121,9 @@ final class TsdbQuery implements Query {
   
   /** An index that links this query to the original sub query */
   private int query_index;
+  
+  /** Tag value filters to apply post scan */
+  private List<TagVFilter> filters;
   
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
@@ -212,19 +208,37 @@ final class TsdbQuery implements Query {
         final boolean rate,
         final RateOptions rate_options)
   throws NoSuchUniqueName {
-    final Map<String, String> tags_copy = new HashMap<String, String>(tags.size());
-    tags_copy.putAll(tags);
+    if (filters == null) {
+      filters = new ArrayList<TagVFilter>(tags.size());
+    }
+    TagVFilter.tagsToFilters(tags, filters);
+    
     try {
-      findGroupBys(tags_copy).join();
+      for (final TagVFilter filter : this.filters) {
+        filter.resolveTagkName(tsdb).join();
+      }
     } catch (final InterruptedException e) {
       LOG.warn("Interrupted", e);
       Thread.currentThread().interrupt();
+    } catch (final NoSuchUniqueName e) {
+      throw e;
     } catch (final Exception e) {
+      if (e instanceof DeferredGroupException) {
+        // rollback to the actual case. The DGE missdirects
+        Throwable ex = e.getCause();
+        while(ex != null && ex instanceof DeferredGroupException) {
+          ex = ex.getCause();
+        }
+        if (ex != null) {
+          throw (RuntimeException)ex;
+        }
+      }
       LOG.error("Unexpected exception processing group bys", e);
       throw new RuntimeException(e);
     }
+    
+    findGroupBys();
     this.metric = tsdb.metrics.getId(metric);
-    this.tags = Tags.resolveAll(tsdb, tags_copy);
     aggregator = function;
     this.rate = rate;
     this.rate_options = rate_options;
@@ -292,6 +306,7 @@ final class TsdbQuery implements Query {
     downsampler = sub_query.downsampler();
     sample_interval_ms = sub_query.downsampleInterval();
     fill_policy = sub_query.fillPolicy();
+    filters = sub_query.getFilters();
     
     // if we have tsuids set, that takes precedence
     if (sub_query.getTsuids() != null && !sub_query.getTsuids().isEmpty()) {
@@ -314,79 +329,30 @@ final class TsdbQuery implements Query {
       }
       return Deferred.fromResult(null);
     } else {
-      // copy the tags to a new map as the groupby method will modify the map
-      // and doing so would cause the TSQuery to change it's hash code, making
-      // it impossible to remove from the query stats.
-      final Map<String, String> tags_copy = 
-          new HashMap<String, String>(sub_query.getTags());
-      
-      /** Adds the tagk and tagv in the array list in the proper order */
-      class TagVCB implements Callback<Object, byte[]> {
-        final byte[] tagk;
-        public TagVCB(final byte[] tagk) {
-          this.tagk = tagk;
-        }
+      /** Triggers the group by resolution if we had filters to resolve */
+      class FilterCB implements Callback<Object, ArrayList<byte[]>> {
         @Override
-        public Object call(final byte[] tagv) {
-          // multiple threads can call us back so make sure we lock the array
-          // to avoid concurrent modifications or add keys and values out of
-          // order
-          synchronized(tags) {
-            final byte[] pair = new byte[tagk.length + tagv.length];
-            System.arraycopy(tagk, 0, pair, 0, tagk.length);
-            System.arraycopy(tagv, 0, pair, tagk.length, tagv.length);
-            tags.add(pair);
-          }
-          return null;
-        }
-      }
-      
-      /** Triggers the tagv resolution after resolving a tagk */
-      class TagKCB implements Callback<Deferred<Object>, byte[]> {
-        final String tagv;
-        public TagKCB(final String tagv) {
-          this.tagv = tagv;
-        }
-        @Override
-        public Deferred<Object> call(final byte[] tagk) {
-          return tsdb.tag_values.getIdAsync(tagv).addCallback(new TagVCB(tagk));
+        public Object call(final ArrayList<byte[]> results) throws Exception {
+          findGroupBys();
+          return Deferred.fromResult(null);
         }
       }
 
-      /** Resolves explicit tagk/tagv pairs after group bys */
-      class GroupBy implements Callback<Deferred<ArrayList<Object>>, 
-        ArrayList<byte[]>> {
-        @Override
-        public Deferred<ArrayList<Object>> call(final ArrayList<byte[]> group) {
-          final List<Deferred<Object>> tags = 
-              new ArrayList<Deferred<Object>>(tags_copy.size());
-          TsdbQuery.this.tags = new ArrayList<byte[]>(tags.size());
-          for (Map.Entry<String, String> entry : tags_copy.entrySet()) {
-            tags.add(tsdb.tag_names.getIdAsync(entry.getKey())
-              .addCallbackDeferring(new TagKCB(entry.getValue())));
-          }
-          return Deferred.group(tags);
-        }
-      }
-
-      /** Sort the tag array after resolution is complete */
-      class SortTags implements Callback<Deferred<Object>, ArrayList<Object>> {
-        @Override
-        public Deferred<Object> call(final ArrayList<Object> notused) 
-            throws Exception {
-          Collections.sort(tags, Bytes.MEMCMP);
-          return null;
-        }
-      }
-      
       /** Resolve and group by tags after resolving the metric */
       class MetricCB implements Callback<Object, byte[]> {
         @Override
         public Object call(final byte[] uid) throws Exception {
           metric = uid;
-          return findGroupBys(tags_copy)
-              .addCallbackDeferring(new GroupBy())
-              .addCallback(new SortTags());
+          if (filters != null) {
+            final List<Deferred<byte[]>> deferreds = 
+                new ArrayList<Deferred<byte[]>>(filters.size());
+            for (final TagVFilter filter : filters) {
+              deferreds.add(filter.resolveTagkName(tsdb));
+            }
+            return Deferred.group(deferreds).addCallback(new FilterCB());
+          } else {
+            return Deferred.fromResult(null);
+          }
         }
       }
       
@@ -423,144 +389,91 @@ final class TsdbQuery implements Query {
   }
 
   /**
-   * Extracts all the tags we must use to group results.
-   * <ul>
-   * <li>If a tag has the form {@code name=*} then we'll create one
-   *     group per value we find for that tag.</li>
-   * <li>If a tag has the form {@code name={v1,v2,..,vN}} then we'll
-   *     create {@code N} groups.</li>
-   * </ul>
-   * In the both cases above, {@code name} will be stored in the
-   * {@code group_bys} attribute.  In the second case specifically,
-   * the {@code N} values would be stored in {@code group_by_values},
-   * the key in this map being {@code name}.
-   * @param tags The tags from which to extract the 'GROUP BY's.
-   * Each tag that represents a 'GROUP BY' will be removed from the map
-   * passed in argument.
-   * @return A deferred to wait on, the results are not important and should be
-   * discarded.
+   * Populates the {@link #group_bys} and {@link #row_key_literals}'s with 
+   * values pulled from the filters. 
    */
-  private Deferred<ArrayList<byte[]>> findGroupBys(final Map<String, String> tags) {
+  private void findGroupBys() {
+    if (filters == null || filters.isEmpty()) {
+      return;
+    }
     
-    /**
-     * Used to continue processing when we have a tag value that wasn't assigned
-     * a UID and the config explicitly allows unknown tags.
-     */
-    class Errback implements Callback<byte[], Exception> {
-      final boolean is_tagv;
-      public Errback(final boolean is_tagv) {
-        this.is_tagv = is_tagv;
-      }
-      
-      @Override
-      public byte[] call(final Exception e) throws Exception {
-        if (is_tagv && 
-            tsdb.getConfig().getBoolean("tsd.query.skip_unresolved_tagvs")) {
-          LOG.warn("Query tag value not found: " + e.getMessage());
-          return null;
-        } else {
-          throw e;
+    row_key_literals = new ByteMap<byte[][]>();
+    
+    Collections.sort(filters);
+    final Iterator<TagVFilter> current_iterator = filters.iterator();
+    final Iterator<TagVFilter> look_ahead = filters.iterator();
+    byte[] tagk = null;
+    TagVFilter next = look_ahead.hasNext() ? look_ahead.next() : null;
+    int row_key_literals_count = 0;
+    while (current_iterator.hasNext()) {
+      next = look_ahead.hasNext() ? look_ahead.next() : null;
+      int gbs = 0;
+      // sorted!
+      final ByteMap<Void> literals = new ByteMap<Void>();
+      final List<TagVFilter> literal_filters = new ArrayList<TagVFilter>();
+      TagVFilter current = null;
+      boolean not_key = false;
+      do { // yeah, I'm breakin out the do!!!
+        current = current_iterator.next();
+        if (tagk == null) {
+          tagk = new byte[TSDB.tagk_width()];
+          System.arraycopy(current.getTagkBytes(), 0, tagk, 0, TSDB.tagk_width());
         }
-      }
-    }
-    
-    /** Adds the tagk to the group bys and passes along the UID */
-    class ResolveTagKCB implements Callback<byte[], byte[]> {
-      @Override
-      public byte[] call(final byte[] uid) {
-        group_bys.add(uid);
-        return uid;
-      }
-    }
-    
-    /** Writes the resolved tagv to the proper group_by_values array */
-    class ResoveTagVCB implements Callback<byte[], byte[]> {
-      final byte[] tagk;
-      final int index;
-      public ResoveTagVCB(final byte[] tagk, final int index) {
-        this.tagk = tagk;
-        this.index = index;
-      }
-      @Override
-      public byte[] call(final byte[] uid) {
-        final byte[][] value_ids = group_by_values.get(tagk);
-        System.arraycopy(uid, 0, value_ids[index], 0, tsdb.tag_values.width());
-        return null;
-      }
-    }
-    
-    /** 
-     * Only here to cast the {@code ArrayList<byte[]>} to a {@code byte[]} for 
-     * typing purposes.
-     */
-    class PipedGroupCB implements Callback<byte[], ArrayList<byte[]>> {
-      @Override
-      public byte[] call(final ArrayList<byte[]> tagvs) {
-        return null;
-      }
-    }
-    
-    /** Resolves a piped list of tag values after resolving the tagk */
-    class ResolvePipedGroupBy implements Callback<Deferred<byte[]>, byte[]> {
-      final String[] values;
-      public ResolvePipedGroupBy(final String[] values) {
-        this.values = values;
-      }
-      @Override
-      public Deferred<byte[]> call(final byte[] uid) {
-        final byte[][] value_ids = new byte[values.length][tsdb.tag_values.width()];
-        group_by_values.put(uid, value_ids);
         
-        final List<Deferred<byte[]>> tagvs = 
-            new ArrayList<Deferred<byte[]>>(values.length);
-        for (int j = 0; j < values.length; j++) {
-          tagvs.add(tsdb.tag_values.getIdAsync(values[j])
-              .addCallback(new ResoveTagVCB(uid, j))
-              .addErrback(new Errback(true)));
+        if (current.isGroupBy()) {
+          gbs++;
         }
-        return Deferred.group(tagvs).addCallback(new PipedGroupCB());
-      }
-    }
-    
-    final List<Deferred<byte[]>> deferreds = !tags.isEmpty() ? 
-        new ArrayList<Deferred<byte[]>>(tags.size()) : null;
-    
-    final Iterator<Map.Entry<String, String>> i = tags.entrySet().iterator();
-    while (i.hasNext()) {
-      final Map.Entry<String, String> tag = i.next();
-      final String tagvalue = tag.getValue();
-      if (tagvalue.equals("*")  // 'GROUP BY' with any value.
-          || tagvalue.indexOf('|', 1) >= 0) {  // Multiple possible values.
+        if (!current.getTagVUids().isEmpty()) {
+          for (final byte[] uid : current.getTagVUids()) {
+            literals.put(uid, null);
+          }
+          literal_filters.add(current);
+        }
+        if (current.isNotKeyFilter()) {
+          not_key = true;
+        }
+
+        if (next != null && Bytes.memcmp(tagk, next.getTagkBytes()) != 0) {
+          break;
+        }
+        next = look_ahead.hasNext() ? look_ahead.next() : null;
+      } while (current_iterator.hasNext() && 
+          Bytes.memcmp(tagk, current.getTagkBytes()) == 0);
+
+      if (gbs > 0 && !not_key) {
         if (group_bys == null) {
           group_bys = new ArrayList<byte[]>();
         }
-        final Deferred<byte[]> resolve_tagk = 
-            tsdb.tag_names.getIdAsync(tag.getKey())
-              .addCallback(new ResolveTagKCB())
-              .addErrback(new Errback(false));
-        deferreds.add(resolve_tagk);
-        i.remove();
-        if (tagvalue.charAt(0) == '*') {
-          continue;  // For a 'GROUP BY' with any value, we're done.
+        group_bys.add(current.getTagkBytes());
+      }
+      
+      if (not_key) {
+        // special value to notify the row key regex builder that we don't want
+        // rows with this tagk
+        row_key_literals.put(current.getTagkBytes(), new byte[0][]);
+      } else if (literals.size() > 0) {
+        // TODO - a good optimization would be to remove the filter from the
+        // list passed to the scanner since we'll have it in the regex. However 
+        // that would then "OR" the literal filters
+        if (literals.size() + row_key_literals_count > 
+            tsdb.getConfig().getInt("tsd.query.filter.expansion_limit")) {
+          LOG.debug("Skipping literals for " + current.getTagk() + 
+              " as it exceedes the limit");
+        } else {
+          final byte[][] values = new byte[literals.size()][];
+          literals.keySet().toArray(values);
+          row_key_literals.put(current.getTagkBytes(), values);
+          row_key_literals_count += values.length;
+          
+          for (final TagVFilter filter : literal_filters) {
+            filter.setPostScan(false);
+          }
         }
-        
-        // 'GROUP BY' with specific values.  Need to split the values
-        // to group on and store their IDs in group_by_values.
-        final String[] values = Tags.splitString(tagvalue, '|');
-        if (group_by_values == null) {
-          group_by_values = new ByteMap<byte[][]>();
-        }
-        resolve_tagk.addCallback(new ResolvePipedGroupBy(values));
+      } else {
+        row_key_literals.put(current.getTagkBytes(), null);
       }
     }
-    
-    if (deferreds == null) {
-      return Deferred.fromResult(null);
-    } else {
-      return Deferred.group(deferreds);
-    }
   }
-
   /**
    * Executes the query.
    * NOTE: Do not run the same query multiple times. Construct a new query with
@@ -602,12 +515,28 @@ final class TsdbQuery implements Query {
       new TreeMap<byte[], Span>(new SpanCmp(
           (short)(Const.SALT_WIDTH() + metric_width)));
     
+    // Copy only the filters that should trigger a tag resolution. If this list
+    // is empty due to literals or a wildcard star, then we'll save a TON of
+    // UID lookups
+    final List<TagVFilter> scanner_filters;
+    if (filters != null) {   
+      scanner_filters = new ArrayList<TagVFilter>(filters.size());
+      for (final TagVFilter filter : filters) {
+        if (filter.postScan()) {
+          scanner_filters.add(filter);
+        }
+      }
+    } else {
+      scanner_filters = null;
+    }
+    
     if (Const.SALT_WIDTH() > 0) {
       final List<Scanner> scanners = new ArrayList<Scanner>(Const.SALT_BUCKETS());
       for (int i = 0; i < Const.SALT_BUCKETS(); i++) {
         scanners.add(getScanner(i));
       }
-      return new SaltScanner(tsdb, metric, scanners, spans).scan();
+      return new SaltScanner(tsdb, metric, scanners, spans, scanner_filters)
+        .scan();
     }
     
     final Scanner scanner = getScanner();
@@ -629,7 +558,8 @@ final class TsdbQuery implements Query {
       int hbase_time = 0; // milliseconds.
       long starttime = System.nanoTime();
       long timeout = tsdb.getConfig().getLong("tsd.query.timeout");
-      
+      private final Set<String> skips = new HashSet<String>();
+      private final Set<String> keepers = new HashSet<String>();
       /**
       * Starts the scanner and is called recursively to fetch the next set of
       * rows from the scanner.
@@ -669,6 +599,11 @@ final class TsdbQuery implements Query {
              throw new InterruptedException("Query timeout exceeded!");
            }
            
+           // used for UID resolution if a filter is involved
+           final List<Deferred<Object>> lookups = 
+               filters != null && !filters.isEmpty() ? 
+                   new ArrayList<Deferred<Object>>(rows.size()) : null;
+               
            for (final ArrayList<KeyValue> row : rows) {
              final byte[] key = row.get(0).key();
              if (Bytes.memcmp(metric, key, 0, metric_width) != 0) {
@@ -678,25 +613,105 @@ final class TsdbQuery implements Query {
                    + " our scanner (" + scanner + ")! " + row + " does not start"
                    + " with " + Arrays.toString(metric));
              }
-             Span datapoints = spans.get(key);
-             if (datapoints == null) {
-               datapoints = new Span(tsdb);
-               spans.put(key, datapoints);
-             }
-             final KeyValue compacted = 
-               tsdb.compact(row, datapoints.getAnnotations());
-             seenAnnotation |= !datapoints.getAnnotations().isEmpty();
-             if (compacted != null) { // Can be null if we ignored all KVs.
-               datapoints.addRow(compacted);
-               nrows++;
+             
+             // If any filters have made it this far then we need to resolve
+             // the row key UIDs to their names for string comparison. We'll
+             // try to avoid the resolution with some sets but we may dupe
+             // resolve a few times.
+             // TODO - more efficient resolution
+             // TODO - byte set instead of a string for the uid may be faster
+             if (scanner_filters != null && !scanner_filters.isEmpty()) {
+               lookups.clear();
+               final String tsuid = 
+                   UniqueId.uidToString(UniqueId.getTSUIDFromKey(key, 
+                   TSDB.metrics_width(), Const.TIMESTAMP_BYTES));
+               if (skips.contains(tsuid)) {
+                 continue;
+               }
+               if (!keepers.contains(tsuid)) {
+                 /** CB to called after all of the UIDs have been resolved */
+                 class MatchCB implements Callback<Object, ArrayList<Boolean>> {
+                   @Override
+                   public Object call(final ArrayList<Boolean> matches) 
+                       throws Exception {
+                     for (final boolean matched : matches) {
+                       if (!matched) {
+                         skips.add(tsuid);
+                         return null;
+                       }
+                     }
+                     // matched all, good data
+                     keepers.add(tsuid);
+                     processRow(key, row);
+                     return null;
+                   }
+                 }
+
+                 /** Resolves all of the row key UIDs to their strings for filtering */
+                 class GetTagsCB implements
+                     Callback<Deferred<ArrayList<Boolean>>, Map<String, String>> {
+                   @Override
+                   public Deferred<ArrayList<Boolean>> call(
+                       final Map<String, String> tags) throws Exception {
+                     final List<Deferred<Boolean>> matches =
+                         new ArrayList<Deferred<Boolean>>(scanner_filters.size());
+
+                     for (final TagVFilter filter : scanner_filters) {
+                       matches.add(filter.match(tags));
+                     }
+                     
+                     return Deferred.group(matches);
+                   }
+                 }
+    
+                 lookups.add(Tags.getTagsAsync(tsdb, key)
+                     .addCallbackDeferring(new GetTagsCB())
+                     .addBoth(new MatchCB()));
+               } else {
+                 processRow(key, row);
+               }
+             } else {
+               processRow(key, row);
              }
            }
 
-           return scan();
+           // either we need to wait on the UID resolutions or we can go ahead
+           // if we don't have filters.
+           if (lookups != null && lookups.size() > 0) {
+             class GroupCB implements Callback<Object, ArrayList<Object>> {
+               @Override
+               public Object call(final ArrayList<Object> group) throws Exception {
+                 return scan();
+               }
+             }
+             return Deferred.group(lookups).addCallback(new GroupCB());
+           } else {
+             return scan();
+           }
          } catch (Exception e) {
            scanner.close();
            results.callback(e);
            return null;
+         }
+       }
+       
+       /**
+        * Finds or creates the span for this row, compacts it and stores it.
+        * @param key The row key to use for fetching the span
+        * @param row The row to add
+        */
+       void processRow(final byte[] key, final ArrayList<KeyValue> row) {
+         Span datapoints = spans.get(key);
+         if (datapoints == null) {
+           datapoints = new Span(tsdb);
+           spans.put(key, datapoints);
+         }
+         final KeyValue compacted = 
+           tsdb.compact(row, datapoints.getAnnotations());
+         seenAnnotation |= !datapoints.getAnnotations().isEmpty();
+         if (compacted != null) { // Can be null if we ignored all KVs.
+           datapoints.addRow(compacted);
+           ++nrows;
          }
        }
      }
@@ -857,7 +872,7 @@ final class TsdbQuery implements Query {
     scanner.setStopKey(end_row);
     if (tsuids != null && !tsuids.isEmpty()) {
       createAndSetTSUIDFilter(scanner);
-    } else if (tags.size() > 0 || group_bys != null) {
+    } else if (filters.size() > 0) {
       createAndSetFilter(scanner);
     }
     scanner.setFamily(TSDB.FAMILY);
@@ -961,54 +976,102 @@ final class TsdbQuery implements Query {
     final StringBuilder buf = new StringBuilder(
         15  // "^.{N}" + "(?:.{M})*" + "$"
         + ((13 + tagsize) // "(?:.{M})*\\Q" + tagsize bytes + "\\E"
-           * (tags.size() + (group_bys == null ? 0 : group_bys.size() * 3))));
+           * ((row_key_literals == null ? 0 : row_key_literals.size()) + 
+               (group_bys == null ? 0 : group_bys.size() * 3))));
     // In order to avoid re-allocations, reserve a bit more w/ groups ^^^
 
     // Alright, let's build this regexp.  From the beginning...
     buf.append("(?s)"  // Ensure we use the DOTALL flag.
                + "^.{")
-       // ... start by skipping the metric ID and timestamp.
+       // ... start by skipping the salt, metric ID and timestamp.
        .append(Const.SALT_WIDTH() + tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
        .append("}");
-    final Iterator<byte[]> tags = this.tags.iterator();
-    final Iterator<byte[]> group_bys = (this.group_bys == null
-                                        ? new ArrayList<byte[]>(0).iterator()
-                                        : this.group_bys.iterator());
-    byte[] tag = tags.hasNext() ? tags.next() : null;
-    byte[] group_by = group_bys.hasNext() ? group_bys.next() : null;
-    // Tags and group_bys are already sorted.  We need to put them in the
-    // regexp in order by ID, which means we just merge two sorted lists.
-    do {
+
+    final Iterator<Entry<byte[], byte[][]>> it = row_key_literals == null ? 
+        new ByteMap<byte[][]>().iterator() : row_key_literals.iterator();
+
+    while(it.hasNext()) {
+      Entry<byte[], byte[][]> entry = it.hasNext() ? it.next() : null;
+      // TODO - This look ahead may be expensive. We need to get some data around
+      // whether it's faster for HBase to scan with a look ahead or simply pass
+      // the rows back to the TSD for filtering.
+      final boolean not_key = 
+          entry.getValue() != null && entry.getValue().length == 0;
+      
       // Skip any number of tags.
-      buf.append("(?:.{").append(tagsize).append("})*\\Q");
-      if (isTagNext(name_width, tag, group_by)) {
-        addId(buf, tag);
-        tag = tags.hasNext() ? tags.next() : null;
-      } else {  // Add a group_by.
-        addId(buf, group_by);
-        final byte[][] value_ids = (group_by_values == null
-                                    ? null
-                                    : group_by_values.get(group_by));
-        if (value_ids == null) {  // We don't want any specific ID...
-          buf.append(".{").append(value_width).append('}');  // Any value ID.
-        } else {  // We want specific IDs.  List them: /(AAA|BBB|CCC|..)/
-          buf.append("(?:");
-          for (final byte[] value_id : value_ids) {
-            buf.append("\\Q");
-            addId(buf, value_id);
-            buf.append('|');
-          }
-          // Replace the pipe of the last iteration.
-          buf.setCharAt(buf.length() - 1, ')');
-        }
-        group_by = group_bys.hasNext() ? group_bys.next() : null;
+      buf.append("(?:.{").append(tagsize).append("})*");
+      if (not_key) {
+        // start the lookahead as we have a key we expliclty do not want in the
+        // results
+        buf.append("(?!");
       }
-    } while (tag != group_by);  // Stop when they both become null.
+      buf.append("\\Q");
+      
+      addId(buf, entry.getKey());
+      if (entry.getValue() != null && entry.getValue().length > 0) {  // Add a group_by.
+        // We want specific IDs.  List them: /(AAA|BBB|CCC|..)/
+        buf.append("(?:");
+        for (final byte[] value_id : entry.getValue()) {
+          if (value_id == null) {
+            continue;
+          }
+          buf.append("\\Q");
+          addId(buf, value_id);
+          buf.append('|');
+        }
+        // Replace the pipe of the last iteration.
+        buf.setCharAt(buf.length() - 1, ')');
+      } else {
+        buf.append(".{").append(value_width).append('}');  // Any value ID.
+      }
+      
+      if (not_key) {
+        // be sure to close off the look ahead
+        buf.append(")");
+      }
+    }
     // Skip any number of tags before the end.
     buf.append("(?:.{").append(tagsize).append("})*$");
     scanner.setKeyRegexp(buf.toString(), CHARSET);
-   }
+    if (LOG.isDebugEnabled()) {
+      logRegexScanner(buf.toString());
+    }
+  }
 
+  /**
+   * Little helper to print out the regular expression by converting the UID
+   * bytes to an array.
+   * @param regexp The regex string to print to the debug log
+   * @since 2.2
+   */
+  void logRegexScanner(final String regexp) {
+    final StringBuilder buf = new StringBuilder();
+    for (int i = 0; i < regexp.length(); i++) {
+      if (i > 0 && regexp.charAt(i - 1) == 'Q') {
+        if (regexp.charAt(i - 3) == '*') {
+          // tagk
+          byte[] tagk = new byte[TSDB.tagk_width()];
+          for (int x = 0; x < TSDB.tagk_width(); x++) {
+            tagk[x] = (byte)regexp.charAt(i + x);
+          }
+          i += TSDB.tagk_width();
+          buf.append(Arrays.toString(tagk));
+        } else {
+          // tagv
+          byte[] tagv = new byte[TSDB.tagv_width()];
+          for (int x = 0; x < TSDB.tagv_width(); x++) {
+            tagv[x] = (byte)regexp.charAt(i + x);
+          }
+          i += TSDB.tagv_width();
+          buf.append(Arrays.toString(tagv));
+        }
+      } else {
+        buf.append(regexp.charAt(i));
+      }
+    }
+    LOG.debug("Scanner regex: " + buf.toString());
+  }
+  
   /**
    * Sets the server-side regexp filter on the scanner.
    * This will compile a list of the tagk/v pairs for the TSUIDs to prevent
@@ -1059,31 +1122,6 @@ final class TsdbQuery implements Query {
     buf.append("$");
     scanner.setKeyRegexp(buf.toString(), CHARSET);
   }
-  
-  /**
-   * Helper comparison function to compare tag name IDs.
-   * @param name_width Number of bytes used by a tag name ID.
-   * @param tag A tag (array containing a tag name ID and a tag value ID).
-   * @param group_by A tag name ID.
-   * @return {@code true} number if {@code tag} should be used next (because
-   * it contains a smaller ID), {@code false} otherwise.
-   */
-  private boolean isTagNext(final short name_width,
-                            final byte[] tag,
-                            final byte[] group_by) {
-    if (tag == null) {
-      return false;
-    } else if (group_by == null) {
-      return true;
-    }
-    final int cmp = Bytes.memcmp(tag, group_by, 0, name_width);
-    if (cmp == 0) {
-      throw new AssertionError("invariant violation: tag ID "
-          + Arrays.toString(group_by) + " is both in 'tags' and"
-          + " 'group_bys' in " + this);
-    }
-    return cmp < 0;
-  }
 
   /**
    * Appends the given ID to the given buffer, followed by "\\E".
@@ -1117,9 +1155,9 @@ final class TsdbQuery implements Query {
       }
     } else {
       buf.append(", metric=").append(Arrays.toString(metric));
-      buf.append(", tags=[");
-      for (final Iterator<byte[]> it = tags.iterator(); it.hasNext(); ) {
-        buf.append(Arrays.toString(it.next()));
+      buf.append(", filters=[");
+      for (final Iterator<TagVFilter> it = filters.iterator(); it.hasNext(); ) {
+        buf.append(it.next());
         if (it.hasNext()) {
           buf.append(',');
         }
@@ -1129,18 +1167,32 @@ final class TsdbQuery implements Query {
         .append(", group_bys=(");
       if (group_bys != null) {
         for (final byte[] tag_id : group_bys) {
-          buf.append(Arrays.toString(tag_id));
-          if (group_by_values != null) {
-            final byte[][] value_ids = group_by_values.get(tag_id);
+          try {
+            buf.append(tsdb.tag_names.getName(tag_id));
+          } catch (NoSuchUniqueId e) {
+            buf.append('<').append(e.getMessage()).append('>');
+          }
+          buf.append(' ')
+             .append(Arrays.toString(tag_id));
+          if (row_key_literals != null) {
+            final byte[][] value_ids = row_key_literals.get(tag_id);
             if (value_ids == null) {
               continue;
             }
             buf.append("={");
-            for (int i = 0; i < value_ids.length; i++) {
-              buf.append(Arrays.toString(value_ids[i]));
-              if (i < value_ids.length - 1) {
-                buf.append(',');
+            for (final byte[] value_id : value_ids) {
+              try {
+                if (value_id != null) {
+                  buf.append(tsdb.tag_values.getName(value_id));
+                } else {
+                  buf.append("null");
+                }
+              } catch (NoSuchUniqueId e) {
+                buf.append('<').append(e.getMessage()).append('>');
               }
+              buf.append(' ')
+                 .append(Arrays.toString(value_id))
+                 .append(", ");
             }
             buf.append('}');
           }
@@ -1214,16 +1266,17 @@ final class TsdbQuery implements Query {
       return query.rate_options;
     }
     
-    static ArrayList<byte[]> getTags(final TsdbQuery query) {
-      return query.tags;
+    static List<TagVFilter> getFilters(final TsdbQuery query) {
+      return query.filters;
     }
     
     static ArrayList<byte[]> getGroupBys(final TsdbQuery query) {
       return query.group_bys;
     }
     
-    static ByteMap<byte[][]> getGroupByValues(final TsdbQuery query) {
-      return query.group_by_values;
+    static ByteMap<byte[][]> getRowKeyLiterals(final TsdbQuery query) {
+      return query.row_key_literals;
     }
+  
   }
 }

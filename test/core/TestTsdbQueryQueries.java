@@ -15,6 +15,10 @@ package net.opentsdb.core;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
@@ -63,6 +67,8 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     
     int value = 1;
     long timestamp = 1356998430000L;
+    verify(tag_values, times(1)).getNameAsync(TAGV_BYTES);
+    verify(tag_values, never()).getNameAsync(TAGV_B_BYTES);
     for (DataPoint dp : dps[0]) {
       assertEquals(value, dp.longValue());
       assertEquals(timestamp, dp.timestamp());
@@ -1398,5 +1404,46 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
       ++i;
     }
     assertEquals(151, dps[0].size());
+  }
+
+  @Test
+  public void runRegexp() throws Exception {
+    storeLongTimeSeriesSeconds(true, false);
+
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    tags.clear();
+    tags.put("host", "regexp(web01)");
+    query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
+
+    final DataPoints[] dps = query.run();
+    assertMeta(dps, 0, false);
+    verify(tag_values, atLeast(1)).getNameAsync(TAGV_BYTES);
+    verify(tag_values, atLeast(1)).getNameAsync(TAGV_B_BYTES);
+    int value = 1;
+    long timestamp = 1356998430000L;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(value, dp.longValue());
+      assertEquals(timestamp, dp.timestamp());
+      value++;
+      timestamp += 30000;
+    }
+    assertEquals(300, dps[0].aggregatedSize());
+  }
+  
+  @Test
+  public void runRegexpNoMatch() throws Exception {
+    storeLongTimeSeriesSeconds(true, false);
+
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    tags.clear();
+    tags.put("host", "regexp(dbsvr.*)");
+    query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
+
+    final DataPoints[] dps = query.run();
+    verify(tag_values, atLeast(1)).getNameAsync(TAGV_BYTES);
+    verify(tag_values, atLeast(1)).getNameAsync(TAGV_B_BYTES);
+    assertEquals(0, dps.length);
   }
 }
