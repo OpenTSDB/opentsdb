@@ -1,11 +1,12 @@
 package net.opentsdb.web.jackson;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.junit.Assert.assertEquals;
+
 import net.opentsdb.meta.Annotation;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Before;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 public class AnnotationMixInTest {
   private ObjectMapper jsonMapper;

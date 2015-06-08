@@ -1,12 +1,12 @@
 
 package net.opentsdb.meta;
 
-import com.google.auto.value.AutoValue;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import com.google.auto.value.AutoValue;
 
 /**
  * LabelMeta objects are associated with individual labels. LabelMeta objects are

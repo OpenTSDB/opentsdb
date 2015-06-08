@@ -1,28 +1,25 @@
 
 package net.opentsdb.uid;
 
-import java.io.IOException;
-import java.util.SortedMap;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.MetricRegistry;
-import com.google.common.eventbus.EventBus;
-
-import dagger.ObjectGraph;
 import net.opentsdb.TestModule;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.MetricRegistry;
+import com.google.common.eventbus.EventBus;
+import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
 
 import javax.inject.Inject;
-
-import static org.junit.Assert.assertEquals;
-
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
+import java.io.IOException;
+import java.util.SortedMap;
 
 public final class TestUniqueId {
   @Inject TsdbStore client;

@@ -1,5 +1,7 @@
 package net.opentsdb.web;
 
+import static java.util.Arrays.asList;
+
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import ch.qos.logback.core.joran.spi.JoranException;
@@ -12,8 +14,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-
-import static java.util.Arrays.asList;
 
 public class CommandLineApplication {
   private final PrintStream outStream;

@@ -1,6 +1,12 @@
 
 package net.opentsdb.web.resources;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static io.netty.handler.codec.http.HttpResponseStatus.ACCEPTED;
+import static io.netty.handler.codec.http.HttpResponseStatus.UNPROCESSABLE_ENTITY;
+
+import net.opentsdb.core.DataPointsClient;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -11,17 +17,12 @@ import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
-import net.opentsdb.core.DataPointsClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-import static io.netty.handler.codec.http.HttpResponseStatus.ACCEPTED;
-import static io.netty.handler.codec.http.HttpResponseStatus.UNPROCESSABLE_ENTITY;
 
 /**
  * A resource that accepts post requests whose body contains a JSON array of

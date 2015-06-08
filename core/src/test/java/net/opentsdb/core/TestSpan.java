@@ -18,12 +18,11 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.NoSuchElementException;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
-
 import org.junit.Test;
+
+import java.util.NoSuchElementException;
 
 public final class TestSpan {
   @Test (expected = IllegalArgumentException.class)

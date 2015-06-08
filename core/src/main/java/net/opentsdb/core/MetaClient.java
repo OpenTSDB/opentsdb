@@ -1,8 +1,7 @@
 package net.opentsdb.core;
 
-import java.util.List;
+import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.eventbus.EventBus;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.plugins.PluginError;
@@ -12,20 +11,20 @@ import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdUtils;
-
-import com.google.common.base.Strings;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
+
+import com.google.common.base.Strings;
+import com.google.common.eventbus.EventBus;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-
-import static com.google.common.base.Preconditions.checkNotNull;
+import java.util.List;
 
 /**
  * The exposed interface for managing meta objects.

@@ -1,19 +1,20 @@
 package net.opentsdb;
 
-import com.typesafe.config.ConfigFactory;
-import dagger.Module;
-import dagger.Provides;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import net.opentsdb.core.CoreModule;
 import net.opentsdb.core.MetaClientAnnotationTest;
 import net.opentsdb.plugins.PluginsModule;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.StoreModule;
 import net.opentsdb.storage.TsdbStore;
+
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import dagger.Module;
+import dagger.Provides;
 
 import javax.inject.Singleton;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A dagger module that inherits from {@link net.opentsdb.core.TsdbModule} and

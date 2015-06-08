@@ -1,13 +1,14 @@
 package net.opentsdb.core;
 
+import net.opentsdb.plugins.PluginsModule;
+import net.opentsdb.storage.StoreModule;
+
 import com.codahale.metrics.MetricRegistry;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigParseOptions;
 import dagger.Module;
 import dagger.Provides;
-import net.opentsdb.plugins.PluginsModule;
-import net.opentsdb.storage.StoreModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

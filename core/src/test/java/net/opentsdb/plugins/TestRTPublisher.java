@@ -12,16 +12,16 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.plugins;
 
-import com.google.common.collect.ImmutableMap;
+import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.mock;
+
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.plugins.RTPublisher;
 import net.opentsdb.uid.TimeseriesId;
+
+import com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 import java.util.HashMap;
-
-import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.mock;
 
 public abstract class TestRTPublisher {
   protected RTPublisher rt_publisher;

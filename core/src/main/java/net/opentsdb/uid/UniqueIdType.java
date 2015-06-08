@@ -1,10 +1,10 @@
 package net.opentsdb.uid;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import net.opentsdb.core.Const;
 
 import com.google.common.base.Strings;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * Enumerator for different types of UIDs

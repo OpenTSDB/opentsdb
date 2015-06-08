@@ -1,19 +1,20 @@
 package net.opentsdb.uid;
 
-import com.codahale.metrics.MetricRegistry;
-import com.google.common.eventbus.EventBus;
-import dagger.ObjectGraph;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.mockito.Mockito.mock;
+
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
+
+import com.codahale.metrics.MetricRegistry;
+import com.google.common.eventbus.EventBus;
+import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.mockito.Mockito.mock;
 
 public class WildcardIdLookupStrategyTest {
   private TsdbStore client;

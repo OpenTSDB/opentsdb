@@ -1,23 +1,12 @@
 package net.opentsdb.storage.cassandra;
 
-import com.datastax.driver.core.BoundStatement;
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.ConsistencyLevel;
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.ResultSetFuture;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
-import com.google.common.util.concurrent.AsyncFunction;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.stumbleupon.async.Deferred;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.util.concurrent.Futures.transform;
+import static net.opentsdb.storage.cassandra.CassandraConst.CHARSET;
+import static net.opentsdb.storage.cassandra.CassandraLabelId.fromLong;
+import static net.opentsdb.storage.cassandra.CassandraLabelId.toLong;
+import static net.opentsdb.storage.cassandra.MoreFutures.wrap;
+
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.meta.Annotation;
@@ -36,18 +25,30 @@ import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.TimeseriesId;
 import net.opentsdb.uid.UniqueIdType;
 
+import com.datastax.driver.core.BoundStatement;
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ConsistencyLevel;
+import com.datastax.driver.core.PreparedStatement;
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.ResultSetFuture;
+import com.datastax.driver.core.Row;
+import com.datastax.driver.core.Session;
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
+import com.google.common.util.concurrent.AsyncFunction;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.stumbleupon.async.Deferred;
+
 import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.util.concurrent.Futures.transform;
-import static net.opentsdb.storage.cassandra.CassandraConst.CHARSET;
-import static net.opentsdb.storage.cassandra.CassandraLabelId.fromLong;
-import static net.opentsdb.storage.cassandra.CassandraLabelId.toLong;
-import static net.opentsdb.storage.cassandra.MoreFutures.wrap;
 
 /**
  * The CassandraStore that implements the client interface required by TSDB.

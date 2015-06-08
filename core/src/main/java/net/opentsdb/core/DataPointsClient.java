@@ -1,23 +1,24 @@
 package net.opentsdb.core;
 
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.Timer;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static net.opentsdb.stats.Metrics.name;
+
 import net.opentsdb.plugins.PluginError;
 import net.opentsdb.plugins.RTPublisher;
 import net.opentsdb.stats.StopTimerCallback;
 import net.opentsdb.storage.TsdbStore;
-import com.typesafe.config.Config;
 import net.opentsdb.uid.TimeseriesId;
+
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Timer;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+import com.typesafe.config.Config;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Map;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static net.opentsdb.stats.Metrics.name;
 
 @Singleton
 public class DataPointsClient {
@@ -57,7 +58,7 @@ public class DataPointsClient {
   static long checkTimestamp(long timestamp) {
     checkArgument(timestamp >= 0, "The timestamp must be positive but was %s", timestamp);
     checkArgument((timestamp & Const.SECOND_MASK) == 0 || timestamp <= Const.MAX_MS_TIMESTAMP,
-            "The timestamp was too large (%s)", timestamp);
+        "The timestamp was too large (%s)", timestamp);
 
     return timestamp;
   }

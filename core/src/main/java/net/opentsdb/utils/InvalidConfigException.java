@@ -1,8 +1,8 @@
 package net.opentsdb.utils;
 
-import com.typesafe.config.ConfigValue;
-
 import static com.google.common.base.Preconditions.checkNotNull;
+
+import com.typesafe.config.ConfigValue;
 
 /**
  * Exception thrown when something about a specific {@link

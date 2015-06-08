@@ -1,13 +1,15 @@
 
 package net.opentsdb.meta;
 
+import static net.opentsdb.uid.UniqueIdType.METRIC;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+import static org.mockito.Mockito.mock;
+
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
-import org.junit.Test;
 
-import static net.opentsdb.uid.UniqueIdType.METRIC;
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
+import org.junit.Test;
 
 public final class LabelMetaTest {
   private final LabelId VALID_UID = mock(LabelId.class);

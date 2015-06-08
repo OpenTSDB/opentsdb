@@ -1,11 +1,11 @@
 package net.opentsdb.web;
 
+import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+
 import io.netty.handler.codec.http.HttpVersion;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-
-import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 public class HttpConstants {
   /**

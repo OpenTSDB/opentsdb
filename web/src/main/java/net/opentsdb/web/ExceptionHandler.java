@@ -1,6 +1,9 @@
 
 package net.opentsdb.web;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static net.opentsdb.web.HttpConstants.HTTP_VERSION;
+
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -11,9 +14,6 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static net.opentsdb.web.HttpConstants.HTTP_VERSION;
 
 @ChannelHandler.Sharable
 public class ExceptionHandler extends SimpleChannelInboundHandler<FullHttpRequest> {

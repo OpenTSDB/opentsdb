@@ -1,10 +1,10 @@
 package net.opentsdb.stats;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.codahale.metrics.Timer;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A {@link com.stumbleupon.async.Callback} implementation for use with {@link

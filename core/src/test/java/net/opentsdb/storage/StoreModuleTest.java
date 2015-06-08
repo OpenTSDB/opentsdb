@@ -1,21 +1,22 @@
 package net.opentsdb.storage;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+
+import net.opentsdb.TestModule;
+import net.opentsdb.utils.InvalidConfigException;
+
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
-import net.opentsdb.TestModule;
-import net.opentsdb.utils.InvalidConfigException;
-import com.typesafe.config.Config;
 import org.junit.Before;
 import org.junit.Test;
 
 import javax.inject.Inject;
-
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
 
 public class StoreModuleTest {
   /**

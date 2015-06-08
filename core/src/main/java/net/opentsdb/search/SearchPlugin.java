@@ -14,13 +14,13 @@ package net.opentsdb.search;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
-
-import com.stumbleupon.async.Deferred;
+import net.opentsdb.plugins.Plugin;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.plugins.Plugin;
+
+import com.stumbleupon.async.Deferred;
 
 import javax.annotation.Nonnull;
 import java.util.List;

@@ -1,23 +1,21 @@
 
 package net.opentsdb.storage;
 
-import java.util.List;
-
-import com.google.common.collect.ImmutableSortedSet;
-import net.opentsdb.search.ResolvedSearchQuery;
-
-import net.opentsdb.uid.LabelId;
-import net.opentsdb.utils.Pair;
-import org.junit.Before;
-import org.junit.Test;
-
-import net.opentsdb.uid.UniqueIdType;
-
-import javax.inject.Inject;
-
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+
+import net.opentsdb.search.ResolvedSearchQuery;
+import net.opentsdb.uid.LabelId;
+import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.utils.Pair;
+
+import com.google.common.collect.ImmutableSortedSet;
+import org.junit.Before;
+import org.junit.Test;
+
+import javax.inject.Inject;
+import java.util.List;
 
 public abstract class TsdbStoreTimeSeriesQueryTest {
   private LabelId sysCpuUserId;

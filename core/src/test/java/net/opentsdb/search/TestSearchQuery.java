@@ -13,6 +13,7 @@
 package net.opentsdb.search;
 
 import static org.junit.Assert.assertEquals;
+
 import net.opentsdb.search.SearchQuery.SearchType;
 
 import org.junit.Test;

@@ -19,16 +19,15 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
-import java.text.SimpleDateFormat;
-import java.util.TimeZone;
-
-import net.opentsdb.time.DateTime;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
+import java.text.SimpleDateFormat;
+import java.util.TimeZone;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ DateTime.class })

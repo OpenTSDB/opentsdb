@@ -1,5 +1,8 @@
 package net.opentsdb.web.resources;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
+import static net.opentsdb.web.HttpConstants.HTTP_VERSION;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
@@ -10,9 +13,6 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
-
-import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
-import static net.opentsdb.web.HttpConstants.HTTP_VERSION;
 
 @ChannelHandler.Sharable
 public class Resource extends SimpleChannelInboundHandler<FullHttpRequest> {

@@ -1,20 +1,20 @@
 package net.opentsdb.search;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import net.opentsdb.BuildData;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
-
-import com.stumbleupon.async.Deferred;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
 
+import com.stumbleupon.async.Deferred;
+
 import javax.annotation.Nonnull;
 import java.util.List;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A default search plugin to use when no other search plugin has been

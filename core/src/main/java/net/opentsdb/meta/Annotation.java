@@ -12,12 +12,12 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.meta;
 
+import com.google.common.base.Objects;
+import com.google.common.collect.Sets;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
-import com.google.common.base.Objects;
-import com.google.common.collect.Sets;
 
 /**
  * Annotations are used to record time-based notes about timeseries events.

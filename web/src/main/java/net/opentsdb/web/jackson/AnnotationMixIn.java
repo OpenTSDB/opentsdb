@@ -1,12 +1,11 @@
 package net.opentsdb.web.jackson;
 
-import java.util.Map;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
-
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.Map;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.PUBLIC_ONLY)
 @JsonInclude(JsonInclude.Include.NON_NULL)

@@ -1,7 +1,8 @@
 package net.opentsdb.core;
 
-import com.google.common.eventbus.EventBus;
-import dagger.ObjectGraph;
+import static net.opentsdb.uid.UniqueIdType.METRIC;
+import static org.junit.Assert.assertEquals;
+
 import net.opentsdb.TestModule;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.plugins.RTPublisher;
@@ -9,16 +10,16 @@ import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.LabelId;
+
+import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
+import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import javax.inject.Inject;
-
-import static net.opentsdb.uid.UniqueIdType.METRIC;
-import static org.junit.Assert.assertEquals;
 
 public class MetaClientLabelMetaTest {
   @Inject Config config;

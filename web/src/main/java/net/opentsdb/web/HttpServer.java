@@ -1,6 +1,10 @@
 
 package net.opentsdb.web;
 
+import net.opentsdb.core.TsdbModule;
+import net.opentsdb.utils.EventLoopGroups;
+import net.opentsdb.utils.InvalidConfigException;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 import dagger.ObjectGraph;
@@ -13,9 +17,6 @@ import io.netty.handler.logging.LoggingHandler;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
-import net.opentsdb.utils.EventLoopGroups;
-import net.opentsdb.utils.InvalidConfigException;
-import net.opentsdb.core.TsdbModule;
 
 import java.io.File;
 

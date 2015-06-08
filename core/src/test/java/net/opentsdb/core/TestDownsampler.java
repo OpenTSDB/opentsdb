@@ -20,14 +20,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
-import java.util.List;
-
-import com.google.common.collect.Lists;
-
 import net.opentsdb.time.DateTime;
 
+import com.google.common.collect.Lists;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.List;
 
 
 /** Tests {@link Downsampler}. */

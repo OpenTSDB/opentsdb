@@ -1,6 +1,17 @@
 
 package net.opentsdb.idmanager;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Arrays.asList;
+
+import net.opentsdb.core.TsdbModule;
+import net.opentsdb.core.UniqueIdClient;
+import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.uid.IdException;
+import net.opentsdb.uid.LabelId;
+import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.utils.InvalidConfigException;
+
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
@@ -12,13 +23,6 @@ import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
-import net.opentsdb.uid.LabelId;
-import net.opentsdb.utils.InvalidConfigException;
-import net.opentsdb.core.TsdbModule;
-import net.opentsdb.core.UniqueIdClient;
-import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.uid.IdException;
-import net.opentsdb.uid.UniqueIdType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,9 +31,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-import static java.util.Arrays.asList;
 
 /**
  * Command line tool to assign new IDs

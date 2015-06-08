@@ -1,13 +1,14 @@
 package net.opentsdb.search;
 
-import com.google.common.eventbus.AllowConcurrentEvents;
-import com.google.common.eventbus.Subscribe;
-import com.stumbleupon.async.Callback;
-import net.opentsdb.plugins.PluginError;
 import net.opentsdb.meta.LabelMeta;
+import net.opentsdb.plugins.PluginError;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.LabelCreatedEvent;
 import net.opentsdb.uid.LabelDeletedEvent;
+
+import com.google.common.eventbus.AllowConcurrentEvents;
+import com.google.common.eventbus.Subscribe;
+import com.stumbleupon.async.Callback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

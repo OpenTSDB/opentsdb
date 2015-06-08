@@ -12,15 +12,15 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import net.opentsdb.core.Aggregators.Interpolation;
+
+import com.google.common.annotations.VisibleForTesting;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
-
-import com.google.common.annotations.VisibleForTesting;
-
-import net.opentsdb.core.Aggregators.Interpolation;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Iterator that aggregates multiple spans or time series data and does linear

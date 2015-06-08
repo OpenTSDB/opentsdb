@@ -18,14 +18,13 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Test;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TestPair {
 

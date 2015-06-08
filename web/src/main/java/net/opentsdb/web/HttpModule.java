@@ -1,5 +1,12 @@
 package net.opentsdb.web;
 
+import net.opentsdb.core.DataPointsClient;
+import net.opentsdb.core.TsdbModule;
+import net.opentsdb.web.resources.DatapointsResource;
+import net.opentsdb.web.resources.MetricsResource;
+import net.opentsdb.web.resources.NotFoundResource;
+import net.opentsdb.web.resources.Resource;
+
 import autovalue.shaded.com.google.common.common.collect.ImmutableMap;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.json.MetricsModule;
@@ -9,12 +16,6 @@ import com.typesafe.config.Config;
 import dagger.Module;
 import dagger.Provides;
 import io.netty.handler.codec.http.cors.CorsConfig;
-import net.opentsdb.core.DataPointsClient;
-import net.opentsdb.core.TsdbModule;
-import net.opentsdb.web.resources.DatapointsResource;
-import net.opentsdb.web.resources.MetricsResource;
-import net.opentsdb.web.resources.NotFoundResource;
-import net.opentsdb.web.resources.Resource;
 
 import javax.inject.Singleton;
 import java.util.List;

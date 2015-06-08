@@ -1,8 +1,11 @@
 package net.opentsdb.search;
 
-import com.google.common.eventbus.EventBus;
-import com.stumbleupon.async.Deferred;
-import dagger.ObjectGraph;
+import static net.opentsdb.uid.UniqueIdType.METRIC;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import net.opentsdb.TestModule;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.storage.TsdbStore;
@@ -10,18 +13,16 @@ import net.opentsdb.uid.LabelCreatedEvent;
 import net.opentsdb.uid.LabelDeletedEvent;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
+
+import com.google.common.eventbus.EventBus;
+import com.stumbleupon.async.Deferred;
+import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import javax.inject.Inject;
-
-import static net.opentsdb.uid.UniqueIdType.METRIC;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 public class IdChangeIndexerListenerTest {
   @Inject EventBus idEventBus;

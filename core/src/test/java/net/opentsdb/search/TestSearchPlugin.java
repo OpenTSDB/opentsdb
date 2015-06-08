@@ -12,15 +12,16 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.search;
 
-import com.stumbleupon.async.Callback;
-import net.opentsdb.meta.Annotation;
-import net.opentsdb.uid.LabelId;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
+
+import net.opentsdb.meta.Annotation;
+import net.opentsdb.uid.LabelId;
+
+import com.stumbleupon.async.Callback;
+import org.junit.Ignore;
+import org.junit.Test;
 
 public abstract class TestSearchPlugin {
   protected SearchPlugin search;

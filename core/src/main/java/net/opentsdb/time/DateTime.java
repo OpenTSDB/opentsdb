@@ -12,12 +12,12 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.time;
 
+import net.opentsdb.utils.MoreLongs;
+
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.TimeZone;
-
-import net.opentsdb.utils.MoreLongs;
 
 /**
  * Utility class that provides helpers for dealing with dates and timestamps.

@@ -1,14 +1,14 @@
 
 package net.opentsdb.web.resources;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+
 import com.codahale.metrics.MetricRegistry;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
-
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
 /**
  * A resource that exposes all metrics collected about the current process for

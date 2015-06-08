@@ -1,48 +1,47 @@
 package net.opentsdb.core;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static net.opentsdb.stats.Metrics.name;
+
+import net.opentsdb.search.ResolvedSearchQuery;
+import net.opentsdb.search.SearchPlugin;
+import net.opentsdb.search.SearchQuery;
+import net.opentsdb.stats.StopTimerCallback;
+import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.uid.IdLookupStrategy;
+import net.opentsdb.uid.IdLookupStrategy.WildcardIdLookupStrategy;
+import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.LabelId;
+import net.opentsdb.uid.NoSuchUniqueId;
+import net.opentsdb.uid.NoSuchUniqueName;
+import net.opentsdb.uid.StaticTimeseriesId;
+import net.opentsdb.uid.TimeseriesId;
+import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.uid.callbacks.StripedToMap;
+import net.opentsdb.utils.Pair;
+
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Timer;
+import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.eventbus.EventBus;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+import com.typesafe.config.Config;
+
+import javax.annotation.Nonnull;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
-
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.Timer;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.eventbus.EventBus;
-import net.opentsdb.search.ResolvedSearchQuery;
-import net.opentsdb.search.SearchPlugin;
-import net.opentsdb.search.SearchQuery;
-import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.uid.IdLookupStrategy;
-import net.opentsdb.uid.IdLookupStrategy.WildcardIdLookupStrategy;
-import net.opentsdb.uid.LabelId;
-import net.opentsdb.uid.StaticTimeseriesId;
-import net.opentsdb.uid.TimeseriesId;
-import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.IdentifierDecorator;
-import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueIdType;
-import com.typesafe.config.Config;
-
-import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-import net.opentsdb.uid.callbacks.StripedToMap;
-import net.opentsdb.utils.Pair;
-import net.opentsdb.stats.StopTimerCallback;
-
-import javax.annotation.Nonnull;
-import javax.inject.Inject;
-import javax.inject.Singleton;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static net.opentsdb.stats.Metrics.name;
 
 @Singleton
 public class UniqueIdClient {

@@ -1,10 +1,14 @@
 package net.opentsdb.core;
 
-import java.util.Map;
+import static net.opentsdb.uid.UniqueIdType.METRIC;
+import static net.opentsdb.uid.UniqueIdType.TAGK;
+import static net.opentsdb.uid.UniqueIdType.TAGV;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-import autovalue.shaded.com.google.common.common.collect.ImmutableList;
-import com.stumbleupon.async.Deferred;
-import dagger.ObjectGraph;
 import net.opentsdb.TestModule;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.MockBase;
@@ -13,17 +17,14 @@ import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 
+import autovalue.shaded.com.google.common.common.collect.ImmutableList;
+import com.stumbleupon.async.Deferred;
+import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
 
 import javax.inject.Inject;
-
-import static net.opentsdb.uid.UniqueIdType.METRIC;
-import static net.opentsdb.uid.UniqueIdType.TAGK;
-import static net.opentsdb.uid.UniqueIdType.TAGV;
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import java.util.Map;
 
 public class UniqueIdClientTest {
   @Inject TsdbStore store;

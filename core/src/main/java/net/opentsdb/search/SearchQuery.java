@@ -12,16 +12,16 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.search;
 
-import java.util.Collections;
-import java.util.List;
-
 import net.opentsdb.utils.Pair;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Class used for passing and executing simple queries against with the search

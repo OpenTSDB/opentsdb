@@ -1,5 +1,10 @@
 package net.opentsdb.web.jackson;
 
+import static net.opentsdb.uid.UniqueIdType.METRIC;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.mock;
+
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
@@ -11,11 +16,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Iterators;
 import org.junit.Before;
 import org.junit.Test;
-
-import static net.opentsdb.uid.UniqueIdType.METRIC;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.mock;
 
 
 public class LabelMetaMixInTest {

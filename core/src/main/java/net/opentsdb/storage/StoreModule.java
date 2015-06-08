@@ -1,10 +1,11 @@
 package net.opentsdb.storage;
 
+import net.opentsdb.utils.InvalidConfigException;
+
 import com.codahale.metrics.MetricRegistry;
+import com.typesafe.config.Config;
 import dagger.Module;
 import dagger.Provides;
-import net.opentsdb.utils.InvalidConfigException;
-import com.typesafe.config.Config;
 
 import javax.inject.Singleton;
 import java.util.ServiceLoader;

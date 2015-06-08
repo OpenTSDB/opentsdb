@@ -12,10 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.SortedSet;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.uid.IdUtils;
@@ -29,7 +26,10 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.primitives.SignedBytes;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.SortedSet;
 
 /**
  * Represents a read-only sequence of continuous data points for a single

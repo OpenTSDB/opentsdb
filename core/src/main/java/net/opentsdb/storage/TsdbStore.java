@@ -1,26 +1,23 @@
 
 package net.opentsdb.storage;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
-
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
-
-import java.io.Closeable;
-import java.util.List;
-
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.TimeseriesId;
 import net.opentsdb.uid.UniqueIdType;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
+import com.stumbleupon.async.Deferred;
+
 import javax.annotation.Nonnull;
+import java.io.Closeable;
+import java.util.List;
 
 /**
  * An abstract class defining the functions any database used with TSDB must

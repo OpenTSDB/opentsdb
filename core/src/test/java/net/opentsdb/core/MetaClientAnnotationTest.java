@@ -1,21 +1,22 @@
 package net.opentsdb.core;
 
-import java.util.List;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
-import com.google.common.collect.ImmutableMap;
-import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.IdUtils;
 
+import com.google.common.collect.ImmutableMap;
+import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
 
 import javax.inject.Inject;
-
-import static org.junit.Assert.*;
+import java.util.List;
 
 public class MetaClientAnnotationTest {
   private Annotation note;

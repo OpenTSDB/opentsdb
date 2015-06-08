@@ -1,6 +1,19 @@
 
 package net.opentsdb.storage;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static net.opentsdb.uid.IdUtils.uidToString;
+
+import net.opentsdb.core.DataPoints;
+import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.LabelMeta;
+import net.opentsdb.search.ResolvedSearchQuery;
+import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.LabelId;
+import net.opentsdb.uid.TimeseriesId;
+import net.opentsdb.uid.UniqueIdType;
+
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
@@ -10,15 +23,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.core.DataPoints;
-import net.opentsdb.meta.Annotation;
-import net.opentsdb.meta.LabelMeta;
-import net.opentsdb.search.ResolvedSearchQuery;
-import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.IdentifierDecorator;
-import net.opentsdb.uid.LabelId;
-import net.opentsdb.uid.TimeseriesId;
 
+import javax.annotation.Nonnull;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,13 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.UUID;
-
-import net.opentsdb.uid.UniqueIdType;
-
-import javax.annotation.Nonnull;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-import static net.opentsdb.uid.IdUtils.uidToString;
 
 /**
  * TsdbStore implementation useful in testing calls to and from

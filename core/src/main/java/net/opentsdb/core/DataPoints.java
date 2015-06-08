@@ -12,10 +12,10 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import net.opentsdb.meta.Annotation;
+
 import java.util.List;
 import java.util.Map;
-
-import net.opentsdb.meta.Annotation;
 
 /**
  * Represents a read-only sequence of continuous data points.

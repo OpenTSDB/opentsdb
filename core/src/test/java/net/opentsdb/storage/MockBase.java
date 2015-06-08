@@ -12,9 +12,9 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.storage;
 
-import javax.xml.bind.DatatypeConverter;
-
 import org.junit.Ignore;
+
+import javax.xml.bind.DatatypeConverter;
 
 @Ignore
 public final class MockBase {

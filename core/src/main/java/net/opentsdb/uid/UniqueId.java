@@ -1,8 +1,12 @@
 
 package net.opentsdb.uid;
 
-import java.util.HashMap;
-import java.util.concurrent.ConcurrentHashMap;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static net.opentsdb.stats.Metrics.name;
+import static net.opentsdb.stats.Metrics.tag;
+
+import net.opentsdb.stats.Metrics;
+import net.opentsdb.storage.TsdbStore;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
@@ -12,18 +16,13 @@ import com.google.common.base.Optional;
 import com.google.common.eventbus.EventBus;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.stats.Metrics;
-import net.opentsdb.storage.TsdbStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-import static net.opentsdb.stats.Metrics.name;
-import static net.opentsdb.stats.Metrics.tag;
+import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Represents a table of Unique IDs, manages the lookup and creation of IDs.

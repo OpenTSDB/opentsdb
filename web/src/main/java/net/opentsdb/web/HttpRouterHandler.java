@@ -1,6 +1,10 @@
 
 package net.opentsdb.web;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import net.opentsdb.web.resources.Resource;
+
 import autovalue.shaded.com.google.common.common.base.CharMatcher;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -9,11 +13,8 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.internal.TypeParameterMatcher;
-import net.opentsdb.web.resources.Resource;
 
 import java.util.Map;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A Netty handler that delegates incoming HTTP requests to other handlers based

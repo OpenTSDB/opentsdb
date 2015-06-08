@@ -1,6 +1,8 @@
 
 package net.opentsdb.web;
 
+import net.opentsdb.web.resources.Resource;
+
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
@@ -11,7 +13,6 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
-import net.opentsdb.web.resources.Resource;
 
 import java.util.Map;
 

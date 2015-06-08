@@ -1,13 +1,14 @@
 
 package net.opentsdb.storage.cassandra.statements;
 
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.Session;
-import net.opentsdb.storage.cassandra.Tables;
-
 import static com.datastax.driver.core.querybuilder.QueryBuilder.bindMarker;
 import static com.datastax.driver.core.querybuilder.QueryBuilder.insertInto;
 import static com.datastax.driver.core.querybuilder.QueryBuilder.timestamp;
+
+import net.opentsdb.storage.cassandra.Tables;
+
+import com.datastax.driver.core.PreparedStatement;
+import com.datastax.driver.core.Session;
 
 /**
  * A collection of {@link com.datastax.driver.core.PreparedStatement

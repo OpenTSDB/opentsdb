@@ -1,12 +1,13 @@
 package net.opentsdb.storage.cassandra;
 
+import net.opentsdb.core.CoreModule;
+import net.opentsdb.plugins.PluginsModule;
+import net.opentsdb.storage.StoreModule;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import dagger.Module;
 import dagger.Provides;
-import net.opentsdb.core.CoreModule;
-import net.opentsdb.plugins.PluginsModule;
-import net.opentsdb.storage.StoreModule;
 
 import javax.inject.Singleton;
 

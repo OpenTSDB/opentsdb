@@ -1,12 +1,12 @@
 package net.opentsdb.stats;
 
-import com.codahale.metrics.Timer;
-import com.stumbleupon.async.Deferred;
-import org.junit.Test;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+
+import com.codahale.metrics.Timer;
+import com.stumbleupon.async.Deferred;
+import org.junit.Test;
 
 public class StopTimerCallbackTest {
   @Test

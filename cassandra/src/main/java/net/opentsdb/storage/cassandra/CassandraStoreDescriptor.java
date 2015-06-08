@@ -1,5 +1,8 @@
 package net.opentsdb.storage.cassandra;
 
+import net.opentsdb.storage.StoreDescriptor;
+import net.opentsdb.utils.InvalidConfigException;
+
 import com.codahale.metrics.MetricRegistry;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ProtocolVersion;
@@ -7,8 +10,6 @@ import com.datastax.driver.core.Session;
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
-import net.opentsdb.utils.InvalidConfigException;
-import net.opentsdb.storage.StoreDescriptor;
 import com.typesafe.config.Config;
 
 import java.util.List;

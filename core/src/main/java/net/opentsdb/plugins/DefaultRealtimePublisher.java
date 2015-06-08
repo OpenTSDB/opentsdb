@@ -1,12 +1,12 @@
 package net.opentsdb.plugins;
 
-import java.util.Map;
-
 import net.opentsdb.BuildData;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.uid.TimeseriesId;
 
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.uid.TimeseriesId;
+
+import java.util.Map;
 
 /**
  * A default realtime publisher to use when no other realtime publisher has

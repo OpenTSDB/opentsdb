@@ -1,22 +1,5 @@
 package net.opentsdb.storage.cassandra;
 
-import com.codahale.metrics.MetricRegistry;
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.Session;
-import com.google.common.base.Optional;
-import dagger.ObjectGraph;
-import net.opentsdb.uid.LabelId;
-import net.opentsdb.uid.UniqueIdType;
-import com.typesafe.config.Config;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
-import javax.inject.Inject;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-
 import static net.opentsdb.storage.cassandra.CassandraLabelId.toLong;
 import static net.opentsdb.storage.cassandra.CassandraTestHelpers.TIMEOUT;
 import static org.junit.Assert.assertEquals;
@@ -25,6 +8,24 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
+
+import net.opentsdb.uid.LabelId;
+import net.opentsdb.uid.UniqueIdType;
+
+import com.codahale.metrics.MetricRegistry;
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.Session;
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+import dagger.ObjectGraph;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
+import javax.inject.Inject;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class TestCassandraStore {
   private static final String METRIC_NAME_ONE = "sys";

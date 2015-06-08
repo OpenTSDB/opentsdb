@@ -1,7 +1,10 @@
 package net.opentsdb.uid;
 
-import com.google.common.primitives.Longs;
+import static com.google.common.base.Preconditions.checkArgument;
+
 import net.opentsdb.core.Const;
+
+import com.google.common.primitives.Longs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,8 +12,6 @@ import javax.xml.bind.DatatypeConverter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 public class IdUtils {
   private static final Logger LOG = LoggerFactory.getLogger(IdUtils.class);

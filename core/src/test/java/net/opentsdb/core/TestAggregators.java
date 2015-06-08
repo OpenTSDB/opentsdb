@@ -12,10 +12,10 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.util.Random;
-
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Random;
 
 public final class TestAggregators {
 

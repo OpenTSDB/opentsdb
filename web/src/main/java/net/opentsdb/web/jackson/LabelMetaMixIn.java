@@ -1,7 +1,5 @@
 package net.opentsdb.web.jackson;
 
-import java.util.Map;
-
 import net.opentsdb.uid.UniqueIdType;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
@@ -10,6 +8,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
+import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.PUBLIC_ONLY)

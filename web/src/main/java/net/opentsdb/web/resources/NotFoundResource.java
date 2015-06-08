@@ -1,12 +1,12 @@
 
 package net.opentsdb.web.resources;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
+
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 
 /**
  * A resource that is useful as a default resource in {@link

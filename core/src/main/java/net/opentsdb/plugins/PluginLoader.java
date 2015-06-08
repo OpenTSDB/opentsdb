@@ -12,14 +12,14 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.plugins;
 
-import java.util.List;
-import java.util.ServiceLoader;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.ServiceLoader;
 
 /**
  * Super simple ServiceLoader based plugin framework for OpenTSDB that lets us

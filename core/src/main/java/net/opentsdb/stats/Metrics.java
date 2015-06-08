@@ -1,8 +1,8 @@
 package net.opentsdb.stats;
 
-import com.google.common.base.Joiner;
-
 import static com.google.common.base.Preconditions.checkNotNull;
+
+import com.google.common.base.Joiner;
 
 /**
  * Instead of juggling a registry around directly we use this class. It might be

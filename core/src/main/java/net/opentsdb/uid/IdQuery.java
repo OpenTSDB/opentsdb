@@ -1,8 +1,8 @@
 package net.opentsdb.uid;
 
-import com.google.common.base.Strings;
-
 import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.common.base.Strings;
 
 public class IdQuery {
   public static final int NO_LIMIT = 0;

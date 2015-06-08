@@ -12,13 +12,12 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.plugins;
 
-import java.util.Map;
-
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.uid.TimeseriesId;
 
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.plugins.Plugin;
-import net.opentsdb.uid.TimeseriesId;
+
+import java.util.Map;
 
 /**
  * Real Time publisher plugin interface that is used to emit data from a TSD

@@ -1,16 +1,17 @@
 package net.opentsdb;
 
+import net.opentsdb.core.CoreModule;
+import net.opentsdb.core.MetaClientLabelMetaTest;
+import net.opentsdb.core.UniqueIdClientTest;
+import net.opentsdb.plugins.PluginsModule;
+import net.opentsdb.storage.StoreModule;
+import net.opentsdb.storage.StoreModuleTest;
+import net.opentsdb.uid.TestUniqueId;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import dagger.Module;
 import dagger.Provides;
-import net.opentsdb.core.CoreModule;
-import net.opentsdb.core.MetaClientLabelMetaTest;
-import net.opentsdb.plugins.PluginsModule;
-import net.opentsdb.core.UniqueIdClientTest;
-import net.opentsdb.storage.StoreModule;
-import net.opentsdb.storage.StoreModuleTest;
-import net.opentsdb.uid.TestUniqueId;
 
 import javax.inject.Singleton;
 

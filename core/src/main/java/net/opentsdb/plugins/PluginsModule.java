@@ -1,12 +1,13 @@
 package net.opentsdb.plugins;
 
-import com.typesafe.config.Config;
-import dagger.Module;
-import dagger.Provides;
 import net.opentsdb.search.DefaultSearchPlugin;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchPluginDescriptor;
 import net.opentsdb.storage.TsdbStore;
+
+import com.typesafe.config.Config;
+import dagger.Module;
+import dagger.Provides;
 
 import javax.inject.Singleton;
 
