@@ -16,9 +16,9 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.typesafe.config.Config;
 
+import java.util.Map;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.util.Map;
 
 @Singleton
 public class DataPointsClient {

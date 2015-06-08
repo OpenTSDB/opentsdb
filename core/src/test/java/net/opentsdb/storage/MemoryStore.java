@@ -24,7 +24,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.stumbleupon.async.Deferred;
 
-import javax.annotation.Nonnull;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.UUID;
+import javax.annotation.Nonnull;
 
 /**
  * TsdbStore implementation useful in testing calls to and from

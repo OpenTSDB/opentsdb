@@ -17,9 +17,9 @@ import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
 
-import javax.inject.Inject;
 import java.io.IOException;
 import java.util.SortedMap;
+import javax.inject.Inject;
 
 public final class TestUniqueId {
   @Inject TsdbStore client;

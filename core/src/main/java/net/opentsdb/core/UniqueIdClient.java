@@ -34,14 +34,14 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.typesafe.config.Config;
 
-import javax.annotation.Nonnull;
-import javax.inject.Inject;
-import javax.inject.Singleton;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
+import javax.annotation.Nonnull;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
 @Singleton
 public class UniqueIdClient {

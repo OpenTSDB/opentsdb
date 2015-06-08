@@ -1,7 +1,7 @@
 package net.opentsdb.uid;
 
-import javax.annotation.Nonnull;
 import java.util.List;
+import javax.annotation.Nonnull;
 
 /**
  * A general representation of timeseries IDs.

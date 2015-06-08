@@ -15,8 +15,8 @@ import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
 
-import javax.inject.Inject;
 import java.util.List;
+import javax.inject.Inject;
 
 public class MetaClientAnnotationTest {
   private Annotation note;

@@ -7,8 +7,8 @@ import com.typesafe.config.Config;
 import dagger.Module;
 import dagger.Provides;
 
-import javax.inject.Singleton;
 import java.util.ServiceLoader;
+import javax.inject.Singleton;
 
 /**
  * Use this class to create a TsdbStore instance. Given a config file and an

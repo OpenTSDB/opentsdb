@@ -1,7 +1,7 @@
 package net.opentsdb.uid;
 
-import javax.annotation.Nonnull;
 import java.util.List;
+import javax.annotation.Nonnull;
 
 /**
  * An implementation of {@link net.opentsdb.uid.TimeseriesId} that is built up

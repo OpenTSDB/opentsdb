@@ -14,8 +14,8 @@ import com.google.common.collect.ImmutableSortedSet;
 import org.junit.Before;
 import org.junit.Test;
 
-import javax.inject.Inject;
 import java.util.List;
+import javax.inject.Inject;
 
 public abstract class TsdbStoreTimeSeriesQueryTest {
   private LabelId sysCpuUserId;

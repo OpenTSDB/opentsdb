@@ -13,8 +13,8 @@ import net.opentsdb.uid.UniqueIdType;
 
 import com.stumbleupon.async.Deferred;
 
-import javax.annotation.Nonnull;
 import java.util.List;
+import javax.annotation.Nonnull;
 
 /**
  * A default search plugin to use when no other search plugin has been

@@ -22,8 +22,8 @@ import net.opentsdb.uid.UniqueIdType;
 
 import com.stumbleupon.async.Deferred;
 
-import javax.annotation.Nonnull;
 import java.util.List;
+import javax.annotation.Nonnull;
 
 /**
  * Search plugins allow data from OpenTSDB to be published to a search indexer.

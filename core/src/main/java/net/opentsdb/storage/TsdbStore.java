@@ -15,9 +15,9 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.stumbleupon.async.Deferred;
 
-import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.util.List;
+import javax.annotation.Nonnull;
 
 /**
  * An abstract class defining the functions any database used with TSDB must

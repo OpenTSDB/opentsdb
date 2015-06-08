@@ -12,8 +12,8 @@ import dagger.Provides;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.inject.Singleton;
 import java.io.File;
+import javax.inject.Singleton;
 
 /**
  * This is the main dagger module for the TSDB core library. It is not complete

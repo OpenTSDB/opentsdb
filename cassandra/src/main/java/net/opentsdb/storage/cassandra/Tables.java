@@ -1,7 +1,7 @@
 package net.opentsdb.storage.cassandra;
 
 /**
- * Constants that describe which tables we use
+ * Constants that describe which tables we use.
  */
 public class Tables {
   public static final String KEYSPACE = "tsdb";
