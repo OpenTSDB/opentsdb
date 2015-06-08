@@ -1,7 +1,6 @@
 package net.opentsdb.storage.cassandra;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.primitives.Longs;
 import net.opentsdb.uid.LabelId;
 
 import javax.annotation.Nonnull;

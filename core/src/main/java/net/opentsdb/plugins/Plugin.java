@@ -3,7 +3,6 @@ package net.opentsdb.plugins;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricSet;
 import com.google.common.collect.ImmutableMap;
-import com.stumbleupon.async.Deferred;
 
 import java.io.Closeable;
 import java.util.Map;

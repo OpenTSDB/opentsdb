@@ -4,7 +4,6 @@ package net.opentsdb.storage;
 import java.util.List;
 
 import com.google.common.collect.ImmutableSortedSet;
-import com.stumbleupon.async.Deferred;
 import net.opentsdb.search.ResolvedSearchQuery;
 
 import net.opentsdb.uid.LabelId;

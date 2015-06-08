@@ -9,7 +9,6 @@ import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.LabelId;
-import net.opentsdb.uid.NoSuchUniqueId;
 import com.typesafe.config.Config;
 import org.junit.Before;
 import org.junit.Test;
@@ -19,11 +18,7 @@ import org.mockito.MockitoAnnotations;
 import javax.inject.Inject;
 
 import static net.opentsdb.uid.UniqueIdType.METRIC;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 public class MetaClientLabelMetaTest {
   @Inject Config config;

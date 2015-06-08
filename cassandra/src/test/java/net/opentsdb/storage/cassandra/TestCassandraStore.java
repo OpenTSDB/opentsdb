@@ -5,7 +5,6 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;
 import com.google.common.base.Optional;
 import dagger.ObjectGraph;
-import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
@@ -20,7 +19,6 @@ import java.util.Map;
 
 import static net.opentsdb.storage.cassandra.CassandraLabelId.toLong;
 import static net.opentsdb.storage.cassandra.CassandraTestHelpers.TIMEOUT;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;

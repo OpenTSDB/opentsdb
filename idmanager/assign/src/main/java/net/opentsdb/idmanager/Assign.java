@@ -18,7 +18,6 @@ import net.opentsdb.core.TsdbModule;
 import net.opentsdb.core.UniqueIdClient;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdException;
-import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.UniqueIdType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

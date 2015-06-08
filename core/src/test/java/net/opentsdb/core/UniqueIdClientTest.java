@@ -1,14 +1,9 @@
 package net.opentsdb.core;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import autovalue.shaded.com.google.common.common.collect.ImmutableList;
 import com.stumbleupon.async.Deferred;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModule;
 import net.opentsdb.search.SearchQuery;
@@ -17,8 +12,6 @@ import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueIdType;
-import com.typesafe.config.Config;
 
 import org.junit.Before;
 import org.junit.Test;
