@@ -44,7 +44,7 @@ subprojects {
                 metrics_jvm: 'io.dropwizard.metrics:metrics-jvm:3.1.2',
                 metrics_json: 'io.dropwizard.metrics:metrics-json:3.1.2',
 
-                cassandra: 'com.datastax.cassandra:cassandra-driver-core:2.1.5',
+                cassandra: 'com.datastax.cassandra:cassandra-driver-core:2.1.6',
 
                 // Web (Netty)
                 netty: 'io.netty:netty-all:4.1.0.Beta5',
