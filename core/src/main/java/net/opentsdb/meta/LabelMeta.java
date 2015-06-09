@@ -27,18 +27,18 @@ public abstract class LabelMeta {
     return new AutoValue_LabelMeta(identifier, type, name, description, created);
   }
 
-  /** The id of this label */
+  /** The id of this label. */
   public abstract LabelId identifier();
 
-  /** What type of label this is */
+  /** What type of label this is. */
   public abstract UniqueIdType type();
 
-  /** The name of the label */
+  /** The name of the label. */
   public abstract String name();
 
-  /** A free-form description of what this label represents */
+  /** A free-form description of what this label represents. */
   public abstract String description();
 
-  /** The timestamp in milliseconds at which this label was created */
+  /** The timestamp in milliseconds at which this label was created. */
   public abstract long created();
 }

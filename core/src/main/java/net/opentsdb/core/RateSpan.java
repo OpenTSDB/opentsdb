@@ -152,11 +152,11 @@ public class RateSpan implements SeekableView {
         if (prev_data.isInteger() && nextData.isInteger()) {
           // NOTE: Calculates in the long type to avoid precision loss
           // while converting long values to double values if both values are long.
-          difference = options.getCounterMax() - prev_data.longValue() +
-                       nextData.longValue();
+          difference = options.getCounterMax() - prev_data.longValue()
+                       + nextData.longValue();
         } else {
-          difference = options.getCounterMax() - prev_data.toDouble() +
-                       nextData.toDouble();
+          difference = options.getCounterMax() - prev_data.toDouble()
+                       + nextData.toDouble();
         }
 
         // If the rate is greater than the reset value, return a 0

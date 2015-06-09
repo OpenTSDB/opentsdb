@@ -161,7 +161,8 @@ public class MetaClient {
     class NameCB implements Callback<Deferred<LabelMeta>, String> {
 
       /**
-       * Called after verifying that the name mapping exists
+       * Called after verifying that the name mapping exists.
+       *
        * @return The results of {@link TsdbStore#getMeta(byte[], UniqueIdType)}
        */
       @Override

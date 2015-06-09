@@ -129,8 +129,7 @@ public final class MutableDataPoint implements DataPoint {
 
   @Override
   public String toString() {
-    return "MutableDataPoint(timestamp=" + timestamp + ", isInteger=" +
-           isInteger + ", value=" +
+    return "MutableDataPoint(timestamp=" + timestamp + ", isInteger=" + isInteger + ", value=" +
            (isInteger ? value : Double.longBitsToDouble(value)) + ")";
   }
 }

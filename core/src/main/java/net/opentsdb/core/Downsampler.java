@@ -25,9 +25,9 @@ public class Downsampler implements SeekableView, DataPoint {
   private final Aggregator downsampler;
   /** Iterator to iterate the values of the current interval. */
   private final ValuesInInterval valuesInInterval;
-  /** Last normalized timestamp */
+  /** Last normalized timestamp. */
   private long timestamp;
-  /** Last value as a double */
+  /** Last value as a double. */
   private double value;
 
   /**
@@ -213,8 +213,7 @@ public class Downsampler implements SeekableView, DataPoint {
     @Override
     public boolean hasNextValue() {
       initializeIfNotDone();
-      return hasNextValueFromSource &&
-             nextDp.timestamp() < timestampEndInterval;
+      return hasNextValueFromSource && nextDp.timestamp() < timestampEndInterval;
     }
 
     @Override

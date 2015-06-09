@@ -5,7 +5,7 @@ import com.google.common.base.Charsets;
 import java.nio.charset.Charset;
 
 /**
- * Constants used by Cassandra
+ * Constants used by Cassandra.
  */
 public class CassandraConst {
   /**

@@ -60,8 +60,8 @@ public class DefaultSearchPlugin extends SearchPlugin {
 
   @Override
   public Deferred<SearchQuery> executeQuery(final SearchQuery query) {
-    throw new IllegalStateException("The default search plugin does " +
-                                    "not support executing search queries");
+    throw new IllegalStateException("The default search plugin does "
+                                    + "not support executing search queries");
   }
 
   @Override

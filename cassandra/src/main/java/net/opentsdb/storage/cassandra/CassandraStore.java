@@ -105,9 +105,9 @@ public class CassandraStore extends TsdbStore {
     this.timeProvider = new JdkTimeProvider();
 
     final AddPointStatements addPointStatements = new AddPointStatements(session);
-    this.addFloatStatement = addPointStatements.addFloatStatement;
-    this.addDoubleStatement = addPointStatements.addDoubleStatement;
-    this.addLongStatement = addPointStatements.addLongStatement;
+    this.addFloatStatement = addPointStatements.addFloatStatement();
+    this.addDoubleStatement = addPointStatements.addDoubleStatement();
+    this.addLongStatement = addPointStatements.addLongStatement();
 
     prepareStatements();
   }

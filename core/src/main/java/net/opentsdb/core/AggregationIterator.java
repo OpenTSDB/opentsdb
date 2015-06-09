@@ -123,7 +123,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
   /** Aggregator to use to aggregate data points from different Spans. */
   private final Aggregator aggregator;
 
-  /** Interpolation method to use when aggregating time series */
+  /** Interpolation method to use when aggregating time series. */
   private final Interpolation method;
 
   /** If true, use rate of change instead of actual values. */

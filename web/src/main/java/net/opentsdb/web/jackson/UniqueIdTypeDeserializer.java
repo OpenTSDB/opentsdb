@@ -9,7 +9,7 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import java.io.IOException;
 
 /**
- * Helper class for deserializing UID type enum from human readable strings
+ * Helper class for deserializing UID type enum from human readable strings.
  */
 public class UniqueIdTypeDeserializer extends JsonDeserializer<UniqueIdType> {
   @Override

@@ -30,7 +30,7 @@ abstract class LabelMetaMixIn {
   @JsonIgnore
   abstract String getName();
 
-  /** The type of UID this metadata represents */
+  /** The type of UID this metadata represents. */
   @JsonDeserialize(using = UniqueIdTypeDeserializer.class)
   @JsonProperty("type")
   abstract UniqueIdType getType();

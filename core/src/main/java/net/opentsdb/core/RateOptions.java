@@ -28,7 +28,7 @@ public class RateOptions {
 
   /**
    * If true, then when calculating a rate of change assume that the metric values are counters and
-   * thus non-zero, always increasing and wrap around at some maximum
+   * thus non-zero, always increasing and wrap around at some maximum.
    */
   private boolean counter;
 
@@ -46,9 +46,6 @@ public class RateOptions {
    */
   private long resetValue;
 
-  /**
-   * Ctor
-   */
   public RateOptions() {
     this.counter = false;
     this.counterMax = Long.MAX_VALUE;

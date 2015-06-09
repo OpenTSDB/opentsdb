@@ -97,7 +97,7 @@ public final class Aggregators {
   }
 
   /**
-   * Different interpolation methods
+   * Different interpolation methods.
    */
   public enum Interpolation {
     LERP,   /* Regular linear interpolation */

@@ -34,7 +34,7 @@ public class UniqueId {
   /** The TsdbStore to use. */
   private final TsdbStore store;
 
-  /** The type of UID represented by this cache */
+  /** The type of UID represented by this cache. */
   private final UniqueIdType type;
 
   /** Cache for forward mappings (name to ID). */
@@ -43,7 +43,7 @@ public class UniqueId {
   /** Cache for backward mappings (ID to name). */
   private final ConcurrentHashMap<LabelId, String> idCache = new ConcurrentHashMap<>();
 
-  /** Map of pending UID assignments */
+  /** Map of pending UID assignments. */
   private final HashMap<String, Deferred<LabelId>> pendingAssignments = new HashMap<>();
 
   /** Number of times we avoided reading from TsdbStore thanks to the cache. */
@@ -132,6 +132,7 @@ public class UniqueId {
         throw new NoSuchUniqueId(type, id);
       }
     }
+
     return store.getName(id, type).addCallback(new GetNameCB());
   }
 
@@ -172,6 +173,7 @@ public class UniqueId {
         throw new NoSuchUniqueName(type.toValue(), name);
       }
     }
+
     return store.getId(name, type).addCallback(new GetIdCB());
   }
 
@@ -266,8 +268,8 @@ public class UniqueId {
       @Override
       public Deferred<Void> call(final Boolean exists) {
         if (exists) {
-          throw new IllegalArgumentException("An UID with name " + newname + " " +
-                                             "for " + type + " already exists");
+          throw new IllegalArgumentException("An UID with name " + newname + ' '
+                                             + "for " + type + " already exists");
         }
 
         return getId(oldname).addCallbackDeferring(new Callback<Deferred<Void>, LabelId>() {

@@ -27,19 +27,19 @@ public class LabelEvent {
     this.type = type;
   }
 
-  /** The ID of the label that has had an event */
+  /** The ID of the label that has had an event. */
   @Nonnull
   public LabelId getId() {
     return id;
   }
 
-  /** The name of the label that has had an event */
+  /** The name of the label that has had an event. */
   @Nonnull
   public String getName() {
     return name;
   }
 
-  /** The type of the label that has had an event */
+  /** The type of the label that has had an event. */
   @Nonnull
   public UniqueIdType getType() {
     return type;

@@ -32,7 +32,7 @@ import java.util.List;
 import javax.inject.Inject;
 
 /**
- * Command line tool to assign new IDs
+ * Command line tool to assign new IDs.
  */
 public final class Assign {
   private static final Logger LOG = LoggerFactory.getLogger(Assign.class);
@@ -47,8 +47,8 @@ public final class Assign {
   /** Prints printHelp. */
   private static void printHelp(final OptionParser parser) {
     System.err.println("Usage: tsdb id assign [OPTIONS] <TYPE> [NAME]...");
-    System.err.println("Create IDs for NAME(s), or names read from standard" +
-                       " input of type TYPE.");
+    System.err.println("Create IDs for NAME(s), or names read from standard"
+                       + " input of type TYPE.");
     System.err.println();
 
     try {

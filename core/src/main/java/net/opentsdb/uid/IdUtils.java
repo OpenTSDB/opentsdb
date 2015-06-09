@@ -124,8 +124,8 @@ public class IdUtils {
     // Verify that we're going to drop bytes that are 0.
     for (int i = 0; i < padded.length - width; i++) {
       if (padded[i] != 0) {
-        final String message = "UID " + Long.toString(uid) +
-                               " was too large for " + width + " bytes";
+        final String message = "UID " + Long.toString(uid) + " was too large for " + width
+                               + " bytes";
         LOG.error("OMG {}", message);
         throw new IllegalStateException(message);
       }

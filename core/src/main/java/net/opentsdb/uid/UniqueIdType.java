@@ -7,7 +7,7 @@ import net.opentsdb.core.Const;
 import com.google.common.base.Strings;
 
 /**
- * Enumerator for different types of UIDs
+ * Enumerator for different types of UIDs.
  */
 public enum UniqueIdType {
   // Think long and hard before changing the identifier arguments bellow.
@@ -37,8 +37,8 @@ public enum UniqueIdType {
    * @throws IllegalArgumentException if the string did not match a type
    */
   public static UniqueIdType fromValue(final String type) {
-    if ("metric".equals(type.toLowerCase()) ||
-        "metrics".equals(type.toLowerCase())) {
+    if ("metric".equals(type.toLowerCase())
+        || "metrics".equals(type.toLowerCase())) {
       return METRIC;
     } else if ("tagk".equals(type.toLowerCase())) {
       return TAGK;

@@ -38,25 +38,25 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SearchQuery {
 
-  /** The type of search to execute */
+  /** The type of search to execute. */
   private SearchType type;
-  /** The actual query to execute */
+  /** The actual query to execute. */
   private String query;
-  /** The metric to iterate over, may be null */
+  /** The metric to iterate over, may be null. */
   private String metric;
-  /** Optional tags to match on, may be null */
+  /** Optional tags to match on, may be null. */
   private List<Pair<String, String>> tags;
-  /** Limit the number of responses so we don't overload the TSD or client */
+  /** Limit the number of responses so we don't overload the TSD or client. */
   private int limit;
-  /** Used for paging through a result set */
+  /** Used for paging through a result set. */
   private int startIndex;
-  /** Total results from the user */
+  /** Total results from the user. */
   private int totalResults;
   /**
-   * Ammount of time it took to complete the query (including parsing the response within the TSD
+   * Ammount of time it took to complete the query (including parsing the response within the TSD.
    */
   private float time;
-  /** Results from the search engine. Object depends on the query type */
+  /** Results from the search engine. Object depends on the query type. */
   private List<Object> results;
 
   /**
@@ -68,7 +68,7 @@ public class SearchQuery {
   }
 
   /**
-   * Overload to set the metric on creation
+   * Overload to set the metric on creation.
    *
    * @param metric The metric to filter on
    */
@@ -78,7 +78,7 @@ public class SearchQuery {
   }
 
   /**
-   * Overload to set just the tags
+   * Overload to set just the tags.
    *
    * @param tags List of tagk/tagv pairs, either of which may be null
    */
@@ -89,7 +89,7 @@ public class SearchQuery {
   }
 
   /**
-   * Overload to set both metric and tags
+   * Overload to set both metric and tags.
    *
    * @param metric The metric to filter on
    * @param tags List of tagk/tagv pairs, either of which may be null
@@ -102,7 +102,7 @@ public class SearchQuery {
   }
 
   /**
-   * Converts the human readable string to the proper enum
+   * Converts the human readable string to the proper enum.
    *
    * @param type The string to parse
    * @return The parsed enum
@@ -113,17 +113,17 @@ public class SearchQuery {
       throw new IllegalArgumentException("Type provided was null or empty");
     }
 
-    if (type.toLowerCase().equals("tsmeta")) {
+    if ("tsmeta".equals(type.toLowerCase())) {
       return SearchType.TSMETA;
-    } else if (type.toLowerCase().equals("tsmeta_summary")) {
+    } else if ("tsmeta_summary".equals(type.toLowerCase())) {
       return SearchType.TSMETA_SUMMARY;
-    } else if (type.toLowerCase().equals("tsuids")) {
+    } else if ("tsuids".equals(type.toLowerCase())) {
       return SearchType.TSUIDS;
-    } else if (type.toLowerCase().equals("uidmeta")) {
+    } else if ("uidmeta".equals(type.toLowerCase())) {
       return SearchType.UIDMETA;
-    } else if (type.toLowerCase().equals("annotation")) {
+    } else if ("annotation".equals(type.toLowerCase())) {
       return SearchType.ANNOTATION;
-    } else if (type.toLowerCase().equals("lookup")) {
+    } else if ("lookup".equals(type.toLowerCase())) {
       return SearchType.LOOKUP;
     } else {
       throw new IllegalArgumentException("Unknown type: " + type);

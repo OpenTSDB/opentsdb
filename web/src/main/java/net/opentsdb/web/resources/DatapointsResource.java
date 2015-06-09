@@ -119,8 +119,8 @@ public final class DatapointsResource extends Resource {
     }
 
     if (!predicate.apply(value)) {
-      throw new JsonMappingException("JSON contains '" + field +
-                                     "' field but its node type is " + value.getNodeType());
+      throw new JsonMappingException("JSON contains '" + field + "' field but its node type is "
+                                     + value.getNodeType());
     }
 
     return value;

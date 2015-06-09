@@ -37,40 +37,40 @@ import java.util.NoSuchElementException;
  * @since 2.0
  */
 public final class TSSubQuery {
-  /** User given name of an aggregation function to use */
+  /** User given name of an aggregation function to use. */
   private String aggregator;
 
-  /** User given name for a metric, e.g. "sys.cpu.0" */
+  /** User given name for a metric, e.g. "sys.cpu.0". */
   private String metric;
 
-  /** User provided list of timeseries UIDs */
+  /** User provided list of timeseries UIDs. */
   private List<String> tsuids;
 
   /**
-   * User supplied list of tags for specificity or grouping. May be null or empty
+   * User supplied list of tags for specificity or grouping. May be null or empty.
    */
   private HashMap<String, String> tags;
 
-  /** User given downsampler */
+  /** User given downsampler. */
   private String downsample;
 
-  /** Whether or not the user wants to perform a rate conversion */
+  /** Whether or not the user wants to perform a rate conversion. */
   private boolean rate;
 
-  /** Rate options for counter rollover/reset */
+  /** Rate options for counter rollover/reset. */
   private RateOptions rate_options;
 
-  /** Parsed aggregation function */
+  /** Parsed aggregation function. */
   private Aggregator agg;
 
-  /** Parsed downsampler function */
+  /** Parsed downsampler function. */
   private Aggregator downsampler;
 
-  /** Parsed downsample interval */
+  /** Parsed downsample interval. */
   private long downsample_interval;
 
   /**
-   * Default constructor necessary for POJO de/serialization
+   * Default constructor necessary for POJO de/serialization.
    */
   public TSSubQuery() {
 

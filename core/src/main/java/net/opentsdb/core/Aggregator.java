@@ -51,7 +51,7 @@ public interface Aggregator {
    * <p/>
    * This interface is semantically equivalent to {@code Iterator<long>}.
    */
-  public interface Longs {
+  interface Longs {
 
     /**
      * Returns {@code true} if this sequence has more values. {@code false} otherwise.
@@ -73,7 +73,7 @@ public interface Aggregator {
    * <p/>
    * This interface is semantically equivalent to {@code Iterator<double>}.
    */
-  public interface Doubles {
+  interface Doubles {
 
     /**
      * Returns {@code true} if this sequence has more values. {@code false} otherwise.

@@ -40,19 +40,19 @@ import java.util.Set;
  * @since 2.0
  */
 public final class Annotation implements Comparable<Annotation> {
-  /** Tracks fields that have changed by the user to avoid overwrites */
+  /** Tracks fields that have changed by the user to avoid overwrites. */
   private final Set<String> changed = Sets.newHashSetWithExpectedSize(6);
-  /** If the note is associated with a timeseries, represents the ID */
+  /** If the note is associated with a timeseries, represents the ID. */
   private String tsuid = "";
-  /** The start timestamp associated wit this note in seconds or ms */
+  /** The start timestamp associated wit this note in seconds or ms. */
   private long startTime = 0;
-  /** Optional end time if the note represents an event that was resolved */
+  /** Optional end time if the note represents an event that was resolved. */
   private long endTime = 0;
-  /** A short description of the event, displayed in GUIs */
+  /** A short description of the event, displayed in GUIs. */
   private String description = "";
-  /** A detailed accounting of the event or note */
+  /** A detailed accounting of the event or note. */
   private String notes = "";
-  /** Optional user supplied key/values */
+  /** Optional user supplied key/values. */
   private Map<String, String> custom = null;
 
   public Annotation() {
@@ -76,15 +76,15 @@ public final class Annotation implements Comparable<Annotation> {
     this.custom = custom;
   }
 
-  /** @return A string with information about the annotation object */
+  /** @return A string with information about the annotation object. */
   @Override
   public String toString() {
-    return "TSUID: " + tsuid + " Start: " + startTime + "  Description: " +
-           description;
+    return "TSUID: " + tsuid + " Start: " + startTime + "  Description: "
+           + description;
   }
 
   /**
-   * Compares the {@code #startTime} of this annotation to the given note
+   * Compares the {@code #startTime} of this annotation to the given note.
    *
    * @return 1 if the local start time is greater, -1 if it's less or 0 if equal
    */
@@ -101,7 +101,7 @@ public final class Annotation implements Comparable<Annotation> {
   /**
    * Syncs the local object with the stored object for atomic writes, overwriting the stored data if
    * the user issued a PUT request <b>Note:</b> This method also resets the {@code changed} set to
-   * false for every field
+   * false for every field.
    *
    * @param note The stored object to sync from
    * @param overwrite Whether or not all user mutable data in storage should be replaced by the
@@ -131,7 +131,7 @@ public final class Annotation implements Comparable<Annotation> {
   }
 
   /**
-   * Sets or resets the changed map flags
+   * Sets or resets the changed map flags.
    */
   private void resetChangedMap() {
     changed.clear();
@@ -139,7 +139,7 @@ public final class Annotation implements Comparable<Annotation> {
 
   // Getters and Setters --------------
 
-  /** @return the tsuid, may be empty if this is a global annotation */
+  /** @return the tsuid, may be empty if this is a global annotation. */
   public final String getTSUID() {
     return tsuid;
   }

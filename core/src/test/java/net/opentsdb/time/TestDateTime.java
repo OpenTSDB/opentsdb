@@ -354,7 +354,7 @@ public final class TestDateTime {
 
     String current_tz = TimeZone.getDefault().getID();
     // flip between two choices so we can verify that the change holds
-    String new_tz = current_tz.equals("UTC") ?
+    String new_tz = "UTC".equals(current_tz) ?
         "America/New_York" : "UTC";
     DateTime.setDefaultTimezone(new_tz);
     assertEquals(new_tz, TimeZone.getDefault().getID());

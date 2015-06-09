@@ -11,7 +11,7 @@ public interface TimeProvider {
    *
    * @return The current time expressed as a date instance
    */
-  public Date now();
+  Date now();
 
   /**
    * Get the current time expressed as the number of milliseconds since midnight on January 1, 1970
@@ -20,5 +20,5 @@ public interface TimeProvider {
    * @return The current time expressed as the number of milliseconds since midnight on January 1,
    * 1970 UTC.
    */
-  public long currentTimeMillis();
+  long currentTimeMillis();
 }

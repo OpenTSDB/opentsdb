@@ -51,18 +51,18 @@ public interface DataPoints extends Iterable<DataPoint>, Comparable<DataPoints> 
   List<byte[]> aggregatedTags();
 
   /**
-   * Returns a list of unique TSUIDs contained in the results
+   * Returns a list of unique TSUIDs contained in the results.
    *
    * @return an empty list if there were no results, otherwise a list of TSUIDs
    */
-  public List<String> getTSUIDs();
+  List<String> getTSUIDs();
 
   /**
-   * Compiles the annotations for each span into a new array list
+   * Compiles the annotations for each span into a new array list.
    *
    * @return Null if none of the spans had any annotations, a list if one or more were found
    */
-  public List<Annotation> getAnnotations();
+  List<Annotation> getAnnotations();
 
   /**
    * Returns the number of data points.

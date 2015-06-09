@@ -16,10 +16,15 @@ import com.datastax.driver.core.Session;
  * @see net.opentsdb.storage.cassandra.CassandraStore#addPoint
  */
 public class AddPointStatements {
-  public final PreparedStatement addFloatStatement;
-  public final PreparedStatement addDoubleStatement;
-  public final PreparedStatement addLongStatement;
+  private final PreparedStatement addFloatStatement;
+  private final PreparedStatement addDoubleStatement;
+  private final PreparedStatement addLongStatement;
 
+  /**
+   * Instantiate the statements and prepare them with the provided session.
+   *
+   * @param session The session to prepare the statements with.
+   */
   public AddPointStatements(final Session session) {
     addFloatStatement = session.prepare(
         insertInto(Tables.KEYSPACE, Tables.DATAPOINTS)
@@ -44,5 +49,17 @@ public class AddPointStatements {
             .value("timestamp", bindMarker())
             .value("long_value", bindMarker())
             .using(timestamp(bindMarker())));
+  }
+
+  public PreparedStatement addFloatStatement() {
+    return addFloatStatement;
+  }
+
+  public PreparedStatement addDoubleStatement() {
+    return addDoubleStatement;
+  }
+
+  public PreparedStatement addLongStatement() {
+    return addLongStatement;
   }
 }
