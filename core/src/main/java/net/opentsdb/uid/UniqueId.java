@@ -1,4 +1,3 @@
-
 package net.opentsdb.uid;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -26,14 +25,13 @@ import javax.annotation.Nullable;
 
 /**
  * Represents a table of Unique IDs, manages the lookup and creation of IDs.
- * <p>
- * Don't attempt to use {@code equals()} or {@code hashCode()} on
- * this class.
+ * <p/>
+ * Don't attempt to use {@code equals()} or {@code hashCode()} on this class.
  */
 public class UniqueId {
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
 
-  /** The TsdbStore to use.  */
+  /** The TsdbStore to use. */
   private final TsdbStore tsdb_store;
 
   /** The type of UID represented by this cache */
@@ -59,13 +57,13 @@ public class UniqueId {
   private final Counter cache_misses;
 
   /**
-   * The event bus to which the id changes done by this instance will be
-   * published.
+   * The event bus to which the id changes done by this instance will be published.
    */
   private final EventBus idEventBus;
 
   /**
    * Constructor.
+   *
    * @param tsdb_store The TsdbStore to use.
    * @param type The type of UIDs this instance represents
    * @param metrics
@@ -100,6 +98,7 @@ public class UniqueId {
 
   /**
    * Causes this instance to discard all its in-memory caches.
+   *
    * @since 1.1
    */
   public void dropCaches() {
@@ -111,11 +110,11 @@ public class UniqueId {
    * Finds the name associated with a given ID.
    *
    * @param id The ID associated with that name.
+   * @throws NoSuchUniqueId if the given ID is not assigned.
+   * @throws IllegalArgumentException if the ID given in argument is encoded on the wrong number of
+   * bytes.
    * @see #getId(String)
    * @see #createId(String)
-   * @throws NoSuchUniqueId if the given ID is not assigned.
-   * @throws IllegalArgumentException if the ID given in argument is encoded
-   * on the wrong number of bytes.
    * @since 1.1
    */
   @Nonnull
@@ -154,7 +153,7 @@ public class UniqueId {
     }
     if (found != null && !found.equals(name)) {
       throw new IllegalStateException("id=" + id + " => name="
-          + name + ", already mapped to " + found);
+                                      + name + ", already mapped to " + found);
     }
   }
 
@@ -194,7 +193,7 @@ public class UniqueId {
     }
     if (found != null && !found.equals(id)) {
       throw new IllegalStateException("name=" + name + " => id="
-          + id + ", already mapped to " + found);
+                                      + id + ", already mapped to " + found);
     }
   }
 
@@ -207,6 +206,7 @@ public class UniqueId {
 
   /**
    * Create an id with the specified name.
+   *
    * @param name The name of the new id
    * @return A deferred with the byte uid if the id was successfully created
    */
@@ -253,14 +253,14 @@ public class UniqueId {
 
   /**
    * Reassigns the UID to a different name (non-atomic).
-   * <p>
-   * Whatever was the UID of {@code oldname} will be given to {@code newname}.
-   * {@code oldname} will no longer be assigned a UID.
-   * <p>
-   * Beware that the assignment change is <b>not atommic</b>.  If two threads
-   * or processes attempt to rename the same UID differently, the result is
-   * unspecified and might even be inconsistent.  This API is only here for
-   * administrative purposes, not for normal programmatic interactions.
+   * <p/>
+   * Whatever was the UID of {@code oldname} will be given to {@code newname}. {@code oldname} will
+   * no longer be assigned a UID.
+   * <p/>
+   * Beware that the assignment change is <b>not atommic</b>.  If two threads or processes attempt
+   * to rename the same UID differently, the result is unspecified and might even be inconsistent.
+   * This API is only here for administrative purposes, not for normal programmatic interactions.
+   *
    * @param oldname The old name to rename.
    * @param newname The new name.
    * @throws NoSuchUniqueName if {@code oldname} wasn't assigned.
@@ -272,7 +272,7 @@ public class UniqueId {
       public Deferred<Void> call(final Boolean exists) {
         if (exists) {
           throw new IllegalArgumentException("An UID with name " + newname + " " +
-              "for " + type + " already exists");
+                                             "for " + type + " already exists");
         }
 
         return getId(oldname).addCallbackDeferring(new Callback<Deferred<Void>, LabelId>() {
@@ -314,7 +314,7 @@ public class UniqueId {
 
   public String toString() {
     return MoreObjects.toStringHelper(this)
-            .add("type", type)
-            .toString();
+        .add("type", type)
+        .toString();
   }
 }

@@ -4,11 +4,15 @@ import net.opentsdb.uid.LabelId;
 
 import com.google.common.base.MoreObjects;
 
-import javax.annotation.Nonnull;
 import java.util.Objects;
+import javax.annotation.Nonnull;
 
 class CassandraLabelId implements LabelId<CassandraLabelId> {
   private final long id;
+
+  CassandraLabelId(final long id) {
+    this.id = id;
+  }
 
   static LabelId fromLong(final long id) {
     return new CassandraLabelId(id);
@@ -16,10 +20,6 @@ class CassandraLabelId implements LabelId<CassandraLabelId> {
 
   static long toLong(final LabelId labelId) {
     return ((CassandraLabelId) labelId).id;
-  }
-
-  CassandraLabelId(final long id) {
-    this.id = id;
   }
 
   long toLong() {

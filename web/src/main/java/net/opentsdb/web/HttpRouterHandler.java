@@ -1,4 +1,3 @@
-
 package net.opentsdb.web;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -17,8 +16,8 @@ import io.netty.util.internal.TypeParameterMatcher;
 import java.util.Map;
 
 /**
- * A Netty handler that delegates incoming HTTP requests to other handlers based
- * on the requests path. Messages that aren't HTTP requests are ignored.
+ * A Netty handler that delegates incoming HTTP requests to other handlers based on the requests
+ * path. Messages that aren't HTTP requests are ignored.
  */
 @ChannelHandler.Sharable
 public class HttpRouterHandler extends ChannelInboundHandlerAdapter {

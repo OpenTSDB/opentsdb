@@ -10,6 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.core;
 
 import java.util.NoSuchElementException;
@@ -42,6 +43,7 @@ public class RateSpan implements SeekableView {
 
   /**
    * Constructs a {@link RateSpan} instance.
+   *
    * @param source The iterator to access the underlying data.
    * @param options Options for calculating rates.
    */
@@ -123,7 +125,7 @@ public class RateSpan implements SeekableView {
     if (source.hasNext()) {
       prev_data.reset(next_data);
       next_data.reset(source.next());
-      
+
       final long t0 = prev_data.timestamp();
       final long t1 = next_data.timestamp();
       if (t1 <= t0) {
@@ -135,7 +137,7 @@ public class RateSpan implements SeekableView {
       // TODO: for backwards compatibility we'll convert the ms to seconds
       // but in the future we should add a ratems flag that will calculate
       // the rate as is.
-      final double time_delta_secs = ((double)(t1 - t0) / 1000.0);
+      final double time_delta_secs = ((double) (t1 - t0) / 1000.0);
       double difference;
       if (prev_data.isInteger() && next_data.isInteger()) {
         // NOTE: Calculates in the long type to avoid precision loss
@@ -145,18 +147,18 @@ public class RateSpan implements SeekableView {
       } else {
         difference = next_data.toDouble() - prev_data.toDouble();
       }
-      
+
       if (options.isCounter() && difference < 0) {
         if (prev_data.isInteger() && next_data.isInteger()) {
           // NOTE: Calculates in the long type to avoid precision loss
           // while converting long values to double values if both values are long.
           difference = options.getCounterMax() - prev_data.longValue() +
-              next_data.longValue();
+                       next_data.longValue();
         } else {
           difference = options.getCounterMax() - prev_data.toDouble() +
-              next_data.toDouble();
+                       next_data.toDouble();
         }
-        
+
         // If the rate is greater than the reset value, return a 0
         final double rate = difference / time_delta_secs;
         if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
@@ -178,11 +180,11 @@ public class RateSpan implements SeekableView {
   public String toString() {
     final StringBuilder buf = new StringBuilder();
     buf.append("RateSpan: ")
-       .append(", options=").append(options)
-       .append(", next_data=[").append(next_data)
-       .append("], next_rate=[").append(next_rate)
-       .append("], prev_rate=[").append(prev_rate)
-       .append("], source=[").append(source).append("]");
+        .append(", options=").append(options)
+        .append(", next_data=[").append(next_data)
+        .append("], next_rate=[").append(next_rate)
+        .append("], prev_rate=[").append(prev_rate)
+        .append("], source=[").append(source).append("]");
     return buf.toString();
   }
 }

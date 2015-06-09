@@ -17,8 +17,8 @@ import java.util.List;
 import javax.annotation.Nonnull;
 
 /**
- * A default search plugin to use when no other search plugin has been
- * configured. This search plugin will just discard all data given to it.
+ * A default search plugin to use when no other search plugin has been configured. This search
+ * plugin will just discard all data given to it.
  */
 public class DefaultSearchPlugin extends SearchPlugin {
   private final TsdbStore store;
@@ -61,7 +61,7 @@ public class DefaultSearchPlugin extends SearchPlugin {
   @Override
   public Deferred<SearchQuery> executeQuery(final SearchQuery query) {
     throw new IllegalStateException("The default search plugin does " +
-            "not support executing search queries");
+                                    "not support executing search queries");
   }
 
   @Override

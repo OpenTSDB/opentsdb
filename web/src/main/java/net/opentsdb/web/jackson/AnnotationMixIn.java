@@ -19,10 +19,21 @@ abstract class AnnotationMixIn {
                   @JsonProperty("custom") final Map<String, String> custom) {
   }
 
-  @JsonProperty("tsuid") abstract String getTSUID();
-  @JsonProperty("startTime") abstract long getStartTime();
-  @JsonProperty("endTime") abstract long getEndTime();
-  @JsonProperty("description") abstract String getDescription();
-  @JsonProperty("notes") abstract String getNotes();
-  @JsonProperty("custom") abstract Map<String, String> getCustom();
+  @JsonProperty("tsuid")
+  abstract String getTSUID();
+
+  @JsonProperty("startTime")
+  abstract long getStartTime();
+
+  @JsonProperty("endTime")
+  abstract long getEndTime();
+
+  @JsonProperty("description")
+  abstract String getDescription();
+
+  @JsonProperty("notes")
+  abstract String getNotes();
+
+  @JsonProperty("custom")
+  abstract Map<String, String> getCustom();
 }

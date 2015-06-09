@@ -1,4 +1,3 @@
-
 package net.opentsdb.web;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
@@ -20,13 +19,15 @@ public class ExceptionHandler extends SimpleChannelInboundHandler<FullHttpReques
   private static final Logger LOG = LoggerFactory.getLogger(ExceptionHandler.class);
 
   @Override
-  protected void channelRead0(final ChannelHandlerContext ctx, final FullHttpRequest request) throws Exception {
+  protected void channelRead0(final ChannelHandlerContext ctx,
+                              final FullHttpRequest request) throws Exception {
     ctx.writeAndFlush(internalErrorResponse(request, null))
         .addListener(ChannelFutureListener.CLOSE);
   }
 
   @Override
-  public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) throws Exception {
+  public void exceptionCaught(final ChannelHandlerContext ctx,
+                              final Throwable cause) throws Exception {
     ctx.writeAndFlush(internalErrorResponse(null, cause))
         .addListener(ChannelFutureListener.CLOSE);
   }

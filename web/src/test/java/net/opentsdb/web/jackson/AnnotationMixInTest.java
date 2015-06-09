@@ -23,7 +23,7 @@ public class AnnotationMixInTest {
         "Description", "Notes", null);
 
     note_json = "{\"tsuid\":\"000001000001000001\",\"startTime\":1328140800," +
-        "\"endTime\":1328140801,\"description\":\"Description\",\"notes\":\"Notes\"}";
+                "\"endTime\":1328140801,\"description\":\"Description\",\"notes\":\"Notes\"}";
   }
 
   @Test
@@ -37,7 +37,7 @@ public class AnnotationMixInTest {
     note = new Annotation(null, 1328140800, 1328140801,
         "Description", "Notes", null);
     note_json = "{\"startTime\":1328140800,\"endTime\":1328140801," +
-        "\"description\":\"Description\",\"notes\":\"Notes\"}";
+                "\"description\":\"Description\",\"notes\":\"Notes\"}";
     final String json = new String(jsonMapper.writeValueAsBytes(note));
     assertEquals(note_json, json);
   }
@@ -52,8 +52,8 @@ public class AnnotationMixInTest {
   @Test
   public void deserializeIgnoresUnknown() throws Exception {
     final String note_json_with_unknown = "{\"tsuid\":\"000001000001000001\"," +
-        "\"startTime\":1328140800,\"endTime\":1328140801,\"unknown\":1328140801," +
-        "\"description\":\"Description\",\"notes\":\"Notes\",\"custom\":null}";
+                                          "\"startTime\":1328140800,\"endTime\":1328140801,\"unknown\":1328140801," +
+                                          "\"description\":\"Description\",\"notes\":\"Notes\",\"custom\":null}";
     Annotation parsed_note = jsonMapper.reader(Annotation.class)
         .readValue(note_json_with_unknown);
     assertEquals(note, parsed_note);

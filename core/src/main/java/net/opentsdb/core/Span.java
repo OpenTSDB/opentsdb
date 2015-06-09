@@ -10,6 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.core;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -32,18 +33,17 @@ import java.util.Map;
 import java.util.SortedSet;
 
 /**
- * Represents a read-only sequence of continuous data points for a single
- * TSUID.
+ * Represents a read-only sequence of continuous data points for a single TSUID.
  */
 class Span implements DataPoints {
   /** All the {@link DataPoints} in this span. */
   private final ImmutableSortedSet<DataPoints> rows;
   private final DataPoints first;
-  
+
   /**
    * Default constructor. The provided {@code dps} must not be empty
-   * @param dps The {@link DataPoints} this Span should encapsulate,
-   *            it must not be empty.
+   *
+   * @param dps The {@link DataPoints} this Span should encapsulate, it must not be empty.
    */
   Span(SortedSet<DataPoints> dps) {
     checkArgument(!dps.isEmpty(), "dps must not be empty but was");
@@ -52,7 +52,7 @@ class Span implements DataPoints {
     final String last_tsuid = dps.last().getTSUIDs().get(0);
 
     checkArgument(first_tsuid.equals(last_tsuid),
-            "The TSUIDS in the provided DataPoints must match but didn't");
+        "The TSUIDS in the provided DataPoints must match but didn't");
 
     rows = ImmutableSortedSet.copyOf(dps);
     first = dps.first();
@@ -72,7 +72,7 @@ class Span implements DataPoints {
    * @see DataPoints#tags()
    */
   @Override
-  public Map<byte[],byte[]> tags() {
+  public Map<byte[], byte[]> tags() {
     return first.tags();
   }
 
@@ -85,9 +85,8 @@ class Span implements DataPoints {
   }
 
   /**
-   * @return the number of data points in this span, O(n)
-   * Unfortunately we must walk the entire array for every row as there may be a 
-   * mix of second and millisecond timestamps
+   * @return the number of data points in this span, O(n) Unfortunately we must walk the entire
+   * array for every row as there may be a mix of second and millisecond timestamps
    */
   @Override
   public int size() {
@@ -114,7 +113,7 @@ class Span implements DataPoints {
     List<String> tsuids = first.getTSUIDs();
     return ImmutableList.of(tsuids.get(0));
   }
-  
+
   /**
    * @return a list of annotations associated with this span. May be empty
    */
@@ -155,11 +154,11 @@ class Span implements DataPoints {
   }
 
   /**
-   * Returns the timestamp for a data point at index {@code i} if it exists.
-   * <b>Note:</b> To get to a timestamp this method must walk the entire byte
-   * array, i.e. O(n) so call this sparingly. Use the iterator instead.
-   * @param i A 0 based index incremented per the number of data points in the
-   * span.
+   * Returns the timestamp for a data point at index {@code i} if it exists. <b>Note:</b> To get to
+   * a timestamp this method must walk the entire byte array, i.e. O(n) so call this sparingly. Use
+   * the iterator instead.
+   *
+   * @param i A 0 based index incremented per the number of data points in the span.
    * @return A Unix epoch timestamp in milliseconds
    * @throws IndexOutOfBoundsException if the index would be out of bounds
    */
@@ -170,8 +169,8 @@ class Span implements DataPoints {
 
   /**
    * Determines whether or not the value at index {@code i} is an integer
-   * @param i A 0 based index incremented per the number of data points in the
-   * span.
+   *
+   * @param i A 0 based index incremented per the number of data points in the span.
    * @return True if the value is an integer, false if it's a floating point
    * @throws IndexOutOfBoundsException if the index would be out of bounds
    */
@@ -182,12 +181,11 @@ class Span implements DataPoints {
 
   /**
    * Returns the value at index {@code i}
-   * @param i A 0 based index incremented per the number of data points in the
-   * span.
+   *
+   * @param i A 0 based index incremented per the number of data points in the span.
    * @return the value as a long
    * @throws IndexOutOfBoundsException if the index would be out of bounds
-   * @throws ClassCastException if the value is a float instead. Call 
-   * {@link #isInteger} first
+   * @throws ClassCastException if the value is a float instead. Call {@link #isInteger} first
    * @throws IllegalDataException if the data is malformed
    */
   @Override
@@ -197,12 +195,11 @@ class Span implements DataPoints {
 
   /**
    * Returns the value at index {@code i}
-   * @param i A 0 based index incremented per the number of data points in the
-   * span.
+   *
+   * @param i A 0 based index incremented per the number of data points in the span.
    * @return the value as a double
    * @throws IndexOutOfBoundsException if the index would be out of bounds
-   * @throws ClassCastException if the value is an integer instead. Call 
-   * {@link #isInteger} first
+   * @throws ClassCastException if the value is an integer instead. Call {@link #isInteger} first
    * @throws IllegalDataException if the data is malformed
    */
   @Override
@@ -214,11 +211,11 @@ class Span implements DataPoints {
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
-            .add("size", rows.size())
-            .add("rows", Joiner.on(',').join(rows))
-            .toString();
+        .add("size", rows.size())
+        .add("rows", Joiner.on(',').join(rows))
+        .toString();
   }
-  
+
   /** Package private iterator method to access it as a Span.Iterator. */
   Span.Iterator spanIterator() {
     return new Span.Iterator();
@@ -230,6 +227,17 @@ class Span implements DataPoints {
     final byte[] other_tsuid = IdUtils.stringToUid(other.getTSUIDs().get(0));
 
     return SignedBytes.lexicographicalComparator().compare(this_tsuid, other_tsuid);
+  }
+
+  /**
+   * Package private iterator method to access data while downsampling.
+   *
+   * @param interval_ms The interval in milli seconds wanted between each data point.
+   * @param downsampler The downsampling function to use.
+   */
+  Downsampler downsampler(final long interval_ms,
+                          final Aggregator downsampler) {
+    return new Downsampler(spanIterator(), interval_ms, downsampler);
   }
 
   /** Iterator for {@link Span}s. */
@@ -264,20 +272,9 @@ class Span implements DataPoints {
 
     public String toString() {
       return MoreObjects.toStringHelper(this)
-              .add("span", Span.this)
-              .add("iterator", iterator)
-              .toString();
+          .add("span", Span.this)
+          .add("iterator", iterator)
+          .toString();
     }
-  }
-
-  /**
-   * Package private iterator method to access data while downsampling.
-   * @param interval_ms The interval in milli seconds wanted between each data
-   * point.
-   * @param downsampler The downsampling function to use.
-   */
-  Downsampler downsampler(final long interval_ms,
-                          final Aggregator downsampler) {
-    return new Downsampler(spanIterator(), interval_ms, downsampler);
   }
 }

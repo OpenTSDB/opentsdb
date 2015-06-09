@@ -3,10 +3,11 @@ package net.opentsdb.utils;
 public class MoreLongs {
   /**
    * Parses an integer value as a long from the given character sequence.
-   * <p>
-   * This is equivalent to {@link Long#parseLong(String)} except it's up to
-   * 100% faster on {@link String} and always works in O(1) space even with
-   * {@link StringBuilder} buffers (where it's 2x to 5x faster).
+   * <p/>
+   * This is equivalent to {@link Long#parseLong(String)} except it's up to 100% faster on {@link
+   * String} and always works in O(1) space even with {@link StringBuilder} buffers (where it's 2x
+   * to 5x faster).
+   *
    * @param s The character sequence containing the integer value to parse.
    * @return The value parsed.
    * @throws NumberFormatException if the value is malformed or overflows.
@@ -22,7 +23,7 @@ public class MoreLongs {
       if (n == 1) {
         throw new NumberFormatException("Just a sign, no value: " + s);
       } else if (n > 20) {  // "+9223372036854775807" or "-9223372036854775808"
-          throw new NumberFormatException("Value too long: " + s);
+        throw new NumberFormatException("Value too long: " + s);
       }
       c = s.charAt(1);
       i = 2;  // Skip over the sign.

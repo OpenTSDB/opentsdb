@@ -9,14 +9,13 @@ import java.nio.charset.Charset;
  */
 public class CassandraConst {
   /**
-   * The default Cassandra Port used by the cassandra by default if the port was
-   * not specified in the configuration file.
+   * The default Cassandra Port used by the cassandra by default if the port was not specified in
+   * the configuration file.
    */
   public static final int DEFAULT_CASSANDRA_PORT = 9042;
 
   /**
-   * Charset used to convert strings from and to byte arrays within the
-   * Cassandra store.
+   * Charset used to convert strings from and to byte arrays within the Cassandra store.
    */
   static final Charset CHARSET = Charsets.UTF_8;
 }

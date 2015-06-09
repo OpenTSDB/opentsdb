@@ -10,6 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.core;
 
 import java.util.NoSuchElementException;
@@ -25,6 +26,7 @@ final class DataPointsIterator implements SeekableView, DataPoint {
 
   /**
    * Ctor.
+   *
    * @param dp The data points to iterate on.
    */
   DataPointsIterator(final DataPoints dp) {
@@ -88,10 +90,10 @@ final class DataPointsIterator implements SeekableView, DataPoint {
     // sense: the timestamp we're at must not be >= what we're looking for.
     if (0 < index && index < dp.size() && dp.timestamp(index) >= timestamp) {
       throw new AssertionError("seeked after the time wanted!"
-          + " timestamp=" + timestamp
-          + ", index=" + index
-          + ", dp.timestamp(index)=" + dp.timestamp(index)
-          + ", this=" + this);
+                               + " timestamp=" + timestamp
+                               + ", index=" + index
+                               + ", dp.timestamp(index)=" + dp.timestamp(index)
+                               + ", this=" + this);
     }
   }
 
@@ -131,11 +133,11 @@ final class DataPointsIterator implements SeekableView, DataPoint {
 
   public String toString() {
     return "DataPointsIterator(index=" + index
-      + (index >= 0
-         ? ", current type: " + (isInteger() ? "long" : "float")
-         + ", current value=" + (isInteger() ? longValue() : doubleValue())
-         : " (iteration not started)")
-      + ", dp=" + dp + ')';
+           + (index >= 0
+        ? ", current type: " + (isInteger() ? "long" : "float")
+          + ", current value=" + (isInteger() ? longValue() : doubleValue())
+        : " (iteration not started)")
+           + ", dp=" + dp + ')';
   }
 
 }

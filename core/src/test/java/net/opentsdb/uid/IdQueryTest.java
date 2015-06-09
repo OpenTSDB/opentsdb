@@ -14,7 +14,7 @@ public class IdQueryTest {
   @Test
   public void constructor() {
     final IdQuery query = new IdQuery(ARBITRARY_QUERY,
-            ARBITRARY_TYPE, ARBITRARY_LIMIT);
+        ARBITRARY_TYPE, ARBITRARY_LIMIT);
 
     assertEquals(ARBITRARY_QUERY, query.getQuery());
     assertEquals(ARBITRARY_TYPE, query.getType());
@@ -56,7 +56,7 @@ public class IdQueryTest {
   @Test
   public void constructorNoLimit() {
     final IdQuery query = new IdQuery(ARBITRARY_QUERY,
-            ARBITRARY_TYPE, IdQuery.NO_LIMIT);
+        ARBITRARY_TYPE, IdQuery.NO_LIMIT);
 
     assertEquals(ARBITRARY_QUERY, query.getQuery());
     assertEquals(ARBITRARY_TYPE, query.getType());

@@ -14,13 +14,13 @@ import dagger.Provides;
 import javax.inject.Singleton;
 
 @Module(complete = false,
-        library = true,
-        injects = {
-            Config.class,
-            UniqueIdClient.class,
-            MetaClient.class,
-            DataPointsClient.class
-        })
+    library = true,
+    injects = {
+        Config.class,
+        UniqueIdClient.class,
+        MetaClient.class,
+        DataPointsClient.class
+    })
 public class CoreModule {
   @Provides
   @Singleton

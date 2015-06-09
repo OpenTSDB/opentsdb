@@ -8,11 +8,10 @@ import java.util.Iterator;
 import java.util.Map;
 
 /**
- * A callback that transforms a striped list of into a map. Odd indexes in the
- * list are assumed to be the keys and even indexes are assumed to be the
- * values. The callback further assumes an even number of elements in the given
- * list. If the list does not have an even number of elements then {@link
- * java.util.Iterator#next} will throw a {@link java.util.NoSuchElementException}.
+ * A callback that transforms a striped list of into a map. Odd indexes in the list are assumed to
+ * be the keys and even indexes are assumed to be the values. The callback further assumes an even
+ * number of elements in the given list. If the list does not have an even number of elements then
+ * {@link java.util.Iterator#next} will throw a {@link java.util.NoSuchElementException}.
  */
 public class StripedToMap<K extends Comparable<K>> implements Callback<Map<K, K>, ArrayList<K>> {
   @Override

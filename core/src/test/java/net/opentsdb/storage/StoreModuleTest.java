@@ -20,14 +20,12 @@ import javax.inject.Inject;
 
 public class StoreModuleTest {
   /**
-   * A constant that describes the number of stores that the core project comes
-   * with and thus how many store descriptors that the {@link java.util
-   * .ServiceLoader} should be able to find.
-   *
-   * This is zero because the core project really should not provide any store
-   * implementations on its own. There is one exception which is the {@link
-   * net.opentsdb.storage.MemoryStore} however that is not exposed through the
-   * {@link java.util.ServiceLoader} and nor should it be.
+   * A constant that describes the number of stores that the core project comes with and thus how
+   * many store descriptors that the {@link java.util .ServiceLoader} should be able to find.
+   * <p/>
+   * This is zero because the core project really should not provide any store implementations on
+   * its own. There is one exception which is the {@link net.opentsdb.storage.MemoryStore} however
+   * that is not exposed through the {@link java.util.ServiceLoader} and nor should it be.
    */
   private static final int NUM_STORES = 0;
 
@@ -47,23 +45,23 @@ public class StoreModuleTest {
   @Test(expected = InvalidConfigException.class)
   public void testGetEmptyConfig() throws Exception {
     config = config.withValue("tsd.storage.adapter",
-            ConfigValueFactory.fromAnyRef(""));
+        ConfigValueFactory.fromAnyRef(""));
     supplier.provideStoreDescriptor(config, storeDescriptors);
   }
 
   @Test
   public void testGetMatchingStore() throws Exception {
     config = config.withValue("tsd.storage.adapter",
-            ConfigValueFactory.fromAnyRef("net.opentsdb.storage.StoreModuleTest.TestStoreDescriptor"));
+        ConfigValueFactory.fromAnyRef("net.opentsdb.storage.StoreModuleTest.TestStoreDescriptor"));
     StoreDescriptor storeDescriptor =
-            supplier.provideStoreDescriptor(config, storeDescriptors);
+        supplier.provideStoreDescriptor(config, storeDescriptors);
     assertTrue(storeDescriptor instanceof TestStoreDescriptor);
   }
 
-  @Test (expected = InvalidConfigException.class)
+  @Test(expected = InvalidConfigException.class)
   public void testGetNoMatchingStore() throws Exception {
     config = config.withValue("tsd.storage.adapter",
-            ConfigValueFactory.fromAnyRef("FooBar4711"));
+        ConfigValueFactory.fromAnyRef("FooBar4711"));
     supplier.provideStoreDescriptor(config, storeDescriptors);
   }
 

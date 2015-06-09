@@ -1,4 +1,3 @@
-
 package net.opentsdb.web;
 
 import net.opentsdb.core.TsdbModule;
@@ -21,6 +20,10 @@ import joptsimple.OptionSet;
 import java.io.File;
 
 public final class HttpServer extends CommandLineApplication {
+  public HttpServer(final OptionParser optionParser) {
+    super("web", "[OPTIONS]", "Start the REST API server", optionParser);
+  }
+
   public static void main(String[] args) {
     final OptionParser optionParser = new OptionParser();
     final HttpServer application = new HttpServer(optionParser);
@@ -69,9 +72,5 @@ public final class HttpServer extends CommandLineApplication {
       System.err.println(e.getMessage());
       System.exit(42);
     }
-  }
-
-  public HttpServer(final OptionParser optionParser) {
-    super("web", "[OPTIONS]", "Start the REST API server", optionParser);
   }
 }

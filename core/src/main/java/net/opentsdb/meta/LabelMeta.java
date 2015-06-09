@@ -1,4 +1,3 @@
-
 package net.opentsdb.meta;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -9,20 +8,20 @@ import net.opentsdb.uid.UniqueIdType;
 import com.google.auto.value.AutoValue;
 
 /**
- * LabelMeta objects are associated with individual labels. LabelMeta objects are
- * generated at the same time as the identifier they are associated with.
- *
+ * LabelMeta objects are associated with individual labels. LabelMeta objects are generated at the
+ * same time as the identifier they are associated with.
+ * <p/>
  * A LabelMeta object is identified by it's {@code identifier} and {@code type}.
- *
+ * <p/>
  * None of the fields may be empty or null.
  */
 @AutoValue
 public abstract class LabelMeta {
   public static LabelMeta create(final LabelId identifier,
-                               final UniqueIdType type,
-                               final String name,
-                               final String description,
-                               final long created) {
+                                 final UniqueIdType type,
+                                 final String name,
+                                 final String description,
+                                 final long created) {
     checkArgument(!name.isEmpty(), "Name may not be empty");
     checkArgument(!description.isEmpty(), "Description may not be empty");
     return new AutoValue_LabelMeta(identifier, type, name, description, created);

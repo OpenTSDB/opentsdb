@@ -11,13 +11,12 @@ import java.util.ServiceLoader;
 import javax.inject.Singleton;
 
 /**
- * Use this class to create a TsdbStore instance. Given a config file and an
- * iterable with store plugin this class will set up an instance of the
- * configured store.
+ * Use this class to create a TsdbStore instance. Given a config file and an iterable with store
+ * plugin this class will set up an instance of the configured store.
  */
 @Module(complete = false,
-        library = true,
-        injects = TsdbStore.class)
+    library = true,
+    injects = TsdbStore.class)
 public class StoreModule {
   @Provides
   @Singleton
@@ -28,12 +27,12 @@ public class StoreModule {
   }
 
   /**
-   * Get the {@link net.opentsdb.storage.StoreDescriptor} that the configuration
-   * specifies. This method will create a new instance on each call.
+   * Get the {@link net.opentsdb.storage.StoreDescriptor} that the configuration specifies. This
+   * method will create a new instance on each call.
    *
-   * @return This method will return a ready to use {@link TsdbStore} object. No
-   * guarantee is made that it will connect properly to the database but it will
-   * be configured according to the config provided config.
+   * @return This method will return a ready to use {@link TsdbStore} object. No guarantee is made
+   * that it will connect properly to the database but it will be configured according to the config
+   * provided config.
    */
   @Provides
   @Singleton
@@ -44,18 +43,18 @@ public class StoreModule {
     for (final StoreDescriptor storeDescriptor : storePlugins) {
       String pluginName = storeDescriptor.getClass().getCanonicalName();
 
-      if (pluginName.equals(adapter_type))
+      if (pluginName.equals(adapter_type)) {
         return storeDescriptor;
+      }
     }
 
     throw new InvalidConfigException(config.getValue("tsd.storage.adapter"),
-            "Found no storage adapter that matches '" + adapter_type + "'");
+        "Found no storage adapter that matches '" + adapter_type + "'");
   }
 
   /**
-   * Provides an iterable with all {@link net.opentsdb.storage.StoreDescriptor}s
-   * that are registered as services and thus are found by the {@link
-   * java.util.ServiceLoader}
+   * Provides an iterable with all {@link net.opentsdb.storage.StoreDescriptor}s that are registered
+   * as services and thus are found by the {@link java.util.ServiceLoader}
    */
   @Provides
   Iterable<StoreDescriptor> provideStoreDescriptors() {

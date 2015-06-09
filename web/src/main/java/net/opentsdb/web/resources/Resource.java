@@ -23,11 +23,13 @@ public class Resource extends SimpleChannelInboundHandler<FullHttpRequest> {
   }
 
   public FullHttpResponse handle(final FullHttpRequest request) {
-    if (request.method().equals(HttpMethod.GET))
+    if (request.method().equals(HttpMethod.GET)) {
       return doGet(request);
+    }
 
-    if (request.method().equals(HttpMethod.POST))
+    if (request.method().equals(HttpMethod.POST)) {
       return doPost(request);
+    }
 
     return response(METHOD_NOT_ALLOWED);
   }
@@ -45,7 +47,7 @@ public class Resource extends SimpleChannelInboundHandler<FullHttpRequest> {
   }
 
   protected FullHttpResponse response(final HttpResponseStatus statusCode,
-                                                               final ByteBuf content) {
+                                      final ByteBuf content) {
     return new DefaultFullHttpResponse(HTTP_VERSION, statusCode, content);
   }
 }

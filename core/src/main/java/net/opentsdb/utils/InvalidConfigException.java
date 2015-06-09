@@ -5,8 +5,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.typesafe.config.ConfigValue;
 
 /**
- * Exception thrown when something about a specific {@link
- * com.typesafe.config.ConfigValue} is wrong.
+ * Exception thrown when something about a specific {@link com.typesafe.config.ConfigValue} is
+ * wrong.
  */
 public class InvalidConfigException extends RuntimeException {
   public InvalidConfigException(final ConfigValue value,

@@ -1,4 +1,3 @@
-
 package net.opentsdb.uid;
 
 import static org.junit.Assert.assertEquals;
@@ -29,26 +28,26 @@ public final class TestUniqueId {
   private UniqueId uid;
 
   @Before
-  public void setUp() throws IOException{
+  public void setUp() throws IOException {
     ObjectGraph.create(new TestModule()).inject(this);
   }
 
-  @Test(expected=NullPointerException.class)
+  @Test(expected = NullPointerException.class)
   public void testCtorNoTsdbStore() {
     uid = new UniqueId(null, UniqueIdType.METRIC, metrics, idEventBus);
   }
 
-  @Test(expected=NullPointerException.class)
+  @Test(expected = NullPointerException.class)
   public void testCtorNoTable() {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
   }
 
-  @Test(expected=NullPointerException.class)
+  @Test(expected = NullPointerException.class)
   public void testCtorNoType() {
     uid = new UniqueId(client, null, metrics, idEventBus);
   }
 
-  @Test(expected=NullPointerException.class)
+  @Test(expected = NullPointerException.class)
   public void testCtorNoEventbus() {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, null);
   }
@@ -69,7 +68,7 @@ public final class TestUniqueId {
     assertEquals(2, metrics.getGauges().get("uid.cache-size:kind=metrics").getValue());
   }
 
-  @Test(expected=NoSuchUniqueId.class, timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(expected = NoSuchUniqueId.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void getNameForNonexistentId() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
     uid.getName(mock(LabelId.class)).join();
@@ -93,7 +92,7 @@ public final class TestUniqueId {
     assertEquals(2, metrics.getGauges().get("uid.cache-size:kind=metrics").getValue());
   }
 
-  @Test(expected=NoSuchUniqueName.class, timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(expected = NoSuchUniqueName.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void getIdForNonexistentName() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
     uid.getId("foo").join();

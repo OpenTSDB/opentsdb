@@ -1,4 +1,3 @@
-
 package net.opentsdb.idmanager;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -26,11 +25,11 @@ import joptsimple.OptionSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import javax.inject.Inject;
 
 /**
  * Command line tool to assign new IDs
@@ -40,11 +39,16 @@ public final class Assign {
 
   private final UniqueIdClient idClient;
 
+  @Inject
+  Assign(final UniqueIdClient idClient) {
+    this.idClient = checkNotNull(idClient);
+  }
+
   /** Prints printHelp. */
   private static void printHelp(final OptionParser parser) {
     System.err.println("Usage: tsdb id assign [OPTIONS] <TYPE> [NAME]...");
     System.err.println("Create IDs for NAME(s), or names read from standard" +
-        " input of type TYPE.");
+                       " input of type TYPE.");
     System.err.println();
 
     try {
@@ -63,11 +67,6 @@ public final class Assign {
   private static void printError(final String errorMessage) {
     System.err.println("assign: " + errorMessage);
     System.err.println("Try 'tsdb id assign --help' for more information");
-  }
-
-  @Inject
-  Assign(final UniqueIdClient idClient) {
-    this.idClient = checkNotNull(idClient);
   }
 
   public static void main(final String[] args) {

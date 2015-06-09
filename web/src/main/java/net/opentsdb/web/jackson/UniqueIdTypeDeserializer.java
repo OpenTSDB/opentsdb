@@ -15,7 +15,7 @@ public class UniqueIdTypeDeserializer extends JsonDeserializer<UniqueIdType> {
   @Override
   public UniqueIdType deserialize(final JsonParser parser,
                                   final DeserializationContext context)
-          throws IOException {
+      throws IOException {
     return UniqueIdType.fromValue(parser.getValueAsString());
   }
 }

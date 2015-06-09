@@ -1,4 +1,3 @@
-
 package net.opentsdb.web;
 
 import net.opentsdb.web.resources.Resource;

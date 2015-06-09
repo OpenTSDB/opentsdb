@@ -5,10 +5,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.base.Joiner;
 
 /**
- * Instead of juggling a registry around directly we use this class. It might be
- * really useful in the future to store {@link com.codahale.metrics.Metric}s on.
+ * Instead of juggling a registry around directly we use this class. It might be really useful in
+ * the future to store {@link com.codahale.metrics.Metric}s on.
  */
 public class Metrics {
+  private Metrics() {
+  }
+
   /**
    * Create a new name for the metrics library with the given metric and tags.
    */
@@ -25,17 +28,16 @@ public class Metrics {
   }
 
   /**
-   * Create a new tag with the given tag key and tag value. You should only rely
-   * on this method for anything else other than for use with the name method
-   * above.
+   * Create a new tag with the given tag key and tag value. You should only rely on this method for
+   * anything else other than for use with the name method above.
    */
   public static Tag tag(final String key, final String value) {
     return new Tag(key, value);
   }
 
   /**
-   * Inner class that describes tags for use with the name method above. You
-   * should not rely on this class for anything else.
+   * Inner class that describes tags for use with the name method above. You should not rely on this
+   * class for anything else.
    */
   public static class Tag {
     public final String key;
@@ -51,6 +53,4 @@ public class Metrics {
       return key + "=" + value;
     }
   }
-
-  private Metrics() {}
 }

@@ -17,15 +17,13 @@ import java.util.List;
 @AutoService(StoreDescriptor.class)
 public class CassandraStoreDescriptor extends StoreDescriptor {
   /**
-   * Create a new cluster that is configured to use the list of addresses in the
-   * config as seed nodes.
+   * Create a new cluster that is configured to use the list of addresses in the config as seed
+   * nodes.
    *
    * @param config The config to get the list of addresses to from
    * @return A new {@link com.datastax.driver.core.Cluster} instance
-   * @throws com.typesafe.config.ConfigException      if the config key was
-   *                                                  missing or is malformed
-   * @throws InvalidConfigException if one of the addresses
-   *                                                  could not be parsed
+   * @throws com.typesafe.config.ConfigException if the config key was missing or is malformed
+   * @throws InvalidConfigException if one of the addresses could not be parsed
    */
   @VisibleForTesting
   Cluster createCluster(final Config config) {
@@ -34,18 +32,17 @@ public class CassandraStoreDescriptor extends StoreDescriptor {
           config.getInt("tsd.storage.cassandra.protocolVersion"));
     } catch (IllegalArgumentException e) {
       throw new InvalidConfigException(config.getValue("tsd.storage.cassandra.nodes"),
-              "One or more of the addresses in the cassandra config could not be parsed");
+          "One or more of the addresses in the cassandra config could not be parsed");
     }
   }
 
   /**
-   * Create a new cluster that is configured to use the provided list of string
-   * addresses as seed nodes.
+   * Create a new cluster that is configured to use the provided list of string addresses as seed
+   * nodes.
    *
    * @param nodes A list of addresses to use as seed nodes
    * @return A new {@link com.datastax.driver.core.Cluster} instance
-   * @throws java.lang.IllegalArgumentException If any of the addresses could
-   *                                            not be parsed
+   * @throws java.lang.IllegalArgumentException If any of the addresses could not be parsed
    */
   private Cluster createCluster(final List<String> nodes,
                                 final int protocolVersion) {
@@ -53,7 +50,7 @@ public class CassandraStoreDescriptor extends StoreDescriptor {
 
     for (final String node : nodes) {
       final HostAndPort host = HostAndPort.fromString(node)
-              .withDefaultPort(CassandraConst.DEFAULT_CASSANDRA_PORT);
+          .withDefaultPort(CassandraConst.DEFAULT_CASSANDRA_PORT);
 
       builder.addContactPoint(host.getHostText())
           .withPort(host.getPort())
@@ -77,9 +74,8 @@ public class CassandraStoreDescriptor extends StoreDescriptor {
   }
 
   /**
-   * Register the metrics that are exposed on the provided {@link
-   * com.datastax.driver.core.Cluster} with the provided {@link
-   * com.codahale.metrics.MetricRegistry} instance.
+   * Register the metrics that are exposed on the provided {@link com.datastax.driver.core.Cluster}
+   * with the provided {@link com.codahale.metrics.MetricRegistry} instance.
    */
   private void registerMetrics(final Cluster cluster, final MetricRegistry metrics) {
     metrics.registerAll(cluster.getMetrics().getRegistry());

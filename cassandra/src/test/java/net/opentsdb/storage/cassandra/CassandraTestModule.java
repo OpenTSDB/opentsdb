@@ -12,27 +12,28 @@ import dagger.Provides;
 import javax.inject.Singleton;
 
 /**
- * This is the dagger module that should be used by all Cassandra tests. It
- * provides a live CassandraStore as its TsdbStore.
+ * This is the dagger module that should be used by all Cassandra tests. It provides a live
+ * CassandraStore as its TsdbStore.
  *
  * @see net.opentsdb.core.TsdbModule
  * @see net.opentsdb.TestModule
  */
 @Module(includes = {
-            CoreModule.class,
-            PluginsModule.class,
-            StoreModule.class
-        },
-        injects = {
-            TestCassandraStore.class
-        })
+    CoreModule.class,
+    PluginsModule.class,
+    StoreModule.class
+},
+    injects = {
+        TestCassandraStore.class
+    })
 class CassandraTestModule {
   @Provides
   Config provideConfig() {
     return ConfigFactory.load("cassandra");
   }
 
-  @Provides @Singleton
+  @Provides
+  @Singleton
   CassandraStoreDescriptor provideCassandraStoreDescriptor() {
     return new CassandraStoreDescriptor();
   }

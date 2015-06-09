@@ -17,13 +17,12 @@ import dagger.Module;
 import dagger.Provides;
 import io.netty.handler.codec.http.cors.CorsConfig;
 
-import javax.inject.Singleton;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import javax.inject.Singleton;
 
 /**
- * A Dagger module that is capable of creating objects relevant to the HTTP
- * server.
+ * A Dagger module that is capable of creating objects relevant to the HTTP server.
  */
 @Module(
     addsTo = TsdbModule.class,
@@ -31,7 +30,8 @@ import java.util.concurrent.TimeUnit;
         HttpServerInitializer.class
     })
 public class HttpModule {
-  @Provides @Singleton
+  @Provides
+  @Singleton
   ObjectMapper provideObjectMapper() {
     return new ObjectMapper()
         .registerModule(new MetricsModule(TimeUnit.SECONDS, TimeUnit.MILLISECONDS, false))
@@ -40,7 +40,8 @@ public class HttpModule {
         .enable(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT);
   }
 
-  @Provides @Singleton
+  @Provides
+  @Singleton
   HttpServerInitializer provideHttpServerInitializer(final Config config,
                                                      final DataPointsClient dataPointsClient,
                                                      final ObjectMapper objectMapper,

@@ -7,26 +7,25 @@ import com.stumbleupon.async.Deferred;
 import javax.annotation.Nonnull;
 
 /**
- * An IdLookupStrategy defines some custom behavior to use when attempting to
- * lookup the ID behind a name.
+ * An IdLookupStrategy defines some custom behavior to use when attempting to lookup the ID behind a
+ * name.
  */
 public interface IdLookupStrategy {
   /**
-   * Fetch the ID behind the provided name using the provided {@link
-   * net.opentsdb.uid.UniqueId} instance.
+   * Fetch the ID behind the provided name using the provided {@link net.opentsdb.uid.UniqueId}
+   * instance.
    *
    * @param uniqueId The UniqueId instance to use for looking up the ID
-   * @param name     The name to find the ID behind
-   * @return A deferred that contains the byte representation of the ID behind
-   * the name
+   * @param name The name to find the ID behind
+   * @return A deferred that contains the byte representation of the ID behind the name
    */
   @Nonnull
   Deferred<LabelId> getId(@Nonnull final UniqueId uniqueId,
                           @Nonnull final String name);
 
   /**
-   * The most basic id lookup strategy that just fetches the ID behind the
-   * provided name without providing any special behavior.
+   * The most basic id lookup strategy that just fetches the ID behind the provided name without
+   * providing any special behavior.
    */
   class SimpleIdLookupStrategy implements IdLookupStrategy {
     public static final IdLookupStrategy instance = new SimpleIdLookupStrategy();
@@ -40,8 +39,8 @@ public interface IdLookupStrategy {
   }
 
   /**
-   * An ID lookup strategy that will create an ID for the provided name if it
-   * does not already exist.
+   * An ID lookup strategy that will create an ID for the provided name if it does not already
+   * exist.
    */
   class CreatingIdLookupStrategy implements IdLookupStrategy {
     public static final IdLookupStrategy instance = new CreatingIdLookupStrategy();
@@ -65,13 +64,12 @@ public interface IdLookupStrategy {
 
   /**
    * An ID lookup strategy that supports wildcards.
-   *
-   * If the provided name is {@code null}, empty or equal to "*" it will be
-   * interpreted as a wildcard and a {@link com.stumbleupon.async.Deferred} with
-   * the result {@code null} will be returned.
-   *
-   * If the provided name is not {@code null} then a regular lookup will be
-   * done.
+   * <p/>
+   * If the provided name is {@code null}, empty or equal to "*" it will be interpreted as a
+   * wildcard and a {@link com.stumbleupon.async.Deferred} with the result {@code null} will be
+   * returned.
+   * <p/>
+   * If the provided name is not {@code null} then a regular lookup will be done.
    */
   class WildcardIdLookupStrategy implements IdLookupStrategy {
     public static final IdLookupStrategy instance = new WildcardIdLookupStrategy();

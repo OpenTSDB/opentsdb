@@ -20,7 +20,7 @@ public class IdQuery {
                  final UniqueIdType type,
                  final int maxResults) {
     checkArgument(maxResults >= 0,
-            "The provided max results must either have no limit or be > 0");
+        "The provided max results must either have no limit or be > 0");
 
     this.query = Strings.emptyToNull(query);
     this.type = type;

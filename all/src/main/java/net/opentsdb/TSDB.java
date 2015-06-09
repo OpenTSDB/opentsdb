@@ -1,4 +1,3 @@
-
 package net.opentsdb;
 
 import net.opentsdb.idmanager.Assign;

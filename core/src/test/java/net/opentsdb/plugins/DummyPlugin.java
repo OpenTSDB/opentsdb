@@ -1,3 +1,4 @@
 package net.opentsdb.plugins;
 
-public interface DummyPlugin {}
+public interface DummyPlugin {
+}

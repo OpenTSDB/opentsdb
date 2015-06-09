@@ -12,7 +12,7 @@ import dagger.Provides;
 import javax.inject.Singleton;
 
 @Module(complete = false,
-        library = true)
+    library = true)
 public class PluginsModule {
   @Provides
   @Singleton

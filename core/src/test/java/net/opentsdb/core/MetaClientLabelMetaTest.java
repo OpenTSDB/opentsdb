@@ -52,7 +52,7 @@ public class MetaClientLabelMetaTest {
   @Test
   public void getUIDMeta() throws Exception {
     final LabelMeta meta = metaClient.getLabelMeta(METRIC, sysCpu2)
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(METRIC, meta.type());
     assertEquals("sys.cpu.2", meta.name());
     assertEquals(sysCpu2, meta.identifier());

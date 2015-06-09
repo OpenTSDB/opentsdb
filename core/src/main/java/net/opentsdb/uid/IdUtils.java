@@ -16,11 +16,14 @@ import javax.xml.bind.DatatypeConverter;
 public class IdUtils {
   private static final Logger LOG = LoggerFactory.getLogger(IdUtils.class);
 
+  private IdUtils() {
+  }
+
   /**
    * Appends the given UID to the given string buffer, followed by "\\E".
    *
    * @param buf The buffer to append
-   * @param id  The UID to add as a binary regex pattern
+   * @param id The UID to add as a binary regex pattern
    * @since 2.1
    */
   public static void addIdToRegexp(final StringBuilder buf, final byte[] id) {
@@ -106,10 +109,10 @@ public class IdUtils {
   /**
    * Converts a Long to a byte array with the proper UID width
    *
-   * @param uid   The UID to convert
+   * @param uid The UID to convert
    * @param width The width of the UID in bytes
    * @return The UID as a byte array
-   * @throws IllegalStateException    if the UID is larger than the width would
+   * @throws IllegalStateException if the UID is larger than the width would
    * @throws IllegalArgumentException if width <= 0. allow
    * @since 2.1
    */
@@ -122,7 +125,7 @@ public class IdUtils {
     for (int i = 0; i < padded.length - width; i++) {
       if (padded[i] != 0) {
         final String message = "UID " + Long.toString(uid) +
-            " was too large for " + width + " bytes";
+                               " was too large for " + width + " bytes";
         LOG.error("OMG {}", message);
         throw new IllegalStateException(message);
       }
@@ -133,17 +136,15 @@ public class IdUtils {
   }
 
   /**
-   * Converts a hex string to a byte array If the {@code uid} is less than
-   * {@code uid_length * 2} characters wide, it will be padded with 0s to
-   * conform to the spec. E.g. if the tagk width is 3 and the given {@code uid}
-   * string is "1", the string will be padded to "000001" and then converted to
-   * a byte array to reach 3 bytes. All {@code uid}s are padded to 1 byte. If
-   * given "1", and {@code uid_length} is 0, the uid will be padded to "01" then
-   * converted.
+   * Converts a hex string to a byte array If the {@code uid} is less than {@code uid_length * 2}
+   * characters wide, it will be padded with 0s to conform to the spec. E.g. if the tagk width is 3
+   * and the given {@code uid} string is "1", the string will be padded to "000001" and then
+   * converted to a byte array to reach 3 bytes. All {@code uid}s are padded to 1 byte. If given
+   * "1", and {@code uid_length} is 0, the uid will be padded to "01" then converted.
    *
    * @param uid The UID to convert
    * @return The UID as a byte array
-   * @throws NullPointerException     if the ID was null
+   * @throws NullPointerException if the ID was null
    * @throws IllegalArgumentException if the string is not valid hex
    * @since 2.0
    */
@@ -152,19 +153,17 @@ public class IdUtils {
   }
 
   /**
-   * Converts a hex string to a byte array If the {@code uid} is less than
-   * {@code uid_length * 2} characters wide, it will be padded with 0s to
-   * conform to the spec. E.g. if the tagk width is 3 and the given {@code uid}
-   * string is "1", the string will be padded to "000001" and then converted to
-   * a byte array to reach 3 bytes. All {@code uid}s are padded to 1 byte. If
-   * given "1", and {@code uid_length} is 0, the uid will be padded to "01" then
-   * converted.
+   * Converts a hex string to a byte array If the {@code uid} is less than {@code uid_length * 2}
+   * characters wide, it will be padded with 0s to conform to the spec. E.g. if the tagk width is 3
+   * and the given {@code uid} string is "1", the string will be padded to "000001" and then
+   * converted to a byte array to reach 3 bytes. All {@code uid}s are padded to 1 byte. If given
+   * "1", and {@code uid_length} is 0, the uid will be padded to "01" then converted.
    *
-   * @param uid        The UID to convert
-   * @param uid_length An optional length, in bytes, that the UID must conform
-   *                   to. Set to 0 if not used.
+   * @param uid The UID to convert
+   * @param uid_length An optional length, in bytes, that the UID must conform to. Set to 0 if not
+   * used.
    * @return The UID as a byte array
-   * @throws NullPointerException     if the ID was null
+   * @throws NullPointerException if the ID was null
    * @throws IllegalArgumentException if the string is not valid hex
    * @since 2.0
    */
@@ -186,20 +185,20 @@ public class IdUtils {
   }
 
   /**
-   * Converts a UID to an integer value. The array must be the same length as
-   * uid_length or an exception will be thrown.
+   * Converts a UID to an integer value. The array must be the same length as uid_length or an
+   * exception will be thrown.
    *
-   * @param uid        The byte array to convert
+   * @param uid The byte array to convert
    * @param uid_length Length the array SHOULD be according to the UID config
    * @return The UID converted to an integer
-   * @throws IllegalArgumentException if the length of the byte array does not
-   *                                  match the uid_length value
+   * @throws IllegalArgumentException if the length of the byte array does not match the uid_length
+   * value
    * @since 2.1
    */
   public static long uidToLong(final byte[] uid, final short uid_length) {
     if (uid.length != uid_length) {
       throw new IllegalArgumentException("UID was " + uid.length
-          + " bytes long but expected to be " + uid_length);
+                                         + " bytes long but expected to be " + uid_length);
     }
 
     final byte[] uid_raw = new byte[8];
@@ -208,13 +207,13 @@ public class IdUtils {
   }
 
   /**
-   * Converts a UID to an integer value. The array must be the same length as
-   * uid_length or an exception will be thrown.
+   * Converts a UID to an integer value. The array must be the same length as uid_length or an
+   * exception will be thrown.
    *
    * @param uid The byte array to convert
    * @return The UID converted to an integer
-   * @throws IllegalArgumentException if the length of the byte array does not
-   *                                  match the uid_length value
+   * @throws IllegalArgumentException if the length of the byte array does not match the uid_length
+   * value
    * @since 2.1
    */
   public static long uidToLong(final byte[] uid) {
@@ -234,6 +233,4 @@ public class IdUtils {
   public static String uidToString(final byte[] uid) {
     return DatatypeConverter.printHexBinary(uid);
   }
-
-  private IdUtils() {}
 }

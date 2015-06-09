@@ -1,4 +1,3 @@
-
 package net.opentsdb.storage.cassandra;
 
 import net.opentsdb.storage.TsdbStoreTimeSeriesQueryTest;

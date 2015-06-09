@@ -44,11 +44,11 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.stumbleupon.async.Deferred;
 
-import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nonnull;
 
 /**
  * The CassandraStore that implements the client interface required by TSDB.
@@ -92,8 +92,8 @@ public class CassandraStore extends TsdbStore {
 
 
   /**
-   * If you need a CassandraStore, try to change the config file and use the
-   * {@link net.opentsdb.storage.StoreModule#get()}.
+   * If you need a CassandraStore, try to change the config file and use the {@link
+   * net.opentsdb.storage.StoreModule#get()}.
    *
    * @param cluster The configured Cassandra cluster.
    */
@@ -113,15 +113,27 @@ public class CassandraStore extends TsdbStore {
   }
 
   /**
+   * Calculate the base time based on a timestamp to be used in a row key.
+   */
+  private static long buildBaseTime(final long timestamp) {
+    if ((timestamp & Const.SECOND_MASK) != 0) {
+      // drop the ms timestamp to seconds to calculate the base timestamp
+      return ((timestamp / 1000) - ((timestamp / 1000) % Const.MAX_TIMESPAN));
+    } else {
+      return (timestamp - (timestamp % Const.MAX_TIMESPAN));
+    }
+  }
+
+  /**
    * In this method we prepare all the statements used for accessing Cassandra.
    */
   private void prepareStatements() {
     checkNotNull(session);
 
     String CQL = "BEGIN BATCH USING TIMESTAMP ?" +
-        "INSERT INTO tsdb." + Tables.ID_TO_NAME + " (label_id, type, creation_time, name) VALUES (?, ?, ?, ?);" +
-        "INSERT INTO tsdb." + Tables.NAME_TO_ID + " (name, type, creation_time, label_id) VALUES (?, ?, ?, ?);" +
-        "APPLY BATCH;";
+                 "INSERT INTO tsdb." + Tables.ID_TO_NAME + " (label_id, type, creation_time, name) VALUES (?, ?, ?, ?);" +
+                 "INSERT INTO tsdb." + Tables.NAME_TO_ID + " (name, type, creation_time, label_id) VALUES (?, ?, ?, ?);" +
+                 "APPLY BATCH;";
     createIdStatement = session.prepare(CQL)
         .setConsistencyLevel(ConsistencyLevel.ALL);
 
@@ -129,9 +141,9 @@ public class CassandraStore extends TsdbStore {
     update_uid_name_statement = session.prepare(CQL);
 
     CQL = "BEGIN BATCH " +
-            "DELETE FROM tsdb." + Tables.NAME_TO_ID + " WHERE name = ? AND type= ? " +
-            "INSERT INTO tsdb." + Tables.NAME_TO_ID + " (name, type, label_id) VALUES (?, ?, ?) " +
-            "APPLY BATCH;";
+          "DELETE FROM tsdb." + Tables.NAME_TO_ID + " WHERE name = ? AND type= ? " +
+          "INSERT INTO tsdb." + Tables.NAME_TO_ID + " (name, type, label_id) VALUES (?, ?, ?) " +
+          "APPLY BATCH;";
     update_name_uid_statement = session.prepare(CQL);
 
     CQL = "SELECT * FROM tsdb." + Tables.ID_TO_NAME + " WHERE label_id = ? AND type = ? LIMIT 2;";
@@ -259,8 +271,7 @@ public class CassandraStore extends TsdbStore {
   }
 
   /**
-   * Fetch the first two IDs that are associated with the provided name and
-   * type.
+   * Fetch the first two IDs that are associated with the provided name and type.
    *
    * @param name The name to fetch IDs for
    * @param type The type of IDs to fetch
@@ -296,10 +307,9 @@ public class CassandraStore extends TsdbStore {
   }
 
   /**
-   * Fetch the first two names that are associated with the provided id and
-   * type.
+   * Fetch the first two names that are associated with the provided id and type.
    *
-   * @param id   The id to fetch names for
+   * @param id The id to fetch names for
    * @param type The type of names to fetch
    * @return A future with a list of the first two found names
    */
@@ -343,13 +353,12 @@ public class CassandraStore extends TsdbStore {
   }
 
   /**
-   * Check if (id, type) is available and return a future that contains a
-   * boolean that will be true if the id is available or false if otherwise.
+   * Check if (id, type) is available and return a future that contains a boolean that will be true
+   * if the id is available or false if otherwise.
    *
-   * @param id   The name to check
+   * @param id The name to check
    * @param type The type to check
-   * @return A future that contains a boolean that indicates if the id was
-   * available
+   * @return A future that contains a boolean that indicates if the id was available
    */
   private ListenableFuture<Boolean> isIdAvailable(final long id,
                                                   final UniqueIdType type) {
@@ -357,13 +366,12 @@ public class CassandraStore extends TsdbStore {
   }
 
   /**
-   * Check if (name, type) is available and return a future that contains a
-   * boolean that will be true if the name is available or false if otherwise.
+   * Check if (name, type) is available and return a future that contains a boolean that will be
+   * true if the name is available or false if otherwise.
    *
    * @param name The name to check
    * @param type The type to check
-   * @return A future that contains a boolean that indicates if the name was
-   * available
+   * @return A future that contains a boolean that indicates if the name was available
    */
   private ListenableFuture<Boolean> isNameAvailable(final String name,
                                                     final UniqueIdType type) {
@@ -371,16 +379,15 @@ public class CassandraStore extends TsdbStore {
   }
 
   /**
-   * Check if either of (id, type) and (name, type) are taken or if both are
-   * available. If either of the combinations already are taken the returned
-   * future will contain an {@link net.opentsdb.uid.IdException}.
+   * Check if either of (id, type) and (name, type) are taken or if both are available. If either of
+   * the combinations already are taken the returned future will contain an {@link
+   * net.opentsdb.uid.IdException}.
    *
-   * @param id   The id to check if it is available
+   * @param id The id to check if it is available
    * @param name The name to check if it is available
    * @param type The type of id and name to check if it available
-   * @return A future that contains an exception if either of the above
-   * combinations were taken. Otherwise a future with meaningless contents will
-   * be returned.
+   * @return A future that contains an exception if either of the above combinations were taken.
+   * Otherwise a future with meaningless contents will be returned.
    */
   private ListenableFuture<Void> checkAvailable(final long id,
                                                 final String name,
@@ -413,11 +420,10 @@ public class CassandraStore extends TsdbStore {
   }
 
   /**
-   * Save a new identifier with the provided information in Cassandra. This will
-   * not perform any checks to see if the id already exists, you are expected to
-   * have done so already.
+   * Save a new identifier with the provided information in Cassandra. This will not perform any
+   * checks to see if the id already exists, you are expected to have done so already.
    *
-   * @param id   The id to associate with the provided name
+   * @param id The id to associate with the provided name
    * @param name The name to save
    * @param type The type of id to save
    * @return A future containing the newly saved identifier
@@ -443,16 +449,15 @@ public class CassandraStore extends TsdbStore {
   }
 
   /**
-   * Allocate an ID for the provided (name, type). This will attempt to generate
-   * an ID that is likely to be available. It will then check if this
-   * information is available and finally save the information if it is. If the
-   * information could be saved the ID will be returned in a future, otherwise
-   * the future will contain an {@link net.opentsdb.uid.IdException}.
+   * Allocate an ID for the provided (name, type). This will attempt to generate an ID that is
+   * likely to be available. It will then check if this information is available and finally save
+   * the information if it is. If the information could be saved the ID will be returned in a
+   * future, otherwise the future will contain an {@link net.opentsdb.uid.IdException}.
    *
    * @param name The name to allocate an ID for
    * @param type The type of name to allocate an ID for
-   * @return A future that contains the newly allocated ID if successful,
-   * otherwise the future will contain a {@link net.opentsdb.uid.IdException}.
+   * @return A future that contains the newly allocated ID if successful, otherwise the future will
+   * contain a {@link net.opentsdb.uid.IdException}.
    */
   @Nonnull
   @Override
@@ -479,17 +484,16 @@ public class CassandraStore extends TsdbStore {
   }
 
   /**
-   * For all intents and purposes this function works as a rename. In the HBase
-   * implementation the other method {@link #allocateUID} uses this method that
-   * basically overwrites the value no matter what. This method is also used by
-   * the function {@link net.opentsdb.uid.UniqueId#rename}.
-   *
-   * TODO #zeeck this method should be considered to be changed to rename and
-   * the implementation changed in the HBaseStore. One of tre prerequisites of
-   * this function is that the UID already exists.
+   * For all intents and purposes this function works as a rename. In the HBase implementation the
+   * other method {@link #allocateUID} uses this method that basically overwrites the value no
+   * matter what. This method is also used by the function {@link net.opentsdb.uid.UniqueId#rename}.
+   * <p/>
+   * TODO #zeeck this method should be considered to be changed to rename and the implementation
+   * changed in the HBaseStore. One of tre prerequisites of this function is that the UID already
+   * exists.
    *
    * @param name The name to write.
-   * @param uid  The uid to use.
+   * @param uid The uid to use.
    * @param type The type of UID
    * @return The uid that was used.
    */
@@ -507,7 +511,7 @@ public class CassandraStore extends TsdbStore {
 
     //CQL = "UPDATE tsdb." + Tables.ID_TO_NAME + " SET name = ? WHERE uid = ? AND type = ?;";
     final BoundStatement s1 = new BoundStatement(update_uid_name_statement)
-            .bind(name, toLong(uid), type.toValue());
+        .bind(name, toLong(uid), type.toValue());
 
     Futures.addCallback(f, new FutureCallback<ResultSet>() {
       @Override
@@ -521,7 +525,7 @@ public class CassandraStore extends TsdbStore {
         // INSERT INTO tsdb.name_to_id (name, type, uid) VALUES (?, ?, ?)
         // APPLY BATCH;
         session.executeAsync(s.bind(old_name, type.toValue(),
-                name, type.toValue(), toLong(uid)));
+            name, type.toValue(), toLong(uid)));
         //TODO (zeeck) maybe check if this was ok
         d.callback(uid);
       }
@@ -567,17 +571,5 @@ public class CassandraStore extends TsdbStore {
   @Override
   public Deferred<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query) {
     throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  /**
-   * Calculate the base time based on a timestamp to be used in a row key.
-   */
-  private static long buildBaseTime(final long timestamp) {
-    if ((timestamp & Const.SECOND_MASK) != 0) {
-      // drop the ms timestamp to seconds to calculate the base timestamp
-      return ((timestamp / 1000) - ((timestamp / 1000) % Const.MAX_TIMESPAN));
-    } else {
-      return (timestamp - (timestamp % Const.MAX_TIMESPAN));
-    }
   }
 }

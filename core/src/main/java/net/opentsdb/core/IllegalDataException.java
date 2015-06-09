@@ -10,12 +10,15 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.core;
 
 /**
  * Some illegal / malformed / corrupted data has been found in HBase.
  */
 public final class IllegalDataException extends IllegalStateException {
+
+  static final long serialVersionUID = 1307719142;
 
   /**
    * Constructor.
@@ -34,7 +37,5 @@ public final class IllegalDataException extends IllegalStateException {
   public IllegalDataException(final String msg, final Throwable cause) {
     super(msg, cause);
   }
-
-  static final long serialVersionUID = 1307719142;
 
 }

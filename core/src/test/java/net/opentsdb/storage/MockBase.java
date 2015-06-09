@@ -10,6 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.storage;
 
 import org.junit.Ignore;
@@ -21,13 +22,13 @@ public final class MockBase {
   public static final int DEFAULT_TIMEOUT = 20000;
 
   /**
-   * Helper to convert a hex encoded string into a byte array.
-   * <b>Warning:</b> This method won't pad the string to make sure it's an
-   * even number of bytes.
+   * Helper to convert a hex encoded string into a byte array. <b>Warning:</b> This method won't pad
+   * the string to make sure it's an even number of bytes.
+   *
    * @param bytes The hex encoded string to convert
    * @return A byte array from the hex string
-   * @throws IllegalArgumentException if the string contains illegal characters
-   * or can't be converted.
+   * @throws IllegalArgumentException if the string contains illegal characters or can't be
+   * converted.
    */
   public static byte[] stringToBytes(final String bytes) {
     return DatatypeConverter.parseHexBinary(bytes);
@@ -35,6 +36,7 @@ public final class MockBase {
 
   /**
    * Concatenates byte arrays into one big array
+   *
    * @param arrays Any number of arrays to concatenate
    * @return The concatenated array
    */

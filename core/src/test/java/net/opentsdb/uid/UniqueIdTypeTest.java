@@ -40,17 +40,17 @@ public class UniqueIdTypeTest {
     assertEquals("tagv", UniqueIdType.TAGV.toValue());
   }
 
-  @Test (expected = NullPointerException.class)
+  @Test(expected = NullPointerException.class)
   public void stringToUniqueIdTypeNull() throws Exception {
     UniqueIdType.fromValue(null);
   }
 
-  @Test (expected = IllegalArgumentException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void stringToUniqueIdTypeEmpty() throws Exception {
     UniqueIdType.fromValue("");
   }
 
-  @Test (expected = IllegalArgumentException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void stringToUniqueIdTypeInvalid() throws Exception {
     UniqueIdType.fromValue("Not a type");
   }

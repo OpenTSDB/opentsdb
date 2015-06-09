@@ -10,6 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.core;
 
 import net.opentsdb.core.Aggregators.Interpolation;
@@ -23,34 +24,30 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * Iterator that aggregates multiple spans or time series data and does linear
- * interpolation (lerp) for missing data points.
- * <p>
- * This where the real business of {@link SpanGroup} is.  This iterator
- * provides a merged, aggregated view of multiple {@link Span}s.  The data
- * points in all the Spans are returned in chronological order.  Each time
- * we return a data point from a span, we aggregate it with the current
- * value from all the other Spans.  If other Spans don't have a value at
- * that specific timestamp, we do a linear interpolation in order to
- * estimate what the value of that Span should be at that time.
- * <p>
- * All this merging, linear interpolation and aggregation happens in
- * {@code O(1)} space and {@code O(N)} time.  All we need is to keep an
- * iterator on each Span, and {@code 4*k} {@code long}s in memory, where
- * {@code k} is the number of Spans in the group.  When computing a rate,
- * we need an extra {@code 2*k} {@code long}s in memory (see below).
- * <p>
- * In order to do linear interpolation, we need to know two data points:
- * the current one and the next one.  So for each Span in the group, we need
- * 4 longs: the current value, the current timestamp, the next value and the
- * next timestamp.  We maintain two arrays for timestamps and values.  Those
- * arrays have {@code 2 * iterators.length} elements.  The first half
- * contains the current values and second half the next values.  When a Span
- * gets used, its next data point becomes the current one (so its value and
- * timestamp are moved from the 2nd half of their respective array to the
- * first half) and the new-next data point is fetched from the underlying
+ * Iterator that aggregates multiple spans or time series data and does linear interpolation (lerp)
+ * for missing data points.
+ * <p/>
+ * This where the real business of {@link SpanGroup} is.  This iterator provides a merged,
+ * aggregated view of multiple {@link Span}s.  The data points in all the Spans are returned in
+ * chronological order.  Each time we return a data point from a span, we aggregate it with the
+ * current value from all the other Spans.  If other Spans don't have a value at that specific
+ * timestamp, we do a linear interpolation in order to estimate what the value of that Span should
+ * be at that time.
+ * <p/>
+ * All this merging, linear interpolation and aggregation happens in {@code O(1)} space and {@code
+ * O(N)} time.  All we need is to keep an iterator on each Span, and {@code 4*k} {@code long}s in
+ * memory, where {@code k} is the number of Spans in the group.  When computing a rate, we need an
+ * extra {@code 2*k} {@code long}s in memory (see below).
+ * <p/>
+ * In order to do linear interpolation, we need to know two data points: the current one and the
+ * next one.  So for each Span in the group, we need 4 longs: the current value, the current
+ * timestamp, the next value and the next timestamp.  We maintain two arrays for timestamps and
+ * values.  Those arrays have {@code 2 * iterators.length} elements.  The first half contains the
+ * current values and second half the next values.  When a Span gets used, its next data point
+ * becomes the current one (so its value and timestamp are moved from the 2nd half of their
+ * respective array to the first half) and the new-next data point is fetched from the underlying
  * iterator of that Span.
- * <p>
+ * <p/>
  * Here is an example when the SpanGroup contains 2 Spans:
  * <pre>              current    |     next
  *               +-------+-------+-------+-------+
@@ -65,28 +62,22 @@ import java.util.NoSuchElementException;
  *   pos: 0
  *   iterators: [ it0, it1 ]
  * </pre>
- * Since {@code current == 0}, the current data point has the value V1
- * and time T1.  Let's note that (V1, T1).  Now this group has 2 Spans,
- * which means we're trying to aggregate 2 different series (same metric ID
- * but different tags).  So The next value that this iterator returns needs
- * to be a combination of V1 and V2 (assuming that T2 is less than T1).
- * If our aggregation function is "sum", we sort of want to sum up V1 and
- * V2.  But those two data points may not necessarily be at the same time.
- * T2 can be less than or equal to T1.  If T2 is greater than T1, we ignore
- * V2 and return just V1, since we haven't reached the time yet where V2
- * exist, so it's essentially as if it wasn't there.
- * Say T2 is less than T1.  Summing up V1 and V2 doesn't make sense, since
- * they represent two measurements made at different times.  So instead,
- * we need to find what the value V2 would have been, had it been measured
- * at time T1 instead of T2.  We do this using linear interpolation between
- * the data point (V2, T2) and the following one for that series, (V4, T4).
- * The result is thus the sum of V1 and the interpolated value between V2
- * and V4.
- * <p>
- * Now let's move onto the next data point.  Assuming that T3 is less than
- * T4, it means we need to advance to the next point on the 1st series.  To
- * do this we use the iterator it0 to get the next data point for that
- * series and we end up with the following state:
+ * Since {@code current == 0}, the current data point has the value V1 and time T1.  Let's note that
+ * (V1, T1).  Now this group has 2 Spans, which means we're trying to aggregate 2 different series
+ * (same metric ID but different tags).  So The next value that this iterator returns needs to be a
+ * combination of V1 and V2 (assuming that T2 is less than T1). If our aggregation function is
+ * "sum", we sort of want to sum up V1 and V2.  But those two data points may not necessarily be at
+ * the same time. T2 can be less than or equal to T1.  If T2 is greater than T1, we ignore V2 and
+ * return just V1, since we haven't reached the time yet where V2 exist, so it's essentially as if
+ * it wasn't there. Say T2 is less than T1.  Summing up V1 and V2 doesn't make sense, since they
+ * represent two measurements made at different times.  So instead, we need to find what the value
+ * V2 would have been, had it been measured at time T1 instead of T2.  We do this using linear
+ * interpolation between the data point (V2, T2) and the following one for that series, (V4, T4).
+ * The result is thus the sum of V1 and the interpolated value between V2 and V4.
+ * <p/>
+ * Now let's move onto the next data point.  Assuming that T3 is less than T4, it means we need to
+ * advance to the next point on the 1st series.  To do this we use the iterator it0 to get the next
+ * data point for that series and we end up with the following state:
  * <pre>              current    |     next
  *               +-------+-------+-------+-------+
  *   timestamps: |  T3   |  T2   |  T5   |  T4   |
@@ -101,22 +92,20 @@ import java.util.NoSuchElementException;
  *   iterators: [ it0, it1 ]
  * </pre>
  * Then all you need is to "rinse and repeat".
- * <p>
- * More details: Since each value above can be either an integer or a
- * floating point, we have to keep track of the type of each value.  Values
- * are always stored in a {@code long}.  When a value is a floating point
- * value, the bits of the longs just need to be interpreted to get back the
- * floating point value.  The way we keep track of the type is by using the
- * most significant bit of the timestamp (to avoid an extra array).  This is
- * fine since our timestamps only really use 32 of the 64 bits of the long
- * in which they're stored.  When there is no "current" value (1st half of
- * the arrays depicted above), the timestamp will be set to 0.  When there
- * is no "next" value (2nd half of the arrays), the timestamp will be set
- * to a special, really large value (too large to be a valid timestamp).
- * <p>
+ * <p/>
+ * More details: Since each value above can be either an integer or a floating point, we have to
+ * keep track of the type of each value.  Values are always stored in a {@code long}.  When a value
+ * is a floating point value, the bits of the longs just need to be interpreted to get back the
+ * floating point value.  The way we keep track of the type is by using the most significant bit of
+ * the timestamp (to avoid an extra array).  This is fine since our timestamps only really use 32 of
+ * the 64 bits of the long in which they're stored.  When there is no "current" value (1st half of
+ * the arrays depicted above), the timestamp will be set to 0.  When there is no "next" value (2nd
+ * half of the arrays), the timestamp will be set to a special, really large value (too large to be
+ * a valid timestamp).
+ * <p/>
  */
 final class AggregationIterator implements SeekableView, DataPoint,
-                                           Aggregator.Longs, Aggregator.Doubles {
+    Aggregator.Longs, Aggregator.Doubles {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(AggregationIterator.class);
@@ -124,12 +113,12 @@ final class AggregationIterator implements SeekableView, DataPoint,
   /** Extra bit we set on the timestamp of floating point values. */
   private static final long FLAG_FLOAT = 0x8000000000000000L;
 
-  /** Mask to use in order to get rid of the flag above.
-   * This value also conveniently represents the largest timestamp we can
-   * possibly store, provided that the most significant bit is reserved by
+  /**
+   * Mask to use in order to get rid of the flag above. This value also conveniently represents the
+   * largest timestamp we can possibly store, provided that the most significant bit is reserved by
    * FLAG_FLOAT.
    */
-  private static final long TIME_MASK  = 0x7FFFFFFFFFFFFFFFL;
+  private static final long TIME_MASK = 0x7FFFFFFFFFFFFFFFL;
 
   /** Aggregator to use to aggregate data points from different Spans. */
   private final Aggregator aggregator;
@@ -141,44 +130,33 @@ final class AggregationIterator implements SeekableView, DataPoint,
   private final boolean rate;
 
   /**
-   * Where we are in each {@link Span} in the group.
-   * The iterators in this array always points to 2 values ahead of the
-   * current value, as we pre-load the current and the next values into the
-   * {@link #timestamps} and {@link #values} member.
-   * Once we reach the end of a Span, we'll null out its iterator from this
-   * array.
+   * Where we are in each {@link Span} in the group. The iterators in this array always points to 2
+   * values ahead of the current value, as we pre-load the current and the next values into the
+   * {@link #timestamps} and {@link #values} member. Once we reach the end of a Span, we'll null out
+   * its iterator from this array.
    */
   private final SeekableView[] iterators;
 
   /**
    * The current and previous timestamps for the data points being used.
-   * <p>
-   * Are we computing a rate?
-   * <ul>
-   * <li>No: for {@code iterators[i]} the timestamp of the current data
-   *     point is {@code timestamps[i]} and the timestamp of the next data
-   *     point is {@code timestamps[iterators.length + i]}.</li>
-   * </li></ul>
-   * <p>
-   * Each timestamp can have the {@code FLAG_FLOAT} applied so it's important
-   * to use the {@code TIME_MASK} when getting the actual timestamp value
-   * out of it.
-   * There are two special values for timestamps:
-   * <ul>
-   * <li>{@code 0} when in the first half of the array: this iterator has
-   * run out of data points and must not be used anymore.</li>
-   * <li>{@code TIME_MASK} when in the second half of the array: this
-   * iterator has reached its last data point and must not be used for
-   * linear interpolation anymore.</li>
-   * </ul>
+   * <p/>
+   * Are we computing a rate? <ul> <li>No: for {@code iterators[i]} the timestamp of the current
+   * data point is {@code timestamps[i]} and the timestamp of the next data point is {@code
+   * timestamps[iterators.length + i]}.</li> </li></ul>
+   * <p/>
+   * Each timestamp can have the {@code FLAG_FLOAT} applied so it's important to use the {@code
+   * TIME_MASK} when getting the actual timestamp value out of it. There are two special values for
+   * timestamps: <ul> <li>{@code 0} when in the first half of the array: this iterator has run out
+   * of data points and must not be used anymore.</li> <li>{@code TIME_MASK} when in the second half
+   * of the array: this iterator has reached its last data point and must not be used for linear
+   * interpolation anymore.</li> </ul>
    */
   private final long[] timestamps; // 32 bit unsigned + flag
 
   /**
-   * The current and next values for the data points being used.
-   * This array works exactly in the same fashion as the 'timestamps' array.
-   * This array is also used to store floating point values, in which case
-   * their binary representation just happens to be stored in a {@code long}.
+   * The current and next values for the data points being used. This array works exactly in the
+   * same fashion as the 'timestamps' array. This array is also used to store floating point values,
+   * in which case their binary representation just happens to be stored in a {@code long}.
    */
   private final long[] values;
 
@@ -189,53 +167,13 @@ final class AggregationIterator implements SeekableView, DataPoint,
   private int pos;
 
   /**
-   * Creates a new iterator for a {@link SpanGroup}.
-   * @param spans Spans in a group.
-   * @param aggregator The aggregation function to use.
-   * @param method Interpolation method to use when aggregating time series
-   * @param downsampler Aggregation function to use to group data points
-   * within an interval.
-   * @param sample_interval_ms Number of milliseconds wanted between each data
-   * point.
-   * @param rate If {@code true}, the rate of the series will be used instead
-   * of the actual values.
-   * @param rate_options Specifies the optional additional rate calculation
-   * options.
-   * @return An {@link AggregationIterator} object.
-   */
-  public static AggregationIterator create(final List<Span> spans,
-                                           final Aggregator aggregator,
-                                           final Interpolation method,
-                                           final Aggregator downsampler,
-                                           final long sample_interval_ms,
-                                           final boolean rate,
-                                           final RateOptions rate_options) {
-    final int size = spans.size();
-    final SeekableView[] iterators = new SeekableView[size];
-    for (int i = 0; i < size; i++) {
-      SeekableView it;
-      if (downsampler == null) {
-        it = spans.get(i).spanIterator();
-      } else {
-        it = spans.get(i).downsampler(sample_interval_ms, downsampler);
-      }
-      if (rate) {
-        it = new RateSpan(it, rate_options);
-      }
-      iterators[i] = it;
-    }
-    return new AggregationIterator(iterators, aggregator,
-                                   method, rate);
-  }
-
-  /**
    * Creates an aggregation iterator for a group of data point iterators.
-   * @param iterators An array of Seekable views of spans in a group. Ignored
-   * if {@code null}. We modify the array while processing data points.
+   *
+   * @param iterators An array of Seekable views of spans in a group. Ignored if {@code null}. We
+   * modify the array while processing data points.
    * @param aggregator The aggregation function to use.
    * @param method Interpolation method to use when aggregating time series
-   * @param rate If {@code true}, the rate of the series will be used instead
-   * of the actual values.
+   * @param rate If {@code true}, the rate of the series will be used instead of the actual values.
    */
   private AggregationIterator(final SeekableView[] iterators,
                               final Aggregator aggregator,
@@ -287,12 +225,67 @@ final class AggregationIterator implements SeekableView, DataPoint,
     }
     if (num_empty_spans > 0) {
       LOG.debug(String.format("%d out of %d spans are empty!",
-                              num_empty_spans, size));
+          num_empty_spans, size));
     }
   }
 
   /**
+   * Creates a new iterator for a {@link SpanGroup}.
+   *
+   * @param spans Spans in a group.
+   * @param aggregator The aggregation function to use.
+   * @param method Interpolation method to use when aggregating time series
+   * @param downsampler Aggregation function to use to group data points within an interval.
+   * @param sample_interval_ms Number of milliseconds wanted between each data point.
+   * @param rate If {@code true}, the rate of the series will be used instead of the actual values.
+   * @param rate_options Specifies the optional additional rate calculation options.
+   * @return An {@link AggregationIterator} object.
+   */
+  public static AggregationIterator create(final List<Span> spans,
+                                           final Aggregator aggregator,
+                                           final Interpolation method,
+                                           final Aggregator downsampler,
+                                           final long sample_interval_ms,
+                                           final boolean rate,
+                                           final RateOptions rate_options) {
+    final int size = spans.size();
+    final SeekableView[] iterators = new SeekableView[size];
+    for (int i = 0; i < size; i++) {
+      SeekableView it;
+      if (downsampler == null) {
+        it = spans.get(i).spanIterator();
+      } else {
+        it = spans.get(i).downsampler(sample_interval_ms, downsampler);
+      }
+      if (rate) {
+        it = new RateSpan(it, rate_options);
+      }
+      iterators[i] = it;
+    }
+    return new AggregationIterator(iterators, aggregator,
+        method, rate);
+  }
+
+  /**
+   * Creates an aggregation iterator for unit tests.
+   *
+   * @param iterators An array of Seekable views of spans in a group. Ignored if {@code null}. We
+   * modify the array while processing data points.
+   * @param aggregator The aggregation function to use.
+   * @param method Interpolation method to use when aggregating time series
+   * @param rate If {@code true}, the rate of the series will be used instead of the actual values.
+   */
+  @VisibleForTesting
+  static AggregationIterator createForTesting(final SeekableView[] iterators,
+                                              final Aggregator aggregator,
+                                              final Interpolation method,
+                                              final boolean rate) {
+    return new AggregationIterator(iterators, aggregator, method, rate);
+  }
+
+  /**
    * Indicates that an iterator in {@link #iterators} has reached the end.
+   *
    * @param i The index in {@link #iterators} of the iterator.
    */
   private void endReached(final int i) {
@@ -301,8 +294,13 @@ final class AggregationIterator implements SeekableView, DataPoint,
     iterators[i] = null;  // We won't use it anymore, so free() it.
   }
 
+  // ------------------ //
+  // Iterator interface //
+  // ------------------ //
+
   /**
    * Puts the next data point of an iterator in the internal buffer.
+   *
    * @param i The index in {@link #iterators} of the iterator.
    * @param dp The last data point returned by that iterator.
    */
@@ -319,10 +317,6 @@ final class AggregationIterator implements SeekableView, DataPoint,
       timestamps[i] |= FLAG_FLOAT;
     }
   }
-
-  // ------------------ //
-  // Iterator interface //
-  // ------------------ //
 
   @Override
   public boolean hasNext() {
@@ -395,6 +389,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
 
   /**
    * Makes iterator number {@code i} move forward to the next data point.
+   *
    * @param i The index in {@link #iterators} of the iterator.
    */
   private void moveToNext(final int i) {
@@ -414,14 +409,18 @@ final class AggregationIterator implements SeekableView, DataPoint,
     }
   }
 
+  // ---------------------- //
+  // SeekableView interface //
+  // ---------------------- //
+
   @Override
   public void remove() {
     throw new UnsupportedOperationException();
   }
 
-  // ---------------------- //
-  // SeekableView interface //
-  // ---------------------- //
+  // ------------------- //
+  // DataPoint interface //
+  // ------------------- //
 
   @Override
   public void seek(final long timestamp) {
@@ -429,10 +428,6 @@ final class AggregationIterator implements SeekableView, DataPoint,
       it.seek(timestamp);
     }
   }
-
-  // ------------------- //
-  // DataPoint interface //
-  // ------------------- //
 
   @Override
   public long timestamp() {
@@ -472,21 +467,21 @@ final class AggregationIterator implements SeekableView, DataPoint,
       //LOG.debug("aggregator returned " + value);
       if (value != value || Double.isInfinite(value)) {
         throw new IllegalStateException("Got NaN or Infinity: "
-           + value + " in this " + this);
+                                        + value + " in this " + this);
       }
       return value;
     }
     throw new ClassCastException("current value is a long: " + this);
   }
 
+  // -------------------------- //
+  // Aggregator.Longs interface //
+  // -------------------------- //
+
   @Override
   public double toDouble() {
     return isInteger() ? longValue() : doubleValue();
   }
-
-  // -------------------------- //
-  // Aggregator.Longs interface //
-  // -------------------------- //
 
   @Override
   public boolean hasNextValue() {
@@ -495,8 +490,9 @@ final class AggregationIterator implements SeekableView, DataPoint,
 
   /**
    * Returns whether or not there are more values to aggregate.
-   * @param update_pos Whether or not to also move the internal pointer
-   * {@link #pos} to the index of the next value to aggregate.
+   *
+   * @param update_pos Whether or not to also move the internal pointer {@link #pos} to the index of
+   * the next value to aggregate.
    * @return true if there are more values to aggregate, false otherwise.
    */
   private boolean hasNextValue(boolean update_pos) {
@@ -513,6 +509,10 @@ final class AggregationIterator implements SeekableView, DataPoint,
     //LOG.debug("hasNextValue -> false (ran out)");
     return false;
   }
+
+  // ---------------------------- //
+  // Aggregator.Doubles interface //
+  // ---------------------------- //
 
   @Override
   public long nextLongValue() {
@@ -561,16 +561,12 @@ final class AggregationIterator implements SeekableView, DataPoint,
     throw new NoSuchElementException("no more longs in " + this);
   }
 
-  // ---------------------------- //
-  // Aggregator.Doubles interface //
-  // ---------------------------- //
-
   @Override
   public double nextDoubleValue() {
     if (hasNextValue(true)) {
       final double y0 = ((timestamps[pos] & FLAG_FLOAT) == FLAG_FLOAT
-                         ? Double.longBitsToDouble(values[pos])
-                         : values[pos]);
+          ? Double.longBitsToDouble(values[pos])
+          : values[pos]);
       if (current == pos) {
         //LOG.debug("Exact match, no lerp needed");
         return y0;
@@ -593,8 +589,8 @@ final class AggregationIterator implements SeekableView, DataPoint,
       }
       final int next = pos + iterators.length;
       final double y1 = ((timestamps[next] & FLAG_FLOAT) == FLAG_FLOAT
-                         ? Double.longBitsToDouble(values[next])
-                         : values[next]);
+          ? Double.longBitsToDouble(values[next])
+          : values[next]);
       final long x1 = timestamps[next] & TIME_MASK;
       if (x == x1) {
         //LOG.debug("No lerp needed x == x1 (" + x + " == "+x1+") => " + y1);
@@ -605,23 +601,23 @@ final class AggregationIterator implements SeekableView, DataPoint,
       }
       final double r;
       switch (method) {
-      case LERP:
-        r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
-        //LOG.debug("Lerping to time " + x + ": " + y0 + " @ " + x0
-        //          + " -> " + y1 + " @ " + x1 + " => " + r);
-        break;
-      case ZIM:
-        r = 0;
-        break;
-      case MAX:
-        r = Double.MAX_VALUE;
-        break;
-      case MIN:
-        r = Double.MIN_VALUE;
-        break;
-      default:
-        throw new IllegalDataException("Invalid interploation somehow??");
-    }
+        case LERP:
+          r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+          //LOG.debug("Lerping to time " + x + ": " + y0 + " @ " + x0
+          //          + " -> " + y1 + " @ " + x1 + " => " + r);
+          break;
+        case ZIM:
+          r = 0;
+          break;
+        case MAX:
+          r = Double.MAX_VALUE;
+          break;
+        case MIN:
+          r = Double.MIN_VALUE;
+          break;
+        default:
+          throw new IllegalDataException("Invalid interploation somehow??");
+      }
       return r;
     }
     throw new NoSuchElementException("no more doubles in " + this);
@@ -629,34 +625,17 @@ final class AggregationIterator implements SeekableView, DataPoint,
 
   public String toString() {
     return "SpanGroup.Iterator(timestamps=" + Arrays.toString(timestamps)
-      + ", values=" + Arrays.toString(values)
-      + ", current=" + current
-      + ", pos=" + pos
-      + ", (SpanGroup: " + toStringSharedAttributes()
-      + "), iterators=" + Arrays.toString(iterators)
-      + ')';
+           + ", values=" + Arrays.toString(values)
+           + ", current=" + current
+           + ", pos=" + pos
+           + ", (SpanGroup: " + toStringSharedAttributes()
+           + "), iterators=" + Arrays.toString(iterators)
+           + ')';
   }
 
   private String toStringSharedAttributes() {
     return ", rate=" + rate
-      + ", aggregator=" + aggregator
-      + ')';
-  }
-
-  /**
-   * Creates an aggregation iterator for unit tests.
-   * @param iterators An array of Seekable views of spans in a group. Ignored
-   * if {@code null}. We modify the array while processing data points.
-   * @param aggregator The aggregation function to use.
-   * @param method Interpolation method to use when aggregating time series
-   * @param rate If {@code true}, the rate of the series will be used instead
-   * of the actual values.
-   */
-  @VisibleForTesting
-  static AggregationIterator createForTesting(final SeekableView[] iterators,
-                                              final Aggregator aggregator,
-                                              final Interpolation method,
-                                              final boolean rate) {
-    return new AggregationIterator(iterators, aggregator, method, rate);
+           + ", aggregator=" + aggregator
+           + ')';
   }
 }

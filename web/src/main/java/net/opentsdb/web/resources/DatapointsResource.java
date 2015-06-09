@@ -1,4 +1,3 @@
-
 package net.opentsdb.web.resources;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -25,8 +24,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 /**
- * A resource that accepts post requests whose body contains a JSON array of
- * datapoints.
+ * A resource that accepts post requests whose body contains a JSON array of datapoints.
  */
 public final class DatapointsResource extends Resource {
   private static final Logger LOG = LoggerFactory.getLogger(DatapointsResource.class);
@@ -39,9 +37,8 @@ public final class DatapointsResource extends Resource {
   private final DoublePredicate doublePredicate;
 
   /**
-   * Create a new instance that adds datapoints using the provided {@link
-   * DataPointsClient} and uses the provided {@link ObjectMapper} to deserialize
-   * the JSON that this resource consumes.
+   * Create a new instance that adds datapoints using the provided {@link DataPointsClient} and uses
+   * the provided {@link ObjectMapper} to deserialize the JSON that this resource consumes.
    */
   public DatapointsResource(final DataPointsClient datapointsClient,
                             final ObjectMapper objectMapper) {
@@ -79,12 +76,11 @@ public final class DatapointsResource extends Resource {
   /**
    * Extract a single datapoint out of the provided {@link JsonNode}.
    *
-   * @throws JsonMappingException if the provided JSON can not be parsed into a
-   *                              datapoint.
+   * @throws JsonMappingException if the provided JSON can not be parsed into a datapoint.
    */
   private void readDatapoint(final JsonNode datapointNode) throws JsonMappingException {
     final String metric = datapointNode.get("metric").textValue();
-    final ImmutableMap<String,String> tags = readTags(datapointNode.get("tags"));
+    final ImmutableMap<String, String> tags = readTags(datapointNode.get("tags"));
     final long timestamp = datapointNode.get("timestamp").asLong();
 
     JsonNode value;
@@ -103,16 +99,15 @@ public final class DatapointsResource extends Resource {
   }
 
   /**
-   * Get the field with the provided name if it passes the provided {@link
-   * Predicate}.
+   * Get the field with the provided name if it passes the provided {@link Predicate}.
    *
-   * @param json      The json structure to look for the field in
-   * @param field     The name of the field to look for
+   * @param json The json structure to look for the field in
+   * @param field The name of the field to look for
    * @param predicate The predicate to make sure the field passes
-   * @return The {@link JsonNode} that represents the field if it exists and the
-   * value passes the provided predicate, otherwise null.
-   * @throws JsonMappingException if there is a field with the provided name but
-   *                              the field does not pass the predicate.
+   * @return The {@link JsonNode} that represents the field if it exists and the value passes the
+   * provided predicate, otherwise null.
+   * @throws JsonMappingException if there is a field with the provided name but the field does not
+   * pass the predicate.
    */
   private JsonNode checkField(final JsonNode json,
                               final String field,
@@ -125,7 +120,7 @@ public final class DatapointsResource extends Resource {
 
     if (!predicate.apply(value)) {
       throw new JsonMappingException("JSON contains '" + field +
-          "' field but its node type is " + value.getNodeType());
+                                     "' field but its node type is " + value.getNodeType());
     }
 
     return value;

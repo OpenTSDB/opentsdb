@@ -10,6 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.search;
 
 import static net.opentsdb.uid.UniqueIdType.METRIC;
@@ -25,17 +26,17 @@ import org.junit.Test;
 
 public abstract class TestSearchPlugin {
   protected SearchPlugin search;
-  
+
   @Test
   public void indexLabelMetaNull() {
     assertNotNull(search.indexLabelMeta(null));
   }
-  
+
   @Test
   public void IndexLabelMetaNullErrBack() {
     assertNotNull(search.indexLabelMeta(null).addErrback(new Errback()));
   }
-  
+
   @Test
   public void deleteLabelMetaNullId() {
     assertNotNull(search.deleteLabelMeta(null, METRIC));
@@ -45,40 +46,40 @@ public abstract class TestSearchPlugin {
   public void deleteLabelMetaNullType() {
     assertNotNull(search.deleteLabelMeta(mock(LabelId.class), null));
   }
-  
+
   @Test
   public void indexAnnotation() {
     assertNotNull(search.indexAnnotation(new Annotation()));
   }
-  
+
   @Test
   public void indexAnnotationNull() {
     assertNotNull(search.indexAnnotation(null));
   }
-  
+
   @Test
   public void indexAnnotationNullErrBack() {
     assertNotNull(search.indexAnnotation(null).addErrback(new Errback()));
   }
-  
+
   @Test
   public void deleteAnnotation() {
     assertNotNull(search.deleteAnnotation(new Annotation()));
   }
-  
+
   @Test
   public void deleteAnnotationNull() {
     assertNotNull(search.deleteAnnotation(null));
   }
-  
+
   @Test
   public void deleteAnnotationNullErrBack() {
     assertNotNull(search.deleteAnnotation(null).addErrback(new Errback()));
   }
-  
+
   /**
-   * Helper Deferred Errback handler just to make sure the dummy plugin (and
-   * hopefully implementers) use errbacks for exceptions in the proper spots
+   * Helper Deferred Errback handler just to make sure the dummy plugin (and hopefully implementers)
+   * use errbacks for exceptions in the proper spots
    */
   @Ignore
   final class Errback implements Callback<Object, Exception> {

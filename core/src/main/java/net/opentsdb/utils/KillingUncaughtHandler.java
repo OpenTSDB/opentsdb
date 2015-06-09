@@ -4,11 +4,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A default exception handler for threads. Will tell the JVM to exit when an
- * exception bubbles all the way up to a thread without being handled.
- *
- * See {@link java.lang.Thread.UncaughtExceptionHandler} for the exact order the
- * handlers are executed in.
+ * A default exception handler for threads. Will tell the JVM to exit when an exception bubbles all
+ * the way up to a thread without being handled.
+ * <p/>
+ * See {@link java.lang.Thread.UncaughtExceptionHandler} for the exact order the handlers are
+ * executed in.
  */
 public class KillingUncaughtHandler implements Thread.UncaughtExceptionHandler {
   private static final Logger LOG = LoggerFactory.getLogger(KillingUncaughtHandler.class);

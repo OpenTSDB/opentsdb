@@ -1,4 +1,3 @@
-
 package net.opentsdb.storage;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -34,23 +33,21 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 
 /**
- * TsdbStore implementation useful in testing calls to and from
- * storage with actual pretend data. The underlying data store is an
- * incredibly ugly nesting of ByteMaps from AsyncHbase so it stores and
- * orders byte arrays similar to HBase. A MemoryStore instance represents a
- * SINGLE table in HBase but it provides support for column families and
- * timestamped entries.
- * <p>
- * It's not a perfect implementation but is useful for the majority of unit
- * tests. Gets, puts, cas, deletes and scans are currently supported. See
- * notes for each method below about what does and doesn't work.
- * <p>
- * Regarding timestamps, whenever you execute an RPC request, the
- * {@code current_timestamp} will be incremented by one millisecond. By default
- * the timestamp starts at 1/1/2014 00:00:00 but you can set it to any value
- * at any time. If a PutRequest comes in with a specific time, that time will
- * be stored and the timestamp will not be incremented.
- * <p>
+ * TsdbStore implementation useful in testing calls to and from storage with actual pretend data.
+ * The underlying data store is an incredibly ugly nesting of ByteMaps from AsyncHbase so it stores
+ * and orders byte arrays similar to HBase. A MemoryStore instance represents a SINGLE table in
+ * HBase but it provides support for column families and timestamped entries.
+ * <p/>
+ * It's not a perfect implementation but is useful for the majority of unit tests. Gets, puts, cas,
+ * deletes and scans are currently supported. See notes for each method below about what does and
+ * doesn't work.
+ * <p/>
+ * Regarding timestamps, whenever you execute an RPC request, the {@code current_timestamp} will be
+ * incremented by one millisecond. By default the timestamp starts at 1/1/2014 00:00:00 but you can
+ * set it to any value at any time. If a PutRequest comes in with a specific time, that time will be
+ * stored and the timestamp will not be incremented.
+ * <p/>
+ *
  * @since 2.0
  */
 public class MemoryStore extends TsdbStore {
@@ -75,30 +72,30 @@ public class MemoryStore extends TsdbStore {
   @Nonnull
   @Override
   public Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
-                                   final long timestamp,
-                                   final float value) {
+                                 final long timestamp,
+                                 final float value) {
     return addPoint(tsuid, value, timestamp);
   }
 
   @Nonnull
   @Override
   public Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
-                                   final long timestamp,
-                                   final double value) {
+                                 final long timestamp,
+                                 final double value) {
     return addPoint(tsuid, value, timestamp);
   }
 
   @Nonnull
   @Override
   public Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
-                                   final long timestamp,
-                                   final long value) {
+                                 final long timestamp,
+                                 final long value) {
     return addPoint(tsuid, (Number) value, timestamp);
   }
 
   private Deferred<Void> addPoint(final TimeseriesId tsuid,
-                                    final Number value,
-                                    final long timestamp) {
+                                  final Number value,
+                                  final long timestamp) {
     /*
      * TODO(luuse): tsuid neither implements #equals, #hashCode or Comparable.
      * Should implement a custom TimeseriesId for MemoryStore that implements all
@@ -191,7 +188,7 @@ public class MemoryStore extends TsdbStore {
     uid_reverse_mapping.put(id, type, name);
 
     if (uid_forward_mapping.contains(name, type)) {
-      return Deferred.fromResult(uid_forward_mapping.get(name,type));
+      return Deferred.fromResult(uid_forward_mapping.get(name, type));
     }
 
     uid_forward_mapping.put(name, type, id);
@@ -200,22 +197,21 @@ public class MemoryStore extends TsdbStore {
   }
 
   /**
-   * Attempts to mark an Annotation object for deletion. Note that if the
-   * annoation does not exist in storage, this delete call will not throw an
-   * error.
+   * Attempts to mark an Annotation object for deletion. Note that if the annoation does not exist
+   * in storage, this delete call will not throw an error.
    *
    * @param annotation
-   * @return A meaningless Deferred for the caller to wait on until the call is
-   * complete. The value may be null.
+   * @return A meaningless Deferred for the caller to wait on until the call is complete. The value
+   * may be null.
    */
   @Override
   public Deferred<Void> delete(Annotation annotation) {
 
     final String tsuid = annotation.getTSUID() != null && !annotation.getTSUID().isEmpty() ?
-            annotation.getTSUID() : "";
+        annotation.getTSUID() : "";
 
     final long start = annotation.getStartTime() % 1000 == 0 ?
-            annotation.getStartTime() / 1000 : annotation.getStartTime();
+        annotation.getStartTime() / 1000 : annotation.getStartTime();
     if (start < 1) {
       throw new IllegalArgumentException("The start timestamp has not been set");
     }
@@ -229,10 +225,10 @@ public class MemoryStore extends TsdbStore {
   public Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation) {
 
     String tsuid = !Strings.isNullOrEmpty(annotation.getTSUID()) ?
-            annotation.getTSUID() : "";
+        annotation.getTSUID() : "";
 
     final long start = annotation.getStartTime() % 1000 == 0 ?
-            annotation.getStartTime() / 1000 : annotation.getStartTime();
+        annotation.getStartTime() / 1000 : annotation.getStartTime();
     if (start < 1) {
       throw new IllegalArgumentException("The start timestamp has not been set");
     }
@@ -240,7 +236,7 @@ public class MemoryStore extends TsdbStore {
     Annotation note = annotation_table.get(tsuid, start);
 
     if ((null == note && null == original) ||
-            (null != note && null != original && note.equals(original))) {
+        (null != note && null != original && note.equals(original))) {
       annotation_table.remove(tsuid, start);
       annotation_table.put(tsuid, start, annotation);
       return Deferred.fromResult(true);
@@ -260,7 +256,7 @@ public class MemoryStore extends TsdbStore {
     List<Annotation> annotations = new ArrayList<>();
     Collection<Annotation> globals = annotation_table.row("").values();
 
-    for (Annotation global: globals) {
+    for (Annotation global : globals) {
       if (start_time <= global.getStartTime() && global.getStartTime() <= end_time) {
         annotations.add(global);
       }
@@ -291,7 +287,7 @@ public class MemoryStore extends TsdbStore {
     }
 
     Collection<Annotation> globals = annotation_table.row(key).values();
-    for (Annotation global: globals) {
+    for (Annotation global : globals) {
       if (start <= global.getStartTime() && global.getStartTime() <= end) {
         del_list.add(global);
       }
@@ -304,10 +300,10 @@ public class MemoryStore extends TsdbStore {
 
   }
 
-    /**
+  /**
    * Attempts to fetch a global or local annotation from storage
-   * @param tsuid The TSUID as a byte array. May be null if retrieving a global
-   * annotation
+   *
+   * @param tsuid The TSUID as a byte array. May be null if retrieving a global annotation
    * @param start_time The start time as a Unix epoch timestamp
    * @return A valid annotation object if found, null if not
    */
@@ -329,14 +325,14 @@ public class MemoryStore extends TsdbStore {
   }
 
   /**
-   * Finds all the {@link net.opentsdb.core.Span}s that match this query.
-   * This is what actually scans the HBase table and loads the data into
-   * {@link net.opentsdb.core.Span}s.
-   * @return A map from HBase row key to the {@link net.opentsdb.core.Span} for that row key.
-   * Since a {@link net.opentsdb.core.Span} actually contains multiple HBase rows, the row key
-   * stored in the map has its timestamp zero'ed out.
-   * @throws IllegalArgumentException if bad data was retreived from HBase.
+   * Finds all the {@link net.opentsdb.core.Span}s that match this query. This is what actually
+   * scans the HBase table and loads the data into {@link net.opentsdb.core.Span}s.
+   *
    * @param query
+   * @return A map from HBase row key to the {@link net.opentsdb.core.Span} for that row key. Since
+   * a {@link net.opentsdb.core.Span} actually contains multiple HBase rows, the row key stored in
+   * the map has its timestamp zero'ed out.
+   * @throws IllegalArgumentException if bad data was retreived from HBase.
    */
   @Override
   public Deferred<ImmutableList<DataPoints>> executeQuery(final Object query) {
@@ -404,8 +400,9 @@ public class MemoryStore extends TsdbStore {
 
     @Override
     public boolean equals(final Object that) {
-      if (that == this)
+      if (that == this) {
         return true;
+      }
 
       if (that instanceof MemoryLabelId) {
         return ((MemoryLabelId) that).uuid.equals(uuid);

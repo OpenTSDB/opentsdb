@@ -59,6 +59,7 @@ public class MetaClient {
 
   /**
    * Delete the annotation object from the search index
+   *
    * @param note The annotation object to delete
    * @since 2.0
    */
@@ -68,10 +69,10 @@ public class MetaClient {
 
   /**
    * Executes a search query using the search plugin
+   *
    * @param query The query to execute
    * @return A deferred object to wait on for the results to be fetched
-   * @throws IllegalStateException if the search plugin has not been enabled or
-   * configured
+   * @throws IllegalStateException if the search plugin has not been enabled or configured
    * @since 2.0
    */
   public Deferred<SearchQuery> executeSearch(final SearchQuery query) {
@@ -79,16 +80,18 @@ public class MetaClient {
   }
 
   /**
-   * Scans through the global annotation storage rows and returns a list of
-   * parsed annotation objects. If no annotations were found for the given
-   * timespan, the resulting list will be empty.
+   * Scans through the global annotation storage rows and returns a list of parsed annotation
+   * objects. If no annotations were found for the given timespan, the resulting list will be
+   * empty.
+   *
    * @param start_time Start time to scan from. May be 0
    * @param end_time End time to scan to. Must be greater than 0
    * @return A list with detected annotations. May be empty.
-   * @throws IllegalArgumentException if the end timestamp has not been set or
-   * the end time is less than the start time
+   * @throws IllegalArgumentException if the end timestamp has not been set or the end time is less
+   * than the start time
    */
-  public Deferred<List<Annotation>> getGlobalAnnotations(final long start_time, final long end_time) {
+  public Deferred<List<Annotation>> getGlobalAnnotations(final long start_time,
+                                                         final long end_time) {
     if (end_time < 1) {
       throw new IllegalArgumentException("The end timestamp has not been set");
     }
@@ -102,8 +105,8 @@ public class MetaClient {
 
   /**
    * Attempts to fetch a global or local annotation from storage
-   * @param tsuid The TSUID as a string. May be empty if retrieving a global
-   * annotation
+   *
+   * @param tsuid The TSUID as a string. May be empty if retrieving a global annotation
    * @param start_time The start time as a Unix epoch timestamp
    * @return A valid annotation object if found, null if not
    */
@@ -116,13 +119,12 @@ public class MetaClient {
   }
 
   /**
-   * Attempts to mark an Annotation object for deletion. Note that if the
-   * annotation does not exist in storage, this delete call will not throw an
-   * error.
+   * Attempts to mark an Annotation object for deletion. Note that if the annotation does not exist
+   * in storage, this delete call will not throw an error.
    *
    * @param annotation The Annotation we want to store.
-   * @return A meaningless Deferred for the caller to wait on until the call is
-   * complete. The value may be null.
+   * @return A meaningless Deferred for the caller to wait on until the call is complete. The value
+   * may be null.
    */
   public Deferred<Void> delete(Annotation annotation) {
     if (annotation.getStartTime() < 1) {
@@ -133,15 +135,15 @@ public class MetaClient {
   }
 
   /**
-   * Verifies the UID object exists, then attempts to fetch the meta from
-   * storage and if not found, returns a default object.
-   * <p>
-   * The reason for returning a default object (with the type, identifier and name set)
-   * is due to users who may have just enabled meta data or have upgraded; we
-   * want to return valid data. If they modify the entry, it will write to
-   * storage. You can tell it's a default if the {@code created} value is 0. If
-   * the meta was generated at UID assignment or updated by the meta sync CLI
-   * command, it will have a valid created timestamp.
+   * Verifies the UID object exists, then attempts to fetch the meta from storage and if not found,
+   * returns a default object.
+   * <p/>
+   * The reason for returning a default object (with the type, identifier and name set) is due to
+   * users who may have just enabled meta data or have upgraded; we want to return valid data. If
+   * they modify the entry, it will write to storage. You can tell it's a default if the {@code
+   * created} value is 0. If the meta was generated at UID assignment or updated by the meta sync
+   * CLI command, it will have a valid created timestamp.
+   *
    * @param type The type of UID to fetch
    * @param uid The ID of the meta to fetch
    * @return A UIDMeta from storage or a default
@@ -174,6 +176,7 @@ public class MetaClient {
 
   /**
    * Index the given Annotation object via the configured search plugin
+   *
    * @param note The annotation object to index
    * @since 2.0
    */
@@ -183,19 +186,16 @@ public class MetaClient {
   }
 
   /**
-   * Attempts a CompareAndSet storage call, loading the object from storage,
-   * synchronizing changes, and attempting a put.
-   * <b>Note:</b> If the local object didn't have any fields set by the caller
-   * or there weren't any changes, then the data will not be written and an
-   * exception will be thrown.
+   * Attempts a CompareAndSet storage call, loading the object from storage, synchronizing changes,
+   * and attempting a put. <b>Note:</b> If the local object didn't have any fields set by the caller
+   * or there weren't any changes, then the data will not be written and an exception will be
+   * thrown.
+   *
    * @param annotation The The Annotation we want to store.
-   * @param overwrite When the RPC method is PUT, will overwrite all user
-   * accessible fields
-   * True if the storage call was successful, false if the object was
-   * modified in storage during the CAS call. If false, retry the call. Other
-   * failures will result in an exception being thrown.
-   * @throws IllegalArgumentException if required data was missing such as the
-   * {@code #start_time}
+   * @param overwrite When the RPC method is PUT, will overwrite all user accessible fields True if
+   * the storage call was successful, false if the object was modified in storage during the CAS
+   * call. If false, retry the call. Other failures will result in an exception being thrown.
+   * @throws IllegalArgumentException if required data was missing such as the {@code #start_time}
    * @throws IllegalStateException if the data hasn't changed. This is OK!
    * @throws net.opentsdb.utils.JSONException if the object could not be serialized
    */
@@ -213,7 +213,7 @@ public class MetaClient {
     final class StoreCB implements Callback<Deferred<Boolean>, Annotation> {
       @Override
       public Deferred<Boolean> call(final Annotation stored_note)
-        throws Exception {
+          throws Exception {
         if (stored_note != null) {
           annotation.syncNote(stored_note, overwrite);
         }
@@ -229,20 +229,24 @@ public class MetaClient {
       tsuid = IdUtils.stringToUid(annotation.getTSUID());
     }
 
-    return store.getAnnotation(tsuid, annotation.getStartTime()).addCallbackDeferring(new StoreCB());
+    return store.getAnnotation(tsuid, annotation.getStartTime())
+        .addCallbackDeferring(new StoreCB());
   }
 
   /**
    * Deletes global or TSUID associated annotiations for the given time range.
-   * @param tsuid An optional TSUID. If set to null, then global annotations for
-   * the given range will be deleted
+   *
+   * @param tsuid An optional TSUID. If set to null, then global annotations for the given range
+   * will be deleted
    * @param start_time A start timestamp in milliseconds
    * @param end_time An end timestamp in millseconds
    * @return The number of annotations deleted
    * @throws IllegalArgumentException if the timestamps are invalid
    * @since 2.1
    */
-  public Deferred<Integer> deleteRange(final byte[] tsuid, final long start_time, final long end_time) {
+  public Deferred<Integer> deleteRange(final byte[] tsuid,
+                                       final long start_time,
+                                       final long end_time) {
     if (end_time < 1) {
       throw new IllegalArgumentException("The end timestamp has not been set");
     }
@@ -255,14 +259,12 @@ public class MetaClient {
   }
 
   /**
-   * Attempts to update the information of the stored LabelMeta object with the
-   * same {@code identifier} and {@type} as the provided meta object. The stored
-   * LabelMeta will be fetched first and checked for equality before it tried to
-   * save anything.
+   * Attempts to update the information of the stored LabelMeta object with the same {@code
+   * identifier} and {@type} as the provided meta object. The stored LabelMeta will be fetched first
+   * and checked for equality before it tried to save anything.
    *
    * @param meta The LabelMeta with the updated information.
-   * @return True if the updates were saved successfully. False if there were no
-   * changes to make.
+   * @return True if the updates were saved successfully. False if there were no changes to make.
    * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
   public Deferred<Boolean> update(final LabelMeta meta) {

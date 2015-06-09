@@ -1,4 +1,3 @@
-
 package net.opentsdb.plugins;
 
 import static org.junit.Assert.assertEquals;
@@ -17,7 +16,7 @@ public final class TestPluginLoader {
     assertTrue(plugin instanceof DummyPluginImplementation);
   }
 
-  @Test (expected = IllegalArgumentException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void loadSpecificPluginNotFound() {
     PluginLoader.loadSpecificPlugin("NoImplementation", DummyPlugin.class);
   }
@@ -27,7 +26,7 @@ public final class TestPluginLoader {
     List<DummyPlugin> plugins = PluginLoader.loadPlugins(DummyPlugin.class);
     assertEquals(2, plugins.size());
   }
-  
+
   @Test
   public void loadPluginsNotFound() {
     List<DummyPlugin> plugins = PluginLoader.loadPlugins(DummyPlugin.class);

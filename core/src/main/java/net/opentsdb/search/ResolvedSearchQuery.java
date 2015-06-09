@@ -7,10 +7,10 @@ import java.util.SortedSet;
 
 public class ResolvedSearchQuery {
   private final LabelId metric;
-  private final SortedSet<Pair<LabelId,LabelId>> tags;
+  private final SortedSet<Pair<LabelId, LabelId>> tags;
 
   public ResolvedSearchQuery(final LabelId metric,
-                             final SortedSet<Pair<LabelId,LabelId>> tags) {
+                             final SortedSet<Pair<LabelId, LabelId>> tags) {
     this.metric = metric;
     this.tags = tags;
   }
@@ -19,7 +19,7 @@ public class ResolvedSearchQuery {
     return metric;
   }
 
-  public SortedSet<Pair<LabelId,LabelId>> getTags() {
+  public SortedSet<Pair<LabelId, LabelId>> getTags() {
     return tags;
   }
 }

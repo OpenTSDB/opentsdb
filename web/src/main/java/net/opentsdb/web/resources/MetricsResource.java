@@ -1,4 +1,3 @@
-
 package net.opentsdb.web.resources;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
@@ -11,8 +10,8 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 
 /**
- * A resource that exposes all metrics collected about the current process for
- * administration purposes.
+ * A resource that exposes all metrics collected about the current process for administration
+ * purposes.
  */
 public class MetricsResource extends Resource {
   private final ObjectMapper objectMapper;

@@ -10,6 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.core;
 
 import org.junit.Assert;
@@ -20,48 +21,44 @@ import java.util.Random;
 public final class TestAggregators {
 
   private static final Random random;
+  /**
+   * Epsilon used to compare floating point values. Instead of using a fixed epsilon to compare our
+   * numbers, we calculate it based on the percentage of our actual expected values.  We do things
+   * this way because our numbers can be extremely large and if you change the scale of the numbers
+   * a static precision may no longer work
+   */
+  private static final double EPSILON_PERCENTAGE = 0.0001;
+
   static {
     final long seed = System.nanoTime();
     System.out.println("Random seed: " + seed);
     random = new Random(seed);
   }
 
-  /**
-   * Epsilon used to compare floating point values.
-   * Instead of using a fixed epsilon to compare our numbers, we calculate
-   * it based on the percentage of our actual expected values.  We do things
-   * this way because our numbers can be extremely large and if you change
-   * the scale of the numbers a static precision may no longer work
-   */
-  private static final double EPSILON_PERCENTAGE = 0.0001;
+  private static void checkSimilarStdDev(final long[] values,
+                                         final double expected,
+                                         final double epsilon) {
+    final Numbers numbers = new Numbers(values);
+    final Aggregator agg = Aggregators.get("dev");
 
-  /** Helper class to hold a bunch of numbers we can iterate on.  */
-  private static final class Numbers implements Aggregator.Longs, Aggregator.Doubles {
-    private final long[] numbers;
-    private int i = 0;
+    Assert.assertEquals(expected, agg.runDouble(numbers), epsilon);
+    numbers.reset();
+    Assert.assertEquals(expected, agg.runLong(numbers), Math.max(epsilon, 1.0));
+  }
 
-    public Numbers(final long[] numbers) {
-      this.numbers = numbers;
+  private static double naiveStdDev(long[] values) {
+    double sum = 0;
+    for (final double value : values) {
+      sum += value;
     }
+    double mean = sum / values.length;
 
-    @Override
-    public boolean hasNextValue() {
-      return i < numbers.length;
+    double squaresum = 0;
+    for (final double value : values) {
+      squaresum += Math.pow(value - mean, 2);
     }
-
-    @Override
-    public long nextLongValue() {
-      return numbers[i++];
-    }
-
-    @Override
-    public double nextDoubleValue() {
-      return numbers[i++];
-    }
-
-    void reset() {
-      i = 0;
-    }
+    final double variance = squaresum / values.length;
+    return Math.sqrt(variance);
   }
 
   @Test
@@ -94,7 +91,7 @@ public final class TestAggregators {
 
   @Test
   public void testStdDevNoDeviation() {
-    final long[] values = {3,3,3};
+    final long[] values = {3, 3, 3};
 
     final double expected = 0;
     checkSimilarStdDev(values, expected, 0);
@@ -102,36 +99,39 @@ public final class TestAggregators {
 
   @Test
   public void testStdDevFewDataInputs() {
-    final long[] values = {1,2};
+    final long[] values = {1, 2};
 
     final double expected = 0.5;
     checkSimilarStdDev(values, expected, 0);
   }
 
-  private static void checkSimilarStdDev(final long[] values,
-                                         final double expected,
-                                         final double epsilon) {
-    final Numbers numbers = new Numbers(values);
-    final Aggregator agg = Aggregators.get("dev");
+  /** Helper class to hold a bunch of numbers we can iterate on. */
+  private static final class Numbers implements Aggregator.Longs, Aggregator.Doubles {
+    private final long[] numbers;
+    private int i = 0;
 
-    Assert.assertEquals(expected, agg.runDouble(numbers), epsilon);
-    numbers.reset();
-    Assert.assertEquals(expected, agg.runLong(numbers), Math.max(epsilon, 1.0));
-  }
-
-  private static double naiveStdDev(long[] values) {
-    double sum = 0;
-    for (final double value : values) {
-      sum += value;
+    public Numbers(final long[] numbers) {
+      this.numbers = numbers;
     }
-    double mean = sum / values.length;
 
-    double squaresum = 0;
-    for (final double value : values) {
-      squaresum += Math.pow(value - mean, 2);
+    @Override
+    public boolean hasNextValue() {
+      return i < numbers.length;
     }
-    final double variance = squaresum / values.length;
-    return Math.sqrt(variance);
+
+    @Override
+    public long nextLongValue() {
+      return numbers[i++];
+    }
+
+    @Override
+    public double nextDoubleValue() {
+      return numbers[i++];
+    }
+
+    void reset() {
+      i = 0;
+    }
   }
 
 }

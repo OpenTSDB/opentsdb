@@ -8,27 +8,11 @@ import com.stumbleupon.async.Deferred;
 
 /**
  * A {@link com.stumbleupon.async.Callback} implementation for use with {@link
- * com.stumbleupon.async.Deferred}s. This callback will stop the provided timer
- * when called. It will not make any modifications to the result of the
- * callback.
+ * com.stumbleupon.async.Deferred}s. This callback will stop the provided timer when called. It will
+ * not make any modifications to the result of the callback.
  */
 public class StopTimerCallback<T> implements Callback<T, T> {
   private final Timer.Context timerContext;
-
-  /**
-   * Add both an errback and a callback on the provided {@link
-   * com.stumbleupon.async.Deferred} that will stop the provided {@link
-   * com.codahale.metrics.Timer.Context} once called.
-   *
-   * @param timerContext The timer to stop
-   * @param d            The deferred to wait on
-   * @param <T>          The type of result returned by the deferred
-   * @return The deferred with an updated callback chain
-   */
-  public static <T> Deferred<T> stopOn(final Timer.Context timerContext,
-                                       final Deferred<T> d) {
-    return d.addBoth(new StopTimerCallback<T>(timerContext));
-  }
 
   /**
    * Create a new instance that will stop the provided timer when called.
@@ -37,6 +21,20 @@ public class StopTimerCallback<T> implements Callback<T, T> {
    */
   public StopTimerCallback(final Timer.Context timerContext) {
     this.timerContext = checkNotNull(timerContext);
+  }
+
+  /**
+   * Add both an errback and a callback on the provided {@link com.stumbleupon.async.Deferred} that
+   * will stop the provided {@link com.codahale.metrics.Timer.Context} once called.
+   *
+   * @param timerContext The timer to stop
+   * @param d The deferred to wait on
+   * @param <T> The type of result returned by the deferred
+   * @return The deferred with an updated callback chain
+   */
+  public static <T> Deferred<T> stopOn(final Timer.Context timerContext,
+                                       final Deferred<T> d) {
+    return d.addBoth(new StopTimerCallback<T>(timerContext));
   }
 
   @Override

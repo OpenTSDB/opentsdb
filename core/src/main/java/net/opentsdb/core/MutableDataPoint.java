@@ -10,6 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.core;
 
 
@@ -26,6 +27,32 @@ public final class MutableDataPoint implements DataPoint {
   private boolean is_integer = true;
   /** A long value or a double encoded on a long if {@code is_integer} is false. */
   private long value = 0;
+
+  /**
+   * Resets with a new pair of a timestamp and a double value.
+   *
+   * @param timestamp A timestamp.
+   * @param value A double value.
+   */
+  public static MutableDataPoint ofDoubleValue(final long timestamp,
+                                               final double value) {
+    final MutableDataPoint dp = new MutableDataPoint();
+    dp.reset(timestamp, value);
+    return dp;
+  }
+
+  /**
+   * Resets with a new pair of a timestamp and a long value.
+   *
+   * @param timestamp A timestamp.
+   * @param value A double value.
+   */
+  public static MutableDataPoint ofLongValue(final long timestamp,
+                                             final long value) {
+    final MutableDataPoint dp = new MutableDataPoint();
+    dp.reset(timestamp, value);
+    return dp;
+  }
 
   /**
    * Resets with a new pair of a timestamp and a double value.
@@ -66,32 +93,6 @@ public final class MutableDataPoint implements DataPoint {
     }
   }
 
-  /**
-   * Resets with a new pair of a timestamp and a double value.
-   *
-   * @param timestamp A timestamp.
-   * @param value A double value.
-   */
-  public static MutableDataPoint ofDoubleValue(final long timestamp,
-                                               final double value) {
-    final MutableDataPoint dp = new MutableDataPoint();
-    dp.reset(timestamp, value);
-    return dp;
-  }
-
-  /**
-   * Resets with a new pair of a timestamp and a long value.
-   *
-   * @param timestamp A timestamp.
-   * @param value A double value.
-   */
-  public static MutableDataPoint ofLongValue(final long timestamp,
-                                             final long value) {
-    final MutableDataPoint dp = new MutableDataPoint();
-    dp.reset(timestamp, value);
-    return dp;
-  }
-
   @Override
   public long timestamp() {
     return timestamp;
@@ -129,7 +130,7 @@ public final class MutableDataPoint implements DataPoint {
   @Override
   public String toString() {
     return "MutableDataPoint(timestamp=" + timestamp + ", is_integer=" +
-        is_integer + ", value=" + 
-        (is_integer ? value : Double.longBitsToDouble(value)) + ")";
+           is_integer + ", value=" +
+           (is_integer ? value : Double.longBitsToDouble(value)) + ")";
   }
 }

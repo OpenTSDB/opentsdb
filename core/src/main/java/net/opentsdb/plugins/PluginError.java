@@ -5,9 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Simply logs plugin errors when they're thrown by attaching as an errorback.
- * Without this, exceptions will just disappear (unless logged by the plugin)
- * since we don't wait for a result.
+ * Simply logs plugin errors when they're thrown by attaching as an errorback. Without this,
+ * exceptions will just disappear (unless logged by the plugin) since we don't wait for a result.
  */
 public final class PluginError implements Callback<Object, Exception> {
   private static final Logger LOG = LoggerFactory.getLogger(PluginError.class);

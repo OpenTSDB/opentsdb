@@ -19,14 +19,12 @@ import java.util.List;
 import javax.inject.Inject;
 
 public class MetaClientAnnotationTest {
-  private Annotation note;
-
+  private final byte[] tsuid_row_key =
+      new byte[]{0, 0, 1, (byte) 0x52, (byte) 0xC2, (byte) 0x09, 0, 0, 0,
+          1, 0, 0, 1};
   @Inject MemoryStore store;
   @Inject MetaClient metaClient;
-
-  private final byte[] tsuid_row_key =
-          new byte[] { 0, 0, 1, (byte) 0x52, (byte) 0xC2, (byte) 0x09, 0, 0, 0,
-                  1, 0, 0, 1 };
+  private Annotation note;
 
   @Before
   public void before() throws Exception {
@@ -57,7 +55,7 @@ public class MetaClientAnnotationTest {
   @Test
   public void getGlobalAnnotations() throws Exception {
     List<Annotation> notes = metaClient.getGlobalAnnotations(1328140000,
-            1328141000).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        1328141000).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(notes);
     assertEquals(2, notes.size());
   }
@@ -65,25 +63,26 @@ public class MetaClientAnnotationTest {
   @Test
   public void getGlobalAnnotationsEmpty() throws Exception {
     List<Annotation> notes = metaClient.getGlobalAnnotations(1328150000,
-            1328160000).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        1328160000).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(notes);
     assertEquals(0, notes.size());
   }
 
-  @Test (expected = IllegalArgumentException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void getGlobalAnnotationsZeroEndtime() throws Exception {
     metaClient.getGlobalAnnotations(0, 0).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
-  @Test (expected = IllegalArgumentException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void getGlobalAnnotationsEndLessThanStart() throws Exception {
-    metaClient.getGlobalAnnotations(1328150000, 1328140000).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    metaClient.getGlobalAnnotations(1328150000, 1328140000)
+        .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test
   public void getAnnotation() throws Exception {
     note = metaClient.getAnnotation("000001000001000001", 1388450562L)
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(note);
     assertEquals("000001000001000001", note.getTSUID());
     assertEquals("Hello!", note.getDescription());
@@ -93,7 +92,7 @@ public class MetaClientAnnotationTest {
   @Test
   public void getAnnotationNormalizeMs() throws Exception {
     note = metaClient.getAnnotation("000001000001000001", 1388450562000L)
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(note);
     assertEquals("000001000001000001", note.getTSUID());
     assertEquals("Hello!", note.getDescription());
@@ -103,7 +102,7 @@ public class MetaClientAnnotationTest {
   @Test
   public void getAnnotationGlobal() throws Exception {
     note = metaClient.getAnnotation(null, 1328140800000L)
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(note);
     assertEquals("", note.getTSUID());
     assertEquals("Description", note.getDescription());
@@ -113,21 +112,21 @@ public class MetaClientAnnotationTest {
   @Test
   public void getAnnotationNotFound() throws Exception {
     note = metaClient.getAnnotation("000001000001000001", 1388450564L)
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNull(note);
   }
 
   @Test
   public void getAnnotationGlobalNotFound() throws Exception {
     note = metaClient.getAnnotation(null, 1388450563L)
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNull(note);
   }
 
-  @Test (expected = IllegalArgumentException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void getAnnotationNoStartTime() throws Exception {
     metaClient.getAnnotation("000001000001000001", 0L)
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test
@@ -192,7 +191,7 @@ public class MetaClientAnnotationTest {
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
 
-  @Test (expected = IllegalArgumentException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void deleteMissingStart() throws Exception {
     note.setTSUID("000001000001000001");
     metaClient.delete(note).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -238,7 +237,7 @@ public class MetaClientAnnotationTest {
     metaClient.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     note = store.getAnnotation(IdUtils.stringToUid(note.getTSUID()),
-            note.getStartTime()).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        note.getStartTime()).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertEquals("000001000001000001", note.getTSUID());
     assertEquals("Synced!", note.getDescription());
@@ -251,10 +250,10 @@ public class MetaClientAnnotationTest {
     note.setStartTime(1388450562500L);
     note.setDescription("Synced!");
     metaClient.syncToStorage(note, false).joinUninterruptibly(MockBase
-            .DEFAULT_TIMEOUT);
+        .DEFAULT_TIMEOUT);
 
     note = store.getAnnotation(IdUtils.stringToUid(note.getTSUID()),
-            note.getStartTime()).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        note.getStartTime()).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertEquals("000001000001000001", note.getTSUID());
     assertEquals("Synced!", note.getDescription());
@@ -269,7 +268,7 @@ public class MetaClientAnnotationTest {
     metaClient.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     note = store.getAnnotation(null,
-            note.getStartTime()).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        note.getStartTime()).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertEquals("", note.getTSUID());
     assertEquals("Synced!", note.getDescription());
@@ -283,21 +282,21 @@ public class MetaClientAnnotationTest {
     metaClient.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     note = store.getAnnotation(null,
-            note.getStartTime()).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        note.getStartTime()).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertEquals("", note.getTSUID());
     assertEquals("Synced!", note.getDescription());
     assertEquals("", note.getNotes());
   }
 
-  @Test (expected = IllegalArgumentException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void syncToStorageMissingStart() throws Exception {
     note.setTSUID("000001000001000001");
     note.setDescription("Synced!");
     metaClient.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
-  @Test (expected = IllegalStateException.class)
+  @Test(expected = IllegalStateException.class)
   public void syncToStorageNoChanges() throws Exception {
     note.setTSUID("000001000001000001");
     note.setStartTime(1388450562L);
@@ -309,8 +308,8 @@ public class MetaClientAnnotationTest {
     note.setTSUID("000001000001000001");
 
     final int count = metaClient.deleteRange(
-            IdUtils.stringToUid(note.getTSUID()), 1388450560000L,
-            1388450562000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        IdUtils.stringToUid(note.getTSUID()), 1388450560000L,
+        1388450562000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1, count);
 
     note.setStartTime(1388450562);
@@ -330,8 +329,8 @@ public class MetaClientAnnotationTest {
   public void deleteRangeNone() throws Exception {
     note.setTSUID("000001000001000001");
     final int count = metaClient.deleteRange(
-            IdUtils.stringToUid(note.getTSUID()), 1388450560000L,
-            1388450561000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        IdUtils.stringToUid(note.getTSUID()), 1388450560000L,
+        1388450561000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(0, count);
 
     note.setStartTime(1388450562);
@@ -351,8 +350,8 @@ public class MetaClientAnnotationTest {
   public void deleteRangeMultiple() throws Exception {
     note.setTSUID("000001000001000001");
     final int count = metaClient.deleteRange(
-            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, 1388450560000L,
-            1388450568000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, 1388450560000L,
+        1388450568000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(2, count);
 
     note.setStartTime(1388450562);
@@ -371,7 +370,7 @@ public class MetaClientAnnotationTest {
   @Test
   public void deleteRangeGlobal() throws Exception {
     final int count = metaClient.deleteRange(null, 1328140799000L,
-            1328140800000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        1328140800000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1, count);
 
     note.setStartTime(1328140800);
@@ -388,7 +387,7 @@ public class MetaClientAnnotationTest {
   @Test
   public void deleteRangeGlobalNone() throws Exception {
     final int count = metaClient.deleteRange(null, 1328140798000L,
-            1328140799000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        1328140799000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(0, count);
     note.setStartTime(1328140800);
     assertNotNull(store.getAnnotation(null,
@@ -404,7 +403,7 @@ public class MetaClientAnnotationTest {
   @Test
   public void deleteRangeGlobalMultiple() throws Exception {
     final int count = metaClient.deleteRange(null, 1328140799000L,
-            1328140900000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        1328140900000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(2, count);
     note.setStartTime(1328140800);
     assertNull(store.getAnnotation(null,
@@ -417,14 +416,14 @@ public class MetaClientAnnotationTest {
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
 
-  @Test (expected = IllegalArgumentException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void deleteRangeEmptyEnd() throws Exception {
     metaClient.deleteRange(null, 1328140799000L, 0).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
-  @Test (expected = IllegalArgumentException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void deleteRangeEndLessThanStart() throws Exception {
     metaClient.deleteRange(null, 1328140799000L, 1328140798000L)
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 }

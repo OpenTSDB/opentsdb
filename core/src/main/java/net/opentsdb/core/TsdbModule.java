@@ -16,24 +16,23 @@ import java.io.File;
 import javax.inject.Singleton;
 
 /**
- * This is the main dagger module for the TSDB core library. It is not complete
- * however, it needs to be complemented with an extending module that provides a
- * {@link com.typesafe.config.Config}, a {@link net.opentsdb.storage.TsdbStore}
- * and a {@link com.codahale.metrics.MetricRegistry}.
+ * This is the main dagger module for the TSDB core library. It is not complete however, it needs to
+ * be complemented with an extending module that provides a {@link com.typesafe.config.Config}, a
+ * {@link net.opentsdb.storage.TsdbStore} and a {@link com.codahale.metrics.MetricRegistry}.
  */
 @Module(library = true,
-        includes = {
-            CoreModule.class,
-            PluginsModule.class,
-            StoreModule.class
-        },
-        injects = {
-            Config.class,
-            UniqueIdClient.class,
-            MetaClient.class,
-            DataPointsClient.class,
-            MetricRegistry.class
-        })
+    includes = {
+        CoreModule.class,
+        PluginsModule.class,
+        StoreModule.class
+    },
+    injects = {
+        Config.class,
+        UniqueIdClient.class,
+        MetaClient.class,
+        DataPointsClient.class,
+        MetricRegistry.class
+    })
 public class TsdbModule {
   private static final Logger LOG = LoggerFactory.getLogger(TsdbModule.class);
 
@@ -64,7 +63,8 @@ public class TsdbModule {
     this(overrides.withFallback(config));
   }
 
-  @Provides @Singleton
+  @Provides
+  @Singleton
   Config provideConfig() {
     return config;
   }

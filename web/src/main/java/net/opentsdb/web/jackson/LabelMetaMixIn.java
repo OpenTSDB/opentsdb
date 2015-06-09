@@ -24,16 +24,29 @@ abstract class LabelMetaMixIn {
                  @JsonProperty("created") final long created) {
   }
 
-  @JsonIgnore abstract byte[] getUID();
-  @JsonIgnore abstract String getName();
+  @JsonIgnore
+  abstract byte[] getUID();
+
+  @JsonIgnore
+  abstract String getName();
 
   /** The type of UID this metadata represents */
   @JsonDeserialize(using = UniqueIdTypeDeserializer.class)
-  @JsonProperty("type") abstract UniqueIdType getType();
+  @JsonProperty("type")
+  abstract UniqueIdType getType();
 
-  @JsonProperty("displayName") abstract String getDisplayName();
-  @JsonProperty("description") abstract String getDescription();
-  @JsonProperty("notes") abstract String getNotes();
-  @JsonProperty("custom") abstract Map<String, String> getCustom();
-  @JsonProperty("created") abstract long getCreated();
+  @JsonProperty("displayName")
+  abstract String getDisplayName();
+
+  @JsonProperty("description")
+  abstract String getDescription();
+
+  @JsonProperty("notes")
+  abstract String getNotes();
+
+  @JsonProperty("custom")
+  abstract Map<String, String> getCustom();
+
+  @JsonProperty("created")
+  abstract long getCreated();
 }

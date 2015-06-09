@@ -10,6 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.meta;
 
 import com.google.common.base.Objects;
@@ -20,49 +21,39 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Annotations are used to record time-based notes about timeseries events.
- * Every note must have an associated start_time as that determines
- * where the note is stored.
- * <p>
- * Annotations may be associated with a specific timeseries, in which case
- * the tsuid must be configured with a valid TSUID. If no TSUID
- * is provided, the annotation is considered a "global" note that applies
- * to everything stored in OpenTSDB. Global annotations are stored in the rows
- * [ 0, 0, 0, &lt;timestamp&gt;] in the same manner as local annotations and
- * timeseries data.
- * <p>
- * The description field should store a very brief line of information
- * about the event. GUIs can display the description in their "main" view
- * where multiple annotations may appear. Users of the GUI could then click
- * or hover over the description for more detail including the {@link #notes}
+ * Annotations are used to record time-based notes about timeseries events. Every note must have an
+ * associated start_time as that determines where the note is stored.
+ * <p/>
+ * Annotations may be associated with a specific timeseries, in which case the tsuid must be
+ * configured with a valid TSUID. If no TSUID is provided, the annotation is considered a "global"
+ * note that applies to everything stored in OpenTSDB. Global annotations are stored in the rows [
+ * 0, 0, 0, &lt;timestamp&gt;] in the same manner as local annotations and timeseries data.
+ * <p/>
+ * The description field should store a very brief line of information about the event. GUIs can
+ * display the description in their "main" view where multiple annotations may appear. Users of the
+ * GUI could then click or hover over the description for more detail including the {@link #notes}
  * field.
- * <p>
- * Custom data can be stored in the custom hash map for user
- * specific information. For example, you could add a "reporter" key
- * with the name of the person who recorded the note.
+ * <p/>
+ * Custom data can be stored in the custom hash map for user specific information. For example, you
+ * could add a "reporter" key with the name of the person who recorded the note.
+ *
  * @since 2.0
  */
 public final class Annotation implements Comparable<Annotation> {
-  /** If the note is associated with a timeseries, represents the ID */
-  private String tsuid = "";
-  
-  /** The start timestamp associated wit this note in seconds or ms */
-  private long start_time = 0;
-  
-  /** Optional end time if the note represents an event that was resolved */
-  private long end_time = 0;
-  
-  /** A short description of the event, displayed in GUIs */
-  private String description = "";
-  
-  /** A detailed accounting of the event or note */
-  private String notes = "";
-  
-  /** Optional user supplied key/values */
-  private Map<String, String> custom = null;
-
   /** Tracks fields that have changed by the user to avoid overwrites */
   private final Set<String> changed = Sets.newHashSetWithExpectedSize(6);
+  /** If the note is associated with a timeseries, represents the ID */
+  private String tsuid = "";
+  /** The start timestamp associated wit this note in seconds or ms */
+  private long start_time = 0;
+  /** Optional end time if the note represents an event that was resolved */
+  private long end_time = 0;
+  /** A short description of the event, displayed in GUIs */
+  private String description = "";
+  /** A detailed accounting of the event or note */
+  private String notes = "";
+  /** Optional user supplied key/values */
+  private Map<String, String> custom = null;
 
   public Annotation() {
   }
@@ -88,19 +79,19 @@ public final class Annotation implements Comparable<Annotation> {
   /** @return A string with information about the annotation object */
   @Override
   public String toString() {
-    return "TSUID: " + tsuid + " Start: " + start_time + "  Description: " + 
-      description;
+    return "TSUID: " + tsuid + " Start: " + start_time + "  Description: " +
+           description;
   }
-  
+
   /**
    * Compares the {@code #start_time} of this annotation to the given note
-   * @return 1 if the local start time is greater, -1 if it's less or 0 if
-   * equal
+   *
+   * @return 1 if the local start time is greater, -1 if it's less or 0 if equal
    */
   @Override
   public int compareTo(Annotation note) {
-    return start_time > note.start_time ? 1 : 
-      start_time < note.start_time ? -1 : 0;
+    return start_time > note.start_time ? 1 :
+        start_time < note.start_time ? -1 : 0;
   }
 
   public boolean hasChanges() {
@@ -108,19 +99,19 @@ public final class Annotation implements Comparable<Annotation> {
   }
 
   /**
-   * Syncs the local object with the stored object for atomic writes, 
-   * overwriting the stored data if the user issued a PUT request
-   * <b>Note:</b> This method also resets the {@code changed} set to false
-   * for every field
+   * Syncs the local object with the stored object for atomic writes, overwriting the stored data if
+   * the user issued a PUT request <b>Note:</b> This method also resets the {@code changed} set to
+   * false for every field
+   *
    * @param note The stored object to sync from
-   * @param overwrite Whether or not all user mutable data in storage should be
-   * replaced by the local object
+   * @param overwrite Whether or not all user mutable data in storage should be replaced by the
+   * local object
    */
   public void syncNote(final Annotation note, final boolean overwrite) {
     if (note.start_time > 0 && (note.start_time < start_time || start_time == 0)) {
       start_time = note.start_time;
     }
-    
+
     // handle user-accessible stuff
     if (!overwrite && !changed.contains("end_time")) {
       end_time = note.end_time;
@@ -134,11 +125,11 @@ public final class Annotation implements Comparable<Annotation> {
     if (!overwrite && !changed.contains("custom")) {
       custom = note.custom;
     }
-    
+
     // reset changed flags
     resetChangedMap();
   }
-  
+
   /**
    * Sets or resets the changed map flags
    */
@@ -147,10 +138,15 @@ public final class Annotation implements Comparable<Annotation> {
   }
 
   // Getters and Setters --------------
-  
+
   /** @return the tsuid, may be empty if this is a global annotation */
   public final String getTSUID() {
     return tsuid;
+  }
+
+  /** @param tsuid the tsuid to store */
+  public void setTSUID(final String tsuid) {
+    this.tsuid = tsuid;
   }
 
   /** @return the start_time */
@@ -158,42 +154,27 @@ public final class Annotation implements Comparable<Annotation> {
     return start_time;
   }
 
-  /**  @return the end_time, may be 0 */
-  public final long getEndTime() {
-    return end_time;
-  }
-
-  /** @return the description */
-  public final String getDescription() {
-    return description;
-  }
-
-  /** @return the notes, may be empty */
-  public final String getNotes() {
-    return notes;
-  }
-
-  /** @return the custom key/value map, may be null */
-  public final Map<String, String> getCustom() {
-    return custom;
-  }
-
-  /** @param tsuid the tsuid to store*/
-  public void setTSUID(final String tsuid) {
-    this.tsuid = tsuid;
-  }
-
   /** @param start_time the start_time, required for every annotation */
   public void setStartTime(final long start_time) {
     this.start_time = start_time;
   }
 
-  /** @param end_time the end_time, optional*/
+  /** @return the end_time, may be 0 */
+  public final long getEndTime() {
+    return end_time;
+  }
+
+  /** @param end_time the end_time, optional */
   public void setEndTime(final long end_time) {
     if (this.end_time != end_time) {
       this.end_time = end_time;
       changed.add("end_time");
     }
+  }
+
+  /** @return the description */
+  public final String getDescription() {
+    return description;
   }
 
   /** @param description the description, required for every annotation */
@@ -204,12 +185,22 @@ public final class Annotation implements Comparable<Annotation> {
     }
   }
 
+  /** @return the notes, may be empty */
+  public final String getNotes() {
+    return notes;
+  }
+
   /** @param notes the notes to set */
   public void setNotes(final String notes) {
     if (!this.notes.equals(notes)) {
       this.notes = notes;
       changed.add("notes");
     }
+  }
+
+  /** @return the custom key/value map, may be null */
+  public final Map<String, String> getCustom() {
+    return custom;
   }
 
   /** @param custom the custom key/value map */
@@ -225,13 +216,21 @@ public final class Annotation implements Comparable<Annotation> {
 
   @Override
   public boolean equals(final Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
     final Annotation that = (Annotation) o;
 
-    if (end_time != that.end_time) return false;
-    if (start_time != that.start_time) return false;
+    if (end_time != that.end_time) {
+      return false;
+    }
+    if (start_time != that.start_time) {
+      return false;
+    }
 
     return Objects.equal(custom, that.custom) &&
            Objects.equal(description, that.description) &&

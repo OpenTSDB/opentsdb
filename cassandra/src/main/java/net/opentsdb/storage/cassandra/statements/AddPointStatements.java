@@ -1,4 +1,3 @@
-
 package net.opentsdb.storage.cassandra.statements;
 
 import static com.datastax.driver.core.querybuilder.QueryBuilder.bindMarker;
@@ -11,8 +10,8 @@ import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.Session;
 
 /**
- * A collection of {@link com.datastax.driver.core.PreparedStatement
- * PreparedStatements} that are used to add data points.
+ * A collection of {@link com.datastax.driver.core.PreparedStatement PreparedStatements} that are
+ * used to add data points.
  *
  * @see net.opentsdb.storage.cassandra.CassandraStore#addPoint
  */

@@ -10,6 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.core;
 
 import net.opentsdb.meta.Annotation;
@@ -19,7 +20,7 @@ import java.util.Map;
 
 /**
  * Represents a read-only sequence of continuous data points.
- * <p>
+ * <p/>
  * Implementations of this interface aren't expected to be synchronized.
  */
 public interface DataPoints extends Iterable<DataPoint>, Comparable<DataPoints> {
@@ -29,128 +30,125 @@ public interface DataPoints extends Iterable<DataPoint>, Comparable<DataPoints> 
   byte[] metric();
 
   /**
-   * Returns the tags that are common to all the data points that are
-   * represented by this instance (the intersection set).
+   * Returns the tags that are common to all the data points that are represented by this instance
+   * (the intersection set).
    */
   Map<byte[], byte[]> tags();
 
   /**
    * Returns the tags associated with some but not all of the data points.
-   * <p>
-   * When this instance represents the aggregation of multiple time series
-   * (same metric but different tags), {@link #tags()} returns the tags that
-   * are common to all data points (intersection set) whereas this method
-   * returns all the tags names that are not common to all data points (union
-   * set minus the intersection set, also called the symmetric difference).
-   * <p>
-   * If this instance does not represent an aggregation of multiple time
-   * series, the list returned is empty.
+   * <p/>
+   * When this instance represents the aggregation of multiple time series (same metric but
+   * different tags), {@link #tags()} returns the tags that are common to all data points
+   * (intersection set) whereas this method returns all the tags names that are not common to all
+   * data points (union set minus the intersection set, also called the symmetric difference).
+   * <p/>
+   * If this instance does not represent an aggregation of multiple time series, the list returned
+   * is empty.
+   *
    * @return A non-{@code null} list of tag names.
    */
   List<byte[]> aggregatedTags();
 
   /**
    * Returns a list of unique TSUIDs contained in the results
+   *
    * @return an empty list if there were no results, otherwise a list of TSUIDs
    */
   public List<String> getTSUIDs();
-  
+
   /**
    * Compiles the annotations for each span into a new array list
-   * @return Null if none of the spans had any annotations, a list if one or
-   * more were found
+   *
+   * @return Null if none of the spans had any annotations, a list if one or more were found
    */
   public List<Annotation> getAnnotations();
-  
+
   /**
    * Returns the number of data points.
-   * <p>
-   * This method must be implemented in {@code O(1)} or {@code O(n)}
-   * where <code>n = {@link #aggregatedSize} &gt; 0</code>.
+   * <p/>
+   * This method must be implemented in {@code O(1)} or {@code O(n)} where <code>n = {@link
+   * #aggregatedSize} &gt; 0</code>.
+   *
    * @return A positive integer.
    */
   int size();
 
   /**
    * Returns the number of data points aggregated in this instance.
-   * <p>
-   * When this instance represents the aggregation of multiple time series
-   * (same metric but different tags), {@link #size} returns the number of data
-   * points after aggregation, whereas this method returns the number of data
-   * points before aggregation.
-   * <p>
-   * If this instance does not represent an aggregation of multiple time
-   * series, then 0 is returned.
+   * <p/>
+   * When this instance represents the aggregation of multiple time series (same metric but
+   * different tags), {@link #size} returns the number of data points after aggregation, whereas
+   * this method returns the number of data points before aggregation.
+   * <p/>
+   * If this instance does not represent an aggregation of multiple time series, then 0 is
+   * returned.
+   *
    * @return A positive integer.
    */
   int aggregatedSize();
 
   /**
    * Returns a <em>zero-copy view</em> to go through {@code size()} data points.
-   * <p>
-   * The iterator returned must return each {@link DataPoint} in {@code O(1)}.
-   * <b>The {@link DataPoint} returned must not be stored</b> and gets
-   * invalidated as soon as {@code next} is called on the iterator.  If you
-   * want to store individual data points, you need to copy the timestamp
-   * and value out of each {@link DataPoint} into your own data structures.
+   * <p/>
+   * The iterator returned must return each {@link DataPoint} in {@code O(1)}. <b>The {@link
+   * DataPoint} returned must not be stored</b> and gets invalidated as soon as {@code next} is
+   * called on the iterator.  If you want to store individual data points, you need to copy the
+   * timestamp and value out of each {@link DataPoint} into your own data structures.
    */
   @Override
   SeekableView iterator();
 
   /**
-   * Returns the timestamp associated with the {@code i}th data point.
-   * The first data point has index 0.
-   * <p>
-   * This method must be implemented in
-   * <code>O({@link #aggregatedSize})</code> or better.
-   * <p>
+   * Returns the timestamp associated with the {@code i}th data point. The first data point has
+   * index 0.
+   * <p/>
+   * This method must be implemented in <code>O({@link #aggregatedSize})</code> or better.
+   * <p/>
    * It is guaranteed that <pre>timestamp(i) &lt; timestamp(i+1)</pre>
+   *
    * @return A strictly positive integer.
-   * @throws IndexOutOfBoundsException if {@code i} is not in the range
-   * <code>[0, {@link #size} - 1]</code>
+   * @throws IndexOutOfBoundsException if {@code i} is not in the range <code>[0, {@link #size} -
+   * 1]</code>
    */
   long timestamp(int i);
 
   /**
-   * Tells whether or not the {@code i}th value is of integer type.
-   * The first data point has index 0.
-   * <p>
-   * This method must be implemented in
-   * <code>O({@link #aggregatedSize})</code> or better.
-   * @return {@code true} if the {@code i}th value is of integer type,
-   * {@code false} if it's of floating point type.
-   * @throws IndexOutOfBoundsException if {@code i} is not in the range
-   * <code>[0, {@link #size} - 1]</code>
+   * Tells whether or not the {@code i}th value is of integer type. The first data point has index
+   * 0.
+   * <p/>
+   * This method must be implemented in <code>O({@link #aggregatedSize})</code> or better.
+   *
+   * @return {@code true} if the {@code i}th value is of integer type, {@code false} if it's of
+   * floating point type.
+   * @throws IndexOutOfBoundsException if {@code i} is not in the range <code>[0, {@link #size} -
+   * 1]</code>
    */
   boolean isInteger(int i);
 
   /**
-   * Returns the value of the {@code i}th data point as a long.
-   * The first data point has index 0.
-   * <p>
-   * This method must be implemented in
-   * <code>O({@link #aggregatedSize})</code> or better.
-   * Use {@link #iterator} to get successive {@code O(1)} accesses.
+   * Returns the value of the {@code i}th data point as a long. The first data point has index 0.
+   * <p/>
+   * This method must be implemented in <code>O({@link #aggregatedSize})</code> or better. Use
+   * {@link #iterator} to get successive {@code O(1)} accesses.
+   *
+   * @throws IndexOutOfBoundsException if {@code i} is not in the range <code>[0, {@link #size} -
+   * 1]</code>
+   * @throws ClassCastException if the <code>{@link #isInteger isInteger(i)} == false</code>.
    * @see #iterator
-   * @throws IndexOutOfBoundsException if {@code i} is not in the range
-   * <code>[0, {@link #size} - 1]</code>
-   * @throws ClassCastException if the
-   * <code>{@link #isInteger isInteger(i)} == false</code>.
    */
   long longValue(int i);
 
   /**
-   * Returns the value of the {@code i}th data point as a float.
-   * The first data point has index 0.
-   * <p>
-   * This method must be implemented in
-   * <code>O({@link #aggregatedSize})</code> or better.
-   * Use {@link #iterator} to get successive {@code O(1)} accesses.
+   * Returns the value of the {@code i}th data point as a float. The first data point has index 0.
+   * <p/>
+   * This method must be implemented in <code>O({@link #aggregatedSize})</code> or better. Use
+   * {@link #iterator} to get successive {@code O(1)} accesses.
+   *
+   * @throws IndexOutOfBoundsException if {@code i} is not in the range <code>[0, {@link #size} -
+   * 1]</code>
+   * @throws ClassCastException if the <code>{@link #isInteger isInteger(i)} == true</code>.
    * @see #iterator
-   * @throws IndexOutOfBoundsException if {@code i} is not in the range
-   * <code>[0, {@link #size} - 1]</code>
-   * @throws ClassCastException if the
-   * <code>{@link #isInteger isInteger(i)} == true</code>.
    */
   double doubleValue(int i);
 

@@ -10,6 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.core;
 
 import java.util.NoSuchElementException;
@@ -24,16 +25,16 @@ public class Downsampler implements SeekableView, DataPoint {
   private final Aggregator downsampler;
   /** Iterator to iterate the values of the current interval. */
   private final ValuesInInterval values_in_interval;
-  /** Last normalized timestamp */ 
+  /** Last normalized timestamp */
   private long timestamp;
   /** Last value as a double */
   private double value;
-  
+
   /**
    * Ctor.
+   *
    * @param source The iterator to access the underlying data.
-   * @param interval_ms The interval in milli seconds wanted between each data
-   * point.
+   * @param interval_ms The interval in milli seconds wanted between each data point.
    * @param downsampler The downsampling function to use.
    */
   Downsampler(final SeekableView source,
@@ -81,12 +82,12 @@ public class Downsampler implements SeekableView, DataPoint {
   public String toString() {
     final StringBuilder buf = new StringBuilder();
     buf.append("Downsampler: ")
-       .append("interval_ms=").append(values_in_interval.interval_ms)
-       .append(", downsampler=").append(downsampler)
-       .append(", current data=(timestamp=").append(timestamp)
-       .append(", value=").append(value)
-       .append("), values_in_interval=").append(values_in_interval);
-   return buf.toString();
+        .append("interval_ms=").append(values_in_interval.interval_ms)
+        .append(", downsampler=").append(downsampler)
+        .append(", current data=(timestamp=").append(timestamp)
+        .append(", value=").append(value)
+        .append("), values_in_interval=").append(values_in_interval);
+    return buf.toString();
   }
 
   @Override
@@ -113,7 +114,7 @@ public class Downsampler implements SeekableView, DataPoint {
   public double toDouble() {
     return value;
   }
-  
+
   /** Iterates source values for an interval. */
   private static class ValuesInInterval implements Aggregator.Doubles {
 
@@ -133,6 +134,7 @@ public class Downsampler implements SeekableView, DataPoint {
 
     /**
      * Constructor.
+     *
      * @param source The iterator to access the underlying data.
      * @param interval_ms Downsampling interval.
      */
@@ -165,14 +167,14 @@ public class Downsampler implements SeekableView, DataPoint {
     }
 
     /**
-     * Resets the current interval with the interval of the timestamp of
-     * the next value read from source. It is the first value of the next
-     * interval. */
+     * Resets the current interval with the interval of the timestamp of the next value read from
+     * source. It is the first value of the next interval.
+     */
     private void resetEndOfInterval() {
       if (has_next_value_from_source) {
         // Sets the end of the interval of the timestamp.
-        timestamp_end_interval = alignTimestamp(next_dp.timestamp()) + 
-            interval_ms;
+        timestamp_end_interval = alignTimestamp(next_dp.timestamp()) +
+                                 interval_ms;
       }
     }
 
@@ -213,7 +215,7 @@ public class Downsampler implements SeekableView, DataPoint {
     public boolean hasNextValue() {
       initializeIfNotDone();
       return has_next_value_from_source &&
-          next_dp.timestamp() < timestamp_end_interval;
+             next_dp.timestamp() < timestamp_end_interval;
     }
 
     @Override
@@ -224,17 +226,17 @@ public class Downsampler implements SeekableView, DataPoint {
         return value;
       }
       throw new NoSuchElementException("no more values in interval of "
-          + timestamp_end_interval);
+                                       + timestamp_end_interval);
     }
 
     @Override
     public String toString() {
       final StringBuilder buf = new StringBuilder();
       buf.append("ValuesInInterval: ")
-         .append("interval_ms=").append(interval_ms)
-         .append(", timestamp_end_interval=").append(timestamp_end_interval)
-         .append(", has_next_value_from_source=")
-         .append(has_next_value_from_source);
+          .append("interval_ms=").append(interval_ms)
+          .append(", timestamp_end_interval=").append(timestamp_end_interval)
+          .append(", has_next_value_from_source=")
+          .append(has_next_value_from_source);
       if (has_next_value_from_source) {
         buf.append(", nextValue=(").append(next_dp).append(')');
       }

@@ -9,12 +9,11 @@ import java.nio.charset.StandardCharsets;
 
 public class HttpConstants {
   /**
-   * The default charset to assume that all requests are using.
-   */
-  static final Charset CHARSET = StandardCharsets.UTF_8;
-
-  /**
    * The HTTP version that should be returned by all requests.
    */
   public static final HttpVersion HTTP_VERSION = HTTP_1_1;
+  /**
+   * The default charset to assume that all requests are using.
+   */
+  static final Charset CHARSET = StandardCharsets.UTF_8;
 }

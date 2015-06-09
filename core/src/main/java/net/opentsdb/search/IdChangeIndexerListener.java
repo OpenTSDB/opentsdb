@@ -13,9 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A Guava {@link com.google.common.eventbus.EventBus} listener that listens
- * for label changes and notifies the {@link SearchPlugin}
- * when appropriate.
+ * A Guava {@link com.google.common.eventbus.EventBus} listener that listens for label changes and
+ * notifies the {@link SearchPlugin} when appropriate.
  */
 public class IdChangeIndexerListener {
   private static final Logger LOG = LoggerFactory.getLogger(IdChangeIndexerListener.class);
@@ -30,9 +29,8 @@ public class IdChangeIndexerListener {
   }
 
   /**
-   * The method that subscribes to {@link LabelCreatedEvent}s. You should not
-   * call this directly, post messages to the event bus that this listener is
-   * registered to instead.
+   * The method that subscribes to {@link LabelCreatedEvent}s. You should not call this directly,
+   * post messages to the event bus that this listener is registered to instead.
    *
    * @param event The published event.
    */
@@ -52,9 +50,8 @@ public class IdChangeIndexerListener {
   }
 
   /**
-   * The method that subscribes to {@link LabelDeletedEvent}s. You should not
-   * call this directly, post messages to the event bus that this listener is
-   * registered to instead.
+   * The method that subscribes to {@link LabelDeletedEvent}s. You should not call this directly,
+   * post messages to the event bus that this listener is registered to instead.
    *
    * @param event The published event.
    */

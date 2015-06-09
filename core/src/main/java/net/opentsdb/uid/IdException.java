@@ -1,8 +1,7 @@
 package net.opentsdb.uid;
 
 /**
- * A specialized exception that is thrown when something is wrong with an ID or
- * name.
+ * A specialized exception that is thrown when something is wrong with an ID or name.
  */
 public class IdException extends Exception {
   public IdException(final String name,

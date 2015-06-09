@@ -10,6 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.uid;
 
 import java.util.NoSuchElementException;
@@ -21,9 +22,10 @@ import java.util.NoSuchElementException;
  */
 public final class NoSuchUniqueName extends NoSuchElementException {
 
-  /** The 'type' of the table.  */
+  static final long serialVersionUID = 1266815261;
+  /** The 'type' of the table. */
   private final String kind;
-  /** The name that couldn't be found.  */
+  /** The name that couldn't be found. */
   private final String name;
 
   /**
@@ -38,16 +40,14 @@ public final class NoSuchUniqueName extends NoSuchElementException {
     this.name = name;
   }
 
-  /** Returns the type of unique ID that couldn't be found.  */
+  /** Returns the type of unique ID that couldn't be found. */
   public String kind() {
     return kind;
   }
 
-  /** Returns the name for which the unique ID couldn't be found.  */
+  /** Returns the name for which the unique ID couldn't be found. */
   public String name() {
     return name;
   }
-
-  static final long serialVersionUID = 1266815261;
 
 }

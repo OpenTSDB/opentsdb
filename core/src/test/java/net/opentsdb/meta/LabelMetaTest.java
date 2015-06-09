@@ -1,4 +1,3 @@
-
 package net.opentsdb.meta;
 
 import static net.opentsdb.uid.UniqueIdType.METRIC;

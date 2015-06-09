@@ -17,9 +17,8 @@ public enum UniqueIdType {
   TAGK("tagk", Const.TAG_NAME_WIDTH),
   TAGV("tagv", Const.TAG_VALUE_WIDTH);
 
-  private final String identifier;
-
   public final short width;
+  private final String identifier;
 
   UniqueIdType(String identifier, short width) {
     checkArgument(!Strings.isNullOrEmpty(identifier), "Empty string as 'identifier' argument!");
@@ -30,8 +29,8 @@ public enum UniqueIdType {
   }
 
   /**
-   * Attempts to convert the given string to an instance of this enum. This is
-   * the reverse of {@link #toValue}.
+   * Attempts to convert the given string to an instance of this enum. This is the reverse of {@link
+   * #toValue}.
    *
    * @param type The string to convert
    * @return a valid UniqueIdType if matched
@@ -51,8 +50,8 @@ public enum UniqueIdType {
   }
 
   /**
-   * Returns a string that uniquely identifies the enum value and is safe to use
-   * with external systems (databases). This is the reverse of {@link #fromValue}.
+   * Returns a string that uniquely identifies the enum value and is safe to use with external
+   * systems (databases). This is the reverse of {@link #fromValue}.
    */
   public String toValue() {
     return identifier;

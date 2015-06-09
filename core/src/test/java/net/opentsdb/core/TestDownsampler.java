@@ -10,6 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.core;
 
 
@@ -33,24 +34,24 @@ import java.util.List;
 public class TestDownsampler {
 
   private static final long BASE_TIME = 1356998400000L;
-  private static final DataPoint[] DATA_POINTS = new DataPoint[] {
-    // timestamp = 1,356,998,400,000 ms
-    MutableDataPoint.ofLongValue(BASE_TIME, 40),
-    // timestamp = 1,357,000,400,000 ms
-    MutableDataPoint.ofLongValue(BASE_TIME + 2000000, 50),
-    // timestamp = 1,357,002,000,000 ms
-    MutableDataPoint.ofLongValue(BASE_TIME + 3600000, 40),
-    // timestamp = 1,357,002,005,000 ms
-    MutableDataPoint.ofLongValue(BASE_TIME + 3605000, 50),
-    // timestamp = 1,357,005,600,000 ms
-    MutableDataPoint.ofLongValue(BASE_TIME + 7200000, 40),
-    // timestamp = 1,357,007,600,000 ms
-    MutableDataPoint.ofLongValue(BASE_TIME + 9200000, 50)
+  private static final DataPoint[] DATA_POINTS = new DataPoint[]{
+      // timestamp = 1,356,998,400,000 ms
+      MutableDataPoint.ofLongValue(BASE_TIME, 40),
+      // timestamp = 1,357,000,400,000 ms
+      MutableDataPoint.ofLongValue(BASE_TIME + 2000000, 50),
+      // timestamp = 1,357,002,000,000 ms
+      MutableDataPoint.ofLongValue(BASE_TIME + 3600000, 40),
+      // timestamp = 1,357,002,005,000 ms
+      MutableDataPoint.ofLongValue(BASE_TIME + 3605000, 50),
+      // timestamp = 1,357,005,600,000 ms
+      MutableDataPoint.ofLongValue(BASE_TIME + 7200000, 40),
+      // timestamp = 1,357,007,600,000 ms
+      MutableDataPoint.ofLongValue(BASE_TIME + 9200000, 50)
   };
   private static final int THOUSAND_SEC_INTERVAL =
-      (int)DateTime.parseDuration("1000s");
+      (int) DateTime.parseDuration("1000s");
   private static final int TEN_SEC_INTERVAL =
-      (int)DateTime.parseDuration("10s");
+      (int) DateTime.parseDuration("10s");
   private static final Aggregator AVG = Aggregators.get("avg");
   private static final Aggregator SUM = Aggregators.get("sum");
 
@@ -90,7 +91,7 @@ public class TestDownsampler {
 
   @Test
   public void testDownsampler_10seconds() {
-    source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
+    source = spy(SeekableViewsForTest.fromArray(new DataPoint[]{
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 0, 1),
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 1, 2),
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 2, 4),
@@ -131,7 +132,7 @@ public class TestDownsampler {
 
   @Test
   public void testDownsampler_15seconds() {
-    source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
+    source = spy(SeekableViewsForTest.fromArray(new DataPoint[]{
         MutableDataPoint.ofLongValue(BASE_TIME + 5000L, 1),
         MutableDataPoint.ofLongValue(BASE_TIME + 15000L, 2),
         MutableDataPoint.ofLongValue(BASE_TIME + 25000L, 4),
@@ -243,7 +244,7 @@ public class TestDownsampler {
 
   @Test
   public void testSeek_abandoningIncompleteInterval() {
-    source = SeekableViewsForTest.fromArray(new DataPoint[] {
+    source = SeekableViewsForTest.fromArray(new DataPoint[]{
         MutableDataPoint.ofLongValue(BASE_TIME + 100L, 40),
         MutableDataPoint.ofLongValue(BASE_TIME + 1100L, 40),
         MutableDataPoint.ofLongValue(BASE_TIME + 2100L, 40),
@@ -255,7 +256,7 @@ public class TestDownsampler {
         MutableDataPoint.ofLongValue(BASE_TIME + 8100L, 40),
         MutableDataPoint.ofLongValue(BASE_TIME + 9100L, 40),
         MutableDataPoint.ofLongValue(BASE_TIME + 10100L, 40)
-      });
+    });
     downsampler = new Downsampler(source, TEN_SEC_INTERVAL, SUM);
     // The seek is aligned by the downsampling window.
     downsampler.seek(BASE_TIME);
@@ -271,11 +272,11 @@ public class TestDownsampler {
       DataPoint dp = downsampler.next();
       // Timestamp should be greater than or equal to the seek timestamp.
       assertTrue(String.format("%d >= %d", dp.timestamp(), seek_timestamp),
-                 dp.timestamp() >= seek_timestamp);
+          dp.timestamp() >= seek_timestamp);
       assertEquals(String.format("seek(%d)", seek_timestamp),
-                   BASE_TIME + 10000L, dp.timestamp());
+          BASE_TIME + 10000L, dp.timestamp());
       assertEquals(String.format("seek(%d)", seek_timestamp),
-                   40, dp.doubleValue(), 0.0000001);
+          40, dp.doubleValue(), 0.0000001);
     }
   }
 

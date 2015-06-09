@@ -10,6 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.core;
 
 import static org.junit.Assert.assertEquals;
@@ -29,16 +30,18 @@ import org.junit.Test;
 public class TestAggregationIterator {
 
   private static final long BASE_TIME = 1356998400000L;
-  private static final DataPoint[] DATA_POINTS_1 = new DataPoint[] {
-    MutableDataPoint.ofLongValue(BASE_TIME, 40),
-    MutableDataPoint.ofLongValue(BASE_TIME + 10000, 50),
-    MutableDataPoint.ofLongValue(BASE_TIME + 30000, 70)
+  private static final DataPoint[] DATA_POINTS_1 = new DataPoint[]{
+      MutableDataPoint.ofLongValue(BASE_TIME, 40),
+      MutableDataPoint.ofLongValue(BASE_TIME + 10000, 50),
+      MutableDataPoint.ofLongValue(BASE_TIME + 30000, 70)
   };
-  private static final DataPoint[] DATA_POINTS_2 = new DataPoint[] {
-    MutableDataPoint.ofLongValue(BASE_TIME + 10000, 37),
-    MutableDataPoint.ofLongValue(BASE_TIME + 20000, 48)
+  private static final DataPoint[] DATA_POINTS_2 = new DataPoint[]{
+      MutableDataPoint.ofLongValue(BASE_TIME + 10000, 37),
+      MutableDataPoint.ofLongValue(BASE_TIME + 20000, 48)
   };
-  final DataPoint[] DATA_5SEC = new DataPoint[] {
+  private static final Aggregator AVG = Aggregators.get("avg");
+  private static final Aggregator SUM = Aggregators.get("sum");
+  final DataPoint[] DATA_5SEC = new DataPoint[]{
       MutableDataPoint.ofDoubleValue(BASE_TIME + 00000L, 1),
       MutableDataPoint.ofDoubleValue(BASE_TIME + 07000L, 1),
       MutableDataPoint.ofDoubleValue(BASE_TIME + 10000L, 1),
@@ -51,9 +54,6 @@ public class TestAggregationIterator {
       MutableDataPoint.ofDoubleValue(BASE_TIME + 45000L, 1),
       MutableDataPoint.ofDoubleValue(BASE_TIME + 50000L, 1)
   };
-  private static final Aggregator AVG = Aggregators.get("avg");
-  private static final Aggregator SUM = Aggregators.get("sum");
-
   private SeekableView[] iterators;
   private long start_time_ms;
   private long end_time_ms;
@@ -73,13 +73,13 @@ public class TestAggregationIterator {
 
   @Test
   public void testAggregate_singleSpan() {
-    iterators = new SeekableView[] {
+    iterators = new SeekableView[]{
         SeekableViewsForTest.fromArray(DATA_POINTS_1)
     };
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
-        aggregator, interpolation,rate);
+        aggregator, interpolation, rate);
     // Aggregating a single span should repeat the single span.
-    for (DataPoint expected: DATA_POINTS_1) {
+    for (DataPoint expected : DATA_POINTS_1) {
       assertTrue(sgai.hasNext());
       DataPoint dp = sgai.next();
       assertEquals(expected.timestamp(), dp.timestamp());
@@ -90,7 +90,7 @@ public class TestAggregationIterator {
 
   @Test
   public void testAggregate_doubleSpans() {
-    iterators = new SeekableView[] {
+    iterators = new SeekableView[]{
         SeekableViewsForTest.fromArray(DATA_POINTS_1),
         SeekableViewsForTest.fromArray(DATA_POINTS_2),
     };
@@ -98,14 +98,14 @@ public class TestAggregationIterator {
         aggregator, interpolation, rate);
     // Checks if all the distinct timestamps of both spans appear and missing
     // data point of one span for a timestamp of one span was interpolated.
-    DataPoint[] expected_data_points = new DataPoint[] {
+    DataPoint[] expected_data_points = new DataPoint[]{
         MutableDataPoint.ofLongValue(BASE_TIME, 40),
         MutableDataPoint.ofLongValue(BASE_TIME + 10000, 50 + 37),
         // 60 is the interpolated value.
         MutableDataPoint.ofLongValue(BASE_TIME + 20000, 60 + 48),
         MutableDataPoint.ofLongValue(BASE_TIME + 30000, 70)
-      };
-    for (DataPoint expected: expected_data_points) {
+    };
+    for (DataPoint expected : expected_data_points) {
       assertTrue(sgai.hasNext());
       DataPoint dp = sgai.next();
       assertEquals(expected.timestamp(), dp.timestamp());
@@ -116,7 +116,7 @@ public class TestAggregationIterator {
 
   @Test
   public void testAggregate_manySpansWithDownsampling() {
-    iterators = new SeekableView[] {
+    iterators = new SeekableView[]{
         new Downsampler(SeekableViewsForTest.fromArray(DATA_5SEC), 10000, AVG),
         new Downsampler(SeekableViewsForTest.fromArray(DATA_5SEC), 10000, AVG),
         new Downsampler(SeekableViewsForTest.fromArray(DATA_5SEC), 10000, AVG),
@@ -132,14 +132,14 @@ public class TestAggregationIterator {
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
         aggregator, interpolation,
         rate);
-    DataPoint[] expected_data_points = new DataPoint[] {
+    DataPoint[] expected_data_points = new DataPoint[]{
         MutableDataPoint.ofDoubleValue(BASE_TIME + 10000L, 7),
         MutableDataPoint.ofDoubleValue(BASE_TIME + 20000L, 7),
         MutableDataPoint.ofDoubleValue(BASE_TIME + 30000L, 7),
         MutableDataPoint.ofDoubleValue(BASE_TIME + 40000L, 7),
         MutableDataPoint.ofDoubleValue(BASE_TIME + 50000L, 7),
-      };
-    for (DataPoint expected: expected_data_points) {
+    };
+    for (DataPoint expected : expected_data_points) {
       assertTrue(sgai.hasNext());
       DataPoint dp = sgai.next();
       assertEquals(expected.timestamp(), dp.timestamp());
@@ -150,7 +150,7 @@ public class TestAggregationIterator {
 
   @Test
   public void testDownsample_afterAggregation() {
-    iterators = new SeekableView[] {
+    iterators = new SeekableView[]{
         new Downsampler(SeekableViewsForTest.fromArray(DATA_5SEC), 10000, AVG),
         new Downsampler(SeekableViewsForTest.fromArray(DATA_5SEC), 10000, AVG),
         new Downsampler(SeekableViewsForTest.fromArray(DATA_5SEC), 10000, AVG),
@@ -167,7 +167,7 @@ public class TestAggregationIterator {
     Downsampler downsampler = new Downsampler(sgai, 15000, SUM);
     // Tests the case: downsamples by 10 seconds. Then, aggregates across spans.
     // Then, downsample by 15 seconds again.
-    DataPoint[] expected_data_points = new DataPoint[] {
+    DataPoint[] expected_data_points = new DataPoint[]{
         // Aggregator output timestamp: BASE_TIME + 10000
         MutableDataPoint.ofDoubleValue(BASE_TIME + 00000L, 7),
         // Aggregator output timestamp: BASE_TIME + 20000
@@ -176,13 +176,13 @@ public class TestAggregationIterator {
         MutableDataPoint.ofDoubleValue(BASE_TIME + 30000L, 14),
         // Aggregator output timestamp: BASE_TIME + 50000
         MutableDataPoint.ofDoubleValue(BASE_TIME + 45000L, 7)
-      };
-    for (DataPoint expected: expected_data_points) {
+    };
+    for (DataPoint expected : expected_data_points) {
       assertTrue(downsampler.hasNext());
       DataPoint dp = downsampler.next();
       assertEquals(expected.timestamp(), dp.timestamp());
       assertEquals("timestamp = %d" + dp.timestamp(),
-                   expected.doubleValue(), dp.doubleValue(), 0);
+          expected.doubleValue(), dp.doubleValue(), 0);
     }
     assertFalse(downsampler.hasNext());
   }
@@ -190,14 +190,14 @@ public class TestAggregationIterator {
   @Test
   public void testAggregate_seek() {
     SeekableView iterator = spy(SeekableViewsForTest.fromArray(DATA_POINTS_1));
-    iterators = new SeekableView[] {
+    iterators = new SeekableView[]{
         iterator
     };
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
-        aggregator, interpolation,rate);
+        aggregator, interpolation, rate);
     // The seek method should be called just once at the beginning.
     verify(iterator).seek(start_time_ms);
-    for (DataPoint expected: DATA_POINTS_1) {
+    for (DataPoint expected : DATA_POINTS_1) {
       assertTrue(sgai.hasNext());
       DataPoint dp = sgai.next();
       assertEquals(expected.timestamp(), dp.timestamp());
@@ -211,15 +211,15 @@ public class TestAggregationIterator {
   @Test
   public void testAggregate_emptySpan() {
     // Empty span should be ignored and no exception should be thrown.
-    final DataPoint[] empty_data_points = new DataPoint[] {
+    final DataPoint[] empty_data_points = new DataPoint[]{
     };
-    iterators = new SeekableView[] {
+    iterators = new SeekableView[]{
         SeekableViewsForTest.fromArray(empty_data_points),
         SeekableViewsForTest.fromArray(DATA_POINTS_1),
     };
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
         aggregator, interpolation, rate);
-    for (DataPoint expected: DATA_POINTS_1) {
+    for (DataPoint expected : DATA_POINTS_1) {
       assertTrue(sgai.hasNext());
       DataPoint dp = sgai.next();
       assertEquals(expected.timestamp(), dp.timestamp());
@@ -240,8 +240,8 @@ public class TestAggregationIterator {
     for (int i = 0; i < num_views; ++i) {
       final SeekableView view = SeekableViewsForTest.generator(
           current_time, sample_period_ms, num_points_per_span, true);
-      views[i] = new Downsampler(view, (int)DateTime.parseDuration("10s"),
-                                 Aggregators.AVG);
+      views[i] = new Downsampler(view, (int) DateTime.parseDuration("10s"),
+          Aggregators.AVG);
       current_time += increment_ms;
     }
     assertEquals(num_views, views.length);
@@ -251,7 +251,7 @@ public class TestAggregationIterator {
   private void testMeasureAggregationLatency(int num_views, double max_secs) {
     // Microbenchmark to measure the performance of AggregationIter.
     iterators = createSeekableViews(num_views, 1356990000000L, 1356993600000L,
-                                    100);
+        100);
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
         aggregator, interpolation, rate);
     final long start_time_nano = System.nanoTime();
@@ -268,9 +268,9 @@ public class TestAggregationIterator {
     final double elapsed = (finish_time_nano - start_time_nano) / 1000000000.0;
     System.out.println(String.format("%f seconds, %d data points, (%d, %g)" +
                                      "for %d views",
-                                     elapsed, total_data_points,
-                                     timestamp_checksum, value_checksum,
-                                     num_views));
+        elapsed, total_data_points,
+        timestamp_checksum, value_checksum,
+        num_views));
     assertTrue("Too slow, " + elapsed + " > " + max_secs,
         elapsed <= max_secs);
   }

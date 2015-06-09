@@ -53,6 +53,23 @@ public class CommandLineApplication {
         .defaultsTo(new File(appHome(), "config/logback.xml"));
   }
 
+  protected static void configureLogger(final File logConfigFile) {
+    LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
+
+    try {
+      JoranConfigurator configurator = new JoranConfigurator();
+      configurator.setContext(context);
+
+      // Reset any defaults
+      context.reset();
+
+      configurator.doConfigure(logConfigFile);
+    } catch (JoranException je) {
+      // StatusPrinter will handle this
+    }
+    StatusPrinter.printInCaseOfErrorsOrWarnings(context);
+  }
+
   protected void printError(final String errorMessage) {
     outStream.println(command + ": " + errorMessage);
     outStream.println("Try 'tsdb " + command + " --help' for more information");
@@ -85,22 +102,5 @@ public class CommandLineApplication {
 
   protected ArgumentAcceptingOptionSpec<File> getLoggerConfigSpec() {
     return loggerConfigSpec;
-  }
-
-  protected static void configureLogger(final File logConfigFile) {
-    LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
-
-    try {
-      JoranConfigurator configurator = new JoranConfigurator();
-      configurator.setContext(context);
-
-      // Reset any defaults
-      context.reset();
-
-      configurator.doConfigure(logConfigFile);
-    } catch (JoranException je) {
-      // StatusPrinter will handle this
-    }
-    StatusPrinter.printInCaseOfErrorsOrWarnings(context);
   }
 }

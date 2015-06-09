@@ -28,37 +28,37 @@ public class MoreLongsTest {
     assertEquals(Long.MIN_VALUE, MoreLongs.parseLong(Long.toString(Long.MIN_VALUE)));
   }
 
-  @Test(expected=NumberFormatException.class)
+  @Test(expected = NumberFormatException.class)
   public void parseLongEmptyString() {
     MoreLongs.parseLong("");
   }
 
-  @Test(expected=NumberFormatException.class)
+  @Test(expected = NumberFormatException.class)
   public void parseLongMalformed() {
     MoreLongs.parseLong("42a51");
   }
 
-  @Test(expected=NumberFormatException.class)
+  @Test(expected = NumberFormatException.class)
   public void parseLongMalformedPlus() {
     MoreLongs.parseLong("+");
   }
 
-  @Test(expected=NumberFormatException.class)
+  @Test(expected = NumberFormatException.class)
   public void parseLongMalformedMinus() {
     MoreLongs.parseLong("-");
   }
 
-  @Test(expected=NumberFormatException.class)
+  @Test(expected = NumberFormatException.class)
   public void parseLongValueTooLarge() {
     MoreLongs.parseLong("18446744073709551616");
   }
 
-  @Test(expected=NumberFormatException.class)
+  @Test(expected = NumberFormatException.class)
   public void parseLongValueTooLargeSubtle() {
     MoreLongs.parseLong("9223372036854775808"); // MAX_VALUE + 1
   }
 
-  @Test(expected=NumberFormatException.class)
+  @Test(expected = NumberFormatException.class)
   public void parseLongValueTooSmallSubtle() {
     MoreLongs.parseLong("-9223372036854775809"); // MIN_VALUE - 1
   }

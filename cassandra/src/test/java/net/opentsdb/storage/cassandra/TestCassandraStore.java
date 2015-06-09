@@ -22,25 +22,22 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import javax.inject.Inject;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import javax.inject.Inject;
 
 public class TestCassandraStore {
   private static final String METRIC_NAME_ONE = "sys";
   private static final String METRIC_NAME_TWO = "cpu0";
   private static final String METRIC_NAME_THREE = "cpu1";
   private static final String TAGK_NAME_ONE = "host";
-  private static LabelId TAGK_UID_ONE;
   private static final String TAGV_NAME_ONE = "127.0.0.1";
+  private static LabelId TAGK_UID_ONE;
   private static LabelId TAGV_UID_ONE;
-
-  private CassandraStore store;
-
   @Inject Config config;
   @Inject CassandraStoreDescriptor storeDescriptor;
-
+  private CassandraStore store;
   private Map<String, LabelId> name_uid = new HashMap<>();
 
   @Before
@@ -144,7 +141,7 @@ public class TestCassandraStore {
   @Test
   public void allocateUID() throws Exception {
     LabelId new_metric_uid = store.allocateUID("new", UniqueIdType.METRIC)
-            .joinUninterruptibly(TIMEOUT);
+        .joinUninterruptibly(TIMEOUT);
     long max_uid = 0;
     for (LabelId uid : name_uid.values()) {
       max_uid = Math.max(toLong(uid), max_uid);
@@ -179,7 +176,7 @@ public class TestCassandraStore {
   }
 
   private void validateValidId(final String name, final UniqueIdType type)
-          throws Exception {
+      throws Exception {
     Optional<LabelId> value = store.getId(name, type).join(TIMEOUT);
 
     assertTrue(value.isPresent());
@@ -187,13 +184,13 @@ public class TestCassandraStore {
   }
 
   private void validateInvalidId(final String name, final UniqueIdType type)
-          throws Exception {
+      throws Exception {
     Optional<LabelId> value = store.getId(name, type).join(TIMEOUT);
     assertFalse(value.isPresent());
   }
 
   private void validateValidName(final String name, final UniqueIdType type)
-          throws Exception {
+      throws Exception {
     Optional<String> value = store.getName(name_uid.get(name), type).join(TIMEOUT);
 
     assertTrue(value.isPresent());
@@ -201,7 +198,7 @@ public class TestCassandraStore {
   }
 
   private void validateInvalidName(final LabelId uid, final UniqueIdType type)
-          throws Exception {
+      throws Exception {
     Optional<String> value = store.getName(uid, type).join(TIMEOUT);
     assertFalse(value.isPresent());
   }

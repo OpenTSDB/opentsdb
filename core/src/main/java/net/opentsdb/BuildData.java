@@ -1,4 +1,3 @@
-
 package net.opentsdb;
 
 import java.io.IOException;
