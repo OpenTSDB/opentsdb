@@ -24,7 +24,7 @@ public class Downsampler implements SeekableView, DataPoint {
   /** Function to use for downsampling. */
   private final Aggregator downsampler;
   /** Iterator to iterate the values of the current interval. */
-  private final ValuesInInterval values_in_interval;
+  private final ValuesInInterval valuesInInterval;
   /** Last normalized timestamp */
   private long timestamp;
   /** Last value as a double */
@@ -34,13 +34,13 @@ public class Downsampler implements SeekableView, DataPoint {
    * Ctor.
    *
    * @param source The iterator to access the underlying data.
-   * @param interval_ms The interval in milli seconds wanted between each data point.
+   * @param intervalMs The interval in milli seconds wanted between each data point.
    * @param downsampler The downsampling function to use.
    */
   Downsampler(final SeekableView source,
-              final long interval_ms,
+              final long intervalMs,
               final Aggregator downsampler) {
-    this.values_in_interval = new ValuesInInterval(source, interval_ms);
+    this.valuesInInterval = new ValuesInInterval(source, intervalMs);
     this.downsampler = downsampler;
   }
 
@@ -50,15 +50,15 @@ public class Downsampler implements SeekableView, DataPoint {
 
   @Override
   public boolean hasNext() {
-    return values_in_interval.hasNextValue();
+    return valuesInInterval.hasNextValue();
   }
 
   @Override
   public DataPoint next() {
     if (hasNext()) {
-      value = downsampler.runDouble(values_in_interval);
-      timestamp = values_in_interval.getIntervalTimestamp();
-      values_in_interval.moveToNextInterval();
+      value = downsampler.runDouble(valuesInInterval);
+      timestamp = valuesInInterval.getIntervalTimestamp();
+      valuesInInterval.moveToNextInterval();
       return this;
     }
     throw new NoSuchElementException("no more data points in " + this);
@@ -75,18 +75,18 @@ public class Downsampler implements SeekableView, DataPoint {
 
   @Override
   public void seek(final long timestamp) {
-    values_in_interval.seekInterval(timestamp);
+    valuesInInterval.seekInterval(timestamp);
   }
 
   @Override
   public String toString() {
     final StringBuilder buf = new StringBuilder();
     buf.append("Downsampler: ")
-        .append("interval_ms=").append(values_in_interval.interval_ms)
+        .append("intervalMs=").append(valuesInInterval.intervalMs)
         .append(", downsampler=").append(downsampler)
         .append(", current data=(timestamp=").append(timestamp)
         .append(", value=").append(value)
-        .append("), values_in_interval=").append(values_in_interval);
+        .append("), valuesInInterval=").append(valuesInInterval);
     return buf.toString();
   }
 
@@ -121,13 +121,13 @@ public class Downsampler implements SeekableView, DataPoint {
     /** The iterator of original source values. */
     private final SeekableView source;
     /** The sampling interval in milliseconds. */
-    private final long interval_ms;
+    private final long intervalMs;
     /** The end of the current interval. */
-    private long timestamp_end_interval = Long.MIN_VALUE;
+    private long timestampEndInterval = Long.MIN_VALUE;
     /** True if the last value was successfully extracted from the source. */
-    private boolean has_next_value_from_source = false;
+    private boolean hasNextValueFromSource = false;
     /** The last data point extracted from the source. */
-    private DataPoint next_dp = null;
+    private DataPoint nextDp = null;
 
     /** True if it is initialized for iterating intervals. */
     private boolean initialized = false;
@@ -136,12 +136,12 @@ public class Downsampler implements SeekableView, DataPoint {
      * Constructor.
      *
      * @param source The iterator to access the underlying data.
-     * @param interval_ms Downsampling interval.
+     * @param intervalMs Downsampling interval.
      */
-    ValuesInInterval(final SeekableView source, final long interval_ms) {
+    ValuesInInterval(final SeekableView source, final long intervalMs) {
       this.source = source;
-      this.interval_ms = interval_ms;
-      this.timestamp_end_interval = interval_ms;
+      this.intervalMs = intervalMs;
+      this.timestampEndInterval = intervalMs;
     }
 
     /** Initializes to iterate intervals. */
@@ -159,10 +159,10 @@ public class Downsampler implements SeekableView, DataPoint {
     /** Extracts the next value from the source. */
     private void moveToNextValue() {
       if (source.hasNext()) {
-        has_next_value_from_source = true;
-        next_dp = source.next();
+        hasNextValueFromSource = true;
+        nextDp = source.next();
       } else {
-        has_next_value_from_source = false;
+        hasNextValueFromSource = false;
       }
     }
 
@@ -171,10 +171,10 @@ public class Downsampler implements SeekableView, DataPoint {
      * source. It is the first value of the next interval.
      */
     private void resetEndOfInterval() {
-      if (has_next_value_from_source) {
+      if (hasNextValueFromSource) {
         // Sets the end of the interval of the timestamp.
-        timestamp_end_interval = alignTimestamp(next_dp.timestamp()) +
-                                 interval_ms;
+        timestampEndInterval = alignTimestamp(nextDp.timestamp()) +
+                                 intervalMs;
       }
     }
 
@@ -190,7 +190,7 @@ public class Downsampler implements SeekableView, DataPoint {
       // rounds up the seeking timestamp to the smallest timestamp that is
       // a multiple of the interval and is greater than or equal to the given
       // timestamp..
-      source.seek(alignTimestamp(timestamp + interval_ms - 1));
+      source.seek(alignTimestamp(timestamp + intervalMs - 1));
       initialized = false;
     }
 
@@ -199,12 +199,12 @@ public class Downsampler implements SeekableView, DataPoint {
       // NOTE: It is well-known practice taking the start time of
       // a downsample interval as a representative timestamp of it. It also
       // provides the correct context for seek.
-      return alignTimestamp(timestamp_end_interval - interval_ms);
+      return alignTimestamp(timestampEndInterval - intervalMs);
     }
 
     /** Returns timestamp aligned by interval. */
     private long alignTimestamp(long timestamp) {
-      return timestamp - (timestamp % interval_ms);
+      return timestamp - (timestamp % intervalMs);
     }
 
     // ---------------------- //
@@ -214,31 +214,31 @@ public class Downsampler implements SeekableView, DataPoint {
     @Override
     public boolean hasNextValue() {
       initializeIfNotDone();
-      return has_next_value_from_source &&
-             next_dp.timestamp() < timestamp_end_interval;
+      return hasNextValueFromSource &&
+             nextDp.timestamp() < timestampEndInterval;
     }
 
     @Override
     public double nextDoubleValue() {
       if (hasNextValue()) {
-        double value = next_dp.toDouble();
+        double value = nextDp.toDouble();
         moveToNextValue();
         return value;
       }
       throw new NoSuchElementException("no more values in interval of "
-                                       + timestamp_end_interval);
+                                       + timestampEndInterval);
     }
 
     @Override
     public String toString() {
       final StringBuilder buf = new StringBuilder();
       buf.append("ValuesInInterval: ")
-          .append("interval_ms=").append(interval_ms)
-          .append(", timestamp_end_interval=").append(timestamp_end_interval)
-          .append(", has_next_value_from_source=")
-          .append(has_next_value_from_source);
-      if (has_next_value_from_source) {
-        buf.append(", nextValue=(").append(next_dp).append(')');
+          .append("intervalMs=").append(intervalMs)
+          .append(", timestampEndInterval=").append(timestampEndInterval)
+          .append(", hasNextValueFromSource=")
+          .append(hasNextValueFromSource);
+      if (hasNextValueFromSource) {
+        buf.append(", nextValue=(").append(nextDp).append(')');
       }
       buf.append(", source=").append(source);
       return buf.toString();

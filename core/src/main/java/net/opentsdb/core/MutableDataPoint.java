@@ -24,8 +24,8 @@ public final class MutableDataPoint implements DataPoint {
   /** The timestamp of the value. */
   private long timestamp = Long.MAX_VALUE;
   /** True if the value is stored as a long. */
-  private boolean is_integer = true;
-  /** A long value or a double encoded on a long if {@code is_integer} is false. */
+  private boolean isInteger = true;
+  /** A long value or a double encoded on a long if {@code isInteger} is false. */
   private long value = 0;
 
   /**
@@ -62,7 +62,7 @@ public final class MutableDataPoint implements DataPoint {
    */
   public void reset(final long timestamp, final double value) {
     this.timestamp = timestamp;
-    this.is_integer = false;
+    this.isInteger = false;
     this.value = Double.doubleToRawLongBits(value);
   }
 
@@ -74,7 +74,7 @@ public final class MutableDataPoint implements DataPoint {
    */
   public void reset(final long timestamp, final long value) {
     this.timestamp = timestamp;
-    this.is_integer = true;
+    this.isInteger = true;
     this.value = value;
   }
 
@@ -85,8 +85,8 @@ public final class MutableDataPoint implements DataPoint {
    */
   public void reset(DataPoint dp) {
     this.timestamp = dp.timestamp();
-    this.is_integer = dp.isInteger();
-    if (is_integer) {
+    this.isInteger = dp.isInteger();
+    if (isInteger) {
       this.value = dp.longValue();
     } else {
       this.value = Double.doubleToRawLongBits(dp.doubleValue());
@@ -100,12 +100,12 @@ public final class MutableDataPoint implements DataPoint {
 
   @Override
   public boolean isInteger() {
-    return is_integer;
+    return isInteger;
   }
 
   @Override
   public long longValue() {
-    if (is_integer) {
+    if (isInteger) {
       return value;
     }
     throw new ClassCastException("Not a long in " + this);
@@ -113,7 +113,7 @@ public final class MutableDataPoint implements DataPoint {
 
   @Override
   public double doubleValue() {
-    if (!is_integer) {
+    if (!isInteger) {
       return Double.longBitsToDouble(value);
     }
     throw new ClassCastException("Not a double in " + this);
@@ -121,7 +121,7 @@ public final class MutableDataPoint implements DataPoint {
 
   @Override
   public double toDouble() {
-    if (is_integer) {
+    if (isInteger) {
       return value;
     }
     return Double.longBitsToDouble(value);
@@ -129,8 +129,8 @@ public final class MutableDataPoint implements DataPoint {
 
   @Override
   public String toString() {
-    return "MutableDataPoint(timestamp=" + timestamp + ", is_integer=" +
-           is_integer + ", value=" +
-           (is_integer ? value : Double.longBitsToDouble(value)) + ")";
+    return "MutableDataPoint(timestamp=" + timestamp + ", isInteger=" +
+           isInteger + ", value=" +
+           (isInteger ? value : Double.longBitsToDouble(value)) + ")";
   }
 }

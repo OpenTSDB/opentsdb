@@ -292,20 +292,20 @@ public final class Aggregators {
 
     @Override
     public long runLong(final Longs values) {
-      double old_mean = values.nextLongValue();
+      double oldMean = values.nextLongValue();
 
       if (!values.hasNextValue()) {
         return 0;
       }
 
       long n = 2;
-      double new_mean = 0;
+      double newMean = 0;
       double variance = 0;
       do {
         final double x = values.nextLongValue();
-        new_mean = old_mean + (x - old_mean) / n;
-        variance += (x - old_mean) * (x - new_mean);
-        old_mean = new_mean;
+        newMean = oldMean + (x - oldMean) / n;
+        variance += (x - oldMean) * (x - newMean);
+        oldMean = newMean;
         n++;
       } while (values.hasNextValue());
 
@@ -314,20 +314,20 @@ public final class Aggregators {
 
     @Override
     public double runDouble(final Doubles values) {
-      double old_mean = values.nextDoubleValue();
+      double oldMean = values.nextDoubleValue();
 
       if (!values.hasNextValue()) {
         return 0;
       }
 
       long n = 2;
-      double new_mean = 0;
+      double newMean = 0;
       double variance = 0;
       do {
         final double x = values.nextDoubleValue();
-        new_mean = old_mean + (x - old_mean) / n;
-        variance += (x - old_mean) * (x - new_mean);
-        old_mean = new_mean;
+        newMean = oldMean + (x - oldMean) / n;
+        variance += (x - oldMean) * (x - newMean);
+        oldMean = newMean;
         n++;
       } while (values.hasNextValue());
 

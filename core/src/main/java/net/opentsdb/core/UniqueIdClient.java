@@ -48,10 +48,12 @@ public class UniqueIdClient {
   /** Unique IDs for the metric names. */
   final UniqueId metrics;
   /** Unique IDs for the tag names. */
-  final UniqueId tag_names;
+  final UniqueId tagKeys;
   /** Unique IDs for the tag values. */
-  final UniqueId tag_values;
-  private final TsdbStore tsdbStore;
+  final UniqueId tagValues;
+
+  private final TsdbStore store;
+
   private final IdLookupStrategy tagkLookupStrategy;
   private final IdLookupStrategy tagvLookupStrategy;
   private final IdLookupStrategy metricLookupStrategy;
@@ -61,14 +63,14 @@ public class UniqueIdClient {
   private final Timer tsuidQueryTimer;
 
   @Inject
-  public UniqueIdClient(final TsdbStore tsdbStore,
+  public UniqueIdClient(final TsdbStore store,
                         final Config config,
                         final MetricRegistry metricsRegistry,
                         final EventBus idEventBus,
                         final SearchPlugin searchPlugin) {
     checkNotNull(config);
 
-    this.tsdbStore = checkNotNull(tsdbStore);
+    this.store = checkNotNull(store);
     this.searchPlugin = checkNotNull(searchPlugin);
 
     tagkLookupStrategy = lookupStrategy(
@@ -78,9 +80,9 @@ public class UniqueIdClient {
     metricLookupStrategy = lookupStrategy(
         config.getBoolean("tsd.core.auto_create_metrics"));
 
-    metrics = new UniqueId(tsdbStore, UniqueIdType.METRIC, metricsRegistry, idEventBus);
-    tag_names = new UniqueId(tsdbStore, UniqueIdType.TAGK, metricsRegistry, idEventBus);
-    tag_values = new UniqueId(tsdbStore, UniqueIdType.TAGV, metricsRegistry, idEventBus);
+    metrics = new UniqueId(store, UniqueIdType.METRIC, metricsRegistry, idEventBus);
+    tagKeys = new UniqueId(store, UniqueIdType.TAGK, metricsRegistry, idEventBus);
+    tagValues = new UniqueId(store, UniqueIdType.TAGV, metricsRegistry, idEventBus);
 
     tsuidQueryTimer = metricsRegistry.timer(name("tsuid.query-time"));
   }
@@ -142,8 +144,8 @@ public class UniqueIdClient {
 
     // For each tag, start resolving the tag name and the tag value.
     for (final Map.Entry<String, String> entry : tags.entrySet()) {
-      tag_ids.add(tagkStrategy.getId(tag_names, entry.getKey()));
-      tag_ids.add(tagvStrategy.getId(tag_values, entry.getValue()));
+      tag_ids.add(tagkStrategy.getId(tagKeys, entry.getKey()));
+      tag_ids.add(tagvStrategy.getId(tagValues, entry.getValue()));
     }
 
     return Deferred.groupInOrder(tag_ids.build());
@@ -163,8 +165,8 @@ public class UniqueIdClient {
 
     final Iterator<LabelId> iterator = tags.iterator();
     while (iterator.hasNext()) {
-      deferreds.add(tag_names.getName(iterator.next()));
-      deferreds.add(tag_values.getName(iterator.next()));
+      deferreds.add(tagKeys.getName(iterator.next()));
+      deferreds.add(tagValues.getName(iterator.next()));
     }
 
     return Deferred.groupInOrder(deferreds)
@@ -187,9 +189,9 @@ public class UniqueIdClient {
       case METRIC:
         return metrics;
       case TAGK:
-        return tag_names;
+        return tagKeys;
       case TAGV:
-        return tag_values;
+        return tagValues;
       default:
         throw new IllegalArgumentException(type + " is unknown");
     }
@@ -202,8 +204,8 @@ public class UniqueIdClient {
    */
   public void dropCaches() {
     metrics.dropCaches();
-    tag_names.dropCaches();
-    tag_values.dropCaches();
+    tagKeys.dropCaches();
+    tagValues.dropCaches();
   }
 
   /**
@@ -346,7 +348,7 @@ public class UniqueIdClient {
         new Callback<Deferred<List<byte[]>>, ResolvedSearchQuery>() {
           @Override
           public Deferred<List<byte[]>> call(final ResolvedSearchQuery arg) {
-            return tsdbStore.executeTimeSeriesQuery(arg);
+            return store.executeTimeSeriesQuery(arg);
           }
         });
 
@@ -363,11 +365,11 @@ public class UniqueIdClient {
 
     return metric.addBothDeferring(new Callback<Deferred<ResolvedSearchQuery>, LabelId>() {
       @Override
-      public Deferred<ResolvedSearchQuery> call(final LabelId metric_id) {
+      public Deferred<ResolvedSearchQuery> call(final LabelId metricId) {
         return tags.addCallback(new Callback<ResolvedSearchQuery, SortedSet<Pair<LabelId, LabelId>>>() {
           @Override
-          public ResolvedSearchQuery call(final SortedSet<Pair<LabelId, LabelId>> tag_ids) {
-            return new ResolvedSearchQuery(metric_id, tag_ids);
+          public ResolvedSearchQuery call(final SortedSet<Pair<LabelId, LabelId>> tagIds) {
+            return new ResolvedSearchQuery(metricId, tagIds);
           }
         });
       }
@@ -380,8 +382,8 @@ public class UniqueIdClient {
       final List<Deferred<Pair<LabelId, LabelId>>> pairs = new ArrayList<>(tags.size());
 
       for (Pair<String, String> tag : tags) {
-        final Deferred<LabelId> tagk = lookupStrategy.getId(tag_names, tag.getKey());
-        final Deferred<LabelId> tagv = lookupStrategy.getId(tag_values, tag.getValue());
+        final Deferred<LabelId> tagk = lookupStrategy.getId(tagKeys, tag.getKey());
+        final Deferred<LabelId> tagv = lookupStrategy.getId(tagValues, tag.getValue());
 
         pairs.add(tagk.addCallbackDeferring(new TagKeyResolvedCallback(tagv)));
       }
@@ -410,22 +412,22 @@ public class UniqueIdClient {
     }
 
     @Override
-    public Deferred<Pair<LabelId, LabelId>> call(final LabelId tagk_id) {
-      return tagv.addCallback(new TagValueResolvedCallback(tagk_id));
+    public Deferred<Pair<LabelId, LabelId>> call(final LabelId tagkId) {
+      return tagv.addCallback(new TagValueResolvedCallback(tagkId));
     }
   }
 
   private static class TagValueResolvedCallback
       implements Callback<Pair<LabelId, LabelId>, LabelId> {
-    private final LabelId tagk_id;
+    private final LabelId tagkId;
 
-    public TagValueResolvedCallback(final LabelId tagk_id) {
-      this.tagk_id = tagk_id;
+    public TagValueResolvedCallback(final LabelId tagkId) {
+      this.tagkId = tagkId;
     }
 
     @Override
-    public Pair<LabelId, LabelId> call(final LabelId tagv_id) {
-      return Pair.create(tagk_id, tagv_id);
+    public Pair<LabelId, LabelId> call(final LabelId tagvId) {
+      return Pair.create(tagkId, tagvId);
     }
   }
 }

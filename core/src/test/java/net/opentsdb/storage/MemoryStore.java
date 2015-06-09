@@ -245,11 +245,11 @@ public class MemoryStore extends TsdbStore {
   }
 
   @Override
-  public Deferred<List<Annotation>> getGlobalAnnotations(final long start_time,
-                                                         final long end_time) {
+  public Deferred<List<Annotation>> getGlobalAnnotations(final long startTime,
+                                                         final long endTime) {
     //some sanity check should happen before this is called actually.
 
-    if (start_time < 1) {
+    if (startTime < 1) {
       throw new IllegalArgumentException("The start timestamp has not been set");
     }
 
@@ -257,7 +257,7 @@ public class MemoryStore extends TsdbStore {
     Collection<Annotation> globals = annotation_table.row("").values();
 
     for (Annotation global : globals) {
-      if (start_time <= global.getStartTime() && global.getStartTime() <= end_time) {
+      if (startTime <= global.getStartTime() && global.getStartTime() <= endTime) {
         annotations.add(global);
       }
     }
@@ -266,18 +266,18 @@ public class MemoryStore extends TsdbStore {
 
   @Override
   public Deferred<Integer> deleteAnnotationRange(final byte[] tsuid,
-                                                 final long start_time,
-                                                 final long end_time) {
+                                                 final long startTime,
+                                                 final long endTime) {
 
     //some sanity check should happen before this is called actually.
     //however we need to modify the start_time and end_time
 
-    if (start_time < 1) {
+    if (startTime < 1) {
       throw new IllegalArgumentException("The start timestamp has not been set");
     }
 
-    final long start = start_time % 1000 == 0 ? start_time / 1000 : start_time;
-    final long end = end_time % 1000 == 0 ? end_time / 1000 : end_time;
+    final long start = startTime % 1000 == 0 ? startTime / 1000 : startTime;
+    final long end = endTime % 1000 == 0 ? endTime / 1000 : endTime;
     String key = "";
 
     ArrayList<Annotation> del_list = new ArrayList<>();
@@ -304,17 +304,17 @@ public class MemoryStore extends TsdbStore {
    * Attempts to fetch a global or local annotation from storage
    *
    * @param tsuid The TSUID as a byte array. May be null if retrieving a global annotation
-   * @param start_time The start time as a Unix epoch timestamp
+   * @param startTime The start time as a Unix epoch timestamp
    * @return A valid annotation object if found, null if not
    */
   @Override
-  public Deferred<Annotation> getAnnotation(final byte[] tsuid, final long start_time) {
+  public Deferred<Annotation> getAnnotation(final byte[] tsuid, final long startTime) {
 
-    if (start_time < 1) {
+    if (startTime < 1) {
       throw new IllegalArgumentException("The start timestamp has not been set");
     }
 
-    long time = start_time % 1000 == 0 ? start_time / 1000 : start_time;
+    long time = startTime % 1000 == 0 ? startTime / 1000 : startTime;
 
     String key = "";
     if (tsuid != null) {

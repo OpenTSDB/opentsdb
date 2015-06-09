@@ -22,7 +22,7 @@ import java.util.Set;
 
 /**
  * Annotations are used to record time-based notes about timeseries events. Every note must have an
- * associated start_time as that determines where the note is stored.
+ * associated startTime as that determines where the note is stored.
  * <p/>
  * Annotations may be associated with a specific timeseries, in which case the tsuid must be
  * configured with a valid TSUID. If no TSUID is provided, the annotation is considered a "global"
@@ -45,9 +45,9 @@ public final class Annotation implements Comparable<Annotation> {
   /** If the note is associated with a timeseries, represents the ID */
   private String tsuid = "";
   /** The start timestamp associated wit this note in seconds or ms */
-  private long start_time = 0;
+  private long startTime = 0;
   /** Optional end time if the note represents an event that was resolved */
-  private long end_time = 0;
+  private long endTime = 0;
   /** A short description of the event, displayed in GUIs */
   private String description = "";
   /** A detailed accounting of the event or note */
@@ -58,19 +58,19 @@ public final class Annotation implements Comparable<Annotation> {
   public Annotation() {
   }
 
-  public Annotation(final String tsuid, final long start_time, final String description) {
-    this(tsuid, start_time, 0, description, null, null);
+  public Annotation(final String tsuid, final long startTime, final String description) {
+    this(tsuid, startTime, 0, description, null, null);
   }
 
   public Annotation(final String tsuid,
-                    final long start_time,
-                    final long end_time,
+                    final long startTime,
+                    final long endTime,
                     final String description,
                     final String notes,
                     final Map<String, String> custom) {
     this.tsuid = tsuid;
-    this.start_time = start_time;
-    this.end_time = end_time;
+    this.startTime = startTime;
+    this.endTime = endTime;
     this.description = description;
     this.notes = notes;
     this.custom = custom;
@@ -79,19 +79,19 @@ public final class Annotation implements Comparable<Annotation> {
   /** @return A string with information about the annotation object */
   @Override
   public String toString() {
-    return "TSUID: " + tsuid + " Start: " + start_time + "  Description: " +
+    return "TSUID: " + tsuid + " Start: " + startTime + "  Description: " +
            description;
   }
 
   /**
-   * Compares the {@code #start_time} of this annotation to the given note
+   * Compares the {@code #startTime} of this annotation to the given note
    *
    * @return 1 if the local start time is greater, -1 if it's less or 0 if equal
    */
   @Override
   public int compareTo(Annotation note) {
-    return start_time > note.start_time ? 1 :
-        start_time < note.start_time ? -1 : 0;
+    return startTime > note.startTime ? 1 :
+        startTime < note.startTime ? -1 : 0;
   }
 
   public boolean hasChanges() {
@@ -108,13 +108,13 @@ public final class Annotation implements Comparable<Annotation> {
    * local object
    */
   public void syncNote(final Annotation note, final boolean overwrite) {
-    if (note.start_time > 0 && (note.start_time < start_time || start_time == 0)) {
-      start_time = note.start_time;
+    if (note.startTime > 0 && (note.startTime < startTime || startTime == 0)) {
+      startTime = note.startTime;
     }
 
     // handle user-accessible stuff
-    if (!overwrite && !changed.contains("end_time")) {
-      end_time = note.end_time;
+    if (!overwrite && !changed.contains("endTime")) {
+      endTime = note.endTime;
     }
     if (!overwrite && !changed.contains("description")) {
       description = note.description;
@@ -149,26 +149,26 @@ public final class Annotation implements Comparable<Annotation> {
     this.tsuid = tsuid;
   }
 
-  /** @return the start_time */
+  /** @return the startTime */
   public final long getStartTime() {
-    return start_time;
+    return startTime;
   }
 
-  /** @param start_time the start_time, required for every annotation */
-  public void setStartTime(final long start_time) {
-    this.start_time = start_time;
+  /** @param startTime the startTime, required for every annotation */
+  public void setStartTime(final long startTime) {
+    this.startTime = startTime;
   }
 
-  /** @return the end_time, may be 0 */
+  /** @return the endTime, may be 0 */
   public final long getEndTime() {
-    return end_time;
+    return endTime;
   }
 
-  /** @param end_time the end_time, optional */
-  public void setEndTime(final long end_time) {
-    if (this.end_time != end_time) {
-      this.end_time = end_time;
-      changed.add("end_time");
+  /** @param endTime the endTime, optional */
+  public void setEndTime(final long endTime) {
+    if (this.endTime != endTime) {
+      this.endTime = endTime;
+      changed.add("endTime");
     }
   }
 
@@ -225,10 +225,10 @@ public final class Annotation implements Comparable<Annotation> {
 
     final Annotation that = (Annotation) o;
 
-    if (end_time != that.end_time) {
+    if (endTime != that.endTime) {
       return false;
     }
-    if (start_time != that.start_time) {
+    if (startTime != that.startTime) {
       return false;
     }
 
@@ -240,6 +240,6 @@ public final class Annotation implements Comparable<Annotation> {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(tsuid, start_time, end_time, description, notes, custom);
+    return Objects.hashCode(tsuid, startTime, endTime, description, notes, custom);
   }
 }

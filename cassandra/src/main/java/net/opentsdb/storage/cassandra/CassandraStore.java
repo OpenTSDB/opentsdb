@@ -74,7 +74,7 @@ public class CassandraStore extends TsdbStore {
   private final PreparedStatement addFloatStatement;
   private final PreparedStatement addDoubleStatement;
   private final PreparedStatement addLongStatement;
-  private PreparedStatement insert_tags_statement;
+  private PreparedStatement insertTagsStatement;
   /**
    * The statement used by the {@link #allocateUID} method.
    */
@@ -82,12 +82,12 @@ public class CassandraStore extends TsdbStore {
   /**
    * Used for {@link #allocateUID}, the one that does rename.
    */
-  private PreparedStatement update_uid_name_statement;
-  private PreparedStatement update_name_uid_statement;
+  private PreparedStatement updateUidNameStatement;
+  private PreparedStatement updateNameUidStatement;
   /**
    * The statement used when trying to get name or id.
    */
-  private PreparedStatement get_name_statement;
+  private PreparedStatement getNameStatement;
   private PreparedStatement getIdStatement;
 
 
@@ -138,22 +138,22 @@ public class CassandraStore extends TsdbStore {
         .setConsistencyLevel(ConsistencyLevel.ALL);
 
     CQL = "UPDATE tsdb." + Tables.ID_TO_NAME + " SET name = ? WHERE label_id = ? AND type = ?;";
-    update_uid_name_statement = session.prepare(CQL);
+    updateUidNameStatement = session.prepare(CQL);
 
     CQL = "BEGIN BATCH " +
           "DELETE FROM tsdb." + Tables.NAME_TO_ID + " WHERE name = ? AND type= ? " +
           "INSERT INTO tsdb." + Tables.NAME_TO_ID + " (name, type, label_id) VALUES (?, ?, ?) " +
           "APPLY BATCH;";
-    update_name_uid_statement = session.prepare(CQL);
+    updateNameUidStatement = session.prepare(CQL);
 
     CQL = "SELECT * FROM tsdb." + Tables.ID_TO_NAME + " WHERE label_id = ? AND type = ? LIMIT 2;";
-    get_name_statement = session.prepare(CQL);
+    getNameStatement = session.prepare(CQL);
 
     CQL = "SELECT * FROM tsdb." + Tables.NAME_TO_ID + " WHERE name = ? AND type = ? LIMIT 2;";
     getIdStatement = session.prepare(CQL);
 
     CQL = "INSERT INTO tsdb." + Tables.TS_INVERTED_INDEX + " (label_id, type, timeseries_id) VALUES (?, ?, ?);";
-    insert_tags_statement = session.prepare(CQL);
+    insertTagsStatement = session.prepare(CQL);
   }
 
   public Session getSession() {
@@ -161,7 +161,7 @@ public class CassandraStore extends TsdbStore {
   }
 
   @Override
-  public Deferred<Annotation> getAnnotation(byte[] tsuid, long start_time) {
+  public Deferred<Annotation> getAnnotation(byte[] tsuid, long startTime) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -239,18 +239,18 @@ public class CassandraStore extends TsdbStore {
   private void writeTimeseriesIdIndex(final byte[] metric,
                                       final Map<byte[], byte[]> tags,
                                       final ByteBuffer tsid) {
-    session.executeAsync(insert_tags_statement.bind()
+    session.executeAsync(insertTagsStatement.bind()
         .setLong(0, IdUtils.uidToLong(metric))
         .setString(1, UniqueIdType.METRIC.toValue())
         .setBytesUnsafe(2, tsid));
 
     for (final Map.Entry<byte[], byte[]> entry : tags.entrySet()) {
-      session.executeAsync(insert_tags_statement.bind()
+      session.executeAsync(insertTagsStatement.bind()
           .setLong(0, IdUtils.uidToLong(entry.getKey()))
           .setString(1, UniqueIdType.TAGK.toValue())
           .setBytesUnsafe(2, tsid));
 
-      session.executeAsync(insert_tags_statement.bind()
+      session.executeAsync(insertTagsStatement.bind()
           .setLong(0, IdUtils.uidToLong(entry.getValue()))
           .setString(1, UniqueIdType.TAGV.toValue())
           .setBytesUnsafe(2, tsid));
@@ -317,7 +317,7 @@ public class CassandraStore extends TsdbStore {
   ListenableFuture<List<String>> getNames(@Nonnull final LabelId id,
                                           @Nonnull final UniqueIdType type) {
     ResultSetFuture namesFuture = session.executeAsync(
-        get_name_statement.bind(id, type.toValue()));
+        getNameStatement.bind(id, type.toValue()));
 
     return transform(namesFuture, new Function<ResultSet, List<String>>() {
       @Override
@@ -504,13 +504,13 @@ public class CassandraStore extends TsdbStore {
                                        @Nonnull final UniqueIdType type) {
     // Get old name, we do this manually because the other method returns
     // a deferred and we want to avoid to mix deferreds between functions.
-    ResultSetFuture f = session.executeAsync(get_name_statement.bind(
+    ResultSetFuture f = session.executeAsync(getNameStatement.bind(
         toLong(uid), type.toValue()));
 
     final Deferred<LabelId> d = new Deferred<>();
 
     //CQL = "UPDATE tsdb." + Tables.ID_TO_NAME + " SET name = ? WHERE uid = ? AND type = ?;";
-    final BoundStatement s1 = new BoundStatement(update_uid_name_statement)
+    final BoundStatement s1 = new BoundStatement(updateUidNameStatement)
         .bind(name, toLong(uid), type.toValue());
 
     Futures.addCallback(f, new FutureCallback<ResultSet>() {
@@ -518,7 +518,7 @@ public class CassandraStore extends TsdbStore {
       public void onSuccess(ResultSet rows) {
         final String old_name = rows.one().getString("name");
         session.executeAsync(s1);
-        BoundStatement s = new BoundStatement(update_name_uid_statement);
+        BoundStatement s = new BoundStatement(updateNameUidStatement);
         // CQL =
         // BEGIN BATCH
         // DELETE FROM tsdb.name_to_id WHERE name = ? AND type = ?
@@ -549,12 +549,12 @@ public class CassandraStore extends TsdbStore {
   }
 
   @Override
-  public Deferred<List<Annotation>> getGlobalAnnotations(long start_time, long end_time) {
+  public Deferred<List<Annotation>> getGlobalAnnotations(long startTime, long endTime) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<Integer> deleteAnnotationRange(byte[] tsuid, long start_time, long end_time) {
+  public Deferred<Integer> deleteAnnotationRange(byte[] tsuid, long startTime, long endTime) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

@@ -37,22 +37,22 @@ public class RateOptions {
    * maximum value the counter will obtain before it rolls over. This value will default to
    * Long.MAX_VALUE.
    */
-  private long counter_max;
+  private long counterMax;
 
   /**
    * Specifies the the rate change value which, if exceeded, will be considered a data anomaly, such
    * as a system reset of the counter, and the rate will be returned as a zero value for a given
    * data point.
    */
-  private long reset_value;
+  private long resetValue;
 
   /**
    * Ctor
    */
   public RateOptions() {
     this.counter = false;
-    this.counter_max = Long.MAX_VALUE;
-    this.reset_value = DEFAULT_RESET_VALUE;
+    this.counterMax = Long.MAX_VALUE;
+    this.resetValue = DEFAULT_RESET_VALUE;
   }
 
   /**
@@ -60,16 +60,16 @@ public class RateOptions {
    *
    * @param counter If true, indicates that the rate calculation should assume that the underlying
    * data is from a counter
-   * @param counter_max Specifies the maximum value for the counter before it will roll over and
+   * @param counterMax Specifies the maximum value for the counter before it will roll over and
    * restart at 0
-   * @param reset_value Specifies the largest rate change that is considered acceptable, if a rate
+   * @param resetValue Specifies the largest rate change that is considered acceptable, if a rate
    * change is seen larger than this value then the counter is assumed to have been reset
    */
-  public RateOptions(final boolean counter, final long counter_max,
-                     final long reset_value) {
+  public RateOptions(final boolean counter, final long counterMax,
+                     final long resetValue) {
     this.counter = counter;
-    this.counter_max = counter_max;
-    this.reset_value = reset_value;
+    this.counterMax = counterMax;
+    this.resetValue = resetValue;
   }
 
   /** @return Whether or not the counter flag is set */
@@ -79,22 +79,22 @@ public class RateOptions {
 
   /** @return The counter max value */
   public long getCounterMax() {
-    return counter_max;
+    return counterMax;
   }
 
-  /** @param counter_max The value at which counters roll over */
-  public void setCounterMax(long counter_max) {
-    this.counter_max = counter_max;
+  /** @param counterMax The value at which counters roll over */
+  public void setCounterMax(long counterMax) {
+    this.counterMax = counterMax;
   }
 
   /** @return The optional reset value for anomaly suppression */
   public long getResetValue() {
-    return reset_value;
+    return resetValue;
   }
 
-  /** @param reset_value A difference that may be an anomaly so suppress it */
-  public void setResetValue(long reset_value) {
-    this.reset_value = reset_value;
+  /** @param resetValue A difference that may be an anomaly so suppress it */
+  public void setResetValue(long resetValue) {
+    this.resetValue = resetValue;
   }
 
   /** @param counter Whether or not the time series should be considered counters */
@@ -109,6 +109,6 @@ public class RateOptions {
    * @return string version of the rate option instance.
    */
   public String toString() {
-    return "{" + counter + ',' + counter_max + ',' + reset_value + '}';
+    return "{" + counter + ',' + counterMax + ',' + resetValue + '}';
   }
 }

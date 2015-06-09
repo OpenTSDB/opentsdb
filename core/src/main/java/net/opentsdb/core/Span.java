@@ -119,12 +119,12 @@ class Span implements DataPoints {
    */
   @Override
   public List<Annotation> getAnnotations() {
-    ImmutableList.Builder<Annotation> annot_builder = ImmutableList.builder();
+    ImmutableList.Builder<Annotation> annotBuilder = ImmutableList.builder();
     for (DataPoints row : rows) {
-      annot_builder.addAll(row.getAnnotations());
+      annotBuilder.addAll(row.getAnnotations());
     }
 
-    return annot_builder.build();
+    return annotBuilder.build();
   }
 
   /**
@@ -232,12 +232,12 @@ class Span implements DataPoints {
   /**
    * Package private iterator method to access data while downsampling.
    *
-   * @param interval_ms The interval in milli seconds wanted between each data point.
+   * @param intervalMs The interval in milli seconds wanted between each data point.
    * @param downsampler The downsampling function to use.
    */
-  Downsampler downsampler(final long interval_ms,
+  Downsampler downsampler(final long intervalMs,
                           final Aggregator downsampler) {
-    return new Downsampler(spanIterator(), interval_ms, downsampler);
+    return new Downsampler(spanIterator(), intervalMs, downsampler);
   }
 
   /** Iterator for {@link Span}s. */

@@ -49,9 +49,9 @@ public class SearchQuery {
   /** Limit the number of responses so we don't overload the TSD or client */
   private int limit;
   /** Used for paging through a result set */
-  private int start_index;
+  private int startIndex;
   /** Total results from the user */
-  private int total_results;
+  private int totalResults;
   /**
    * Ammount of time it took to complete the query (including parsing the response within the TSD
    */
@@ -145,8 +145,8 @@ public class SearchQuery {
             .append(tags.get(i).getValue()).append("}");
       }
     }
-    buf.append("], limit=").append(limit).append(", start_index=")
-        .append(start_index);
+    buf.append("], limit=").append(limit).append(", startIndex=")
+        .append(startIndex);
     return buf.toString();
   }
 
@@ -204,22 +204,22 @@ public class SearchQuery {
 
   /** @return The starting index for paging through results */
   public int getStartIndex() {
-    return start_index;
+    return startIndex;
   }
 
-  /** @param start_index Used for paging through a result set, starts at 0 */
-  public void setStartIndex(int start_index) {
-    this.start_index = start_index;
+  /** @param startIndex Used for paging through a result set, starts at 0 */
+  public void setStartIndex(int startIndex) {
+    this.startIndex = startIndex;
   }
 
   /** @return The total results matched on the query */
   public int getTotalResults() {
-    return total_results;
+    return totalResults;
   }
 
-  /** @param total_results The total number of results matched on the query */
-  public void setTotalResults(int total_results) {
-    this.total_results = total_results;
+  /** @param totalResults The total number of results matched on the query */
+  public void setTotalResults(int totalResults) {
+    this.totalResults = totalResults;
   }
 
   /** @return The amount of time it took to complete the query */

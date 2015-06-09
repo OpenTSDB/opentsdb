@@ -30,14 +30,14 @@ public class RateSpan implements SeekableView {
   private final SeekableView source;
   /** Options for calculating rates. */
   private final RateOptions options;
-  // TODO: use primitives for next_data, next_rate, and prev_rate instead
+  // TODO: use primitives for nextData, nextRate, and prevRate instead
   // in order to reduce memory and CPU overhead.
   /** The latter of two raw data points used to calculate the next rate. */
-  private final MutableDataPoint next_data = new MutableDataPoint();
+  private final MutableDataPoint nextData = new MutableDataPoint();
   /** The rate that will be returned at the {@link #next} call. */
-  private final MutableDataPoint next_rate = new MutableDataPoint();
+  private final MutableDataPoint nextRate = new MutableDataPoint();
   /** Users see this rate after they called next. */
-  private final MutableDataPoint prev_rate = new MutableDataPoint();
+  private final MutableDataPoint prevRate = new MutableDataPoint();
   /** True if it is initialized for iterating rates of changes. */
   private boolean initialized = false;
 
@@ -60,7 +60,7 @@ public class RateSpan implements SeekableView {
   @Override
   public boolean hasNext() {
     initializeIfNotDone();
-    return next_rate.timestamp() != INVALID_TIMESTAMP;
+    return nextRate.timestamp() != INVALID_TIMESTAMP;
   }
 
   /**
@@ -73,10 +73,10 @@ public class RateSpan implements SeekableView {
     if (hasNext()) {
       // NOTE: Just copies currentRate to prevRate, and does not allocate
       // any new DataPoint object to reduce the memory allocation overhead.
-      // So, users access data at prev_rate.
-      prev_rate.reset(next_rate);
+      // So, users access data at prevRate.
+      prevRate.reset(nextRate);
       populateNextRate();
-      return prev_rate;
+      return prevRate;
     } else {
       throw new NoSuchElementException("no more values for " + this);
     }
@@ -111,7 +111,7 @@ public class RateSpan implements SeekableView {
       // NOTE: Calculates the first rate between the time zero and the first
       // data point for the backward compatibility.
       // TODO: Don't compute the first rate with the time zero.
-      next_data.reset(0, 0);
+      nextData.reset(0, 0);
       // Sets the first rate to be retrieved.
       populateNextRate();
     }
@@ -123,11 +123,11 @@ public class RateSpan implements SeekableView {
   private void populateNextRate() {
     final MutableDataPoint prev_data = new MutableDataPoint();
     if (source.hasNext()) {
-      prev_data.reset(next_data);
-      next_data.reset(source.next());
+      prev_data.reset(nextData);
+      nextData.reset(source.next());
 
       final long t0 = prev_data.timestamp();
-      final long t1 = next_data.timestamp();
+      final long t1 = nextData.timestamp();
       if (t1 <= t0) {
         throw new IllegalStateException(
             "Next timestamp (" + t1 + ") is supposed to be "
@@ -139,40 +139,40 @@ public class RateSpan implements SeekableView {
       // the rate as is.
       final double time_delta_secs = ((double) (t1 - t0) / 1000.0);
       double difference;
-      if (prev_data.isInteger() && next_data.isInteger()) {
+      if (prev_data.isInteger() && nextData.isInteger()) {
         // NOTE: Calculates in the long type to avoid precision loss
         // while converting long values to double values if both values are long.
         // NOTE: Ignores the integer overflow.
-        difference = next_data.longValue() - prev_data.longValue();
+        difference = nextData.longValue() - prev_data.longValue();
       } else {
-        difference = next_data.toDouble() - prev_data.toDouble();
+        difference = nextData.toDouble() - prev_data.toDouble();
       }
 
       if (options.isCounter() && difference < 0) {
-        if (prev_data.isInteger() && next_data.isInteger()) {
+        if (prev_data.isInteger() && nextData.isInteger()) {
           // NOTE: Calculates in the long type to avoid precision loss
           // while converting long values to double values if both values are long.
           difference = options.getCounterMax() - prev_data.longValue() +
-                       next_data.longValue();
+                       nextData.longValue();
         } else {
           difference = options.getCounterMax() - prev_data.toDouble() +
-                       next_data.toDouble();
+                       nextData.toDouble();
         }
 
         // If the rate is greater than the reset value, return a 0
         final double rate = difference / time_delta_secs;
         if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
             && rate > options.getResetValue()) {
-          next_rate.reset(next_data.timestamp(), 0.0D);
+          nextRate.reset(nextData.timestamp(), 0.0D);
         } else {
-          next_rate.reset(next_data.timestamp(), rate);
+          nextRate.reset(nextData.timestamp(), rate);
         }
       } else {
-        next_rate.reset(next_data.timestamp(), (difference / time_delta_secs));
+        nextRate.reset(nextData.timestamp(), (difference / time_delta_secs));
       }
     } else {
       // Invalidates the next rate with invalid timestamp.
-      next_rate.reset(INVALID_TIMESTAMP, 0);
+      nextRate.reset(INVALID_TIMESTAMP, 0);
     }
   }
 
@@ -181,9 +181,9 @@ public class RateSpan implements SeekableView {
     final StringBuilder buf = new StringBuilder();
     buf.append("RateSpan: ")
         .append(", options=").append(options)
-        .append(", next_data=[").append(next_data)
-        .append("], next_rate=[").append(next_rate)
-        .append("], prev_rate=[").append(prev_rate)
+        .append(", nextData=[").append(nextData)
+        .append("], nextRate=[").append(nextRate)
+        .append("], prevRate=[").append(prevRate)
         .append("], source=[").append(source).append("]");
     return buf.toString();
   }

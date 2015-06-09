@@ -32,29 +32,24 @@ public class UniqueId {
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
 
   /** The TsdbStore to use. */
-  private final TsdbStore tsdb_store;
+  private final TsdbStore store;
 
   /** The type of UID represented by this cache */
   private final UniqueIdType type;
 
   /** Cache for forward mappings (name to ID). */
-  private final ConcurrentHashMap<String, LabelId> name_cache =
-      new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, LabelId> nameCache = new ConcurrentHashMap<>();
 
-  /**
-   * Cache for backward mappings (ID to name).
-   */
-  private final ConcurrentHashMap<LabelId, String> id_cache =
-      new ConcurrentHashMap<>();
+  /** Cache for backward mappings (ID to name). */
+  private final ConcurrentHashMap<LabelId, String> idCache = new ConcurrentHashMap<>();
 
   /** Map of pending UID assignments */
-  private final HashMap<String, Deferred<LabelId>> pending_assignments =
-      new HashMap<>();
+  private final HashMap<String, Deferred<LabelId>> pendingAssignments = new HashMap<>();
 
   /** Number of times we avoided reading from TsdbStore thanks to the cache. */
-  private final Counter cache_hits;
+  private final Counter cacheHits;
   /** Number of times we had to read from TsdbStore and populate the cache. */
-  private final Counter cache_misses;
+  private final Counter cacheMisses;
 
   /**
    * The event bus to which the id changes done by this instance will be published.
@@ -64,34 +59,34 @@ public class UniqueId {
   /**
    * Constructor.
    *
-   * @param tsdb_store The TsdbStore to use.
+   * @param store The TsdbStore to use.
    * @param type The type of UIDs this instance represents
    * @param metrics
    * @param idEventBus
    */
-  public UniqueId(final TsdbStore tsdb_store,
+  public UniqueId(final TsdbStore store,
                   final UniqueIdType type,
                   final MetricRegistry metrics,
                   final EventBus idEventBus) {
-    this.tsdb_store = checkNotNull(tsdb_store);
+    this.store = checkNotNull(store);
     this.type = checkNotNull(type);
     this.idEventBus = checkNotNull(idEventBus);
 
-    cache_hits = new Counter();
-    cache_misses = new Counter();
+    cacheHits = new Counter();
+    cacheMisses = new Counter();
     registerMetrics(metrics);
 
   }
 
   private void registerMetrics(final MetricRegistry registry) {
     Metrics.Tag typeTag = tag("kind", type.toValue());
-    registry.register(name("uid.cache-hit", typeTag), cache_hits);
-    registry.register(name("uid.cache-miss", typeTag), cache_misses);
+    registry.register(name("uid.cache-hit", typeTag), cacheHits);
+    registry.register(name("uid.cache-miss", typeTag), cacheMisses);
 
     registry.register(name("uid.cache-size", typeTag), new Gauge<Integer>() {
       @Override
       public Integer getValue() {
-        return name_cache.size() + id_cache.size();
+        return nameCache.size() + idCache.size();
       }
     });
   }
@@ -102,8 +97,8 @@ public class UniqueId {
    * @since 1.1
    */
   public void dropCaches() {
-    name_cache.clear();
-    id_cache.clear();
+    nameCache.clear();
+    idCache.clear();
   }
 
   /**
@@ -121,10 +116,10 @@ public class UniqueId {
   public Deferred<String> getName(@Nonnull final LabelId id) {
     final String name = getNameFromCache(id);
     if (name != null) {
-      cache_hits.inc();
+      cacheHits.inc();
       return Deferred.fromResult(name);
     }
-    cache_misses.inc();
+    cacheMisses.inc();
     class GetNameCB implements Callback<String, Optional<String>> {
       @Override
       public String call(final Optional<String> name) {
@@ -137,19 +132,19 @@ public class UniqueId {
         throw new NoSuchUniqueId(type, id);
       }
     }
-    return tsdb_store.getName(id, type).addCallback(new GetNameCB());
+    return store.getName(id, type).addCallback(new GetNameCB());
   }
 
   @Nullable
   private String getNameFromCache(@Nonnull final LabelId id) {
-    return id_cache.get(id);
+    return idCache.get(id);
   }
 
   private void addNameToCache(@Nonnull final LabelId id,
                               @Nonnull final String name) {
-    String found = id_cache.get(id);
+    String found = idCache.get(id);
     if (found == null) {
-      found = id_cache.putIfAbsent(id, name);
+      found = idCache.putIfAbsent(id, name);
     }
     if (found != null && !found.equals(name)) {
       throw new IllegalStateException("id=" + id + " => name="
@@ -161,10 +156,10 @@ public class UniqueId {
   public Deferred<LabelId> getId(@Nonnull final String name) {
     final LabelId id = getIdFromCache(name);
     if (id != null) {
-      cache_hits.inc();
+      cacheHits.inc();
       return Deferred.fromResult(id);
     }
-    cache_misses.inc();
+    cacheMisses.inc();
     class GetIdCB implements Callback<LabelId, Optional<LabelId>> {
       @Override
       public LabelId call(final Optional<LabelId> id) {
@@ -177,19 +172,19 @@ public class UniqueId {
         throw new NoSuchUniqueName(type.toValue(), name);
       }
     }
-    return tsdb_store.getId(name, type).addCallback(new GetIdCB());
+    return store.getId(name, type).addCallback(new GetIdCB());
   }
 
   @Nullable
   private LabelId getIdFromCache(@Nonnull final String name) {
-    return name_cache.get(name);
+    return nameCache.get(name);
   }
 
   private void addIdToCache(@Nonnull final String name,
                             @Nonnull final LabelId id) {
-    LabelId found = name_cache.get(name);
+    LabelId found = nameCache.get(name);
     if (found == null) {
-      found = name_cache.putIfAbsent(name, id);
+      found = nameCache.putIfAbsent(name, id);
     }
     if (found != null && !found.equals(id)) {
       throw new IllegalStateException("name=" + name + " => id="
@@ -213,8 +208,8 @@ public class UniqueId {
   @Nonnull
   public Deferred<LabelId> createId(@Nonnull final String name) {
     Deferred<LabelId> assignment;
-    synchronized (pending_assignments) {
-      assignment = pending_assignments.get(name);
+    synchronized (pendingAssignments) {
+      assignment = pendingAssignments.get(name);
       if (assignment == null) {
         // to prevent UID leaks that can be caused when multiple time
         // series for the same metric or tags arrive, we need to write a
@@ -222,7 +217,7 @@ public class UniqueId {
         // start the assignment process after we've stashed the deferred
         // and released the lock
         assignment = new Deferred<>();
-        pending_assignments.put(name, assignment);
+        pendingAssignments.put(name, assignment);
       } else {
         LOG.info("Already waiting for UID assignment: {}", name);
         return assignment;
@@ -230,7 +225,7 @@ public class UniqueId {
     }
 
     // start the assignment dance after stashing the deferred
-    Deferred<LabelId> uid = tsdb_store.allocateUID(name, type);
+    Deferred<LabelId> uid = store.allocateUID(name, type);
 
     uid.addCallback(new Callback<Object, LabelId>() {
       @Override
@@ -238,8 +233,8 @@ public class UniqueId {
         cacheMapping(name, uid);
 
         LOG.info("Completed pending assignment for: {}", name);
-        synchronized (pending_assignments) {
-          pending_assignments.remove(name);
+        synchronized (pendingAssignments) {
+          pendingAssignments.remove(name);
         }
 
         idEventBus.post(new LabelCreatedEvent(uid, name, type));
@@ -277,16 +272,16 @@ public class UniqueId {
 
         return getId(oldname).addCallbackDeferring(new Callback<Deferred<Void>, LabelId>() {
           @Override
-          public Deferred<Void> call(final LabelId old_uid) {
-            tsdb_store.allocateUID(newname, old_uid, type);
+          public Deferred<Void> call(final LabelId oldUid) {
+            store.allocateUID(newname, oldUid, type);
 
             // Update cache.
-            addIdToCache(newname, old_uid);  // add     new name -> ID
-            id_cache.put(old_uid, newname);  // update  ID -> new name
-            name_cache.remove(oldname);      // remove  old name -> ID
+            addIdToCache(newname, oldUid);  // add     new name -> ID
+            idCache.put(oldUid, newname);  // update  ID -> new name
+            nameCache.remove(oldname);      // remove  old name -> ID
 
             // Delete the old forward mapping.
-            return tsdb_store.deleteUID(oldname, type);
+            return store.deleteUID(oldname, type);
           }
         });
       }

@@ -153,27 +153,27 @@ public class IdUtils {
   }
 
   /**
-   * Converts a hex string to a byte array If the {@code uid} is less than {@code uid_length * 2}
+   * Converts a hex string to a byte array If the {@code uid} is less than {@code uidLength * 2}
    * characters wide, it will be padded with 0s to conform to the spec. E.g. if the tagk width is 3
    * and the given {@code uid} string is "1", the string will be padded to "000001" and then
    * converted to a byte array to reach 3 bytes. All {@code uid}s are padded to 1 byte. If given
-   * "1", and {@code uid_length} is 0, the uid will be padded to "01" then converted.
+   * "1", and {@code uidLength} is 0, the uid will be padded to "01" then converted.
    *
    * @param uid The UID to convert
-   * @param uid_length An optional length, in bytes, that the UID must conform to. Set to 0 if not
+   * @param uidLength An optional length, in bytes, that the UID must conform to. Set to 0 if not
    * used.
    * @return The UID as a byte array
    * @throws NullPointerException if the ID was null
    * @throws IllegalArgumentException if the string is not valid hex
    * @since 2.0
    */
-  public static byte[] stringToUid(final String uid, final short uid_length) {
+  public static byte[] stringToUid(final String uid, final short uidLength) {
     if (uid == null || uid.isEmpty()) {
       throw new IllegalArgumentException("UID was empty");
     }
     String id = uid;
-    if (uid_length > 0) {
-      while (id.length() < uid_length * 2) {
+    if (uidLength > 0) {
+      while (id.length() < uidLength * 2) {
         id = "0" + id;
       }
     } else {
@@ -185,24 +185,24 @@ public class IdUtils {
   }
 
   /**
-   * Converts a UID to an integer value. The array must be the same length as uid_length or an
+   * Converts a UID to an integer value. The array must be the same length as uidLength or an
    * exception will be thrown.
    *
    * @param uid The byte array to convert
-   * @param uid_length Length the array SHOULD be according to the UID config
+   * @param uidLength Length the array SHOULD be according to the UID config
    * @return The UID converted to an integer
-   * @throws IllegalArgumentException if the length of the byte array does not match the uid_length
+   * @throws IllegalArgumentException if the length of the byte array does not match the uidLength
    * value
    * @since 2.1
    */
-  public static long uidToLong(final byte[] uid, final short uid_length) {
-    if (uid.length != uid_length) {
+  public static long uidToLong(final byte[] uid, final short uidLength) {
+    if (uid.length != uidLength) {
       throw new IllegalArgumentException("UID was " + uid.length
-                                         + " bytes long but expected to be " + uid_length);
+                                         + " bytes long but expected to be " + uidLength);
     }
 
     final byte[] uid_raw = new byte[8];
-    System.arraycopy(uid, 0, uid_raw, 8 - uid_length, uid_length);
+    System.arraycopy(uid, 0, uid_raw, 8 - uidLength, uidLength);
     return Longs.fromByteArray(uid_raw);
   }
 

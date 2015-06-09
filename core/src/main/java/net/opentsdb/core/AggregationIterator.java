@@ -189,7 +189,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
     values = new long[size * 2];
     // Initialize every Iterator, fetch their first values that fall
     // within our time range.
-    int num_empty_spans = 0;
+    int numEmptySpans = 0;
     for (int i = 0; i < size; i++) {
       SeekableView it = iterators[i];
 
@@ -201,7 +201,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
         // we throw away some data points at the beginning after aligning
         // start time by downsmpling interval and there are no data points
         // left for the current span.
-        ++num_empty_spans;
+        ++numEmptySpans;
         endReached(i);
         continue;
       }
@@ -223,9 +223,9 @@ final class AggregationIterator implements SeekableView, DataPoint,
         }
       }
     }
-    if (num_empty_spans > 0) {
+    if (numEmptySpans > 0) {
       LOG.debug(String.format("%d out of %d spans are empty!",
-          num_empty_spans, size));
+          numEmptySpans, size));
     }
   }
 
@@ -236,18 +236,18 @@ final class AggregationIterator implements SeekableView, DataPoint,
    * @param aggregator The aggregation function to use.
    * @param method Interpolation method to use when aggregating time series
    * @param downsampler Aggregation function to use to group data points within an interval.
-   * @param sample_interval_ms Number of milliseconds wanted between each data point.
+   * @param sampleIntervalMs Number of milliseconds wanted between each data point.
    * @param rate If {@code true}, the rate of the series will be used instead of the actual values.
-   * @param rate_options Specifies the optional additional rate calculation options.
+   * @param rateOptions Specifies the optional additional rate calculation options.
    * @return An {@link AggregationIterator} object.
    */
   public static AggregationIterator create(final List<Span> spans,
                                            final Aggregator aggregator,
                                            final Interpolation method,
                                            final Aggregator downsampler,
-                                           final long sample_interval_ms,
+                                           final long sampleIntervalMs,
                                            final boolean rate,
-                                           final RateOptions rate_options) {
+                                           final RateOptions rateOptions) {
     final int size = spans.size();
     final SeekableView[] iterators = new SeekableView[size];
     for (int i = 0; i < size; i++) {
@@ -255,10 +255,10 @@ final class AggregationIterator implements SeekableView, DataPoint,
       if (downsampler == null) {
         it = spans.get(i).spanIterator();
       } else {
-        it = spans.get(i).downsampler(sample_interval_ms, downsampler);
+        it = spans.get(i).downsampler(sampleIntervalMs, downsampler);
       }
       if (rate) {
-        it = new RateSpan(it, rate_options);
+        it = new RateSpan(it, rateOptions);
       }
       iterators[i] = it;
     }
@@ -336,7 +336,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
   @Override
   public DataPoint next() {
     final int size = iterators.length;
-    long min_ts = Long.MAX_VALUE;
+    long minTs = Long.MAX_VALUE;
 
     // In case we reached the end of one or more Spans, we need to make sure
     // we mark them as such by zeroing their current timestamp.  There may
@@ -358,13 +358,13 @@ final class AggregationIterator implements SeekableView, DataPoint,
     boolean multiple = false;
     for (int i = 0; i < size; i++) {
       final long timestamp = timestamps[size + i] & TIME_MASK;
-      if (timestamp < min_ts) {
-        min_ts = timestamp;
+      if (timestamp < minTs) {
+        minTs = timestamp;
         current = i;
         // We just found a new minimum so right now we can't possibly have
         // multiple Spans with the same minimum.
         multiple = false;
-      } else if (timestamp == min_ts) {
+      } else if (timestamp == minTs) {
         multiple = true;
       }
     }
@@ -373,12 +373,12 @@ final class AggregationIterator implements SeekableView, DataPoint,
     }
     moveToNext(current);
     if (multiple) {
-      //LOG.debug("Moving multiple DPs at time " + min_ts);
+      //LOG.debug("Moving multiple DPs at time " + minTs);
       // We know we saw at least one other data point with the same minimum
       // timestamp after `current', so let's move those ones too.
       for (int i = current + 1; i < size; i++) {
         final long timestamp = timestamps[size + i] & TIME_MASK;
-        if (timestamp == min_ts) {
+        if (timestamp == minTs) {
           moveToNext(i);
         }
       }
@@ -491,16 +491,16 @@ final class AggregationIterator implements SeekableView, DataPoint,
   /**
    * Returns whether or not there are more values to aggregate.
    *
-   * @param update_pos Whether or not to also move the internal pointer {@link #pos} to the index of
+   * @param updatePos Whether or not to also move the internal pointer {@link #pos} to the index of
    * the next value to aggregate.
    * @return true if there are more values to aggregate, false otherwise.
    */
-  private boolean hasNextValue(boolean update_pos) {
+  private boolean hasNextValue(boolean updatePos) {
     final int size = iterators.length;
     for (int i = pos + 1; i < size; i++) {
       if (timestamps[i] != 0) {
         //LOG.debug("hasNextValue -> true #" + i);
-        if (update_pos) {
+        if (updatePos) {
           pos = i;
         }
         return true;

@@ -38,18 +38,18 @@ public class StoreModule {
   @Singleton
   StoreDescriptor provideStoreDescriptor(final Config config,
                                          final Iterable<StoreDescriptor> storePlugins) {
-    String adapter_type = config.getString("tsd.storage.adapter");
+    String adapterType = config.getString("tsd.storage.adapter");
 
     for (final StoreDescriptor storeDescriptor : storePlugins) {
       String pluginName = storeDescriptor.getClass().getCanonicalName();
 
-      if (pluginName.equals(adapter_type)) {
+      if (pluginName.equals(adapterType)) {
         return storeDescriptor;
       }
     }
 
     throw new InvalidConfigException(config.getValue("tsd.storage.adapter"),
-        "Found no storage adapter that matches '" + adapter_type + "'");
+        "Found no storage adapter that matches '" + adapterType + "'");
   }
 
   /**

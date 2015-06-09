@@ -12,8 +12,8 @@ import java.util.Map;
 @JsonIgnoreProperties(ignoreUnknown = true)
 abstract class AnnotationMixIn {
   AnnotationMixIn(@JsonProperty("tsuid") final String tsuid,
-                  @JsonProperty("startTime") final long start_time,
-                  @JsonProperty("endTime") final long end_time,
+                  @JsonProperty("startTime") final long startTime,
+                  @JsonProperty("endTime") final long endTime,
                   @JsonProperty("description") final String description,
                   @JsonProperty("notes") final String notes,
                   @JsonProperty("custom") final Map<String, String> custom) {

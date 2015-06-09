@@ -17,7 +17,7 @@ abstract class LabelMetaMixIn {
   LabelMetaMixIn(@JacksonInject final byte[] uid,
                  @JsonProperty("type") final UniqueIdType type,
                  @JacksonInject final String name,
-                 @JsonProperty("displayName") final String display_name,
+                 @JsonProperty("displayName") final String displayName,
                  @JsonProperty("description") final String description,
                  @JsonProperty("notes") final String notes,
                  @JsonProperty("custom") final Map<String, String> custom,

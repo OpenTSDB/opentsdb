@@ -109,20 +109,20 @@ public abstract class TsdbStore implements Closeable {
   public abstract Deferred<Void> delete(Annotation annotation);
 
   public abstract Deferred<Integer> deleteAnnotationRange(final byte[] tsuid,
-                                                          final long start_time,
-                                                          final long end_time);
+                                                          final long startTime,
+                                                          final long endTime);
 
   /**
    * Attempts to fetch a global or local annotation from storage
    *
    * @param tsuid The TSUID as a byte array. May be null if retrieving a global annotation
-   * @param start_time The start time as a Unix epoch timestamp
+   * @param startTime The start time as a Unix epoch timestamp
    * @return A valid annotation object if found, null if not
    */
-  public abstract Deferred<Annotation> getAnnotation(byte[] tsuid, long start_time);
+  public abstract Deferred<Annotation> getAnnotation(byte[] tsuid, long startTime);
 
-  public abstract Deferred<List<Annotation>> getGlobalAnnotations(final long start_time,
-                                                                  final long end_time);
+  public abstract Deferred<List<Annotation>> getGlobalAnnotations(final long startTime,
+                                                                  final long endTime);
 
   public abstract Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation);
 

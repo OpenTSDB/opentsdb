@@ -16,7 +16,7 @@ import io.netty.handler.stream.ChunkedWriteHandler;
 import java.util.Map;
 
 public class HttpServerInitializer extends ChannelInitializer<SocketChannel> {
-  private final int max_content_length;
+  private final int maxContentLength;
 
   private final HttpRouterHandler routerHandler;
   private final ExceptionHandler exceptionHandler;
@@ -25,10 +25,10 @@ public class HttpServerInitializer extends ChannelInitializer<SocketChannel> {
   public HttpServerInitializer(final Map<String, Resource> resources,
                                final Resource defaultResource,
                                final CorsConfig corsConfig,
-                               final int max_content_length) {
+                               final int maxContentLength) {
     this.routerHandler = new HttpRouterHandler(resources, defaultResource);
     this.exceptionHandler = new ExceptionHandler();
-    this.max_content_length = max_content_length;
+    this.maxContentLength = maxContentLength;
     this.corsConfig = corsConfig;
   }
 
@@ -37,7 +37,7 @@ public class HttpServerInitializer extends ChannelInitializer<SocketChannel> {
     ChannelPipeline pipeline = ch.pipeline();
 
     pipeline.addLast(new HttpServerCodec());
-    pipeline.addLast(new HttpObjectAggregator(max_content_length));
+    pipeline.addLast(new HttpObjectAggregator(maxContentLength));
     pipeline.addLast(new HttpContentDecompressor());
     pipeline.addLast(new HttpContentCompressor());
     pipeline.addLast(new ChunkedWriteHandler());
