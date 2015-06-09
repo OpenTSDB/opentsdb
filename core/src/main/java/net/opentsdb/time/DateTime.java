@@ -59,7 +59,7 @@ public class DateTime {
    * @throws NullPointerException if the timestamp is null
    * @throws IllegalArgumentException if the request was malformed
    */
-  public static final long parseDateTimeString(final String datetime,
+  public static long parseDateTimeString(final String datetime,
                                                final String tz) {
     if (datetime == null || datetime.isEmpty()) {
       return -1;
@@ -154,7 +154,7 @@ public class DateTime {
    * @return A strictly positive number of milliseconds.
    * @throws IllegalArgumentException if the interval was malformed.
    */
-  public static final long parseDuration(final String duration) {
+  public static long parseDuration(final String duration) {
     long interval;
     long multiplier;
     double temp;

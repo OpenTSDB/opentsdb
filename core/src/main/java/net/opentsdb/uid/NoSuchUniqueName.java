@@ -35,7 +35,7 @@ public final class NoSuchUniqueName extends NoSuchElementException {
    * @param name The name that couldn't be found.
    */
   public NoSuchUniqueName(final String kind, final String name) {
-    super("No such name for '" + kind + "': '" + name + "'");
+    super("No such name for '" + kind + "': '" + name + '\'');
     this.kind = kind;
     this.name = name;
   }

@@ -58,7 +58,7 @@ public class IdUtils {
           "TSUID is too short, may be missing tags");
     }
 
-    final List<byte[]> tags = new ArrayList<byte[]>();
+    final List<byte[]> tags = new ArrayList<>();
     final int pair_width = Const.TAG_NAME_WIDTH + Const.TAG_VALUE_WIDTH;
 
     // start after the metric then iterate over each tagk/tagv pair
@@ -89,7 +89,7 @@ public class IdUtils {
           "TSUID is too short, may be missing tags");
     }
 
-    final List<byte[]> tags = new ArrayList<byte[]>();
+    final List<byte[]> tags = new ArrayList<>();
     final int pair_width = (Const.TAG_NAME_WIDTH * 2) + (Const.TAG_VALUE_WIDTH * 2);
 
     // start after the metric then iterate over each tagk/tagv pair
@@ -174,11 +174,11 @@ public class IdUtils {
     String id = uid;
     if (uidLength > 0) {
       while (id.length() < uidLength * 2) {
-        id = "0" + id;
+        id = '0' + id;
       }
     } else {
       if (id.length() % 2 > 0) {
-        id = "0" + id;
+        id = '0' + id;
       }
     }
     return DatatypeConverter.parseHexBinary(id);

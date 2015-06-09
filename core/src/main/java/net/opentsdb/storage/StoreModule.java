@@ -49,7 +49,7 @@ public class StoreModule {
     }
 
     throw new InvalidConfigException(config.getValue("tsd.storage.adapter"),
-        "Found no storage adapter that matches '" + adapterType + "'");
+        "Found no storage adapter that matches '" + adapterType + '\'');
   }
 
   /**

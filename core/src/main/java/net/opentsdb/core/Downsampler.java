@@ -13,6 +13,8 @@
 
 package net.opentsdb.core;
 
+import com.google.common.base.MoreObjects;
+
 import java.util.NoSuchElementException;
 
 
@@ -80,14 +82,13 @@ public class Downsampler implements SeekableView, DataPoint {
 
   @Override
   public String toString() {
-    final StringBuilder buf = new StringBuilder();
-    buf.append("Downsampler: ")
-        .append("intervalMs=").append(valuesInInterval.intervalMs)
-        .append(", downsampler=").append(downsampler)
-        .append(", current data=(timestamp=").append(timestamp)
-        .append(", value=").append(value)
-        .append("), valuesInInterval=").append(valuesInInterval);
-    return buf.toString();
+    return MoreObjects.toStringHelper(this)
+        .add("intervalMs", valuesInInterval.intervalMs)
+        .add("downsampler", downsampler)
+        .add("current_data.timestamp", timestamp)
+        .add("current_data.value", value)
+        .add("valuesInInterval", valuesInInterval)
+        .toString();
   }
 
   @Override

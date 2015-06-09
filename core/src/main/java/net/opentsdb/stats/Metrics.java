@@ -20,7 +20,7 @@ public class Metrics {
         .append(metric);
 
     if (tags.length > 0) {
-      sb.append(":");
+      sb.append(':');
       Joiner.on(",").appendTo(sb, tags);
     }
 
@@ -50,7 +50,7 @@ public class Metrics {
 
     @Override
     public String toString() {
-      return key + "=" + value;
+      return key + '=' + value;
     }
   }
 }

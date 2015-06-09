@@ -82,7 +82,7 @@ public abstract class TestSearchPlugin {
    * use errbacks for exceptions in the proper spots
    */
   @Ignore
-  final class Errback implements Callback<Object, Exception> {
+  static final class Errback implements Callback<Object, Exception> {
     @Override
     public Object call(final Exception e) {
       assertNotNull(e);

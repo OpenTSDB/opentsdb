@@ -88,7 +88,7 @@ public final class TSSubQuery {
           buf.append(", ");
         }
         buf.append(entry.getKey())
-            .append("=")
+            .append('=')
             .append(entry.getValue());
         counter++;
       }
@@ -114,7 +114,7 @@ public final class TSSubQuery {
         .append(rate)
         .append(", rate_options=")
         .append(rate_options);
-    buf.append(")");
+    buf.append(')');
     return buf.toString();
   }
 
@@ -151,7 +151,7 @@ public final class TSSubQuery {
       // `-'.
       if (dash < 0) {
         throw new IllegalArgumentException("Invalid downsampling specifier '"
-                                           + downsample + "' in [" + downsample + "]");
+                                           + downsample + "' in [" + downsample + ']');
       }
       try {
         downsampler = Aggregators.get(downsample.substring(dash + 1));

@@ -124,7 +124,7 @@ public class IdUtilsTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void getTagPairsFromTSUIDBytesNull() {
-    IdUtils.getTagPairsFromTSUID((byte[]) null);
+    IdUtils.getTagPairsFromTSUID(null);
   }
 
   @Test(expected = IllegalArgumentException.class)

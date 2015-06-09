@@ -67,8 +67,8 @@ public interface DataPoints extends Iterable<DataPoint>, Comparable<DataPoints> 
   /**
    * Returns the number of data points.
    * <p/>
-   * This method must be implemented in {@code O(1)} or {@code O(n)} where <code>n = {@link
-   * #aggregatedSize} &gt; 0</code>.
+   * This method must be implemented in {@code O(1)} or {@code O(n)} where {@code n = {@link
+   * #aggregatedSize} &gt; 0}.
    *
    * @return A positive integer.
    */
@@ -103,13 +103,13 @@ public interface DataPoints extends Iterable<DataPoint>, Comparable<DataPoints> 
    * Returns the timestamp associated with the {@code i}th data point. The first data point has
    * index 0.
    * <p/>
-   * This method must be implemented in <code>O({@link #aggregatedSize})</code> or better.
+   * This method must be implemented in {@code O({@link #aggregatedSize})} or better.
    * <p/>
    * It is guaranteed that <pre>timestamp(i) &lt; timestamp(i+1)</pre>
    *
    * @return A strictly positive integer.
-   * @throws IndexOutOfBoundsException if {@code i} is not in the range <code>[0, {@link #size} -
-   * 1]</code>
+   * @throws IndexOutOfBoundsException if {@code i} is not in the range {@code [0, {@link #size} -
+   * 1]}
    */
   long timestamp(int i);
 
@@ -117,24 +117,24 @@ public interface DataPoints extends Iterable<DataPoint>, Comparable<DataPoints> 
    * Tells whether or not the {@code i}th value is of integer type. The first data point has index
    * 0.
    * <p/>
-   * This method must be implemented in <code>O({@link #aggregatedSize})</code> or better.
+   * This method must be implemented in {@code O({@link #aggregatedSize})} or better.
    *
    * @return {@code true} if the {@code i}th value is of integer type, {@code false} if it's of
    * floating point type.
-   * @throws IndexOutOfBoundsException if {@code i} is not in the range <code>[0, {@link #size} -
-   * 1]</code>
+   * @throws IndexOutOfBoundsException if {@code i} is not in the range {@code [0, {@link #size} -
+   * 1]}
    */
   boolean isInteger(int i);
 
   /**
    * Returns the value of the {@code i}th data point as a long. The first data point has index 0.
    * <p/>
-   * This method must be implemented in <code>O({@link #aggregatedSize})</code> or better. Use
+   * This method must be implemented in {@code O({@link #aggregatedSize})} or better. Use
    * {@link #iterator} to get successive {@code O(1)} accesses.
    *
-   * @throws IndexOutOfBoundsException if {@code i} is not in the range <code>[0, {@link #size} -
-   * 1]</code>
-   * @throws ClassCastException if the <code>{@link #isInteger isInteger(i)} == false</code>.
+   * @throws IndexOutOfBoundsException if {@code i} is not in the range {@code [0, {@link #size} -
+   * 1]}
+   * @throws ClassCastException if the {@code {@link #isInteger isInteger(i)} == false}.
    * @see #iterator
    */
   long longValue(int i);
@@ -142,12 +142,12 @@ public interface DataPoints extends Iterable<DataPoint>, Comparable<DataPoints> 
   /**
    * Returns the value of the {@code i}th data point as a float. The first data point has index 0.
    * <p/>
-   * This method must be implemented in <code>O({@link #aggregatedSize})</code> or better. Use
+   * This method must be implemented in {@code O({@link #aggregatedSize})} or better. Use
    * {@link #iterator} to get successive {@code O(1)} accesses.
    *
-   * @throws IndexOutOfBoundsException if {@code i} is not in the range <code>[0, {@link #size} -
-   * 1]</code>
-   * @throws ClassCastException if the <code>{@link #isInteger isInteger(i)} == true</code>.
+   * @throws IndexOutOfBoundsException if {@code i} is not in the range {@code [0, {@link #size} -
+   * 1]}
+   * @throws ClassCastException if the {@code {@link #isInteger isInteger(i)} == true}.
    * @see #iterator
    */
   double doubleValue(int i);

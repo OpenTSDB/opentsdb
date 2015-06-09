@@ -77,7 +77,7 @@ public class CommandLineApplication {
 
   /** Prints printHelp. */
   protected void printHelp(final OptionParser parser) {
-    outStream.println("Usage: tsdb " + command + " " + commandFormat);
+    outStream.println("Usage: tsdb " + command + ' ' + commandFormat);
     outStream.println(shortDescription);
     outStream.println();
 

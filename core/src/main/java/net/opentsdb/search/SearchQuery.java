@@ -141,8 +141,8 @@ public class SearchQuery {
         if (i > 0) {
           buf.append(", ");
         }
-        buf.append("{").append(tags.get(i).getKey()).append("=")
-            .append(tags.get(i).getValue()).append("}");
+        buf.append('{').append(tags.get(i).getKey()).append('=')
+            .append(tags.get(i).getValue()).append('}');
       }
     }
     buf.append("], limit=").append(limit).append(", startIndex=")

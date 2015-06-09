@@ -13,6 +13,8 @@
 
 package net.opentsdb.core;
 
+import com.google.common.base.MoreObjects;
+
 import java.util.NoSuchElementException;
 
 
@@ -178,13 +180,12 @@ public class RateSpan implements SeekableView {
 
   @Override
   public String toString() {
-    final StringBuilder buf = new StringBuilder();
-    buf.append("RateSpan: ")
-        .append(", options=").append(options)
-        .append(", nextData=[").append(nextData)
-        .append("], nextRate=[").append(nextRate)
-        .append("], prevRate=[").append(prevRate)
-        .append("], source=[").append(source).append("]");
-    return buf.toString();
+    return MoreObjects.toStringHelper(this)
+        .add("options", options)
+        .add("nextData", nextData)
+        .add("nextRate", nextRate)
+        .add("prevRate", prevRate)
+        .add("source", source)
+        .toString();
   }
 }

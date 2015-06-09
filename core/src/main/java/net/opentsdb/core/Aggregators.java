@@ -59,7 +59,7 @@ public final class Aggregators {
   private static final HashMap<String, Aggregator> aggregators;
 
   static {
-    aggregators = new HashMap<String, Aggregator>(8);
+    aggregators = new HashMap<>(8);
     aggregators.put("sum", SUM);
     aggregators.put("min", MIN);
     aggregators.put("max", MAX);
