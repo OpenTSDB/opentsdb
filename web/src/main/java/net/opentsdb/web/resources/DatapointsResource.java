@@ -129,7 +129,8 @@ public final class DatapointsResource extends Resource {
   /**
    * Extract the tags out of the provided {@link JsonNode}.
    */
-  private ImmutableMap<String, String> readTags(final JsonNode tagsNode) throws JsonMappingException {
+  private ImmutableMap<String, String> readTags(final JsonNode tagsNode)
+      throws JsonMappingException {
     if (!tagsNode.isObject()) {
       throw new JsonMappingException("The JSON object for the tags is a " + tagsNode.getNodeType());
     }

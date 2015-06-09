@@ -50,6 +50,7 @@
     <option name="ALIGN_MULTILINE_BINARY_OPERATION" value="true" />
     <option name="CALL_PARAMETERS_WRAP" value="1" />
     <option name="METHOD_PARAMETERS_WRAP" value="5" />
+    <option name="THROWS_KEYWORD_WRAP" value="1" />
     <option name="METHOD_CALL_CHAIN_WRAP" value="5" />
     <option name="BINARY_OPERATION_SIGN_ON_NEXT_LINE" value="true" />
     <option name="IF_BRACE_FORCE" value="3" />
