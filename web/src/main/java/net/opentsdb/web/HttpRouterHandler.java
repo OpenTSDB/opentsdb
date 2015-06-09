@@ -53,7 +53,8 @@ public class HttpRouterHandler extends ChannelInboundHandlerAdapter {
   }
 
   private Resource resourceForRequest(final HttpRequest request) {
-    final QueryStringDecoder query = new QueryStringDecoder(request.uri(), HttpConstants.CHARSET, true, 1);
+    final QueryStringDecoder query = new QueryStringDecoder(request.uri(), HttpConstants.CHARSET,
+        true, 1);
     final String route = routeNormalizer.trimFrom(query.path());
     final Resource resource = resources.get(route);
     return resource == null ? defaultResource : resource;

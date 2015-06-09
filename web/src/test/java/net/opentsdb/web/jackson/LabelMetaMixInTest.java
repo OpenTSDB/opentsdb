@@ -24,7 +24,8 @@ public class LabelMetaMixInTest {
 
   @Before
   public void before() throws Exception {
-    labelMeta = LabelMeta.create(mock(LabelId.class), METRIC, "sys.cpu.0", "Description", 1328140801);
+    labelMeta = LabelMeta.create(mock(LabelId.class), METRIC, "sys.cpu.0", "Description",
+        1328140801);
 
     jsonMapper = new ObjectMapper();
     jsonMapper.registerModule(new JacksonModule());

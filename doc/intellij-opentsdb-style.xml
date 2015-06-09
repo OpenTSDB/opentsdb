@@ -48,6 +48,7 @@
     <option name="KEEP_CONTROL_STATEMENT_IN_ONE_LINE" value="false" />
     <option name="BLANK_LINES_BEFORE_PACKAGE" value="1" />
     <option name="ALIGN_MULTILINE_BINARY_OPERATION" value="true" />
+    <option name="CALL_PARAMETERS_WRAP" value="1" />
     <option name="METHOD_PARAMETERS_WRAP" value="5" />
     <option name="METHOD_CALL_CHAIN_WRAP" value="5" />
     <option name="BINARY_OPERATION_SIGN_ON_NEXT_LINE" value="true" />

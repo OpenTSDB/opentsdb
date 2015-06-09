@@ -49,7 +49,8 @@ public final class LabelMetaTest {
 
   @Test(expected = NullPointerException.class)
   public void testCtorArgumentOrder() {
-    final LabelMeta meta = LabelMeta.create(VALID_UID, VALID_TYPE, VALID_NAME, VALID_DESCRIPTION, VALID_CREATED);
+    final LabelMeta meta = LabelMeta.create(VALID_UID, VALID_TYPE, VALID_NAME, VALID_DESCRIPTION,
+        VALID_CREATED);
     assertSame(VALID_UID, meta.identifier());
     assertEquals(VALID_TYPE, meta.type());
     assertEquals(VALID_NAME, meta.name());

@@ -366,12 +366,13 @@ public class UniqueIdClient {
     return metric.addBothDeferring(new Callback<Deferred<ResolvedSearchQuery>, LabelId>() {
       @Override
       public Deferred<ResolvedSearchQuery> call(final LabelId metricId) {
-        return tags.addCallback(new Callback<ResolvedSearchQuery, SortedSet<Pair<LabelId, LabelId>>>() {
-          @Override
-          public ResolvedSearchQuery call(final SortedSet<Pair<LabelId, LabelId>> tagIds) {
-            return new ResolvedSearchQuery(metricId, tagIds);
-          }
-        });
+        return tags.addCallback(
+            new Callback<ResolvedSearchQuery, SortedSet<Pair<LabelId, LabelId>>>() {
+              @Override
+              public ResolvedSearchQuery call(final SortedSet<Pair<LabelId, LabelId>> tagIds) {
+                return new ResolvedSearchQuery(metricId, tagIds);
+              }
+            });
       }
     });
   }

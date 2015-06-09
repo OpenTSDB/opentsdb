@@ -173,8 +173,7 @@ public class Downsampler implements SeekableView, DataPoint {
     private void resetEndOfInterval() {
       if (hasNextValueFromSource) {
         // Sets the end of the interval of the timestamp.
-        timestampEndInterval = alignTimestamp(nextDp.timestamp()) +
-                                 intervalMs;
+        timestampEndInterval = alignTimestamp(nextDp.timestamp()) + intervalMs;
       }
     }
 

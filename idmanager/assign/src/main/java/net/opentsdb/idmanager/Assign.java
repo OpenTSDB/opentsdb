@@ -97,7 +97,8 @@ public final class Assign {
       final ImmutableSet<String> names = ImmutableSet.copyOf(
           Arrays.copyOfRange(args, 1, args.length));
 
-      final ObjectGraph objectGraph = ObjectGraph.create(new TsdbModule(configFile), new AssignModule());
+      final ObjectGraph objectGraph = ObjectGraph.create(new TsdbModule(configFile),
+          new AssignModule());
       final TsdbStore store = objectGraph.get(TsdbStore.class);
       final Assign assign = objectGraph.get(Assign.class);
 
