@@ -327,13 +327,13 @@ public class UniqueIdClient {
 
   /**
    * Lookup time series related to a metric, tagk, tagv or any combination thereof.
-   * <p/>
-   * When dealing with tags, we can lookup on tagks, tagvs or pairs. Thus: tagk, null  <- lookup all
-   * series with a tagk tagk, tagv  <- lookup all series with a tag pair null, tagv  <- lookup all
-   * series with a tag value somewhere
-   * <p/>
-   * The user can supply multiple tags in a query so the logic is a little goofy but here it is: -
-   * Different tagks are AND'd, e.g. given "host=web01 dc=lga" we will lookup series that contain
+   *
+   * <p>When dealing with tags, we can lookup on tagks, tagvs or pairs. Thus: tagk, null  <- lookup
+   * all series with a tagk tagk, tagv  <- lookup all series with a tag pair null, tagv  <- lookup
+   * all series with a tag value somewhere
+   *
+   * <p>The user can supply multiple tags in a query so the logic is a little goofy but here it is:
+   * - Different tagks are AND'd, e.g. given "host=web01 dc=lga" we will lookup series that contain
    * both of those tag pairs. Also when given "host= dc=" then we lookup series with both tag keys
    * regardless of their values. - Tagks without a tagv will override tag pairs. E.g. "host=web01
    * host=" will return all series with the "host" tagk. - Tagvs without a tagk are OR'd. Given

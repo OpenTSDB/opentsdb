@@ -26,16 +26,16 @@ import java.util.ServiceLoader;
  * Super simple ServiceLoader based plugin framework for OpenTSDB that lets us search for a specific
  * plugin type or any plugins that match a given class. This isn't meant to be a rich plugin
  * manager, it only handles the basics of searching and instantiating a given class.
- * <p/>
- * Plugin creation is pretty simple, just implement the abstract plugin class, create a Manifest
+ *
+ * <p>Plugin creation is pretty simple, just implement the abstract plugin class, create a Manifest
  * file, add the "services" folder and plugin file and export a jar file.
- * <p/>
- * <b>Note:</b> All plugins must have a parameterless constructor for the ServiceLoader to work.
+ *
+ * <p><b>Note:</b> All plugins must have a parameterless constructor for the ServiceLoader to work.
  * This means you can't have final class variables, but we'll make a promise to call an initialize()
  * method with the proper parameters, such as configs or the TSDB object, immediately after loading
  * a plugin and before trying to access any of its methods.
- * <p/>
- * <b>Note:</b> All plugins must also implement a shutdown() method to clean up gracefully.
+ *
+ * <p><b>Note:</b> All plugins must also implement a shutdown() method to clean up gracefully.
  *
  * @since 2.0
  */
@@ -44,8 +44,8 @@ public final class PluginLoader {
 
   /**
    * Searches the class path for the a plugin with the given name and type.
-   * <p/>
-   * <b>WARNING:</b> If there are multiple versions of the request plugin in the class path, only
+   *
+   * <p><b>WARNING:</b> If there are multiple versions of the request plugin in the class path, only
    * one will be returned, so check the logs to see that the correct version was loaded.
    *
    * @param name The specific name of a plugin to search for, e.g. net.opentsdb.search.ElasticSearch
@@ -74,8 +74,8 @@ public final class PluginLoader {
   /**
    * Searches the class path for implementations of the given type, returning a list of all plugins
    * that were found.
-   * <p/>
-   * <b>WARNING:</b> If there are multiple versions of the request plugin in the class path, only
+   *
+   * <p><b>WARNING:</b> If there are multiple versions of the request plugin in the class path, only
    * one will be returned, so check the logs to see that the correct version was loaded.
    *
    * @param type The class type to search for

@@ -23,19 +23,19 @@ import java.util.Set;
 /**
  * Annotations are used to record time-based notes about timeseries events. Every note must have an
  * associated startTime as that determines where the note is stored.
- * <p/>
- * Annotations may be associated with a specific timeseries, in which case the tsuid must be
+ *
+ * <p>Annotations may be associated with a specific timeseries, in which case the tsuid must be
  * configured with a valid TSUID. If no TSUID is provided, the annotation is considered a "global"
  * note that applies to everything stored in OpenTSDB. Global annotations are stored in the rows [
  * 0, 0, 0, &lt;timestamp&gt;] in the same manner as local annotations and timeseries data.
- * <p/>
- * The description field should store a very brief line of information about the event. GUIs can
+ *
+ * <p>The description field should store a very brief line of information about the event. GUIs can
  * display the description in their "main" view where multiple annotations may appear. Users of the
  * GUI could then click or hover over the description for more detail including the {@link #notes}
  * field.
- * <p/>
- * Custom data can be stored in the custom hash map for user specific information. For example, you
- * could add a "reporter" key with the name of the person who recorded the note.
+ *
+ * <p>Custom data can be stored in the custom hash map for user specific information. For example,
+ * you could add a "reporter" key with the name of the person who recorded the note.
  *
  * @since 2.0
  */

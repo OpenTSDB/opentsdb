@@ -19,11 +19,11 @@ import javax.inject.Singleton;
 /**
  * A dagger module that inherits from {@link net.opentsdb.core.TsdbModule} and both overrides it and
  * complements it.
- * <p/>
- * This module complements the {@link net.opentsdb.core.TsdbModule} by providing a config.
- * <p/>
- * The module will return an instance of {@link net.opentsdb.storage.MemoryStore} and it will expose
- * this fact. However we want to test a general {@link net.opentsdb.storage.TsdbStore}
+ *
+ * <p>This module complements the {@link net.opentsdb.core.TsdbModule} by providing a config.
+ *
+ * <p>The module will return an instance of {@link net.opentsdb.storage.MemoryStore} and it will
+ * expose this fact. However we want to test a general {@link net.opentsdb.storage.TsdbStore}
  * implementation and not the behavior of the {@link net.opentsdb.storage.MemoryStore}, thus this
  * module should be avoided as much as possible but it is useful in legacy tests.
  *

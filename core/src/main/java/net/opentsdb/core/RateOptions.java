@@ -17,9 +17,9 @@ package net.opentsdb.core;
  * Provides additional options that will be used when calculating rates. These options are useful
  * when working with metrics that are raw counter values, where a counter is defined by a value that
  * always increases until it hits a maximum value and then it "rolls over" to start back at 0.
- * <p/>
- * These options will only be utilized if the query is for a rate calculation and if the "counter"
- * options is set to true.
+ *
+ * <p>These options will only be utilized if the query is for a rate calculation and if the
+ * "counter" options is set to true.
  *
  * @since 2.0
  */

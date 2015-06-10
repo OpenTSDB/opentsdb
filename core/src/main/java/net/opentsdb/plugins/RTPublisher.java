@@ -25,8 +25,8 @@ import java.util.Map;
  * Initially it supports publishing data points immediately after they are queued for storage. In
  * the future we may support publishing meta data or other types of information as changes are
  * made.
- * <p/>
- * <b>Warning:</b> All processing should be performed asynchronously and return a Deferred as
+ *
+ * <p><b>Warning:</b> All processing should be performed asynchronously and return a Deferred as
  * quickly as possible.
  *
  * @since 2.0

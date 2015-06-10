@@ -30,16 +30,16 @@ import javax.annotation.Nonnull;
  * Search plugins allow data from OpenTSDB to be published to a search indexer. Many great products
  * already exist for searching so it doesn't make sense to re-implement an engine within OpenTSDB.
  * Likewise, going directly to the storage system for searching isn't efficient.
- * <p/>
- * <b>Note:</b> Since canonical information is stored in the underlying OpenTSDB database, the same
- * document may be re-indexed more than once. This may happen if someone runs a full re-indexing
- * thread to make sure the search engine is up to date, particularly after a TSD crash where some
- * data may not have been sent. Be sure to account for that when indexing. Each object has a way to
- * uniquely identify it, see the method notes below.
- * <p/>
- * <b>Warning:</b> All indexing methods should be performed asynchronously. You may want to create a
- * queue in the implementation to store data until you can ship it off to the service. Every
- * indexing method should return as quickly as possible.
+ *
+ * <p><b>Note:</b> Since canonical information is stored in the underlying OpenTSDB database, the
+ * same document may be re-indexed more than once. This may happen if someone runs a full
+ * re-indexing thread to make sure the search engine is up to date, particularly after a TSD crash
+ * where some data may not have been sent. Be sure to account for that when indexing. Each object
+ * has a way to uniquely identify it, see the method notes below.
+ *
+ * <p><b>Warning:</b> All indexing methods should be performed asynchronously. You may want to
+ * create a queue in the implementation to store data until you can ship it off to the service.
+ * Every indexing method should return as quickly as possible.
  *
  * @since 2.0
  */

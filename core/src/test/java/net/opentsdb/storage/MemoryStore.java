@@ -37,16 +37,15 @@ import javax.annotation.Nonnull;
  * The underlying data store is an incredibly ugly nesting of ByteMaps from AsyncHbase so it stores
  * and orders byte arrays similar to HBase. A MemoryStore instance represents a SINGLE table in
  * HBase but it provides support for column families and timestamped entries.
- * <p/>
- * It's not a perfect implementation but is useful for the majority of unit tests. Gets, puts, cas,
- * deletes and scans are currently supported. See notes for each method below about what does and
- * doesn't work.
- * <p/>
- * Regarding timestamps, whenever you execute an RPC request, the {@code current_timestamp} will be
- * incremented by one millisecond. By default the timestamp starts at 1/1/2014 00:00:00 but you can
- * set it to any value at any time. If a PutRequest comes in with a specific time, that time will be
- * stored and the timestamp will not be incremented.
- * <p/>
+ *
+ * <p>It's not a perfect implementation but is useful for the majority of unit tests. Gets, puts,
+ * cas, deletes and scans are currently supported. See notes for each method below about what does
+ * and doesn't work.
+ *
+ * <p>Regarding timestamps, whenever you execute an RPC request, the {@code current_timestamp} will
+ * be incremented by one millisecond. By default the timestamp starts at 1/1/2014 00:00:00 but you
+ * can set it to any value at any time. If a PutRequest comes in with a specific time, that time
+ * will be stored and the timestamp will not be incremented.
  *
  * @since 2.0
  */

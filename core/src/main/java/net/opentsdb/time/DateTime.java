@@ -60,7 +60,7 @@ public class DateTime {
    * @throws IllegalArgumentException if the request was malformed
    */
   public static long parseDateTimeString(final String datetime,
-                                               final String tz) {
+                                         final String tz) {
     if (datetime == null || datetime.isEmpty()) {
       return -1;
     }
@@ -145,10 +145,10 @@ public class DateTime {
 
   /**
    * Parses a human-readable duration (e.g, "10m", "3h", "14d") into seconds.
-   * <p/>
-   * Formats supported:<ul> <li>{@code ms}: milliseconds</li> <li>{@code s}: seconds</li> <li>{@code
-   * m}: minutes</li> <li>{@code h}: hours</li> <li>{@code d}: days</li> <li>{@code w}: weeks</li>
-   * <li>{@code n}: month (30 days)</li> <li>{@code y}: years (365 days)</li></ul>
+   *
+   * <p>Formats supported:<ul> <li>{@code ms}: milliseconds</li> <li>{@code s}: seconds</li>
+   * <li>{@code m}: minutes</li> <li>{@code h}: hours</li> <li>{@code d}: days</li> <li>{@code w}:
+   * weeks</li> <li>{@code n}: month (30 days)</li> <li>{@code y}: years (365 days)</li></ul>
    *
    * @param duration The human-readable duration to parse.
    * @return A strictly positive number of milliseconds.
@@ -208,9 +208,9 @@ public class DateTime {
 
   /**
    * Returns whether or not a date is specified in a relative fashion.
-   * <p/>
-   * A date is specified in a relative fashion if it ends in "-ago", e.g. {@code 1d-ago} is the same
-   * as {@code 24h-ago}.
+   *
+   * <p>A date is specified in a relative fashion if it ends in "-ago", e.g. {@code 1d-ago} is the
+   * same as {@code 24h-ago}.
    *
    * @param value The value to parse
    * @return {@code true} if the parameter is passed and is a relative date. Note the method doesn't
@@ -245,10 +245,9 @@ public class DateTime {
 
   /**
    * Sets the default timezone for this running OpenTSDB instance
-   * <p/>
-   * <b>WARNING</b> If OpenTSDB is used with a Security Manager, setting the default timezone only
-   * works for the running thread. Otherwise it will work for the entire application.
-   * <p/>
+   *
+   * <p><b>WARNING</b> If OpenTSDB is used with a Security Manager, setting the default timezone
+   * only works for the running thread. Otherwise it will work for the entire application.
    *
    * @param tzname Name of the timezone to use
    * @throws IllegalArgumentException if tzname isn't a valid timezone name

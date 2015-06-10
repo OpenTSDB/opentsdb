@@ -10,10 +10,10 @@ import com.google.auto.value.AutoValue;
 /**
  * LabelMeta objects are associated with individual labels. LabelMeta objects are generated at the
  * same time as the identifier they are associated with.
- * <p/>
- * A LabelMeta object is identified by it's {@code identifier} and {@code type}.
- * <p/>
- * None of the fields may be empty or null.
+ *
+ * <p>A LabelMeta object is identified by it's {@code identifier} and {@code type}.
+ *
+ * <p>None of the fields may be empty or null.
  */
 @AutoValue
 public abstract class LabelMeta {

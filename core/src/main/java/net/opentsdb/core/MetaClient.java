@@ -137,8 +137,8 @@ public class MetaClient {
   /**
    * Verifies the UID object exists, then attempts to fetch the meta from storage and if not found,
    * returns a default object.
-   * <p/>
-   * The reason for returning a default object (with the type, identifier and name set) is due to
+   *
+   * <p>The reason for returning a default object (with the type, identifier and name set) is due to
    * users who may have just enabled meta data or have upgraded; we want to return valid data. If
    * they modify the entry, it will write to storage. You can tell it's a default if the {@code
    * created} value is 0. If the meta was generated at UID assignment or updated by the meta sync
@@ -261,8 +261,8 @@ public class MetaClient {
 
   /**
    * Attempts to update the information of the stored LabelMeta object with the same {@code
-   * identifier} and {@type} as the provided meta object. The stored LabelMeta will be fetched first
-   * and checked for equality before it tried to save anything.
+   * identifier} and {@code type} as the provided meta object. The provided meta object will be
+   * checked for changes against the stored object before saving anything.
    *
    * @param meta The LabelMeta with the updated information.
    * @return True if the updates were saved successfully. False if there were no changes to make.

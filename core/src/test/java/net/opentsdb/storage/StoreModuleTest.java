@@ -22,8 +22,8 @@ public class StoreModuleTest {
   /**
    * A constant that describes the number of stores that the core project comes with and thus how
    * many store descriptors that the {@link java.util .ServiceLoader} should be able to find.
-   * <p/>
-   * This is zero because the core project really should not provide any store implementations on
+   *
+   * <p>This is zero because the core project really should not provide any store implementations on
    * its own. There is one exception which is the {@link net.opentsdb.storage.MemoryStore} however
    * that is not exposed through the {@link java.util.ServiceLoader} and nor should it be.
    */

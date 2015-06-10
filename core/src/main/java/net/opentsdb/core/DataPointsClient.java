@@ -216,10 +216,9 @@ public class DataPointsClient {
    * Executes the query asynchronously
    *
    * @param query
-   * @return The data points matched by this query.
-   * <p/>
-   * Each element in the non-{@code null} but possibly empty array returned corresponds to one time
-   * series for which some data points have been matched by the query.
+   * @return The data points matched by this query. Each element in the non-{@code null} but
+   * possibly empty array returned corresponds to one time series for which some data points have
+   * been matched by the query.
    * @since 1.2
    */
   // TODO

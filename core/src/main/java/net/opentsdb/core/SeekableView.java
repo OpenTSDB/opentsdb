@@ -17,20 +17,20 @@ import java.util.Iterator;
 
 /**
  * Provides a <em>zero-copy view</em> to iterate through data points.
- * <p/>
- * The iterator returned by classes that implement this interface must return each {@link DataPoint}
- * in {@code O(1)} and does not support {@link #remove}.
- * <p/>
- * Because no data is copied during iteration and no new object gets created, <b>the {@link
+ *
+ * <p>The iterator returned by classes that implement this interface must return each {@link
+ * DataPoint} in {@code O(1)} and does not support {@link #remove}.
+ *
+ * <p>Because no data is copied during iteration and no new object gets created, <b>the {@link
  * DataPoint} returned must not be stored</b> and gets invalidated as soon as {@link #next} is
  * called on the iterator (actually it doesn't get invalidated but rather its contents changes).  If
  * you want to store individual data points, you need to copy the timestamp and value out of each
  * {@link DataPoint} into your own data structures.
- * <p/>
- * In the vast majority of cases, the iterator will be used to go once through all the data points,
- * which is why it's not a problem if the iterator acts just as a transient "view".  Iterating will
- * be very cheap since no memory allocation is required (except to instantiate the actual iterator
- * at the beginning).
+ *
+ * <p>In the vast majority of cases, the iterator will be used to go once through all the data
+ * points, which is why it's not a problem if the iterator acts just as a transient "view".
+ * Iterating will be very cheap since no memory allocation is required (except to instantiate the
+ * actual iterator at the beginning).
  */
 public interface SeekableView extends Iterator<DataPoint> {
 
@@ -61,8 +61,8 @@ public interface SeekableView extends Iterator<DataPoint> {
 
   /**
    * Advances the iterator to the given point in time.
-   * <p/>
-   * This allows the iterator to skip all the data points that are strictly before the given
+   *
+   * <p>This allows the iterator to skip all the data points that are strictly before the given
    * timestamp.
    *
    * @param timestamp A strictly positive 32 bit UNIX timestamp (in seconds).

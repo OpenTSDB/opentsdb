@@ -64,12 +64,12 @@ public interface IdLookupStrategy {
 
   /**
    * An ID lookup strategy that supports wildcards.
-   * <p/>
-   * If the provided name is {@code null}, empty or equal to "*" it will be interpreted as a
+   *
+   * <p>If the provided name is {@code null}, empty or equal to "*" it will be interpreted as a
    * wildcard and a {@link com.stumbleupon.async.Deferred} with the result {@code null} will be
    * returned.
-   * <p/>
-   * If the provided name is not {@code null} then a regular lookup will be done.
+   *
+   * <p>If the provided name is not {@code null} then a regular lookup will be done.
    */
   class WildcardIdLookupStrategy implements IdLookupStrategy {
     public static final IdLookupStrategy instance = new WildcardIdLookupStrategy();

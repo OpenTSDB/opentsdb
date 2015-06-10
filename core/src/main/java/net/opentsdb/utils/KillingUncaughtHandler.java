@@ -8,8 +8,8 @@ import java.lang.Thread.UncaughtExceptionHandler;
 /**
  * A default exception handler for threads. Will tell the JVM to exit when an exception bubbles all
  * the way up to a thread without being handled.
- * <p/>
- * See {@link UncaughtExceptionHandler} for the exact order the handlers are executed in.
+ *
+ * <p>See {@link UncaughtExceptionHandler} for the exact order the handlers are executed in.
  */
 public class KillingUncaughtHandler implements UncaughtExceptionHandler {
   private static final Logger LOG = LoggerFactory.getLogger(KillingUncaughtHandler.class);

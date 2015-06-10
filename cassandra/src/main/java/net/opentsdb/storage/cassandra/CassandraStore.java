@@ -487,10 +487,6 @@ public class CassandraStore extends TsdbStore {
    * For all intents and purposes this function works as a rename. In the HBase implementation the
    * other method {@link #allocateUID} uses this method that basically overwrites the value no
    * matter what. This method is also used by the function {@link net.opentsdb.uid.UniqueId#rename}.
-   * <p/>
-   * TODO #zeeck this method should be considered to be changed to rename and the implementation
-   * changed in the HBaseStore. One of tre prerequisites of this function is that the UID already
-   * exists.
    *
    * @param name The name to write.
    * @param uid The uid to use.
@@ -502,6 +498,12 @@ public class CassandraStore extends TsdbStore {
   public Deferred<LabelId> allocateUID(@Nonnull final String name,
                                        @Nonnull final LabelId uid,
                                        @Nonnull final UniqueIdType type) {
+    /*
+    TODO #zeeck this method should be considered to be changed to rename and the implementation
+    changed in the HBaseStore. One of the prerequisites of this function is that the UID already
+    exists.
+     */
+
     // Get old name, we do this manually because the other method returns
     // a deferred and we want to avoid to mix deferreds between functions.
     ResultSetFuture f = session.executeAsync(getNameStatement.bind(

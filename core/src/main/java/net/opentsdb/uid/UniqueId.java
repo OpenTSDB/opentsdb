@@ -25,8 +25,8 @@ import javax.annotation.Nullable;
 
 /**
  * Represents a table of Unique IDs, manages the lookup and creation of IDs.
- * <p/>
- * Don't attempt to use {@code equals()} or {@code hashCode()} on this class.
+ *
+ * <p>Don't attempt to use {@code equals()} or {@code hashCode()} on this class.
  */
 public class UniqueId {
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
@@ -250,13 +250,14 @@ public class UniqueId {
 
   /**
    * Reassigns the UID to a different name (non-atomic).
-   * <p/>
-   * Whatever was the UID of {@code oldname} will be given to {@code newname}. {@code oldname} will
-   * no longer be assigned a UID.
-   * <p/>
-   * Beware that the assignment change is <b>not atommic</b>.  If two threads or processes attempt
-   * to rename the same UID differently, the result is unspecified and might even be inconsistent.
-   * This API is only here for administrative purposes, not for normal programmatic interactions.
+   *
+   * <p>Whatever was the UID of {@code oldname} will be given to {@code newname}. {@code oldname}
+   * will no longer be assigned a UID.
+   *
+   * <p>Beware that the assignment change is <b>not atommic</b>.  If two threads or processes
+   * attempt to rename the same UID differently, the result is unspecified and might even be
+   * inconsistent. This API is only here for administrative purposes, not for normal programmatic
+   * interactions.
    *
    * @param oldname The old name to rename.
    * @param newname The new name.

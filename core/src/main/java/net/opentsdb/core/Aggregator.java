@@ -17,8 +17,8 @@ import net.opentsdb.core.Aggregators.Interpolation;
 
 /**
  * A function capable of aggregating multiple {@link DataPoints} together.
- * <p/>
- * All aggregators must be stateless.  All they can do is run through a sequence of {@link Longs
+ *
+ * <p>All aggregators must be stateless.  All they can do is run through a sequence of {@link Longs
  * Longs} or {@link Doubles Doubles} and return an aggregated value.
  */
 public interface Aggregator {
@@ -48,8 +48,8 @@ public interface Aggregator {
 
   /**
    * A sequence of {@code long}s.
-   * <p/>
-   * This interface is semantically equivalent to {@code Iterator<long>}.
+   *
+   * <p>This interface is semantically equivalent to {@code Iterator<long>}.
    */
   interface Longs {
 
@@ -70,8 +70,8 @@ public interface Aggregator {
 
   /**
    * A sequence of {@code double}s.
-   * <p/>
-   * This interface is semantically equivalent to {@code Iterator<double>}.
+   *
+   * <p>This interface is semantically equivalent to {@code Iterator<double>}.
    */
   interface Doubles {
 

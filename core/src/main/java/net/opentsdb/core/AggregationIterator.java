@@ -26,20 +26,20 @@ import java.util.NoSuchElementException;
 /**
  * Iterator that aggregates multiple spans or time series data and does linear interpolation (lerp)
  * for missing data points.
- * <p/>
- * This where the real business of {@link SpanGroup} is.  This iterator provides a merged,
+ *
+ * <p>This where the real business of {@link SpanGroup} is.  This iterator provides a merged,
  * aggregated view of multiple {@link Span}s.  The data points in all the Spans are returned in
  * chronological order.  Each time we return a data point from a span, we aggregate it with the
  * current value from all the other Spans.  If other Spans don't have a value at that specific
  * timestamp, we do a linear interpolation in order to estimate what the value of that Span should
  * be at that time.
- * <p/>
- * All this merging, linear interpolation and aggregation happens in {@code O(1)} space and {@code
- * O(N)} time.  All we need is to keep an iterator on each Span, and {@code 4*k} {@code long}s in
- * memory, where {@code k} is the number of Spans in the group.  When computing a rate, we need an
- * extra {@code 2*k} {@code long}s in memory (see below).
- * <p/>
- * In order to do linear interpolation, we need to know two data points: the current one and the
+ *
+ * <p>All this merging, linear interpolation and aggregation happens in {@code O(1)} space and
+ * {@code O(N)} time.  All we need is to keep an iterator on each Span, and {@code 4*k} {@code
+ * long}s in memory, where {@code k} is the number of Spans in the group.  When computing a rate, we
+ * need an extra {@code 2*k} {@code long}s in memory (see below).
+ *
+ * <p>In order to do linear interpolation, we need to know two data points: the current one and the
  * next one.  So for each Span in the group, we need 4 longs: the current value, the current
  * timestamp, the next value and the next timestamp.  We maintain two arrays for timestamps and
  * values.  Those arrays have {@code 2 * iterators.length} elements.  The first half contains the
@@ -47,8 +47,8 @@ import java.util.NoSuchElementException;
  * becomes the current one (so its value and timestamp are moved from the 2nd half of their
  * respective array to the first half) and the new-next data point is fetched from the underlying
  * iterator of that Span.
- * <p/>
- * Here is an example when the SpanGroup contains 2 Spans:
+ *
+ * <p>Here is an example when the SpanGroup contains 2 Spans:
  * <pre>              current    |     next
  *               +-------+-------+-------+-------+
  *   timestamps: |  T1   |  T2   |  T3   |  T4   |
@@ -62,22 +62,23 @@ import java.util.NoSuchElementException;
  *   pos: 0
  *   iterators: [ it0, it1 ]
  * </pre>
- * Since {@code current == 0}, the current data point has the value V1 and time T1.  Let's note that
- * (V1, T1).  Now this group has 2 Spans, which means we're trying to aggregate 2 different series
- * (same metric ID but different tags).  So The next value that this iterator returns needs to be a
- * combination of V1 and V2 (assuming that T2 is less than T1). If our aggregation function is
- * "sum", we sort of want to sum up V1 and V2.  But those two data points may not necessarily be at
- * the same time. T2 can be less than or equal to T1.  If T2 is greater than T1, we ignore V2 and
+ *
+ * <p>Since {@code current == 0}, the current data point has the value V1 and time T1.  Let's note
+ * that (V1, T1).  Now this group has 2 Spans, which means we're trying to aggregate 2 different
+ * series (same metric ID but different tags).  So The next value that this iterator returns needs
+ * to be a combination of V1 and V2 (assuming that T2 is less than T1). If our aggregation function
+ * is "sum", we sort of want to sum up V1 and V2.  But those two data points may not necessarily be
+ * at the same time. T2 can be less than or equal to T1.  If T2 is greater than T1, we ignore V2 and
  * return just V1, since we haven't reached the time yet where V2 exist, so it's essentially as if
  * it wasn't there. Say T2 is less than T1.  Summing up V1 and V2 doesn't make sense, since they
  * represent two measurements made at different times.  So instead, we need to find what the value
  * V2 would have been, had it been measured at time T1 instead of T2.  We do this using linear
  * interpolation between the data point (V2, T2) and the following one for that series, (V4, T4).
  * The result is thus the sum of V1 and the interpolated value between V2 and V4.
- * <p/>
- * Now let's move onto the next data point.  Assuming that T3 is less than T4, it means we need to
- * advance to the next point on the 1st series.  To do this we use the iterator it0 to get the next
- * data point for that series and we end up with the following state:
+ *
+ * <p>Now let's move onto the next data point.  Assuming that T3 is less than T4, it means we need
+ * to advance to the next point on the 1st series.  To do this we use the iterator it0 to get the
+ * next data point for that series and we end up with the following state:
  * <pre>              current    |     next
  *               +-------+-------+-------+-------+
  *   timestamps: |  T3   |  T2   |  T5   |  T4   |
@@ -92,8 +93,8 @@ import java.util.NoSuchElementException;
  *   iterators: [ it0, it1 ]
  * </pre>
  * Then all you need is to "rinse and repeat".
- * <p/>
- * More details: Since each value above can be either an integer or a floating point, we have to
+ *
+ * <p>More details: Since each value above can be either an integer or a floating point, we have to
  * keep track of the type of each value.  Values are always stored in a {@code long}.  When a value
  * is a floating point value, the bits of the longs just need to be interpreted to get back the
  * floating point value.  The way we keep track of the type is by using the most significant bit of
@@ -102,7 +103,6 @@ import java.util.NoSuchElementException;
  * the arrays depicted above), the timestamp will be set to 0.  When there is no "next" value (2nd
  * half of the arrays), the timestamp will be set to a special, really large value (too large to be
  * a valid timestamp).
- * <p/>
  */
 final class AggregationIterator implements SeekableView, DataPoint,
     Aggregator.Longs, Aggregator.Doubles {
@@ -139,12 +139,12 @@ final class AggregationIterator implements SeekableView, DataPoint,
 
   /**
    * The current and previous timestamps for the data points being used.
-   * <p/>
-   * Are we computing a rate? <ul> <li>No: for {@code iterators[i]} the timestamp of the current
+   *
+   * <p>Are we computing a rate? <ul> <li>No: for {@code iterators[i]} the timestamp of the current
    * data point is {@code timestamps[i]} and the timestamp of the next data point is {@code
    * timestamps[iterators.length + i]}.</li> </li></ul>
-   * <p/>
-   * Each timestamp can have the {@code FLAG_FLOAT} applied so it's important to use the {@code
+   *
+   * <p>Each timestamp can have the {@code FLAG_FLOAT} applied so it's important to use the {@code
    * TIME_MASK} when getting the actual timestamp value out of it. There are two special values for
    * timestamps: <ul> <li>{@code 0} when in the first half of the array: this iterator has run out
    * of data points and must not be used anymore.</li> <li>{@code TIME_MASK} when in the second half

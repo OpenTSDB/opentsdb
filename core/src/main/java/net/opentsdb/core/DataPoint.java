@@ -15,8 +15,8 @@ package net.opentsdb.core;
 
 /**
  * Represents a single data point.
- * <p/>
- * Implementations of this interface aren't expected to be synchronized.
+ *
+ * <p>Implementations of this interface aren't expected to be synchronized.
  */
 public interface DataPoint {
 

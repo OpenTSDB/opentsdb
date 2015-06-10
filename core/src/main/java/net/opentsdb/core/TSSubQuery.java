@@ -25,14 +25,14 @@ import java.util.NoSuchElementException;
  * Represents the parameters for an individual sub query on a metric or specific timeseries. When
  * setting up a query, use the setter methods to store user information such as the start time and
  * list of queries. After setting the proper values, add the sub query to a {@link TSQuery}.
- * <p/>
- * When the query is processed by the TSD, if the {@code tsuids} list has one or more timeseries,
+ *
+ * <p>When the query is processed by the TSD, if the {@code tsuids} list has one or more timeseries,
  * the {@code metric} and {@code tags} fields will be ignored and only the tsuids processed.
- * <p/>
- * <b>Note:</b> You do not need to call {@link #validateAndSetQuery} directly as the {@link TSQuery}
- * object will call this for you when the entire set of queries has been compiled. <b>Note:</b> If
- * using POJO deserialization, make sure to avoid setting the {@code agg}, {@code downsampler} and
- * {@code downsample_interval} fields.
+ *
+ * <p><b>Note:</b> You do not need to call {@link #validateAndSetQuery} directly as the {@link
+ * TSQuery} object will call this for you when the entire set of queries has been compiled.
+ * <b>Note:</b> If using POJO deserialization, make sure to avoid setting the {@code agg}, {@code
+ * downsampler} and {@code downsample_interval} fields.
  *
  * @since 2.0
  */
