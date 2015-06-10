@@ -236,22 +236,22 @@ public class CassandraStore extends TsdbStore {
     return d;
   }
 
-  private void writeTimeseriesIdIndex(final byte[] metric,
-                                      final Map<byte[], byte[]> tags,
+  private void writeTimeseriesIdIndex(final LabelId metric,
+                                      final Map<LabelId, LabelId> tags,
                                       final ByteBuffer tsid) {
     session.executeAsync(insertTagsStatement.bind()
-        .setLong(0, IdUtils.uidToLong(metric))
+        .setLong(0, toLong(metric))
         .setString(1, UniqueIdType.METRIC.toValue())
         .setBytesUnsafe(2, tsid));
 
-    for (final Map.Entry<byte[], byte[]> entry : tags.entrySet()) {
+    for (final Map.Entry<LabelId, LabelId> entry : tags.entrySet()) {
       session.executeAsync(insertTagsStatement.bind()
-          .setLong(0, IdUtils.uidToLong(entry.getKey()))
+          .setLong(0, toLong(entry.getKey()))
           .setString(1, UniqueIdType.TAGK.toValue())
           .setBytesUnsafe(2, tsid));
 
       session.executeAsync(insertTagsStatement.bind()
-          .setLong(0, IdUtils.uidToLong(entry.getValue()))
+          .setLong(0, toLong(entry.getValue()))
           .setString(1, UniqueIdType.TAGV.toValue())
           .setBytesUnsafe(2, tsid));
     }
