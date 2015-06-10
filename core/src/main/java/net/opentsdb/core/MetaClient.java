@@ -1,5 +1,6 @@
 package net.opentsdb.core;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import net.opentsdb.meta.Annotation;
@@ -23,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -104,16 +106,15 @@ public class MetaClient {
   }
 
   /**
-   * Attempts to fetch a global or local annotation from storage
+   * Fetch an annotation.
    *
-   * @param tsuid The TSUID as a string. May be empty if retrieving a global annotation
-   * @param startTime The start time as a Unix epoch timestamp
-   * @return A valid annotation object if found, null if not
+   * @param tsuid The time series ID as a String.
+   * @param startTime The start time of the annotation
+   * @return A deferred that on completion contains an annotation object if found, null if not
    */
-  public Deferred<Annotation> getAnnotation(final String tsuid, final long startTime) {
-    if (Strings.isNullOrEmpty(tsuid)) {
-      return store.getAnnotation(null, startTime);
-    }
+  public Deferred<Annotation> getAnnotation(@Nonnull final String tsuid, final long startTime) {
+    checkArgument(startTime > 0);
+    checkArgument(!Strings.isNullOrEmpty(tsuid));
 
     return store.getAnnotation(IdUtils.stringToUid(tsuid), startTime);
   }
@@ -127,10 +128,6 @@ public class MetaClient {
    * may be null.
    */
   public Deferred<Void> delete(Annotation annotation) {
-    if (annotation.getStartTime() < 1) {
-      throw new IllegalArgumentException("The start timestamp has not been set");
-    }
-
     return store.delete(annotation);
   }
 
@@ -187,50 +184,30 @@ public class MetaClient {
   }
 
   /**
-   * Attempts a CompareAndSet storage call, loading the object from storage, synchronizing changes,
-   * and attempting a put. <b>Note:</b> If the local object didn't have any fields set by the caller
-   * or there weren't any changes, then the data will not be written and an exception will be
-   * thrown.
+   * Attempts to update the information of the stored Annotation object with the same {@code
+   * timeSeriesId} and {@code startTime} as the provided object. The provided object will be checked
+   * for changes against the stored object before saving anything.
    *
-   * @param annotation The The Annotation we want to store.
-   * @param overwrite When the RPC method is PUT, will overwrite all user accessible fields True if
-   * the storage call was successful, false if the object was modified in storage during the CAS
-   * call. If false, retry the call. Other failures will result in an exception being thrown.
-   * @throws IllegalArgumentException if required data was missing such as the {@code #start_time}
-   * @throws IllegalStateException if the data hasn't changed. This is OK!
-   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
+   * @param annotation The annotation with the updated information.
+   * @return True if the updates were saved successfully. False if there were no changes to make.
    */
-  public Deferred<Boolean> syncToStorage(final Annotation annotation,
-                                         final boolean overwrite) {
-    if (annotation.getStartTime() < 1) {
-      throw new IllegalArgumentException("The start timestamp has not been set");
-    }
-
-    if (!annotation.hasChanges()) {
-      LOG.debug("{} does not have changes, skipping sync to storage", annotation);
-      throw new IllegalStateException("No changes detected in Annotation data");
-    }
-
+  public Deferred<Boolean> updateAnnotation(final Annotation annotation) {
     final class StoreCB implements Callback<Deferred<Boolean>, Annotation> {
       @Override
-      public Deferred<Boolean> call(final Annotation storedNote)
+      public Deferred<Boolean> call(final Annotation storedAnnotation)
           throws Exception {
-        if (storedNote != null) {
-          annotation.syncNote(storedNote, overwrite);
+        if (!storedAnnotation.equals(annotation)) {
+          return store.updateAnnotation(annotation);
         }
 
-        return store.updateAnnotation(storedNote, annotation);
+        LOG.debug("{} does not have any changes, skipping update", annotation);
+        return Deferred.fromResult(Boolean.FALSE);
       }
     }
 
-    final byte[] tsuid;
-    if (Strings.isNullOrEmpty(annotation.getTSUID())) {
-      tsuid = null;
-    } else {
-      tsuid = IdUtils.stringToUid(annotation.getTSUID());
-    }
+    final byte[] tsuid = IdUtils.stringToUid(annotation.timeSeriesId());
 
-    return store.getAnnotation(tsuid, annotation.getStartTime())
+    return store.getAnnotation(tsuid, annotation.startTime())
         .addCallbackDeferring(new StoreCB());
   }
 

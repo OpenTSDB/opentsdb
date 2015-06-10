@@ -19,25 +19,14 @@ public class AnnotationMixInTest {
     jsonMapper = new ObjectMapper();
     jsonMapper.registerModule(new JacksonModule());
 
-    note = new Annotation("000001000001000001", 1328140800, 1328140801,
-        "Description", "Notes", null);
+    note = Annotation.create("000001000001000001", 1328140800, 1328140801, "Description");
 
     note_json = "{\"tsuid\":\"000001000001000001\",\"startTime\":1328140800," +
-                "\"endTime\":1328140801,\"description\":\"Description\",\"notes\":\"Notes\"}";
+                "\"endTime\":1328140801,\"message\":\"Description\",\"notes\":\"Notes\"}";
   }
 
   @Test
   public void serializeMatchesExactly() throws Exception {
-    final String json = new String(jsonMapper.writeValueAsBytes(note));
-    assertEquals(note_json, json);
-  }
-
-  @Test
-  public void serializeSkipsNull() throws Exception {
-    note = new Annotation(null, 1328140800, 1328140801,
-        "Description", "Notes", null);
-    note_json = "{\"startTime\":1328140800,\"endTime\":1328140801," +
-                "\"description\":\"Description\",\"notes\":\"Notes\"}";
     final String json = new String(jsonMapper.writeValueAsBytes(note));
     assertEquals(note_json, json);
   }
@@ -53,7 +42,7 @@ public class AnnotationMixInTest {
   public void deserializeIgnoresUnknown() throws Exception {
     final String note_json_with_unknown = "{\"tsuid\":\"000001000001000001\"," +
                                           "\"startTime\":1328140800,\"endTime\":1328140801,\"unknown\":1328140801," +
-                                          "\"description\":\"Description\",\"notes\":\"Notes\",\"custom\":null}";
+                                          "\"message\":\"Description\",\"notes\":\"Notes\",\"custom\":null}";
     Annotation parsed_note = jsonMapper.reader(Annotation.class)
         .readValue(note_json_with_unknown);
     assertEquals(note, parsed_note);

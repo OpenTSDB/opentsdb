@@ -14,7 +14,7 @@ abstract class AnnotationMixIn {
   AnnotationMixIn(@JsonProperty("tsuid") final String tsuid,
                   @JsonProperty("startTime") final long startTime,
                   @JsonProperty("endTime") final long endTime,
-                  @JsonProperty("description") final String description,
+                  @JsonProperty("message") final String description,
                   @JsonProperty("notes") final String notes,
                   @JsonProperty("custom") final Map<String, String> custom) {
   }
@@ -28,7 +28,7 @@ abstract class AnnotationMixIn {
   @JsonProperty("endTime")
   abstract long getEndTime();
 
-  @JsonProperty("description")
+  @JsonProperty("message")
   abstract String getDescription();
 
   @JsonProperty("notes")

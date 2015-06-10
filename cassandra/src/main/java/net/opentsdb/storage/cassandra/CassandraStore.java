@@ -19,7 +19,6 @@ import net.opentsdb.storage.cassandra.statements.AddPointStatements;
 import net.opentsdb.time.JdkTimeProvider;
 import net.opentsdb.uid.IdException;
 import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.TimeseriesId;
@@ -546,7 +545,7 @@ public class CassandraStore extends TsdbStore {
   }
 
   @Override
-  public Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation) {
+  public Deferred<Boolean> updateAnnotation(Annotation annotation) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

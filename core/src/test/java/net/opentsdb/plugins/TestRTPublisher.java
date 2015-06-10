@@ -17,6 +17,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.AnnotationFixtures;
 import net.opentsdb.uid.TimeseriesId;
 
 import com.google.common.collect.ImmutableMap;
@@ -41,13 +42,7 @@ public abstract class TestRTPublisher {
 
   @Test
   public void publishAnnotation() {
-    Annotation ann = new Annotation();
-    HashMap<String, String> customMap = new HashMap<>(1);
-    customMap.put("test-custom-key", "test-custom-value");
-    ann.setCustom(customMap);
-    ann.setDescription("A test annotation");
-    ann.setNotes("Test annotation notes");
-    ann.setStartTime(System.currentTimeMillis());
+    final Annotation ann = AnnotationFixtures.provideAnnotation();
     assertNotNull(rt_publisher.publishAnnotation(ann));
   }
 }

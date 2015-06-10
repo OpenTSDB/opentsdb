@@ -124,7 +124,7 @@ public abstract class TsdbStore implements Closeable {
   public abstract Deferred<List<Annotation>> getGlobalAnnotations(final long startTime,
                                                                   final long endTime);
 
-  public abstract Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation);
+  public abstract Deferred<Boolean> updateAnnotation(Annotation annotation);
 
   //
   // LabelMeta

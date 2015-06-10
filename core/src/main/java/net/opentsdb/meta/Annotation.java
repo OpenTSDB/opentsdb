@@ -1,87 +1,81 @@
-// This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
-//
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
 
 package net.opentsdb.meta;
 
-import com.google.common.base.Objects;
-import com.google.common.collect.Sets;
+import static com.google.common.base.Preconditions.checkArgument;
 
-import java.util.HashMap;
+import com.google.auto.value.AutoValue;
+import com.google.common.base.Strings;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.ImmutableMap;
+
 import java.util.Map;
-import java.util.Set;
+import javax.annotation.Nonnull;
 
 /**
- * Annotations are used to record time-based notes about timeseries events. Every note must have an
- * associated startTime as that determines where the note is stored.
+ * Annotations record user-defined arbitrary messages about specified periods of time.
  *
- * <p>Annotations may be associated with a specific timeseries, in which case the tsuid must be
- * configured with a valid TSUID. If no TSUID is provided, the annotation is considered a "global"
- * note that applies to everything stored in OpenTSDB. Global annotations are stored in the rows [
- * 0, 0, 0, &lt;timestamp&gt;] in the same manner as local annotations and timeseries data.
+ * <p>Annotations must be associated with a time series and have a start time as well as a message.
+ * They may also have an end time and zero or more user-defined properties which are simple string
+ * based key value pairs.
  *
- * <p>The description field should store a very brief line of information about the event. GUIs can
- * display the description in their "main" view where multiple annotations may appear. Users of the
- * GUI could then click or hover over the description for more detail including the {@link #notes}
- * field.
- *
- * <p>Custom data can be stored in the custom hash map for user specific information. For example,
- * you could add a "reporter" key with the name of the person who recorded the note.
- *
- * @since 2.0
+ * <p>The start time must be larger than 0. The end time must be larger than zero or equal to {@link
+ * #NOT_ENDED}. An annotation with an end time that is equal to {@link #NOT_ENDED} will be
+ * interpreted as not having ended yet.
  */
-public final class Annotation implements Comparable<Annotation> {
-  /** Tracks fields that have changed by the user to avoid overwrites. */
-  private final Set<String> changed = Sets.newHashSetWithExpectedSize(6);
-  /** If the note is associated with a timeseries, represents the ID. */
-  private String tsuid = "";
-  /** The start timestamp associated wit this note in seconds or ms. */
-  private long startTime = 0;
-  /** Optional end time if the note represents an event that was resolved. */
-  private long endTime = 0;
-  /** A short description of the event, displayed in GUIs. */
-  private String description = "";
-  /** A detailed accounting of the event or note. */
-  private String notes = "";
-  /** Optional user supplied key/values. */
-  private Map<String, String> custom = null;
+@AutoValue
+public abstract class Annotation implements Comparable<Annotation> {
+  public static final long NOT_ENDED = -1;
 
-  public Annotation() {
+  /**
+   * Create a new annotation instance with the provided information.
+   */
+  public static Annotation create(@Nonnull final String timeSeriesId,
+                                  final long startTime,
+                                  final long endTime,
+                                  @Nonnull final String message,
+                                  @Nonnull final Map<String, String> properties) {
+    checkArgument(!Strings.isNullOrEmpty(timeSeriesId));
+    checkArgument(startTime > 0, "Start time must but larger than 0 but was %s", startTime);
+    checkArgument(endTime > 0 || endTime == NOT_ENDED,
+        "End time must be larger than 0 or equal to Annotation.END_TIME but was %s", endTime);
+    checkArgument(startTime >= endTime);
+    final ImmutableMap<String, String> immutableProperties = ImmutableMap.copyOf(properties);
+    return new AutoValue_Annotation(timeSeriesId, startTime, endTime, message, immutableProperties);
   }
 
-  public Annotation(final String tsuid, final long startTime, final String description) {
-    this(tsuid, startTime, 0, description, null, null);
+  /**
+   * Create a new annotation instance with the provided information and an empty set of properties.
+   */
+  public static Annotation create(@Nonnull final String timeSeriesId,
+                                  final long startTime,
+                                  final long endTime,
+                                  @Nonnull final String message) {
+    return create(timeSeriesId, startTime, endTime, message, ImmutableMap.<String, String>of());
   }
 
-  public Annotation(final String tsuid,
-                    final long startTime,
-                    final long endTime,
-                    final String description,
-                    final String notes,
-                    final Map<String, String> custom) {
-    this.tsuid = tsuid;
-    this.startTime = startTime;
-    this.endTime = endTime;
-    this.description = description;
-    this.notes = notes;
-    this.custom = custom;
+  /**
+   * Hide the constructor and prevent subclasses other than the one provided by {@link AutoValue}.
+   */
+  Annotation() {
   }
 
-  /** @return A string with information about the annotation object. */
-  @Override
-  public String toString() {
-    return "TSUID: " + tsuid + " Start: " + startTime + "  Description: "
-           + description;
-  }
+  /** The time series this annotation belongs to. */
+  @Nonnull
+  public abstract String timeSeriesId();
+
+  /** A timestamp indicating at which point this this annotation became relevant. */
+  public abstract long startTime();
+
+  /** A timestamp indicating at which point this annotation was no longer relevant. */
+  public abstract long endTime();
+
+  /** A user-defined arbitrary message. */
+  @Nonnull
+  public abstract String message();
+
+  /** A map of user-defined arbitrary keys. */
+  @Nonnull
+  public abstract ImmutableMap<String, String> properties();
 
   /**
    * Compares the {@code #startTime} of this annotation to the given note.
@@ -89,157 +83,10 @@ public final class Annotation implements Comparable<Annotation> {
    * @return 1 if the local start time is greater, -1 if it's less or 0 if equal
    */
   @Override
-  public int compareTo(Annotation note) {
-    return startTime > note.startTime ? 1 :
-        startTime < note.startTime ? -1 : 0;
-  }
-
-  public boolean hasChanges() {
-    return !changed.isEmpty();
-  }
-
-  /**
-   * Syncs the local object with the stored object for atomic writes, overwriting the stored data if
-   * the user issued a PUT request <b>Note:</b> This method also resets the {@code changed} set to
-   * false for every field.
-   *
-   * @param note The stored object to sync from
-   * @param overwrite Whether or not all user mutable data in storage should be replaced by the
-   * local object
-   */
-  public void syncNote(final Annotation note, final boolean overwrite) {
-    if (note.startTime > 0 && (note.startTime < startTime || startTime == 0)) {
-      startTime = note.startTime;
-    }
-
-    // handle user-accessible stuff
-    if (!overwrite && !changed.contains("endTime")) {
-      endTime = note.endTime;
-    }
-    if (!overwrite && !changed.contains("description")) {
-      description = note.description;
-    }
-    if (!overwrite && !changed.contains("notes")) {
-      notes = note.notes;
-    }
-    if (!overwrite && !changed.contains("custom")) {
-      custom = note.custom;
-    }
-
-    // reset changed flags
-    resetChangedMap();
-  }
-
-  /**
-   * Sets or resets the changed map flags.
-   */
-  private void resetChangedMap() {
-    changed.clear();
-  }
-
-  // Getters and Setters --------------
-
-  /** @return the tsuid, may be empty if this is a global annotation. */
-  public final String getTSUID() {
-    return tsuid;
-  }
-
-  /** @param tsuid the tsuid to store */
-  public void setTSUID(final String tsuid) {
-    this.tsuid = tsuid;
-  }
-
-  /** @return the startTime */
-  public final long getStartTime() {
-    return startTime;
-  }
-
-  /** @param startTime the startTime, required for every annotation */
-  public void setStartTime(final long startTime) {
-    this.startTime = startTime;
-  }
-
-  /** @return the endTime, may be 0 */
-  public final long getEndTime() {
-    return endTime;
-  }
-
-  /** @param endTime the endTime, optional */
-  public void setEndTime(final long endTime) {
-    if (this.endTime != endTime) {
-      this.endTime = endTime;
-      changed.add("endTime");
-    }
-  }
-
-  /** @return the description */
-  public final String getDescription() {
-    return description;
-  }
-
-  /** @param description the description, required for every annotation */
-  public void setDescription(final String description) {
-    if (!this.description.equals(description)) {
-      this.description = description;
-      changed.add("description");
-    }
-  }
-
-  /** @return the notes, may be empty */
-  public final String getNotes() {
-    return notes;
-  }
-
-  /** @param notes the notes to set */
-  public void setNotes(final String notes) {
-    if (!this.notes.equals(notes)) {
-      this.notes = notes;
-      changed.add("notes");
-    }
-  }
-
-  /** @return the custom key/value map, may be null */
-  public final Map<String, String> getCustom() {
-    return custom;
-  }
-
-  /** @param custom the custom key/value map */
-  public void setCustom(final Map<String, String> custom) {
-    // equivalency of maps is a pain, users have to submit the whole map
-    // anyway so we'll just mark it as changed every time we have a non-null
-    // value
-    if (this.custom != null || custom != null) {
-      changed.add("custom");
-      this.custom = new HashMap<>(custom);
-    }
-  }
-
-  @Override
-  public boolean equals(final Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-
-    final Annotation that = (Annotation) o;
-
-    if (endTime != that.endTime) {
-      return false;
-    }
-    if (startTime != that.startTime) {
-      return false;
-    }
-
-    return Objects.equal(custom, that.custom) &&
-           Objects.equal(description, that.description) &&
-           Objects.equal(notes, that.notes) &&
-           Objects.equal(tsuid, that.tsuid);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hashCode(tsuid, startTime, endTime, description, notes, custom);
+  public int compareTo(@Nonnull Annotation note) {
+    return ComparisonChain.start()
+        .compare(startTime(), note.startTime())
+        .compare(endTime(), note.endTime())
+        .result();
   }
 }

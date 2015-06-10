@@ -16,7 +16,6 @@ import net.opentsdb.uid.UniqueIdType;
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
-import com.google.common.base.Strings;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -206,11 +205,11 @@ public class MemoryStore extends TsdbStore {
   @Override
   public Deferred<Void> delete(Annotation annotation) {
 
-    final String tsuid = annotation.getTSUID() != null && !annotation.getTSUID().isEmpty() ?
-        annotation.getTSUID() : "";
+    final String tsuid = annotation.timeSeriesId() != null && !annotation.timeSeriesId().isEmpty() ?
+        annotation.timeSeriesId() : "";
 
-    final long start = annotation.getStartTime() % 1000 == 0 ?
-        annotation.getStartTime() / 1000 : annotation.getStartTime();
+    final long start = annotation.startTime() % 1000 == 0 ?
+        annotation.startTime() / 1000 : annotation.startTime();
     if (start < 1) {
       throw new IllegalArgumentException("The start timestamp has not been set");
     }
@@ -221,26 +220,10 @@ public class MemoryStore extends TsdbStore {
   }
 
   @Override
-  public Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation) {
-
-    String tsuid = !Strings.isNullOrEmpty(annotation.getTSUID()) ?
-        annotation.getTSUID() : "";
-
-    final long start = annotation.getStartTime() % 1000 == 0 ?
-        annotation.getStartTime() / 1000 : annotation.getStartTime();
-    if (start < 1) {
-      throw new IllegalArgumentException("The start timestamp has not been set");
-    }
-
-    Annotation note = annotation_table.get(tsuid, start);
-
-    if ((null == note && null == original) ||
-        (null != note && null != original && note.equals(original))) {
-      annotation_table.remove(tsuid, start);
-      annotation_table.put(tsuid, start, annotation);
-      return Deferred.fromResult(true);
-    }
-    return Deferred.fromResult(false);
+  public Deferred<Boolean> updateAnnotation(Annotation annotation) {
+    final Annotation changedAnnotation = annotation_table.put(annotation.timeSeriesId(),
+        annotation.startTime(), annotation);
+    return Deferred.fromResult(!annotation.equals(changedAnnotation));
   }
 
   @Override
@@ -256,7 +239,7 @@ public class MemoryStore extends TsdbStore {
     Collection<Annotation> globals = annotation_table.row("").values();
 
     for (Annotation global : globals) {
-      if (startTime <= global.getStartTime() && global.getStartTime() <= endTime) {
+      if (startTime <= global.startTime() && global.startTime() <= endTime) {
         annotations.add(global);
       }
     }
@@ -287,7 +270,7 @@ public class MemoryStore extends TsdbStore {
 
     Collection<Annotation> globals = annotation_table.row(key).values();
     for (Annotation global : globals) {
-      if (start <= global.getStartTime() && global.getStartTime() <= end) {
+      if (start <= global.startTime() && global.startTime() <= end) {
         del_list.add(global);
       }
     }

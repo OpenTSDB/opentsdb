@@ -18,8 +18,10 @@ import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.AnnotationFixtures;
 import net.opentsdb.uid.LabelId;
 
+import autovalue.shaded.com.google.common.common.collect.ImmutableMap;
 import com.stumbleupon.async.Callback;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -49,7 +51,7 @@ public abstract class TestSearchPlugin {
 
   @Test
   public void indexAnnotation() {
-    assertNotNull(search.indexAnnotation(new Annotation()));
+    assertNotNull(search.indexAnnotation(AnnotationFixtures.provideAnnotation()));
   }
 
   @Test
@@ -64,7 +66,7 @@ public abstract class TestSearchPlugin {
 
   @Test
   public void deleteAnnotation() {
-    assertNotNull(search.deleteAnnotation(new Annotation()));
+    assertNotNull(search.deleteAnnotation(AnnotationFixtures.provideAnnotation()));
   }
 
   @Test
