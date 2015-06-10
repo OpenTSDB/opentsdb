@@ -14,6 +14,10 @@ import java.lang.Thread.UncaughtExceptionHandler;
 public class KillingUncaughtHandler implements UncaughtExceptionHandler {
   private static final Logger LOG = LoggerFactory.getLogger(KillingUncaughtHandler.class);
 
+  /**
+   * Install the shared instance of this implementation globally on all threads in this process.
+   * This is a no-op if the current global handler already is an instance of this class.
+   */
   public static void install() {
     final UncaughtExceptionHandler currentHandler = Thread.getDefaultUncaughtExceptionHandler();
     if (currentHandler instanceof KillingUncaughtHandler) {

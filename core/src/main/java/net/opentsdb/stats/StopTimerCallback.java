@@ -28,13 +28,13 @@ public class StopTimerCallback<T> implements Callback<T, T> {
    * will stop the provided {@link com.codahale.metrics.Timer.Context} once called.
    *
    * @param timerContext The timer to stop
-   * @param d The deferred to wait on
+   * @param deferred The deferred to wait on
    * @param <T> The type of result returned by the deferred
    * @return The deferred with an updated callback chain
    */
   public static <T> Deferred<T> stopOn(final Timer.Context timerContext,
-                                       final Deferred<T> d) {
-    return d.addBoth(new StopTimerCallback<T>(timerContext));
+                                       final Deferred<T> deferred) {
+    return deferred.addBoth(new StopTimerCallback<T>(timerContext));
   }
 
   @Override

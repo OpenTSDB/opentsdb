@@ -17,6 +17,9 @@ import com.google.auto.value.AutoValue;
  */
 @AutoValue
 public abstract class LabelMeta {
+  /**
+   * Create an instance with the provided information.
+   */
   public static LabelMeta create(final LabelId identifier,
                                  final UniqueIdType type,
                                  final String name,
