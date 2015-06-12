@@ -3,8 +3,10 @@ package net.opentsdb.storage.cassandra;
 import net.opentsdb.uid.LabelId;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.primitives.Longs;
 
 import java.util.Objects;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 
 class CassandraLabelId implements LabelId<CassandraLabelId> {
@@ -35,7 +37,7 @@ class CassandraLabelId implements LabelId<CassandraLabelId> {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id);
+    return Longs.hashCode(id);
   }
 
   @Override
@@ -53,5 +55,21 @@ class CassandraLabelId implements LabelId<CassandraLabelId> {
   @Override
   public int compareTo(@Nonnull final CassandraLabelId that) {
     return Long.compare(id, that.id);
+  }
+
+  static class CassandraLabelIdSerializer implements LabelId.LabelIdSerializer<CassandraLabelId> {
+    @Nonnull
+    @Override
+    public String serialize(@Nonnull final CassandraLabelId identifier) {
+      return Long.toString(identifier.id);
+    }
+  }
+
+  static class CassandraLabelIdDeserializer implements LabelId.LabelIdDeserializer<CassandraLabelId> {
+    @Nonnull
+    @Override
+    public CassandraLabelId deserialize(@Nonnull final String stringIdentifier) {
+      return new CassandraLabelId(Long.parseLong(stringIdentifier));
+    }
   }
 }

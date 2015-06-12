@@ -38,8 +38,7 @@ public final class HttpServer extends CommandLineApplication {
       configureLogger(options.valueOf(application.getLoggerConfigSpec()));
 
       final File configFile = options.valueOf(application.getConfigSpec());
-      final ObjectGraph objectGraph = ObjectGraph.create(
-          new TsdbModule(configFile), new HttpModule());
+      final ObjectGraph objectGraph = ObjectGraph.create(new HttpModule(configFile));
 
       final Config config = objectGraph.get(Config.class);
 

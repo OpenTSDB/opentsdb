@@ -28,7 +28,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.UUID;
 import javax.annotation.Nonnull;
 
 /**
@@ -364,33 +363,4 @@ public class MemoryStore extends TsdbStore {
     return Deferred.fromResult(result);
   }
 
-  private static class MemoryLabelId implements LabelId<MemoryLabelId> {
-    private final UUID uuid;
-
-    MemoryLabelId() {
-      this(UUID.randomUUID());
-    }
-
-    MemoryLabelId(@Nonnull final UUID uuid) {
-      this.uuid = checkNotNull(uuid);
-    }
-
-    @Override
-    public int compareTo(@Nonnull final MemoryLabelId other) {
-      return uuid.compareTo(other.uuid);
-    }
-
-    @Override
-    public boolean equals(final Object that) {
-      if (that == this) {
-        return true;
-      }
-
-      if (that instanceof MemoryLabelId) {
-        return ((MemoryLabelId) that).uuid.equals(uuid);
-      }
-
-      return false;
-    }
-  }
 }

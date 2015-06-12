@@ -1,6 +1,7 @@
 package net.opentsdb.storage.cassandra;
 
 import net.opentsdb.storage.StoreDescriptor;
+import net.opentsdb.uid.LabelId;
 import net.opentsdb.utils.InvalidConfigException;
 
 import com.codahale.metrics.MetricRegistry;
@@ -13,6 +14,7 @@ import com.google.common.net.HostAndPort;
 import com.typesafe.config.Config;
 
 import java.util.List;
+import javax.annotation.Nonnull;
 
 @AutoService(StoreDescriptor.class)
 public class CassandraStoreDescriptor extends StoreDescriptor {
@@ -71,6 +73,18 @@ public class CassandraStoreDescriptor extends StoreDescriptor {
     final Session session = connectTo(cluster);
     registerMetrics(cluster, metrics);
     return new CassandraStore(cluster, session);
+  }
+
+  @Nonnull
+  @Override
+  public LabelId.LabelIdSerializer labelIdSerializer() {
+    return new CassandraLabelId.CassandraLabelIdSerializer();
+  }
+
+  @Nonnull
+  @Override
+  public LabelId.LabelIdDeserializer labelIdDeserializer() {
+    return new CassandraLabelId.CassandraLabelIdDeserializer();
   }
 
   /**

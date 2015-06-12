@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import net.opentsdb.TestModule;
+import net.opentsdb.uid.LabelId;
 import net.opentsdb.utils.InvalidConfigException;
 
 import com.codahale.metrics.MetricRegistry;
@@ -16,6 +17,7 @@ import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
 import javax.inject.Inject;
 
 public class StoreModuleTest {
@@ -75,6 +77,18 @@ public class StoreModuleTest {
     @Override
     public TsdbStore createStore(final Config config, final MetricRegistry metrics) {
       return mock(TsdbStore.class);
+    }
+
+    @Nonnull
+    @Override
+    public LabelId.LabelIdSerializer labelIdSerializer() {
+      return mock(LabelId.LabelIdSerializer.class);
+    }
+
+    @Nonnull
+    @Override
+    public LabelId.LabelIdDeserializer labelIdDeserializer() {
+      return mock(LabelId.LabelIdDeserializer.class);
     }
   }
 }

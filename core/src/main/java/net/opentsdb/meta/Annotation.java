@@ -38,7 +38,7 @@ public abstract class Annotation implements Comparable<Annotation> {
     checkArgument(startTime > 0, "Start time must but larger than 0 but was %s", startTime);
     checkArgument(endTime > 0 || endTime == NOT_ENDED,
         "End time must be larger than 0 or equal to Annotation.END_TIME but was %s", endTime);
-    checkArgument(startTime >= endTime);
+    checkArgument(startTime <= endTime);
     final ImmutableMap<String, String> immutableProperties = ImmutableMap.copyOf(properties);
     return new AutoValue_Annotation(timeSeriesId, startTime, endTime, message, immutableProperties);
   }
