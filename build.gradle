@@ -26,6 +26,34 @@ subprojects {
         provided
     }
 
+    //
+    // Generate sources into a source folder instead of into the classes folder as Gradle does by
+    // default. We really shouldn't have to do this. Gradle should do this for us.
+    //
+    def generatedSources = "$buildDir/generated-sources"
+    def generatedMainSources = "$generatedSources/main/java"
+    def generatedMainOutputDir = file("$generatedMainSources")
+    def generatedTestSources = "$generatedSources/test/java"
+    def generatedTestOutputDir = file("$generatedTestSources")
+
+    compileJava {
+        doFirst {
+            generatedMainOutputDir.exists() || generatedMainOutputDir.mkdirs()
+            options.compilerArgs = [
+                    '-s', "${generatedMainSources}"
+            ]
+        }
+    }
+
+    compileTestJava {
+        doFirst {
+            generatedTestOutputDir.exists() || generatedTestOutputDir.mkdirs()
+            options.compilerArgs = [
+                    '-s', "${generatedTestSources}"
+            ]
+        }
+    }
+
     ext {
         libraries = [
                 config: 'com.typesafe:config:1.2.1',
@@ -89,9 +117,15 @@ subprojects {
 
     sourceSets {
         main {
+            java {
+                srcDirs += generatedMainOutputDir
+            }
             compileClasspath += configurations.provided
         }
         test {
+            java {
+                srcDirs += generatedTestOutputDir
+            }
             compileClasspath += configurations.provided
         }
     }
@@ -140,8 +174,12 @@ subprojects {
             excludeDirs = [file('.gradle')]
             if (buildDir.exists()) {
                 excludeDirs += files(buildDir.listFiles())
-                excludeDirs -= file("$buildDir/generated-sources")
+                excludeDirs -= file(generatedSources)
+
+                generatedSourceDirs += generatedMainOutputDir
+                testSourceDirs += generatedTestOutputDir
             }
+
         }
     }
 }
