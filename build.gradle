@@ -43,6 +43,8 @@ subprojects {
                     '-s', "${generatedMainSources}"
             ]
         }
+
+        dependsOn clean
     }
 
     compileTestJava {
@@ -52,6 +54,8 @@ subprojects {
                     '-s', "${generatedTestSources}"
             ]
         }
+
+        dependsOn clean
     }
 
     ext {
