@@ -2,6 +2,7 @@ package net.opentsdb.core;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.util.concurrent.Futures.addCallback;
 import static net.opentsdb.stats.Metrics.name;
 
 import net.opentsdb.plugins.PluginError;
@@ -12,11 +13,13 @@ import net.opentsdb.uid.TimeseriesId;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
+import com.google.common.util.concurrent.AsyncFunction;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.typesafe.config.Config;
 
 import java.util.Map;
+import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -87,10 +90,7 @@ public class DataPointsClient {
    * @param timestamp The timestamp associated with the value.
    * @param value The value of the data point.
    * @param tags The tags on this series.  This map must be non-empty.
-   * @return A deferred object that indicates the completion of the request. The {@link Object} has
-   * not special meaning and can be {@code null} (think of it as {@code Deferred<Void>}). But you
-   * probably want to attach at least an errback to this {@code Deferred} to handle failures.
-   * @throws IllegalArgumentException if the timestamp is less than or equal to the previous
+   * @return A future that indicates the completion of the request or an error.
    * timestamp added or 0 for the first timestamp, or if the difference with the previous timestamp
    * is too large.
    * @throws IllegalArgumentException if the metric name is empty or contains illegal characters.
@@ -98,20 +98,20 @@ public class DataPointsClient {
    * @throws IllegalArgumentException if the tags list is empty or one of the elements contains
    * illegal characters.
    */
-  public Deferred<Void> addPoint(final String metric,
-                                 final long timestamp,
-                                 final float value,
-                                 final Map<String, String> tags) {
+  public ListenableFuture<Void> addPoint(final String metric,
+                                         final long timestamp,
+                                         final float value,
+                                         final Map<String, String> tags) {
     checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
-    class RowKeyCB implements Callback<Deferred<Void>, TimeseriesId> {
+    class RowKeyCB implements AsyncFunction<TimeseriesId, Void> {
       @Override
-      public Deferred<Void> call(final TimeseriesId tsuid) throws Exception {
-        Deferred<Void> result = store.addPoint(tsuid, timestamp, value);
+      public ListenableFuture<Void> apply(@Nonnull final TimeseriesId tsuid) {
+        ListenableFuture<Void> result = store.addPoint(tsuid, timestamp, value);
 
-        realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid)
-            .addErrback(new PluginError(realtimePublisher));
+        addCallback(realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid),
+            new PluginError(realtimePublisher));
 
         return result;
       }
@@ -119,9 +119,12 @@ public class DataPointsClient {
 
     final Timer.Context time = addDataPointTimer.time();
 
-    return uniqueIdClient.getTSUID(metric, tags)
-        .addCallbackDeferring(new RowKeyCB())
-        .addBoth(new StopTimerCallback<Void>(time));
+    final ListenableFuture<Void> addPointComplete = Futures.transform(
+        uniqueIdClient.getTSUID(metric, tags), new RowKeyCB());
+
+    StopTimerCallback.stopOn(time, addPointComplete);
+
+    return addPointComplete;
   }
 
   /**
@@ -131,9 +134,7 @@ public class DataPointsClient {
    * @param timestamp The timestamp associated with the value.
    * @param value The value of the data point.
    * @param tags The tags on this series.  This map must be non-empty.
-   * @return A deferred object that indicates the completion of the request. The {@link Object} has
-   * not special meaning and can be {@code null} (think of it as {@code Deferred<Void>}). But you
-   * probably want to attach at least an errback to this {@code Deferred} to handle failures.
+   * @return A future that indicates the completion of the request or an error.
    * @throws IllegalArgumentException if the timestamp is less than or equal to the previous
    * timestamp added or 0 for the first timestamp, or if the difference with the previous timestamp
    * is too large.
@@ -143,20 +144,20 @@ public class DataPointsClient {
    * illegal characters.
    * @since 1.2
    */
-  public Deferred<Void> addPoint(final String metric,
-                                 final long timestamp,
-                                 final double value,
-                                 final Map<String, String> tags) {
+  public ListenableFuture<Void> addPoint(final String metric,
+                                         final long timestamp,
+                                         final double value,
+                                         final Map<String, String> tags) {
     checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
-    class RowKeyCB implements Callback<Deferred<Void>, TimeseriesId> {
+    class RowKeyCB implements AsyncFunction<TimeseriesId, Void> {
       @Override
-      public Deferred<Void> call(final TimeseriesId tsuid) throws Exception {
-        Deferred<Void> result = store.addPoint(tsuid, timestamp, value);
+      public ListenableFuture<Void> apply(@Nonnull final TimeseriesId tsuid) {
+        ListenableFuture<Void> result = store.addPoint(tsuid, timestamp, value);
 
-        realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid)
-            .addErrback(new PluginError(realtimePublisher));
+        addCallback(realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid),
+            new PluginError(realtimePublisher));
 
         return result;
       }
@@ -164,9 +165,12 @@ public class DataPointsClient {
 
     final Timer.Context time = addDataPointTimer.time();
 
-    return uniqueIdClient.getTSUID(metric, tags)
-        .addCallbackDeferring(new RowKeyCB())
-        .addBoth(new StopTimerCallback<Void>(time));
+    final ListenableFuture<Void> addPointComplete = Futures.transform(
+        uniqueIdClient.getTSUID(metric, tags), new RowKeyCB());
+
+    StopTimerCallback.stopOn(time, addPointComplete);
+
+    return addPointComplete;
   }
 
   /**
@@ -176,9 +180,7 @@ public class DataPointsClient {
    * @param timestamp The timestamp associated with the value.
    * @param value The value of the data point.
    * @param tags The tags on this series.  This map must be non-empty.
-   * @return A deferred object that indicates the completion of the request. The {@link Object} has
-   * not special meaning and can be {@code null} (think of it as {@code Deferred<Void>}). But you
-   * probably want to attach at least an errback to this {@code Deferred} to handle failures.
+   * @return A future that indicates the completion of the request or an error.
    * @throws IllegalArgumentException if the timestamp is less than or equal to the previous
    * timestamp added or 0 for the first timestamp, or if the difference with the previous timestamp
    * is too large.
@@ -186,20 +188,20 @@ public class DataPointsClient {
    * @throws IllegalArgumentException if the tags list is empty or one of the elements contains
    * illegal characters.
    */
-  public Deferred<Void> addPoint(final String metric,
-                                 final long timestamp,
-                                 final long value,
-                                 final Map<String, String> tags) {
+  public ListenableFuture<Void> addPoint(final String metric,
+                                         final long timestamp,
+                                         final long value,
+                                         final Map<String, String> tags) {
     checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
-    class RowKeyCB implements Callback<Deferred<Void>, TimeseriesId> {
+    class RowKeyCB implements AsyncFunction<TimeseriesId, Void> {
       @Override
-      public Deferred<Void> call(final TimeseriesId tsuid) throws Exception {
-        Deferred<Void> result = store.addPoint(tsuid, timestamp, value);
+      public ListenableFuture<Void> apply(@Nonnull final TimeseriesId tsuid) {
+        ListenableFuture<Void> result = store.addPoint(tsuid, timestamp, value);
 
-        realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid)
-            .addErrback(new PluginError(realtimePublisher));
+        addCallback(realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid),
+            new PluginError(realtimePublisher));
 
         return result;
       }
@@ -207,9 +209,12 @@ public class DataPointsClient {
 
     final Timer.Context time = addDataPointTimer.time();
 
-    return uniqueIdClient.getTSUID(metric, tags)
-        .addCallbackDeferring(new RowKeyCB())
-        .addBoth(new StopTimerCallback<Void>(time));
+    final ListenableFuture<Void> addPointComplete = Futures.transform(
+        uniqueIdClient.getTSUID(metric, tags), new RowKeyCB());
+
+    StopTimerCallback.stopOn(time, addPointComplete);
+
+    return addPointComplete;
   }
 
   /**
@@ -222,7 +227,7 @@ public class DataPointsClient {
    * @since 1.2
    */
   // TODO
-  public Deferred<DataPoints[]> executeQuery(Object query) {
+  public ListenableFuture<DataPoints[]> executeQuery(Object query) {
     //return store.executeQuery(query);
     return null;
   }
