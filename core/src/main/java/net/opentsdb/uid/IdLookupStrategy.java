@@ -1,8 +1,11 @@
 package net.opentsdb.uid;
 
 import com.google.common.base.Strings;
+import com.google.common.util.concurrent.AsyncFunction;
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -51,16 +54,31 @@ public interface IdLookupStrategy {
     @Override
     public ListenableFuture<LabelId> getId(@Nonnull final UniqueId uniqueId,
                                            @Nonnull final String name) {
-      return uniqueId.getId(name).addErrback(new Callback<Object, Exception>() {
-        @Override
-        public Object call(final Exception e) throws Exception {
-          if (e instanceof NoSuchUniqueName) {
-            return uniqueId.createId(name);
-          }
+      final SettableFuture<LabelId> id = SettableFuture.create();
 
-          return e;
+      Futures.addCallback(uniqueId.getId(name), new FutureCallback<LabelId>() {
+        @Override
+        public void onSuccess(final LabelId result) {
+          id.set(result);
+        }
+
+        @Override
+        public void onFailure(final Throwable t) {
+          Futures.addCallback(uniqueId.createId(name), new FutureCallback<LabelId>() {
+            @Override
+            public void onSuccess(final LabelId result) {
+              id.set(result);
+            }
+
+            @Override
+            public void onFailure(final Throwable t) {
+              id.setException(t);
+            }
+          });
         }
       });
+
+      return id;
     }
   }
 

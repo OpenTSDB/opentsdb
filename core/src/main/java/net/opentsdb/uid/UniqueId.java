@@ -1,6 +1,7 @@
 package net.opentsdb.uid;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.util.concurrent.Futures.transform;
 import static net.opentsdb.stats.Metrics.name;
 import static net.opentsdb.stats.Metrics.tag;
 
@@ -10,9 +11,15 @@ import net.opentsdb.storage.TsdbStore;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
+import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 import com.google.common.eventbus.EventBus;
+import com.google.common.util.concurrent.AsyncFunction;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import org.slf4j.Logger;
@@ -44,7 +51,7 @@ public class UniqueId {
   private final ConcurrentHashMap<LabelId, String> idCache = new ConcurrentHashMap<>();
 
   /** Map of pending UID assignments. */
-  private final HashMap<String, Deferred<LabelId>> pendingAssignments = new HashMap<>();
+  private final HashMap<String, ListenableFuture<LabelId>> pendingAssignments = new HashMap<>();
 
   /** Number of times we avoided reading from TsdbStore thanks to the cache. */
   private final Counter cacheHits;
@@ -113,16 +120,19 @@ public class UniqueId {
    * @since 1.1
    */
   @Nonnull
-  public Deferred<String> getName(@Nonnull final LabelId id) {
+  public ListenableFuture<String> getName(@Nonnull final LabelId id) {
     final String name = getNameFromCache(id);
     if (name != null) {
       cacheHits.inc();
-      return Deferred.fromResult(name);
+      return Futures.immediateFuture(name);
     }
     cacheMisses.inc();
-    class GetNameCB implements Callback<String, Optional<String>> {
+    class GetNameCB implements Function<Optional<String>, String> {
+      @Nullable
       @Override
-      public String call(final Optional<String> name) {
+      public String apply(@Nullable final Optional<String> name) {
+        checkNotNull(name);
+
         if (name.isPresent()) {
           addNameToCache(id, name.get());
           addIdToCache(name.get(), id);
@@ -133,7 +143,7 @@ public class UniqueId {
       }
     }
 
-    return store.getName(id, type).addCallback(new GetNameCB());
+    return transform(store.getName(id, type), new GetNameCB());
   }
 
   @Nullable
@@ -154,16 +164,19 @@ public class UniqueId {
   }
 
   @Nonnull
-  public Deferred<LabelId> getId(@Nonnull final String name) {
+  public ListenableFuture<LabelId> getId(@Nonnull final String name) {
     final LabelId id = getIdFromCache(name);
     if (id != null) {
       cacheHits.inc();
-      return Deferred.fromResult(id);
+      return Futures.immediateFuture(id);
     }
     cacheMisses.inc();
-    class GetIdCB implements Callback<LabelId, Optional<LabelId>> {
+    class GetIdCB implements Function<Optional<LabelId>, LabelId> {
+      @Nullable
       @Override
-      public LabelId call(final Optional<LabelId> id) {
+      public LabelId apply(@Nullable final Optional<LabelId> id) {
+        checkNotNull(id);
+
         if (id.isPresent()) {
           addIdToCache(name, id.get());
           addNameToCache(id.get(), name);
@@ -174,7 +187,7 @@ public class UniqueId {
       }
     }
 
-    return store.getId(name, type).addCallback(new GetIdCB());
+    return transform(store.getId(name, type), new GetIdCB());
   }
 
   @Nullable
@@ -208,8 +221,8 @@ public class UniqueId {
    * @return A deferred with the byte uid if the id was successfully created
    */
   @Nonnull
-  public Deferred<LabelId> createId(@Nonnull final String name) {
-    Deferred<LabelId> assignment;
+  public ListenableFuture<LabelId> createId(@Nonnull final String name) {
+    ListenableFuture<LabelId> assignment;
     synchronized (pendingAssignments) {
       assignment = pendingAssignments.get(name);
       if (assignment == null) {
@@ -218,7 +231,7 @@ public class UniqueId {
         // deferred to the pending map as quickly as possible. Then we can
         // start the assignment process after we've stashed the deferred
         // and released the lock
-        assignment = new Deferred<>();
+        assignment = SettableFuture.create();
         pendingAssignments.put(name, assignment);
       } else {
         LOG.info("Already waiting for UID assignment: {}", name);
@@ -227,11 +240,14 @@ public class UniqueId {
     }
 
     // start the assignment dance after stashing the deferred
-    Deferred<LabelId> uid = store.allocateUID(name, type);
+    ListenableFuture<LabelId> uid = store.allocateUID(name, type);
 
-    uid.addCallback(new Callback<Object, LabelId>() {
+    return transform(uid, new Function<LabelId, LabelId>() {
+      @Nullable
       @Override
-      public LabelId call(final LabelId uid) throws Exception {
+      public LabelId apply(@Nullable final LabelId uid) {
+        checkNotNull(uid);
+
         cacheMapping(name, uid);
 
         LOG.info("Completed pending assignment for: {}", name);
@@ -244,8 +260,6 @@ public class UniqueId {
         return uid;
       }
     });
-
-    return uid;
   }
 
   /**
@@ -264,23 +278,23 @@ public class UniqueId {
    * @throws NoSuchUniqueName if {@code oldname} wasn't assigned.
    * @throws IllegalArgumentException if {@code newname} was already assigned.
    */
-  public Deferred<Void> rename(final String oldname, final String newname) {
-    return checkUidExists(newname).addCallbackDeferring(new Callback<Deferred<Void>, Boolean>() {
+  public ListenableFuture<Void> rename(final String oldname, final String newname) {
+    return transform(checkUidExists(newname), new AsyncFunction<Boolean, Void>() {
       @Override
-      public Deferred<Void> call(final Boolean exists) {
+      public ListenableFuture<Void> apply(@Nonnull final Boolean exists) throws Exception {
         if (exists) {
           throw new IllegalArgumentException("An UID with name " + newname + ' '
                                              + "for " + type + " already exists");
         }
 
-        return getId(oldname).addCallbackDeferring(new Callback<Deferred<Void>, LabelId>() {
+        return transform(getId(oldname), new AsyncFunction<LabelId, Void>() {
           @Override
-          public Deferred<Void> call(final LabelId oldUid) {
+          public ListenableFuture<Void> apply(@Nonnull final LabelId oldUid) throws Exception {
             store.allocateUID(newname, oldUid, type);
 
             // Update cache.
             addIdToCache(newname, oldUid);  // add     new name -> ID
-            idCache.put(oldUid, newname);  // update  ID -> new name
+            idCache.put(oldUid, newname);   // update  ID -> new name
             nameCache.remove(oldname);      // remove  old name -> ID
 
             // Delete the old forward mapping.
@@ -291,23 +305,22 @@ public class UniqueId {
     });
   }
 
-  private Deferred<Boolean> checkUidExists(String newname) {
-    class NoId implements Callback<Boolean, LabelId> {
-      @Override
-      public Boolean call(LabelId uid) throws Exception {
-        return uid != null;
-      }
-    }
+  private ListenableFuture<Boolean> checkUidExists(String name) {
+    final SettableFuture<Boolean> exists = SettableFuture.create();
 
-    class NoSuchId implements Callback<Object, Exception> {
-      @Nullable
+    Futures.addCallback(getId(name), new FutureCallback<LabelId>() {
       @Override
-      public Object call(Exception e) throws Exception {
-        return null;
+      public void onSuccess(@Nullable final LabelId result) {
+        exists.set(result != null);
       }
-    }
 
-    return getId(newname).addCallbacks(new NoId(), new NoSuchId());
+      @Override
+      public void onFailure(@Nonnull final Throwable throwable) {
+        exists.set(false);
+      }
+    });
+
+    return exists;
   }
 
   public String toString() {
