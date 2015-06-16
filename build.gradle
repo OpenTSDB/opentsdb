@@ -169,6 +169,17 @@ subprojects {
         toolVersion = "6.5"
     }
 
+    //
+    // Only scan the non-generated sources
+    //
+    checkstyleMain {
+        source = fileTree(dir: "src/main", include: "**/*.java")
+    }
+
+    checkstyleTest {
+        source = fileTree(dir: "src/test", include: "**/*.java")
+    }
+
     // Configure intellij to add the generated sources folders to its build path
     idea {
         module {
