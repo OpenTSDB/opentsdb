@@ -2,6 +2,8 @@ package net.opentsdb.core;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.util.concurrent.Futures.allAsList;
+import static com.google.common.util.concurrent.Futures.transform;
 import static net.opentsdb.stats.Metrics.name;
 
 import net.opentsdb.search.ResolvedSearchQuery;
@@ -25,13 +27,15 @@ import net.opentsdb.utils.Pair;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
+import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.eventbus.EventBus;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
+import com.google.common.util.concurrent.AsyncFunction;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.typesafe.config.Config;
 
 import java.util.ArrayList;
@@ -40,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -128,27 +133,27 @@ public class UniqueIdClient {
   /**
    * Get the IDs for all tag keys and tag values in the provided {@link java.util.Map} using the
    * provided tag key and tag value {@link net.opentsdb.uid.IdLookupStrategy}. The returned value is
-   * a deferred that contains a list of striped IDs with the tag key ID on odd indexes and tag value
-   * IDs on even indexes.
+   * a future that on completion contains a list of striped IDs with the tag key ID on odd indexes
+   * and tag value IDs on even indexes.
    *
    * @param tags The names for which to lookup the IDs for
-   * @param tagkStrategy The strategy to use for looking up tag keys
-   * @param tagvStrategy The strategy to use for looking up tag values
-   * @return A Deferred that contains a striped list of all IDs
+   * @param tagKeyStrategy The strategy to use for looking up tag keys
+   * @param tagValueStrategy The strategy to use for looking up tag values
+   * @return A future that on completion contains a striped list of all IDs
    */
   @Nonnull
-  private Deferred<ArrayList<LabelId>> getTagIds(@Nonnull final Map<String, String> tags,
-                                                 @Nonnull final IdLookupStrategy tagkStrategy,
-                                                 @Nonnull final IdLookupStrategy tagvStrategy) {
-    final ImmutableList.Builder<Deferred<LabelId>> tag_ids = ImmutableList.builder();
+  private ListenableFuture<List<LabelId>> getTagIds(@Nonnull final Map<String, String> tags,
+                                                    @Nonnull final IdLookupStrategy tagKeyStrategy,
+                                                    @Nonnull final IdLookupStrategy tagValueStrategy) {
+    final ImmutableList.Builder<ListenableFuture<LabelId>> tagIds = ImmutableList.builder();
 
     // For each tag, start resolving the tag name and the tag value.
     for (final Map.Entry<String, String> entry : tags.entrySet()) {
-      tag_ids.add(tagkStrategy.getId(tagKeys, entry.getKey()));
-      tag_ids.add(tagvStrategy.getId(tagValues, entry.getValue()));
+      tagIds.add(tagKeyStrategy.getId(tagKeys, entry.getKey()));
+      tagIds.add(tagValueStrategy.getId(tagValues, entry.getValue()));
     }
 
-    return Deferred.groupInOrder(tag_ids.build());
+    return allAsList(tagIds.build());
   }
 
   /**
@@ -159,18 +164,17 @@ public class UniqueIdClient {
    * @throws NoSuchUniqueId
    */
   @Nonnull
-  public Deferred<Map<String, String>> getTagNames(@Nonnull final List<LabelId> tags)
+  public ListenableFuture<Map<String, String>> getTagNames(@Nonnull final List<LabelId> tags)
       throws NoSuchUniqueId {
-    final ArrayList<Deferred<String>> deferreds = new ArrayList<>(tags.size());
+    final List<ListenableFuture<String>> futures = new ArrayList<>(tags.size());
 
     final Iterator<LabelId> iterator = tags.iterator();
     while (iterator.hasNext()) {
-      deferreds.add(tagKeys.getName(iterator.next()));
-      deferreds.add(tagValues.getName(iterator.next()));
+      futures.add(tagKeys.getName(iterator.next()));
+      futures.add(tagValues.getName(iterator.next()));
     }
 
-    return Deferred.groupInOrder(deferreds)
-        .addCallback(new StripedToMap<String>());
+    return transform(allAsList(futures), new StripedToMap<String>());
   }
 
   /**
@@ -178,9 +182,9 @@ public class UniqueIdClient {
    * configured {@link net.opentsdb.search.SearchPlugin}.
    *
    * @param query The query specifying the search parameters.
-   * @return A deferred that contains the result of the query.
+   * @return A future that on completion will contain the result of the query.
    */
-  public Deferred<List<IdentifierDecorator>> suggest(final IdQuery query) {
+  public ListenableFuture<List<IdentifierDecorator>> suggest(final IdQuery query) {
     return searchPlugin.executeIdQuery(query);
   }
 
@@ -223,15 +227,16 @@ public class UniqueIdClient {
   @Nonnull
   public LabelId assignUid(@Nonnull final UniqueIdType type,
                            @Nonnull final String name) {
+
     validateUidName(type.toString(), name);
     UniqueId instance = uniqueIdInstanceForType(type);
 
     try {
       try {
-        final LabelId uid = instance.getId(name).joinUninterruptibly();
+        final LabelId uid = instance.getId(name).get();
         throw new IllegalArgumentException("Name already exists with UID: " + uid);
       } catch (NoSuchUniqueName nsue) {
-        return instance.createId(name).joinUninterruptibly();
+        return instance.createId(name).get();
       }
     } catch (Exception e) {
       throw Throwables.propagate(e);
@@ -241,7 +246,7 @@ public class UniqueIdClient {
   /**
    * TODO. This does not exactly mirror what assignUid does. We should merge the two.
    */
-  public Deferred<LabelId> createId(final UniqueIdType type, final String name) {
+  public ListenableFuture<LabelId> createId(final UniqueIdType type, final String name) {
     validateUidName(type.toString(), name);
     UniqueId instance = uniqueIdInstanceForType(type);
     return instance.createId(name);
@@ -258,8 +263,8 @@ public class UniqueIdClient {
    * @since 2.0
    */
   @Nonnull
-  public Deferred<String> getUidName(@Nonnull final UniqueIdType type,
-                                     @Nonnull final LabelId uid) {
+  public ListenableFuture<String> getUidName(@Nonnull final UniqueIdType type,
+                                             @Nonnull final LabelId uid) {
     checkNotNull(uid, "Missing UID");
     UniqueId uniqueId = uniqueIdInstanceForType(type);
     return uniqueId.getName(uid);
@@ -274,8 +279,8 @@ public class UniqueIdClient {
    * @since 2.0
    */
   @Nonnull
-  public Deferred<LabelId> getUID(@Nonnull final UniqueIdType type,
-                                  @Nonnull final String name) {
+  public ListenableFuture<LabelId> getUID(@Nonnull final UniqueIdType type,
+                                          @Nonnull final String name) {
     checkArgument(!Strings.isNullOrEmpty(name), "Missing UID name");
     UniqueId uniqueId = uniqueIdInstanceForType(type);
     return uniqueId.getId(name);
@@ -288,41 +293,38 @@ public class UniqueIdClient {
    * @param tags The string tags to use in the TSUID
    * @since 2.0
    */
-  Deferred<TimeseriesId> getTSUID(@Nonnull final String metric,
-                                  @Nonnull final Map<String, String> tags) {
+  ListenableFuture<TimeseriesId> getTSUID(@Nonnull final String metric,
+                                          @Nonnull final Map<String, String> tags) {
     // Lookup or create the metric ID.
-    final Deferred<LabelId> metric_id = metricLookupStrategy.getId(metrics, metric);
+    final ListenableFuture<LabelId> metric_id = metricLookupStrategy.getId(metrics, metric);
 
     // Copy the metric ID at the beginning of the row key.
-    class CopyMetricInRowKeyCB implements Callback<TimeseriesId, LabelId> {
+    class CopyMetricInRowKeyCB implements Function<LabelId, TimeseriesId> {
       private final List<LabelId> tagIds;
 
       public CopyMetricInRowKeyCB(@Nonnull final List<LabelId> tagIds) {
         this.tagIds = tagIds;
       }
 
-      @Nonnull
       @Override
-      public TimeseriesId call(@Nonnull final LabelId metricid) {
+      public TimeseriesId apply(final LabelId metricid) {
         return new StaticTimeseriesId(metricid, tagIds);
       }
     }
 
     // Copy the tag IDs in the row key.
-    class CopyTagsInRowKeyCB
-        implements Callback<Deferred<TimeseriesId>, ArrayList<LabelId>> {
+    class CopyTagsInRowKeyCB implements AsyncFunction<List<LabelId>, TimeseriesId> {
       @Override
-      public Deferred<TimeseriesId> call(final ArrayList<LabelId> tags) {
+      public ListenableFuture<TimeseriesId> apply(@Nonnull final List<LabelId> tags) {
         // Once we've resolved all the tags, schedule the copy of the metric
         // ID and return the row key we produced.
-        return metric_id
-            .addCallback(new CopyMetricInRowKeyCB(tags));
+        return transform(metric_id, new CopyMetricInRowKeyCB(tags));
       }
     }
 
     // Kick off the resolution of all tags.
-    return getTagIds(tags, tagkLookupStrategy, tagvLookupStrategy)
-        .addCallbackDeferring(new CopyTagsInRowKeyCB());
+    return transform(getTagIds(tags, tagkLookupStrategy, tagvLookupStrategy),
+        new CopyTagsInRowKeyCB());
   }
 
   /**
@@ -341,35 +343,39 @@ public class UniqueIdClient {
    * When combined with a tagk, e.g. "host=web01 =lga" then it will return any series with the tag
    * pair AND any tag with the "lga" value.
    */
-  public Deferred<List<byte[]>> executeTimeSeriesQuery(final SearchQuery query) {
+  public ListenableFuture<List<byte[]>> executeTimeSeriesQuery(final SearchQuery query) {
     final Timer.Context timerContext = tsuidQueryTimer.time();
 
-    Deferred<List<byte[]>> tsuids = resolve(query).addCallbackDeferring(
-        new Callback<Deferred<List<byte[]>>, ResolvedSearchQuery>() {
+    ListenableFuture<List<byte[]>> tsuids = transform(resolve(query),
+        new AsyncFunction<ResolvedSearchQuery, List<byte[]>>() {
           @Override
-          public Deferred<List<byte[]>> call(final ResolvedSearchQuery arg) {
-            return store.executeTimeSeriesQuery(arg);
+          public ListenableFuture<List<byte[]>> apply(@Nonnull final ResolvedSearchQuery resolvedQuery)
+              throws Exception {
+            return store.executeTimeSeriesQuery(resolvedQuery);
           }
         });
 
-    return StopTimerCallback.stopOn(timerContext, tsuids);
+    StopTimerCallback.stopOn(timerContext, tsuids);
+
+    return tsuids;
   }
 
   /**
    * Resolve the string representation of a search query to an ID representation.
    */
-  Deferred<ResolvedSearchQuery> resolve(final SearchQuery query) {
-    IdLookupStrategy lookupStrategy = WildcardIdLookupStrategy.instance;
-    final Deferred<LabelId> metric = lookupStrategy.getId(metrics, query.getMetric());
-    final Deferred<SortedSet<Pair<LabelId, LabelId>>> tags = resolveTags(query.getTags());
+  ListenableFuture<ResolvedSearchQuery> resolve(final SearchQuery query) {
+    final IdLookupStrategy lookupStrategy = WildcardIdLookupStrategy.instance;
+    final ListenableFuture<LabelId> metric = lookupStrategy.getId(metrics, query.getMetric());
+    final ListenableFuture<SortedSet<Pair<LabelId, LabelId>>> tags = resolveTags(query.getTags());
 
-    return metric.addBothDeferring(new Callback<Deferred<ResolvedSearchQuery>, LabelId>() {
+    return transform(metric, new AsyncFunction<LabelId, ResolvedSearchQuery>() {
       @Override
-      public Deferred<ResolvedSearchQuery> call(final LabelId metricId) {
-        return tags.addCallback(
-            new Callback<ResolvedSearchQuery, SortedSet<Pair<LabelId, LabelId>>>() {
+      public ListenableFuture<ResolvedSearchQuery> apply(final LabelId metricId) throws Exception {
+        return transform(tags,
+            new Function<SortedSet<Pair<LabelId, LabelId>>, ResolvedSearchQuery>() {
+              @Nullable
               @Override
-              public ResolvedSearchQuery call(final SortedSet<Pair<LabelId, LabelId>> tagIds) {
+              public ResolvedSearchQuery apply(final SortedSet<Pair<LabelId, LabelId>> tagIds) {
                 return new ResolvedSearchQuery(metricId, tagIds);
               }
             });
@@ -377,57 +383,61 @@ public class UniqueIdClient {
     });
   }
 
-  private Deferred<SortedSet<Pair<LabelId, LabelId>>> resolveTags(final List<Pair<String, String>> tags) {
+  private ListenableFuture<SortedSet<Pair<LabelId, LabelId>>> resolveTags(final List<Pair<String, String>> tags) {
     if (tags != null && !tags.isEmpty()) {
       final IdLookupStrategy lookupStrategy = WildcardIdLookupStrategy.instance;
-      final List<Deferred<Pair<LabelId, LabelId>>> pairs = new ArrayList<>(tags.size());
+      final List<ListenableFuture<Pair<LabelId, LabelId>>> pairs = new ArrayList<>(tags.size());
 
       for (Pair<String, String> tag : tags) {
-        final Deferred<LabelId> tagk = lookupStrategy.getId(tagKeys, tag.getKey());
-        final Deferred<LabelId> tagv = lookupStrategy.getId(tagValues, tag.getValue());
+        final ListenableFuture<LabelId> tagk = lookupStrategy.getId(tagKeys, tag.getKey());
+        final ListenableFuture<LabelId> tagv = lookupStrategy.getId(tagValues, tag.getValue());
 
-        pairs.add(tagk.addCallbackDeferring(new TagKeyResolvedCallback(tagv)));
+
+        pairs.add(transform(tagk, new TagKeyResolvedFunction(tagv)));
       }
 
-      return Deferred.group(pairs).addCallback(new TagSortCallback());
+      return transform(allAsList(pairs), new TagSortCallback());
     }
 
     SortedSet<Pair<LabelId, LabelId>> of = ImmutableSortedSet.of();
-    return Deferred.fromResult(of);
+    return Futures.immediateFuture(of);
   }
 
   private static class TagSortCallback
-      implements Callback<SortedSet<Pair<LabelId, LabelId>>, ArrayList<Pair<LabelId, LabelId>>> {
+      implements Function<List<Pair<LabelId, LabelId>>, SortedSet<Pair<LabelId, LabelId>>> {
+    @Nullable
     @Override
-    public SortedSet<Pair<LabelId, LabelId>> call(final ArrayList<Pair<LabelId, LabelId>> tags) {
+    public SortedSet<Pair<LabelId, LabelId>> apply(@Nullable final List<Pair<LabelId, LabelId>> tags) {
       return ImmutableSortedSet.copyOf(tags);
     }
   }
 
-  private static class TagKeyResolvedCallback
-      implements Callback<Deferred<Pair<LabelId, LabelId>>, LabelId> {
-    private final Deferred<LabelId> tagv;
+  private static class TagKeyResolvedFunction
+      implements AsyncFunction<LabelId, Pair<LabelId, LabelId>> {
+    private final ListenableFuture<LabelId> tagv;
 
-    public TagKeyResolvedCallback(final Deferred<LabelId> tagv) {
+    public TagKeyResolvedFunction(final ListenableFuture<LabelId> tagv) {
       this.tagv = tagv;
     }
 
+    @Nullable
     @Override
-    public Deferred<Pair<LabelId, LabelId>> call(final LabelId tagkId) {
-      return tagv.addCallback(new TagValueResolvedCallback(tagkId));
+    public ListenableFuture<Pair<LabelId, LabelId>> apply(@Nullable final LabelId tagkId) {
+      return transform(tagv, new TagValueResolvedCallback(tagkId));
     }
   }
 
   private static class TagValueResolvedCallback
-      implements Callback<Pair<LabelId, LabelId>, LabelId> {
+      implements Function<LabelId, Pair<LabelId, LabelId>> {
     private final LabelId tagkId;
 
     public TagValueResolvedCallback(final LabelId tagkId) {
       this.tagkId = tagkId;
     }
 
+    @Nullable
     @Override
-    public Pair<LabelId, LabelId> call(final LabelId tagvId) {
+    public Pair<LabelId, LabelId> apply(@Nullable final LabelId tagvId) {
       return Pair.create(tagkId, tagvId);
     }
   }

@@ -3,15 +3,17 @@ package net.opentsdb.stats;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.codahale.metrics.Timer;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 
 /**
  * A {@link com.stumbleupon.async.Callback} implementation for use with {@link
  * com.stumbleupon.async.Deferred}s. This callback will stop the provided timer when called. It will
  * not make any modifications to the result of the callback.
  */
-public class StopTimerCallback<T> implements Callback<T, T> {
+public class StopTimerCallback<T> implements FutureCallback<T> {
   private final Timer.Context timerContext;
 
   /**
@@ -24,22 +26,25 @@ public class StopTimerCallback<T> implements Callback<T, T> {
   }
 
   /**
-   * Add both an errback and a callback on the provided {@link com.stumbleupon.async.Deferred} that
-   * will stop the provided {@link com.codahale.metrics.Timer.Context} once called.
+   * Add a callback on the provided {@link ListenableFuture} that will stop the provided {@link
+   * com.codahale.metrics.Timer.Context} once called.
    *
    * @param timerContext The timer to stop
-   * @param deferred The deferred to wait on
-   * @param <T> The type of result returned by the deferred
-   * @return The deferred with an updated callback chain
+   * @param future The future to wait on
+   * @param <T> The type of result returned by the future
    */
-  public static <T> Deferred<T> stopOn(final Timer.Context timerContext,
-                                       final Deferred<T> deferred) {
-    return deferred.addBoth(new StopTimerCallback<T>(timerContext));
+  public static <T> void stopOn(final Timer.Context timerContext,
+                                final ListenableFuture<T> future) {
+    Futures.addCallback(future, new StopTimerCallback<T>(timerContext));
   }
 
   @Override
-  public T call(final T arg) {
+  public void onSuccess(final T result) {
     timerContext.stop();
-    return arg;
+  }
+
+  @Override
+  public void onFailure(final Throwable t) {
+    timerContext.stop();
   }
 }
