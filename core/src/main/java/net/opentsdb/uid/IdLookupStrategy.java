@@ -1,6 +1,8 @@
 package net.opentsdb.uid;
 
 import com.google.common.base.Strings;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -17,11 +19,11 @@ public interface IdLookupStrategy {
    *
    * @param uniqueId The UniqueId instance to use for looking up the ID
    * @param name The name to find the ID behind
-   * @return A deferred that contains the byte representation of the ID behind the name
+   * @return A future that on completion will contains the ID behind the name
    */
   @Nonnull
-  Deferred<LabelId> getId(@Nonnull final UniqueId uniqueId,
-                          @Nonnull final String name);
+  ListenableFuture<LabelId> getId(@Nonnull final UniqueId uniqueId,
+                                  @Nonnull final String name);
 
   /**
    * The most basic id lookup strategy that just fetches the ID behind the provided name without
@@ -32,8 +34,8 @@ public interface IdLookupStrategy {
 
     @Nonnull
     @Override
-    public Deferred<LabelId> getId(@Nonnull final UniqueId uniqueId,
-                                   @Nonnull final String name) {
+    public ListenableFuture<LabelId> getId(@Nonnull final UniqueId uniqueId,
+                                           @Nonnull final String name) {
       return uniqueId.getId(name);
     }
   }
@@ -47,8 +49,8 @@ public interface IdLookupStrategy {
 
     @Nonnull
     @Override
-    public Deferred<LabelId> getId(@Nonnull final UniqueId uniqueId,
-                                   @Nonnull final String name) {
+    public ListenableFuture<LabelId> getId(@Nonnull final UniqueId uniqueId,
+                                           @Nonnull final String name) {
       return uniqueId.getId(name).addErrback(new Callback<Object, Exception>() {
         @Override
         public Object call(final Exception e) throws Exception {
@@ -76,10 +78,10 @@ public interface IdLookupStrategy {
 
     @Nonnull
     @Override
-    public Deferred<LabelId> getId(@Nonnull final UniqueId uniqueId,
-                                   @Nonnull final String name) {
+    public ListenableFuture<LabelId> getId(@Nonnull final UniqueId uniqueId,
+                                           @Nonnull final String name) {
       if (Strings.isNullOrEmpty(name) || "*".equals(name)) {
-        return Deferred.fromResult(null);
+        return Futures.immediateFuture(null);
       }
 
       return uniqueId.getId(name);
