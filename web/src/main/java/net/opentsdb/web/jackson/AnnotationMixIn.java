@@ -11,9 +11,6 @@ import com.google.common.collect.ImmutableMap;
 
 import java.util.Map;
 
-@JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.PUBLIC_ONLY)
-@JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonIgnoreProperties(ignoreUnknown = true)
 abstract class AnnotationMixIn {
   @JsonCreator
   static Annotation create(@JsonProperty("timeSeriesId") final String timeSeriesId,

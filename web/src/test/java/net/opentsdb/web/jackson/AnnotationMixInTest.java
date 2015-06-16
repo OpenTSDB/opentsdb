@@ -7,6 +7,7 @@ import net.opentsdb.web.HttpModule;
 import net.opentsdb.web.TestHttpModule;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
@@ -42,13 +43,13 @@ public class AnnotationMixInTest {
     assertEquals(annotation, parsedAnnotation);
   }
 
-  @Test
-  public void deserializeIgnoresUnknown() throws Exception {
-    final String jsonWithUnknown = "{\"timeSeriesId\":\"000001000001000001\"," +
-                                   "\"startTime\":1328140800,\"endTime\":1328140801,\"unknown\":1328140801," +
-                                   "\"message\":\"Description\",\"notes\":\"Notes\",\"properties\":{}}";
-    final Annotation parsedAnnotation = jsonMapper.reader(Annotation.class)
+  @Test(expected = UnrecognizedPropertyException.class)
+  public void deserializeFailsOnUnknown() throws Exception {
+    final String jsonWithUnknown = "{\"timeSeriesId\":\"000001000001000001\","
+                                   + "\"startTime\":1328140800,\"endTime\":1328140801,"
+                                   + "\"message\":\"Description\",\"properties\":{},"
+                                   + "\"unknown\":null}";
+    jsonMapper.reader(Annotation.class)
         .readValue(jsonWithUnknown);
-    assertEquals(annotation, parsedAnnotation);
   }
 }

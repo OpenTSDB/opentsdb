@@ -77,9 +77,10 @@ public class HttpModule {
         .registerModule(new JacksonModule(storeDescriptor.labelIdSerializer(),
             storeDescriptor.labelIdDeserializer()))
         .registerModule(new GuavaModule())
+        .enable(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES)
+        .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
         .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
-        .enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY)
-        .enable(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT);
+        .enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY);
   }
 
   @Provides

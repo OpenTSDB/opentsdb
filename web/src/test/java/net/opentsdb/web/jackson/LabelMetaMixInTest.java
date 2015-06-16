@@ -12,6 +12,7 @@ import net.opentsdb.web.HttpModule;
 import net.opentsdb.web.TestHttpModule;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Iterators;
 import dagger.ObjectGraph;
@@ -54,9 +55,8 @@ public class LabelMetaMixInTest {
   @Test
   public void deserialize() throws Exception {
     final String json = "{\"identifier\":\"d2576c75-8825-4ec2-8d93-311423c05c98\","
-                        + "\"type\":\"MeTriC\",\"name\":\"MyName\",\"description\":\"Description\","
-                        + "\"notes\":\"MyNotes\",\"created\":1328140801,\"displayName\":\"Empty\","
-                        + "\"unknownkey\":null}";
+                        + "\"type\":\"METRIC\",\"name\":\"sys.cpu.0\","
+                        + "\"description\":\"Description\",\"created\":1328140801}";
 
     LabelMeta meta = jsonMapper.reader(LabelMeta.class)
         .readValue(json);
@@ -64,23 +64,18 @@ public class LabelMetaMixInTest {
     assertNotNull(meta);
     assertEquals(labelId, meta.identifier());
     assertEquals(UniqueIdType.METRIC, meta.type());
-    assertEquals("MyName", meta.name());
+    assertEquals("sys.cpu.0", meta.name());
     assertEquals("Description", meta.description());
     assertEquals(1328140801L, meta.created());
   }
 
-  /**
-   * This method tests what happens when you try to deserialize a {@link LabelMeta} object from
-   * JSON. It should throw an IllegalArgumentException due to how {@link UniqueIdTypeDeserializer}
-   * parses types.
-   */
-  @Test(expected = IllegalArgumentException.class)
-  public void deserializeWithNullType() throws Exception {
-    String json = "{\"identifier\":\"ABCD\",\"type\":\"null\",\"name\":\"MyName\"," +
-                  "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-                  "1328140801,\"displayName\":\"Empty\",\"unknownkey\":null}";
+  @Test(expected = UnrecognizedPropertyException.class)
+  public void deserializeUnknownField() throws Exception {
+    final String jsonWithUnknown = "{\"identifier\":\"d2576c75-8825-4ec2-8d93-311423c05c98\","
+                        + "\"type\":\"METRIC\",\"name\":\"sys.cpu.0\","
+                        + "\"description\":\"Description\",\"created\":1328140801,\"unknown\":null}";
 
     jsonMapper.reader(LabelMeta.class)
-        .readValue(json);
+        .readValue(jsonWithUnknown);
   }
 }
