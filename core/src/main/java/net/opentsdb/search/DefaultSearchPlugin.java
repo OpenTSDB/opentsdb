@@ -11,7 +11,8 @@ import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
 
-import com.stumbleupon.async.Deferred;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -37,35 +38,35 @@ public class DefaultSearchPlugin extends SearchPlugin {
   }
 
   @Override
-  public Deferred<Void> indexLabelMeta(final LabelMeta meta) {
-    return Deferred.fromResult(null);
+  public ListenableFuture<Void> indexLabelMeta(final LabelMeta meta) {
+    return Futures.immediateFuture(null);
   }
 
   @Nonnull
   @Override
-  public Deferred<Void> deleteLabelMeta(@Nonnull final LabelId id,
-                                        @Nonnull final UniqueIdType type) {
-    return Deferred.fromResult(null);
+  public ListenableFuture<Void> deleteLabelMeta(@Nonnull final LabelId id,
+                                                @Nonnull final UniqueIdType type) {
+    return Futures.immediateFuture(null);
   }
 
   @Override
-  public Deferred<Object> indexAnnotation(final Annotation note) {
-    return Deferred.fromResult(null);
+  public ListenableFuture<Void> indexAnnotation(final Annotation note) {
+    return Futures.immediateFuture(null);
   }
 
   @Override
-  public Deferred<Object> deleteAnnotation(final Annotation note) {
-    return Deferred.fromResult(null);
+  public ListenableFuture<Void> deleteAnnotation(final Annotation note) {
+    return Futures.immediateFuture(null);
   }
 
   @Override
-  public Deferred<SearchQuery> executeQuery(final SearchQuery query) {
+  public ListenableFuture<SearchQuery> executeQuery(final SearchQuery query) {
     throw new IllegalStateException("The default search plugin does "
                                     + "not support executing search queries");
   }
 
   @Override
-  public Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
+  public ListenableFuture<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
     return store.executeIdQuery(query);
   }
 }

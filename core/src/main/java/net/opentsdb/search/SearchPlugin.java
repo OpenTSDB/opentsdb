@@ -21,7 +21,7 @@ import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
 
-import com.stumbleupon.async.Deferred;
+import com.google.common.util.concurrent.ListenableFuture;
 
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -48,9 +48,9 @@ public abstract class SearchPlugin extends Plugin {
    * Called when we want to add or update the information of a LabelMeta object.
    *
    * @param meta A validated {@link LabelMeta} instance to index
-   * @return A deferred object that indicates the completion of the request.
+   * @return A future that indicates the completion of the request.
    */
-  public abstract Deferred<Void> indexLabelMeta(final LabelMeta meta);
+  public abstract ListenableFuture<Void> indexLabelMeta(final LabelMeta meta);
 
   /**
    * Called when we need to remove a LabelMeta from the store that backs this search plugin.
@@ -59,30 +59,27 @@ public abstract class SearchPlugin extends Plugin {
    * remove
    * @param type The type that together with the provided id identifies a {@link LabelMeta} to
    * remove
-   * @return A deferred object that indicates the completion of the request.
+   * @return A future that indicates the completion of the request.
    */
   @Nonnull
-  public abstract Deferred<Void> deleteLabelMeta(@Nonnull final LabelId id,
-                                                 @Nonnull final UniqueIdType type);
+  public abstract ListenableFuture<Void> deleteLabelMeta(@Nonnull final LabelId id,
+                                                         @Nonnull final UniqueIdType type);
 
   /**
-   * Indexes an annotation object <b>Note:</b> Unique Document ID = TSUID and Start Time
+   * Index the annotation in the backing store.
    *
    * @param note The annotation to index
-   * @return A deferred object that indicates the completion of the request. The {@link Object} has
-   * not special meaning and can be {@code null} (think of it as {@code Deferred<Void>}).
+   * @return A future that indicates the completion of the request.
    */
-  public abstract Deferred<Object> indexAnnotation(final Annotation note);
+  public abstract ListenableFuture<Void> indexAnnotation(final Annotation note);
 
   /**
-   * Called to remove an annotation object from the index <b>Note:</b> Unique Document ID = TSUID
-   * and Start Time
+   * Remove the annotation from the backing store.
    *
    * @param note The annotation to remove
-   * @return A deferred object that indicates the completion of the request. The {@link Object} has
-   * not special meaning and can be {@code null} (think of it as {@code Deferred<Void>}).
+   * @return A future that indicates the completion of the request.
    */
-  public abstract Deferred<Object> deleteAnnotation(final Annotation note);
+  public abstract ListenableFuture<Void> deleteAnnotation(final Annotation note);
 
   /**
    * Executes a very basic search query, returning the results in the SearchQuery object passed in.
@@ -90,14 +87,14 @@ public abstract class SearchPlugin extends Plugin {
    * @param query The query to execute against the search engine
    * @return The query results
    */
-  public abstract Deferred<SearchQuery> executeQuery(final SearchQuery query);
+  public abstract ListenableFuture<SearchQuery> executeQuery(final SearchQuery query);
 
   /**
    * Should look up IDs that match the parameters described in the provided {@link
    * net.opentsdb.uid.IdQuery}.
    *
    * @param query The parameters for the query
-   * @return A deferred with a list of matching IDs.
+   * @return A future that on completion contains a list of matching IDs.
    */
-  public abstract Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query);
+  public abstract ListenableFuture<List<IdentifierDecorator>> executeIdQuery(final IdQuery query);
 }
