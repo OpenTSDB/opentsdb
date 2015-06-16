@@ -12,7 +12,7 @@ import net.opentsdb.uid.UniqueIdType;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
-import com.stumbleupon.async.Deferred;
+import com.google.common.util.concurrent.ListenableFuture;
 
 import java.io.Closeable;
 import java.util.List;
@@ -27,15 +27,15 @@ public abstract class TsdbStore implements Closeable {
   // Identifier management
   //
   @Nonnull
-  public abstract Deferred<LabelId> allocateUID(@Nonnull final String name,
-                                                @Nonnull final UniqueIdType type);
+  public abstract ListenableFuture<LabelId> allocateUID(@Nonnull final String name,
+                                                        @Nonnull final UniqueIdType type);
 
   @Nonnull
-  public abstract Deferred<LabelId> allocateUID(@Nonnull final String name,
-                                                @Nonnull final LabelId uid,
-                                                @Nonnull final UniqueIdType type);
+  public abstract ListenableFuture<LabelId> allocateUID(@Nonnull final String name,
+                                                        @Nonnull final LabelId uid,
+                                                        @Nonnull final UniqueIdType type);
 
-  public abstract Deferred<Void> deleteUID(String name, UniqueIdType type);
+  public abstract ListenableFuture<Void> deleteUID(String name, UniqueIdType type);
 
   /**
    * Lookup time series related to a metric, tagk, tagv or any combination thereof. See {@link
@@ -45,7 +45,7 @@ public abstract class TsdbStore implements Closeable {
    * @param query The query that filters out which TSUIDs to lookup
    * @return All TSUIDs that matches the provided query
    */
-  public abstract Deferred<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query);
+  public abstract ListenableFuture<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query);
 
   /**
    * Lookup all IDs that matches the provided {@link net.opentsdb.uid.IdQuery}. There are no demands
@@ -54,35 +54,35 @@ public abstract class TsdbStore implements Closeable {
    * all may be returned.
    *
    * @param query An object that describes the query parameters
-   * @return A deferred with a list of matching IDs
+   * @return A future that on completion will contain with a list of matching IDs
    */
-  public abstract Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query);
+  public abstract ListenableFuture<List<IdentifierDecorator>> executeIdQuery(final IdQuery query);
 
   @Nonnull
-  public abstract Deferred<Optional<LabelId>> getId(@Nonnull final String name,
-                                                    @Nonnull final UniqueIdType type);
+  public abstract ListenableFuture<Optional<LabelId>> getId(@Nonnull final String name,
+                                                            @Nonnull final UniqueIdType type);
 
   @Nonnull
-  public abstract Deferred<Optional<String>> getName(@Nonnull final LabelId id,
-                                                     @Nonnull final UniqueIdType type);
+  public abstract ListenableFuture<Optional<String>> getName(@Nonnull final LabelId id,
+                                                             @Nonnull final UniqueIdType type);
 
   //
   // Datapoints
   //
   @Nonnull
-  public abstract Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
-                                          final long timestamp,
-                                          final float value);
+  public abstract ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+                                                  final long timestamp,
+                                                  final float value);
 
   @Nonnull
-  public abstract Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
-                                          final long timestamp,
-                                          final double value);
+  public abstract ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+                                                  final long timestamp,
+                                                  final double value);
 
   @Nonnull
-  public abstract Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
-                                          final long timestamp,
-                                          final long value);
+  public abstract ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+                                                  final long timestamp,
+                                                  final long value);
 
   /**
    * Should execute the provided {@link net.opentsdb.core.Query} and return a deferred. Every single
@@ -93,7 +93,7 @@ public abstract class TsdbStore implements Closeable {
    * @param query The query to execute
    */
   // TODO
-  public abstract Deferred<ImmutableList<DataPoints>> executeQuery(final Object query);
+  public abstract ListenableFuture<ImmutableList<DataPoints>> executeQuery(final Object query);
 
   //
   // Annotations
@@ -106,11 +106,11 @@ public abstract class TsdbStore implements Closeable {
    * @param annotation@return A meaningless Deferred for the caller to wait on until the call is
    * complete. The value may be null.
    */
-  public abstract Deferred<Void> delete(Annotation annotation);
+  public abstract ListenableFuture<Void> delete(Annotation annotation);
 
-  public abstract Deferred<Integer> deleteAnnotationRange(final byte[] tsuid,
-                                                          final long startTime,
-                                                          final long endTime);
+  public abstract ListenableFuture<Integer> deleteAnnotationRange(final byte[] tsuid,
+                                                                  final long startTime,
+                                                                  final long endTime);
 
   /**
    * Attempts to fetch a global or local annotation from storage
@@ -119,19 +119,19 @@ public abstract class TsdbStore implements Closeable {
    * @param startTime The start time as a Unix epoch timestamp
    * @return A valid annotation object if found, null if not
    */
-  public abstract Deferred<Annotation> getAnnotation(byte[] tsuid, long startTime);
+  public abstract ListenableFuture<Annotation> getAnnotation(byte[] tsuid, long startTime);
 
-  public abstract Deferred<List<Annotation>> getGlobalAnnotations(final long startTime,
-                                                                  final long endTime);
+  public abstract ListenableFuture<List<Annotation>> getGlobalAnnotations(final long startTime,
+                                                                          final long endTime);
 
-  public abstract Deferred<Boolean> updateAnnotation(Annotation annotation);
+  public abstract ListenableFuture<Boolean> updateAnnotation(Annotation annotation);
 
   //
   // LabelMeta
   //
   @Nonnull
-  public abstract Deferred<LabelMeta> getMeta(@Nonnull final LabelId uid,
-                                              @Nonnull final UniqueIdType type);
+  public abstract ListenableFuture<LabelMeta> getMeta(@Nonnull final LabelId uid,
+                                                      @Nonnull final UniqueIdType type);
 
-  public abstract Deferred<Boolean> updateMeta(final LabelMeta meta);
+  public abstract ListenableFuture<Boolean> updateMeta(final LabelMeta meta);
 }
