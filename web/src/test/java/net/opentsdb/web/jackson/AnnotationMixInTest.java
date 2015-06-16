@@ -3,48 +3,52 @@ package net.opentsdb.web.jackson;
 import static org.junit.Assert.assertEquals;
 
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.web.HttpModule;
+import net.opentsdb.web.TestHttpModule;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
 
-public class AnnotationMixInTest {
-  private ObjectMapper jsonMapper;
+import javax.inject.Inject;
 
-  private Annotation note;
-  private String note_json;
+public class AnnotationMixInTest {
+  @Inject ObjectMapper jsonMapper;
+
+  private Annotation annotation;
+  private String annotationJson;
 
   @Before
   public void setUp() throws Exception {
-    jsonMapper = new ObjectMapper();
-    jsonMapper.registerModule(new JacksonModule());
+    ObjectGraph.create(new TestHttpModule(), new HttpModule()).inject(this);
 
-    note = Annotation.create("000001000001000001", 1328140800, 1328140801, "Description");
+    annotation = Annotation.create("000001000001000001", 1328140800, 1328140801, "Description");
 
-    note_json = "{\"tsuid\":\"000001000001000001\",\"startTime\":1328140800," +
-                "\"endTime\":1328140801,\"message\":\"Description\",\"notes\":\"Notes\"}";
+    annotationJson = "{\"timeSeriesId\":\"000001000001000001\",\"startTime\":1328140800,"
+                     + "\"endTime\":1328140801,\"message\":\"Description\",\"properties\":{}}";
   }
 
   @Test
   public void serializeMatchesExactly() throws Exception {
-    final String json = new String(jsonMapper.writeValueAsBytes(note));
-    assertEquals(note_json, json);
+    final String json = new String(jsonMapper.writeValueAsBytes(annotation));
+    assertEquals(annotationJson, json);
   }
 
   @Test
   public void deserialize() throws Exception {
-    Annotation parsed_note = jsonMapper.reader(Annotation.class)
-        .readValue(note_json);
-    assertEquals(note, parsed_note);
+    Annotation parsedAnnotation = jsonMapper.reader(Annotation.class)
+        .readValue(annotationJson);
+    assertEquals(annotation, parsedAnnotation);
   }
 
   @Test
   public void deserializeIgnoresUnknown() throws Exception {
-    final String note_json_with_unknown = "{\"tsuid\":\"000001000001000001\"," +
-                                          "\"startTime\":1328140800,\"endTime\":1328140801,\"unknown\":1328140801," +
-                                          "\"message\":\"Description\",\"notes\":\"Notes\",\"custom\":null}";
-    Annotation parsed_note = jsonMapper.reader(Annotation.class)
-        .readValue(note_json_with_unknown);
-    assertEquals(note, parsed_note);
+    final String jsonWithUnknown = "{\"timeSeriesId\":\"000001000001000001\"," +
+                                   "\"startTime\":1328140800,\"endTime\":1328140801,\"unknown\":1328140801," +
+                                   "\"message\":\"Description\",\"notes\":\"Notes\",\"properties\":{}}";
+    final Annotation parsedAnnotation = jsonMapper.reader(Annotation.class)
+        .readValue(jsonWithUnknown);
+    assertEquals(annotation, parsedAnnotation);
   }
 }

@@ -3,90 +3,76 @@ package net.opentsdb.web.jackson;
 import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.mock;
 
 import net.opentsdb.meta.LabelMeta;
+import net.opentsdb.storage.MemoryLabelId;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.web.HttpModule;
+import net.opentsdb.web.TestHttpModule;
 
-import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Iterators;
+import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.UUID;
+import javax.inject.Inject;
+
 
 public class LabelMetaMixInTest {
-  private ObjectMapper jsonMapper;
+  private final String id = "d2576c75-8825-4ec2-8d93-311423c05c98";
+  private final LabelId labelId = new MemoryLabelId(UUID.fromString(id));
+
+  @Inject ObjectMapper jsonMapper;
+
   private LabelMeta labelMeta;
 
   @Before
   public void before() throws Exception {
-    labelMeta = LabelMeta.create(mock(LabelId.class), METRIC, "sys.cpu.0", "Description",
-        1328140801);
+    ObjectGraph.create(new TestHttpModule(), new HttpModule()).inject(this);
 
-    jsonMapper = new ObjectMapper();
-    jsonMapper.registerModule(new JacksonModule());
+    labelMeta = LabelMeta.create(labelId, METRIC, "sys.cpu.0", "Description", 1328140801L);
   }
 
   @Test
-  public void serializeFieldSet() throws Exception {
-    final byte[] json = jsonMapper.writeValueAsBytes(labelMeta);
+  public void serializesFields() throws Exception {
+    final String json = jsonMapper.writeValueAsString(labelMeta);
 
-    ObjectNode rootNode = jsonMapper.readValue(json, ObjectNode.class);
+    final ObjectNode rootNode = jsonMapper.readValue(json, ObjectNode.class);
 
-    assertEquals(6, Iterators.size(rootNode.fields()));
+    assertEquals(5, Iterators.size(rootNode.fields()));
+    assertEquals(id, rootNode.get("identifier").asText());
     assertEquals("METRIC", rootNode.get("type").asText());
-    assertEquals("System CPU", rootNode.get("displayName").textValue());
-    assertEquals("Description", rootNode.get("description").textValue());
-    assertEquals("MyNotes", rootNode.get("notes").textValue());
-    assertEquals(JsonNodeType.NULL, rootNode.get("custom").getNodeType());
-    assertEquals(1328140801, rootNode.get("created").longValue());
-  }
-
-  @Test
-  public void serializeCustomSet() throws Exception {
-    final byte[] json = jsonMapper.writeValueAsBytes(labelMeta);
-
-    ObjectNode rootNode = jsonMapper.readValue(json, ObjectNode.class);
-
-    assertEquals(3, Iterators.size(rootNode.fields()));
-    assertEquals("METRIC", rootNode.get("type").asText());
+    assertEquals("sys.cpu.0", rootNode.get("name").textValue());
     assertEquals("Description", rootNode.get("description").textValue());
     assertEquals(1328140801, rootNode.get("created").longValue());
   }
 
   @Test
   public void deserialize() throws Exception {
-    String json = "{\"identifier\":\"ABCD\",\"type\":\"MeTriC\",\"name\":\"MyName\"," +
-                  "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-                  "1328140801,\"displayName\":\"Empty\",\"unknownkey\":null}";
-
-    final LabelId uid = mock(LabelId.class);
-
-    InjectableValues vals = new InjectableValues.Std()
-        .addValue(LabelId.class, uid)
-        .addValue(UniqueIdType.class, UniqueIdType.METRIC)
-        .addValue(String.class, "MyOtherName");
+    final String json = "{\"identifier\":\"d2576c75-8825-4ec2-8d93-311423c05c98\","
+                        + "\"type\":\"MeTriC\",\"name\":\"MyName\",\"description\":\"Description\","
+                        + "\"notes\":\"MyNotes\",\"created\":1328140801,\"displayName\":\"Empty\","
+                        + "\"unknownkey\":null}";
 
     LabelMeta meta = jsonMapper.reader(LabelMeta.class)
-        .with(vals)
         .readValue(json);
 
     assertNotNull(meta);
-    assertEquals(uid, meta.identifier());
+    assertEquals(labelId, meta.identifier());
     assertEquals(UniqueIdType.METRIC, meta.type());
-    assertEquals("MyOtherName", meta.name());
+    assertEquals("MyName", meta.name());
     assertEquals("Description", meta.description());
-    assertEquals(1328140801, meta.created());
+    assertEquals(1328140801L, meta.created());
   }
 
   /**
    * This method tests what happens when you try to deserialize a {@link LabelMeta} object from
    * JSON. It should throw an IllegalArgumentException due to how {@link UniqueIdTypeDeserializer}
-   * parses types. This conforms to opentsdb/opentsdb as of commit 8e3d0cc8ed82842819c7adee3339c274604be277.
+   * parses types.
    */
   @Test(expected = IllegalArgumentException.class)
   public void deserializeWithNullType() throws Exception {
@@ -94,14 +80,7 @@ public class LabelMetaMixInTest {
                   "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
                   "1328140801,\"displayName\":\"Empty\",\"unknownkey\":null}";
 
-    final byte[] uid = {0, (byte) 16, (byte) -125};
-
-    InjectableValues vals = new InjectableValues.Std()
-        .addValue(byte[].class, uid)
-        .addValue(String.class, "MyOtherName");
-
     jsonMapper.reader(LabelMeta.class)
-        .with(vals)
         .readValue(json);
   }
 }

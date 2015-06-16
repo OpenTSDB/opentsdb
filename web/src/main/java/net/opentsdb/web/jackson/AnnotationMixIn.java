@@ -1,9 +1,13 @@
 package net.opentsdb.web.jackson;
 
+import net.opentsdb.meta.Annotation;
+
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableMap;
 
 import java.util.Map;
 
@@ -11,29 +15,27 @@ import java.util.Map;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 abstract class AnnotationMixIn {
-  AnnotationMixIn(@JsonProperty("tsuid") final String tsuid,
-                  @JsonProperty("startTime") final long startTime,
-                  @JsonProperty("endTime") final long endTime,
-                  @JsonProperty("message") final String description,
-                  @JsonProperty("notes") final String notes,
-                  @JsonProperty("custom") final Map<String, String> custom) {
+  @JsonCreator
+  static Annotation create(@JsonProperty("timeSeriesId") final String timeSeriesId,
+                           @JsonProperty("startTime") final long startTime,
+                           @JsonProperty("endTime") final long endTime,
+                           @JsonProperty("message") final String message,
+                           @JsonProperty("properties") final Map<String, String> properties) {
+    return Annotation.create(timeSeriesId, startTime, endTime, message, properties);
   }
 
-  @JsonProperty("tsuid")
-  abstract String getTSUID();
+  @JsonProperty
+  abstract String timeSeriesId();
 
-  @JsonProperty("startTime")
-  abstract long getStartTime();
+  @JsonProperty
+  abstract long startTime();
 
-  @JsonProperty("endTime")
-  abstract long getEndTime();
+  @JsonProperty
+  abstract long endTime();
 
-  @JsonProperty("message")
-  abstract String getDescription();
+  @JsonProperty
+  abstract String message();
 
-  @JsonProperty("notes")
-  abstract String getNotes();
-
-  @JsonProperty("custom")
-  abstract Map<String, String> getCustom();
+  @JsonProperty
+  abstract ImmutableMap<String, String> properties();
 }
