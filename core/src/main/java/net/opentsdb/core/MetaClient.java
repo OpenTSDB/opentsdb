@@ -2,6 +2,8 @@ package net.opentsdb.core;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.util.concurrent.Futures.addCallback;
+import static com.google.common.util.concurrent.Futures.transform;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
@@ -17,8 +19,9 @@ import net.opentsdb.uid.UniqueIdType;
 
 import com.google.common.base.Strings;
 import com.google.common.eventbus.EventBus;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
+import com.google.common.util.concurrent.AsyncFunction;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +69,7 @@ public class MetaClient {
    * @since 2.0
    */
   public void deleteAnnotation(final Annotation note) {
-    searchPlugin.deleteAnnotation(note).addErrback(new PluginError(searchPlugin));
+    addCallback(searchPlugin.deleteAnnotation(note), new PluginError(searchPlugin));
   }
 
   /**
@@ -77,7 +80,7 @@ public class MetaClient {
    * @throws IllegalStateException if the search plugin has not been enabled or configured
    * @since 2.0
    */
-  public Deferred<SearchQuery> executeSearch(final SearchQuery query) {
+  public ListenableFuture<SearchQuery> executeSearch(final SearchQuery query) {
     return searchPlugin.executeQuery(query);
   }
 
@@ -92,8 +95,8 @@ public class MetaClient {
    * @throws IllegalArgumentException if the end timestamp has not been set or the end time is less
    * than the start time
    */
-  public Deferred<List<Annotation>> getGlobalAnnotations(final long startTime,
-                                                         final long endTime) {
+  public ListenableFuture<List<Annotation>> getGlobalAnnotations(final long startTime,
+                                                                 final long endTime) {
     if (endTime < 1) {
       throw new IllegalArgumentException("The end timestamp has not been set");
     }
@@ -112,7 +115,8 @@ public class MetaClient {
    * @param startTime The start time of the annotation
    * @return A deferred that on completion contains an annotation object if found, null if not
    */
-  public Deferred<Annotation> getAnnotation(@Nonnull final String tsuid, final long startTime) {
+  public ListenableFuture<Annotation> getAnnotation(@Nonnull final String tsuid,
+                                                    final long startTime) {
     checkArgument(startTime > 0);
     checkArgument(!Strings.isNullOrEmpty(tsuid));
 
@@ -127,7 +131,7 @@ public class MetaClient {
    * @return A meaningless Deferred for the caller to wait on until the call is complete. The value
    * may be null.
    */
-  public Deferred<Void> delete(Annotation annotation) {
+  public ListenableFuture<Void> delete(Annotation annotation) {
     return store.delete(annotation);
   }
 
@@ -146,30 +150,16 @@ public class MetaClient {
    * @return A UIDMeta from storage or a default
    * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
-  public Deferred<LabelMeta> getLabelMeta(final UniqueIdType type,
-                                          final LabelId uid) {
-    /**
-     * Callback used to verify that the UID to name mapping exists. Uses the TSD
-     * for verification so the name may be cached. If the name does not exist
-     * it will throw a NoSuchUniqueId and the meta data will not be returned.
-     * This helps in case the user deletes a UID but the meta data is still
-     * stored. The fsck utility can be used later to cleanup orphaned objects.
-     */
-    class NameCB implements Callback<Deferred<LabelMeta>, String> {
-
-      /**
-       * Called after verifying that the name mapping exists.
-       *
-       * @return The results of {@link TsdbStore#getMeta(byte[], UniqueIdType)}
-       */
+  public ListenableFuture<LabelMeta> getLabelMeta(final UniqueIdType type,
+                                                  final LabelId uid) {
+    // Verify that the identifier exists before fetching the meta object. #getUidName will throw an
+    // exception if it does not exist.
+    return transform(uniqueIdClient.getUidName(type, uid), new AsyncFunction<String, LabelMeta>() {
       @Override
-      public Deferred<LabelMeta> call(final String name) throws Exception {
+      public ListenableFuture<LabelMeta> apply(final String name) throws Exception {
         return store.getMeta(uid, type);
       }
-    }
-
-    // verify that the UID is still in the map before fetching from storage
-    return uniqueIdClient.getUidName(type, uid).addCallbackDeferring(new NameCB());
+    });
   }
 
   /**
@@ -179,8 +169,8 @@ public class MetaClient {
    * @since 2.0
    */
   public void indexAnnotation(final Annotation note) {
-    searchPlugin.indexAnnotation(note).addErrback(new PluginError(searchPlugin));
-    realtimePublisher.publishAnnotation(note).addErrback(new PluginError(realtimePublisher));
+    addCallback(searchPlugin.indexAnnotation(note), new PluginError(searchPlugin));
+    addCallback(realtimePublisher.publishAnnotation(note), new PluginError(realtimePublisher));
   }
 
   /**
@@ -191,24 +181,22 @@ public class MetaClient {
    * @param annotation The annotation with the updated information.
    * @return True if the updates were saved successfully. False if there were no changes to make.
    */
-  public Deferred<Boolean> updateAnnotation(final Annotation annotation) {
-    final class StoreCB implements Callback<Deferred<Boolean>, Annotation> {
-      @Override
-      public Deferred<Boolean> call(final Annotation storedAnnotation)
-          throws Exception {
-        if (!storedAnnotation.equals(annotation)) {
-          return store.updateAnnotation(annotation);
-        }
-
-        LOG.debug("{} does not have any changes, skipping update", annotation);
-        return Deferred.fromResult(Boolean.FALSE);
-      }
-    }
-
+  public ListenableFuture<Boolean> updateAnnotation(final Annotation annotation) {
     final byte[] tsuid = IdUtils.stringToUid(annotation.timeSeriesId());
 
-    return store.getAnnotation(tsuid, annotation.startTime())
-        .addCallbackDeferring(new StoreCB());
+    return transform(store.getAnnotation(tsuid, annotation.startTime()),
+        new AsyncFunction<Annotation, Boolean>() {
+          @Override
+          public ListenableFuture<Boolean> apply(final Annotation storedAnnotation)
+              throws Exception {
+            if (!storedAnnotation.equals(annotation)) {
+              return store.updateAnnotation(annotation);
+            }
+
+            LOG.debug("{} does not have any changes, skipping update", annotation);
+            return Futures.immediateFuture(Boolean.FALSE);
+          }
+        });
   }
 
   /**
@@ -222,9 +210,9 @@ public class MetaClient {
    * @throws IllegalArgumentException if the timestamps are invalid
    * @since 2.1
    */
-  public Deferred<Integer> deleteRange(final byte[] tsuid,
-                                       final long startTime,
-                                       final long endTime) {
+  public ListenableFuture<Integer> deleteRange(final byte[] tsuid,
+                                               final long startTime,
+                                               final long endTime) {
     if (endTime < 1) {
       throw new IllegalArgumentException("The end timestamp has not been set");
     }
@@ -242,20 +230,21 @@ public class MetaClient {
    * checked for changes against the stored object before saving anything.
    *
    * @param meta The LabelMeta with the updated information.
-   * @return True if the updates were saved successfully. False if there were no changes to make.
+   * @return A future that on completion contains a {@code true} if the update was successful or
+   * {@code false} if the meta object had no changes to save.
    * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
-  public Deferred<Boolean> update(final LabelMeta meta) {
-    return getLabelMeta(meta.type(), meta.identifier()).addCallbackDeferring(
-        new Callback<Deferred<Boolean>, LabelMeta>() {
+  public ListenableFuture<Boolean> update(final LabelMeta meta) {
+    return transform(getLabelMeta(meta.type(), meta.identifier()),
+        new AsyncFunction<LabelMeta, Boolean>() {
           @Override
-          public Deferred<Boolean> call(final LabelMeta storedMeta) {
+          public ListenableFuture<Boolean> apply(final LabelMeta storedMeta) throws Exception {
             if (!storedMeta.equals(meta)) {
               return store.updateMeta(meta);
             }
 
             LOG.debug("{} does not have any changes, skipping update", meta);
-            return Deferred.fromResult(Boolean.FALSE);
+            return Futures.immediateFuture(Boolean.FALSE);
           }
         });
   }
