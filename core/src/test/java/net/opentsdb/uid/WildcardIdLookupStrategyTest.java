@@ -5,7 +5,7 @@ import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
 
 import net.opentsdb.TestModuleMemoryStore;
-import net.opentsdb.storage.MockBase;
+import net.opentsdb.utils.TestUtil;
 import net.opentsdb.storage.TsdbStore;
 
 import com.codahale.metrics.MetricRegistry;
@@ -24,7 +24,7 @@ public class WildcardIdLookupStrategyTest {
   private IdLookupStrategy lookupStrategy;
 
   @Rule
-  public final Timeout timeout = Timeout.millis(MockBase.DEFAULT_TIMEOUT);
+  public final Timeout timeout = Timeout.millis(TestUtil.TIMEOUT);
 
   @Before
   public void setUp() throws IOException {
@@ -52,7 +52,7 @@ public class WildcardIdLookupStrategyTest {
     assertNull(lookupStrategy.getId(uid, "*").get());
   }
 
-  @Test(timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(timeout = TestUtil.TIMEOUT)
   public void testResolveIdGetsId() throws Exception {
     LabelId id = client.allocateUID("nameexists", UniqueIdType.METRIC).get();
     assertEquals(id, lookupStrategy.getId(uid, "*").get());

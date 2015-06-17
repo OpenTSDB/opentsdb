@@ -7,7 +7,7 @@ import net.opentsdb.TestModule;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.plugins.RTPublisher;
 import net.opentsdb.search.SearchPlugin;
-import net.opentsdb.storage.MockBase;
+import net.opentsdb.utils.TestUtil;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.LabelId;
 
@@ -39,7 +39,7 @@ public class MetaClientLabelMetaTest {
   private LabelId sysCpu2;
 
   @Rule
-  public final Timeout timeout = Timeout.millis(MockBase.DEFAULT_TIMEOUT);
+  public final Timeout timeout = Timeout.millis(TestUtil.TIMEOUT);
 
   @Before
   public void setUp() throws Exception {

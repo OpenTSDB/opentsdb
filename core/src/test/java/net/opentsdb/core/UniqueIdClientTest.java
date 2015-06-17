@@ -11,7 +11,7 @@ import static org.mockito.Mockito.when;
 
 import net.opentsdb.TestModule;
 import net.opentsdb.search.SearchQuery;
-import net.opentsdb.storage.MockBase;
+import net.opentsdb.utils.TestUtil;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -62,32 +62,32 @@ public class UniqueIdClientTest {
     nohost = store.allocateUID("nohost", TAGV).get();
   }
 
-  @Test(timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(timeout = TestUtil.TIMEOUT)
   public void getUidNameMetric() throws Exception {
     assertEquals("sys.cpu.0", uniqueIdClient.getUidName(METRIC, sysCpu0).get());
   }
 
-  @Test(timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(timeout = TestUtil.TIMEOUT)
   public void getUidNameTagk() throws Exception {
     assertEquals("host", uniqueIdClient.getUidName(TAGK, host).get());
   }
 
-  @Test(timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(timeout = TestUtil.TIMEOUT)
   public void getUidNameTagv() throws Exception {
     assertEquals("web01", uniqueIdClient.getUidName(TAGV, web01).get());
   }
 
-  @Test(expected = NoSuchUniqueId.class, timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(expected = NoSuchUniqueId.class, timeout = TestUtil.TIMEOUT)
   public void getUidNameMetricNSU() throws Exception {
     uniqueIdClient.getUidName(METRIC, mock(LabelId.class)).get();
   }
 
-  @Test(expected = NoSuchUniqueId.class, timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(expected = NoSuchUniqueId.class, timeout = TestUtil.TIMEOUT)
   public void getUidNameTagkNSU() throws Exception {
     uniqueIdClient.getUidName(TAGK, mock(LabelId.class)).get();
   }
 
-  @Test(expected = NoSuchUniqueId.class, timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(expected = NoSuchUniqueId.class, timeout = TestUtil.TIMEOUT)
   public void getUidNameTagvNSU() throws Exception {
     uniqueIdClient.getUidName(TAGV, mock(LabelId.class)).get();
   }
@@ -102,32 +102,32 @@ public class UniqueIdClientTest {
     uniqueIdClient.getUidName(TAGV, null);
   }
 
-  @Test(timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(timeout = TestUtil.TIMEOUT)
   public void getUIDMetric() throws Exception {
     assertEquals(sysCpu0, uniqueIdClient.getUID(METRIC, "sys.cpu.0").get());
   }
 
-  @Test(timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(timeout = TestUtil.TIMEOUT)
   public void getUIDTagk() throws Exception {
     assertEquals(host, uniqueIdClient.getUID(TAGK, "host").get());
   }
 
-  @Test(timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(timeout = TestUtil.TIMEOUT)
   public void getUIDTagv() throws Exception {
     assertEquals(host, uniqueIdClient.getUID(TAGV, "localhost").get());
   }
 
-  @Test(expected = NoSuchUniqueName.class, timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(expected = NoSuchUniqueName.class, timeout = TestUtil.TIMEOUT)
   public void getUIDMetricNSU() throws Exception {
     uniqueIdClient.getUID(METRIC, "sys.cpu.2").get();
   }
 
-  @Test(expected = NoSuchUniqueName.class, timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(expected = NoSuchUniqueName.class, timeout = TestUtil.TIMEOUT)
   public void getUIDTagkNSU() throws Exception {
     uniqueIdClient.getUID(TAGK, "region").get();
   }
 
-  @Test(expected = NoSuchUniqueName.class, timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(expected = NoSuchUniqueName.class, timeout = TestUtil.TIMEOUT)
   public void getUIDTagvNSU() throws Exception {
     uniqueIdClient.getUID(TAGV, "yourserver").get();
   }
@@ -216,20 +216,20 @@ public class UniqueIdClientTest {
     UniqueIdClient.validateUidName("test", "this is a test!");
   }
 
-  @Test(timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(timeout = TestUtil.TIMEOUT)
   public void getTagNames() throws Exception {
     ImmutableList<LabelId> ids = ImmutableList.of(host, web01);
     final Map<String, String> tags = uniqueIdClient.getTagNames(ids).get();
     assertEquals("web01", tags.get("host"));
   }
 
-  @Test(expected = NoSuchUniqueId.class, timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(expected = NoSuchUniqueId.class, timeout = TestUtil.TIMEOUT)
   public void getTagNamesNSUI() throws Exception {
     ImmutableList<LabelId> ids = ImmutableList.of(mock(LabelId.class), mock(LabelId.class));
     uniqueIdClient.getTagNames(ids).get();
   }
 
-  @Test(timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(timeout = TestUtil.TIMEOUT)
   public void getTagNamesEmptyList() throws Exception {
     final Map<String, String> tags = uniqueIdClient.getTagNames(ImmutableList.<LabelId>of()).get();
     assertNotNull(tags);

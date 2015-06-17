@@ -6,7 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import net.opentsdb.TestModule;
-import net.opentsdb.storage.MockBase;
+import net.opentsdb.utils.TestUtil;
 import net.opentsdb.storage.TsdbStore;
 
 import com.codahale.metrics.Counter;
@@ -30,7 +30,7 @@ public final class TestUniqueId {
   private UniqueId uid;
 
   @Rule
-  public final Timeout timeout = Timeout.millis(MockBase.DEFAULT_TIMEOUT);
+  public final Timeout timeout = Timeout.millis(TestUtil.TIMEOUT);
 
   @Before
   public void setUp() throws IOException {
@@ -57,7 +57,7 @@ public final class TestUniqueId {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, null);
   }
 
-  @Test(timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(timeout = TestUtil.TIMEOUT)
   public void getNameSuccessfulLookup() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
 
@@ -73,13 +73,13 @@ public final class TestUniqueId {
     assertEquals(2, metrics.getGauges().get("uid.cache-size:kind=metrics").getValue());
   }
 
-  @Test(expected = NoSuchUniqueId.class, timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(expected = NoSuchUniqueId.class, timeout = TestUtil.TIMEOUT)
   public void getNameForNonexistentId() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
     uid.getName(mock(LabelId.class)).get();
   }
 
-  @Test(timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(timeout = TestUtil.TIMEOUT)
   public void getIdSuccessfulLookup() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
 
@@ -97,7 +97,7 @@ public final class TestUniqueId {
     assertEquals(2, metrics.getGauges().get("uid.cache-size:kind=metrics").getValue());
   }
 
-  @Test(expected = NoSuchUniqueName.class, timeout = MockBase.DEFAULT_TIMEOUT)
+  @Test(expected = NoSuchUniqueName.class, timeout = TestUtil.TIMEOUT)
   public void getIdForNonexistentName() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
     uid.getId("foo").get();
