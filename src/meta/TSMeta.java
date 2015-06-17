@@ -251,8 +251,7 @@ public final class TSMeta {
     }
     
     // parse out the tags from the tsuid
-    final List<byte[]> parsed_tags = UniqueId.getTagPairsFromTSUID(tsuid, 
-        TSDB.metrics_width(), TSDB.tagk_width(), TSDB.tagv_width());
+    final List<byte[]> parsed_tags = UniqueId.getTagsFromTSUID(tsuid);
     
     // Deferred group used to accumulate UidCB callbacks so the next call
     // can wait until all of the UIDs have been verified
@@ -840,8 +839,7 @@ public final class TSMeta {
       }
       
       // split up the tags
-      final List<byte[]> tags = UniqueId.getTagPairsFromTSUID(tsuid, 
-          TSDB.metrics_width(), TSDB.tagk_width(), TSDB.tagv_width());
+      final List<byte[]> tags = UniqueId.getTagsFromTSUID(tsuid);
       meta.tags = new ArrayList<UIDMeta>(tags.size());
       
       // initialize with empty objects, otherwise the "set" operations in 
@@ -1034,6 +1032,11 @@ public final class TSMeta {
       changed.put("created", true);
       this.created = created;
     }
+  }
+  
+  /** @param tsuid The TSUID of the timeseries. */
+  public final void setTSUID(final String tsuid) {
+    this.tsuid = tsuid;
   }
   
   /** @param custom optional key/value map */
