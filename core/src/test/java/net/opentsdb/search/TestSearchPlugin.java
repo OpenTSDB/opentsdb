@@ -17,14 +17,9 @@ import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 
-import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.AnnotationFixtures;
 import net.opentsdb.uid.LabelId;
 
-import autovalue.shaded.com.google.common.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.Futures;
-import com.stumbleupon.async.Callback;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public abstract class TestSearchPlugin {

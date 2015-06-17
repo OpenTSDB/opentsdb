@@ -1,6 +1,5 @@
 package net.opentsdb.web;
 
-import net.opentsdb.core.TsdbModule;
 import net.opentsdb.utils.EventLoopGroups;
 import net.opentsdb.utils.InvalidConfigException;
 

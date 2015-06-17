@@ -1,13 +1,10 @@
 package net.opentsdb.uid;
 
 import com.google.common.base.Strings;
-import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 
 import javax.annotation.Nonnull;
 

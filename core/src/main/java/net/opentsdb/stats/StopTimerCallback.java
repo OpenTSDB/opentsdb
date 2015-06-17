@@ -6,7 +6,6 @@ import com.codahale.metrics.Timer;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.stumbleupon.async.Callback;
 
 /**
  * A {@link com.stumbleupon.async.Callback} implementation for use with {@link

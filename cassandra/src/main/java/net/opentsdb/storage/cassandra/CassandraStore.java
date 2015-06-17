@@ -38,10 +38,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.AsyncFunction;
-import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.stumbleupon.async.Deferred;
 
 import java.nio.ByteBuffer;
 import java.util.Date;
@@ -217,8 +215,6 @@ public class CassandraStore extends TsdbStore {
     addPointStatement.setLong(4, timestamp);
 
     final ResultSetFuture future = session.executeAsync(addPointStatement);
-
-    final Deferred<Void> d = new Deferred<>();
 
     return transform(future, new ResultSetToVoid());
   }

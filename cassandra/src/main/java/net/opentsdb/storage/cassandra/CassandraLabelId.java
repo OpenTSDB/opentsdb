@@ -5,8 +5,6 @@ import net.opentsdb.uid.LabelId;
 import com.google.common.base.MoreObjects;
 import com.google.common.primitives.Longs;
 
-import java.util.Objects;
-import java.util.UUID;
 import javax.annotation.Nonnull;
 
 class CassandraLabelId implements LabelId<CassandraLabelId> {

@@ -11,9 +11,7 @@ import net.opentsdb.utils.Pair;
 
 import com.google.common.collect.ImmutableSortedSet;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
 
 import java.util.List;
 import javax.inject.Inject;

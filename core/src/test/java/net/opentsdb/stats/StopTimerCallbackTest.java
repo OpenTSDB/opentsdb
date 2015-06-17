@@ -7,7 +7,6 @@ import static org.mockito.Mockito.verify;
 import com.codahale.metrics.Timer;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.stumbleupon.async.Deferred;
 import org.junit.Test;
 
 public class StopTimerCallbackTest {

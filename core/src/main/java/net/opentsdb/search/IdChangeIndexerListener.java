@@ -11,8 +11,6 @@ import net.opentsdb.uid.LabelDeletedEvent;
 import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.stumbleupon.async.Callback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

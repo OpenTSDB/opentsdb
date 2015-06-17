@@ -16,7 +16,6 @@ import net.opentsdb.uid.UniqueIdType;
 
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.Futures;
-import com.stumbleupon.async.Deferred;
 import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;

@@ -16,8 +16,6 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 import com.typesafe.config.ConfigException;
 import dagger.Module;
 import dagger.ObjectGraph;

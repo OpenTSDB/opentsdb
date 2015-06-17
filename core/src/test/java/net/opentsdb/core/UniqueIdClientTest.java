@@ -19,7 +19,6 @@ import net.opentsdb.uid.NoSuchUniqueName;
 
 import autovalue.shaded.com.google.common.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
-import com.stumbleupon.async.Deferred;
 import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;

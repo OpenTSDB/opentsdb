@@ -23,8 +23,6 @@ import net.opentsdb.uid.TimeseriesId;
 import com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
-import java.util.HashMap;
-
 public abstract class TestRTPublisher {
   protected RTPublisher rt_publisher;
 
