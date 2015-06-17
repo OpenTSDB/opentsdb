@@ -30,27 +30,27 @@ public class MetaClientAnnotationTest {
     ObjectGraph.create(new TestModule()).inject(this);
 
     annotation = AnnotationFixtures.provideAnnotation();
-    store.updateAnnotation(annotation).join();
+    store.updateAnnotation(annotation).get();
   }
 
   @Test(expected = IllegalArgumentException.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void getAnnotationNullTimeSeriesId() throws Exception {
-    metaClient.getAnnotation(null, 5L).join();
+    metaClient.getAnnotation(null, 5L).get();
   }
 
   @Test(expected = IllegalArgumentException.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void getAnnotationEmptyTimeSeriesId() throws Exception {
-    metaClient.getAnnotation("", 5L).join();
+    metaClient.getAnnotation("", 5L).get();
   }
 
   @Test(expected = IllegalArgumentException.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void getAnnotationBadStartTime() throws Exception {
-    metaClient.getAnnotation("000001000001000001", 0L).join();
+    metaClient.getAnnotation("000001000001000001", 0L).get();
   }
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void getAnnotation() throws Exception {
-    Annotation note = metaClient.getAnnotation("000001000001000001", 1388450562L).join();
+    Annotation note = metaClient.getAnnotation("000001000001000001", 1388450562L).get();
     assertNotNull(note);
     assertEquals("000001000001000001", note.timeSeriesId());
     assertEquals("Hello!", note.message());
@@ -59,60 +59,60 @@ public class MetaClientAnnotationTest {
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void getAnnotationNotFound() throws Exception {
-    assertNull(metaClient.getAnnotation("000001000001000001", 1388450564L).join());
+    assertNull(metaClient.getAnnotation("000001000001000001", 1388450564L).get());
   }
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void delete() throws Exception {
-    metaClient.delete(annotation).join();
+    metaClient.delete(annotation).get();
 
     assertNull(store.getAnnotation(
         IdUtils.stringToUid(annotation.timeSeriesId()),
-        annotation.startTime()).join());
+        annotation.startTime()).get());
   }
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void deleteNotFound() throws Exception {
     final Annotation notFound = Annotation.create(annotation.timeSeriesId(),
         annotation.endTime() + 1, annotation.endTime() + 2, annotation.message());
-    metaClient.delete(notFound).join();
+    metaClient.delete(notFound).get();
 
     assertNotNull(store.getAnnotation(
-        IdUtils.stringToUid(annotation.timeSeriesId()), annotation.startTime()).join());
+        IdUtils.stringToUid(annotation.timeSeriesId()), annotation.startTime()).get());
   }
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void updateAnnotation() throws Exception {
     final Annotation updatedannotation = Annotation.create(annotation.timeSeriesId(),
         annotation.startTime(), annotation.endTime(), "New message", annotation.properties());
-    assertTrue(metaClient.updateAnnotation(updatedannotation).join());
+    assertTrue(metaClient.updateAnnotation(updatedannotation).get());
   }
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void updateAnnotationNoChanges() throws Exception {
-    assertFalse(metaClient.updateAnnotation(annotation).join());
+    assertFalse(metaClient.updateAnnotation(annotation).get());
   }
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void deleteRange() throws Exception {
     final int count = metaClient.deleteRange(
         IdUtils.stringToUid(annotation.timeSeriesId()), annotation.startTime() - 5,
-        annotation.endTime() + 5).join();
+        annotation.endTime() + 5).get();
     assertEquals(1, count);
 
     assertNull(store.getAnnotation(
-        IdUtils.stringToUid(annotation.timeSeriesId()), annotation.startTime()).join());
+        IdUtils.stringToUid(annotation.timeSeriesId()), annotation.startTime()).get());
   }
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void deleteRangeNone() throws Exception {
     final int count = metaClient.deleteRange(
         IdUtils.stringToUid(annotation.timeSeriesId()), annotation.endTime() + 100,
-        annotation.endTime() + 110).join();
+        annotation.endTime() + 110).get();
     assertEquals(0, count);
 
     assertNotNull(store.getAnnotation(
-        IdUtils.stringToUid(annotation.timeSeriesId()), annotation.startTime()).join());
+        IdUtils.stringToUid(annotation.timeSeriesId()), annotation.startTime()).get());
   }
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
@@ -122,25 +122,25 @@ public class MetaClientAnnotationTest {
 
     final int count = metaClient.deleteRange(
         IdUtils.stringToUid(annotation.timeSeriesId()), annotation.startTime(),
-        annotation.endTime() + 5).join();
+        annotation.endTime() + 5).get();
     assertEquals(2, count);
 
     assertNull(store.getAnnotation(
         IdUtils.stringToUid(annotation.timeSeriesId()),
-        annotation.startTime()).join());
+        annotation.startTime()).get());
 
     assertNull(store.getAnnotation(
         IdUtils.stringToUid(second.timeSeriesId()),
-        second.startTime()).join());
+        second.startTime()).get());
   }
 
   @Test(expected = IllegalArgumentException.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void deleteRangeEmptyEnd() throws Exception {
-    metaClient.deleteRange(null, 1328140799000L, 0).join();
+    metaClient.deleteRange(null, 1328140799000L, 0).get();
   }
 
   @Test(expected = IllegalArgumentException.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void deleteRangeEndLessThanStart() throws Exception {
-    metaClient.deleteRange(null, 1328140799000L, 1328140798000L).join();
+    metaClient.deleteRange(null, 1328140799000L, 1328140798000L).get();
   }
 }
