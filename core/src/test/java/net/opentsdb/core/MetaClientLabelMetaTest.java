@@ -15,7 +15,9 @@ import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import dagger.ObjectGraph;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -36,13 +38,16 @@ public class MetaClientLabelMetaTest {
   private LabelId sysCpu0;
   private LabelId sysCpu2;
 
+  @Rule
+  public final Timeout timeout = Timeout.millis(MockBase.DEFAULT_TIMEOUT);
+
   @Before
   public void setUp() throws Exception {
     ObjectGraph.create(new TestModule()).inject(this);
     MockitoAnnotations.initMocks(this);
 
-    sysCpu0 = store.allocateUID("sys.cpu.0", METRIC).join();
-    sysCpu2 = store.allocateUID("sys.cpu.2", METRIC).join();
+    sysCpu0 = store.allocateUID("sys.cpu.0", METRIC).get();
+    sysCpu2 = store.allocateUID("sys.cpu.2", METRIC).get();
 
     LabelMeta labelMeta = LabelMeta.create(sysCpu0, METRIC, "sys.cpu.0", "Description", 1328140801);
 
@@ -51,8 +56,7 @@ public class MetaClientLabelMetaTest {
 
   @Test
   public void getUIDMeta() throws Exception {
-    final LabelMeta meta = metaClient.getLabelMeta(METRIC, sysCpu2)
-        .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final LabelMeta meta = metaClient.getLabelMeta(METRIC, sysCpu2).get();
     assertEquals(METRIC, meta.type());
     assertEquals("sys.cpu.2", meta.name());
     assertEquals(sysCpu2, meta.identifier());
@@ -64,34 +68,34 @@ public class MetaClientLabelMetaTest {
   @Test
   public void syncToStorage() throws Exception {
     final UIDMeta meta = new UIDMeta(METRIC, new byte[]{0, 0, 1});
-    metaClient.update(meta).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    metaClient.update(meta).get();
     assertEquals(1328140801, meta.created());
   }
 
   @Test
   public void syncToStorageOverwrite() throws Exception {
     final UIDMeta meta = new UIDMeta(METRIC, new byte[]{0, 0, 1});
-    metaClient.update(meta).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    metaClient.update(meta).get();
     assertNull(meta.description());
   }
 
   @Test (expected = IllegalStateException.class)
   public void syncToStorageNoChanges() throws Exception {
     final UIDMeta meta = metaClient.getLabelMeta(METRIC, "000001")
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    metaClient.update(meta).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+            .get();
+    metaClient.update(meta).get();
   }
 
   @Test (expected = NoSuchUniqueId.class)
   public void syncToStorageNoSuch() throws Exception {
     final UIDMeta meta = new UIDMeta(METRIC, new byte[]{0, 0, 2});
-    metaClient.update(meta).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    metaClient.update(meta).get();
   }
 
   @Test (expected = IllegalArgumentException.class)
   public void storeNewNoName() throws Exception {
     UIDMeta meta = new UIDMeta(METRIC, new byte[] { 0, 0, 1 }, "");
-    metaClient.add(meta).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    metaClient.add(meta).get();
   }
   */
 }
