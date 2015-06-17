@@ -14,7 +14,9 @@ import com.codahale.metrics.MetricRegistry;
 import com.google.common.eventbus.EventBus;
 import dagger.ObjectGraph;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import java.io.IOException;
 import java.util.SortedMap;
@@ -26,6 +28,9 @@ public final class TestUniqueId {
   @Inject EventBus idEventBus;
 
   private UniqueId uid;
+
+  @Rule
+  public final Timeout timeout = Timeout.millis(MockBase.DEFAULT_TIMEOUT);
 
   @Before
   public void setUp() throws IOException {
@@ -56,11 +61,11 @@ public final class TestUniqueId {
   public void getNameSuccessfulLookup() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
 
-    final LabelId id = client.allocateUID("foo", UniqueIdType.METRIC).join();
+    final LabelId id = client.allocateUID("foo", UniqueIdType.METRIC).get();
 
-    assertEquals("foo", uid.getName(id).join());
+    assertEquals("foo", uid.getName(id).get());
     // Should be a cache hit ...
-    assertEquals("foo", uid.getName(id).join());
+    assertEquals("foo", uid.getName(id).get());
 
     final SortedMap<String, Counter> counters = metrics.getCounters();
     assertEquals(1, counters.get("uid.cache-hit:kind=metrics").getCount());
@@ -71,20 +76,20 @@ public final class TestUniqueId {
   @Test(expected = NoSuchUniqueId.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void getNameForNonexistentId() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
-    uid.getName(mock(LabelId.class)).join();
+    uid.getName(mock(LabelId.class)).get();
   }
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void getIdSuccessfulLookup() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
 
-    final LabelId id = client.allocateUID("foo", UniqueIdType.METRIC).join();
+    final LabelId id = client.allocateUID("foo", UniqueIdType.METRIC).get();
 
-    assertEquals(id, uid.getId("foo").join());
+    assertEquals(id, uid.getId("foo").get());
     // Should be a cache hit ...
-    assertEquals(id, uid.getId("foo").join());
+    assertEquals(id, uid.getId("foo").get());
     // Should be a cache hit too ...
-    assertEquals(id, uid.getId("foo").join());
+    assertEquals(id, uid.getId("foo").get());
 
     final SortedMap<String, Counter> counters = metrics.getCounters();
     assertEquals(2, counters.get("uid.cache-hit:kind=metrics").getCount());
@@ -95,13 +100,13 @@ public final class TestUniqueId {
   @Test(expected = NoSuchUniqueName.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void getIdForNonexistentName() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
-    uid.getId("foo").join();
+    uid.getId("foo").get();
   }
 
   @Test
   public void createIdPublishesEventOnSuccess() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
-    uid.createId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    uid.createId("foo").get();
     verify(idEventBus).post(any(LabelCreatedEvent.class));
   }
 }
