@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+OpenTSDB development logger config
+
+This is a logger config file with values that make sense to use while
+developing. Create a copy of me named 'logback.xml' (ignored by git) in /config
+to get a config that you are free to make whatever modifications you want to in.
+
+This config is used by `gradle run` regardless of which directory you run it
+in and most IDE's can be configured to be use it too (IntelliJ uses this file
+automatically since it uses the root project dir as a working directory).
+-->
+
+<configuration>
+  <!--<jmxConfigurator/>-->
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>
+        %d{ISO8601} %-5level [%thread] %logger{0}: %msg%n
+      </pattern>
+    </encoder>
+  </appender>
+  
+  <appender name="CYCLIC" class="ch.qos.logback.core.read.CyclicBufferAppender">
+    <MaxSize>1024</MaxSize>
+  </appender>
+
+  <logger name="com.stumbleupon.async" level="INFO"/>
+  <root level="INFO">
+    <appender-ref ref="STDOUT"/>
+    <appender-ref ref="CYCLIC"/>
+  </root>
+</configuration>

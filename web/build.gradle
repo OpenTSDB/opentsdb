@@ -1,0 +1,14 @@
+
+dependencies {
+    compile project(':tsdb-core')
+
+    runtime project(':tsdb-cassandra')
+
+    compile libraries.jopt,
+            libraries.logback,
+            libraries.netty,
+            libraries.javassist,
+            libraries.metrics_json
+
+    testCompile project(':tsdb-core').sourceSets.test.output
+}

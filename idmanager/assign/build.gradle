@@ -1,0 +1,6 @@
+
+dependencies {
+    compile project(':tsdb-core')
+
+    compile libraries.jopt
+}

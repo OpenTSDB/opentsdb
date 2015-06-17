@@ -1,0 +1,11 @@
+
+project.ext.distFiles = files("src/main/dist")
+
+dependencies {
+    compile project(':tsdb-core')
+
+    compile libraries.cassandra,
+            libraries.auto_service
+
+    testCompile project(':tsdb-core').sourceSets.test.output
+}

@@ -1,0 +1,204 @@
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.4'
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'checkstyle'
+    apply plugin: "signing"
+    apply plugin: "jacoco"
+    apply plugin: "findbugs"
+
+    apply plugin: "idea"
+
+    sourceCompatibility = JavaVersion.VERSION_1_7
+    targetCompatibility = JavaVersion.VERSION_1_7
+
+    group = 'net.opentsdb'
+    version = "2.1.0"
+
+    repositories {
+        mavenCentral()
+    }
+
+    configurations {
+        provided
+    }
+
+    //
+    // Generate sources into a source folder instead of into the classes folder as Gradle does by
+    // default. We really shouldn't have to do this. Gradle should do this for us.
+    //
+    def generatedSources = "$buildDir/generated-sources"
+    def generatedMainSources = "$generatedSources/main/java"
+    def generatedMainOutputDir = file("$generatedMainSources")
+    def generatedTestSources = "$generatedSources/test/java"
+    def generatedTestOutputDir = file("$generatedTestSources")
+
+    compileJava {
+        doFirst {
+            generatedMainOutputDir.exists() || generatedMainOutputDir.mkdirs()
+            options.compilerArgs = [
+                    '-s', "${generatedMainSources}"
+            ]
+        }
+
+        dependsOn clean
+    }
+
+    compileTestJava {
+        doFirst {
+            generatedTestOutputDir.exists() || generatedTestOutputDir.mkdirs()
+            options.compilerArgs = [
+                    '-s', "${generatedTestSources}"
+            ]
+        }
+
+        dependsOn clean
+    }
+
+    ext {
+        libraries = [
+                config: 'com.typesafe:config:1.2.1',
+                guava: 'com.google.guava:guava:18.0',
+                slf4j: 'org.slf4j:slf4j-api:1.7.12',
+                logback: 'ch.qos.logback:logback-classic:1.1.3',
+                auto_value: 'com.google.auto.value:auto-value:1.1',
+                auto_service: 'com.google.auto.service:auto-service:1.0-rc2',
+                jopt: 'net.sf.jopt-simple:jopt-simple:4.9-beta-1',
+                jsr305: 'com.google.code.findbugs:jsr305:3.0.0',
+
+                dagger: 'com.squareup.dagger:dagger:1.2.2',
+                dagger_compiler: 'com.squareup.dagger:dagger-compiler:1.2.2',
+
+                metrics_core: 'io.dropwizard.metrics:metrics-core:3.1.2',
+                metrics_jvm: 'io.dropwizard.metrics:metrics-jvm:3.1.2',
+                metrics_json: 'io.dropwizard.metrics:metrics-json:3.1.2',
+
+                cassandra: 'com.datastax.cassandra:cassandra-driver-core:2.1.6',
+
+                // Web (Netty)
+                netty: 'io.netty:netty-all:4.1.0.Beta5',
+                javassist: 'org.javassist:javassist:3.19.0-GA',
+
+                jackson_core: 'com.fasterxml.jackson.core:jackson-core:2.5.3',
+                jackson_databind: 'com.fasterxml.jackson.core:jackson-databind:2.5.3',
+                jackson_annotation: 'com.fasterxml.jackson.core:jackson-annotations:2.5.3',
+                jackson_guava: 'com.fasterxml.jackson.datatype:jackson-datatype-guava:2.5.3',
+
+                // Tests
+                junit: 'junit:junit:4.12',
+                hamcrest: 'org.hamcrest:hamcrest-core:1.3',
+                mockito: 'org.mockito:mockito-core:1.10.19',
+
+                // Legacy
+                async: 'com.stumbleupon:async:1.4.0',
+                objenesis: 'org.objenesis:objenesis:1.3',
+                powermock_api_mockito: 'org.powermock:powermock-api-mockito:1.5.4',
+                powermock_module_junit: 'org.powermock:powermock-module-junit4:1.5.4'
+        ]
+    }
+
+    dependencies {
+        compile libraries.guava,
+                libraries.slf4j,
+                libraries.async,
+
+                // It would be nice if we could specify this as compile only but
+                // the annotations it provides have their retention set to source
+                // so at the moment we can't. Is there any way to remove the
+                // annotations after compiling using gradle?
+                libraries.jsr305
+
+        // Compile only
+        provided libraries.dagger_compiler
+
+        testCompile libraries.junit,
+                    libraries.hamcrest,
+                    libraries.mockito
+    }
+
+    sourceSets {
+        main {
+            java {
+                srcDirs += generatedMainOutputDir
+            }
+            compileClasspath += configurations.provided
+        }
+        test {
+            java {
+                srcDirs += generatedTestOutputDir
+            }
+            compileClasspath += configurations.provided
+        }
+    }
+
+    [compileJava, compileTestJava].each() {
+        it.options.compilerArgs += ["-Xlint"]
+        it.options.encoding = "UTF-8"
+    }
+
+    test {
+        maxHeapSize = "2048m"
+        jvmArgs '-XX:MaxPermSize=256m'
+
+        forkEvery = 1000
+        maxParallelForks = 1
+    }
+
+    jar {
+        manifest {
+            attributes(
+                    "Implementation-Title": "OpenTSDB",
+                    "Implementation-Vendor": "The OpenTSDB Authors",
+                    "Implementation-Version": "$version+${getGitAbbreviatedHash()}",
+                    "Build-User": System.getenv("USER"),
+                    "Build-Host": InetAddress.getLocalHost().getHostName(),
+                    "Build-Date": new Date())
+        }
+    }
+
+    signing {
+        required false
+        sign configurations.archives
+    }
+
+    checkstyle {
+        configFile = file("$rootDir/checkstyle.xml")
+        toolVersion = "6.5"
+    }
+
+    //
+    // Only scan the non-generated sources
+    //
+    checkstyleMain {
+        source = fileTree(dir: "src/main", include: "**/*.java")
+    }
+
+    checkstyleTest {
+        source = fileTree(dir: "src/test", include: "**/*.java")
+    }
+
+    // Configure intellij to add the generated sources folders to its build path
+    idea {
+        module {
+            // Intellij exludes the whole build directory by default. This makes
+            // sure the generates sources dir is still excluded but the generated
+            // sources gets included.
+            excludeDirs = [file('.gradle')]
+            if (buildDir.exists()) {
+                excludeDirs += files(buildDir.listFiles())
+                excludeDirs -= file(generatedSources)
+
+                generatedSourceDirs += generatedMainOutputDir
+                testSourceDirs += generatedTestOutputDir
+            }
+
+        }
+    }
+}
+
+def getGitAbbreviatedHash() {
+    return "git rev-parse --verify --quiet --short HEAD".execute().in.text.trim()
+}

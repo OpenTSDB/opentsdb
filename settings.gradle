@@ -1,0 +1,14 @@
+
+rootProject.name = "opentsdb"
+
+include ":tsdb-all"
+include ":tsdb-core"
+include ":tsdb-cassandra"
+include ":idmanager:tsdb-assign"
+include ":tsdb-web"
+
+project(':tsdb-all').projectDir = "$rootDir/all" as File
+project(':tsdb-core').projectDir = "$rootDir/core" as File
+project(':tsdb-cassandra').projectDir = "$rootDir/cassandra" as File
+project(':idmanager:tsdb-assign').projectDir = "$rootDir/idmanager/assign" as File
+project(':tsdb-web').projectDir = "$rootDir/web" as File

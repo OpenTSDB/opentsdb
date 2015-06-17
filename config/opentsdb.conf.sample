@@ -1,0 +1,26 @@
+# OpenTSDB development config
+#
+# This is a sample config that overrides the default config with values that make
+# sense to use while developing. Create a copy of me named 'opentsdb.conf'
+# (ignored by git) in /config to get a config that you are free to make whatever
+# modifications you want to in.
+#
+# This config is used by `gradle run` regardless of which directory you run it
+# in and most IDE's can be configured to be use it too (IntelliJ uses this file
+# automatically since it uses the root project dir as a working directory).
+
+#
+# Core
+#
+# Whether or not to automatically create UIDs for new metric types, the default
+# is false.
+tsd.core.auto_create_metrics = false
+
+# The fully qualified name of the storage adapter to use.
+tsd.storage.adapter = net.opentsdb.storage.cassandra.CassandraStoreDescriptor
+
+#
+# Web
+#
+# The port that the web server should bind to.
+tsdb.web.port = 8080

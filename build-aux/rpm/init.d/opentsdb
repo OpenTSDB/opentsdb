@@ -142,7 +142,7 @@ rh_status_q() {
 }
 
 findproc() {
-    pgrep -f "^java .* net.opentsdb.tools.TSDMain .*${NAME}"
+    pgrep -f "^java .* net.opentsdb.tsd.TSDMain .*${NAME}"
 }
 
 case "$1" in

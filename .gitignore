@@ -1,40 +1,15 @@
-INSTALL
-Makefile
-Makefile.in
-aclocal.m4
-autom4te.cache
-build
-target
-config.log
-config.status
-configure
-pom.xml
 *.pyc
 .*.swp
 *.rrd
 *.class
-*/target/*
 *.orig
 *.log
 
-#for Intellij
-\.idea
-*.iml
+/config/logback.xml
+/config/opentsdb.conf
 
-#for guava rpm maker
-guava-rpm-maker/\.project
-
-# for mac finder
-.DS_Store
-
-# for eclipse
-.pydevproject
-.metadata
-.project
-.classpath
-.settings
-
-# maven
-src-main
-src-test
-plugin_test.jar
+# Gradle
+.gradle
+build/
+# Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
+!gradle-wrapper.jar
