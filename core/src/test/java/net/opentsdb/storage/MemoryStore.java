@@ -1,6 +1,5 @@
 package net.opentsdb.storage;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.uid.IdUtils.uidToString;
 
 import net.opentsdb.core.DataPoints;
@@ -20,7 +19,8 @@ import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
-import com.stumbleupon.async.Deferred;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -68,31 +68,31 @@ public class MemoryStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
-                                 final long timestamp,
-                                 final float value) {
+  public ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+                                         final long timestamp,
+                                         final float value) {
     return addPoint(tsuid, value, timestamp);
   }
 
   @Nonnull
   @Override
-  public Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
-                                 final long timestamp,
-                                 final double value) {
+  public ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+                                         final long timestamp,
+                                         final double value) {
     return addPoint(tsuid, value, timestamp);
   }
 
   @Nonnull
   @Override
-  public Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
-                                 final long timestamp,
-                                 final long value) {
+  public ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+                                         final long timestamp,
+                                         final long value) {
     return addPoint(tsuid, (Number) value, timestamp);
   }
 
-  private Deferred<Void> addPoint(final TimeseriesId tsuid,
-                                  final Number value,
-                                  final long timestamp) {
+  private ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
+                                          final Number value,
+                                          final long timestamp) {
     /*
      * TODO(luuse): tsuid neither implements #equals, #hashCode or Comparable.
      * Should implement a custom TimeseriesId for MemoryStore that implements all
@@ -107,7 +107,7 @@ public class MemoryStore extends TsdbStore {
 
     tsuidDps.put(timestamp, value);
 
-    return Deferred.fromResult(null);
+    return Futures.immediateFuture(null);
   }
 
   @Override
@@ -116,53 +116,53 @@ public class MemoryStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public Deferred<Optional<LabelId>> getId(@Nonnull String name,
-                                           @Nonnull UniqueIdType type) {
+  public ListenableFuture<Optional<LabelId>> getId(@Nonnull String name,
+                                                   @Nonnull UniqueIdType type) {
     LabelId id = uid_forward_mapping.get(name, type);
-    return Deferred.fromResult(Optional.fromNullable(id));
+    return Futures.immediateFuture(Optional.fromNullable(id));
   }
 
   @Nonnull
   @Override
-  public Deferred<Optional<String>> getName(@Nonnull final LabelId id,
-                                            @Nonnull final UniqueIdType type) {
+  public ListenableFuture<Optional<String>> getName(@Nonnull final LabelId id,
+                                                    @Nonnull final UniqueIdType type) {
     final String name = uid_reverse_mapping.get(id, type);
-    return Deferred.fromResult(Optional.fromNullable(name));
+    return Futures.immediateFuture(Optional.fromNullable(name));
   }
 
   @Nonnull
   @Override
-  public Deferred<LabelMeta> getMeta(@Nonnull final LabelId uid,
-                                     @Nonnull final UniqueIdType type) {
+  public ListenableFuture<LabelMeta> getMeta(@Nonnull final LabelId uid,
+                                             @Nonnull final UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
     final LabelMeta meta = uid_table.get(uid, qualifier);
-    return Deferred.fromResult(meta);
+    return Futures.immediateFuture(meta);
   }
 
   @Override
-  public Deferred<Boolean> updateMeta(final LabelMeta meta) {
+  public ListenableFuture<Boolean> updateMeta(final LabelMeta meta) {
     uid_table.put(
         meta.identifier(),
         meta.type().toString().toLowerCase() + "_meta",
         meta);
 
-    return Deferred.fromResult(Boolean.TRUE);
+    return Futures.immediateFuture(Boolean.TRUE);
   }
 
   @Override
-  public Deferred<Void> deleteUID(final String name, UniqueIdType type) {
+  public ListenableFuture<Void> deleteUID(final String name, UniqueIdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query) {
+  public ListenableFuture<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Nonnull
   @Override
-  public Deferred<LabelId> allocateUID(@Nonnull final String name,
-                                       @Nonnull final UniqueIdType type) {
+  public ListenableFuture<LabelId> allocateUID(@Nonnull final String name,
+                                               @Nonnull final UniqueIdType type) {
     LabelId id;
 
     do {
@@ -175,9 +175,9 @@ public class MemoryStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public Deferred<LabelId> allocateUID(@Nonnull final String name,
-                                       @Nonnull final LabelId id,
-                                       @Nonnull final UniqueIdType type) {
+  public ListenableFuture<LabelId> allocateUID(@Nonnull final String name,
+                                               @Nonnull final LabelId id,
+                                               @Nonnull final UniqueIdType type) {
     if (uid_reverse_mapping.contains(id, type)) {
       throw new IllegalArgumentException("An ID with " + id + " already exists");
     }
@@ -185,12 +185,12 @@ public class MemoryStore extends TsdbStore {
     uid_reverse_mapping.put(id, type, name);
 
     if (uid_forward_mapping.contains(name, type)) {
-      return Deferred.fromResult(uid_forward_mapping.get(name, type));
+      return Futures.immediateFuture(uid_forward_mapping.get(name, type));
     }
 
     uid_forward_mapping.put(name, type, id);
 
-    return Deferred.fromResult(id);
+    return Futures.immediateFuture(id);
   }
 
   /**
@@ -202,7 +202,7 @@ public class MemoryStore extends TsdbStore {
    * may be null.
    */
   @Override
-  public Deferred<Void> delete(Annotation annotation) {
+  public ListenableFuture<Void> delete(Annotation annotation) {
 
     final String tsuid = annotation.timeSeriesId() != null && !annotation.timeSeriesId().isEmpty() ?
         annotation.timeSeriesId() : "";
@@ -215,19 +215,19 @@ public class MemoryStore extends TsdbStore {
 
     annotation_table.remove(tsuid, start);
 
-    return Deferred.fromResult(null);
+    return Futures.immediateFuture(null);
   }
 
   @Override
-  public Deferred<Boolean> updateAnnotation(Annotation annotation) {
+  public ListenableFuture<Boolean> updateAnnotation(Annotation annotation) {
     final Annotation changedAnnotation = annotation_table.put(annotation.timeSeriesId(),
         annotation.startTime(), annotation);
-    return Deferred.fromResult(!annotation.equals(changedAnnotation));
+    return Futures.immediateFuture(!annotation.equals(changedAnnotation));
   }
 
   @Override
-  public Deferred<List<Annotation>> getGlobalAnnotations(final long startTime,
-                                                         final long endTime) {
+  public ListenableFuture<List<Annotation>> getGlobalAnnotations(final long startTime,
+                                                                 final long endTime) {
     //some sanity check should happen before this is called actually.
 
     if (startTime < 1) {
@@ -242,13 +242,13 @@ public class MemoryStore extends TsdbStore {
         annotations.add(global);
       }
     }
-    return Deferred.fromResult(annotations);
+    return Futures.immediateFuture(annotations);
   }
 
   @Override
-  public Deferred<Integer> deleteAnnotationRange(final byte[] tsuid,
-                                                 final long startTime,
-                                                 final long endTime) {
+  public ListenableFuture<Integer> deleteAnnotationRange(final byte[] tsuid,
+                                                         final long startTime,
+                                                         final long endTime) {
 
     //some sanity check should happen before this is called actually.
     //however we need to modify the start_time and end_time
@@ -277,7 +277,7 @@ public class MemoryStore extends TsdbStore {
     for (Annotation a : del_list) {
       delete(a);
     }
-    return Deferred.fromResult(del_list.size());
+    return Futures.immediateFuture(del_list.size());
 
   }
 
@@ -289,7 +289,7 @@ public class MemoryStore extends TsdbStore {
    * @return A valid annotation object if found, null if not
    */
   @Override
-  public Deferred<Annotation> getAnnotation(final byte[] tsuid, final long startTime) {
+  public ListenableFuture<Annotation> getAnnotation(final byte[] tsuid, final long startTime) {
 
     if (startTime < 1) {
       throw new IllegalArgumentException("The start timestamp has not been set");
@@ -302,7 +302,7 @@ public class MemoryStore extends TsdbStore {
       //convert byte array to proper string
       key = uidToString(tsuid);
     }
-    return Deferred.fromResult(annotation_table.get(key, time));
+    return Futures.immediateFuture(annotation_table.get(key, time));
   }
 
   /**
@@ -316,12 +316,12 @@ public class MemoryStore extends TsdbStore {
    * @throws IllegalArgumentException if bad data was retreived from HBase.
    */
   @Override
-  public Deferred<ImmutableList<DataPoints>> executeQuery(final Object query) {
+  public ListenableFuture<ImmutableList<DataPoints>> executeQuery(final Object query) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
+  public ListenableFuture<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
     Predicate<UniqueIdType> typeMatchFunction = new Predicate<UniqueIdType>() {
       @Override
       public boolean apply(final UniqueIdType input) {
@@ -360,7 +360,7 @@ public class MemoryStore extends TsdbStore {
       }
     }
 
-    return Deferred.fromResult(result);
+    return Futures.immediateFuture(result);
   }
 
 }
