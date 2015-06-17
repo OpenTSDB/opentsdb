@@ -13,6 +13,9 @@ import net.opentsdb.utils.InvalidConfigException;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.typesafe.config.ConfigException;
@@ -102,14 +105,14 @@ public final class Assign {
       final TsdbStore store = objectGraph.get(TsdbStore.class);
       final Assign assign = objectGraph.get(Assign.class);
 
-      final List<Deferred<Void>> assignments =
+      final List<ListenableFuture<LabelId>> assignments =
           Lists.newArrayListWithCapacity(names.size());
 
       for (final String name : names) {
         assignments.add(assign.assign(name, type));
       }
 
-      Deferred.group(assignments).joinUninterruptibly();
+      Futures.allAsList(assignments).get();
       store.close();
     } catch (IllegalArgumentException | OptionException e) {
       printError(e.getMessage());
@@ -136,12 +139,13 @@ public final class Assign {
     }
   }
 
-  private Deferred<Void> assign(final String name, final UniqueIdType type) {
-    return idClient.createId(type, name)
-        .addCallbacks(new LogNewIdCB(name, type), new LogErrorCB(name, type));
+  private ListenableFuture<LabelId> assign(final String name, final UniqueIdType type) {
+    final ListenableFuture<LabelId> id = idClient.createId(type, name);
+    Futures.addCallback(id, new LogNewIdCB(name, type));
+    return id;
   }
 
-  private static class LogNewIdCB implements Callback<Void, LabelId> {
+  private static class LogNewIdCB implements FutureCallback<LabelId> {
     private final String name;
     private final UniqueIdType type;
 
@@ -151,30 +155,17 @@ public final class Assign {
     }
 
     @Override
-    public Void call(final LabelId id) {
+    public void onSuccess(final LabelId id) {
       LOG.info("{} {}: {}", type, name, id);
-      return null;
-    }
-  }
-
-  private static class LogErrorCB implements Callback<Object, Exception> {
-    private final String name;
-    private final UniqueIdType type;
-
-    public LogErrorCB(final String name, final UniqueIdType type) {
-      this.name = name;
-      this.type = type;
     }
 
     @Override
-    public Object call(final Exception e) throws Exception {
-      if (e instanceof IdException) {
-        System.err.println(e.getMessage());
+    public void onFailure(final Throwable t) {
+      if (t instanceof IdException) {
+        System.err.println(t.getMessage());
       } else {
-        LOG.error("{} {}: {}", name, type, e.getMessage(), e);
+        LOG.error("{} {}: {}", name, type, t.getMessage(), t);
       }
-
-      return null;
     }
   }
 
