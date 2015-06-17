@@ -22,6 +22,7 @@ import net.opentsdb.meta.AnnotationFixtures;
 import net.opentsdb.uid.LabelId;
 
 import autovalue.shaded.com.google.common.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.Futures;
 import com.stumbleupon.async.Callback;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -32,11 +33,6 @@ public abstract class TestSearchPlugin {
   @Test
   public void indexLabelMetaNull() {
     assertNotNull(search.indexLabelMeta(null));
-  }
-
-  @Test
-  public void IndexLabelMetaNullErrBack() {
-    assertNotNull(search.indexLabelMeta(null).addErrback(new Errback()));
   }
 
   @Test
@@ -60,11 +56,6 @@ public abstract class TestSearchPlugin {
   }
 
   @Test
-  public void indexAnnotationNullErrBack() {
-    assertNotNull(search.indexAnnotation(null).addErrback(new Errback()));
-  }
-
-  @Test
   public void deleteAnnotation() {
     assertNotNull(search.deleteAnnotation(AnnotationFixtures.provideAnnotation()));
   }
@@ -72,23 +63,5 @@ public abstract class TestSearchPlugin {
   @Test
   public void deleteAnnotationNull() {
     assertNotNull(search.deleteAnnotation(null));
-  }
-
-  @Test
-  public void deleteAnnotationNullErrBack() {
-    assertNotNull(search.deleteAnnotation(null).addErrback(new Errback()));
-  }
-
-  /**
-   * Helper Deferred Errback handler just to make sure the dummy plugin (and hopefully implementers)
-   * use errbacks for exceptions in the proper spots
-   */
-  @Ignore
-  static final class Errback implements Callback<Object, Exception> {
-    @Override
-    public Object call(final Exception e) {
-      assertNotNull(e);
-      return new Object();
-    }
   }
 }
