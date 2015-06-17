@@ -18,6 +18,7 @@ import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 
 import autovalue.shaded.com.google.common.common.collect.ImmutableList;
+import com.google.common.util.concurrent.Futures;
 import com.stumbleupon.async.Deferred;
 import dagger.ObjectGraph;
 import org.junit.Before;
@@ -47,49 +48,49 @@ public class UniqueIdClientTest {
   public void before() throws Exception {
     ObjectGraph.create(new TestModule()).inject(this);
 
-    sysCpu0 = store.allocateUID("sys.cpu.0", METRIC).join();
-    sysCpu1 = store.allocateUID("sys.cpu.1", METRIC).join();
+    sysCpu0 = store.allocateUID("sys.cpu.0", METRIC).get();
+    sysCpu1 = store.allocateUID("sys.cpu.1", METRIC).get();
 
-    host = store.allocateUID("host", TAGK).join();
-    datacenter = store.allocateUID("datacenter", TAGK).join();
-    pop = store.allocateUID("pop", TAGK).join();
-    doesnotexist = store.allocateUID("doesnotexist", TAGK).join();
+    host = store.allocateUID("host", TAGK).get();
+    datacenter = store.allocateUID("datacenter", TAGK).get();
+    pop = store.allocateUID("pop", TAGK).get();
+    doesnotexist = store.allocateUID("doesnotexist", TAGK).get();
 
-    localhost = store.allocateUID("localhost", TAGV).join();
-    myserver = store.allocateUID("myserver", TAGV).join();
-    web011 = store.allocateUID("web01", TAGV).join();
-    web02 = store.allocateUID("web02", TAGV).join();
-    nohost = store.allocateUID("nohost", TAGV).join();
+    localhost = store.allocateUID("localhost", TAGV).get();
+    myserver = store.allocateUID("myserver", TAGV).get();
+    web011 = store.allocateUID("web01", TAGV).get();
+    web02 = store.allocateUID("web02", TAGV).get();
+    nohost = store.allocateUID("nohost", TAGV).get();
   }
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void getUidNameMetric() throws Exception {
-    assertEquals("sys.cpu.0", uniqueIdClient.getUidName(METRIC, sysCpu0).join());
+    assertEquals("sys.cpu.0", uniqueIdClient.getUidName(METRIC, sysCpu0).get());
   }
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void getUidNameTagk() throws Exception {
-    assertEquals("host", uniqueIdClient.getUidName(TAGK, host).join());
+    assertEquals("host", uniqueIdClient.getUidName(TAGK, host).get());
   }
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void getUidNameTagv() throws Exception {
-    assertEquals("web01", uniqueIdClient.getUidName(TAGV, web01).join());
+    assertEquals("web01", uniqueIdClient.getUidName(TAGV, web01).get());
   }
 
   @Test(expected = NoSuchUniqueId.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void getUidNameMetricNSU() throws Exception {
-    uniqueIdClient.getUidName(METRIC, mock(LabelId.class)).join();
+    uniqueIdClient.getUidName(METRIC, mock(LabelId.class)).get();
   }
 
   @Test(expected = NoSuchUniqueId.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void getUidNameTagkNSU() throws Exception {
-    uniqueIdClient.getUidName(TAGK, mock(LabelId.class)).join();
+    uniqueIdClient.getUidName(TAGK, mock(LabelId.class)).get();
   }
 
   @Test(expected = NoSuchUniqueId.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void getUidNameTagvNSU() throws Exception {
-    uniqueIdClient.getUidName(TAGV, mock(LabelId.class)).join();
+    uniqueIdClient.getUidName(TAGV, mock(LabelId.class)).get();
   }
 
   @Test(expected = NullPointerException.class)
@@ -104,32 +105,32 @@ public class UniqueIdClientTest {
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void getUIDMetric() throws Exception {
-    assertEquals(sysCpu0, uniqueIdClient.getUID(METRIC, "sys.cpu.0").join());
+    assertEquals(sysCpu0, uniqueIdClient.getUID(METRIC, "sys.cpu.0").get());
   }
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void getUIDTagk() throws Exception {
-    assertEquals(host, uniqueIdClient.getUID(TAGK, "host").join());
+    assertEquals(host, uniqueIdClient.getUID(TAGK, "host").get());
   }
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void getUIDTagv() throws Exception {
-    assertEquals(host, uniqueIdClient.getUID(TAGV, "localhost").join());
+    assertEquals(host, uniqueIdClient.getUID(TAGV, "localhost").get());
   }
 
   @Test(expected = NoSuchUniqueName.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void getUIDMetricNSU() throws Exception {
-    uniqueIdClient.getUID(METRIC, "sys.cpu.2").join();
+    uniqueIdClient.getUID(METRIC, "sys.cpu.2").get();
   }
 
   @Test(expected = NoSuchUniqueName.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void getUIDTagkNSU() throws Exception {
-    uniqueIdClient.getUID(TAGK, "region").join();
+    uniqueIdClient.getUID(TAGK, "region").get();
   }
 
   @Test(expected = NoSuchUniqueName.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void getUIDTagvNSU() throws Exception {
-    uniqueIdClient.getUID(TAGV, "yourserver").join();
+    uniqueIdClient.getUID(TAGV, "yourserver").get();
   }
 
   @Test(expected = NullPointerException.class)
@@ -151,7 +152,7 @@ public class UniqueIdClientTest {
   public void assignUidMetric() {
     final LabelId id = mock(LabelId.class);
     when(store.allocateUID("sys.cpu.2", METRIC))
-        .thenReturn(Deferred.fromResult(id));
+        .thenReturn(Futures.immediateFuture(id));
     assertSame(id, uniqueIdClient.assignUid(METRIC, "sys.cpu.2"));
   }
 
@@ -164,7 +165,7 @@ public class UniqueIdClientTest {
   public void assignUidTagk() {
     final LabelId id = mock(LabelId.class);
     when(store.allocateUID("region", TAGK))
-        .thenReturn(Deferred.fromResult(id));
+        .thenReturn(Futures.immediateFuture(id));
     assertSame(id, uniqueIdClient.assignUid(TAGK, "region"));
   }
 
@@ -177,7 +178,7 @@ public class UniqueIdClientTest {
   public void assignUidTagv() {
     final LabelId id = mock(LabelId.class);
     when(store.allocateUID("yourserver", TAGV))
-        .thenReturn(Deferred.fromResult(id));
+        .thenReturn(Futures.immediateFuture(id));
     assertSame(id, uniqueIdClient.assignUid(TAGV, "yourserver"));
   }
 
@@ -219,19 +220,19 @@ public class UniqueIdClientTest {
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void getTagNames() throws Exception {
     ImmutableList<LabelId> ids = ImmutableList.of(host, web01);
-    final Map<String, String> tags = uniqueIdClient.getTagNames(ids).join();
+    final Map<String, String> tags = uniqueIdClient.getTagNames(ids).get();
     assertEquals("web01", tags.get("host"));
   }
 
   @Test(expected = NoSuchUniqueId.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void getTagNamesNSUI() throws Exception {
     ImmutableList<LabelId> ids = ImmutableList.of(mock(LabelId.class), mock(LabelId.class));
-    uniqueIdClient.getTagNames(ids).join();
+    uniqueIdClient.getTagNames(ids).get();
   }
 
   @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void getTagNamesEmptyList() throws Exception {
-    final Map<String, String> tags = uniqueIdClient.getTagNames(ImmutableList.<LabelId>of()).join();
+    final Map<String, String> tags = uniqueIdClient.getTagNames(ImmutableList.<LabelId>of()).get();
     assertNotNull(tags);
     assertEquals(0, tags.size());
   }
@@ -239,6 +240,6 @@ public class UniqueIdClientTest {
   @Test(expected = NoSuchUniqueName.class)
   public void executeTimeSeriesQueryMissingName() throws Exception {
     final SearchQuery query = new SearchQuery("nosuchname");
-    uniqueIdClient.executeTimeSeriesQuery(query).joinUninterruptibly();
+    uniqueIdClient.executeTimeSeriesQuery(query).get();
   }
 }
