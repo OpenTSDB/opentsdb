@@ -5,7 +5,6 @@ import static com.google.common.util.concurrent.Futures.transform;
 import static net.opentsdb.storage.cassandra.CassandraConst.CHARSET;
 import static net.opentsdb.storage.cassandra.CassandraLabelId.fromLong;
 import static net.opentsdb.storage.cassandra.CassandraLabelId.toLong;
-import static net.opentsdb.storage.cassandra.MoreFutures.wrap;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
@@ -15,6 +14,7 @@ import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.cassandra.functions.FirstOrAbsentFunction;
 import net.opentsdb.storage.cassandra.functions.IsEmptyFunction;
+import net.opentsdb.storage.cassandra.functions.ResultSetToVoid;
 import net.opentsdb.storage.cassandra.statements.AddPointStatements;
 import net.opentsdb.time.JdkTimeProvider;
 import net.opentsdb.uid.IdException;
@@ -48,6 +48,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * The CassandraStore that implements the client interface required by TSDB.
@@ -160,15 +161,15 @@ public class CassandraStore extends TsdbStore {
   }
 
   @Override
-  public Deferred<Annotation> getAnnotation(byte[] tsuid, long startTime) {
+  public ListenableFuture<Annotation> getAnnotation(byte[] tsuid, long startTime) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Nonnull
   @Override
-  public Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
-                                 final long timestamp,
-                                 final float value) {
+  public ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+                                         final long timestamp,
+                                         final float value) {
     final BoundStatement addPointStatement = addFloatStatement.bind()
         .setFloat(3, value);
     return addPoint(addPointStatement, tsuid.metric(), tsuid.tags(), timestamp);
@@ -176,9 +177,9 @@ public class CassandraStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
-                                 final long timestamp,
-                                 final double value) {
+  public ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+                                         final long timestamp,
+                                         final double value) {
     final BoundStatement addPointStatement = addDoubleStatement.bind()
         .setDouble(3, value);
     return addPoint(addPointStatement, tsuid.metric(), tsuid.tags(), timestamp);
@@ -186,19 +187,19 @@ public class CassandraStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
-                                 final long timestamp,
-                                 final long value) {
+  public ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+                                         final long timestamp,
+                                         final long value) {
     final BoundStatement addPointStatement = addLongStatement.bind()
         .setLong(3, value);
     return addPoint(addPointStatement, tsuid.metric(), tsuid.tags(), timestamp);
   }
 
   @Nonnull
-  private Deferred<Void> addPoint(@Nonnull final BoundStatement addPointStatement,
-                                  @Nonnull final LabelId metric,
-                                  @Nonnull final List<LabelId> tags,
-                                  final long timestamp) {
+  private ListenableFuture<Void> addPoint(@Nonnull final BoundStatement addPointStatement,
+                                          @Nonnull final LabelId metric,
+                                          @Nonnull final List<LabelId> tags,
+                                          final long timestamp) {
     Hasher tsidHasher = Hashing.murmur3_128().newHasher()
         .putLong(toLong(metric));
 
@@ -219,20 +220,7 @@ public class CassandraStore extends TsdbStore {
 
     final Deferred<Void> d = new Deferred<>();
 
-    Futures.addCallback(future, new FutureCallback<ResultSet>() {
-      @Override
-      public void onSuccess(ResultSet rows) {
-        d.callback(null);
-        //writeTimeseriesIdIndex(metric, tags, tsid);
-      }
-
-      @Override
-      public void onFailure(@Nonnull Throwable throwable) {
-        d.callback(throwable);
-      }
-    });
-
-    return d;
+    return transform(future, new ResultSetToVoid());
   }
 
   private void writeTimeseriesIdIndex(final LabelId metric,
@@ -263,10 +251,10 @@ public class CassandraStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public Deferred<Optional<LabelId>> getId(@Nonnull final String name,
-                                           @Nonnull final UniqueIdType type) {
+  public ListenableFuture<Optional<LabelId>> getId(@Nonnull final String name,
+                                                   @Nonnull final UniqueIdType type) {
     ListenableFuture<List<LabelId>> idsFuture = getIds(name, type);
-    return wrap(transform(idsFuture, new FirstOrAbsentFunction<LabelId>()));
+    return transform(idsFuture, new FirstOrAbsentFunction<LabelId>());
   }
 
   /**
@@ -299,10 +287,10 @@ public class CassandraStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public Deferred<Optional<String>> getName(@Nonnull final LabelId id,
-                                            @Nonnull final UniqueIdType type) {
+  public ListenableFuture<Optional<String>> getName(@Nonnull final LabelId id,
+                                                    @Nonnull final UniqueIdType type) {
     ListenableFuture<List<String>> namesFuture = getNames(id, type);
-    return wrap(transform(namesFuture, new FirstOrAbsentFunction<String>()));
+    return transform(namesFuture, new FirstOrAbsentFunction<String>());
   }
 
   /**
@@ -335,19 +323,19 @@ public class CassandraStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public Deferred<LabelMeta> getMeta(@Nonnull final LabelId uid,
-                                     @Nonnull final UniqueIdType type) {
+  public ListenableFuture<LabelMeta> getMeta(@Nonnull final LabelId uid,
+                                             @Nonnull final UniqueIdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<Boolean> updateMeta(LabelMeta meta) {
+  public ListenableFuture<Boolean> updateMeta(LabelMeta meta) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<Void> deleteUID(final String name,
-                                  final UniqueIdType type) {
+  public ListenableFuture<Void> deleteUID(final String name,
+                                          final UniqueIdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -460,8 +448,8 @@ public class CassandraStore extends TsdbStore {
    */
   @Nonnull
   @Override
-  public Deferred<LabelId> allocateUID(@Nonnull final String name,
-                                       @Nonnull final UniqueIdType type) {
+  public ListenableFuture<LabelId> allocateUID(@Nonnull final String name,
+                                               @Nonnull final UniqueIdType type) {
     // This discards half the hash but it should still work ok with murmur3.
     final long id = Hashing.murmur3_128().hashString(name, CHARSET).asLong();
 
@@ -471,7 +459,7 @@ public class CassandraStore extends TsdbStore {
     // information we are trying to allocate now.
     ListenableFuture<Void> availableFuture = checkAvailable(id, name, type);
 
-    return wrap(transform(availableFuture, new AsyncFunction<Void, LabelId>() {
+    return transform(availableFuture, new AsyncFunction<Void, LabelId>() {
       @Override
       public ListenableFuture<LabelId> apply(final Void available) {
         // #checkAvailable will have thrown an exception if the id or name was
@@ -479,7 +467,7 @@ public class CassandraStore extends TsdbStore {
         // free to create the id.
         return createId(id, name, type);
       }
-    }));
+    });
   }
 
   /**
@@ -494,9 +482,9 @@ public class CassandraStore extends TsdbStore {
    */
   @Nonnull
   @Override
-  public Deferred<LabelId> allocateUID(@Nonnull final String name,
-                                       @Nonnull final LabelId uid,
-                                       @Nonnull final UniqueIdType type) {
+  public ListenableFuture<LabelId> allocateUID(@Nonnull final String name,
+                                               @Nonnull final LabelId uid,
+                                               @Nonnull final UniqueIdType type) {
     /*
     TODO #zeeck this method should be considered to be changed to rename and the implementation
     changed in the HBaseStore. One of the prerequisites of this function is that the UID already
@@ -508,15 +496,13 @@ public class CassandraStore extends TsdbStore {
     ResultSetFuture f = session.executeAsync(getNameStatement.bind(
         toLong(uid), type.toValue()));
 
-    final Deferred<LabelId> d = new Deferred<>();
-
     //CQL = "UPDATE tsdb." + Tables.ID_TO_NAME + " SET name = ? WHERE uid = ? AND type = ?;";
     final BoundStatement s1 = new BoundStatement(updateUidNameStatement)
         .bind(name, toLong(uid), type.toValue());
 
-    Futures.addCallback(f, new FutureCallback<ResultSet>() {
+    return transform(f, new Function<ResultSet, LabelId>() {
       @Override
-      public void onSuccess(ResultSet rows) {
+      public LabelId apply(@Nullable final ResultSet rows) {
         final String old_name = rows.one().getString("name");
         session.executeAsync(s1);
         BoundStatement s = new BoundStatement(updateNameUidStatement);
@@ -528,49 +514,45 @@ public class CassandraStore extends TsdbStore {
         session.executeAsync(s.bind(old_name, type.toValue(),
             name, type.toValue(), toLong(uid)));
         //TODO (zeeck) maybe check if this was ok
-        d.callback(uid);
-      }
-
-      @Override
-      public void onFailure(@Nonnull Throwable throwable) {
-        d.callback(throwable);
+        return uid;
       }
     });
-    return d;
   }
 
   @Override
-  public Deferred<Void> delete(Annotation annotation) {
+  public ListenableFuture<Void> delete(Annotation annotation) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<Boolean> updateAnnotation(Annotation annotation) {
+  public ListenableFuture<Boolean> updateAnnotation(Annotation annotation) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<List<Annotation>> getGlobalAnnotations(long startTime, long endTime) {
+  public ListenableFuture<List<Annotation>> getGlobalAnnotations(long startTime, long endTime) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<Integer> deleteAnnotationRange(byte[] tsuid, long startTime, long endTime) {
+  public ListenableFuture<Integer> deleteAnnotationRange(byte[] tsuid,
+                                                         long startTime,
+                                                         long endTime) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<ImmutableList<DataPoints>> executeQuery(Object query) {
+  public ListenableFuture<ImmutableList<DataPoints>> executeQuery(Object query) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
+  public ListenableFuture<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
     throw new UnsupportedOperationException("Not implemented yet!");
   }
 
   @Override
-  public Deferred<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query) {
+  public ListenableFuture<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 }

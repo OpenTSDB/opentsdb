@@ -20,7 +20,9 @@ import com.typesafe.config.Config;
 import dagger.ObjectGraph;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -40,6 +42,9 @@ public class TestCassandraStore {
   private CassandraStore store;
   private Map<String, LabelId> name_uid = new HashMap<>();
 
+  @Rule
+  public final Timeout timeout = Timeout.millis(TIMEOUT);
+
   @Before
   public void setUp() throws Exception {
     ObjectGraph.create(new CassandraTestModule()).inject(this);
@@ -47,16 +52,16 @@ public class TestCassandraStore {
     store = new CassandraStoreDescriptor().createStore(config, new MetricRegistry());
 
     name_uid.put(METRIC_NAME_ONE, store.allocateUID(
-        METRIC_NAME_ONE, UniqueIdType.METRIC).join());
+        METRIC_NAME_ONE, UniqueIdType.METRIC).get());
 
     name_uid.put(METRIC_NAME_TWO, store.allocateUID(
-        METRIC_NAME_TWO, UniqueIdType.METRIC).join());
+        METRIC_NAME_TWO, UniqueIdType.METRIC).get());
 
     name_uid.put(METRIC_NAME_THREE, store.allocateUID(
-        METRIC_NAME_THREE, UniqueIdType.METRIC).join());
+        METRIC_NAME_THREE, UniqueIdType.METRIC).get());
 
-    TAGK_UID_ONE = store.allocateUID(TAGK_NAME_ONE, UniqueIdType.TAGK).join();
-    TAGV_UID_ONE = store.allocateUID(TAGV_NAME_ONE, UniqueIdType.TAGV).join();
+    TAGK_UID_ONE = store.allocateUID(TAGK_NAME_ONE, UniqueIdType.TAGK).get();
+    TAGV_UID_ONE = store.allocateUID(TAGV_NAME_ONE, UniqueIdType.TAGV).get();
 
 
     /*
@@ -102,7 +107,7 @@ public class TestCassandraStore {
             new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
             new byte[]{'v', 'a', 'l', 'u', 'e', '1'},
             (long) 1356998400,
-            (short) 47).joinUninterruptibly(TIMEOUT);
+            (short) 47).get(TIMEOUT);
   }
 
   @Test(expected = NullPointerException.class)
@@ -112,7 +117,7 @@ public class TestCassandraStore {
             null,
             new byte[]{'v', 'a', 'l', 'u', 'e', '1'},
             (long) 1356998400,
-            (short) 47).joinUninterruptibly(TIMEOUT);
+            (short) 47).get(TIMEOUT);
 
   }
 
@@ -123,7 +128,7 @@ public class TestCassandraStore {
             new byte[]{},
             new byte[]{'v', 'a', 'l', 'u', 'e', '1'},
             (long) 1356998400,
-            (short) 47).joinUninterruptibly(TIMEOUT);
+            (short) 47).get(TIMEOUT);
 
   }
 
@@ -134,14 +139,13 @@ public class TestCassandraStore {
             new byte[]{0, 0, 1, 0, 0, 1, 0, 0},
             new byte[]{'v', 'a', 'l', 'u', 'e', '1'},
             (long) 1356998400,
-            (short) 47).joinUninterruptibly(TIMEOUT);
+            (short) 47).get(TIMEOUT);
   }
   */
 
   @Test
   public void allocateUID() throws Exception {
-    LabelId new_metric_uid = store.allocateUID("new", UniqueIdType.METRIC)
-        .joinUninterruptibly(TIMEOUT);
+    LabelId new_metric_uid = store.allocateUID("new", UniqueIdType.METRIC).get();
     long max_uid = 0;
     for (LabelId uid : name_uid.values()) {
       max_uid = Math.max(toLong(uid), max_uid);
@@ -177,7 +181,7 @@ public class TestCassandraStore {
 
   private void validateValidId(final String name, final UniqueIdType type)
       throws Exception {
-    Optional<LabelId> value = store.getId(name, type).join(TIMEOUT);
+    Optional<LabelId> value = store.getId(name, type).get();
 
     assertTrue(value.isPresent());
     assertEquals(name_uid.get(name), value.get());
@@ -185,13 +189,13 @@ public class TestCassandraStore {
 
   private void validateInvalidId(final String name, final UniqueIdType type)
       throws Exception {
-    Optional<LabelId> value = store.getId(name, type).join(TIMEOUT);
+    Optional<LabelId> value = store.getId(name, type).get();
     assertFalse(value.isPresent());
   }
 
   private void validateValidName(final String name, final UniqueIdType type)
       throws Exception {
-    Optional<String> value = store.getName(name_uid.get(name), type).join(TIMEOUT);
+    Optional<String> value = store.getName(name_uid.get(name), type).get();
 
     assertTrue(value.isPresent());
     assertEquals(name, value.get());
@@ -199,7 +203,7 @@ public class TestCassandraStore {
 
   private void validateInvalidName(final LabelId uid, final UniqueIdType type)
       throws Exception {
-    Optional<String> value = store.getName(uid, type).join(TIMEOUT);
+    Optional<String> value = store.getName(uid, type).get();
     assertFalse(value.isPresent());
   }
 }
