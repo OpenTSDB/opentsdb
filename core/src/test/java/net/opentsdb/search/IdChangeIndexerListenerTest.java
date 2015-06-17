@@ -15,6 +15,7 @@ import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
 
 import com.google.common.eventbus.EventBus;
+import com.google.common.util.concurrent.Futures;
 import com.stumbleupon.async.Deferred;
 import dagger.ObjectGraph;
 import org.junit.Before;
@@ -43,7 +44,7 @@ public class IdChangeIndexerListenerTest {
   public void createdLabelEventIndexesLabelMeta() {
     final LabelId id = mock(LabelId.class);
     LabelMeta labelMeta = LabelMeta.create(id, METRIC, "sys.cpu.0", "Description", 1328140801);
-    when(store.getMeta(any(LabelId.class), METRIC)).thenReturn(Deferred.fromResult(labelMeta));
+    when(store.getMeta(any(LabelId.class), METRIC)).thenReturn(Futures.immediateFuture(labelMeta));
 
     idEventBus.post(new LabelCreatedEvent(id, "test", UniqueIdType.METRIC));
     verify(searchPlugin).indexLabelMeta(labelMeta);
