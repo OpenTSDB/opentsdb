@@ -144,6 +144,11 @@ public class TestCassandraStore {
   */
 
   @Test
+  public void buildBaseTimeNegativeTime() {
+    assertEquals(1434545280000L, CassandraStore.buildBaseTime(1434545416154L));
+  }
+
+  @Test
   public void allocateUID() throws Exception {
     LabelId new_metric_uid = store.allocateUID("new", UniqueIdType.METRIC).get();
     long max_uid = 0;
