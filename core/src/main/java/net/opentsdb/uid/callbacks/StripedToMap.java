@@ -18,7 +18,7 @@ import javax.annotation.Nullable;
 public class StripedToMap<K extends Comparable<K>> implements Function<List<K>, Map<K, K>> {
   @Nullable
   @Override
-  public Map<K, K> apply(final List<K> stripedTagIds) {
+  public Map<K, K> apply(@Nullable final List<K> stripedTagIds) {
     final Map<K, K> tagIdMap = Maps.newTreeMap();
 
     Iterator<K> tagIterator = stripedTagIds.iterator();

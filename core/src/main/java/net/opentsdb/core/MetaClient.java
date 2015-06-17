@@ -27,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -115,7 +114,7 @@ public class MetaClient {
    * @param startTime The start time of the annotation
    * @return A deferred that on completion contains an annotation object if found, null if not
    */
-  public ListenableFuture<Annotation> getAnnotation(@Nonnull final String tsuid,
+  public ListenableFuture<Annotation> getAnnotation(final String tsuid,
                                                     final long startTime) {
     checkArgument(startTime > 0);
     checkArgument(!Strings.isNullOrEmpty(tsuid));

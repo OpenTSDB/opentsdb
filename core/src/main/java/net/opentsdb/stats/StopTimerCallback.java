@@ -7,10 +7,11 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 
+import javax.annotation.Nullable;
+
 /**
- * A {@link com.stumbleupon.async.Callback} implementation for use with {@link
- * com.stumbleupon.async.Deferred}s. This callback will stop the provided timer when called. It will
- * not make any modifications to the result of the callback.
+ * A {@link FutureCallback} implementation for use with {@link ListenableFuture}s. This callback
+ * will stop the provided timer when called.
  */
 public class StopTimerCallback<T> implements FutureCallback<T> {
   private final Timer.Context timerContext;
@@ -38,7 +39,7 @@ public class StopTimerCallback<T> implements FutureCallback<T> {
   }
 
   @Override
-  public void onSuccess(final T result) {
+  public void onSuccess(@Nullable final T result) {
     timerContext.stop();
   }
 

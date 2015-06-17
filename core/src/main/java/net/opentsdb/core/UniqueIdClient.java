@@ -142,9 +142,9 @@ public class UniqueIdClient {
    * @return A future that on completion contains a striped list of all IDs
    */
   @Nonnull
-  private ListenableFuture<List<LabelId>> getTagIds(@Nonnull final Map<String, String> tags,
-                                                    @Nonnull final IdLookupStrategy tagKeyStrategy,
-                                                    @Nonnull final IdLookupStrategy tagValueStrategy) {
+  private ListenableFuture<List<LabelId>> getTagIds(final Map<String, String> tags,
+                                                    final IdLookupStrategy tagKeyStrategy,
+                                                    final IdLookupStrategy tagValueStrategy) {
     final ImmutableList.Builder<ListenableFuture<LabelId>> tagIds = ImmutableList.builder();
 
     // For each tag, start resolving the tag name and the tag value.
@@ -164,7 +164,7 @@ public class UniqueIdClient {
    * @throws NoSuchUniqueId
    */
   @Nonnull
-  public ListenableFuture<Map<String, String>> getTagNames(@Nonnull final List<LabelId> tags)
+  public ListenableFuture<Map<String, String>> getTagNames(final List<LabelId> tags)
       throws NoSuchUniqueId {
     final List<ListenableFuture<String>> futures = new ArrayList<>(tags.size());
 
@@ -225,8 +225,8 @@ public class UniqueIdClient {
    * @since 2.0
    */
   @Nonnull
-  public LabelId assignUid(@Nonnull final UniqueIdType type,
-                           @Nonnull final String name) {
+  public LabelId assignUid(final UniqueIdType type,
+                           final String name) {
 
     validateUidName(type.toString(), name);
     UniqueId instance = uniqueIdInstanceForType(type);
@@ -263,8 +263,8 @@ public class UniqueIdClient {
    * @since 2.0
    */
   @Nonnull
-  public ListenableFuture<String> getUidName(@Nonnull final UniqueIdType type,
-                                             @Nonnull final LabelId uid) {
+  public ListenableFuture<String> getUidName(final UniqueIdType type,
+                                             final LabelId uid) {
     checkNotNull(uid, "Missing UID");
     UniqueId uniqueId = uniqueIdInstanceForType(type);
     return uniqueId.getName(uid);
@@ -279,8 +279,8 @@ public class UniqueIdClient {
    * @since 2.0
    */
   @Nonnull
-  public ListenableFuture<LabelId> getUID(@Nonnull final UniqueIdType type,
-                                          @Nonnull final String name) {
+  public ListenableFuture<LabelId> getUID(final UniqueIdType type,
+                                          final String name) {
     checkArgument(!Strings.isNullOrEmpty(name), "Missing UID name");
     UniqueId uniqueId = uniqueIdInstanceForType(type);
     return uniqueId.getId(name);
@@ -293,8 +293,8 @@ public class UniqueIdClient {
    * @param tags The string tags to use in the TSUID
    * @since 2.0
    */
-  ListenableFuture<TimeseriesId> getTSUID(@Nonnull final String metric,
-                                          @Nonnull final Map<String, String> tags) {
+  ListenableFuture<TimeseriesId> getTSUID(final String metric,
+                                          final Map<String, String> tags) {
     // Lookup or create the metric ID.
     final ListenableFuture<LabelId> metric_id = metricLookupStrategy.getId(metrics, metric);
 
@@ -302,12 +302,12 @@ public class UniqueIdClient {
     class CopyMetricInRowKeyCB implements Function<LabelId, TimeseriesId> {
       private final List<LabelId> tagIds;
 
-      public CopyMetricInRowKeyCB(@Nonnull final List<LabelId> tagIds) {
+      public CopyMetricInRowKeyCB(final List<LabelId> tagIds) {
         this.tagIds = tagIds;
       }
 
       @Override
-      public TimeseriesId apply(final LabelId metricid) {
+      public TimeseriesId apply(@Nullable final LabelId metricid) {
         return new StaticTimeseriesId(metricid, tagIds);
       }
     }
@@ -315,7 +315,7 @@ public class UniqueIdClient {
     // Copy the tag IDs in the row key.
     class CopyTagsInRowKeyCB implements AsyncFunction<List<LabelId>, TimeseriesId> {
       @Override
-      public ListenableFuture<TimeseriesId> apply(@Nonnull final List<LabelId> tags) {
+      public ListenableFuture<TimeseriesId> apply(final List<LabelId> tags) {
         // Once we've resolved all the tags, schedule the copy of the metric
         // ID and return the row key we produced.
         return transform(metric_id, new CopyMetricInRowKeyCB(tags));
@@ -349,7 +349,7 @@ public class UniqueIdClient {
     ListenableFuture<List<byte[]>> tsuids = transform(resolve(query),
         new AsyncFunction<ResolvedSearchQuery, List<byte[]>>() {
           @Override
-          public ListenableFuture<List<byte[]>> apply(@Nonnull final ResolvedSearchQuery resolvedQuery)
+          public ListenableFuture<List<byte[]>> apply(final ResolvedSearchQuery resolvedQuery)
               throws Exception {
             return store.executeTimeSeriesQuery(resolvedQuery);
           }
@@ -375,7 +375,7 @@ public class UniqueIdClient {
             new Function<SortedSet<Pair<LabelId, LabelId>>, ResolvedSearchQuery>() {
               @Nullable
               @Override
-              public ResolvedSearchQuery apply(final SortedSet<Pair<LabelId, LabelId>> tagIds) {
+              public ResolvedSearchQuery apply(@Nullable final SortedSet<Pair<LabelId, LabelId>> tagIds) {
                 return new ResolvedSearchQuery(metricId, tagIds);
               }
             });

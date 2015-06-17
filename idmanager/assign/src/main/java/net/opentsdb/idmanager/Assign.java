@@ -30,6 +30,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 
 /**
@@ -153,7 +154,7 @@ public final class Assign {
     }
 
     @Override
-    public void onSuccess(final LabelId id) {
+    public void onSuccess(@Nullable final LabelId id) {
       LOG.info("{} {}: {}", type, name, id);
     }
 

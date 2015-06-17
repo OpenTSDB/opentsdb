@@ -17,12 +17,12 @@ public class MemoryLabelId implements LabelId<MemoryLabelId> {
     this(UUID.randomUUID());
   }
 
-  public MemoryLabelId(@Nonnull final UUID uuid) {
+  public MemoryLabelId(final UUID uuid) {
     this.uuid = checkNotNull(uuid);
   }
 
   @Override
-  public int compareTo(@Nonnull final MemoryLabelId other) {
+  public int compareTo(final MemoryLabelId other) {
     return uuid.compareTo(other.uuid);
   }
 
@@ -47,7 +47,7 @@ public class MemoryLabelId implements LabelId<MemoryLabelId> {
   static class MemoryLabelIdSerializer implements LabelId.LabelIdSerializer<MemoryLabelId> {
     @Nonnull
     @Override
-    public String serialize(@Nonnull final MemoryLabelId identifier) {
+    public String serialize(final MemoryLabelId identifier) {
       return identifier.uuid.toString();
     }
   }
@@ -55,7 +55,7 @@ public class MemoryLabelId implements LabelId<MemoryLabelId> {
   static class MemoryLabelIdDeserializer implements LabelId.LabelIdDeserializer<MemoryLabelId> {
     @Nonnull
     @Override
-    public MemoryLabelId deserialize(@Nonnull final String stringIdentifier) {
+    public MemoryLabelId deserialize(final String stringIdentifier) {
       return new MemoryLabelId(UUID.fromString(stringIdentifier));
     }
   }

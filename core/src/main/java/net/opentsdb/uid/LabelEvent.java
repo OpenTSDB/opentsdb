@@ -19,9 +19,9 @@ public class LabelEvent {
    * @param name The name of the label that has had an event
    * @param type The type of the label that has had an event
    */
-  public LabelEvent(@Nonnull final LabelId id,
-                    @Nonnull final String name,
-                    @Nonnull final UniqueIdType type) {
+  public LabelEvent(final LabelId id,
+                    final String name,
+                    final UniqueIdType type) {
     this.id = id;
     this.name = name;
     this.type = type;

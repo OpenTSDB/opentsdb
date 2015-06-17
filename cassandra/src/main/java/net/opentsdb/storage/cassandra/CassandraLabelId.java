@@ -51,14 +51,14 @@ class CassandraLabelId implements LabelId<CassandraLabelId> {
   }
 
   @Override
-  public int compareTo(@Nonnull final CassandraLabelId that) {
+  public int compareTo(final CassandraLabelId that) {
     return Long.compare(id, that.id);
   }
 
   static class CassandraLabelIdSerializer implements LabelId.LabelIdSerializer<CassandraLabelId> {
     @Nonnull
     @Override
-    public String serialize(@Nonnull final CassandraLabelId identifier) {
+    public String serialize(final CassandraLabelId identifier) {
       return Long.toString(identifier.id);
     }
   }
@@ -66,7 +66,7 @@ class CassandraLabelId implements LabelId<CassandraLabelId> {
   static class CassandraLabelIdDeserializer implements LabelId.LabelIdDeserializer<CassandraLabelId> {
     @Nonnull
     @Override
-    public CassandraLabelId deserialize(@Nonnull final String stringIdentifier) {
+    public CassandraLabelId deserialize(final String stringIdentifier) {
       return new CassandraLabelId(Long.parseLong(stringIdentifier));
     }
   }

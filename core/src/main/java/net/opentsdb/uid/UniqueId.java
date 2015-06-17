@@ -118,7 +118,7 @@ public class UniqueId {
    * @since 1.1
    */
   @Nonnull
-  public ListenableFuture<String> getName(@Nonnull final LabelId id) {
+  public ListenableFuture<String> getName(final LabelId id) {
     final String name = getNameFromCache(id);
     if (name != null) {
       cacheHits.inc();
@@ -145,12 +145,12 @@ public class UniqueId {
   }
 
   @Nullable
-  private String getNameFromCache(@Nonnull final LabelId id) {
+  private String getNameFromCache(final LabelId id) {
     return idCache.get(id);
   }
 
-  private void addNameToCache(@Nonnull final LabelId id,
-                              @Nonnull final String name) {
+  private void addNameToCache(final LabelId id,
+                              final String name) {
     String found = idCache.get(id);
     if (found == null) {
       found = idCache.putIfAbsent(id, name);
@@ -162,7 +162,7 @@ public class UniqueId {
   }
 
   @Nonnull
-  public ListenableFuture<LabelId> getId(@Nonnull final String name) {
+  public ListenableFuture<LabelId> getId(final String name) {
     final LabelId id = getIdFromCache(name);
     if (id != null) {
       cacheHits.inc();
@@ -189,12 +189,12 @@ public class UniqueId {
   }
 
   @Nullable
-  private LabelId getIdFromCache(@Nonnull final String name) {
+  private LabelId getIdFromCache(final String name) {
     return nameCache.get(name);
   }
 
-  private void addIdToCache(@Nonnull final String name,
-                            @Nonnull final LabelId id) {
+  private void addIdToCache(final String name,
+                            final LabelId id) {
     LabelId found = nameCache.get(name);
     if (found == null) {
       found = nameCache.putIfAbsent(name, id);
@@ -206,8 +206,8 @@ public class UniqueId {
   }
 
   /** Adds the bidirectional mapping in the cache. */
-  private void cacheMapping(@Nonnull final String name,
-                            @Nonnull final LabelId id) {
+  private void cacheMapping(final String name,
+                            final LabelId id) {
     addIdToCache(name, id);
     addNameToCache(id, name);
   }
@@ -219,7 +219,7 @@ public class UniqueId {
    * @return A deferred with the byte uid if the id was successfully created
    */
   @Nonnull
-  public ListenableFuture<LabelId> createId(@Nonnull final String name) {
+  public ListenableFuture<LabelId> createId(final String name) {
     ListenableFuture<LabelId> assignment;
     synchronized (pendingAssignments) {
       assignment = pendingAssignments.get(name);
@@ -279,7 +279,7 @@ public class UniqueId {
   public ListenableFuture<Void> rename(final String oldname, final String newname) {
     return transform(checkUidExists(newname), new AsyncFunction<Boolean, Void>() {
       @Override
-      public ListenableFuture<Void> apply(@Nonnull final Boolean exists) throws Exception {
+      public ListenableFuture<Void> apply(final Boolean exists) throws Exception {
         if (exists) {
           throw new IllegalArgumentException("An UID with name " + newname + ' '
                                              + "for " + type + " already exists");
@@ -287,7 +287,7 @@ public class UniqueId {
 
         return transform(getId(oldname), new AsyncFunction<LabelId, Void>() {
           @Override
-          public ListenableFuture<Void> apply(@Nonnull final LabelId oldUid) throws Exception {
+          public ListenableFuture<Void> apply(final LabelId oldUid) throws Exception {
             store.allocateUID(newname, oldUid, type);
 
             // Update cache.
@@ -313,7 +313,7 @@ public class UniqueId {
       }
 
       @Override
-      public void onFailure(@Nonnull final Throwable throwable) {
+      public void onFailure(final Throwable throwable) {
         exists.set(false);
       }
     });

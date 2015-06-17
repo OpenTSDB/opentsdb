@@ -62,8 +62,8 @@ public abstract class SearchPlugin extends Plugin {
    * @return A future that indicates the completion of the request.
    */
   @Nonnull
-  public abstract ListenableFuture<Void> deleteLabelMeta(@Nonnull final LabelId id,
-                                                         @Nonnull final UniqueIdType type);
+  public abstract ListenableFuture<Void> deleteLabelMeta(final LabelId id,
+                                                         final UniqueIdType type);
 
   /**
    * Index the annotation in the backing store.

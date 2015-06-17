@@ -12,14 +12,12 @@ import com.fasterxml.jackson.databind.module.SimpleSerializers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
-import javax.annotation.Nonnull;
-
 public class JacksonModule extends SimpleModule {
   private final LabelId.LabelIdSerializer idSerializer;
   private final LabelId.LabelIdDeserializer idDeserializer;
 
-  public JacksonModule(@Nonnull final LabelId.LabelIdSerializer idSerializer,
-                       @Nonnull final LabelId.LabelIdDeserializer idDeserializer) {
+  public JacksonModule(final LabelId.LabelIdSerializer idSerializer,
+                       final LabelId.LabelIdDeserializer idDeserializer) {
     super("JsonModule");
     this.idSerializer = idSerializer;
     this.idDeserializer = idDeserializer;

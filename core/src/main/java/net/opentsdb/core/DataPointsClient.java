@@ -19,7 +19,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.typesafe.config.Config;
 
 import java.util.Map;
-import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -90,9 +89,8 @@ public class DataPointsClient {
    * @param timestamp The timestamp associated with the value.
    * @param value The value of the data point.
    * @param tags The tags on this series.  This map must be non-empty.
-   * @return A future that indicates the completion of the request or an error.
-   * timestamp added or 0 for the first timestamp, or if the difference with the previous timestamp
-   * is too large.
+   * @return A future that indicates the completion of the request or an error. timestamp added or 0
+   * for the first timestamp, or if the difference with the previous timestamp is too large.
    * @throws IllegalArgumentException if the metric name is empty or contains illegal characters.
    * @throws IllegalArgumentException if the value is NaN or infinite.
    * @throws IllegalArgumentException if the tags list is empty or one of the elements contains
@@ -107,7 +105,7 @@ public class DataPointsClient {
 
     class RowKeyCB implements AsyncFunction<TimeseriesId, Void> {
       @Override
-      public ListenableFuture<Void> apply(@Nonnull final TimeseriesId tsuid) {
+      public ListenableFuture<Void> apply(final TimeseriesId tsuid) {
         ListenableFuture<Void> result = store.addPoint(tsuid, timestamp, value);
 
         addCallback(realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid),
@@ -153,7 +151,7 @@ public class DataPointsClient {
 
     class RowKeyCB implements AsyncFunction<TimeseriesId, Void> {
       @Override
-      public ListenableFuture<Void> apply(@Nonnull final TimeseriesId tsuid) {
+      public ListenableFuture<Void> apply(final TimeseriesId tsuid) {
         ListenableFuture<Void> result = store.addPoint(tsuid, timestamp, value);
 
         addCallback(realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid),
@@ -197,7 +195,7 @@ public class DataPointsClient {
 
     class RowKeyCB implements AsyncFunction<TimeseriesId, Void> {
       @Override
-      public ListenableFuture<Void> apply(@Nonnull final TimeseriesId tsuid) {
+      public ListenableFuture<Void> apply(final TimeseriesId tsuid) {
         ListenableFuture<Void> result = store.addPoint(tsuid, timestamp, value);
 
         addCallback(realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid),

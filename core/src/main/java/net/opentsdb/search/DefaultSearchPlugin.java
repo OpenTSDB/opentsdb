@@ -44,8 +44,8 @@ public class DefaultSearchPlugin extends SearchPlugin {
 
   @Nonnull
   @Override
-  public ListenableFuture<Void> deleteLabelMeta(@Nonnull final LabelId id,
-                                                @Nonnull final UniqueIdType type) {
+  public ListenableFuture<Void> deleteLabelMeta(final LabelId id,
+                                                final UniqueIdType type) {
     return Futures.immediateFuture(null);
   }
 

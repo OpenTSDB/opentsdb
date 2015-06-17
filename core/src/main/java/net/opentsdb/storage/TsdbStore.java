@@ -27,13 +27,13 @@ public abstract class TsdbStore implements Closeable {
   // Identifier management
   //
   @Nonnull
-  public abstract ListenableFuture<LabelId> allocateUID(@Nonnull final String name,
-                                                        @Nonnull final UniqueIdType type);
+  public abstract ListenableFuture<LabelId> allocateUID(final String name,
+                                                        final UniqueIdType type);
 
   @Nonnull
-  public abstract ListenableFuture<LabelId> allocateUID(@Nonnull final String name,
-                                                        @Nonnull final LabelId uid,
-                                                        @Nonnull final UniqueIdType type);
+  public abstract ListenableFuture<LabelId> allocateUID(final String name,
+                                                        final LabelId uid,
+                                                        final UniqueIdType type);
 
   public abstract ListenableFuture<Void> deleteUID(String name, UniqueIdType type);
 
@@ -59,28 +59,28 @@ public abstract class TsdbStore implements Closeable {
   public abstract ListenableFuture<List<IdentifierDecorator>> executeIdQuery(final IdQuery query);
 
   @Nonnull
-  public abstract ListenableFuture<Optional<LabelId>> getId(@Nonnull final String name,
-                                                            @Nonnull final UniqueIdType type);
+  public abstract ListenableFuture<Optional<LabelId>> getId(final String name,
+                                                            final UniqueIdType type);
 
   @Nonnull
-  public abstract ListenableFuture<Optional<String>> getName(@Nonnull final LabelId id,
-                                                             @Nonnull final UniqueIdType type);
+  public abstract ListenableFuture<Optional<String>> getName(final LabelId id,
+                                                             final UniqueIdType type);
 
   //
   // Datapoints
   //
   @Nonnull
-  public abstract ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+  public abstract ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
                                                   final long timestamp,
                                                   final float value);
 
   @Nonnull
-  public abstract ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+  public abstract ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
                                                   final long timestamp,
                                                   final double value);
 
   @Nonnull
-  public abstract ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+  public abstract ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
                                                   final long timestamp,
                                                   final long value);
 
@@ -130,8 +130,8 @@ public abstract class TsdbStore implements Closeable {
   // LabelMeta
   //
   @Nonnull
-  public abstract ListenableFuture<LabelMeta> getMeta(@Nonnull final LabelId uid,
-                                                      @Nonnull final UniqueIdType type);
+  public abstract ListenableFuture<LabelMeta> getMeta(final LabelId uid,
+                                                      final UniqueIdType type);
 
   public abstract ListenableFuture<Boolean> updateMeta(final LabelMeta meta);
 }

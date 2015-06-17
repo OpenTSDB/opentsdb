@@ -14,6 +14,8 @@ import com.google.common.util.concurrent.FutureCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 /**
  * A Guava {@link com.google.common.eventbus.EventBus} listener that listens for label changes and
  * notifies the {@link SearchPlugin} when appropriate.
@@ -42,7 +44,7 @@ public class IdChangeIndexerListener {
     addCallback(store.getMeta(event.getId(), event.getType()),
         new FutureCallback<LabelMeta>() {
           @Override
-          public void onSuccess(final LabelMeta meta) {
+          public void onSuccess(@Nullable final LabelMeta meta) {
             LOG.info("Indexing {}", meta);
             addCallback(searchPlugin.indexLabelMeta(meta), new PluginError(searchPlugin));
           }

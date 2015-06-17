@@ -8,7 +8,7 @@ import javax.annotation.Nullable;
 public class ResultSetToVoid implements Function<ResultSet, Void> {
   @Nullable
   @Override
-  public Void apply(final ResultSet rows) {
+  public Void apply(@Nullable final ResultSet rows) {
     return null;
   }
 }

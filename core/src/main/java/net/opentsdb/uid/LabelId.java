@@ -13,7 +13,7 @@ public interface LabelId<K extends LabelId> extends Comparable<K> {
    */
   interface LabelIdSerializer<K extends LabelId> {
     @Nonnull
-    String serialize(@Nonnull final K identifier);
+    String serialize(final K identifier);
   }
 
   /**
@@ -25,6 +25,6 @@ public interface LabelId<K extends LabelId> extends Comparable<K> {
    */
   interface LabelIdDeserializer<K extends LabelId> {
     @Nonnull
-    K deserialize(@Nonnull final String stringIdentifier);
+    K deserialize(final String stringIdentifier);
   }
 }

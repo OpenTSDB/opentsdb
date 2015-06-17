@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * TsdbStore implementation useful in testing calls to and from storage with actual pretend data.
@@ -68,7 +69,7 @@ public class MemoryStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+  public ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
                                          final long timestamp,
                                          final float value) {
     return addPoint(tsuid, value, timestamp);
@@ -76,7 +77,7 @@ public class MemoryStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+  public ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
                                          final long timestamp,
                                          final double value) {
     return addPoint(tsuid, value, timestamp);
@@ -84,7 +85,7 @@ public class MemoryStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+  public ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
                                          final long timestamp,
                                          final long value) {
     return addPoint(tsuid, (Number) value, timestamp);
@@ -116,24 +117,24 @@ public class MemoryStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Optional<LabelId>> getId(@Nonnull String name,
-                                                   @Nonnull UniqueIdType type) {
+  public ListenableFuture<Optional<LabelId>> getId(String name,
+                                                   UniqueIdType type) {
     LabelId id = uid_forward_mapping.get(name, type);
     return Futures.immediateFuture(Optional.fromNullable(id));
   }
 
   @Nonnull
   @Override
-  public ListenableFuture<Optional<String>> getName(@Nonnull final LabelId id,
-                                                    @Nonnull final UniqueIdType type) {
+  public ListenableFuture<Optional<String>> getName(final LabelId id,
+                                                    final UniqueIdType type) {
     final String name = uid_reverse_mapping.get(id, type);
     return Futures.immediateFuture(Optional.fromNullable(name));
   }
 
   @Nonnull
   @Override
-  public ListenableFuture<LabelMeta> getMeta(@Nonnull final LabelId uid,
-                                             @Nonnull final UniqueIdType type) {
+  public ListenableFuture<LabelMeta> getMeta(final LabelId uid,
+                                             final UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
     final LabelMeta meta = uid_table.get(uid, qualifier);
     return Futures.immediateFuture(meta);
@@ -161,8 +162,8 @@ public class MemoryStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<LabelId> allocateUID(@Nonnull final String name,
-                                               @Nonnull final UniqueIdType type) {
+  public ListenableFuture<LabelId> allocateUID(final String name,
+                                               final UniqueIdType type) {
     LabelId id;
 
     do {
@@ -175,9 +176,9 @@ public class MemoryStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<LabelId> allocateUID(@Nonnull final String name,
-                                               @Nonnull final LabelId id,
-                                               @Nonnull final UniqueIdType type) {
+  public ListenableFuture<LabelId> allocateUID(final String name,
+                                               final LabelId id,
+                                               final UniqueIdType type) {
     if (uid_reverse_mapping.contains(id, type)) {
       throw new IllegalArgumentException("An ID with " + id + " already exists");
     }
@@ -324,14 +325,14 @@ public class MemoryStore extends TsdbStore {
   public ListenableFuture<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
     Predicate<UniqueIdType> typeMatchFunction = new Predicate<UniqueIdType>() {
       @Override
-      public boolean apply(final UniqueIdType input) {
+      public boolean apply(@Nullable final UniqueIdType input) {
         return query.getType() == null || query.getType() == input;
       }
     };
 
     Predicate<String> nameMatchFunction = new Predicate<String>() {
       @Override
-      public boolean apply(final String name) {
+      public boolean apply(@Nullable final String name) {
         return query.getQuery() == null || name.startsWith(query.getQuery());
       }
     };

@@ -8,12 +8,11 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
-import javax.annotation.Nonnull;
 
 public class LabelIdJsonSerializer extends JsonSerializer<LabelId> {
   private final LabelId.LabelIdSerializer serializer;
 
-  LabelIdJsonSerializer(@Nonnull LabelId.LabelIdSerializer serializer) {
+  LabelIdJsonSerializer(LabelId.LabelIdSerializer serializer) {
     this.serializer = serializer;
   }
 

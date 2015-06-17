@@ -29,11 +29,11 @@ public abstract class Annotation implements Comparable<Annotation> {
   /**
    * Create a new annotation instance with the provided information.
    */
-  public static Annotation create(@Nonnull final String timeSeriesId,
+  public static Annotation create(final String timeSeriesId,
                                   final long startTime,
                                   final long endTime,
-                                  @Nonnull final String message,
-                                  @Nonnull final Map<String, String> properties) {
+                                  final String message,
+                                  final Map<String, String> properties) {
     checkArgument(!Strings.isNullOrEmpty(timeSeriesId));
     checkArgument(startTime > 0, "Start time must but larger than 0 but was %s", startTime);
     checkArgument(endTime > 0 || endTime == NOT_ENDED,
@@ -46,10 +46,10 @@ public abstract class Annotation implements Comparable<Annotation> {
   /**
    * Create a new annotation instance with the provided information and an empty set of properties.
    */
-  public static Annotation create(@Nonnull final String timeSeriesId,
+  public static Annotation create(final String timeSeriesId,
                                   final long startTime,
                                   final long endTime,
-                                  @Nonnull final String message) {
+                                  final String message) {
     return create(timeSeriesId, startTime, endTime, message, ImmutableMap.<String, String>of());
   }
 
@@ -83,7 +83,7 @@ public abstract class Annotation implements Comparable<Annotation> {
    * @return 1 if the local start time is greater, -1 if it's less or 0 if equal
    */
   @Override
-  public int compareTo(@Nonnull Annotation note) {
+  public int compareTo(Annotation note) {
     return ComparisonChain.start()
         .compare(startTime(), note.startTime())
         .compare(endTime(), note.endTime())

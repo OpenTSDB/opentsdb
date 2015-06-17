@@ -165,7 +165,7 @@ public class CassandraStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+  public ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
                                          final long timestamp,
                                          final float value) {
     final BoundStatement addPointStatement = addFloatStatement.bind()
@@ -175,7 +175,7 @@ public class CassandraStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+  public ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
                                          final long timestamp,
                                          final double value) {
     final BoundStatement addPointStatement = addDoubleStatement.bind()
@@ -185,7 +185,7 @@ public class CassandraStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+  public ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
                                          final long timestamp,
                                          final long value) {
     final BoundStatement addPointStatement = addLongStatement.bind()
@@ -194,9 +194,9 @@ public class CassandraStore extends TsdbStore {
   }
 
   @Nonnull
-  private ListenableFuture<Void> addPoint(@Nonnull final BoundStatement addPointStatement,
-                                          @Nonnull final LabelId metric,
-                                          @Nonnull final List<LabelId> tags,
+  private ListenableFuture<Void> addPoint(final BoundStatement addPointStatement,
+                                          final LabelId metric,
+                                          final List<LabelId> tags,
                                           final long timestamp) {
     Hasher tsidHasher = Hashing.murmur3_128().newHasher()
         .putLong(toLong(metric));
@@ -247,8 +247,8 @@ public class CassandraStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Optional<LabelId>> getId(@Nonnull final String name,
-                                                   @Nonnull final UniqueIdType type) {
+  public ListenableFuture<Optional<LabelId>> getId(final String name,
+                                                   final UniqueIdType type) {
     ListenableFuture<List<LabelId>> idsFuture = getIds(name, type);
     return transform(idsFuture, new FirstOrAbsentFunction<LabelId>());
   }
@@ -261,14 +261,14 @@ public class CassandraStore extends TsdbStore {
    * @return A future with a list of the first two found IDs
    */
   @Nonnull
-  ListenableFuture<List<LabelId>> getIds(@Nonnull final String name,
-                                         @Nonnull final UniqueIdType type) {
+  ListenableFuture<List<LabelId>> getIds(final String name,
+                                         final UniqueIdType type) {
     ResultSetFuture idsFuture = session.executeAsync(
         getIdStatement.bind(name, type.toValue()));
 
     return transform(idsFuture, new Function<ResultSet, List<LabelId>>() {
       @Override
-      public List<LabelId> apply(final ResultSet result) {
+      public List<LabelId> apply(@Nullable final ResultSet result) {
         ImmutableList.Builder<LabelId> builder = ImmutableList.builder();
 
         for (final Row row : result) {
@@ -283,8 +283,8 @@ public class CassandraStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Optional<String>> getName(@Nonnull final LabelId id,
-                                                    @Nonnull final UniqueIdType type) {
+  public ListenableFuture<Optional<String>> getName(final LabelId id,
+                                                    final UniqueIdType type) {
     ListenableFuture<List<String>> namesFuture = getNames(id, type);
     return transform(namesFuture, new FirstOrAbsentFunction<String>());
   }
@@ -297,14 +297,14 @@ public class CassandraStore extends TsdbStore {
    * @return A future with a list of the first two found names
    */
   @Nonnull
-  ListenableFuture<List<String>> getNames(@Nonnull final LabelId id,
-                                          @Nonnull final UniqueIdType type) {
+  ListenableFuture<List<String>> getNames(final LabelId id,
+                                          final UniqueIdType type) {
     ResultSetFuture namesFuture = session.executeAsync(
         getNameStatement.bind(id, type.toValue()));
 
     return transform(namesFuture, new Function<ResultSet, List<String>>() {
       @Override
-      public List<String> apply(final ResultSet result) {
+      public List<String> apply(@Nullable final ResultSet result) {
         ImmutableList.Builder<String> builder = ImmutableList.builder();
 
         for (final Row row : result) {
@@ -319,8 +319,8 @@ public class CassandraStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<LabelMeta> getMeta(@Nonnull final LabelId uid,
-                                             @Nonnull final UniqueIdType type) {
+  public ListenableFuture<LabelMeta> getMeta(final LabelId uid,
+                                             final UniqueIdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -422,7 +422,7 @@ public class CassandraStore extends TsdbStore {
 
     return transform(save, new AsyncFunction<ResultSet, LabelId>() {
       @Override
-      public ListenableFuture<LabelId> apply(@Nonnull final ResultSet result) {
+      public ListenableFuture<LabelId> apply(final ResultSet result) {
         // The Cassandra driver will have thrown an exception if the insertion
         // failed in which case we would not be here so just return the id we
         // sent to Cassandra.
@@ -444,8 +444,8 @@ public class CassandraStore extends TsdbStore {
    */
   @Nonnull
   @Override
-  public ListenableFuture<LabelId> allocateUID(@Nonnull final String name,
-                                               @Nonnull final UniqueIdType type) {
+  public ListenableFuture<LabelId> allocateUID(final String name,
+                                               final UniqueIdType type) {
     // This discards half the hash but it should still work ok with murmur3.
     final long id = Hashing.murmur3_128().hashString(name, CHARSET).asLong();
 
@@ -478,9 +478,9 @@ public class CassandraStore extends TsdbStore {
    */
   @Nonnull
   @Override
-  public ListenableFuture<LabelId> allocateUID(@Nonnull final String name,
-                                               @Nonnull final LabelId uid,
-                                               @Nonnull final UniqueIdType type) {
+  public ListenableFuture<LabelId> allocateUID(final String name,
+                                               final LabelId uid,
+                                               final UniqueIdType type) {
     /*
     TODO #zeeck this method should be considered to be changed to rename and the implementation
     changed in the HBaseStore. One of the prerequisites of this function is that the UID already

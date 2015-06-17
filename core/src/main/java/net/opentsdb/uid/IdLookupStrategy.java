@@ -7,6 +7,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * An IdLookupStrategy defines some custom behavior to use when attempting to lookup the ID behind a
@@ -22,8 +23,8 @@ public interface IdLookupStrategy {
    * @return A future that on completion will contains the ID behind the name
    */
   @Nonnull
-  ListenableFuture<LabelId> getId(@Nonnull final UniqueId uniqueId,
-                                  @Nonnull final String name);
+  ListenableFuture<LabelId> getId(final UniqueId uniqueId,
+                                  final String name);
 
   /**
    * The most basic id lookup strategy that just fetches the ID behind the provided name without
@@ -34,8 +35,8 @@ public interface IdLookupStrategy {
 
     @Nonnull
     @Override
-    public ListenableFuture<LabelId> getId(@Nonnull final UniqueId uniqueId,
-                                           @Nonnull final String name) {
+    public ListenableFuture<LabelId> getId(final UniqueId uniqueId,
+                                           final String name) {
       return uniqueId.getId(name);
     }
   }
@@ -49,13 +50,13 @@ public interface IdLookupStrategy {
 
     @Nonnull
     @Override
-    public ListenableFuture<LabelId> getId(@Nonnull final UniqueId uniqueId,
-                                           @Nonnull final String name) {
+    public ListenableFuture<LabelId> getId(final UniqueId uniqueId,
+                                           final String name) {
       final SettableFuture<LabelId> id = SettableFuture.create();
 
       Futures.addCallback(uniqueId.getId(name), new FutureCallback<LabelId>() {
         @Override
-        public void onSuccess(final LabelId result) {
+        public void onSuccess(@Nullable final LabelId result) {
           id.set(result);
         }
 
@@ -63,7 +64,7 @@ public interface IdLookupStrategy {
         public void onFailure(final Throwable t) {
           Futures.addCallback(uniqueId.createId(name), new FutureCallback<LabelId>() {
             @Override
-            public void onSuccess(final LabelId result) {
+            public void onSuccess(@Nullable final LabelId result) {
               id.set(result);
             }
 
@@ -93,8 +94,8 @@ public interface IdLookupStrategy {
 
     @Nonnull
     @Override
-    public ListenableFuture<LabelId> getId(@Nonnull final UniqueId uniqueId,
-                                           @Nonnull final String name) {
+    public ListenableFuture<LabelId> getId(final UniqueId uniqueId,
+                                           final String name) {
       if (Strings.isNullOrEmpty(name) || "*".equals(name)) {
         return Futures.immediateFuture(null);
       }
