@@ -1,5 +1,7 @@
 package net.opentsdb.search;
 
+import static com.google.common.util.concurrent.Futures.addCallback;
+
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.plugins.PluginError;
 import net.opentsdb.storage.TsdbStore;
@@ -8,6 +10,8 @@ import net.opentsdb.uid.LabelDeletedEvent;
 
 import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.Subscribe;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import com.stumbleupon.async.Callback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +24,7 @@ public class IdChangeIndexerListener {
   private static final Logger LOG = LoggerFactory.getLogger(IdChangeIndexerListener.class);
 
   private final TsdbStore store;
-  private SearchPlugin searchPlugin;
+  private final SearchPlugin searchPlugin;
 
   public IdChangeIndexerListener(final TsdbStore store,
                                  final SearchPlugin searchPlugin) {
@@ -36,15 +40,19 @@ public class IdChangeIndexerListener {
    */
   @Subscribe
   @AllowConcurrentEvents
-  public final void recordLabelCreated(LabelCreatedEvent event) {
-    store.getMeta(event.getId(), event.getType()).addCallback(
-        new Callback<Void, LabelMeta>() {
+  public final void recordLabelCreated(final LabelCreatedEvent event) {
+    addCallback(store.getMeta(event.getId(), event.getType()),
+        new FutureCallback<LabelMeta>() {
           @Override
-          public Void call(final LabelMeta meta) {
+          public void onSuccess(final LabelMeta meta) {
             LOG.info("Indexing {}", meta);
-            searchPlugin.indexLabelMeta(meta)
-                .addErrback(new PluginError(searchPlugin));
-            return null;
+            addCallback(searchPlugin.indexLabelMeta(meta), new PluginError(searchPlugin));
+          }
+
+          @Override
+          public void onFailure(final Throwable t) {
+            LOG.error("Unable to fetch LabelMeta object for {}[{}]",
+                event.getId(), event.getType(), t);
           }
         });
   }
@@ -60,7 +68,7 @@ public class IdChangeIndexerListener {
   public final void recordLabelDeleted(LabelDeletedEvent event) {
     LOG.info("Removing label with id {}, type {} and name {} from search index",
         event.getId(), event.getType(), event.getName());
-    searchPlugin.deleteLabelMeta(event.getId(), event.getType())
-        .addErrback(new PluginError(searchPlugin));
+    addCallback(searchPlugin.deleteLabelMeta(event.getId(), event.getType()),
+        new PluginError(searchPlugin));
   }
 }
