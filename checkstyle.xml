@@ -14,6 +14,10 @@
   </module>
   <module name="JavadocPackage"/>
 
+  <module name="SuppressionFilter">
+    <property name="file" value="suppressions.xml"/>
+  </module>
+
   <module name="TreeWalker">
     <module name="OuterTypeFilename"/>
     <module name="IllegalTokenText">
