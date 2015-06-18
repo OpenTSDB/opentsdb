@@ -19,7 +19,7 @@ public class CassandraConst {
    */
   static final Charset CHARSET = Charsets.UTF_8;
 
-  /** Max time delta (in seconds) we can store in a column qualifier. */
-  public static final short MAX_TIMESPAN = 3600;
+  /** Max time delta (in milliseconds) we can store in a column qualifier. */
+  public static final int BASE_TIME_PERIOD = 3600000;
 
 }
