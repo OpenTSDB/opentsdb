@@ -4,6 +4,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import net.opentsdb.uid.LabelId;
 
+import com.google.common.base.MoreObjects;
+
 import java.util.UUID;
 import javax.annotation.Nonnull;
 
@@ -42,6 +44,13 @@ public class MemoryLabelId implements LabelId<MemoryLabelId> {
   @Override
   public int hashCode() {
     return uuid.hashCode();
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+        .add("uuid", uuid)
+        .toString();
   }
 
   static class MemoryLabelIdSerializer implements LabelId.LabelIdSerializer<MemoryLabelId> {
