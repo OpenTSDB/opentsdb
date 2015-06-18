@@ -26,7 +26,7 @@ import javax.inject.Singleton;
 public class DataPointsClient {
   private final TsdbStore store;
   private final Config config;
-  private final UniqueIdClient uniqueIdClient;
+  private final IdClient idClient;
   private final MetaClient metaClient;
   private final RTPublisher realtimePublisher;
 
@@ -35,13 +35,13 @@ public class DataPointsClient {
   @Inject
   public DataPointsClient(final TsdbStore store,
                           final Config config,
-                          final UniqueIdClient uniqueIdClient,
+                          final IdClient idClient,
                           final MetaClient metaClient,
                           final RTPublisher realtimePublisher,
                           final MetricRegistry metricRegistry) {
     this.store = checkNotNull(store);
     this.config = checkNotNull(config);
-    this.uniqueIdClient = checkNotNull(uniqueIdClient);
+    this.idClient = checkNotNull(idClient);
     this.metaClient = checkNotNull(metaClient);
     this.realtimePublisher = checkNotNull(realtimePublisher);
 
@@ -62,10 +62,10 @@ public class DataPointsClient {
                                          + " maximum allowed: " + Const.MAX_NUM_TAGS + ", tags: " + tags);
     }
 
-    UniqueIdClient.validateUidName("metric name", metric);
+    IdClient.validateUidName("metric name", metric);
     for (final Map.Entry<String, String> tag : tags.entrySet()) {
-      UniqueIdClient.validateUidName("tag name", tag.getKey());
-      UniqueIdClient.validateUidName("tag value", tag.getValue());
+      IdClient.validateUidName("tag name", tag.getKey());
+      IdClient.validateUidName("tag value", tag.getValue());
     }
   }
 
@@ -116,7 +116,7 @@ public class DataPointsClient {
     final Timer.Context time = addDataPointTimer.time();
 
     final ListenableFuture<Void> addPointComplete = Futures.transform(
-        uniqueIdClient.getTSUID(metric, tags), new RowKeyCB());
+        idClient.getTSUID(metric, tags), new RowKeyCB());
 
     StopTimerCallback.stopOn(time, addPointComplete);
 
@@ -162,7 +162,7 @@ public class DataPointsClient {
     final Timer.Context time = addDataPointTimer.time();
 
     final ListenableFuture<Void> addPointComplete = Futures.transform(
-        uniqueIdClient.getTSUID(metric, tags), new RowKeyCB());
+        idClient.getTSUID(metric, tags), new RowKeyCB());
 
     StopTimerCallback.stopOn(time, addPointComplete);
 
@@ -206,7 +206,7 @@ public class DataPointsClient {
     final Timer.Context time = addDataPointTimer.time();
 
     final ListenableFuture<Void> addPointComplete = Futures.transform(
-        uniqueIdClient.getTSUID(metric, tags), new RowKeyCB());
+        idClient.getTSUID(metric, tags), new RowKeyCB());
 
     StopTimerCallback.stopOn(time, addPointComplete);
 

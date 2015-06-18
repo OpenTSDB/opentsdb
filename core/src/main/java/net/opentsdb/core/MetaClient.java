@@ -39,7 +39,7 @@ public class MetaClient {
 
   private final Config config;
   private final TsdbStore store;
-  private final UniqueIdClient uniqueIdClient;
+  private final IdClient idClient;
   private final SearchPlugin searchPlugin;
   private final RTPublisher realtimePublisher;
 
@@ -48,10 +48,10 @@ public class MetaClient {
                     final EventBus idEventBus,
                     final SearchPlugin searchPlugin,
                     final Config config,
-                    final UniqueIdClient uniqueIdClient, final RTPublisher realtimePublisher) {
+                    final IdClient idClient, final RTPublisher realtimePublisher) {
     this.config = checkNotNull(config);
     this.store = checkNotNull(store);
-    this.uniqueIdClient = checkNotNull(uniqueIdClient);
+    this.idClient = checkNotNull(idClient);
     this.searchPlugin = checkNotNull(searchPlugin);
     this.realtimePublisher = checkNotNull(realtimePublisher);
 
@@ -153,7 +153,7 @@ public class MetaClient {
                                                   final LabelId uid) {
     // Verify that the identifier exists before fetching the meta object. #getUidName will throw an
     // exception if it does not exist.
-    return transform(uniqueIdClient.getUidName(type, uid), new AsyncFunction<String, LabelMeta>() {
+    return transform(idClient.getUidName(type, uid), new AsyncFunction<String, LabelMeta>() {
       @Override
       public ListenableFuture<LabelMeta> apply(final String name) throws Exception {
         return store.getMeta(uid, type);
