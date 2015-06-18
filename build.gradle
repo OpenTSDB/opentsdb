@@ -193,6 +193,7 @@ subprojects {
                 testSourceDirs += generatedTestOutputDir
             }
 
+            scopes.COMPILE.plus += [ configurations.provided ]
         }
     }
 }
