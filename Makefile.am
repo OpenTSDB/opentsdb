@@ -73,12 +73,12 @@ tsdb_SRC := \
 	src/meta/TSMeta.java	\
 	src/meta/TSUIDQuery.java	\
 	src/meta/UIDMeta.java	\
-	src/query/TagVFilter.java	\
-	src/query/TagVLiteralOrFilter.java	\
-	src/query/TagVNotKeyFilter.java	\
-	src/query/TagVNotLiteralOrFilter.java	\
-	src/query/TagVRegexFilter.java	\
-	src/query/TagVWildcardFilter.java	\
+	src/query/filter/TagVFilter.java	\
+	src/query/filter/TagVLiteralOrFilter.java	\
+	src/query/filter/TagVNotKeyFilter.java	\
+	src/query/filter/TagVNotLiteralOrFilter.java	\
+	src/query/filter/TagVRegexFilter.java	\
+	src/query/filter/TagVWildcardFilter.java	\
 	src/search/SearchPlugin.java	\
 	src/search/SearchQuery.java	\
 	src/search/TimeSeriesLookup.java	\
@@ -203,12 +203,12 @@ test_SRC := \
 	test/meta/TestTSMeta.java	\
 	test/meta/TestTSUIDQuery.java	\
 	test/meta/TestUIDMeta.java	\
-	test/query/TestTagVFilter.java	\
-	test/query/TestTagVLiteralOrFilter.java	\
-	test/query/TestTagVNotKeyFilter.java	\
-	test/query/TestTagVNotLiteralOrFilter.java	\
-	test/query/TestTagVRegexFilter.java	\
-	test/query/TestTagVWildcardFilter.java	\
+	test/query/filter/TestTagVFilter.java	\
+	test/query/filter/TestTagVLiteralOrFilter.java	\
+	test/query/filter/TestTagVNotKeyFilter.java	\
+	test/query/filter/TestTagVNotLiteralOrFilter.java	\
+	test/query/filter/TestTagVRegexFilter.java	\
+	test/query/filter/TestTagVWildcardFilter.java	\
 	test/search/TestSearchPlugin.java	\
 	test/search/TestSearchQuery.java	\
 	test/search/TestTimeSeriesLookup.java	\
