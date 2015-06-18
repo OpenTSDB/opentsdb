@@ -75,9 +75,7 @@ public class DataPointsClient {
    * @throws IllegalArgumentException if the timestamp isn't within bounds.
    */
   static long checkTimestamp(long timestamp) {
-    checkArgument(timestamp >= 0, "The timestamp must be positive but was %s", timestamp);
-    checkArgument((timestamp & Const.SECOND_MASK) == 0 || timestamp <= Const.MAX_MS_TIMESTAMP,
-        "The timestamp was too large (%s)", timestamp);
+    checkArgument(timestamp >= 0, "The timestamp must be positive and greater than zero but was %s", timestamp);
 
     return timestamp;
   }

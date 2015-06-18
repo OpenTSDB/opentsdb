@@ -18,4 +18,8 @@ public class CassandraConst {
    * Charset used to convert strings from and to byte arrays within the Cassandra store.
    */
   static final Charset CHARSET = Charsets.UTF_8;
+
+  /** Max time delta (in seconds) we can store in a column qualifier. */
+  public static final short MAX_TIMESPAN = 3600;
+
 }

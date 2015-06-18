@@ -114,7 +114,7 @@ public class CassandraStore extends TsdbStore {
    * Calculate the base time based on a timestamp to be used in a row key.
    */
   static long buildBaseTime(final long timestamp) {
-    return (timestamp - (timestamp % Const.MAX_TIMESPAN));
+    return (timestamp - (timestamp % CassandraConst.MAX_TIMESPAN));
   }
 
   /**
