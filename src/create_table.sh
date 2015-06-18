@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Small script to setup the HBase tables used by OpenTSDB.
 
 test -n "$HBASE_HOME" || {
@@ -10,13 +10,25 @@ test -d "$HBASE_HOME" || {
   exit 1
 }
 
+
+## Script's home folder
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+echo "Using script path: " $SCRIPT_DIR
+
+## Custom pre-split code
+#pushd ${SCRIPT_DIR}
+#echo "Preparing custom pre-splitted regions"
+#python2.7 ./create_hbase_regions.py
+#stat ./hbase-splitsfile.txt
+#popd
+
 TSDB_TABLE=${TSDB_TABLE-'tsdb'}
 UID_TABLE=${UID_TABLE-'tsdb-uid'}
 TREE_TABLE=${TREE_TABLE-'tsdb-tree'}
 META_TABLE=${META_TABLE-'tsdb-meta'}
 BLOOMFILTER=${BLOOMFILTER-'ROW'}
 # LZO requires lzo2 64bit to be installed + the hadoop-gpl-compression jar.
-COMPRESSION=${COMPRESSION-'LZO'}
+COMPRESSION=${COMPRESSION-'NONE'}
 # All compression codec names are upper case (NONE, LZO, SNAPPY, etc).
 COMPRESSION=`echo "$COMPRESSION" | tr a-z A-Z`
 
@@ -38,7 +50,7 @@ create '$UID_TABLE',
   {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
 
 create '$TSDB_TABLE',
-  {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
+  {NAME => 't', VERSIONS => 10, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
   
 create '$TREE_TABLE',
   {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
@@ -46,3 +58,4 @@ create '$TREE_TABLE',
 create '$META_TABLE',
   {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
 EOF
+
