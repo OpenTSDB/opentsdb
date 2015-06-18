@@ -28,7 +28,7 @@ public class MetaClientLabelMetaTest {
   @Inject EventBus idEventBus;
   @Inject TsdbStore store;
 
-  @Inject UniqueIdClient uniqueIdClient;
+  @Inject IdClient idClient;
   @Inject MetaClient metaClient;
 
   @Inject RTPublisher realtimePublisher;

@@ -4,7 +4,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Arrays.asList;
 
 import net.opentsdb.core.TsdbModule;
-import net.opentsdb.core.UniqueIdClient;
+import net.opentsdb.core.IdClient;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdException;
 import net.opentsdb.uid.LabelId;
@@ -39,10 +39,10 @@ import javax.inject.Inject;
 public final class Assign {
   private static final Logger LOG = LoggerFactory.getLogger(Assign.class);
 
-  private final UniqueIdClient idClient;
+  private final IdClient idClient;
 
   @Inject
-  Assign(final UniqueIdClient idClient) {
+  Assign(final IdClient idClient) {
     this.idClient = checkNotNull(idClient);
   }
 

@@ -49,7 +49,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 
 @Singleton
-public class UniqueIdClient {
+public class IdClient {
   /** Unique IDs for the metric names. */
   final UniqueId metrics;
   /** Unique IDs for the tag names. */
@@ -68,7 +68,7 @@ public class UniqueIdClient {
   private final Timer tsuidQueryTimer;
 
   @Inject
-  public UniqueIdClient(final TsdbStore store,
+  public IdClient(final TsdbStore store,
                         final Config config,
                         final MetricRegistry metricsRegistry,
                         final EventBus idEventBus,

@@ -26,9 +26,9 @@ import org.junit.Test;
 import java.util.Map;
 import javax.inject.Inject;
 
-public class UniqueIdClientTest {
+public class IdClientTest {
   @Inject TsdbStore store;
-  @Inject UniqueIdClient uniqueIdClient;
+  @Inject IdClient idClient;
 
   private LabelId sysCpu0;
   private LabelId host;
@@ -64,87 +64,87 @@ public class UniqueIdClientTest {
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void getUidNameMetric() throws Exception {
-    assertEquals("sys.cpu.0", uniqueIdClient.getUidName(METRIC, sysCpu0).get());
+    assertEquals("sys.cpu.0", idClient.getUidName(METRIC, sysCpu0).get());
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void getUidNameTagk() throws Exception {
-    assertEquals("host", uniqueIdClient.getUidName(TAGK, host).get());
+    assertEquals("host", idClient.getUidName(TAGK, host).get());
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void getUidNameTagv() throws Exception {
-    assertEquals("web01", uniqueIdClient.getUidName(TAGV, web01).get());
+    assertEquals("web01", idClient.getUidName(TAGV, web01).get());
   }
 
   @Test(expected = NoSuchUniqueId.class, timeout = TestUtil.TIMEOUT)
   public void getUidNameMetricNSU() throws Exception {
-    uniqueIdClient.getUidName(METRIC, mock(LabelId.class)).get();
+    idClient.getUidName(METRIC, mock(LabelId.class)).get();
   }
 
   @Test(expected = NoSuchUniqueId.class, timeout = TestUtil.TIMEOUT)
   public void getUidNameTagkNSU() throws Exception {
-    uniqueIdClient.getUidName(TAGK, mock(LabelId.class)).get();
+    idClient.getUidName(TAGK, mock(LabelId.class)).get();
   }
 
   @Test(expected = NoSuchUniqueId.class, timeout = TestUtil.TIMEOUT)
   public void getUidNameTagvNSU() throws Exception {
-    uniqueIdClient.getUidName(TAGV, mock(LabelId.class)).get();
+    idClient.getUidName(TAGV, mock(LabelId.class)).get();
   }
 
   @Test(expected = NullPointerException.class)
   public void getUidNameNullType() throws Exception {
-    uniqueIdClient.getUidName(null, mock(LabelId.class));
+    idClient.getUidName(null, mock(LabelId.class));
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void getUidNameNullUID() throws Exception {
-    uniqueIdClient.getUidName(TAGV, null);
+    idClient.getUidName(TAGV, null);
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void getUIDMetric() throws Exception {
-    assertEquals(sysCpu0, uniqueIdClient.getUID(METRIC, "sys.cpu.0").get());
+    assertEquals(sysCpu0, idClient.getUID(METRIC, "sys.cpu.0").get());
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void getUIDTagk() throws Exception {
-    assertEquals(host, uniqueIdClient.getUID(TAGK, "host").get());
+    assertEquals(host, idClient.getUID(TAGK, "host").get());
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void getUIDTagv() throws Exception {
-    assertEquals(host, uniqueIdClient.getUID(TAGV, "localhost").get());
+    assertEquals(host, idClient.getUID(TAGV, "localhost").get());
   }
 
   @Test(expected = NoSuchUniqueName.class, timeout = TestUtil.TIMEOUT)
   public void getUIDMetricNSU() throws Exception {
-    uniqueIdClient.getUID(METRIC, "sys.cpu.2").get();
+    idClient.getUID(METRIC, "sys.cpu.2").get();
   }
 
   @Test(expected = NoSuchUniqueName.class, timeout = TestUtil.TIMEOUT)
   public void getUIDTagkNSU() throws Exception {
-    uniqueIdClient.getUID(TAGK, "region").get();
+    idClient.getUID(TAGK, "region").get();
   }
 
   @Test(expected = NoSuchUniqueName.class, timeout = TestUtil.TIMEOUT)
   public void getUIDTagvNSU() throws Exception {
-    uniqueIdClient.getUID(TAGV, "yourserver").get();
+    idClient.getUID(TAGV, "yourserver").get();
   }
 
   @Test(expected = NullPointerException.class)
   public void getUIDNullType() {
-    uniqueIdClient.getUID(null, "sys.cpu.1");
+    idClient.getUID(null, "sys.cpu.1");
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void getUIDNullName() {
-    uniqueIdClient.getUID(TAGV, null);
+    idClient.getUID(TAGV, null);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void getUIDEmptyName() {
-    uniqueIdClient.getUID(TAGV, "");
+    idClient.getUID(TAGV, "");
   }
 
   @Test
@@ -152,12 +152,12 @@ public class UniqueIdClientTest {
     final LabelId id = mock(LabelId.class);
     when(store.allocateUID("sys.cpu.2", METRIC))
         .thenReturn(Futures.immediateFuture(id));
-    assertSame(id, uniqueIdClient.assignUid(METRIC, "sys.cpu.2"));
+    assertSame(id, idClient.assignUid(METRIC, "sys.cpu.2"));
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void assignUidMetricExists() {
-    uniqueIdClient.assignUid(METRIC, "sys.cpu.0");
+    idClient.assignUid(METRIC, "sys.cpu.0");
   }
 
   @Test
@@ -165,12 +165,12 @@ public class UniqueIdClientTest {
     final LabelId id = mock(LabelId.class);
     when(store.allocateUID("region", TAGK))
         .thenReturn(Futures.immediateFuture(id));
-    assertSame(id, uniqueIdClient.assignUid(TAGK, "region"));
+    assertSame(id, idClient.assignUid(TAGK, "region"));
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void assignUidTagkExists() {
-    uniqueIdClient.assignUid(TAGK, "host");
+    idClient.assignUid(TAGK, "host");
   }
 
   @Test
@@ -178,60 +178,60 @@ public class UniqueIdClientTest {
     final LabelId id = mock(LabelId.class);
     when(store.allocateUID("yourserver", TAGV))
         .thenReturn(Futures.immediateFuture(id));
-    assertSame(id, uniqueIdClient.assignUid(TAGV, "yourserver"));
+    assertSame(id, idClient.assignUid(TAGV, "yourserver"));
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void assignUidTagvExists() {
-    uniqueIdClient.assignUid(TAGV, "localhost");
+    idClient.assignUid(TAGV, "localhost");
   }
 
   @Test(expected = NullPointerException.class)
   public void assignUidNullType() {
-    uniqueIdClient.assignUid(null, "localhost");
+    idClient.assignUid(null, "localhost");
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void assignUidNullName() {
-    uniqueIdClient.assignUid(METRIC, null);
+    idClient.assignUid(METRIC, null);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void assignUidInvalidCharacter() {
-    uniqueIdClient.assignUid(METRIC, "Not!A:Valid@Name");
+    idClient.assignUid(METRIC, "Not!A:Valid@Name");
   }
 
   @Test
   public void validateGoodString() {
-    UniqueIdClient.validateUidName("test", "omg-TSDB/42._foo_");
+    IdClient.validateUidName("test", "omg-TSDB/42._foo_");
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void validateNullString() {
-    UniqueIdClient.validateUidName("test", null);
+    IdClient.validateUidName("test", null);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void validateBadString() {
-    UniqueIdClient.validateUidName("test", "this is a test!");
+    IdClient.validateUidName("test", "this is a test!");
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void getTagNames() throws Exception {
     ImmutableList<LabelId> ids = ImmutableList.of(host, web01);
-    final Map<String, String> tags = uniqueIdClient.getTagNames(ids).get();
+    final Map<String, String> tags = idClient.getTagNames(ids).get();
     assertEquals("web01", tags.get("host"));
   }
 
   @Test(expected = NoSuchUniqueId.class, timeout = TestUtil.TIMEOUT)
   public void getTagNamesNSUI() throws Exception {
     ImmutableList<LabelId> ids = ImmutableList.of(mock(LabelId.class), mock(LabelId.class));
-    uniqueIdClient.getTagNames(ids).get();
+    idClient.getTagNames(ids).get();
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void getTagNamesEmptyList() throws Exception {
-    final Map<String, String> tags = uniqueIdClient.getTagNames(ImmutableList.<LabelId>of()).get();
+    final Map<String, String> tags = idClient.getTagNames(ImmutableList.<LabelId>of()).get();
     assertNotNull(tags);
     assertEquals(0, tags.size());
   }
@@ -239,6 +239,6 @@ public class UniqueIdClientTest {
   @Test(expected = NoSuchUniqueName.class)
   public void executeTimeSeriesQueryMissingName() throws Exception {
     final SearchQuery query = new SearchQuery("nosuchname");
-    uniqueIdClient.executeTimeSeriesQuery(query).get();
+    idClient.executeTimeSeriesQuery(query).get();
   }
 }

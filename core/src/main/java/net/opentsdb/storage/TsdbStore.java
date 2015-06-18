@@ -39,7 +39,7 @@ public abstract class TsdbStore implements Closeable {
 
   /**
    * Lookup time series related to a metric, tagk, tagv or any combination thereof. See {@link
-   * net.opentsdb.core.UniqueIdClient#executeTimeSeriesQuery} for a more formal specification how
+   * net.opentsdb.core.IdClient#executeTimeSeriesQuery} for a more formal specification how
    * the query language and logic.
    *
    * @param query The query that filters out which TSUIDs to lookup
