@@ -49,14 +49,8 @@ public final class Const {
   /** Mask to select all the FLAG_BITS. */
   public static final short FLAGS_MASK = FLAG_FLOAT | LENGTH_MASK;
 
-  /** Mask to verify a timestamp on 4 bytes in seconds. */
-  public static final long SECOND_MASK = 0xFFFFFFFF00000000L;
-
   /** Mask to verify a timestamp on 6 bytes in milliseconds. */
   public static final long MILLISECOND_MASK = 0xFFFFF00000000000L;
-
-  /** Max time delta (in seconds) we can store in a column qualifier. */
-  public static final short MAX_TIMESPAN = 3600;
 
   /**
    * Array containing the hexadecimal characters (0 to 9, A to F). This array is read-only, changing
@@ -77,8 +71,4 @@ public final class Const {
   public static final short TAG_NAME_WIDTH = 3;
   public static final short TAG_VALUE_WIDTH = 3;
 
-  /**
-   * The maximum number of milliseconds allowed in a timestamp.
-   */
-  public static final long MAX_MS_TIMESTAMP = 9999999999999L;
 }
