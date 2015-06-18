@@ -6,4 +6,5 @@
 
 <suppressions>
   <suppress checks="." files="(all|cassandra|core|idmanager[\\/]assign|web)[\\/]build" />
+  <suppress checks="EmptyLineSeparator" files="package-info.java$" />
 </suppressions>
