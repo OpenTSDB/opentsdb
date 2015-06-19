@@ -543,10 +543,14 @@ public enum ConfigMetaType implements ArgValueValidator {
 		 */
 		@Override
 		public void validate(final ConfigurationItem citem) {
+			super.validate(citem);
 			Set<URL> urls = buildURLSet(citem);
 			final MLet classLoader = new MLet(urls.toArray(new URL[urls.size()]));
 			try {
 				final ObjectName on = new ObjectName(String.format(CLASSLOADER_OBJECTNAME, citem.getKey()));
+				if(server.isRegistered(on)) {
+					server.unregisterMBean(on);
+				}
 				server.registerMBean(classLoader, on);
 			} catch (Exception ex) {
 				throw new IllegalArgumentException("Failed to create class loader for [" + citem.getName() + "]", ex);	

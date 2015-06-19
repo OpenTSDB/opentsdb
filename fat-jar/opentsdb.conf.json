@@ -61,7 +61,7 @@
       "cl-option": "--plugin-path",
       "description": "A path to search for plugins when the TSD starts. If the path is invalid, the TSD will fail to start. Plugins can still be enabled if they are in the class path",
       "help": "extended",
-      "meta": "EDIR"
+      "meta": "CLASSPATH"
     },
     {
       "key": "tsd.core.preload_uid_cache",
