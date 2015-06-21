@@ -446,6 +446,9 @@ public class Config {
     default_map.put("tsd.core.meta.enable_tsuid_tracking", "false");
     default_map.put("tsd.core.plugin_path", "");
     default_map.put("tsd.core.socket.timeout", "0");
+    default_map.put("tsd.core.uid.metrics_width", "3");
+    default_map.put("tsd.core.uid.tagk_width", "3");
+    default_map.put("tsd.core.uid.tagv_width", "3");
     default_map.put("tsd.core.tree.enable_processing", "false");
     default_map.put("tsd.core.preload_uid_cache", "false");
     default_map.put("tsd.core.preload_uid_cache.max_entries", "300000");
