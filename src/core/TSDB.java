@@ -65,11 +65,13 @@ public final class TSDB {
   /** Charset used to convert Strings to byte arrays and back. */
   private static final Charset CHARSET = Charset.forName("ISO-8859-1");
   private static final String METRICS_QUAL = "metrics";
-  private static final short METRICS_WIDTH = 3;
   private static final String TAG_NAME_QUAL = "tagk";
-  private static final short TAG_NAME_WIDTH = 3;
   private static final String TAG_VALUE_QUAL = "tagv";
-  private static final short TAG_VALUE_WIDTH = 3;
+
+  private static short uid_metrics_width;
+  private static short uid_tagk_width;
+  private static short uid_tagv_width;
+
 
   /** Client for the HBase cluster to use.  */
   final HBaseClient client;
@@ -126,9 +128,13 @@ public final class TSDB {
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
     meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
 
-    metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
-    tag_names = new UniqueId(client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
-    tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL, TAG_VALUE_WIDTH);
+    uid_metrics_width = config.getShort("tsd.core.uid.metrics_width");
+    uid_tagk_width = config.getShort("tsd.core.uid.tagk_width");
+    uid_tagv_width = config.getShort("tsd.core.uid.tagv_width");
+
+    metrics = new UniqueId(client, uidtable, METRICS_QUAL, uid_metrics_width);
+    tag_names = new UniqueId(client, uidtable, TAG_NAME_QUAL, uid_tagk_width);
+    tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL, uid_tagv_width);
     compactionq = new CompactionQueue(this);
 
     if (config.hasProperty("tsd.core.timezone")) {
@@ -505,19 +511,19 @@ public final class TSDB {
 
   /** @return the width, in bytes, of metric UIDs */
   public static short metrics_width() {
-    return METRICS_WIDTH;
+    return uid_metrics_width;
   }
   
   /** @return the width, in bytes, of tagk UIDs */
   public static short tagk_width() {
-    return TAG_NAME_WIDTH;
+    return uid_tagk_width;
   }
   
   /** @return the width, in bytes, of tagv UIDs */
   public static short tagv_width() {
-    return TAG_VALUE_WIDTH;
+    return uid_tagv_width;
   }
-  
+
   /**
    * Returns a new {@link Query} instance suitable for this TSDB.
    */
@@ -684,7 +690,7 @@ public final class TSDB {
       return result;
     }
     
-    final byte[] tsuid = UniqueId.getTSUIDFromKey(row, METRICS_WIDTH, 
+    final byte[] tsuid = UniqueId.getTSUIDFromKey(row, uid_metrics_width,
         Const.TIMESTAMP_BYTES);
     
     // for busy TSDs we may only enable TSUID tracking, storing a 1 in the

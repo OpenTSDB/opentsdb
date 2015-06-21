@@ -72,6 +72,9 @@ public final class TestTSMeta {
     when(config.getString("tsd.storage.hbase.uid_table")).thenReturn("tsdb-uid");
     when(config.getString("tsd.storage.hbase.meta_table")).thenReturn("tsdb-meta");
     when(config.getString("tsd.storage.hbase.tree_table")).thenReturn("tsdb-tree");
+    when(config.getShort("tsd.core.uid.metrics_width")).thenReturn((short)3);
+    when(config.getShort("tsd.core.uid.tagk_width")).thenReturn((short)3);
+    when(config.getShort("tsd.core.uid.tagv_width")).thenReturn((short)3);
     when(config.enable_tsuid_incrementing()).thenReturn(true);
     when(config.enable_realtime_ts()).thenReturn(true);
     
