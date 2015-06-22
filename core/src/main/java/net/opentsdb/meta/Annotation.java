@@ -3,8 +3,9 @@ package net.opentsdb.meta;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import net.opentsdb.uid.LabelId;
+
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableMap;
 
@@ -24,33 +25,41 @@ import javax.annotation.Nonnull;
  */
 @AutoValue
 public abstract class Annotation implements Comparable<Annotation> {
-  public static final long NOT_ENDED = -1;
+  public static final long NOT_ENDED = -1L;
 
   /**
    * Create a new annotation instance with the provided information.
+   *
+   * {@link ImmutableMap Immutable} copies will be made of both the provided tags and properties
+   * maps. Because of this it is highly recommended to use them from the start since Guava can do
+   * some optimizations in that case.
    */
-  public static Annotation create(final String timeSeriesId,
+  public static Annotation create(final LabelId metric,
+                                  final Map<LabelId, LabelId> tags,
                                   final long startTime,
                                   final long endTime,
                                   final String message,
                                   final Map<String, String> properties) {
-    checkArgument(!Strings.isNullOrEmpty(timeSeriesId));
-    checkArgument(startTime > 0, "Start time must but larger than 0 but was %s", startTime);
-    checkArgument(endTime > 0 || endTime == NOT_ENDED,
+    checkArgument(!tags.isEmpty(), "An annotation must be associated with at least one tag");
+    checkArgument(startTime > 0L, "Start time must but larger than 0 but was %s", startTime);
+    checkArgument(endTime > 0L || endTime == NOT_ENDED,
         "End time must be larger than 0 or equal to Annotation.END_TIME but was %s", endTime);
     checkArgument(startTime <= endTime);
+    final ImmutableMap<LabelId, LabelId> immutableTags = ImmutableMap.copyOf(tags);
     final ImmutableMap<String, String> immutableProperties = ImmutableMap.copyOf(properties);
-    return new AutoValue_Annotation(timeSeriesId, startTime, endTime, message, immutableProperties);
+    return new AutoValue_Annotation(metric, immutableTags, startTime, endTime, message,
+        immutableProperties);
   }
 
   /**
    * Create a new annotation instance with the provided information and an empty set of properties.
    */
-  public static Annotation create(final String timeSeriesId,
+  public static Annotation create(final LabelId metric,
+                                  final ImmutableMap<LabelId, LabelId> tags,
                                   final long startTime,
                                   final long endTime,
                                   final String message) {
-    return create(timeSeriesId, startTime, endTime, message, ImmutableMap.<String, String>of());
+    return create(metric, tags, startTime, endTime, message, ImmutableMap.<String, String>of());
   }
 
   /**
@@ -59,9 +68,13 @@ public abstract class Annotation implements Comparable<Annotation> {
   Annotation() {
   }
 
-  /** The time series this annotation belongs to. */
+  /** The metric associated with this annotation. */
   @Nonnull
-  public abstract String timeSeriesId();
+  public abstract LabelId metric();
+
+  /** The tags associated with this annotation. */
+  @Nonnull
+  public abstract ImmutableMap<LabelId, LabelId> tags();
 
   /** A timestamp indicating at which point this this annotation became relevant. */
   public abstract long startTime();

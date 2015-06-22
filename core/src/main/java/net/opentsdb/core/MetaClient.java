@@ -12,11 +12,10 @@ import net.opentsdb.plugins.RTPublisher;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
 
-import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -25,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -76,42 +76,21 @@ public class MetaClient {
   }
 
   /**
-   * Scans through the global annotation storage rows and returns a list of parsed annotation
-   * objects. If no annotations were found for the given timespan, the resulting list will be
-   * empty.
-   *
-   * @param startTime Start time to scan from. May be 0
-   * @param endTime End time to scan to. Must be greater than 0
-   * @return A list with detected annotations. May be empty.
-   * @throws IllegalArgumentException if the end timestamp has not been set or the end time is less
-   * than the start time
-   */
-  public ListenableFuture<List<Annotation>> getGlobalAnnotations(final long startTime,
-                                                                 final long endTime) {
-    if (endTime < 1) {
-      throw new IllegalArgumentException("The end timestamp has not been set");
-    }
-    if (endTime < startTime) {
-      throw new IllegalArgumentException(
-          "The end timestamp cannot be less than the start timestamp");
-    }
-
-    return store.getGlobalAnnotations(startTime, endTime);
-  }
-
-  /**
    * Fetch an annotation.
    *
    * @param tsuid The time series ID as a String.
    * @param startTime The start time of the annotation
    * @return A deferred that on completion contains an annotation object if found, null if not
    */
-  public ListenableFuture<Annotation> getAnnotation(final String tsuid,
+  @Nonnull
+  public ListenableFuture<Annotation> getAnnotation(final LabelId metric,
+                                                    final ImmutableMap<LabelId, LabelId> tags,
                                                     final long startTime) {
-    checkArgument(startTime > 0);
-    checkArgument(!Strings.isNullOrEmpty(tsuid));
+    checkNotNull(metric);
+    checkArgument(!tags.isEmpty());
+    checkArgument(startTime > 0L);
 
-    return store.getAnnotation(IdUtils.stringToUid(tsuid), startTime);
+    return store.getAnnotation(metric, tags, startTime);
   }
 
   /**
@@ -123,7 +102,7 @@ public class MetaClient {
    * may be null.
    */
   public ListenableFuture<Void> delete(Annotation annotation) {
-    return store.delete(annotation);
+    return store.delete(annotation.metric(), annotation.tags(), annotation.startTime());
   }
 
   /**
@@ -173,9 +152,8 @@ public class MetaClient {
    * @return True if the updates were saved successfully. False if there were no changes to make.
    */
   public ListenableFuture<Boolean> updateAnnotation(final Annotation annotation) {
-    final byte[] tsuid = IdUtils.stringToUid(annotation.timeSeriesId());
-
-    return transform(store.getAnnotation(tsuid, annotation.startTime()),
+    return transform(
+        store.getAnnotation(annotation.metric(), annotation.tags(), annotation.startTime()),
         new AsyncFunction<Annotation, Boolean>() {
           @Override
           public ListenableFuture<Boolean> apply(final Annotation storedAnnotation)
@@ -201,7 +179,9 @@ public class MetaClient {
    * @throws IllegalArgumentException if the timestamps are invalid
    * @since 2.1
    */
-  public ListenableFuture<Integer> deleteRange(final byte[] tsuid,
+  @Nonnull
+  public ListenableFuture<Integer> deleteRange(final LabelId metric,
+                                               final ImmutableMap<LabelId, LabelId> tags,
                                                final long startTime,
                                                final long endTime) {
     if (endTime < 1) {
@@ -212,7 +192,7 @@ public class MetaClient {
           "The end timestamp cannot be less than the start timestamp");
     }
 
-    return store.deleteAnnotationRange(tsuid, startTime, endTime);
+    return store.deleteAnnotationRange(metric, tags, startTime, endTime);
   }
 
   /**

@@ -3,6 +3,7 @@ package net.opentsdb.web.jackson;
 import static org.junit.Assert.assertEquals;
 
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.AnnotationFixtures;
 import net.opentsdb.web.HttpModule;
 import net.opentsdb.web.TestHttpModule;
 
@@ -24,16 +25,12 @@ public class AnnotationMixInTest {
   public void setUp() throws Exception {
     ObjectGraph.create(new TestHttpModule(), new HttpModule()).inject(this);
 
-    annotation = Annotation.create("000001000001000001", 1328140800, 1328140801, "Description");
+    annotation = AnnotationFixtures.provideAnnotation();
 
-    annotationJson = "{\"timeSeriesId\":\"000001000001000001\",\"startTime\":1328140800,"
-                     + "\"endTime\":1328140801,\"message\":\"Description\",\"properties\":{}}";
-  }
-
-  @Test
-  public void serializeMatchesExactly() throws Exception {
-    final String json = new String(jsonMapper.writeValueAsBytes(annotation));
-    assertEquals(annotationJson, json);
+    annotationJson = "{\"metric\":\"2d11dffc-a8c6-4830-8f4e-aa3417c4f9dc\","
+                     + "\"tags\":{\"edf3c0cc-9ebb-404e-b148-8cf140e13a1e\":"
+                     + "\"c4aa3396-4f0e-4def-988a-513191279cb3\"},\"startTime\":10,\"endTime\":12,"
+                     + "\"message\":\"My message\",\"properties\":{}}";
   }
 
   @Test
@@ -45,11 +42,17 @@ public class AnnotationMixInTest {
 
   @Test(expected = UnrecognizedPropertyException.class)
   public void deserializeFailsOnUnknown() throws Exception {
-    final String jsonWithUnknown = "{\"timeSeriesId\":\"000001000001000001\","
-                                   + "\"startTime\":1328140800,\"endTime\":1328140801,"
-                                   + "\"message\":\"Description\",\"properties\":{},"
-                                   + "\"unknown\":null}";
+    final String jsonWithUnknown = "{\"metric\":\"2d11dffc-a8c6-4830-8f4e-aa3417c4f9dc\","
+                     + "\"tags\":{\"edf3c0cc-9ebb-404e-b148-8cf140e13a1e\":"
+                     + "\"c4aa3396-4f0e-4def-988a-513191279cb3\"},\"startTime\":10,\"endTime\":12,"
+                     + "\"message\":\"My message\",\"properties\":{},\"unknown\":null}";
     jsonMapper.reader(Annotation.class)
         .readValue(jsonWithUnknown);
+  }
+
+  @Test
+  public void serializeMatchesExactly() throws Exception {
+    final String json = new String(jsonMapper.writeValueAsBytes(annotation));
+    assertEquals(annotationJson, json);
   }
 }

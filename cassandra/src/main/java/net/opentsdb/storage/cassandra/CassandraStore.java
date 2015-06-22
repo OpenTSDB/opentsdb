@@ -34,6 +34,7 @@ import com.datastax.driver.core.Session;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.AsyncFunction;
@@ -152,8 +153,11 @@ public class CassandraStore extends TsdbStore {
     return session;
   }
 
+  @Nonnull
   @Override
-  public ListenableFuture<Annotation> getAnnotation(byte[] tsuid, long startTime) {
+  public ListenableFuture<Annotation> getAnnotation(final LabelId metric,
+                                                    final ImmutableMap<LabelId, LabelId> tags,
+                                                    final long startTime) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -509,25 +513,26 @@ public class CassandraStore extends TsdbStore {
     });
   }
 
+  @Nonnull
   @Override
-  public ListenableFuture<Void> delete(Annotation annotation) {
+  public ListenableFuture<Void> delete(final LabelId metric,
+                                       final ImmutableMap<LabelId, LabelId> tags,
+                                       final long startTime) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
+  @Nonnull
   @Override
   public ListenableFuture<Boolean> updateAnnotation(Annotation annotation) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
+  @Nonnull
   @Override
-  public ListenableFuture<List<Annotation>> getGlobalAnnotations(long startTime, long endTime) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public ListenableFuture<Integer> deleteAnnotationRange(byte[] tsuid,
-                                                         long startTime,
-                                                         long endTime) {
+  public ListenableFuture<Integer> deleteAnnotationRange(final LabelId metric,
+                                                         final ImmutableMap<LabelId, LabelId> tags,
+                                                         final long startTime,
+                                                         final long endTime) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

@@ -9,10 +9,12 @@ import static org.junit.Assert.assertTrue;
 import net.opentsdb.TestModule;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.AnnotationFixtures;
-import net.opentsdb.utils.TestUtil;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdUtils;
+import net.opentsdb.uid.LabelId;
+import net.opentsdb.utils.TestUtil;
 
+import com.google.common.collect.ImmutableMap;
 import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,57 +35,65 @@ public class MetaClientAnnotationTest {
     store.updateAnnotation(annotation).get();
   }
 
-  @Test(expected = IllegalArgumentException.class, timeout = TestUtil.TIMEOUT)
-  public void getAnnotationNullTimeSeriesId() throws Exception {
-    metaClient.getAnnotation(null, 5L).get();
+  @Test(expected = NullPointerException.class, timeout = TestUtil.TIMEOUT)
+  public void getAnnotationNullMetric() throws Exception {
+    metaClient.getAnnotation(null, annotation.tags(), annotation.startTime()).get();
+  }
+
+  @Test(expected = NullPointerException.class, timeout = TestUtil.TIMEOUT)
+  public void getAnnotationNullTags() throws Exception {
+    metaClient.getAnnotation(annotation.metric(), null, annotation.startTime()).get();
   }
 
   @Test(expected = IllegalArgumentException.class, timeout = TestUtil.TIMEOUT)
-  public void getAnnotationEmptyTimeSeriesId() throws Exception {
-    metaClient.getAnnotation("", 5L).get();
+  public void getAnnotationNoTags() throws Exception {
+    metaClient.getAnnotation(annotation.metric(), ImmutableMap.<LabelId, LabelId>of(),
+        annotation.startTime()).get();
   }
 
   @Test(expected = IllegalArgumentException.class, timeout = TestUtil.TIMEOUT)
   public void getAnnotationBadStartTime() throws Exception {
-    metaClient.getAnnotation("000001000001000001", 0L).get();
+    metaClient.getAnnotation(annotation.metric(), annotation.tags(), 0L).get();
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void getAnnotation() throws Exception {
-    Annotation note = metaClient.getAnnotation("000001000001000001", 1388450562L).get();
-    assertNotNull(note);
-    assertEquals("000001000001000001", note.timeSeriesId());
-    assertEquals("Hello!", note.message());
-    assertEquals(1388450562L, note.startTime());
+    Annotation fetched = metaClient.getAnnotation(annotation.metric(), annotation.tags(),
+        annotation.startTime()).get();
+    assertNotNull(fetched);
+    assertEquals(annotation.metric(), fetched.metric());
+    assertEquals(annotation.tags(), fetched.tags());
+    assertEquals(annotation.message(), fetched.message());
+    assertEquals(annotation.startTime(), fetched.startTime());
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void getAnnotationNotFound() throws Exception {
-    assertNull(metaClient.getAnnotation("000001000001000001", 1388450564L).get());
+    assertNull(metaClient.getAnnotation(annotation.metric(), annotation.tags(),
+        annotation.startTime() - 5L).get());
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void delete() throws Exception {
     metaClient.delete(annotation).get();
 
-    assertNull(store.getAnnotation(
-        IdUtils.stringToUid(annotation.timeSeriesId()),
+    assertNull(store.getAnnotation(annotation.metric(), annotation.tags(),
         annotation.startTime()).get());
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void deleteNotFound() throws Exception {
-    final Annotation notFound = Annotation.create(annotation.timeSeriesId(),
+    final Annotation notFound = Annotation.create(annotation.metric(), annotation.tags(),
         annotation.endTime() + 1, annotation.endTime() + 2, annotation.message());
     metaClient.delete(notFound).get();
 
-    assertNotNull(store.getAnnotation(
-        IdUtils.stringToUid(annotation.timeSeriesId()), annotation.startTime()).get());
+    assertNotNull(store.getAnnotation(annotation.metric(), annotation.tags(),
+        annotation.startTime()).get());
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void updateAnnotation() throws Exception {
-    final Annotation updatedannotation = Annotation.create(annotation.timeSeriesId(),
+    final Annotation updatedannotation = Annotation.create(annotation.metric(), annotation.tags(),
         annotation.startTime(), annotation.endTime(), "New message", annotation.properties());
     assertTrue(metaClient.updateAnnotation(updatedannotation).get());
   }
@@ -95,52 +105,48 @@ public class MetaClientAnnotationTest {
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void deleteRange() throws Exception {
-    final int count = metaClient.deleteRange(
-        IdUtils.stringToUid(annotation.timeSeriesId()), annotation.startTime() - 5,
-        annotation.endTime() + 5).get();
-    assertEquals(1, count);
+    final long count = metaClient.deleteRange(annotation.metric(), annotation.tags(),
+        annotation.startTime() - 5, annotation.endTime() + 5).get();
+    assertEquals(1L, count);
 
-    assertNull(store.getAnnotation(
-        IdUtils.stringToUid(annotation.timeSeriesId()), annotation.startTime()).get());
+    assertNull(store.getAnnotation(annotation.metric(), annotation.tags(),
+        annotation.startTime()).get());
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void deleteRangeNone() throws Exception {
-    final int count = metaClient.deleteRange(
-        IdUtils.stringToUid(annotation.timeSeriesId()), annotation.endTime() + 100,
-        annotation.endTime() + 110).get();
-    assertEquals(0, count);
+    final long count = metaClient.deleteRange(annotation.metric(), annotation.tags(),
+        annotation.endTime() + 100, annotation.endTime() + 110).get();
+    assertEquals(0L, count);
 
-    assertNotNull(store.getAnnotation(
-        IdUtils.stringToUid(annotation.timeSeriesId()), annotation.startTime()).get());
+    assertNotNull(store.getAnnotation(annotation.metric(), annotation.tags(),
+        annotation.startTime()).get());
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void deleteRangeMultiple() throws Exception {
-    final Annotation second = Annotation.create(annotation.timeSeriesId(), annotation.endTime() + 5,
-        annotation.endTime() + 10, annotation.message());
+    final Annotation second = Annotation.create(annotation.metric(), annotation.tags(),
+        annotation.endTime() + 5, annotation.endTime() + 10, annotation.message());
 
-    final int count = metaClient.deleteRange(
-        IdUtils.stringToUid(annotation.timeSeriesId()), annotation.startTime(),
-        annotation.endTime() + 5).get();
-    assertEquals(2, count);
+    final long count = metaClient.deleteRange(annotation.metric(), annotation.tags(),
+        annotation.startTime(), annotation.endTime() + 5).get();
+    assertEquals(2L, count);
 
-    assertNull(store.getAnnotation(
-        IdUtils.stringToUid(annotation.timeSeriesId()),
+    assertNull(store.getAnnotation(annotation.metric(), annotation.tags(),
         annotation.startTime()).get());
 
-    assertNull(store.getAnnotation(
-        IdUtils.stringToUid(second.timeSeriesId()),
+    assertNull(store.getAnnotation(annotation.metric(), annotation.tags(),
         second.startTime()).get());
   }
 
   @Test(expected = IllegalArgumentException.class, timeout = TestUtil.TIMEOUT)
-  public void deleteRangeEmptyEnd() throws Exception {
-    metaClient.deleteRange(null, 1328140799000L, 0).get();
+  public void deleteRangeNoStart() throws Exception {
+    metaClient.deleteRange(annotation.metric(), annotation.tags(), 0L, 1L).get();
   }
 
   @Test(expected = IllegalArgumentException.class, timeout = TestUtil.TIMEOUT)
   public void deleteRangeEndLessThanStart() throws Exception {
-    metaClient.deleteRange(null, 1328140799000L, 1328140798000L).get();
+    metaClient.deleteRange(annotation.metric(), annotation.tags(),
+        1328140799000L, 1328140798000L).get();
   }
 }

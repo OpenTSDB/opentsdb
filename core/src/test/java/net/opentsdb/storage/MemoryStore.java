@@ -1,7 +1,5 @@
 package net.opentsdb.storage;
 
-import static net.opentsdb.uid.IdUtils.uidToString;
-
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
@@ -12,11 +10,13 @@ import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.TimeseriesId;
 import net.opentsdb.uid.UniqueIdType;
 
+import com.google.auto.value.AutoValue;
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.google.common.util.concurrent.Futures;
@@ -52,7 +52,7 @@ public class MemoryStore extends TsdbStore {
   private static final Charset ASCII = Charsets.ISO_8859_1;
 
   private final Table<LabelId, String, LabelMeta> uid_table;
-  private final Table<String, Long, Annotation> annotation_table;
+  private final Table<TimeSeriesKey, Long, Annotation> annotations;
 
   private final Map<TimeseriesId, NavigableMap<Long, Number>> datapoints;
 
@@ -61,7 +61,7 @@ public class MemoryStore extends TsdbStore {
 
   public MemoryStore() {
     uid_table = HashBasedTable.create();
-    annotation_table = HashBasedTable.create();
+    annotations = HashBasedTable.create();
     uid_forward_mapping = HashBasedTable.create();
     uid_reverse_mapping = HashBasedTable.create();
     datapoints = Maps.newHashMap();
@@ -194,116 +194,53 @@ public class MemoryStore extends TsdbStore {
     return Futures.immediateFuture(id);
   }
 
-  /**
-   * Attempts to mark an Annotation object for deletion. Note that if the annoation does not exist
-   * in storage, this delete call will not throw an error.
-   *
-   * @param annotation
-   * @return A meaningless Deferred for the caller to wait on until the call is complete. The value
-   * may be null.
-   */
+  @Nonnull
   @Override
-  public ListenableFuture<Void> delete(Annotation annotation) {
-
-    final String tsuid = annotation.timeSeriesId() != null && !annotation.timeSeriesId().isEmpty() ?
-        annotation.timeSeriesId() : "";
-
-    final long start = annotation.startTime() % 1000 == 0 ?
-        annotation.startTime() / 1000 : annotation.startTime();
-    if (start < 1) {
-      throw new IllegalArgumentException("The start timestamp has not been set");
-    }
-
-    annotation_table.remove(tsuid, start);
-
+  public ListenableFuture<Void> delete(final LabelId metric,
+                                       final ImmutableMap<LabelId, LabelId> tags,
+                                       final long startTime) {
+    annotations.remove(TimeSeriesKey.create(metric, tags), startTime);
     return Futures.immediateFuture(null);
   }
 
+  @Nonnull
   @Override
   public ListenableFuture<Boolean> updateAnnotation(Annotation annotation) {
-    final Annotation changedAnnotation = annotation_table.put(annotation.timeSeriesId(),
-        annotation.startTime(), annotation);
+    final TimeSeriesKey row = TimeSeriesKey.create(annotation.metric(), annotation.tags());
+    final Annotation changedAnnotation = annotations.put(row, annotation.startTime(), annotation);
     return Futures.immediateFuture(!annotation.equals(changedAnnotation));
   }
 
+  @Nonnull
   @Override
-  public ListenableFuture<List<Annotation>> getGlobalAnnotations(final long startTime,
-                                                                 final long endTime) {
-    //some sanity check should happen before this is called actually.
-
-    if (startTime < 1) {
-      throw new IllegalArgumentException("The start timestamp has not been set");
-    }
-
-    List<Annotation> annotations = new ArrayList<>();
-    Collection<Annotation> globals = annotation_table.row("").values();
-
-    for (Annotation global : globals) {
-      if (startTime <= global.startTime() && global.startTime() <= endTime) {
-        annotations.add(global);
-      }
-    }
-    return Futures.immediateFuture(annotations);
-  }
-
-  @Override
-  public ListenableFuture<Integer> deleteAnnotationRange(final byte[] tsuid,
+  public ListenableFuture<Integer> deleteAnnotationRange(final LabelId metric,
+                                                         final ImmutableMap<LabelId, LabelId> tags,
                                                          final long startTime,
                                                          final long endTime) {
+    final TimeSeriesKey row = TimeSeriesKey.create(metric, tags);
+    final ArrayList<Annotation> removedAnnotations = new ArrayList<>();
 
-    //some sanity check should happen before this is called actually.
-    //however we need to modify the start_time and end_time
-
-    if (startTime < 1) {
-      throw new IllegalArgumentException("The start timestamp has not been set");
-    }
-
-    final long start = startTime % 1000 == 0 ? startTime / 1000 : startTime;
-    final long end = endTime % 1000 == 0 ? endTime / 1000 : endTime;
-    String key = "";
-
-    ArrayList<Annotation> del_list = new ArrayList<>();
-    if (tsuid != null) {
-      //convert byte array to string, sloppy but seems to be the best way
-      key = uidToString(tsuid);
-    }
-
-    Collection<Annotation> globals = annotation_table.row(key).values();
-    for (Annotation global : globals) {
-      if (start <= global.startTime() && global.startTime() <= end) {
-        del_list.add(global);
+    final Collection<Annotation> matchedAnnotations = annotations.row(row).values();
+    for (final Annotation matchedAnnotation : matchedAnnotations) {
+      if (startTime <= matchedAnnotation.startTime() && matchedAnnotation.startTime() <= endTime) {
+        removedAnnotations.add(matchedAnnotation);
       }
     }
 
-    for (Annotation a : del_list) {
-      delete(a);
+    for (final Annotation annotation : removedAnnotations) {
+      delete(annotation.metric(), annotation.tags(), annotation.startTime());
     }
-    return Futures.immediateFuture(del_list.size());
 
+    return Futures.immediateFuture(removedAnnotations.size());
   }
 
-  /**
-   * Attempts to fetch a global or local annotation from storage
-   *
-   * @param tsuid The TSUID as a byte array. May be null if retrieving a global annotation
-   * @param startTime The start time as a Unix epoch timestamp
-   * @return A valid annotation object if found, null if not
-   */
+  @Nonnull
   @Override
-  public ListenableFuture<Annotation> getAnnotation(final byte[] tsuid, final long startTime) {
-
-    if (startTime < 1) {
-      throw new IllegalArgumentException("The start timestamp has not been set");
-    }
-
-    long time = startTime % 1000 == 0 ? startTime / 1000 : startTime;
-
-    String key = "";
-    if (tsuid != null) {
-      //convert byte array to proper string
-      key = uidToString(tsuid);
-    }
-    return Futures.immediateFuture(annotation_table.get(key, time));
+  public ListenableFuture<Annotation> getAnnotation(final LabelId metric,
+                                                    final ImmutableMap<LabelId, LabelId> tags,
+                                                    final long startTime) {
+    final TimeSeriesKey row = TimeSeriesKey.create(metric, tags);
+    return Futures.immediateFuture(annotations.get(row, startTime));
   }
 
   /**
@@ -362,6 +299,23 @@ public class MemoryStore extends TsdbStore {
     }
 
     return Futures.immediateFuture(result);
+  }
+
+  /**
+   * Class used as the key in tables to represent a combined time series ID.
+   */
+  @AutoValue
+  abstract static class TimeSeriesKey {
+    static TimeSeriesKey create(final LabelId metric,
+                                final Map<LabelId, LabelId> tags) {
+      return new AutoValue_MemoryStore_TimeSeriesKey(metric, ImmutableMap.copyOf(tags));
+    }
+
+    @Nonnull
+    abstract LabelId metric();
+
+    @Nonnull
+    abstract ImmutableMap<LabelId, LabelId> tags();
   }
 
 }

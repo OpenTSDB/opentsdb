@@ -1,6 +1,7 @@
 package net.opentsdb;
 
 import net.opentsdb.core.CoreModule;
+import net.opentsdb.core.MetaClientAnnotationTest;
 import net.opentsdb.core.MetaClientLabelMetaTest;
 import net.opentsdb.core.IdClientTest;
 import net.opentsdb.plugins.PluginsModule;
@@ -35,6 +36,7 @@ import javax.inject.Singleton;
     StoreModule.class
 },
     injects = {
+        MetaClientAnnotationTest.class,
         MetaClientLabelMetaTest.class,
         IdClientTest.class,
         StoreModuleTest.class,

@@ -12,6 +12,7 @@ import net.opentsdb.uid.UniqueIdType;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import java.io.Closeable;
@@ -39,8 +40,8 @@ public abstract class TsdbStore implements Closeable {
 
   /**
    * Lookup time series related to a metric, tagk, tagv or any combination thereof. See {@link
-   * net.opentsdb.core.IdClient#executeTimeSeriesQuery} for a more formal specification how
-   * the query language and logic.
+   * net.opentsdb.core.IdClient#executeTimeSeriesQuery} for a more formal specification how the
+   * query language and logic.
    *
    * @param query The query that filters out which TSUIDs to lookup
    * @return All TSUIDs that matches the provided query
@@ -100,30 +101,57 @@ public abstract class TsdbStore implements Closeable {
   //
 
   /**
-   * Attempts to mark an Annotation object for deletion. Note that if the annoation does not exist
-   * in storage, this delete call will not throw an error.
+   * Delete the annotation with the provided metric, tags and start time. This method will silently
+   * ignore any missing annotation.
    *
-   * @param annotation@return A meaningless Deferred for the caller to wait on until the call is
-   * complete. The value may be null.
+   * @param metric A non-null label that represents the metric
+   * @param tags A non-null and non-empty map of the labels for the tags
+   * @param startTime The exact set start time of the annotation
+   * @return A future that indicates the completion of the request
    */
-  public abstract ListenableFuture<Void> delete(Annotation annotation);
+  @Nonnull
+  public abstract ListenableFuture<Void> delete(final LabelId metric,
+                                                final ImmutableMap<LabelId, LabelId> tags,
+                                                final long startTime);
 
-  public abstract ListenableFuture<Integer> deleteAnnotationRange(final byte[] tsuid,
+  /**
+   * Delete all annotations specified by the provided metric and tags within the provided time
+   * range.
+   *
+   * @param metric A non-null label that represents the metric
+   * @param tags A non-null and non-empty map of the labels for the tags
+   * @param startTime The lower time bound to to remove annotations within
+   * @param endTime the upper time bound to remove annotations within
+   * @return A future that on completion contains the number of annotations removed
+   */
+  @Nonnull
+  public abstract ListenableFuture<Integer> deleteAnnotationRange(final LabelId metric,
+                                                                  final ImmutableMap<LabelId, LabelId> tags,
                                                                   final long startTime,
                                                                   final long endTime);
 
   /**
-   * Attempts to fetch a global or local annotation from storage
+   * Fetch the information for the annotation behind the provided metric, tags and start time.
    *
-   * @param tsuid The TSUID as a byte array. May be null if retrieving a global annotation
-   * @param startTime The start time as a Unix epoch timestamp
-   * @return A valid annotation object if found, null if not
+   * @param metric A non-null label that represents the metric
+   * @param tags A non-null and non-empty map of the labels for the tags
+   * @param startTime The exact set start time of the annotation
+   * @return A future that on completion contains an annotation with the stored information
    */
-  public abstract ListenableFuture<Annotation> getAnnotation(byte[] tsuid, long startTime);
+  @Nonnull
+  public abstract ListenableFuture<Annotation> getAnnotation(final LabelId metric,
+                                                             final ImmutableMap<LabelId, LabelId> tags,
+                                                             final long startTime);
 
-  public abstract ListenableFuture<List<Annotation>> getGlobalAnnotations(final long startTime,
-                                                                          final long endTime);
-
+  /**
+   * Update the stored information of the annotation with the same metric, tags and start time of
+   * the provided annotation.
+   *
+   * @param annotation The new annotation information
+   * @return A future that on completion contains a boolean that indicates whether a change was made
+   * or not.
+   */
+  @Nonnull
   public abstract ListenableFuture<Boolean> updateAnnotation(Annotation annotation);
 
   //
