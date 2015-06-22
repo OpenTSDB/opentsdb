@@ -257,7 +257,7 @@ public final class TestDateTime {
   @Test
   public void parseDurationN() {
     long t = DateTime.parseDuration("1n");
-    assertEquals(((long) 30 * 24 * 60 * 60 * 1000), t);
+    assertEquals((30L * 24 * 60 * 60 * 1000), t);
   }
 
   @Test

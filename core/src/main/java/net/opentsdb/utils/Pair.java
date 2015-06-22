@@ -37,7 +37,7 @@ import com.google.auto.value.AutoValue;
 @AutoValue
 public abstract class Pair<K, V> {
   public static <K, V> Pair<K, V> create(final K key, final V value) {
-    return new AutoValue_Pair(key, value);
+    return new AutoValue_Pair<>(key, value);
   }
 
   /** @return The stored key/left value, may be null */

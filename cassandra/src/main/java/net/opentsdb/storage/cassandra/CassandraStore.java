@@ -6,7 +6,6 @@ import static net.opentsdb.storage.cassandra.CassandraConst.CHARSET;
 import static net.opentsdb.storage.cassandra.CassandraLabelId.fromLong;
 import static net.opentsdb.storage.cassandra.CassandraLabelId.toLong;
 
-import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
