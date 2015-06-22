@@ -10,7 +10,6 @@ import net.opentsdb.TestModule;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.AnnotationFixtures;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.utils.TestUtil;
 

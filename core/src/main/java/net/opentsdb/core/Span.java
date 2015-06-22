@@ -16,7 +16,6 @@ package net.opentsdb.core;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.uid.IdUtils;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
@@ -25,7 +24,6 @@ import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
-import com.google.common.primitives.SignedBytes;
 
 import java.util.Collections;
 import java.util.List;
@@ -223,10 +221,14 @@ class Span implements DataPoints {
 
   @Override
   public int compareTo(final DataPoints other) {
+    /*
     final byte[] this_tsuid = IdUtils.stringToUid(getTSUIDs().get(0));
     final byte[] other_tsuid = IdUtils.stringToUid(other.getTSUIDs().get(0));
 
     return SignedBytes.lexicographicalComparator().compare(this_tsuid, other_tsuid);
+    */
+
+    return 0;
   }
 
   /**
