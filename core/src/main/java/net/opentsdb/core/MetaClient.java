@@ -9,7 +9,6 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.plugins.PluginError;
 import net.opentsdb.plugins.RTPublisher;
-import net.opentsdb.search.IdChangeIndexerListener;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
@@ -18,7 +17,6 @@ import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
 
 import com.google.common.base.Strings;
-import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -45,7 +43,6 @@ public class MetaClient {
 
   @Inject
   public MetaClient(final TsdbStore store,
-                    final EventBus idEventBus,
                     final SearchPlugin searchPlugin,
                     final Config config,
                     final IdClient idClient, final RTPublisher realtimePublisher) {
@@ -54,11 +51,6 @@ public class MetaClient {
     this.idClient = checkNotNull(idClient);
     this.searchPlugin = checkNotNull(searchPlugin);
     this.realtimePublisher = checkNotNull(realtimePublisher);
-
-    checkNotNull(idEventBus);
-
-    // TODO this should be registered in a dagger module
-    idEventBus.register(new IdChangeIndexerListener(store, searchPlugin));
   }
 
   /**

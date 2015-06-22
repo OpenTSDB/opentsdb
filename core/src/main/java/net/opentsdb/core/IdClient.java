@@ -6,6 +6,7 @@ import static com.google.common.util.concurrent.Futures.allAsList;
 import static com.google.common.util.concurrent.Futures.transform;
 import static net.opentsdb.stats.Metrics.name;
 
+import net.opentsdb.search.IdChangeIndexerListener;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
@@ -69,10 +70,10 @@ public class IdClient {
 
   @Inject
   public IdClient(final TsdbStore store,
-                        final Config config,
-                        final MetricRegistry metricsRegistry,
-                        final EventBus idEventBus,
-                        final SearchPlugin searchPlugin) {
+                  final Config config,
+                  final MetricRegistry metricsRegistry,
+                  final EventBus idEventBus,
+                  final SearchPlugin searchPlugin) {
     checkNotNull(config);
 
     this.store = checkNotNull(store);
@@ -90,6 +91,9 @@ public class IdClient {
     tagValues = new UniqueId(store, UniqueIdType.TAGV, metricsRegistry, idEventBus);
 
     tsuidQueryTimer = metricsRegistry.timer(name("tsuid.query-time"));
+
+    // Notify the search plugin about new and deleted labels
+    idEventBus.register(new IdChangeIndexerListener(store, searchPlugin));
   }
 
   /**
