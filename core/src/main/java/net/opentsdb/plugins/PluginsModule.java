@@ -36,13 +36,13 @@ public class PluginsModule {
 
   @Provides
   @Singleton
-  RTPublisher provideRealtimePublisher(final Config config) {
+  RealTimePublisher provideRealtimePublisher(final Config config) {
     try {
       // load the realtime publisher plugin if enabled
       if (config.getBoolean("tsd.rtpublisher.enable")) {
-        RTPublisherDescriptor descriptor = PluginLoader.loadSpecificPlugin(
+        RealTimePublisherDescriptor descriptor = PluginLoader.loadSpecificPlugin(
             config.getString("tsd.rtpublisher.plugin"),
-            RTPublisherDescriptor.class);
+            RealTimePublisherDescriptor.class);
 
         return descriptor.create(config);
       }

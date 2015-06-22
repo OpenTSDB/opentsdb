@@ -44,7 +44,7 @@ public class StopTimerCallback<T> implements FutureCallback<T> {
   }
 
   @Override
-  public void onFailure(final Throwable t) {
+  public void onFailure(final Throwable throwable) {
     timerContext.stop();
   }
 }

@@ -2,7 +2,7 @@ package net.opentsdb.plugins;
 
 import com.typesafe.config.Config;
 
-public abstract class RTPublisherDescriptor {
+public abstract class RealTimePublisherDescriptor {
   /**
    * Called to initialize the plugin. Implementations are responsible for setting up any IO they
    * need as well as starting any required background threads. <b>Note:</b> Implementations should
@@ -13,5 +13,5 @@ public abstract class RTPublisherDescriptor {
    * @throws IllegalArgumentException if required configuration parameters are missing
    * @throws Exception if something else goes wrong
    */
-  public abstract RTPublisher create(Config config) throws Exception;
+  public abstract RealTimePublisher create(Config config) throws Exception;
 }

@@ -43,9 +43,9 @@ public class IdClientTest {
   public void setUp() throws Exception {
     ObjectGraph.create(new TestModule()).inject(this);
 
-    sysCpu0 = store.allocateUID("sys.cpu.0", METRIC).get();
-    host = store.allocateUID("host", TAGK).get();
-    web01 = store.allocateUID("web01", TAGV).get();
+    sysCpu0 = store.allocateLabel("sys.cpu.0", METRIC).get();
+    host = store.allocateLabel("host", TAGK).get();
+    web01 = store.allocateLabel("web01", TAGV).get();
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -66,7 +66,7 @@ public class IdClientTest {
   @Test
   public void assignUidTagKey() {
     final LabelId id = mock(LabelId.class);
-    when(store.allocateUID("region", TAGK))
+    when(store.allocateLabel("region", TAGK))
         .thenReturn(Futures.immediateFuture(id));
     assertSame(id, idClient.assignUid(TAGK, "region"));
   }
@@ -104,61 +104,61 @@ public class IdClientTest {
 
   @Test
   public void getUID() throws Exception {
-    assertEquals(sysCpu0, idClient.getUID(METRIC, "sys.cpu.0").get());
+    assertEquals(sysCpu0, idClient.getLabelId(METRIC, "sys.cpu.0").get());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void getUIDEmptyName() {
-    idClient.getUID(TAGV, "");
+    idClient.getLabelId(TAGV, "");
   }
 
   @Test(expected = NoSuchUniqueName.class)
   public void getUIDNSU() throws Exception {
-    idClient.getUID(METRIC, "sys.cpu.2").get();
+    idClient.getLabelId(METRIC, "sys.cpu.2").get();
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void getUIDNullName() {
-    idClient.getUID(TAGV, null);
+    idClient.getLabelId(TAGV, null);
   }
 
   @Test(expected = NullPointerException.class)
   public void getUIDNullType() {
-    idClient.getUID(null, "sys.cpu.1");
+    idClient.getLabelId(null, "sys.cpu.1");
   }
 
   @Test
   public void getUidName() throws Exception {
-    assertEquals("web01", idClient.getUidName(TAGV, web01).get());
+    assertEquals("web01", idClient.getLabelName(TAGV, web01).get());
   }
 
   @Test(expected = NoSuchUniqueId.class)
   public void getUidNameNSU() throws Exception {
-    idClient.getUidName(TAGV, mock(LabelId.class)).get();
+    idClient.getLabelName(TAGV, mock(LabelId.class)).get();
   }
 
   @Test(expected = NullPointerException.class)
   public void getUidNameNullType() throws Exception {
-    idClient.getUidName(null, mock(LabelId.class));
+    idClient.getLabelName(null, mock(LabelId.class));
   }
 
   @Test(expected = NullPointerException.class)
   public void getUidNameNullUID() throws Exception {
-    idClient.getUidName(TAGV, null);
+    idClient.getLabelName(TAGV, null);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void validateBadString() {
-    IdClient.validateUidName("test", "this is a test!");
+    IdClient.validateLabelName("test", "this is a test!");
   }
 
   @Test
   public void validateGoodString() {
-    IdClient.validateUidName("test", "omg-TSDB/42._foo_");
+    IdClient.validateLabelName("test", "omg-TSDB/42._foo_");
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void validateNullString() {
-    IdClient.validateUidName("test", null);
+    IdClient.validateLabelName("test", null);
   }
 }

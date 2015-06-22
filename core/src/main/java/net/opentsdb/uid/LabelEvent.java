@@ -3,8 +3,8 @@ package net.opentsdb.uid;
 import javax.annotation.Nonnull;
 
 /**
- * Implementations of this class should be published to a {@link com.google.common.eventbus.EventBus}
- * on an implementation specified event.
+ * Implementations of this class should be published to a {@link com.google.common.eventbus.EventBus
+ * } on an implementation specified event.
  */
 public class LabelEvent {
   private final LabelId id;

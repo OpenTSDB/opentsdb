@@ -55,7 +55,7 @@ class CassandraLabelId implements LabelId<CassandraLabelId> {
     return Long.compare(id, that.id);
   }
 
-  static class CassandraLabelIdSerializer implements LabelId.LabelIdSerializer<CassandraLabelId> {
+  static class CassandraLabelIdSerializer implements LabelIdSerializer<CassandraLabelId> {
     @Nonnull
     @Override
     public String serialize(final CassandraLabelId identifier) {
@@ -63,7 +63,7 @@ class CassandraLabelId implements LabelId<CassandraLabelId> {
     }
   }
 
-  static class CassandraLabelIdDeserializer implements LabelId.LabelIdDeserializer<CassandraLabelId> {
+  static class CassandraLabelIdDeserializer implements LabelIdDeserializer<CassandraLabelId> {
     @Nonnull
     @Override
     public CassandraLabelId deserialize(final String stringIdentifier) {

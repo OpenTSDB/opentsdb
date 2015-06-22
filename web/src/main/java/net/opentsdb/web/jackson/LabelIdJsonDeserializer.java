@@ -17,9 +17,9 @@ public class LabelIdJsonDeserializer extends JsonDeserializer<LabelId> {
   }
 
   @Override
-  public LabelId deserialize(final JsonParser p, final DeserializationContext ctxt)
+  public LabelId deserialize(final JsonParser parser, final DeserializationContext ctxt)
       throws IOException, JsonProcessingException {
-    return deserializer.deserialize(p.getValueAsString());
+    return deserializer.deserialize(parser.getValueAsString());
   }
 
   @Override

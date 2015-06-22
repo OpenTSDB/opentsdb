@@ -8,7 +8,7 @@ import static com.google.common.util.concurrent.Futures.transform;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.plugins.PluginError;
-import net.opentsdb.plugins.RTPublisher;
+import net.opentsdb.plugins.RealTimePublisher;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
@@ -19,11 +19,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -35,22 +33,23 @@ import javax.inject.Singleton;
 public class MetaClient {
   private static final Logger LOG = LoggerFactory.getLogger(MetaClient.class);
 
-  private final Config config;
   private final TsdbStore store;
   private final IdClient idClient;
   private final SearchPlugin searchPlugin;
-  private final RTPublisher realtimePublisher;
+  private final RealTimePublisher realTimePublisher;
 
+  /**
+   * Create a new instance using the given arguments to configure itself.
+   */
   @Inject
   public MetaClient(final TsdbStore store,
                     final SearchPlugin searchPlugin,
-                    final Config config,
-                    final IdClient idClient, final RTPublisher realtimePublisher) {
-    this.config = checkNotNull(config);
+                    final IdClient idClient,
+                    final RealTimePublisher realTimePublisher) {
     this.store = checkNotNull(store);
     this.idClient = checkNotNull(idClient);
     this.searchPlugin = checkNotNull(searchPlugin);
-    this.realtimePublisher = checkNotNull(realtimePublisher);
+    this.realTimePublisher = checkNotNull(realTimePublisher);
   }
 
   /**
@@ -78,9 +77,10 @@ public class MetaClient {
   /**
    * Fetch an annotation.
    *
-   * @param tsuid The time series ID as a String.
-   * @param startTime The start time of the annotation
-   * @return A deferred that on completion contains an annotation object if found, null if not
+   * @param metric The metric associated with the annotation
+   * @param tags The tags associated with the annotation
+   * @param startTime The exact start time of the annotation
+   * @return A future that on completion contains an annotation object if found, null if not
    */
   @Nonnull
   public ListenableFuture<Annotation> getAnnotation(final LabelId metric,
@@ -94,15 +94,22 @@ public class MetaClient {
   }
 
   /**
-   * Attempts to mark an Annotation object for deletion. Note that if the annotation does not exist
-   * in storage, this delete call will not throw an error.
+   * Delete the annotation with the given metric, tags and start time.
    *
-   * @param annotation The Annotation we want to store.
-   * @return A meaningless Deferred for the caller to wait on until the call is complete. The value
-   * may be null.
+   * @param metric The metric associated with the annotation
+   * @param tags The tags associated with the annotation
+   * @param startTime The start time of the annotation
+   * @return A future that indicates the completion of the call
    */
-  public ListenableFuture<Void> delete(Annotation annotation) {
-    return store.delete(annotation.metric(), annotation.tags(), annotation.startTime());
+  @Nonnull
+  public ListenableFuture<Void> delete(final LabelId metric,
+                                       final ImmutableMap<LabelId, LabelId> tags,
+                                       final long startTime) {
+    checkNotNull(metric);
+    checkArgument(!tags.isEmpty(), "At least one tag is required");
+    checkArgument(startTime > 0L);
+
+    return store.deleteAnnotation(metric, tags, startTime);
   }
 
   /**
@@ -118,13 +125,12 @@ public class MetaClient {
    * @param type The type of UID to fetch
    * @param uid The ID of the meta to fetch
    * @return A UIDMeta from storage or a default
-   * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
   public ListenableFuture<LabelMeta> getLabelMeta(final UniqueIdType type,
                                                   final LabelId uid) {
-    // Verify that the identifier exists before fetching the meta object. #getUidName will throw an
-    // exception if it does not exist.
-    return transform(idClient.getUidName(type, uid), new AsyncFunction<String, LabelMeta>() {
+    // Verify that the identifier exists before fetching the meta object. The future that
+    // #getLabelName returns will contain an exception if it does not exist.
+    return transform(idClient.getLabelName(type, uid), new AsyncFunction<String, LabelMeta>() {
       @Override
       public ListenableFuture<LabelMeta> apply(final String name) throws Exception {
         return store.getMeta(uid, type);
@@ -140,7 +146,7 @@ public class MetaClient {
    */
   public void indexAnnotation(final Annotation note) {
     addCallback(searchPlugin.indexAnnotation(note), new PluginError(searchPlugin));
-    addCallback(realtimePublisher.publishAnnotation(note), new PluginError(realtimePublisher));
+    addCallback(realTimePublisher.publishAnnotation(note), new PluginError(realTimePublisher));
   }
 
   /**
@@ -169,30 +175,27 @@ public class MetaClient {
   }
 
   /**
-   * Deletes global or TSUID associated annotiations for the given time range.
+   * Delete all annotations associated with the non-null and non-empty metric and tags within the
+   * given time bounds.
    *
-   * @param tsuid An optional TSUID. If set to null, then global annotations for the given range
-   * will be deleted
-   * @param startTime A start timestamp in milliseconds
-   * @param endTime An end timestamp in millseconds
-   * @return The number of annotations deleted
-   * @throws IllegalArgumentException if the timestamps are invalid
-   * @since 2.1
+   * @param metric The metric associated with the annotations to delete
+   * @param tags The tags associated with the annotations to delete
+   * @param startTime The lower bound where to start deleting
+   * @param endTime The upper bound where to stop deleting
+   * @return A future that on completion contains the number of annotations that were deleted
    */
   @Nonnull
   public ListenableFuture<Integer> deleteRange(final LabelId metric,
                                                final ImmutableMap<LabelId, LabelId> tags,
                                                final long startTime,
                                                final long endTime) {
-    if (endTime < 1) {
-      throw new IllegalArgumentException("The end timestamp has not been set");
-    }
-    if (endTime < startTime) {
-      throw new IllegalArgumentException(
-          "The end timestamp cannot be less than the start timestamp");
-    }
+    checkNotNull(metric, "Missing a metric", metric, tags);
+    checkArgument(!tags.isEmpty(), "At least one tag is required", metric, tags);
+    checkArgument(startTime > 0L, "The start time must be lager than zero", startTime);
+    checkArgument(startTime <= endTime, "The end timestamp cannot be less than the start timestamp",
+        startTime, endTime);
 
-    return store.deleteAnnotationRange(metric, tags, startTime, endTime);
+    return store.deleteAnnotations(metric, tags, startTime, endTime);
   }
 
   /**

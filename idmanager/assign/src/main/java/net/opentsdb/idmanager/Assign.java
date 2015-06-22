@@ -3,8 +3,8 @@ package net.opentsdb.idmanager;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Arrays.asList;
 
-import net.opentsdb.core.TsdbModule;
 import net.opentsdb.core.IdClient;
+import net.opentsdb.core.TsdbModule;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdException;
 import net.opentsdb.uid.LabelId;
@@ -140,15 +140,15 @@ public final class Assign {
 
   private ListenableFuture<LabelId> assign(final String name, final UniqueIdType type) {
     final ListenableFuture<LabelId> id = idClient.createId(type, name);
-    Futures.addCallback(id, new LogNewIdCB(name, type));
+    Futures.addCallback(id, new LogNewIdCallback(name, type));
     return id;
   }
 
-  private static class LogNewIdCB implements FutureCallback<LabelId> {
+  private static class LogNewIdCallback implements FutureCallback<LabelId> {
     private final String name;
     private final UniqueIdType type;
 
-    public LogNewIdCB(final String name, final UniqueIdType type) {
+    public LogNewIdCallback(final String name, final UniqueIdType type) {
       this.name = name;
       this.type = type;
     }
@@ -159,11 +159,11 @@ public final class Assign {
     }
 
     @Override
-    public void onFailure(final Throwable t) {
-      if (t instanceof IdException) {
-        System.err.println(t.getMessage());
+    public void onFailure(final Throwable throwable) {
+      if (throwable instanceof IdException) {
+        System.err.println(throwable.getMessage());
       } else {
-        LOG.error("{} {}: {}", name, type, t.getMessage(), t);
+        LOG.error("{} {}: {}", name, type, throwable.getMessage(), throwable);
       }
     }
   }

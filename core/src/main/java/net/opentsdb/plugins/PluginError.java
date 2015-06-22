@@ -25,7 +25,7 @@ public final class PluginError implements FutureCallback<Object> {
   }
 
   @Override
-  public void onFailure(final Throwable t) {
-    LOG.error("Received an exception from {}", plugin, t);
+  public void onFailure(final Throwable throwable) {
+    LOG.error("Received an exception from {}", plugin, throwable);
   }
 }

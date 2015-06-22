@@ -74,7 +74,7 @@ public class MetaClientAnnotationTest {
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void delete() throws Exception {
-    metaClient.delete(annotation).get();
+    metaClient.delete(annotation.metric(), annotation.tags(), annotation.startTime()).get();
 
     assertNull(store.getAnnotation(annotation.metric(), annotation.tags(),
         annotation.startTime()).get());
@@ -84,7 +84,7 @@ public class MetaClientAnnotationTest {
   public void deleteNotFound() throws Exception {
     final Annotation notFound = Annotation.create(annotation.metric(), annotation.tags(),
         annotation.endTime() + 1, annotation.endTime() + 2, annotation.message());
-    metaClient.delete(notFound).get();
+    metaClient.delete(notFound.metric(), notFound.tags(), notFound.startTime()).get();
 
     assertNotNull(store.getAnnotation(annotation.metric(), annotation.tags(),
         annotation.startTime()).get());

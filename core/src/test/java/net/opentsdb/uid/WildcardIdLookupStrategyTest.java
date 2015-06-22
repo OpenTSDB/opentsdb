@@ -54,7 +54,7 @@ public class WildcardIdLookupStrategyTest {
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void testResolveIdGetsId() throws Exception {
-    LabelId id = client.allocateUID("nameexists", UniqueIdType.METRIC).get();
+    LabelId id = client.allocateLabel("nameexists", UniqueIdType.METRIC).get();
     assertEquals(id, lookupStrategy.getId(uid, "*").get());
   }
 

@@ -6,17 +6,17 @@ import static com.google.common.util.concurrent.Futures.addCallback;
 import static net.opentsdb.stats.Metrics.name;
 
 import net.opentsdb.plugins.PluginError;
-import net.opentsdb.plugins.RTPublisher;
+import net.opentsdb.plugins.RealTimePublisher;
 import net.opentsdb.stats.StopTimerCallback;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.TimeseriesId;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
+import com.google.common.base.Strings;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.typesafe.config.Config;
 
 import java.util.Map;
 import javax.inject.Inject;
@@ -25,25 +25,22 @@ import javax.inject.Singleton;
 @Singleton
 public class DataPointsClient {
   private final TsdbStore store;
-  private final Config config;
   private final IdClient idClient;
-  private final MetaClient metaClient;
-  private final RTPublisher realtimePublisher;
+  private final RealTimePublisher publisher;
 
   private final Timer addDataPointTimer;
 
+  /**
+   * Create a new instance using the given non-null arguments to configure itself.
+   */
   @Inject
   public DataPointsClient(final TsdbStore store,
-                          final Config config,
                           final IdClient idClient,
-                          final MetaClient metaClient,
-                          final RTPublisher realtimePublisher,
+                          final RealTimePublisher realTimePublisher,
                           final MetricRegistry metricRegistry) {
     this.store = checkNotNull(store);
-    this.config = checkNotNull(config);
     this.idClient = checkNotNull(idClient);
-    this.metaClient = checkNotNull(metaClient);
-    this.realtimePublisher = checkNotNull(realtimePublisher);
+    this.publisher = checkNotNull(realTimePublisher);
 
     this.addDataPointTimer = metricRegistry.timer(name("add_data_point"));
   }
@@ -54,18 +51,16 @@ public class DataPointsClient {
    * @throws IllegalArgumentException if any of the arguments aren't valid.
    */
   static void checkMetricAndTags(final String metric, final Map<String, String> tags) {
-    if (tags.size() <= 0) {
-      throw new IllegalArgumentException("Need at least one tags (metric="
-                                         + metric + ", tags=" + tags + ')');
-    } else if (tags.size() > Const.MAX_NUM_TAGS) {
-      throw new IllegalArgumentException("Too many tags: " + tags.size()
-                                         + " maximum allowed: " + Const.MAX_NUM_TAGS + ", tags: " + tags);
-    }
+    checkArgument(!Strings.isNullOrEmpty(metric), "Missing metric name", metric, tags);
+    checkArgument(!tags.isEmpty(), "At least one tag is required", metric, tags);
+    checkArgument(tags.size() <= Const.MAX_NUM_TAGS,
+        "No more than %s tags are allowed but there are %s",
+        Const.MAX_NUM_TAGS, tags.size(), metric, tags);
 
-    IdClient.validateUidName("metric name", metric);
+    IdClient.validateLabelName("metric name", metric);
     for (final Map.Entry<String, String> tag : tags.entrySet()) {
-      IdClient.validateUidName("tag name", tag.getKey());
-      IdClient.validateUidName("tag value", tag.getValue());
+      IdClient.validateLabelName("tag name", tag.getKey());
+      IdClient.validateLabelName("tag value", tag.getValue());
     }
   }
 
@@ -75,7 +70,8 @@ public class DataPointsClient {
    * @throws IllegalArgumentException if the timestamp isn't within bounds.
    */
   static long checkTimestamp(long timestamp) {
-    checkArgument(timestamp >= 0, "The timestamp must be positive and greater than zero but was %s", timestamp);
+    checkArgument(timestamp >= 0, "The timestamp must be positive and greater than zero but was %s",
+        timestamp);
 
     return timestamp;
   }
@@ -101,13 +97,13 @@ public class DataPointsClient {
     checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
-    class RowKeyCB implements AsyncFunction<TimeseriesId, Void> {
+    class AddPointFunction implements AsyncFunction<TimeseriesId, Void> {
       @Override
-      public ListenableFuture<Void> apply(final TimeseriesId tsuid) {
-        ListenableFuture<Void> result = store.addPoint(tsuid, timestamp, value);
+      public ListenableFuture<Void> apply(final TimeseriesId timeSeriesId) {
+        ListenableFuture<Void> result = store.addPoint(timeSeriesId, timestamp, value);
 
-        addCallback(realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid),
-            new PluginError(realtimePublisher));
+        addCallback(publisher.publishDataPoint(metric, timestamp, value, tags, timeSeriesId),
+            new PluginError(publisher));
 
         return result;
       }
@@ -116,7 +112,7 @@ public class DataPointsClient {
     final Timer.Context time = addDataPointTimer.time();
 
     final ListenableFuture<Void> addPointComplete = Futures.transform(
-        idClient.getTSUID(metric, tags), new RowKeyCB());
+        idClient.getTimeSeriesId(metric, tags), new AddPointFunction());
 
     StopTimerCallback.stopOn(time, addPointComplete);
 
@@ -147,13 +143,13 @@ public class DataPointsClient {
     checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
-    class RowKeyCB implements AsyncFunction<TimeseriesId, Void> {
+    class AddPointFunction implements AsyncFunction<TimeseriesId, Void> {
       @Override
-      public ListenableFuture<Void> apply(final TimeseriesId tsuid) {
-        ListenableFuture<Void> result = store.addPoint(tsuid, timestamp, value);
+      public ListenableFuture<Void> apply(final TimeseriesId timeSeriesId) {
+        ListenableFuture<Void> result = store.addPoint(timeSeriesId, timestamp, value);
 
-        addCallback(realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid),
-            new PluginError(realtimePublisher));
+        addCallback(publisher.publishDataPoint(metric, timestamp, value, tags, timeSeriesId),
+            new PluginError(publisher));
 
         return result;
       }
@@ -162,7 +158,7 @@ public class DataPointsClient {
     final Timer.Context time = addDataPointTimer.time();
 
     final ListenableFuture<Void> addPointComplete = Futures.transform(
-        idClient.getTSUID(metric, tags), new RowKeyCB());
+        idClient.getTimeSeriesId(metric, tags), new AddPointFunction());
 
     StopTimerCallback.stopOn(time, addPointComplete);
 
@@ -191,13 +187,13 @@ public class DataPointsClient {
     checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
-    class RowKeyCB implements AsyncFunction<TimeseriesId, Void> {
+    class AddPointFunction implements AsyncFunction<TimeseriesId, Void> {
       @Override
-      public ListenableFuture<Void> apply(final TimeseriesId tsuid) {
-        ListenableFuture<Void> result = store.addPoint(tsuid, timestamp, value);
+      public ListenableFuture<Void> apply(final TimeseriesId timeSeriesId) {
+        ListenableFuture<Void> result = store.addPoint(timeSeriesId, timestamp, value);
 
-        addCallback(realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid),
-            new PluginError(realtimePublisher));
+        addCallback(publisher.publishDataPoint(metric, timestamp, value, tags, timeSeriesId),
+            new PluginError(publisher));
 
         return result;
       }
@@ -206,7 +202,7 @@ public class DataPointsClient {
     final Timer.Context time = addDataPointTimer.time();
 
     final ListenableFuture<Void> addPointComplete = Futures.transform(
-        idClient.getTSUID(metric, tags), new RowKeyCB());
+        idClient.getTimeSeriesId(metric, tags), new AddPointFunction());
 
     StopTimerCallback.stopOn(time, addPointComplete);
 

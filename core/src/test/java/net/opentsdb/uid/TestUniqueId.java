@@ -61,7 +61,7 @@ public final class TestUniqueId {
   public void getNameSuccessfulLookup() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
 
-    final LabelId id = client.allocateUID("foo", UniqueIdType.METRIC).get();
+    final LabelId id = client.allocateLabel("foo", UniqueIdType.METRIC).get();
 
     assertEquals("foo", uid.getName(id).get());
     // Should be a cache hit ...
@@ -83,7 +83,7 @@ public final class TestUniqueId {
   public void getIdSuccessfulLookup() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
 
-    final LabelId id = client.allocateUID("foo", UniqueIdType.METRIC).get();
+    final LabelId id = client.allocateLabel("foo", UniqueIdType.METRIC).get();
 
     assertEquals(id, uid.getId("foo").get());
     // Should be a cache hit ...

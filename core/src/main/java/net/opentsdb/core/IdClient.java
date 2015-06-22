@@ -60,8 +60,8 @@ public class IdClient {
 
   private final TsdbStore store;
 
-  private final IdLookupStrategy tagkLookupStrategy;
-  private final IdLookupStrategy tagvLookupStrategy;
+  private final IdLookupStrategy tagKeyLookupStrategy;
+  private final IdLookupStrategy tagValueLookupStrategy;
   private final IdLookupStrategy metricLookupStrategy;
 
   private final SearchPlugin searchPlugin;
@@ -79,9 +79,9 @@ public class IdClient {
     this.store = checkNotNull(store);
     this.searchPlugin = checkNotNull(searchPlugin);
 
-    tagkLookupStrategy = lookupStrategy(
+    tagKeyLookupStrategy = lookupStrategy(
         config.getBoolean("tsd.core.auto_create_tagks"));
-    tagvLookupStrategy = lookupStrategy(
+    tagValueLookupStrategy = lookupStrategy(
         config.getBoolean("tsd.core.auto_create_tagvs"));
     metricLookupStrategy = lookupStrategy(
         config.getBoolean("tsd.core.auto_create_metrics"));
@@ -100,21 +100,21 @@ public class IdClient {
    * Ensures that a given string is a valid metric name or tag name/value.
    *
    * @param what A human readable description of what's being validated.
-   * @param s The string to validate.
+   * @param name The string to validate.
    * @throws IllegalArgumentException if the string isn't valid.
    */
-  public static void validateUidName(final String what, final String s) {
-    if (s == null) {
+  public static void validateLabelName(final String what, final String name) {
+    if (name == null) {
       throw new IllegalArgumentException("Invalid " + what + ": null");
     }
-    final int n = s.length();
+    final int n = name.length();
     for (int i = 0; i < n; i++) {
-      final char c = s.charAt(i);
+      final char c = name.charAt(i);
       if (!(('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
             || ('0' <= c && c <= '9') || c == '-' || c == '_' || c == '.'
             || c == '/' || Character.isLetter(c))) {
         throw new IllegalArgumentException("Invalid " + what
-                                           + " (\"" + s + "\"): illegal character: " + c);
+                                           + " (\"" + name + "\"): illegal character: " + c);
       }
     }
   }
@@ -232,7 +232,7 @@ public class IdClient {
   public LabelId assignUid(final UniqueIdType type,
                            final String name) {
 
-    validateUidName(type.toString(), name);
+    validateLabelName(type.toString(), name);
     UniqueId instance = uniqueIdInstanceForType(type);
 
     try {
@@ -251,54 +251,49 @@ public class IdClient {
    * TODO. This does not exactly mirror what assignUid does. We should merge the two.
    */
   public ListenableFuture<LabelId> createId(final UniqueIdType type, final String name) {
-    validateUidName(type.toString(), name);
+    validateLabelName(type.toString(), name);
     UniqueId instance = uniqueIdInstanceForType(type);
     return instance.createId(name);
   }
 
   /**
-   * Attempts to find the name for a unique identifier given a type
+   * Lookup the name behind the provided label ID and label type.
    *
-   * @param type The type of UID
-   * @param uid The UID to search for
-   * @return The name of the UID object if found
-   * @throws IllegalArgumentException if the type is not valid
-   * @throws net.opentsdb.uid.NoSuchUniqueId if the UID was not found
-   * @since 2.0
+   * @param type The type of label
+   * @param uid The ID to search for
+   * @return A future that on completion will contain the name behind the ID
    */
   @Nonnull
-  public ListenableFuture<String> getUidName(final UniqueIdType type,
-                                             final LabelId uid) {
+  public ListenableFuture<String> getLabelName(final UniqueIdType type,
+                                               final LabelId uid) {
     checkNotNull(uid, "Missing UID");
     UniqueId uniqueId = uniqueIdInstanceForType(type);
     return uniqueId.getName(uid);
   }
 
   /**
-   * Attempts to find the UID matching a given name
+   * Lookup the label ID behind the provided name and label type.
    *
-   * @param type The type of UID
+   * @param type The type of label to lookup
    * @param name The name to search for
-   * @throws IllegalArgumentException if the type is not valid
-   * @since 2.0
+   * @return A future that on completion will contain the ID behind the name
    */
   @Nonnull
-  public ListenableFuture<LabelId> getUID(final UniqueIdType type,
-                                          final String name) {
-    checkArgument(!Strings.isNullOrEmpty(name), "Missing UID name");
+  public ListenableFuture<LabelId> getLabelId(final UniqueIdType type,
+                                              final String name) {
+    checkArgument(!Strings.isNullOrEmpty(name), "Missing label name");
     UniqueId uniqueId = uniqueIdInstanceForType(type);
     return uniqueId.getId(name);
   }
 
   /**
-   * Returns a initialized TSUID for this metric and these tags.
+   * Returns an initialized {@link TimeseriesId} for this metric and these tags.
    *
    * @param metric The metric to use in the TSUID
    * @param tags The string tags to use in the TSUID
-   * @since 2.0
    */
-  ListenableFuture<TimeseriesId> getTSUID(final String metric,
-                                          final Map<String, String> tags) {
+  ListenableFuture<TimeseriesId> getTimeSeriesId(final String metric,
+                                                 final Map<String, String> tags) {
     // Lookup or create the metric ID.
     final ListenableFuture<LabelId> metric_id = metricLookupStrategy.getId(metrics, metric);
 
@@ -327,7 +322,7 @@ public class IdClient {
     }
 
     // Kick off the resolution of all tags.
-    return transform(getTagIds(tags, tagkLookupStrategy, tagvLookupStrategy),
+    return transform(getTagIds(tags, tagKeyLookupStrategy, tagValueLookupStrategy),
         new CopyTagsInRowKeyCB());
   }
 

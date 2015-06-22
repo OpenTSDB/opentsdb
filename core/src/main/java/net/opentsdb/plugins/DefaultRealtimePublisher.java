@@ -13,7 +13,7 @@ import java.util.Map;
  * A default realtime publisher to use when no other real-time publisher has been configured. This
  * real-time publisher will just discard all data given to it.
  */
-public class DefaultRealtimePublisher extends RTPublisher {
+public class DefaultRealtimePublisher extends RealTimePublisher {
   @Override
   public void close() {
   }

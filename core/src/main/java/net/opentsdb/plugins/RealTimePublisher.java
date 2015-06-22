@@ -12,7 +12,7 @@ import java.util.Map;
  * A class that describes the interface that is used to emit data points and annotations in
  * real-time to a backing sink.
  */
-public abstract class RTPublisher extends Plugin {
+public abstract class RealTimePublisher extends Plugin {
   /**
    * Publish the long data point to the backing sink.
    *

@@ -39,16 +39,16 @@ public abstract class TsdbStoreTimeSeriesQueryTest {
 
   @Before
   public void setUp() throws Exception {
-    sysCpuUserId = store.allocateUID("sys.cpu.user", UniqueIdType.METRIC).get();
-    sysCpuNiceId = store.allocateUID("sys.cpu.nice", UniqueIdType.METRIC).get();
-    sysCpuIdleId = store.allocateUID("sys.cpu.idle", UniqueIdType.METRIC).get();
-    noValuesId = store.allocateUID("no.values", UniqueIdType.METRIC).get();
+    sysCpuUserId = store.allocateLabel("sys.cpu.user", UniqueIdType.METRIC).get();
+    sysCpuNiceId = store.allocateLabel("sys.cpu.nice", UniqueIdType.METRIC).get();
+    sysCpuIdleId = store.allocateLabel("sys.cpu.idle", UniqueIdType.METRIC).get();
+    noValuesId = store.allocateLabel("no.values", UniqueIdType.METRIC).get();
 
-    tagkHostId = store.allocateUID("host", UniqueIdType.TAGK).get();
-    tagkOwnerId = store.allocateUID("owner", UniqueIdType.TAGK).get();
+    tagkHostId = store.allocateLabel("host", UniqueIdType.TAGK).get();
+    tagkOwnerId = store.allocateLabel("owner", UniqueIdType.TAGK).get();
 
-    tagvWeb01Id = store.allocateUID("web01", UniqueIdType.TAGV).get();
-    tagvWeb02Id = store.allocateUID("web02", UniqueIdType.TAGV).get();
+    tagvWeb01Id = store.allocateLabel("web01", UniqueIdType.TAGV).get();
+    tagvWeb02Id = store.allocateLabel("web02", UniqueIdType.TAGV).get();
   }
 
   @Test

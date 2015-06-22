@@ -74,11 +74,11 @@ public class CassandraStore extends TsdbStore {
   private final PreparedStatement addLongStatement;
   private PreparedStatement insertTagsStatement;
   /**
-   * The statement used by the {@link #allocateUID} method.
+   * The statement used by the {@link #allocateLabel} method.
    */
   private PreparedStatement createIdStatement;
   /**
-   * Used for {@link #allocateUID}, the one that does rename.
+   * Used for {@link #allocateLabel}, the one that does rename.
    */
   private PreparedStatement updateUidNameStatement;
   private PreparedStatement updateNameUidStatement;
@@ -322,14 +322,16 @@ public class CassandraStore extends TsdbStore {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
+  @Nonnull
   @Override
   public ListenableFuture<Boolean> updateMeta(LabelMeta meta) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
+  @Nonnull
   @Override
-  public ListenableFuture<Void> deleteUID(final String name,
-                                          final UniqueIdType type) {
+  public ListenableFuture<Void> deleteLabel(final String name,
+                                            final UniqueIdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -442,8 +444,8 @@ public class CassandraStore extends TsdbStore {
    */
   @Nonnull
   @Override
-  public ListenableFuture<LabelId> allocateUID(final String name,
-                                               final UniqueIdType type) {
+  public ListenableFuture<LabelId> allocateLabel(final String name,
+                                                 final UniqueIdType type) {
     // This discards half the hash but it should still work ok with murmur3.
     final long id = Hashing.murmur3_128().hashString(name, CHARSET).asLong();
 
@@ -466,19 +468,19 @@ public class CassandraStore extends TsdbStore {
 
   /**
    * For all intents and purposes this function works as a rename. In the HBase implementation the
-   * other method {@link #allocateUID} uses this method that basically overwrites the value no
+   * other method {@link #allocateLabel} uses this method that basically overwrites the value no
    * matter what. This method is also used by the function {@link net.opentsdb.uid.UniqueId#rename}.
    *
    * @param name The name to write.
-   * @param uid The uid to use.
+   * @param id The uid to use.
    * @param type The type of UID
    * @return The uid that was used.
    */
   @Nonnull
   @Override
-  public ListenableFuture<LabelId> allocateUID(final String name,
-                                               final LabelId uid,
-                                               final UniqueIdType type) {
+  public ListenableFuture<LabelId> allocateLabel(final String name,
+                                                 final LabelId id,
+                                                 final UniqueIdType type) {
     /*
     TODO #zeeck this method should be considered to be changed to rename and the implementation
     changed in the HBaseStore. One of the prerequisites of this function is that the UID already
@@ -488,11 +490,11 @@ public class CassandraStore extends TsdbStore {
     // Get old name, we do this manually because the other method returns
     // a deferred and we want to avoid to mix deferreds between functions.
     ResultSetFuture f = session.executeAsync(getNameStatement.bind(
-        toLong(uid), type.toValue()));
+        toLong(id), type.toValue()));
 
     //CQL = "UPDATE tsdb." + Tables.ID_TO_NAME + " SET name = ? WHERE uid = ? AND type = ?;";
     final BoundStatement s1 = new BoundStatement(updateUidNameStatement)
-        .bind(name, toLong(uid), type.toValue());
+        .bind(name, toLong(id), type.toValue());
 
     return transform(f, new Function<ResultSet, LabelId>() {
       @Override
@@ -506,18 +508,18 @@ public class CassandraStore extends TsdbStore {
         // INSERT INTO tsdb.name_to_id (name, type, uid) VALUES (?, ?, ?)
         // APPLY BATCH;
         session.executeAsync(s.bind(old_name, type.toValue(),
-            name, type.toValue(), toLong(uid)));
+            name, type.toValue(), toLong(id)));
         //TODO (zeeck) maybe check if this was ok
-        return uid;
+        return id;
       }
     });
   }
 
   @Nonnull
   @Override
-  public ListenableFuture<Void> delete(final LabelId metric,
-                                       final ImmutableMap<LabelId, LabelId> tags,
-                                       final long startTime) {
+  public ListenableFuture<Void> deleteAnnotation(final LabelId metric,
+                                                 final ImmutableMap<LabelId, LabelId> tags,
+                                                 final long startTime) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -529,10 +531,10 @@ public class CassandraStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Integer> deleteAnnotationRange(final LabelId metric,
-                                                         final ImmutableMap<LabelId, LabelId> tags,
-                                                         final long startTime,
-                                                         final long endTime) {
+  public ListenableFuture<Integer> deleteAnnotations(final LabelId metric,
+                                                     final ImmutableMap<LabelId, LabelId> tags,
+                                                     final long startTime,
+                                                     final long endTime) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

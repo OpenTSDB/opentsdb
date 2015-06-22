@@ -61,7 +61,7 @@ public interface IdLookupStrategy {
         }
 
         @Override
-        public void onFailure(final Throwable t) {
+        public void onFailure(final Throwable throwable) {
           Futures.addCallback(uniqueId.createId(name), new FutureCallback<LabelId>() {
             @Override
             public void onSuccess(@Nullable final LabelId result) {
@@ -69,8 +69,8 @@ public interface IdLookupStrategy {
             }
 
             @Override
-            public void onFailure(final Throwable t) {
-              id.setException(t);
+            public void onFailure(final Throwable throwable) {
+              id.setException(throwable);
             }
           });
         }
@@ -84,10 +84,10 @@ public interface IdLookupStrategy {
    * An ID lookup strategy that supports wildcards.
    *
    * <p>If the provided name is {@code null}, empty or equal to "*" it will be interpreted as a
-   * wildcard and a {@link com.stumbleupon.async.Deferred} with the result {@code null} will be
-   * returned.
+   * wildcard and it will return immediately with a future that contains {@code null}.
    *
-   * <p>If the provided name is not {@code null} then a regular lookup will be done.
+   * <p>If the provided name is not interpreted as a wildcard as described above then a regular
+   * lookup will be done.
    */
   class WildcardIdLookupStrategy implements IdLookupStrategy {
     public static final IdLookupStrategy instance = new WildcardIdLookupStrategy();

@@ -51,17 +51,17 @@ public class TestCassandraStore {
 
     store = new CassandraStoreDescriptor().createStore(config, new MetricRegistry());
 
-    name_uid.put(METRIC_NAME_ONE, store.allocateUID(
+    name_uid.put(METRIC_NAME_ONE, store.allocateLabel(
         METRIC_NAME_ONE, UniqueIdType.METRIC).get());
 
-    name_uid.put(METRIC_NAME_TWO, store.allocateUID(
+    name_uid.put(METRIC_NAME_TWO, store.allocateLabel(
         METRIC_NAME_TWO, UniqueIdType.METRIC).get());
 
-    name_uid.put(METRIC_NAME_THREE, store.allocateUID(
+    name_uid.put(METRIC_NAME_THREE, store.allocateLabel(
         METRIC_NAME_THREE, UniqueIdType.METRIC).get());
 
-    TAGK_UID_ONE = store.allocateUID(TAGK_NAME_ONE, UniqueIdType.TAGK).get();
-    TAGV_UID_ONE = store.allocateUID(TAGV_NAME_ONE, UniqueIdType.TAGV).get();
+    TAGK_UID_ONE = store.allocateLabel(TAGK_NAME_ONE, UniqueIdType.TAGK).get();
+    TAGV_UID_ONE = store.allocateLabel(TAGV_NAME_ONE, UniqueIdType.TAGV).get();
 
 
     /*
@@ -150,7 +150,7 @@ public class TestCassandraStore {
 
   @Test
   public void allocateUID() throws Exception {
-    LabelId new_metric_uid = store.allocateUID("new", UniqueIdType.METRIC).get();
+    LabelId new_metric_uid = store.allocateLabel("new", UniqueIdType.METRIC).get();
     long max_uid = 0;
     for (LabelId uid : name_uid.values()) {
       max_uid = Math.max(toLong(uid), max_uid);
@@ -161,7 +161,7 @@ public class TestCassandraStore {
   @Test
   public void renameUID() {
     fail();
-    //store.allocateUID("renamed", new byte[]{0, 0, 4}, UniqueIdType.METRIC);
+    //store.allocateLabel("renamed", new byte[]{0, 0, 4}, UniqueIdType.METRIC);
   }
 
   @Test

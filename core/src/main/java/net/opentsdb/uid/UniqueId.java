@@ -66,8 +66,8 @@ public class UniqueId {
    *
    * @param store The TsdbStore to use.
    * @param type The type of UIDs this instance represents
-   * @param metrics
-   * @param idEventBus
+   * @param metrics The metric registry to register metrics on
+   * @param idEventBus The event bus where to publish ID events
    */
   public UniqueId(final TsdbStore store,
                   final UniqueIdType type,
@@ -125,7 +125,7 @@ public class UniqueId {
       return Futures.immediateFuture(name);
     }
     cacheMisses.inc();
-    class GetNameCB implements Function<Optional<String>, String> {
+    class GetNameFunction implements Function<Optional<String>, String> {
       @Nullable
       @Override
       public String apply(@Nullable final Optional<String> name) {
@@ -141,7 +141,7 @@ public class UniqueId {
       }
     }
 
-    return transform(store.getName(id, type), new GetNameCB());
+    return transform(store.getName(id, type), new GetNameFunction());
   }
 
   @Nullable
@@ -161,6 +161,13 @@ public class UniqueId {
     }
   }
 
+  /**
+   * Fetch the label ID behind the provided name and the type associated with this UniqueId
+   * instance.
+   *
+   * @param name The name to lookup the ID behind
+   * @return A future that on completion will contain the ID behind the name
+   */
   @Nonnull
   public ListenableFuture<LabelId> getId(final String name) {
     final LabelId id = getIdFromCache(name);
@@ -169,7 +176,7 @@ public class UniqueId {
       return Futures.immediateFuture(id);
     }
     cacheMisses.inc();
-    class GetIdCB implements Function<Optional<LabelId>, LabelId> {
+    class GetIdFunction implements Function<Optional<LabelId>, LabelId> {
       @Nullable
       @Override
       public LabelId apply(@Nullable final Optional<LabelId> id) {
@@ -185,7 +192,7 @@ public class UniqueId {
       }
     }
 
-    return transform(store.getId(name, type), new GetIdCB());
+    return transform(store.getId(name, type), new GetIdFunction());
   }
 
   @Nullable
@@ -238,7 +245,7 @@ public class UniqueId {
     }
 
     // start the assignment dance after stashing the deferred
-    ListenableFuture<LabelId> uid = store.allocateUID(name, type);
+    ListenableFuture<LabelId> uid = store.allocateLabel(name, type);
 
     return transform(uid, new Function<LabelId, LabelId>() {
       @Nullable
@@ -288,7 +295,7 @@ public class UniqueId {
         return transform(getId(oldname), new AsyncFunction<LabelId, Void>() {
           @Override
           public ListenableFuture<Void> apply(final LabelId oldUid) throws Exception {
-            store.allocateUID(newname, oldUid, type);
+            store.allocateLabel(newname, oldUid, type);
 
             // Update cache.
             addIdToCache(newname, oldUid);  // add     new name -> ID
@@ -296,7 +303,7 @@ public class UniqueId {
             nameCache.remove(oldname);      // remove  old name -> ID
 
             // Delete the old forward mapping.
-            return store.deleteUID(oldname, type);
+            return store.deleteLabel(oldname, type);
           }
         });
       }
@@ -321,6 +328,7 @@ public class UniqueId {
     return exists;
   }
 
+  @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
         .add("type", type)

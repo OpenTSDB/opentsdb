@@ -28,6 +28,14 @@ public class HttpRouterHandler extends ChannelInboundHandlerAdapter {
 
   private final CharMatcher routeNormalizer = CharMatcher.is('/');
 
+  /**
+   * Create a new instance with the given map of resources and default resource. The map should be
+   * keyed on the path they wish to be exposed on with leading and trailing '/' removed. If no
+   * resource matches a request then the provided default resource will be used.
+   *
+   * @param resources A map of resource keyed on the path they are to be exposed on
+   * @param defaultResource The default resource if no other resource matches
+   */
   public HttpRouterHandler(final Map<String, Resource> resources,
                            final Resource defaultResource) {
     this.matcher = TypeParameterMatcher.get(FullHttpRequest.class);

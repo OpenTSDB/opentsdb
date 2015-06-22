@@ -22,6 +22,15 @@ public class Resource extends SimpleChannelInboundHandler<FullHttpRequest> {
         .addListener(ChannelFutureListener.CLOSE);
   }
 
+  /**
+   * Called by one of the last handlers in a Netty pipeline that has access to the full HTTP
+   * request. Reads the method of the request and delegates to the "do" method that matches the
+   * method. If the method is not supported then it responds with the status code 405 (method not
+   * allowed).
+   *
+   * @param request The request to handle
+   * @return The finished response to send to the client
+   */
   public FullHttpResponse handle(final FullHttpRequest request) {
     if (request.method().equals(HttpMethod.GET)) {
       return doGet(request);

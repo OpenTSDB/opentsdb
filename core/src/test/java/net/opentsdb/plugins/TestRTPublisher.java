@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 public abstract class TestRTPublisher {
-  protected RTPublisher rt_publisher;
+  protected RealTimePublisher rt_publisher;
 
   @Test
   public void sinkLongDataPoint() {

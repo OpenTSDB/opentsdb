@@ -6,8 +6,13 @@ import net.opentsdb.uid.LabelId;
 
 import com.fasterxml.jackson.databind.module.SimpleModule;
 
-
+/**
+ * A reusable Jackson module that registers all custom serializers and mix-ins.
+ */
 public class JacksonModule extends SimpleModule {
+  /**
+   * Create a new instance that uses the provided {@link LabelId} specific serializers.
+   */
   public JacksonModule(final LabelId.LabelIdSerializer idSerializer,
                        final LabelId.LabelIdDeserializer idDeserializer) {
     super("JsonModule");

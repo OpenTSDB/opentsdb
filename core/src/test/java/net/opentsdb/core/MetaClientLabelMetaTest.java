@@ -5,7 +5,7 @@ import static org.junit.Assert.assertEquals;
 
 import net.opentsdb.TestModule;
 import net.opentsdb.meta.LabelMeta;
-import net.opentsdb.plugins.RTPublisher;
+import net.opentsdb.plugins.RealTimePublisher;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.utils.TestUtil;
 import net.opentsdb.storage.TsdbStore;
@@ -31,7 +31,7 @@ public class MetaClientLabelMetaTest {
   @Inject IdClient idClient;
   @Inject MetaClient metaClient;
 
-  @Inject RTPublisher realtimePublisher;
+  @Inject RealTimePublisher realtimePublisher;
 
   @Mock private SearchPlugin searchPlugin;
 
@@ -46,8 +46,8 @@ public class MetaClientLabelMetaTest {
     ObjectGraph.create(new TestModule()).inject(this);
     MockitoAnnotations.initMocks(this);
 
-    sysCpu0 = store.allocateUID("sys.cpu.0", METRIC).get();
-    sysCpu2 = store.allocateUID("sys.cpu.2", METRIC).get();
+    sysCpu0 = store.allocateLabel("sys.cpu.0", METRIC).get();
+    sysCpu2 = store.allocateLabel("sys.cpu.2", METRIC).get();
 
     LabelMeta labelMeta = LabelMeta.create(sysCpu0, METRIC, "sys.cpu.0", "Description", 1328140801);
 

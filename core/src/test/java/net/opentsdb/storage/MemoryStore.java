@@ -140,6 +140,7 @@ public class MemoryStore extends TsdbStore {
     return Futures.immediateFuture(meta);
   }
 
+  @Nonnull
   @Override
   public ListenableFuture<Boolean> updateMeta(final LabelMeta meta) {
     uid_table.put(
@@ -150,8 +151,9 @@ public class MemoryStore extends TsdbStore {
     return Futures.immediateFuture(Boolean.TRUE);
   }
 
+  @Nonnull
   @Override
-  public ListenableFuture<Void> deleteUID(final String name, UniqueIdType type) {
+  public ListenableFuture<Void> deleteLabel(final String name, UniqueIdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -162,8 +164,8 @@ public class MemoryStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<LabelId> allocateUID(final String name,
-                                               final UniqueIdType type) {
+  public ListenableFuture<LabelId> allocateLabel(final String name,
+                                                 final UniqueIdType type) {
     LabelId id;
 
     do {
@@ -171,14 +173,14 @@ public class MemoryStore extends TsdbStore {
       // Make sure the new id is unique
     } while (uid_reverse_mapping.containsRow(id));
 
-    return allocateUID(name, id, type);
+    return allocateLabel(name, id, type);
   }
 
   @Nonnull
   @Override
-  public ListenableFuture<LabelId> allocateUID(final String name,
-                                               final LabelId id,
-                                               final UniqueIdType type) {
+  public ListenableFuture<LabelId> allocateLabel(final String name,
+                                                 final LabelId id,
+                                                 final UniqueIdType type) {
     if (uid_reverse_mapping.contains(id, type)) {
       throw new IllegalArgumentException("An ID with " + id + " already exists");
     }
@@ -196,9 +198,9 @@ public class MemoryStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Void> delete(final LabelId metric,
-                                       final ImmutableMap<LabelId, LabelId> tags,
-                                       final long startTime) {
+  public ListenableFuture<Void> deleteAnnotation(final LabelId metric,
+                                                 final ImmutableMap<LabelId, LabelId> tags,
+                                                 final long startTime) {
     annotations.remove(TimeSeriesKey.create(metric, tags), startTime);
     return Futures.immediateFuture(null);
   }
@@ -213,10 +215,10 @@ public class MemoryStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Integer> deleteAnnotationRange(final LabelId metric,
-                                                         final ImmutableMap<LabelId, LabelId> tags,
-                                                         final long startTime,
-                                                         final long endTime) {
+  public ListenableFuture<Integer> deleteAnnotations(final LabelId metric,
+                                                     final ImmutableMap<LabelId, LabelId> tags,
+                                                     final long startTime,
+                                                     final long endTime) {
     final TimeSeriesKey row = TimeSeriesKey.create(metric, tags);
     final ArrayList<Annotation> removedAnnotations = new ArrayList<>();
 
@@ -228,7 +230,7 @@ public class MemoryStore extends TsdbStore {
     }
 
     for (final Annotation annotation : removedAnnotations) {
-      delete(annotation.metric(), annotation.tags(), annotation.startTime());
+      deleteAnnotation(annotation.metric(), annotation.tags(), annotation.startTime());
     }
 
     return Futures.immediateFuture(removedAnnotations.size());

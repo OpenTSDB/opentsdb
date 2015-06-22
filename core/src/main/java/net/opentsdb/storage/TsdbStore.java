@@ -28,15 +28,16 @@ public abstract class TsdbStore implements Closeable {
   // Identifier management
   //
   @Nonnull
-  public abstract ListenableFuture<LabelId> allocateUID(final String name,
-                                                        final UniqueIdType type);
+  public abstract ListenableFuture<LabelId> allocateLabel(final String name,
+                                                          final UniqueIdType type);
 
   @Nonnull
-  public abstract ListenableFuture<LabelId> allocateUID(final String name,
-                                                        final LabelId uid,
-                                                        final UniqueIdType type);
+  public abstract ListenableFuture<LabelId> allocateLabel(final String name,
+                                                          final LabelId id,
+                                                          final UniqueIdType type);
 
-  public abstract ListenableFuture<Void> deleteUID(String name, UniqueIdType type);
+  @Nonnull
+  public abstract ListenableFuture<Void> deleteLabel(final String name, final UniqueIdType type);
 
   /**
    * Lookup time series related to a metric, tagk, tagv or any combination thereof. See {@link
@@ -46,7 +47,8 @@ public abstract class TsdbStore implements Closeable {
    * @param query The query that filters out which TSUIDs to lookup
    * @return All TSUIDs that matches the provided query
    */
-  public abstract ListenableFuture<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query);
+  public abstract ListenableFuture<List<byte[]>> executeTimeSeriesQuery(
+      final ResolvedSearchQuery query);
 
   /**
    * Lookup all IDs that matches the provided {@link net.opentsdb.uid.IdQuery}. There are no demands
@@ -110,9 +112,9 @@ public abstract class TsdbStore implements Closeable {
    * @return A future that indicates the completion of the request
    */
   @Nonnull
-  public abstract ListenableFuture<Void> delete(final LabelId metric,
-                                                final ImmutableMap<LabelId, LabelId> tags,
-                                                final long startTime);
+  public abstract ListenableFuture<Void> deleteAnnotation(final LabelId metric,
+                                                          final ImmutableMap<LabelId, LabelId> tags,
+                                                          final long startTime);
 
   /**
    * Delete all annotations specified by the provided metric and tags within the provided time
@@ -125,10 +127,11 @@ public abstract class TsdbStore implements Closeable {
    * @return A future that on completion contains the number of annotations removed
    */
   @Nonnull
-  public abstract ListenableFuture<Integer> deleteAnnotationRange(final LabelId metric,
-                                                                  final ImmutableMap<LabelId, LabelId> tags,
-                                                                  final long startTime,
-                                                                  final long endTime);
+  public abstract ListenableFuture<Integer> deleteAnnotations(
+      final LabelId metric,
+      final ImmutableMap<LabelId, LabelId> tags,
+      final long startTime,
+      final long endTime);
 
   /**
    * Fetch the information for the annotation behind the provided metric, tags and start time.
@@ -139,9 +142,10 @@ public abstract class TsdbStore implements Closeable {
    * @return A future that on completion contains an annotation with the stored information
    */
   @Nonnull
-  public abstract ListenableFuture<Annotation> getAnnotation(final LabelId metric,
-                                                             final ImmutableMap<LabelId, LabelId> tags,
-                                                             final long startTime);
+  public abstract ListenableFuture<Annotation> getAnnotation(
+      final LabelId metric,
+      final ImmutableMap<LabelId, LabelId> tags,
+      final long startTime);
 
   /**
    * Update the stored information of the annotation with the same metric, tags and start time of
@@ -152,7 +156,7 @@ public abstract class TsdbStore implements Closeable {
    * or not.
    */
   @Nonnull
-  public abstract ListenableFuture<Boolean> updateAnnotation(Annotation annotation);
+  public abstract ListenableFuture<Boolean> updateAnnotation(final Annotation annotation);
 
   //
   // LabelMeta
@@ -161,5 +165,6 @@ public abstract class TsdbStore implements Closeable {
   public abstract ListenableFuture<LabelMeta> getMeta(final LabelId uid,
                                                       final UniqueIdType type);
 
+  @Nonnull
   public abstract ListenableFuture<Boolean> updateMeta(final LabelMeta meta);
 }

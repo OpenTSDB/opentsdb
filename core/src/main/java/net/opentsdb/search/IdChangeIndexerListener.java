@@ -50,9 +50,9 @@ public class IdChangeIndexerListener {
           }
 
           @Override
-          public void onFailure(final Throwable t) {
+          public void onFailure(final Throwable throwable) {
             LOG.error("Unable to fetch LabelMeta object for {}[{}]",
-                event.getId(), event.getType(), t);
+                event.getId(), event.getType(), throwable);
           }
         });
   }
