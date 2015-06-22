@@ -48,7 +48,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * The CassandraStore that implements the client interface required by TSDB.
+ * An implementation of {@link TsdbStore} that uses Cassandra as the underlying storage backend.
  */
 public class CassandraStore extends TsdbStore {
   /**
@@ -89,10 +89,10 @@ public class CassandraStore extends TsdbStore {
 
 
   /**
-   * If you need a CassandraStore, try to change the config file and use the {@link
-   * net.opentsdb.storage.StoreModule#get()}.
+   * Create a new instance that will use the provided Cassandra cluster and session instances.
    *
-   * @param cluster The configured Cassandra cluster.
+   * @param cluster A built and configured cluster instance
+   * @param session A configured and connected session instance
    */
   public CassandraStore(final Cluster cluster,
                         final Session session) {
