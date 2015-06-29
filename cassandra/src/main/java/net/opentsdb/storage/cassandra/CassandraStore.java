@@ -25,6 +25,7 @@ import net.opentsdb.storage.cassandra.functions.ResultSetToVoid;
 import net.opentsdb.storage.cassandra.statements.AddPointStatements;
 import net.opentsdb.time.JdkTimeProvider;
 import net.opentsdb.uid.IdException;
+import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.TimeseriesId;
