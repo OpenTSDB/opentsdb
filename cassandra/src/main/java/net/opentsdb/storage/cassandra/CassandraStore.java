@@ -1,5 +1,13 @@
 package net.opentsdb.storage.cassandra;
 
+import static com.datastax.driver.core.querybuilder.QueryBuilder.batch;
+import static com.datastax.driver.core.querybuilder.QueryBuilder.bindMarker;
+import static com.datastax.driver.core.querybuilder.QueryBuilder.delete;
+import static com.datastax.driver.core.querybuilder.QueryBuilder.eq;
+import static com.datastax.driver.core.querybuilder.QueryBuilder.insertInto;
+import static com.datastax.driver.core.querybuilder.QueryBuilder.select;
+import static com.datastax.driver.core.querybuilder.QueryBuilder.set;
+import static com.datastax.driver.core.querybuilder.QueryBuilder.update;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.util.concurrent.Futures.transform;
 import static net.opentsdb.storage.cassandra.CassandraConst.CHARSET;
@@ -17,7 +25,6 @@ import net.opentsdb.storage.cassandra.functions.ResultSetToVoid;
 import net.opentsdb.storage.cassandra.statements.AddPointStatements;
 import net.opentsdb.time.JdkTimeProvider;
 import net.opentsdb.uid.IdException;
-import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.TimeseriesId;
@@ -123,30 +130,58 @@ public class CassandraStore extends TsdbStore {
   private void prepareStatements() {
     checkNotNull(session);
 
-    String CQL = "BEGIN BATCH USING TIMESTAMP ?" +
-                 "INSERT INTO tsdb." + Tables.ID_TO_NAME + " (label_id, type, creation_time, name) VALUES (?, ?, ?, ?);" +
-                 "INSERT INTO tsdb." + Tables.NAME_TO_ID + " (name, type, creation_time, label_id) VALUES (?, ?, ?, ?);" +
-                 "APPLY BATCH;";
-    createIdStatement = session.prepare(CQL)
+    createIdStatement = session.prepare(
+        batch(
+            insertInto(Tables.KEYSPACE, Tables.ID_TO_NAME)
+                .value("label_id", bindMarker())
+                .value("type", bindMarker())
+                .value("creation_time", bindMarker())
+                .value("name", bindMarker()),
+            insertInto(Tables.KEYSPACE, Tables.NAME_TO_ID)
+                .value("name", bindMarker())
+                .value("type", bindMarker())
+                .value("creation_time", bindMarker())
+                .value("label_id", bindMarker())))
         .setConsistencyLevel(ConsistencyLevel.ALL);
 
-    CQL = "UPDATE tsdb." + Tables.ID_TO_NAME + " SET name = ? WHERE label_id = ? AND type = ?;";
-    updateUidNameStatement = session.prepare(CQL);
+    updateUidNameStatement = session.prepare(
+        update(Tables.KEYSPACE, Tables.ID_TO_NAME)
+            .with(set("name", bindMarker()))
+            .where(eq("label_id", bindMarker()))
+            .and(eq("type", bindMarker())));
 
-    CQL = "BEGIN BATCH " +
-          "DELETE FROM tsdb." + Tables.NAME_TO_ID + " WHERE name = ? AND type= ? " +
-          "INSERT INTO tsdb." + Tables.NAME_TO_ID + " (name, type, label_id) VALUES (?, ?, ?) " +
-          "APPLY BATCH;";
-    updateNameUidStatement = session.prepare(CQL);
+    updateNameUidStatement = session.prepare(
+        batch(
+            delete()
+                .from(Tables.KEYSPACE, Tables.NAME_TO_ID)
+                .where(eq("name", bindMarker()))
+                .and(eq("type", bindMarker())),
+            insertInto(Tables.KEYSPACE, Tables.NAME_TO_ID)
+                .value("name", bindMarker())
+                .value("type", bindMarker())
+                .value("label_id", bindMarker())));
 
-    CQL = "SELECT * FROM tsdb." + Tables.ID_TO_NAME + " WHERE label_id = ? AND type = ? LIMIT 2;";
-    getNameStatement = session.prepare(CQL);
+    getNameStatement = session.prepare(
+        select()
+            .all()
+            .from(Tables.KEYSPACE, Tables.ID_TO_NAME)
+            .where(eq("label_id", bindMarker()))
+            .and(eq("type", bindMarker()))
+            .limit(2));
 
-    CQL = "SELECT * FROM tsdb." + Tables.NAME_TO_ID + " WHERE name = ? AND type = ? LIMIT 2;";
-    getIdStatement = session.prepare(CQL);
+    getIdStatement = session.prepare(
+        select()
+            .all()
+            .from(Tables.KEYSPACE, Tables.NAME_TO_ID)
+            .where(eq("name", bindMarker()))
+            .and(eq("type", bindMarker()))
+            .limit(2));
 
-    CQL = "INSERT INTO tsdb." + Tables.TS_INVERTED_INDEX + " (label_id, type, timeseries_id) VALUES (?, ?, ?);";
-    insertTagsStatement = session.prepare(CQL);
+    insertTagsStatement = session.prepare(
+        insertInto(Tables.KEYSPACE, Tables.TS_INVERTED_INDEX)
+            .value("label_id", bindMarker())
+            .value("type", bindMarker())
+            .value("timeseries_id", bindMarker()));
   }
 
   public Session getSession() {
