@@ -525,26 +525,18 @@ public class CassandraStore extends TsdbStore {
 
     // Get old name, we do this manually because the other method returns
     // a deferred and we want to avoid to mix deferreds between functions.
-    ResultSetFuture f = session.executeAsync(getNameStatement.bind(
-        toLong(id), type.toValue()));
+    final ResultSetFuture getNameFuture = session.executeAsync(
+        getNameStatement.bind(toLong(id), type.toValue()));
 
-    //CQL = "UPDATE tsdb." + Tables.ID_TO_NAME + " SET name = ? WHERE uid = ? AND type = ?;";
-    final BoundStatement s1 = new BoundStatement(updateUidNameStatement)
-        .bind(name, toLong(id), type.toValue());
-
-    return transform(f, new Function<ResultSet, LabelId>() {
+    return transform(getNameFuture, new Function<ResultSet, LabelId>() {
       @Override
       public LabelId apply(@Nullable final ResultSet rows) {
-        final String old_name = rows.one().getString("name");
-        session.executeAsync(s1);
-        BoundStatement s = new BoundStatement(updateNameUidStatement);
-        // CQL =
-        // BEGIN BATCH
-        // DELETE FROM tsdb.name_to_id WHERE name = ? AND type = ?
-        // INSERT INTO tsdb.name_to_id (name, type, uid) VALUES (?, ?, ?)
-        // APPLY BATCH;
-        session.executeAsync(s.bind(old_name, type.toValue(),
-            name, type.toValue(), toLong(id)));
+        final String oldName = rows.one().getString("name");
+
+        session.executeAsync(updateUidNameStatement.bind(name, toLong(id), type.toValue()));
+        session.executeAsync(
+            updateNameUidStatement.bind(oldName, type.toValue(), name, type.toValue(), toLong(id)));
+
         //TODO (zeeck) maybe check if this was ok
         return id;
       }
