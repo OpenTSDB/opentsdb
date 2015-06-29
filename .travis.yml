@@ -1,6 +1,6 @@
 language: java
 before_script: ./gradlew testClasses
-script: ./gradlew checkstyleMain checkstyleTest
+script: ./gradlew checkstyleMain checkstyleTest checkstyleJmh
 jdk:
   - oraclejdk7
 notifications:
