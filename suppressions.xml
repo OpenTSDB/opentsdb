@@ -20,4 +20,8 @@
   <suppress checks="." files="SearchQuery.java$" />
   <suppress checks="." files="Span.java$" />
   <suppress checks="." files="TSSubQuery.java$" />
+
+  <suppress checks="." files="SeekableViewsForTest.java$" />
+  <suppress checks="." files="TestDateTime.java$" />
+  <suppress checks="." files="TestDownsampler.java$" />
 </suppressions>
