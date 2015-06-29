@@ -190,8 +190,7 @@ public class TestPair {
 
     assertEquals("{\"key\":\"host\",\"value\":\"web01\"}", json);
 
-    final Pair<String, String> des = jsonMapper.reader(Pair.class).readValue
-        (json);
+    final Pair<String, String> des = jsonMapper.reader(Pair.class).readValue(json);
 
     assertEquals("host", des.getKey());
     assertEquals("web01", des.getValue());
@@ -204,8 +203,7 @@ public class TestPair {
     final String json = jsonMapper.writeValueAsString(ser);
     assertEquals("{\"key\":null,\"value\":null}", json);
 
-    final Pair<String, String> des = jsonMapper.reader(Pair.class).readValue
-        (json);
+    final Pair<String, String> des = jsonMapper.reader(Pair.class).readValue(json);
     assertNull(des.getKey());
     assertNull(des.getValue());
   }
@@ -219,8 +217,8 @@ public class TestPair {
     ObjectMapper jsonMapper = new ObjectMapper();
 
     final String json = jsonMapper.writeValueAsString(ser);
-    assertEquals("[{\"key\":\"host\",\"value\":\"web01\"}," +
-                 "{\"key\":null,\"value\":\"keyisnull\"}]", json);
+    assertEquals("[{\"key\":\"host\",\"value\":\"web01\"},"
+                 + "{\"key\":null,\"value\":\"keyisnull\"}]", json);
 
     final List<Pair<String, String>> des = jsonMapper.readValue(json, new
         TypeReference<List<Pair<String, String>>>() {

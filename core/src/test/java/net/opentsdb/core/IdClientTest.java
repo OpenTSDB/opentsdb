@@ -97,33 +97,33 @@ public class IdClientTest {
   }
 
   @Test(expected = NoSuchUniqueId.class)
-  public void getTagNamesNSUI() throws Exception {
+  public void getTagNamesNoSuchId() throws Exception {
     ImmutableList<LabelId> ids = ImmutableList.of(mock(LabelId.class), mock(LabelId.class));
     idClient.getTagNames(ids).get();
   }
 
   @Test
-  public void getUID() throws Exception {
+  public void getLabelId() throws Exception {
     assertEquals(sysCpu0, idClient.getLabelId(METRIC, "sys.cpu.0").get());
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void getUIDEmptyName() {
+  public void getLabelIdEmptyName() {
     idClient.getLabelId(TAGV, "");
   }
 
   @Test(expected = NoSuchUniqueName.class)
-  public void getUIDNSU() throws Exception {
+  public void getLabelIdNoSuchName() throws Exception {
     idClient.getLabelId(METRIC, "sys.cpu.2").get();
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void getUIDNullName() {
+  public void getLabelIdNullName() {
     idClient.getLabelId(TAGV, null);
   }
 
   @Test(expected = NullPointerException.class)
-  public void getUIDNullType() {
+  public void getLabelIdNullType() {
     idClient.getLabelId(null, "sys.cpu.1");
   }
 
@@ -133,7 +133,7 @@ public class IdClientTest {
   }
 
   @Test(expected = NoSuchUniqueId.class)
-  public void getUidNameNSU() throws Exception {
+  public void getLabelNameNoSuchId() throws Exception {
     idClient.getLabelName(TAGV, mock(LabelId.class)).get();
   }
 
@@ -143,7 +143,7 @@ public class IdClientTest {
   }
 
   @Test(expected = NullPointerException.class)
-  public void getUidNameNullUID() throws Exception {
+  public void getLabelNameNullId() throws Exception {
     idClient.getLabelName(TAGV, null);
   }
 

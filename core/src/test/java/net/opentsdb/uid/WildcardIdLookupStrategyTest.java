@@ -5,8 +5,8 @@ import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
 
 import net.opentsdb.TestModuleMemoryStore;
-import net.opentsdb.utils.TestUtil;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.utils.TestUtil;
 
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.eventbus.EventBus;

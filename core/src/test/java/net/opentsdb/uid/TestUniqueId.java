@@ -6,8 +6,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import net.opentsdb.TestModule;
-import net.opentsdb.utils.TestUtil;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.utils.TestUtil;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.MetricRegistry;

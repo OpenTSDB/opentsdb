@@ -72,8 +72,9 @@ public class LabelMetaMixInTest {
   @Test(expected = UnrecognizedPropertyException.class)
   public void deserializeUnknownField() throws Exception {
     final String jsonWithUnknown = "{\"identifier\":\"d2576c75-8825-4ec2-8d93-311423c05c98\","
-                        + "\"type\":\"METRIC\",\"name\":\"sys.cpu.0\","
-                        + "\"description\":\"Description\",\"created\":1328140801,\"unknown\":null}";
+                                   + "\"type\":\"METRIC\",\"name\":\"sys.cpu.0\","
+                                   + "\"description\":\"Description\",\"created\":1328140801,"
+                                   + "\"unknown\":null}";
 
     jsonMapper.reader(LabelMeta.class)
         .readValue(jsonWithUnknown);

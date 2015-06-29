@@ -11,14 +11,14 @@ import net.opentsdb.uid.UniqueIdType;
 import org.junit.Test;
 
 public final class LabelMetaTest {
-  private final LabelId VALID_UID = mock(LabelId.class);
-  private final UniqueIdType VALID_TYPE = METRIC;
-  private final String VALID_NAME = "valid_name";
-  private final String VALID_DESCRIPTION = "valid_description";
-  private final long VALID_CREATED = 100;
+  private static final LabelId VALID_UID = mock(LabelId.class);
+  private static final UniqueIdType VALID_TYPE = METRIC;
+  private static final String VALID_NAME = "valid_name";
+  private static final String VALID_DESCRIPTION = "valid_description";
+  private static final long VALID_CREATED = 100L;
 
   @Test(expected = NullPointerException.class)
-  public void testCtorNoUID() {
+  public void testCtorNullId() {
     LabelMeta.create(null, VALID_TYPE, VALID_NAME, VALID_DESCRIPTION, VALID_CREATED);
   }
 

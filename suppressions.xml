@@ -5,8 +5,16 @@
     "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
 
 <suppressions>
+  <!-- Ignore generated sources -->
   <suppress checks="." files="(all|cassandra|core|idmanager[\\/]assign|web)[\\/]build" />
+
+  <!--
+  Allow no empty line between package statement and the ParametersAreNonnullByDefault annotation
+  -->
   <suppress checks="EmptyLineSeparator" files="package-info.java$" />
+
+  <!-- Don't require javadocs for test methods -->
+  <suppress checks="JavadocMethod" files="(all|cassandra|core|idmanager[\\/]assign|web)[\\/]src[\\/]test" />
 
   <!--
   Supres legacy files that hasn't been rewritten or updated yet.

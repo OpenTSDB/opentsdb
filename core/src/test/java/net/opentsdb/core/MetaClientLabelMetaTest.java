@@ -7,9 +7,9 @@ import net.opentsdb.TestModule;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.plugins.RealTimePublisher;
 import net.opentsdb.search.SearchPlugin;
-import net.opentsdb.utils.TestUtil;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.LabelId;
+import net.opentsdb.utils.TestUtil;
 
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
@@ -55,7 +55,7 @@ public class MetaClientLabelMetaTest {
   }
 
   @Test
-  public void getUIDMeta() throws Exception {
+  public void getLabelMeta() throws Exception {
     final LabelMeta meta = metaClient.getLabelMeta(METRIC, sysCpu2).get();
     assertEquals(METRIC, meta.type());
     assertEquals("sys.cpu.2", meta.name());

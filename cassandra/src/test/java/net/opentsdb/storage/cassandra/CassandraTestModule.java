@@ -18,11 +18,12 @@ import javax.inject.Singleton;
  * @see net.opentsdb.core.TsdbModule
  * @see net.opentsdb.TestModule
  */
-@Module(includes = {
-    CoreModule.class,
-    PluginsModule.class,
-    StoreModule.class
-},
+@Module(
+    includes = {
+        CoreModule.class,
+        PluginsModule.class,
+        StoreModule.class
+    },
     injects = {
         TestCassandraStore.class
     })

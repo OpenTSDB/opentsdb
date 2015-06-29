@@ -1,9 +1,9 @@
 package net.opentsdb;
 
 import net.opentsdb.core.CoreModule;
+import net.opentsdb.core.IdClientTest;
 import net.opentsdb.core.MetaClientAnnotationTest;
 import net.opentsdb.core.MetaClientLabelMetaTest;
-import net.opentsdb.core.IdClientTest;
 import net.opentsdb.plugins.PluginsModule;
 import net.opentsdb.storage.StoreModule;
 import net.opentsdb.storage.StoreModuleTest;
@@ -30,11 +30,12 @@ import javax.inject.Singleton;
  *
  * @see net.opentsdb.TestModuleMemoryStore
  */
-@Module(includes = {
-    CoreModule.class,
-    PluginsModule.class,
-    StoreModule.class
-},
+@Module(
+    includes = {
+        CoreModule.class,
+        PluginsModule.class,
+        StoreModule.class
+    },
     injects = {
         MetaClientAnnotationTest.class,
         MetaClientLabelMetaTest.class,

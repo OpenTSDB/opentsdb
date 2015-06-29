@@ -51,19 +51,19 @@ import javax.annotation.Nullable;
 public class MemoryStore extends TsdbStore {
   private static final Charset ASCII = Charsets.ISO_8859_1;
 
-  private final Table<LabelId, String, LabelMeta> uid_table;
+  private final Table<LabelId, String, LabelMeta> labelMetas;
   private final Table<TimeSeriesKey, Long, Annotation> annotations;
 
   private final Map<TimeseriesId, NavigableMap<Long, Number>> datapoints;
 
-  private final Table<String, UniqueIdType, LabelId> uid_forward_mapping;
-  private final Table<LabelId, UniqueIdType, String> uid_reverse_mapping;
+  private final Table<String, UniqueIdType, LabelId> identifierForward;
+  private final Table<LabelId, UniqueIdType, String> identifierReverse;
 
   public MemoryStore() {
-    uid_table = HashBasedTable.create();
+    labelMetas = HashBasedTable.create();
     annotations = HashBasedTable.create();
-    uid_forward_mapping = HashBasedTable.create();
-    uid_reverse_mapping = HashBasedTable.create();
+    identifierForward = HashBasedTable.create();
+    identifierReverse = HashBasedTable.create();
     datapoints = Maps.newHashMap();
   }
 
@@ -119,7 +119,7 @@ public class MemoryStore extends TsdbStore {
   @Override
   public ListenableFuture<Optional<LabelId>> getId(String name,
                                                    UniqueIdType type) {
-    LabelId id = uid_forward_mapping.get(name, type);
+    LabelId id = identifierForward.get(name, type);
     return Futures.immediateFuture(Optional.fromNullable(id));
   }
 
@@ -127,7 +127,7 @@ public class MemoryStore extends TsdbStore {
   @Override
   public ListenableFuture<Optional<String>> getName(final LabelId id,
                                                     final UniqueIdType type) {
-    final String name = uid_reverse_mapping.get(id, type);
+    final String name = identifierReverse.get(id, type);
     return Futures.immediateFuture(Optional.fromNullable(name));
   }
 
@@ -136,14 +136,14 @@ public class MemoryStore extends TsdbStore {
   public ListenableFuture<LabelMeta> getMeta(final LabelId uid,
                                              final UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
-    final LabelMeta meta = uid_table.get(uid, qualifier);
+    final LabelMeta meta = labelMetas.get(uid, qualifier);
     return Futures.immediateFuture(meta);
   }
 
   @Nonnull
   @Override
   public ListenableFuture<Boolean> updateMeta(final LabelMeta meta) {
-    uid_table.put(
+    labelMetas.put(
         meta.identifier(),
         meta.type().toString().toLowerCase() + "_meta",
         meta);
@@ -171,7 +171,7 @@ public class MemoryStore extends TsdbStore {
     do {
       id = new MemoryLabelId();
       // Make sure the new id is unique
-    } while (uid_reverse_mapping.containsRow(id));
+    } while (identifierReverse.containsRow(id));
 
     return allocateLabel(name, id, type);
   }
@@ -181,17 +181,17 @@ public class MemoryStore extends TsdbStore {
   public ListenableFuture<LabelId> allocateLabel(final String name,
                                                  final LabelId id,
                                                  final UniqueIdType type) {
-    if (uid_reverse_mapping.contains(id, type)) {
+    if (identifierReverse.contains(id, type)) {
       throw new IllegalArgumentException("An ID with " + id + " already exists");
     }
 
-    uid_reverse_mapping.put(id, type, name);
+    identifierReverse.put(id, type, name);
 
-    if (uid_forward_mapping.contains(name, type)) {
-      return Futures.immediateFuture(uid_forward_mapping.get(name, type));
+    if (identifierForward.contains(name, type)) {
+      return Futures.immediateFuture(identifierForward.get(name, type));
     }
 
-    uid_forward_mapping.put(name, type, id);
+    identifierForward.put(name, type, id);
 
     return Futures.immediateFuture(id);
   }
@@ -249,7 +249,6 @@ public class MemoryStore extends TsdbStore {
    * Finds all the {@link net.opentsdb.core.Span}s that match this query. This is what actually
    * scans the HBase table and loads the data into {@link net.opentsdb.core.Span}s.
    *
-   * @param query
    * @return A map from HBase row key to the {@link net.opentsdb.core.Span} for that row key. Since
    * a {@link net.opentsdb.core.Span} actually contains multiple HBase rows, the row key stored in
    * the map has its timestamp zero'ed out.
@@ -278,9 +277,9 @@ public class MemoryStore extends TsdbStore {
 
     final List<IdentifierDecorator> result = new ArrayList<>();
 
-    for (final Table.Cell<String, UniqueIdType, LabelId> cell : uid_forward_mapping.cellSet()) {
-      if (typeMatchFunction.apply(cell.getColumnKey()) &&
-          nameMatchFunction.apply(cell.getRowKey())) {
+    for (final Table.Cell<String, UniqueIdType, LabelId> cell : identifierForward.cellSet()) {
+      if (typeMatchFunction.apply(cell.getColumnKey())
+          && nameMatchFunction.apply(cell.getRowKey())) {
         result.add(new IdentifierDecorator() {
           @Override
           public LabelId getId() {

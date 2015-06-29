@@ -12,9 +12,9 @@ import org.junit.Test;
 public class StopTimerCallbackTest {
   @Test
   public void testStopOnCallsStopOnTimer() throws Exception {
-    ListenableFuture<Object> f = Futures.immediateFuture(null);
+    ListenableFuture<Object> future = Futures.immediateFuture(null);
     Timer.Context timerContext = mock(Timer.Context.class);
-    StopTimerCallback.stopOn(timerContext, f);
+    StopTimerCallback.stopOn(timerContext, future);
     verify(timerContext, times(1)).stop();
   }
 }

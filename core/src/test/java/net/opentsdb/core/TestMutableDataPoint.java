@@ -56,16 +56,16 @@ public class TestMutableDataPoint {
 
   @Test
   public void testReset() {
-    MutableDataPoint dp_foo = new MutableDataPoint();
-    dp_foo.reset(19L, 1717171L);
+    MutableDataPoint dpFoo = new MutableDataPoint();
+    dpFoo.reset(19L, 1717171L);
     MutableDataPoint dp = new MutableDataPoint();
-    dp.reset(dp_foo);
+    dp.reset(dpFoo);
     assertTrue(dp.isInteger());
     assertEquals(1717171L, dp.longValue());
     assertEquals(19L, dp.timestamp());
     assertEquals(1717171L, dp.toDouble(), 0);
-    dp_foo.reset(17L, 0.1717);
-    dp.reset(dp_foo);
+    dpFoo.reset(17L, 0.1717);
+    dp.reset(dpFoo);
     assertFalse(dp.isInteger());
     assertEquals(0.1717, dp.doubleValue(), 0);
     assertEquals(17L, dp.timestamp());
