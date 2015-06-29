@@ -4,7 +4,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-public class UniqueIdTypeTest {
+public class IdClientTypeContextTypeTest {
   @Test
   public void stringToUniqueIdTypeMetric() throws Exception {
     assertEquals(UniqueIdType.METRIC, UniqueIdType.fromValue("Metric"));

@@ -33,8 +33,8 @@ import javax.annotation.Nullable;
  *
  * <p>Don't attempt to use {@code equals()} or {@code hashCode()} on this class.
  */
-public class UniqueId {
-  private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
+public class IdClientTypeContext {
+  private static final Logger LOG = LoggerFactory.getLogger(IdClientTypeContext.class);
 
   /** The TsdbStore to use. */
   private final TsdbStore store;
@@ -69,10 +69,10 @@ public class UniqueId {
    * @param metrics The metric registry to register metrics on
    * @param idEventBus The event bus where to publish ID events
    */
-  public UniqueId(final TsdbStore store,
-                  final UniqueIdType type,
-                  final MetricRegistry metrics,
-                  final EventBus idEventBus) {
+  public IdClientTypeContext(final TsdbStore store,
+                             final UniqueIdType type,
+                             final MetricRegistry metrics,
+                             final EventBus idEventBus) {
     this.store = checkNotNull(store);
     this.type = checkNotNull(type);
     this.idEventBus = checkNotNull(idEventBus);
@@ -162,7 +162,7 @@ public class UniqueId {
   }
 
   /**
-   * Fetch the label ID behind the provided name and the type associated with this UniqueId
+   * Fetch the label ID behind the provided name and the type associated with this IdClientTypeContext
    * instance.
    *
    * @param name The name to lookup the ID behind

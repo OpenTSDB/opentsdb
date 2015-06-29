@@ -22,7 +22,7 @@ public class WildcardIdLookupStrategyTest {
   @Inject MetricRegistry metricRegistry;
   @Inject EventBus eventBus;
 
-  private UniqueId uid;
+  private IdClientTypeContext uid;
   private IdLookupStrategy lookupStrategy;
 
   @Rule
@@ -32,7 +32,7 @@ public class WildcardIdLookupStrategyTest {
   public void setUp() throws IOException {
     DaggerTestComponent.create().inject(this);
 
-    uid = new UniqueId(client, UniqueIdType.METRIC, metricRegistry, eventBus);
+    uid = new IdClientTypeContext(client, UniqueIdType.METRIC, metricRegistry, eventBus);
     lookupStrategy = new IdLookupStrategy.WildcardIdLookupStrategy();
   }
 
