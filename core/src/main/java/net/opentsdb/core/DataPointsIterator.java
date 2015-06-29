@@ -15,7 +15,9 @@ package net.opentsdb.core;
 
 import java.util.NoSuchElementException;
 
-/** Default iterator for simple implementations of {@link DataPoints}. */
+/**
+ * Default iterator for simple implementations of {@link DataPoints}.
+ */
 final class DataPointsIterator implements SeekableView, DataPoint {
 
   /** Instance to iterate on. */

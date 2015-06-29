@@ -40,9 +40,7 @@ public abstract class Pair<K, V> {
     return new AutoValue_Pair<>(key, value);
   }
 
-  /** @return The stored key/left value, may be null */
   public abstract K getKey();
 
-  /** @return The stored value/right value, may be null */
   public abstract V getValue();
 }

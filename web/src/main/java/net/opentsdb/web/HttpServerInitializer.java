@@ -22,10 +22,10 @@ public class HttpServerInitializer extends ChannelInitializer<SocketChannel> {
   private final ExceptionHandler exceptionHandler;
   private final CorsConfig corsConfig;
 
-  public HttpServerInitializer(final Map<String, Resource> resources,
-                               final Resource defaultResource,
-                               final CorsConfig corsConfig,
-                               final int maxContentLength) {
+  HttpServerInitializer(final Map<String, Resource> resources,
+                        final Resource defaultResource,
+                        final CorsConfig corsConfig,
+                        final int maxContentLength) {
     this.routerHandler = new HttpRouterHandler(resources, defaultResource);
     this.exceptionHandler = new ExceptionHandler();
     this.maxContentLength = maxContentLength;

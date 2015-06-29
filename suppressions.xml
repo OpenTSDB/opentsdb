@@ -7,4 +7,17 @@
 <suppressions>
   <suppress checks="." files="(all|cassandra|core|idmanager[\\/]assign|web)[\\/]build" />
   <suppress checks="EmptyLineSeparator" files="package-info.java$" />
+
+  <!--
+  Supres legacy files that hasn't been rewritten or updated yet.
+  -->
+  <suppress checks="." files="AggregationIterator.java$" />
+  <suppress checks="." files="Aggregators.java$" />
+  <suppress checks="." files="DataPoints.java$" />
+  <suppress checks="." files="MoreLongs.java$" />
+  <suppress checks="." files="RateOptions.java$" />
+  <suppress checks="." files="RateSpan.java$" />
+  <suppress checks="." files="SearchQuery.java$" />
+  <suppress checks="." files="Span.java$" />
+  <suppress checks="." files="TSSubQuery.java$" />
 </suppressions>

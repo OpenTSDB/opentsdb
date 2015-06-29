@@ -14,6 +14,8 @@
 package net.opentsdb.core;
 
 
+import com.google.common.base.MoreObjects;
+
 /**
  * A mutable {@link DataPoint} that stores a value and a timestamp.
  */
@@ -25,7 +27,10 @@ public final class MutableDataPoint implements DataPoint {
   private long timestamp = Long.MAX_VALUE;
   /** True if the value is stored as a long. */
   private boolean isInteger = true;
-  /** A long value or a double encoded on a long if {@code isInteger} is false. */
+
+  /**
+   * A long value or a double encoded on a long if {@code isInteger} is false.
+   */
   private long value = 0;
 
   /**
@@ -129,7 +134,10 @@ public final class MutableDataPoint implements DataPoint {
 
   @Override
   public String toString() {
-    return "MutableDataPoint(timestamp=" + timestamp + ", isInteger=" + isInteger + ", value=" +
-           (isInteger ? value : Double.longBitsToDouble(value)) + ')';
+    return MoreObjects.toStringHelper(this)
+        .add("timestamp", timestamp)
+        .add("isInteger", isInteger)
+        .add("value", isInteger ? value : Double.longBitsToDouble(value))
+        .toString();
   }
 }

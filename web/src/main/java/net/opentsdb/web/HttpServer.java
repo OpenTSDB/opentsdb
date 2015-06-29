@@ -23,6 +23,12 @@ public final class HttpServer extends CommandLineApplication {
     super("web", "[OPTIONS]", "Start the REST API server", optionParser);
   }
 
+  /**
+   * Entry-point for the http server application. The assign program is normally not executed
+   * directly but rather through the main project.
+   *
+   * @param args The command-line arguments
+   */
   public static void main(String[] args) {
     final OptionParser optionParser = new OptionParser();
     final HttpServer application = new HttpServer(optionParser);

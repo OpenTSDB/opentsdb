@@ -1,7 +1,7 @@
 
 apply plugin: 'application'
 
-mainClassName = "net.opentsdb.TSDB"
+mainClassName = "net.opentsdb.Main"
 applicationName = "tsdb"
 applicationDefaultJvmArgs = [ "-server", "-XX:+UseG1GC", "-XX:+AggressiveOpts", "-XX:+UseFastAccessorMethods" ]
 

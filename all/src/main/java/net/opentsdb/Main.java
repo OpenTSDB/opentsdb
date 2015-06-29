@@ -6,7 +6,14 @@ import net.opentsdb.web.HttpServer;
 
 import java.util.Arrays;
 
-public class TSDB {
+public class Main {
+  /**
+   * The main entry-point of the project. This provides a git-like command line interface where
+   * sub-commands delegate to more specific programs based on the first argument on the command
+   * line.
+   *
+   * @param args The command-line arguments
+   */
   public static void main(final String[] args) {
     KillingUncaughtHandler.install();
 

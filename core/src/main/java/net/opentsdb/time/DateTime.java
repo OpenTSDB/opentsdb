@@ -120,7 +120,8 @@ public class DateTime {
           if (datetime.charAt(10) != '.' || datetime.length() != 14) {
             throw new IllegalArgumentException("Invalid time: " + datetime
                                                + ". Millisecond timestamps must be in the format "
-                                               + "<seconds>.<ms> where the milliseconds are limited to 3 digits");
+                                               + "<seconds>.<ms> where the milliseconds are limited"
+                                               + " to 3 digits");
           }
           time = MoreLongs.parseLong(datetime.replace(".", ""));
         } else {
@@ -157,7 +158,6 @@ public class DateTime {
   public static long parseDuration(final String duration) {
     long interval;
     long multiplier;
-    double temp;
     int unit = 0;
     while (Character.isDigit(duration.charAt(unit))) {
       unit++;
@@ -198,6 +198,7 @@ public class DateTime {
       default:
         throw new IllegalArgumentException("Invalid duration (suffix): " + duration);
     }
+    double temp;
     multiplier *= 1000;
     temp = (double) interval * multiplier;
     if (temp > Long.MAX_VALUE) {

@@ -5,7 +5,9 @@ import java.net.URL;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 
-/** Build data for {@code net.opentsdb} */
+/**
+ * Build data for {@code net.opentsdb}
+ */
 public final class BuildData {
   private static Attributes sharedInstance;
 

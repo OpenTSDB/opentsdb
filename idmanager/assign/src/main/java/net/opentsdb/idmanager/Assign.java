@@ -71,6 +71,12 @@ public final class Assign {
     System.err.println("Try 'tsdb id assign --help' for more information");
   }
 
+  /**
+   * Entry-point for the assign application. The assign program is normally not executed directly
+   * but rather through the main project.
+   *
+   * @param args The command-line arguments
+   */
   public static void main(final String[] args) {
     OptionParser parser = new OptionParser();
 

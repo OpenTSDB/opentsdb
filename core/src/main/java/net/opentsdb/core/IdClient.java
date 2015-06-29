@@ -68,6 +68,9 @@ public class IdClient {
 
   private final Timer tsuidQueryTimer;
 
+  /**
+   * Create a new instance using the given non-null arguments to configure itself.
+   */
   @Inject
   public IdClient(final TsdbStore store,
                   final Config config,
@@ -165,7 +168,7 @@ public class IdClient {
    *
    * @param tags The IDs of the tag keys and values to resolve
    * @return A map with the names of the tags
-   * @throws NoSuchUniqueId
+   * @throws NoSuchUniqueId if the ID was not allocated
    */
   @Nonnull
   public ListenableFuture<Map<String, String>> getTagNames(final List<LabelId> tags)
@@ -298,10 +301,10 @@ public class IdClient {
     final ListenableFuture<LabelId> metric_id = metricLookupStrategy.getId(metrics, metric);
 
     // Copy the metric ID at the beginning of the row key.
-    class CopyMetricInRowKeyCB implements Function<LabelId, TimeseriesId> {
+    class CopyMetricInRowKeyCb implements Function<LabelId, TimeseriesId> {
       private final List<LabelId> tagIds;
 
-      public CopyMetricInRowKeyCB(final List<LabelId> tagIds) {
+      public CopyMetricInRowKeyCb(final List<LabelId> tagIds) {
         this.tagIds = tagIds;
       }
 
@@ -312,18 +315,18 @@ public class IdClient {
     }
 
     // Copy the tag IDs in the row key.
-    class CopyTagsInRowKeyCB implements AsyncFunction<List<LabelId>, TimeseriesId> {
+    class CopyTagsInRowKeyCb implements AsyncFunction<List<LabelId>, TimeseriesId> {
       @Override
       public ListenableFuture<TimeseriesId> apply(final List<LabelId> tags) {
         // Once we've resolved all the tags, schedule the copy of the metric
         // ID and return the row key we produced.
-        return transform(metric_id, new CopyMetricInRowKeyCB(tags));
+        return transform(metric_id, new CopyMetricInRowKeyCb(tags));
       }
     }
 
     // Kick off the resolution of all tags.
     return transform(getTagIds(tags, tagKeyLookupStrategy, tagValueLookupStrategy),
-        new CopyTagsInRowKeyCB());
+        new CopyTagsInRowKeyCb());
   }
 
   /**
@@ -374,7 +377,8 @@ public class IdClient {
             new Function<SortedSet<Pair<LabelId, LabelId>>, ResolvedSearchQuery>() {
               @Nullable
               @Override
-              public ResolvedSearchQuery apply(@Nullable final SortedSet<Pair<LabelId, LabelId>> tagIds) {
+              public ResolvedSearchQuery apply(
+                  @Nullable final SortedSet<Pair<LabelId, LabelId>> tagIds) {
                 return new ResolvedSearchQuery(metricId, tagIds);
               }
             });
@@ -382,7 +386,8 @@ public class IdClient {
     });
   }
 
-  private ListenableFuture<SortedSet<Pair<LabelId, LabelId>>> resolveTags(final List<Pair<String, String>> tags) {
+  private ListenableFuture<SortedSet<Pair<LabelId, LabelId>>> resolveTags(
+      final List<Pair<String, String>> tags) {
     if (tags != null && !tags.isEmpty()) {
       final IdLookupStrategy lookupStrategy = WildcardIdLookupStrategy.instance;
       final List<ListenableFuture<Pair<LabelId, LabelId>>> pairs = new ArrayList<>(tags.size());
@@ -406,7 +411,8 @@ public class IdClient {
       implements Function<List<Pair<LabelId, LabelId>>, SortedSet<Pair<LabelId, LabelId>>> {
     @Nullable
     @Override
-    public SortedSet<Pair<LabelId, LabelId>> apply(@Nullable final List<Pair<LabelId, LabelId>> tags) {
+    public SortedSet<Pair<LabelId, LabelId>> apply(
+        @Nullable final List<Pair<LabelId, LabelId>> tags) {
       return ImmutableSortedSet.copyOf(tags);
     }
   }
