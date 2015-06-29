@@ -5,14 +5,13 @@ import net.opentsdb.core.IdClientTest;
 import net.opentsdb.core.MetaClientAnnotationTest;
 import net.opentsdb.core.MetaClientLabelMetaTest;
 import net.opentsdb.plugins.PluginsModule;
+import net.opentsdb.search.IdChangeIndexerListenerTest;
 import net.opentsdb.storage.StoreModule;
 import net.opentsdb.storage.StoreModuleTest;
 import net.opentsdb.uid.TestUniqueId;
+import net.opentsdb.uid.WildcardIdLookupStrategyTest;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import dagger.Module;
-import dagger.Provides;
+import dagger.Component;
 
 import javax.inject.Singleton;
 
@@ -27,36 +26,26 @@ import javax.inject.Singleton;
  * detail is important as we want to test a general {@link net.opentsdb.storage.TsdbStore}
  * implementation and not the behavior of the {@link net.opentsdb.storage.MemoryStore}. Because of
  * this tests should always strive to use this module as a base.
- *
- * @see net.opentsdb.TestModuleMemoryStore
  */
-@Module(
-    includes = {
+@Component(
+    modules = {
         CoreModule.class,
         PluginsModule.class,
         StoreModule.class
-    },
-    injects = {
-        MetaClientAnnotationTest.class,
-        MetaClientLabelMetaTest.class,
-        IdClientTest.class,
-        StoreModuleTest.class,
-        TestUniqueId.class
     })
-public class TestModule {
-  private final Config config;
+@Singleton
+public interface TestComponent {
+  void inject(MetaClientLabelMetaTest metaClientLabelMetaTest);
 
-  public TestModule(final Config overrides) {
-    this.config = overrides.withFallback(ConfigFactory.load());
-  }
+  void inject(StoreModuleTest storeModuleTest);
 
-  public TestModule() {
-    this.config = ConfigFactory.load();
-  }
+  void inject(TestUniqueId testUniqueId);
 
-  @Provides
-  @Singleton
-  Config provideConfig() {
-    return config;
-  }
+  void inject(IdClientTest idClientTest);
+
+  void inject(MetaClientAnnotationTest metaClientAnnotationTest);
+
+  void inject(IdChangeIndexerListenerTest idChangeIndexerListenerTest);
+
+  void inject(WildcardIdLookupStrategyTest wildcardIdLookupStrategyTest);
 }

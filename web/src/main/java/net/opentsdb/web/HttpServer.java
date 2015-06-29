@@ -1,11 +1,11 @@
 package net.opentsdb.web;
 
+import net.opentsdb.core.CoreModule;
 import net.opentsdb.utils.EventLoopGroups;
 import net.opentsdb.utils.InvalidConfigException;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
-import dagger.ObjectGraph;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelOption;
@@ -43,9 +43,12 @@ public final class HttpServer extends CommandLineApplication {
       configureLogger(options.valueOf(application.getLoggerConfigSpec()));
 
       final File configFile = options.valueOf(application.getConfigSpec());
-      final ObjectGraph objectGraph = ObjectGraph.create(new HttpModule(configFile));
 
-      final Config config = objectGraph.get(Config.class);
+      HttpServerComponent httpServerComponent = DaggerHttpServerComponent.builder()
+          .coreModule(new CoreModule(configFile))
+          .build();
+
+      final Config config = httpServerComponent.config();
 
       final EventLoopGroup bossGroup = EventLoopGroups.sharedBossGroup(
           config.getInt("tsdb.web.threads.boss_group"));
@@ -62,7 +65,7 @@ public final class HttpServer extends CommandLineApplication {
             .group(bossGroup, workerGroup)
             .channel(EpollServerSocketChannel.class)
             .handler(new LoggingHandler())
-            .childHandler(objectGraph.get(HttpServerInitializer.class));
+            .childHandler(httpServerComponent.httpServerInitializer());
 
         b.bind(config.getInt("tsdb.web.port")).sync().channel().closeFuture().sync();
       } finally {

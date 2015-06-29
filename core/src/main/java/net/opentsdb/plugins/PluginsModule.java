@@ -11,8 +11,7 @@ import dagger.Provides;
 
 import javax.inject.Singleton;
 
-@Module(complete = false,
-    library = true)
+@Module
 public class PluginsModule {
   @Provides
   @Singleton

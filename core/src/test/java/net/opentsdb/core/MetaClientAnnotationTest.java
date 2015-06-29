@@ -6,7 +6,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import net.opentsdb.TestModule;
+import net.opentsdb.DaggerTestComponent;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.AnnotationFixtures;
 import net.opentsdb.storage.TsdbStore;
@@ -14,7 +14,6 @@ import net.opentsdb.uid.LabelId;
 import net.opentsdb.utils.TestUtil;
 
 import com.google.common.collect.ImmutableMap;
-import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -28,7 +27,7 @@ public class MetaClientAnnotationTest {
 
   @Before
   public void before() throws Exception {
-    ObjectGraph.create(new TestModule()).inject(this);
+    DaggerTestComponent.create().inject(this);
 
     annotation = AnnotationFixtures.provideAnnotation();
     store.updateAnnotation(annotation).get();

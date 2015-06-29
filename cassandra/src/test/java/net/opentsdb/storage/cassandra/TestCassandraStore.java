@@ -9,6 +9,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
+import net.opentsdb.core.CoreModule;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
 
@@ -17,7 +18,7 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
-import dagger.ObjectGraph;
+import com.typesafe.config.ConfigFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -27,7 +28,6 @@ import org.junit.rules.Timeout;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import javax.inject.Inject;
 
 public class TestCassandraStore {
   private static final String METRIC_NAME_ONE = "sys";
@@ -35,10 +35,12 @@ public class TestCassandraStore {
   private static final String METRIC_NAME_THREE = "cpu1";
   private static final String TAGK_NAME_ONE = "host";
   private static final String TAGV_NAME_ONE = "127.0.0.1";
+
   private static LabelId TAGK_UID_ONE;
   private static LabelId TAGV_UID_ONE;
-  @Inject Config config;
-  @Inject CassandraStoreDescriptor storeDescriptor;
+
+  private Config config;
+  private CassandraStoreDescriptor storeDescriptor;
   private CassandraStore store;
   private Map<String, LabelId> nameUid = new HashMap<>();
 
@@ -47,9 +49,13 @@ public class TestCassandraStore {
 
   @Before
   public void setUp() throws Exception {
-    ObjectGraph.create(new CassandraTestModule()).inject(this);
+    final CassandraTestComponent cassandraTestComponent = DaggerCassandraTestComponent.builder()
+        .coreModule(new CoreModule(ConfigFactory.load("cassandra")))
+        .build();
 
-    store = new CassandraStoreDescriptor().createStore(config, new MetricRegistry());
+    config = cassandraTestComponent.config();
+    storeDescriptor = (CassandraStoreDescriptor) cassandraTestComponent.storeDescriptor();
+    store = storeDescriptor.createStore(config, new MetricRegistry());
 
     nameUid.put(METRIC_NAME_ONE, store.allocateLabel(
         METRIC_NAME_ONE, UniqueIdType.METRIC).get());

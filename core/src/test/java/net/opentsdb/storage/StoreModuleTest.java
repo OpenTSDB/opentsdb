@@ -4,7 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-import net.opentsdb.TestModule;
+import net.opentsdb.DaggerTestComponent;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.utils.InvalidConfigException;
 
@@ -13,7 +13,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
-import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -38,7 +37,7 @@ public class StoreModuleTest {
 
   @Before
   public void setUp() throws Exception {
-    ObjectGraph.create(new TestModule()).inject(this);
+    DaggerTestComponent.create().inject(this);
 
     storeDescriptors = ImmutableSet.<StoreDescriptor>of(new TestStoreDescriptor());
     supplier = new StoreModule();

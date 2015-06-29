@@ -2,12 +2,11 @@ package net.opentsdb.storage.cassandra;
 
 import net.opentsdb.core.CoreModule;
 import net.opentsdb.plugins.PluginsModule;
+import net.opentsdb.storage.StoreDescriptor;
 import net.opentsdb.storage.StoreModule;
 
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import dagger.Module;
-import dagger.Provides;
+import dagger.Component;
 
 import javax.inject.Singleton;
 
@@ -16,26 +15,19 @@ import javax.inject.Singleton;
  * CassandraStore as its TsdbStore.
  *
  * @see net.opentsdb.core.TsdbModule
- * @see net.opentsdb.TestModule
+ * @see net.opentsdb.TestComponent
  */
-@Module(
-    includes = {
+@Component(
+    modules = {
         CoreModule.class,
         PluginsModule.class,
         StoreModule.class
-    },
-    injects = {
-        TestCassandraStore.class
     })
-class CassandraTestModule {
-  @Provides
-  Config provideConfig() {
-    return ConfigFactory.load("cassandra");
-  }
+@Singleton
+interface CassandraTestComponent {
+  Config config();
 
-  @Provides
-  @Singleton
-  CassandraStoreDescriptor provideCassandraStoreDescriptor() {
-    return new CassandraStoreDescriptor();
-  }
+  StoreDescriptor storeDescriptor();
+
+  void inject(CassandraTimeSeriesQueryTest cassandraTimeSeriesQueryTest);
 }

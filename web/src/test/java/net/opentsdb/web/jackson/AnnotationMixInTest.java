@@ -4,12 +4,10 @@ import static org.junit.Assert.assertEquals;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.AnnotationFixtures;
-import net.opentsdb.web.HttpModule;
-import net.opentsdb.web.TestHttpModule;
+import net.opentsdb.web.DaggerTestHttpComponent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
-import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -23,7 +21,7 @@ public class AnnotationMixInTest {
 
   @Before
   public void setUp() throws Exception {
-    ObjectGraph.create(new TestHttpModule(), new HttpModule()).inject(this);
+    DaggerTestHttpComponent.create().inject(this);
 
     annotation = AnnotationFixtures.provideAnnotation();
 
@@ -43,9 +41,10 @@ public class AnnotationMixInTest {
   @Test(expected = UnrecognizedPropertyException.class)
   public void deserializeFailsOnUnknown() throws Exception {
     final String jsonWithUnknown = "{\"metric\":\"2d11dffc-a8c6-4830-8f4e-aa3417c4f9dc\","
-                     + "\"tags\":{\"edf3c0cc-9ebb-404e-b148-8cf140e13a1e\":"
-                     + "\"c4aa3396-4f0e-4def-988a-513191279cb3\"},\"startTime\":10,\"endTime\":12,"
-                     + "\"message\":\"My message\",\"properties\":{},\"unknown\":null}";
+                                   + "\"tags\":{\"edf3c0cc-9ebb-404e-b148-8cf140e13a1e\":"
+                                   + "\"c4aa3396-4f0e-4def-988a-513191279cb3\"},\"startTime\":10,"
+                                   + "\"endTime\":12,\"message\":\"My message\",\"properties\":{},"
+                                   + "\"unknown\":null}";
     jsonMapper.reader(Annotation.class)
         .readValue(jsonWithUnknown);
   }

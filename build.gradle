@@ -69,8 +69,8 @@ subprojects {
                 jopt: 'net.sf.jopt-simple:jopt-simple:4.9-beta-1',
                 jsr305: 'com.google.code.findbugs:jsr305:3.0.0',
 
-                dagger: 'com.squareup.dagger:dagger:1.2.2',
-                dagger_compiler: 'com.squareup.dagger:dagger-compiler:1.2.2',
+                dagger: 'com.google.dagger:dagger:2.0.1',
+                dagger_compiler: 'com.google.dagger:dagger-compiler:2.0.1',
 
                 metrics_core: 'io.dropwizard.metrics:metrics-core:3.1.2',
                 metrics_jvm: 'io.dropwizard.metrics:metrics-jvm:3.1.2',

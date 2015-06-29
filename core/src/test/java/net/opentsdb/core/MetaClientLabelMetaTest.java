@@ -3,7 +3,7 @@ package net.opentsdb.core;
 import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static org.junit.Assert.assertEquals;
 
-import net.opentsdb.TestModule;
+import net.opentsdb.DaggerTestComponent;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.plugins.RealTimePublisher;
 import net.opentsdb.search.SearchPlugin;
@@ -13,7 +13,6 @@ import net.opentsdb.utils.TestUtil;
 
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
-import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -43,7 +42,7 @@ public class MetaClientLabelMetaTest {
 
   @Before
   public void setUp() throws Exception {
-    ObjectGraph.create(new TestModule()).inject(this);
+    DaggerTestComponent.create().inject(this);
     MockitoAnnotations.initMocks(this);
 
     sysCpu0 = store.allocateLabel("sys.cpu.0", METRIC).get();

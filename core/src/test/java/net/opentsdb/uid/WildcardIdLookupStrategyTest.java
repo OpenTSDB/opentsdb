@@ -4,22 +4,23 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
 
-import net.opentsdb.TestModuleMemoryStore;
+import net.opentsdb.DaggerTestComponent;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.utils.TestUtil;
 
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.eventbus.EventBus;
-import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
 import java.io.IOException;
+import javax.inject.Inject;
 
 public class WildcardIdLookupStrategyTest {
-  private TsdbStore client;
+  @Inject TsdbStore client;
+
   private UniqueId uid;
   private IdLookupStrategy lookupStrategy;
 
@@ -28,8 +29,7 @@ public class WildcardIdLookupStrategyTest {
 
   @Before
   public void setUp() throws IOException {
-    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
-    client = objectGraph.get(TsdbStore.class);
+    DaggerTestComponent.create().inject(this);
 
     uid = new UniqueId(client, UniqueIdType.METRIC,
         mock(MetricRegistry.class), mock(EventBus.class));

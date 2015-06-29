@@ -18,15 +18,10 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigParseOptions;
 import dagger.Module;
 import dagger.Provides;
 import io.netty.handler.codec.http.cors.CorsConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import javax.inject.Singleton;
@@ -39,36 +34,8 @@ import javax.inject.Singleton;
         CoreModule.class,
         PluginsModule.class,
         StoreModule.class
-    },
-    injects = {
-        HttpServerInitializer.class
     })
 public class HttpModule {
-  private static final Logger LOG = LoggerFactory.getLogger(HttpModule.class);
-
-  private final Config config;
-
-  public HttpModule(final File configFile) {
-    this(ConfigFactory.parseFileAnySyntax(configFile,
-        ConfigParseOptions.defaults().setAllowMissing(false)));
-  }
-
-  public HttpModule() {
-    this(ConfigFactory.load(ConfigParseOptions.defaults().setAllowMissing(false)));
-  }
-
-  private HttpModule(final Config config) {
-    this.config = config.withFallback(
-        ConfigFactory.parseResourcesAnySyntax("reference"));
-    LOG.info("Loaded config from {}", config.origin());
-  }
-
-  @Provides
-  @Singleton
-  Config provideConfig() {
-    return config;
-  }
-
   @Provides
   @Singleton
   ObjectMapper provideObjectMapper(final StoreDescriptor storeDescriptor) {

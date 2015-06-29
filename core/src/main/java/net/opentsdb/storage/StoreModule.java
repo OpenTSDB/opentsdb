@@ -14,9 +14,7 @@ import javax.inject.Singleton;
  * Use this class to create a TsdbStore instance. Given a config file and an iterable with store
  * plugin this class will set up an instance of the configured store.
  */
-@Module(complete = false,
-    library = true,
-    injects = TsdbStore.class)
+@Module
 public class StoreModule {
   @Provides
   @Singleton
