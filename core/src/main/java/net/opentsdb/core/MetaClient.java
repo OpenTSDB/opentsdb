@@ -88,7 +88,7 @@ public class MetaClient {
                                                     final long startTime) {
     checkNotNull(metric);
     checkArgument(!tags.isEmpty());
-    checkArgument(startTime > 0L);
+    Timestamp.checkStartTime(startTime);
 
     return store.getAnnotation(metric, tags, startTime);
   }
@@ -107,7 +107,7 @@ public class MetaClient {
                                        final long startTime) {
     checkNotNull(metric);
     checkArgument(!tags.isEmpty(), "At least one tag is required");
-    checkArgument(startTime > 0L);
+    Timestamp.checkStartTime(startTime);
 
     return store.deleteAnnotation(metric, tags, startTime);
   }
@@ -191,7 +191,7 @@ public class MetaClient {
                                                final long endTime) {
     checkNotNull(metric, "Missing a metric", metric, tags);
     checkArgument(!tags.isEmpty(), "At least one tag is required", metric, tags);
-    checkArgument(startTime > 0L, "The start time must be lager than zero", startTime);
+    Timestamp.checkStartTime(startTime);
     checkArgument(startTime <= endTime, "The end timestamp cannot be less than the start timestamp",
         startTime, endTime);
 
