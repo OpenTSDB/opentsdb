@@ -25,11 +25,13 @@ public class IdChangeIndexerListener {
 
   private final TsdbStore store;
   private final SearchPlugin searchPlugin;
+  private final PluginError pluginError;
 
   public IdChangeIndexerListener(final TsdbStore store,
                                  final SearchPlugin searchPlugin) {
     this.store = store;
     this.searchPlugin = searchPlugin;
+    this.pluginError = new PluginError(searchPlugin);
   }
 
   /**
@@ -46,7 +48,7 @@ public class IdChangeIndexerListener {
           @Override
           public void onSuccess(@Nullable final LabelMeta meta) {
             LOG.info("Indexing {}", meta);
-            addCallback(searchPlugin.indexLabelMeta(meta), new PluginError(searchPlugin));
+            addCallback(searchPlugin.indexLabelMeta(meta), pluginError);
           }
 
           @Override
@@ -69,6 +71,6 @@ public class IdChangeIndexerListener {
     LOG.info("Removing label with id {}, type {} and name {} from search index",
         event.getId(), event.getType(), event.getName());
     addCallback(searchPlugin.deleteLabelMeta(event.getId(), event.getType()),
-        new PluginError(searchPlugin));
+        pluginError);
   }
 }
