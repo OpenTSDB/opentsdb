@@ -27,6 +27,13 @@ public class IdChangeIndexerListener {
   private final SearchPlugin searchPlugin;
   private final PluginError pluginError;
 
+  /**
+   * Create a guava event bus listener that listens for label change events and pushes them to the
+   * search plugin.
+   *
+   * @param store The store to read label meta information from
+   * @param searchPlugin The search plugin to push the information to
+   */
   public IdChangeIndexerListener(final TsdbStore store,
                                  final SearchPlugin searchPlugin) {
     this.store = store;
