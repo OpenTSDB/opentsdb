@@ -14,9 +14,11 @@ import net.opentsdb.uid.TimeSeriesId;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Strings;
+import com.google.common.primitives.SignedBytes;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.typesafe.config.Config;
 
 import java.util.Map;
 import javax.inject.Inject;
@@ -29,6 +31,7 @@ public class DataPointsClient {
   private final RealTimePublisher publisher;
 
   private final Timer addDataPointTimer;
+  private final int maxTags;
 
   /**
    * Create a new instance using the given non-null arguments to configure itself.
@@ -37,12 +40,14 @@ public class DataPointsClient {
   public DataPointsClient(final TsdbStore store,
                           final IdClient idClient,
                           final RealTimePublisher realTimePublisher,
-                          final MetricRegistry metricRegistry) {
+                          final MetricRegistry metricRegistry,
+                          final Config config) {
     this.store = checkNotNull(store);
     this.idClient = checkNotNull(idClient);
     this.publisher = checkNotNull(realTimePublisher);
 
     this.addDataPointTimer = metricRegistry.timer(name("add_data_point"));
+    this.maxTags = SignedBytes.checkedCast(config.getInt("tsdb.core.max_tags"));
   }
 
   /**
@@ -50,30 +55,18 @@ public class DataPointsClient {
    *
    * @throws IllegalArgumentException if any of the arguments aren't valid.
    */
-  static void checkMetricAndTags(final String metric, final Map<String, String> tags) {
+  private void checkMetricAndTags(final String metric, final Map<String, String> tags) {
     checkArgument(!Strings.isNullOrEmpty(metric), "Missing metric name", metric, tags);
     checkArgument(!tags.isEmpty(), "At least one tag is required", metric, tags);
-    checkArgument(tags.size() <= Const.MAX_NUM_TAGS,
+    checkArgument(tags.size() <= maxTags,
         "No more than %s tags are allowed but there are %s",
-        Const.MAX_NUM_TAGS, tags.size(), metric, tags);
+        maxTags, tags.size(), metric, tags);
 
     IdClient.validateLabelName("metric name", metric);
     for (final Map.Entry<String, String> tag : tags.entrySet()) {
       IdClient.validateLabelName("tag name", tag.getKey());
       IdClient.validateLabelName("tag value", tag.getValue());
     }
-  }
-
-  /**
-   * Validates that the timestamp is within valid bounds.
-   *
-   * @throws IllegalArgumentException if the timestamp isn't within bounds.
-   */
-  static long checkTimestamp(long timestamp) {
-    checkArgument(timestamp >= 0, "The timestamp must be positive and greater than zero but was %s",
-        timestamp);
-
-    return timestamp;
   }
 
   /**
@@ -94,7 +87,7 @@ public class DataPointsClient {
                                          final long timestamp,
                                          final float value,
                                          final Map<String, String> tags) {
-    checkTimestamp(timestamp);
+    Timestamp.checkStartTime(timestamp);
     checkMetricAndTags(metric, tags);
 
     class AddPointFunction implements AsyncFunction<TimeSeriesId, Void> {
@@ -140,7 +133,7 @@ public class DataPointsClient {
                                          final long timestamp,
                                          final double value,
                                          final Map<String, String> tags) {
-    checkTimestamp(timestamp);
+    Timestamp.checkStartTime(timestamp);
     checkMetricAndTags(metric, tags);
 
     class AddPointFunction implements AsyncFunction<TimeSeriesId, Void> {
@@ -184,7 +177,7 @@ public class DataPointsClient {
                                          final long timestamp,
                                          final long value,
                                          final Map<String, String> tags) {
-    checkTimestamp(timestamp);
+    Timestamp.checkStartTime(timestamp);
     checkMetricAndTags(metric, tags);
 
     class AddPointFunction implements AsyncFunction<TimeSeriesId, Void> {
