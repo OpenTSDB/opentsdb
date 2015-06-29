@@ -10,7 +10,6 @@ import com.google.auto.value.AutoValue;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableMap;
 
-import java.sql.Time;
 import java.util.Map;
 import javax.annotation.Nonnull;
 
@@ -22,8 +21,8 @@ import javax.annotation.Nonnull;
  * based key value pairs.
  *
  * <p>The start time must be larger than 0. The end time must be larger than zero or equal to {@link
- * net.opentsdb.core.Timestamp#NOT_ENDED}. An annotation with an end time that is equal to {@link net.opentsdb.core.Timestamp#NOT_ENDED} will be
- * interpreted as not having ended yet.
+ * net.opentsdb.core.Timestamp#NOT_ENDED}. An annotation with an end time that is equal to
+ * {@link net.opentsdb.core.Timestamp#NOT_ENDED} will be interpreted as not having ended yet.
  */
 @AutoValue
 public abstract class Annotation implements Comparable<Annotation> {
