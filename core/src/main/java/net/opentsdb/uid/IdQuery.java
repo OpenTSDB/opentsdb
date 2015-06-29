@@ -11,11 +11,10 @@ public class IdQuery {
   private final String query;
   private final int maxResults;
 
-  public IdQuery(final String query,
-                 final UniqueIdType type) {
-    this(query, type, NO_LIMIT);
-  }
-
+  /**
+   * Create a new id query that will search among the ids of the provided type and return at most
+   * the number of results as indicated with {@code maxResults}.
+   */
   public IdQuery(final String query,
                  final UniqueIdType type,
                  final int maxResults) {
