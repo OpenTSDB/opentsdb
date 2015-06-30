@@ -50,6 +50,7 @@ public class DataPointsClient {
 
     //The config system does not support bytes so we have to cast it.
     this.maxTags = SignedBytes.checkedCast(config.getInt("tsdb.core.max_tags"));
+    checkArgument(maxTags > 0);
   }
 
   /**
