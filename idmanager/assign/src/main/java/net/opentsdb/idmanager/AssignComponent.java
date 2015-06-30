@@ -1,5 +1,6 @@
 package net.opentsdb.idmanager;
 
+import net.opentsdb.core.ConfigModule;
 import net.opentsdb.core.CoreModule;
 import net.opentsdb.plugins.PluginsModule;
 import net.opentsdb.storage.StoreModule;
@@ -11,6 +12,7 @@ import javax.inject.Singleton;
 
 @Component(
     modules = {
+        ConfigModule.class,
         CoreModule.class,
         PluginsModule.class,
         StoreModule.class

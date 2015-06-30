@@ -21,7 +21,8 @@ import javax.inject.Singleton;
     modules = {
         CoreModule.class,
         PluginsModule.class,
-        StoreModule.class
+        StoreModule.class,
+        CassandraConfigModule.class
     })
 @Singleton
 interface CassandraTestComponent {

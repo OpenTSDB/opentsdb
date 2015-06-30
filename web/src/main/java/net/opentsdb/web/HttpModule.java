@@ -1,5 +1,6 @@
 package net.opentsdb.web;
 
+import net.opentsdb.core.ConfigModule;
 import net.opentsdb.core.CoreModule;
 import net.opentsdb.core.DataPointsClient;
 import net.opentsdb.plugins.PluginsModule;
@@ -31,6 +32,7 @@ import javax.inject.Singleton;
  */
 @Module(
     includes = {
+        ConfigModule.class,
         CoreModule.class,
         PluginsModule.class,
         StoreModule.class

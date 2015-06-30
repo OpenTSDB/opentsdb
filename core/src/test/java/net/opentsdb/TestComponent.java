@@ -1,5 +1,6 @@
 package net.opentsdb;
 
+import net.opentsdb.core.ConfigModule;
 import net.opentsdb.core.CoreModule;
 import net.opentsdb.core.IdClientTest;
 import net.opentsdb.core.MetaClientAnnotationTest;
@@ -29,6 +30,7 @@ import javax.inject.Singleton;
  */
 @Component(
     modules = {
+        ConfigModule.class,
         CoreModule.class,
         PluginsModule.class,
         StoreModule.class

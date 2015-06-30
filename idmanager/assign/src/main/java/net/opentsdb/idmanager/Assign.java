@@ -3,7 +3,7 @@ package net.opentsdb.idmanager;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Arrays.asList;
 
-import net.opentsdb.core.CoreModule;
+import net.opentsdb.core.ConfigModule;
 import net.opentsdb.core.IdClient;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdException;
@@ -104,7 +104,7 @@ public final class Assign {
           Arrays.copyOfRange(args, 1, args.length));
 
       final AssignComponent assignComponent = DaggerAssignComponent.builder()
-          .coreModule(new CoreModule(configFile))
+          .configModule(new ConfigModule(configFile))
           .build();
 
       final TsdbStore store = assignComponent.store();

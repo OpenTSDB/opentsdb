@@ -9,7 +9,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
-import net.opentsdb.core.CoreModule;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
 
@@ -18,7 +17,6 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -49,9 +47,7 @@ public class TestCassandraStore {
 
   @Before
   public void setUp() throws Exception {
-    final CassandraTestComponent cassandraTestComponent = DaggerCassandraTestComponent.builder()
-        .coreModule(new CoreModule(ConfigFactory.load("cassandra")))
-        .build();
+    final CassandraTestComponent cassandraTestComponent = DaggerCassandraTestComponent.create();
 
     config = cassandraTestComponent.config();
     storeDescriptor = (CassandraStoreDescriptor) cassandraTestComponent.storeDescriptor();

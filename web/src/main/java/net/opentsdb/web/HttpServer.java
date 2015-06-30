@@ -1,6 +1,6 @@
 package net.opentsdb.web;
 
-import net.opentsdb.core.CoreModule;
+import net.opentsdb.core.ConfigModule;
 import net.opentsdb.utils.EventLoopGroups;
 import net.opentsdb.utils.InvalidConfigException;
 
@@ -45,7 +45,7 @@ public final class HttpServer extends CommandLineApplication {
       final File configFile = options.valueOf(application.getConfigSpec());
 
       HttpServerComponent httpServerComponent = DaggerHttpServerComponent.builder()
-          .coreModule(new CoreModule(configFile))
+          .configModule(new ConfigModule(configFile))
           .build();
 
       final Config config = httpServerComponent.config();
