@@ -20,11 +20,6 @@ dependencies {
             // Should be compile only
             libraries.auto_value,
             libraries.auto_service
-
-    testCompile libraries.javassist,
-                libraries.objenesis,
-                libraries.powermock_api_mockito,
-                libraries.powermock_module_junit
 }
 
 jmh {

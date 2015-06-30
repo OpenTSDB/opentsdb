@@ -18,26 +18,30 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.when;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.TimeZone;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({DateTime.class})
 public final class TestDateTime {
+  private TimeProvider clock;
 
   @Before
   public void before() {
-    PowerMockito.mockStatic(System.class);
-    when(System.currentTimeMillis()).thenReturn(1357300800000L);
+    clock = new TimeProvider() {
+      @Override
+      public Date now() {
+        return new Date();
+      }
+
+      @Override
+      public long currentTimeMillis() {
+        return 1357300800000L;
+      }
+    };
   }
 
   @Test
@@ -53,26 +57,26 @@ public final class TestDateTime {
   @Test
   public void parseDateTimeStringRelativeS() {
     long t = DateTime.parseDateTimeString("60s-ago", null);
-    assertEquals(60000, (System.currentTimeMillis() - t));
+    assertEquals(60000, (clock.currentTimeMillis() - t));
   }
 
   @Test
   public void parseDateTimeStringRelativeM() {
     long t = DateTime.parseDateTimeString("1m-ago", null);
-    assertEquals(60000, (System.currentTimeMillis() - t));
+    assertEquals(60000, (clock.currentTimeMillis() - t));
   }
 
   @Test
   public void parseDateTimeStringRelativeH() {
     long t = DateTime.parseDateTimeString("2h-ago", null);
-    assertEquals(7200000L, (System.currentTimeMillis() - t));
+    assertEquals(7200000L, (clock.currentTimeMillis() - t));
   }
 
   @Test
   public void parseDateTimeStringRelativeD() {
     long t = DateTime.parseDateTimeString("2d-ago", null);
     long x = 2 * 3600 * 24 * 1000;
-    assertEquals(x, (System.currentTimeMillis() - t));
+    assertEquals(x, (clock.currentTimeMillis() - t));
   }
 
   @Test
@@ -81,14 +85,14 @@ public final class TestDateTime {
     long x = 30 * 3600;
     x *= 24;
     x *= 1000;
-    assertEquals(x, (System.currentTimeMillis() - t));
+    assertEquals(x, (clock.currentTimeMillis() - t));
   }
 
   @Test
   public void parseDateTimeStringRelativeW() {
     long t = DateTime.parseDateTimeString("3w-ago", null);
     long x = 3 * 7 * 3600 * 24 * 1000;
-    assertEquals(x, (System.currentTimeMillis() - t));
+    assertEquals(x, (clock.currentTimeMillis() - t));
   }
 
   @Test
@@ -96,7 +100,7 @@ public final class TestDateTime {
     long t = DateTime.parseDateTimeString("2n-ago", null);
     long x = 2 * 30 * 3600 * 24;
     x *= 1000;
-    assertEquals(x, (System.currentTimeMillis() - t));
+    assertEquals(x, (clock.currentTimeMillis() - t));
   }
 
   @Test
@@ -104,7 +108,7 @@ public final class TestDateTime {
     long t = DateTime.parseDateTimeString("2y-ago", null);
     long diff = 2 * 365 * 3600 * 24;
     diff *= 1000;
-    assertEquals(diff, (System.currentTimeMillis() - t));
+    assertEquals(diff, (clock.currentTimeMillis() - t));
   }
 
   @Test

@@ -38,12 +38,16 @@ public class DateTime {
    */
   public static final HashMap<String, TimeZone> timezones;
 
+  public static TimeProvider clock;
+
   static {
     final String[] tzs = TimeZone.getAvailableIDs();
     timezones = new HashMap<>(tzs.length);
     for (final String tz : tzs) {
       timezones.put(tz, TimeZone.getTimeZone(tz));
     }
+
+    clock = new JdkTimeProvider();
   }
 
   /**
@@ -67,7 +71,7 @@ public class DateTime {
     if (datetime.toLowerCase().endsWith("-ago")) {
       long interval = DateTime.parseDuration(
           datetime.substring(0, datetime.length() - 4));
-      return System.currentTimeMillis() - interval;
+      return clock.currentTimeMillis() - interval;
     }
 
     if (datetime.contains("/") || datetime.contains(":")) {
