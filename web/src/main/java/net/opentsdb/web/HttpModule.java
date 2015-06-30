@@ -7,7 +7,11 @@ import net.opentsdb.plugins.PluginsModule;
 import net.opentsdb.storage.StoreDescriptor;
 import net.opentsdb.storage.StoreModule;
 import net.opentsdb.web.jackson.JacksonModule;
-import net.opentsdb.web.resources.*;
+import net.opentsdb.web.resources.DatapointsResource;
+import net.opentsdb.web.resources.IdResource;
+import net.opentsdb.web.resources.MetricsResource;
+import net.opentsdb.web.resources.NotFoundResource;
+import net.opentsdb.web.resources.Resource;
 
 import autovalue.shaded.com.google.common.common.collect.ImmutableMap;
 import com.codahale.metrics.MetricRegistry;
