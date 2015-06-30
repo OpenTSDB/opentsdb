@@ -2,7 +2,6 @@ package net.opentsdb.uid;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Mockito.mock;
 
 import net.opentsdb.DaggerTestComponent;
 import net.opentsdb.storage.TsdbStore;
@@ -20,6 +19,8 @@ import javax.inject.Inject;
 
 public class WildcardIdLookupStrategyTest {
   @Inject TsdbStore client;
+  @Inject MetricRegistry metricRegistry;
+  @Inject EventBus eventBus;
 
   private UniqueId uid;
   private IdLookupStrategy lookupStrategy;
@@ -31,9 +32,7 @@ public class WildcardIdLookupStrategyTest {
   public void setUp() throws IOException {
     DaggerTestComponent.create().inject(this);
 
-    uid = new UniqueId(client, UniqueIdType.METRIC,
-        mock(MetricRegistry.class), mock(EventBus.class));
-
+    uid = new UniqueId(client, UniqueIdType.METRIC, metricRegistry, eventBus);
     lookupStrategy = new IdLookupStrategy.WildcardIdLookupStrategy();
   }
 
@@ -55,7 +54,7 @@ public class WildcardIdLookupStrategyTest {
   @Test(timeout = TestUtil.TIMEOUT)
   public void testResolveIdGetsId() throws Exception {
     LabelId id = client.allocateLabel("nameexists", UniqueIdType.METRIC).get();
-    assertEquals(id, lookupStrategy.getId(uid, "*").get());
+    assertEquals(id, lookupStrategy.getId(uid, "nameexists").get());
   }
 
   @Test(expected = NoSuchUniqueName.class)
