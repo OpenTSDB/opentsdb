@@ -9,7 +9,7 @@ import org.junit.Test;
  * the {@link StoreDescriptor} class and set the {@link #storeDescriptor} variable in the before
  * block.
  */
-public class StoreDescriptorTest {
+public abstract class StoreDescriptorTest {
   protected StoreDescriptor storeDescriptor;
 
   @Test
