@@ -2,11 +2,13 @@ package net.opentsdb.web;
 
 import net.opentsdb.core.CoreModule;
 import net.opentsdb.core.DataPointsClient;
+import net.opentsdb.core.IdClient;
 import net.opentsdb.plugins.PluginsModule;
 import net.opentsdb.storage.StoreDescriptor;
 import net.opentsdb.storage.StoreModule;
 import net.opentsdb.web.jackson.JacksonModule;
 import net.opentsdb.web.resources.DatapointsResource;
+import net.opentsdb.web.resources.IdResource;
 import net.opentsdb.web.resources.MetricsResource;
 import net.opentsdb.web.resources.NotFoundResource;
 import net.opentsdb.web.resources.Resource;
@@ -88,13 +90,16 @@ public class HttpModule {
   HttpServerInitializer provideHttpServerInitializer(final Config config,
                                                      final DataPointsClient dataPointsClient,
                                                      final ObjectMapper objectMapper,
-                                                     final MetricRegistry metricRegistry) {
+                                                     final MetricRegistry metricRegistry,
+                                                     final IdClient idClient) {
     final Resource datapointsResource = new DatapointsResource(dataPointsClient, objectMapper);
     final Resource metricResource = new MetricsResource(objectMapper, metricRegistry);
+    final Resource idResource = new IdResource(idClient, objectMapper);
 
     final ImmutableMap<String, Resource> resources = ImmutableMap.of(
         "datapoints", datapointsResource,
-        "admin/metrics", metricResource);
+        "admin/metrics", metricResource,
+        "id", idResource);
     final Resource defaultResource = new NotFoundResource();
 
     // http://lmgtfy.com/?q=facepalm
