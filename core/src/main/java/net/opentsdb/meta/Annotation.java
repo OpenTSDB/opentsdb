@@ -3,7 +3,7 @@ package net.opentsdb.meta;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import net.opentsdb.core.Timestamp;
+import net.opentsdb.core.TimeRange;
 import net.opentsdb.uid.LabelId;
 
 import com.google.auto.value.AutoValue;
@@ -21,8 +21,8 @@ import javax.annotation.Nonnull;
  * based key value pairs.
  *
  * <p>The start time must be larger than 0. The end time must be larger than zero or equal to {@link
- * net.opentsdb.core.Timestamp#NOT_ENDED}. An annotation with an end time that is equal to
- * {@link net.opentsdb.core.Timestamp#NOT_ENDED} will be interpreted as not having ended yet.
+ * net.opentsdb.core.TimeRange#NOT_ENDED}. An annotation with an end time that is equal to
+ * {@link net.opentsdb.core.TimeRange#NOT_ENDED} will be interpreted as not having ended yet.
  */
 @AutoValue
 public abstract class Annotation implements Comparable<Annotation> {
@@ -41,7 +41,7 @@ public abstract class Annotation implements Comparable<Annotation> {
                                   final String message,
                                   final Map<String, String> properties) {
     checkArgument(!tags.isEmpty(), "An annotation must be associated with at least one tag");
-    Timestamp.checkTimeSpan(startTime, endTime);
+    TimeRange.checkTimespan(startTime, endTime);
     final ImmutableMap<LabelId, LabelId> immutableTags = ImmutableMap.copyOf(tags);
     final ImmutableMap<String, String> immutableProperties = ImmutableMap.copyOf(properties);
     return new AutoValue_Annotation(metric, immutableTags, startTime, endTime, message,

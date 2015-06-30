@@ -104,7 +104,7 @@ public class DataPointsClient {
                                          final long timestamp,
                                          final float value,
                                          final Map<String, String> tags) {
-    Timestamp.checkStartTime(timestamp);
+    Timestamp.checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
     class AddPointFunction implements AsyncFunction<TimeSeriesId, Void> {
@@ -150,7 +150,7 @@ public class DataPointsClient {
                                          final long timestamp,
                                          final double value,
                                          final Map<String, String> tags) {
-    Timestamp.checkStartTime(timestamp);
+    Timestamp.checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
     class AddPointFunction implements AsyncFunction<TimeSeriesId, Void> {
@@ -194,7 +194,7 @@ public class DataPointsClient {
                                          final long timestamp,
                                          final long value,
                                          final Map<String, String> tags) {
-    Timestamp.checkStartTime(timestamp);
+    Timestamp.checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
     class AddPointFunction implements AsyncFunction<TimeSeriesId, Void> {
