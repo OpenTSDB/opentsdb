@@ -31,7 +31,7 @@ public class DataPointsClient {
   private final RealTimePublisher publisher;
 
   private final Timer addDataPointTimer;
-  private final int maxTags;
+  private final byte maxTags;
 
   /**
    * Create a new instance using the given non-null arguments to configure itself.
@@ -47,6 +47,8 @@ public class DataPointsClient {
     this.publisher = checkNotNull(realTimePublisher);
 
     this.addDataPointTimer = metricRegistry.timer(name("add_data_point"));
+
+    //The config system does not support bytes so we have to cast it.
     this.maxTags = SignedBytes.checkedCast(config.getInt("tsdb.core.max_tags"));
   }
 
@@ -70,6 +72,18 @@ public class DataPointsClient {
   }
 
   /**
+   * Validates that the timestamp is within valid bounds.
+   *
+   * @throws IllegalArgumentException if the timestamp isn't within bounds.
+   */
+  static long checkTimestamp(long timestamp) {
+    checkArgument(timestamp >= 0, "the timestamp must be postive and greater than zero but was %s",
+        timestamp);
+
+    return timestamp;
+  }
+
+  /**
    * Adds a single floating-point value data point in the TSDB.
    *
    * @param metric A non-empty string.
@@ -87,7 +101,7 @@ public class DataPointsClient {
                                          final long timestamp,
                                          final float value,
                                          final Map<String, String> tags) {
-    Timestamp.checkStartTime(timestamp);
+    checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
     class AddPointFunction implements AsyncFunction<TimeSeriesId, Void> {
@@ -133,7 +147,7 @@ public class DataPointsClient {
                                          final long timestamp,
                                          final double value,
                                          final Map<String, String> tags) {
-    Timestamp.checkStartTime(timestamp);
+    checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
     class AddPointFunction implements AsyncFunction<TimeSeriesId, Void> {
@@ -177,7 +191,7 @@ public class DataPointsClient {
                                          final long timestamp,
                                          final long value,
                                          final Map<String, String> tags) {
-    Timestamp.checkStartTime(timestamp);
+    checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
     class AddPointFunction implements AsyncFunction<TimeSeriesId, Void> {
