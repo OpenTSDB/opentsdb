@@ -195,7 +195,7 @@ public class IdClient {
     return searchPlugin.executeIdQuery(query);
   }
 
-  IdClientTypeContext uniqueIdInstanceForType(UniqueIdType type) {
+  IdClientTypeContext idContextForType(UniqueIdType type) {
     switch (type) {
       case METRIC:
         return metrics;
@@ -236,7 +236,7 @@ public class IdClient {
                            final String name) {
 
     validateLabelName(type.toString(), name);
-    IdClientTypeContext instance = uniqueIdInstanceForType(type);
+    IdClientTypeContext instance = idContextForType(type);
 
     try {
       try {
@@ -255,7 +255,7 @@ public class IdClient {
    */
   public ListenableFuture<LabelId> createId(final UniqueIdType type, final String name) {
     validateLabelName(type.toString(), name);
-    IdClientTypeContext instance = uniqueIdInstanceForType(type);
+    IdClientTypeContext instance = idContextForType(type);
     return instance.createId(name);
   }
 
@@ -270,7 +270,7 @@ public class IdClient {
   public ListenableFuture<String> getLabelName(final UniqueIdType type,
                                                final LabelId uid) {
     checkNotNull(uid, "Missing UID");
-    IdClientTypeContext idClientTypeContext = uniqueIdInstanceForType(type);
+    IdClientTypeContext idClientTypeContext = idContextForType(type);
     return idClientTypeContext.getName(uid);
   }
 
@@ -285,7 +285,7 @@ public class IdClient {
   public ListenableFuture<LabelId> getLabelId(final UniqueIdType type,
                                               final String name) {
     checkArgument(!Strings.isNullOrEmpty(name), "Missing label name");
-    IdClientTypeContext idClientTypeContext = uniqueIdInstanceForType(type);
+    IdClientTypeContext idClientTypeContext = idContextForType(type);
     return idClientTypeContext.getId(name);
   }
 
