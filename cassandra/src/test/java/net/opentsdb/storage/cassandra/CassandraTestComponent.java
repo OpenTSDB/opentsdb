@@ -11,11 +11,8 @@ import dagger.Component;
 import javax.inject.Singleton;
 
 /**
- * This is the dagger module that should be used by all Cassandra tests. It provides a live
- * CassandraStore as its TsdbStore.
- *
- * @see net.opentsdb.core.TsdbModule
- * @see net.opentsdb.TestComponent
+ * A dagger component that is configured to load a live cassandra store for use in the cassandra
+ * test suites.
  */
 @Component(
     modules = {

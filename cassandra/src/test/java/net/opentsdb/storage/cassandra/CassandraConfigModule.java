@@ -9,6 +9,12 @@ import dagger.Provides;
 
 import javax.inject.Singleton;
 
+/**
+ * A dagger module that inherits from the main config module but loads the cassandra test config by
+ * default instead of the default "application" one.
+ *
+ * @see CassandraTestComponent
+ */
 @Module
 public class CassandraConfigModule extends ConfigModule {
   public CassandraConfigModule() {

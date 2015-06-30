@@ -8,9 +8,7 @@ public class CassandraTimeSeriesQueryTest extends TsdbStoreTimeSeriesQueryTest {
   @Override
   @Before
   public void setUp() throws Exception {
-    DaggerCassandraTestComponent.create()
-        .inject(this);
-
+    DaggerCassandraTestComponent.create().inject(this);
     super.setUp();
   }
 }

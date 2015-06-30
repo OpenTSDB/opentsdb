@@ -11,6 +11,14 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import javax.inject.Singleton;
 
+/**
+ * A dagger module that provides a config object that is loaded from the indicated file or with
+ * optional overrides.
+ *
+ * <p>This class may be extended to provide a module that can load other files by default instead of
+ * the default "application" one dictated by the config library we use by overriding {@link
+ * #ConfigModule()}.
+ */
 @Module
 public class ConfigModule {
   private static final Logger LOG = LoggerFactory.getLogger(ConfigModule.class);
@@ -36,7 +44,7 @@ public class ConfigModule {
    *
    * @param config The config object to read from
    */
-  public ConfigModule(final Config config) {
+  protected ConfigModule(final Config config) {
     this.config = config.withFallback(
         ConfigFactory.parseResourcesAnySyntax("reference"));
     LOG.info("Loaded config from {}", config.origin());

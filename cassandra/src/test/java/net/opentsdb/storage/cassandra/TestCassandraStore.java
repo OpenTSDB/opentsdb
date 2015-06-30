@@ -50,7 +50,11 @@ public class TestCassandraStore {
     final CassandraTestComponent cassandraTestComponent = DaggerCassandraTestComponent.create();
 
     config = cassandraTestComponent.config();
+
+    // It is unfortunate that we can't get a cassandra store directly from dagger but this cast will
+    // at least fail hard if it ever is any other store.
     storeDescriptor = (CassandraStoreDescriptor) cassandraTestComponent.storeDescriptor();
+
     store = storeDescriptor.createStore(config, new MetricRegistry());
 
     nameUid.put(METRIC_NAME_ONE, store.allocateLabel(
