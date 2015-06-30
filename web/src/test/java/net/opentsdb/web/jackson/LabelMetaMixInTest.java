@@ -8,20 +8,17 @@ import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.storage.MemoryLabelId;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.web.HttpModule;
-import net.opentsdb.web.TestHttpModule;
+import net.opentsdb.web.DaggerTestHttpComponent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Iterators;
-import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.UUID;
 import javax.inject.Inject;
-
 
 public class LabelMetaMixInTest {
   private final String id = "d2576c75-8825-4ec2-8d93-311423c05c98";
@@ -33,7 +30,7 @@ public class LabelMetaMixInTest {
 
   @Before
   public void before() throws Exception {
-    ObjectGraph.create(new TestHttpModule(), new HttpModule()).inject(this);
+    DaggerTestHttpComponent.create().inject(this);
 
     labelMeta = LabelMeta.create(labelId, METRIC, "sys.cpu.0", "Description", 1328140801L);
   }

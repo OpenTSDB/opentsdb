@@ -3,8 +3,8 @@ package net.opentsdb.idmanager;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Arrays.asList;
 
+import net.opentsdb.core.ConfigModule;
 import net.opentsdb.core.IdClient;
-import net.opentsdb.core.TsdbModule;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdException;
 import net.opentsdb.uid.LabelId;
@@ -17,8 +17,6 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.typesafe.config.ConfigException;
-import dagger.Module;
-import dagger.ObjectGraph;
 import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
@@ -105,10 +103,12 @@ public final class Assign {
       final ImmutableSet<String> names = ImmutableSet.copyOf(
           Arrays.copyOfRange(args, 1, args.length));
 
-      final ObjectGraph objectGraph = ObjectGraph.create(new TsdbModule(configFile),
-          new AssignModule());
-      final TsdbStore store = objectGraph.get(TsdbStore.class);
-      final Assign assign = objectGraph.get(Assign.class);
+      final AssignComponent assignComponent = DaggerAssignComponent.builder()
+          .configModule(new ConfigModule(configFile))
+          .build();
+
+      final TsdbStore store = assignComponent.store();
+      final Assign assign = assignComponent.assign();
 
       final List<ListenableFuture<LabelId>> assignments =
           Lists.newArrayListWithCapacity(names.size());
@@ -172,12 +172,5 @@ public final class Assign {
         LOG.error("{} {}: {}", name, type, throwable.getMessage(), throwable);
       }
     }
-  }
-
-  @Module(includes = TsdbModule.class,
-      injects = {
-          Assign.class
-      })
-  public static class AssignModule {
   }
 }

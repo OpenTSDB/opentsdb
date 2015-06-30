@@ -7,20 +7,12 @@ import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 import com.google.common.eventbus.EventBus;
-import com.typesafe.config.Config;
 import dagger.Module;
 import dagger.Provides;
 
 import javax.inject.Singleton;
 
-@Module(complete = false,
-    library = true,
-    injects = {
-        Config.class,
-        IdClient.class,
-        MetaClient.class,
-        DataPointsClient.class
-    })
+@Module
 public class CoreModule {
   @Provides
   @Singleton

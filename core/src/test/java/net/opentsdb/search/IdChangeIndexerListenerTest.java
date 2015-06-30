@@ -6,7 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import net.opentsdb.TestModule;
+import net.opentsdb.DaggerTestComponent;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.LabelCreatedEvent;
@@ -16,7 +16,6 @@ import net.opentsdb.uid.UniqueIdType;
 
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.Futures;
-import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -32,7 +31,7 @@ public class IdChangeIndexerListenerTest {
 
   @Before
   public void setUp() throws Exception {
-    ObjectGraph.create(new TestModule()).inject(this);
+    DaggerTestComponent.create().inject(this);
     MockitoAnnotations.initMocks(this);
 
     IdChangeIndexerListener idChangeIndexer = new IdChangeIndexerListener(store, searchPlugin);

@@ -5,14 +5,13 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import net.opentsdb.TestModule;
+import net.opentsdb.DaggerTestComponent;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.utils.TestUtil;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.eventbus.EventBus;
-import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -34,7 +33,7 @@ public final class TestUniqueId {
 
   @Before
   public void setUp() throws IOException {
-    ObjectGraph.create(new TestModule()).inject(this);
+    DaggerTestComponent.create().inject(this);
   }
 
   @Test(expected = NullPointerException.class)

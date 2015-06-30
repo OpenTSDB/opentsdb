@@ -9,7 +9,7 @@ import static org.junit.Assert.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import net.opentsdb.TestModule;
+import net.opentsdb.DaggerTestComponent;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.LabelId;
@@ -19,7 +19,6 @@ import net.opentsdb.utils.TestUtil;
 
 import autovalue.shaded.com.google.common.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
-import dagger.ObjectGraph;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -41,7 +40,7 @@ public class IdClientTest {
 
   @Before
   public void setUp() throws Exception {
-    ObjectGraph.create(new TestModule()).inject(this);
+    DaggerTestComponent.create().inject(this);
 
     sysCpu0 = store.allocateLabel("sys.cpu.0", METRIC).get();
     host = store.allocateLabel("host", TAGK).get();
