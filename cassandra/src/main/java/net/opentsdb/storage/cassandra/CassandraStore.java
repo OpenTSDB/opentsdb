@@ -28,7 +28,7 @@ import net.opentsdb.time.JdkTimeProvider;
 import net.opentsdb.uid.IdException;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdType;
-import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.Label;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.TimeSeriesId;
 
@@ -590,7 +590,7 @@ public class CassandraStore extends TsdbStore {
   }
 
   @Override
-  public ListenableFuture<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
+  public ListenableFuture<List<Label>> executeIdQuery(final IdQuery query) {
     throw new UnsupportedOperationException("Not implemented yet!");
   }
 

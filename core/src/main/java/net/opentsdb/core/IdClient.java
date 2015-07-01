@@ -17,7 +17,7 @@ import net.opentsdb.uid.IdLookupStrategy;
 import net.opentsdb.uid.IdLookupStrategy.WildcardIdLookupStrategy;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdType;
-import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.Label;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -191,7 +191,7 @@ public class IdClient {
    * @param query The query specifying the search parameters.
    * @return A future that on completion will contain the result of the query.
    */
-  public ListenableFuture<List<IdentifierDecorator>> suggest(final IdQuery query) {
+  public ListenableFuture<List<Label>> suggest(final IdQuery query) {
     return searchPlugin.executeIdQuery(query);
   }
 

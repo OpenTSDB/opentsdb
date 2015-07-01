@@ -18,7 +18,7 @@ import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.plugins.Plugin;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdType;
-import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.Label;
 import net.opentsdb.uid.LabelId;
 
 import com.google.common.util.concurrent.ListenableFuture;
@@ -96,5 +96,5 @@ public abstract class SearchPlugin extends Plugin {
    * @param query The parameters for the query
    * @return A future that on completion contains a list of matching IDs.
    */
-  public abstract ListenableFuture<List<IdentifierDecorator>> executeIdQuery(final IdQuery query);
+  public abstract ListenableFuture<List<Label>> executeIdQuery(final IdQuery query);
 }

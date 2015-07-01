@@ -6,7 +6,7 @@ import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdType;
-import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.Label;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.TimeSeriesId;
 
@@ -59,7 +59,7 @@ public abstract class TsdbStore implements Closeable {
    * @param query An object that describes the query parameters
    * @return A future that on completion will contain with a list of matching IDs
    */
-  public abstract ListenableFuture<List<IdentifierDecorator>> executeIdQuery(final IdQuery query);
+  public abstract ListenableFuture<List<Label>> executeIdQuery(final IdQuery query);
 
   @Nonnull
   public abstract ListenableFuture<Optional<LabelId>> getId(final String name,

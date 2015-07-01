@@ -6,7 +6,7 @@ import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdType;
-import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.Label;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.TimeSeriesId;
 
@@ -260,7 +260,7 @@ public class MemoryStore extends TsdbStore {
   }
 
   @Override
-  public ListenableFuture<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
+  public ListenableFuture<List<Label>> executeIdQuery(final IdQuery query) {
     Predicate<IdType> typeMatchFunction = new Predicate<IdType>() {
       @Override
       public boolean apply(@Nullable final IdType input) {
@@ -275,24 +275,27 @@ public class MemoryStore extends TsdbStore {
       }
     };
 
-    final List<IdentifierDecorator> result = new ArrayList<>();
+    final List<Label> result = new ArrayList<>();
 
     for (final Table.Cell<String, IdType, LabelId> cell : identifierForward.cellSet()) {
       if (typeMatchFunction.apply(cell.getColumnKey())
           && nameMatchFunction.apply(cell.getRowKey())) {
-        result.add(new IdentifierDecorator() {
+        result.add(new Label() {
+          @Nonnull
           @Override
-          public LabelId getId() {
+          public LabelId id() {
             return cell.getValue();
           }
 
+          @Nonnull
           @Override
-          public IdType getType() {
+          public IdType type() {
             return cell.getColumnKey();
           }
 
+          @Nonnull
           @Override
-          public String getName() {
+          public String name() {
             return cell.getRowKey();
           }
         });

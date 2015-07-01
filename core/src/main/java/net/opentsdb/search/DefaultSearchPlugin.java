@@ -8,7 +8,7 @@ import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdType;
-import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.Label;
 import net.opentsdb.uid.LabelId;
 
 import com.google.common.util.concurrent.Futures;
@@ -66,7 +66,7 @@ public class DefaultSearchPlugin extends SearchPlugin {
   }
 
   @Override
-  public ListenableFuture<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
+  public ListenableFuture<List<Label>> executeIdQuery(final IdQuery query) {
     return store.executeIdQuery(query);
   }
 }
