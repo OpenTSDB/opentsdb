@@ -6,7 +6,7 @@ import static org.mockito.Mockito.mock;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.AnnotationFixtures;
-import net.opentsdb.uid.TimeseriesId;
+import net.opentsdb.uid.TimeSeriesId;
 
 import com.google.common.collect.ImmutableMap;
 import org.junit.Test;
@@ -17,13 +17,13 @@ public abstract class RealTimePublisherTest {
   @Test
   public void sinkLongDataPoint() {
     assertNotNull(publisher.publishDataPoint("sys.cpu.user", 123123123, 123,
-        ImmutableMap.of("host", "east"), mock(TimeseriesId.class)));
+        ImmutableMap.of("host", "east"), mock(TimeSeriesId.class)));
   }
 
   @Test
   public void sinkDoubleDataPoint() {
     assertNotNull(publisher.publishDataPoint("sys.cpu.user", 123123123, 12.5,
-        ImmutableMap.of("host", "east"), mock(TimeseriesId.class)));
+        ImmutableMap.of("host", "east"), mock(TimeSeriesId.class)));
   }
 
   @Test

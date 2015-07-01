@@ -7,7 +7,7 @@ import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.LabelId;
-import net.opentsdb.uid.TimeseriesId;
+import net.opentsdb.uid.TimeSeriesId;
 import net.opentsdb.uid.UniqueIdType;
 
 import com.google.common.base.Optional;
@@ -73,17 +73,17 @@ public abstract class TsdbStore implements Closeable {
   // Datapoints
   //
   @Nonnull
-  public abstract ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
+  public abstract ListenableFuture<Void> addPoint(final TimeSeriesId tsuid,
                                                   final long timestamp,
                                                   final float value);
 
   @Nonnull
-  public abstract ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
+  public abstract ListenableFuture<Void> addPoint(final TimeSeriesId tsuid,
                                                   final long timestamp,
                                                   final double value);
 
   @Nonnull
-  public abstract ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
+  public abstract ListenableFuture<Void> addPoint(final TimeSeriesId tsuid,
                                                   final long timestamp,
                                                   final long value);
 

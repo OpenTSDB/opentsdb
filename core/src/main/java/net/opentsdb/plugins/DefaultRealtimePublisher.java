@@ -2,7 +2,7 @@ package net.opentsdb.plugins;
 
 import net.opentsdb.BuildData;
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.uid.TimeseriesId;
+import net.opentsdb.uid.TimeSeriesId;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -28,7 +28,7 @@ public class DefaultRealtimePublisher extends RealTimePublisher {
                                                  final long timestamp,
                                                  final long value,
                                                  final Map<String, String> tags,
-                                                 final TimeseriesId timeSeriesId) {
+                                                 final TimeSeriesId timeSeriesId) {
     return Futures.immediateFuture(null);
   }
 
@@ -37,7 +37,7 @@ public class DefaultRealtimePublisher extends RealTimePublisher {
                                                  final long timestamp,
                                                  final double value,
                                                  final Map<String, String> tags,
-                                                 final TimeseriesId timeSeriesId) {
+                                                 final TimeSeriesId timeSeriesId) {
     return Futures.immediateFuture(null);
   }
 

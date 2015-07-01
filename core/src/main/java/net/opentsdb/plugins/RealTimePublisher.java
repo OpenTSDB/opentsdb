@@ -2,7 +2,7 @@
 package net.opentsdb.plugins;
 
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.uid.TimeseriesId;
+import net.opentsdb.uid.TimeSeriesId;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
@@ -27,7 +27,7 @@ public abstract class RealTimePublisher extends Plugin {
                                                           final long timestamp,
                                                           final long value,
                                                           final Map<String, String> tags,
-                                                          final TimeseriesId timeSeriesId);
+                                                          final TimeSeriesId timeSeriesId);
 
   /**
    * Publish the float data point to the backing sink.
@@ -43,7 +43,7 @@ public abstract class RealTimePublisher extends Plugin {
                                                           final long timestamp,
                                                           final double value,
                                                           final Map<String, String> tags,
-                                                          final TimeseriesId timeSeriesId);
+                                                          final TimeSeriesId timeSeriesId);
 
   /**
    * Publish the provided annotation to the backing sink.

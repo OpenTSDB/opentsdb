@@ -12,7 +12,7 @@ import javax.annotation.Nonnull;
  * of time series IDs and expose them in a general interface. The canonical use-case is for return
  * values on store implementations.
  */
-public abstract class TimeseriesId {
+public abstract class TimeSeriesId {
   /**
    * The metric behind this time series ID.
    */

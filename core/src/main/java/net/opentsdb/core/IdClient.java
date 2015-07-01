@@ -19,8 +19,8 @@ import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.StaticTimeseriesId;
-import net.opentsdb.uid.TimeseriesId;
+import net.opentsdb.uid.StaticTimeSeriesId;
+import net.opentsdb.uid.TimeSeriesId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.uid.callbacks.StripedToMap;
@@ -290,18 +290,18 @@ public class IdClient {
   }
 
   /**
-   * Returns an initialized {@link TimeseriesId} for this metric and these tags.
+   * Returns an initialized {@link TimeSeriesId} for this metric and these tags.
    *
    * @param metric The metric to use in the TSUID
    * @param tags The string tags to use in the TSUID
    */
-  ListenableFuture<TimeseriesId> getTimeSeriesId(final String metric,
+  ListenableFuture<TimeSeriesId> getTimeSeriesId(final String metric,
                                                  final Map<String, String> tags) {
     // Lookup or create the metric ID.
     final ListenableFuture<LabelId> metric_id = metricLookupStrategy.getId(metrics, metric);
 
     // Copy the metric ID at the beginning of the row key.
-    class CopyMetricInRowKeyCb implements Function<LabelId, TimeseriesId> {
+    class CopyMetricInRowKeyCb implements Function<LabelId, TimeSeriesId> {
       private final List<LabelId> tagIds;
 
       public CopyMetricInRowKeyCb(final List<LabelId> tagIds) {
@@ -309,15 +309,15 @@ public class IdClient {
       }
 
       @Override
-      public TimeseriesId apply(@Nullable final LabelId metricid) {
-        return new StaticTimeseriesId(metricid, tagIds);
+      public TimeSeriesId apply(@Nullable final LabelId metricid) {
+        return new StaticTimeSeriesId(metricid, tagIds);
       }
     }
 
     // Copy the tag IDs in the row key.
-    class CopyTagsInRowKeyCb implements AsyncFunction<List<LabelId>, TimeseriesId> {
+    class CopyTagsInRowKeyCb implements AsyncFunction<List<LabelId>, TimeSeriesId> {
       @Override
-      public ListenableFuture<TimeseriesId> apply(final List<LabelId> tags) {
+      public ListenableFuture<TimeSeriesId> apply(final List<LabelId> tags) {
         // Once we've resolved all the tags, schedule the copy of the metric
         // ID and return the row key we produced.
         return transform(metric_id, new CopyMetricInRowKeyCb(tags));

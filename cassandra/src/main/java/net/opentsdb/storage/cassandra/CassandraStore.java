@@ -28,7 +28,7 @@ import net.opentsdb.uid.IdException;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.LabelId;
-import net.opentsdb.uid.TimeseriesId;
+import net.opentsdb.uid.TimeSeriesId;
 import net.opentsdb.uid.UniqueIdType;
 
 import com.datastax.driver.core.BoundStatement;
@@ -199,7 +199,7 @@ public class CassandraStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
+  public ListenableFuture<Void> addPoint(final TimeSeriesId tsuid,
                                          final long timestamp,
                                          final float value) {
     final BoundStatement addPointStatement = addFloatStatement.bind()
@@ -209,7 +209,7 @@ public class CassandraStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
+  public ListenableFuture<Void> addPoint(final TimeSeriesId tsuid,
                                          final long timestamp,
                                          final double value) {
     final BoundStatement addPointStatement = addDoubleStatement.bind()
@@ -219,7 +219,7 @@ public class CassandraStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
+  public ListenableFuture<Void> addPoint(final TimeSeriesId tsuid,
                                          final long timestamp,
                                          final long value) {
     final BoundStatement addPointStatement = addLongStatement.bind()

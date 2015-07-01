@@ -9,7 +9,7 @@ import net.opentsdb.plugins.PluginError;
 import net.opentsdb.plugins.RealTimePublisher;
 import net.opentsdb.stats.StopTimerCallback;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.uid.TimeseriesId;
+import net.opentsdb.uid.TimeSeriesId;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
@@ -97,9 +97,9 @@ public class DataPointsClient {
     checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
-    class AddPointFunction implements AsyncFunction<TimeseriesId, Void> {
+    class AddPointFunction implements AsyncFunction<TimeSeriesId, Void> {
       @Override
-      public ListenableFuture<Void> apply(final TimeseriesId timeSeriesId) {
+      public ListenableFuture<Void> apply(final TimeSeriesId timeSeriesId) {
         ListenableFuture<Void> result = store.addPoint(timeSeriesId, timestamp, value);
 
         addCallback(publisher.publishDataPoint(metric, timestamp, value, tags, timeSeriesId),
@@ -143,9 +143,9 @@ public class DataPointsClient {
     checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
-    class AddPointFunction implements AsyncFunction<TimeseriesId, Void> {
+    class AddPointFunction implements AsyncFunction<TimeSeriesId, Void> {
       @Override
-      public ListenableFuture<Void> apply(final TimeseriesId timeSeriesId) {
+      public ListenableFuture<Void> apply(final TimeSeriesId timeSeriesId) {
         ListenableFuture<Void> result = store.addPoint(timeSeriesId, timestamp, value);
 
         addCallback(publisher.publishDataPoint(metric, timestamp, value, tags, timeSeriesId),
@@ -187,9 +187,9 @@ public class DataPointsClient {
     checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
-    class AddPointFunction implements AsyncFunction<TimeseriesId, Void> {
+    class AddPointFunction implements AsyncFunction<TimeSeriesId, Void> {
       @Override
-      public ListenableFuture<Void> apply(final TimeseriesId timeSeriesId) {
+      public ListenableFuture<Void> apply(final TimeSeriesId timeSeriesId) {
         ListenableFuture<Void> result = store.addPoint(timeSeriesId, timestamp, value);
 
         addCallback(publisher.publishDataPoint(metric, timestamp, value, tags, timeSeriesId),

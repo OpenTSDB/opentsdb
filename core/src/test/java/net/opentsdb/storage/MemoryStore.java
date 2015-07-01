@@ -7,7 +7,7 @@ import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.LabelId;
-import net.opentsdb.uid.TimeseriesId;
+import net.opentsdb.uid.TimeSeriesId;
 import net.opentsdb.uid.UniqueIdType;
 
 import com.google.auto.value.AutoValue;
@@ -54,7 +54,7 @@ public class MemoryStore extends TsdbStore {
   private final Table<LabelId, String, LabelMeta> labelMetas;
   private final Table<TimeSeriesKey, Long, Annotation> annotations;
 
-  private final Map<TimeseriesId, NavigableMap<Long, Number>> datapoints;
+  private final Map<TimeSeriesId, NavigableMap<Long, Number>> datapoints;
 
   private final Table<String, UniqueIdType, LabelId> identifierForward;
   private final Table<LabelId, UniqueIdType, String> identifierReverse;
@@ -69,7 +69,7 @@ public class MemoryStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
+  public ListenableFuture<Void> addPoint(final TimeSeriesId tsuid,
                                          final long timestamp,
                                          final float value) {
     return addPoint(tsuid, value, timestamp);
@@ -77,7 +77,7 @@ public class MemoryStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
+  public ListenableFuture<Void> addPoint(final TimeSeriesId tsuid,
                                          final long timestamp,
                                          final double value) {
     return addPoint(tsuid, value, timestamp);
@@ -85,18 +85,18 @@ public class MemoryStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
+  public ListenableFuture<Void> addPoint(final TimeSeriesId tsuid,
                                          final long timestamp,
                                          final long value) {
     return addPoint(tsuid, (Number) value, timestamp);
   }
 
-  private ListenableFuture<Void> addPoint(final TimeseriesId tsuid,
+  private ListenableFuture<Void> addPoint(final TimeSeriesId tsuid,
                                           final Number value,
                                           final long timestamp) {
     /*
      * TODO(luuse): tsuid neither implements #equals, #hashCode or Comparable.
-     * Should implement a custom TimeseriesId for MemoryStore that implements all
+     * Should implement a custom TimeSeriesId for MemoryStore that implements all
      * of these.
      */
     NavigableMap<Long, Number> tsuidDps = datapoints.get(tsuid);
