@@ -12,13 +12,13 @@ import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.StopTimerCallback;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.uid.IdClientTypeContext;
 import net.opentsdb.uid.IdLookupStrategy;
 import net.opentsdb.uid.IdLookupStrategy.WildcardIdLookupStrategy;
 import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.IdType;
 import net.opentsdb.uid.Label;
+import net.opentsdb.uid.LabelClientTypeContext;
 import net.opentsdb.uid.LabelId;
+import net.opentsdb.uid.LabelType;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.StaticTimeSeriesId;
@@ -50,13 +50,13 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 
 @Singleton
-public class IdClient {
+public class LabelClient {
   /** Unique IDs for the metric names. */
-  final IdClientTypeContext metrics;
+  final LabelClientTypeContext metrics;
   /** Unique IDs for the tag names. */
-  final IdClientTypeContext tagKeys;
+  final LabelClientTypeContext tagKeys;
   /** Unique IDs for the tag values. */
-  final IdClientTypeContext tagValues;
+  final LabelClientTypeContext tagValues;
 
   private final TsdbStore store;
 
@@ -72,11 +72,11 @@ public class IdClient {
    * Create a new instance using the given non-null arguments to configure itself.
    */
   @Inject
-  public IdClient(final TsdbStore store,
-                  final Config config,
-                  final MetricRegistry metricsRegistry,
-                  final EventBus idEventBus,
-                  final SearchPlugin searchPlugin) {
+  public LabelClient(final TsdbStore store,
+                     final Config config,
+                     final MetricRegistry metricsRegistry,
+                     final EventBus idEventBus,
+                     final SearchPlugin searchPlugin) {
     checkNotNull(config);
 
     this.store = checkNotNull(store);
@@ -89,9 +89,9 @@ public class IdClient {
     metricLookupStrategy = lookupStrategy(
         config.getBoolean("tsd.core.auto_create_metrics"));
 
-    metrics = new IdClientTypeContext(store, IdType.METRIC, metricsRegistry, idEventBus);
-    tagKeys = new IdClientTypeContext(store, IdType.TAGK, metricsRegistry, idEventBus);
-    tagValues = new IdClientTypeContext(store, IdType.TAGV, metricsRegistry, idEventBus);
+    metrics = new LabelClientTypeContext(store, LabelType.METRIC, metricsRegistry, idEventBus);
+    tagKeys = new LabelClientTypeContext(store, LabelType.TAGK, metricsRegistry, idEventBus);
+    tagValues = new LabelClientTypeContext(store, LabelType.TAGV, metricsRegistry, idEventBus);
 
     tsuidQueryTimer = metricsRegistry.timer(name("tsuid.query-time"));
 
@@ -195,7 +195,7 @@ public class IdClient {
     return searchPlugin.executeIdQuery(query);
   }
 
-  IdClientTypeContext idContextForType(IdType type) {
+  LabelClientTypeContext idContextForType(LabelType type) {
     switch (type) {
       case METRIC:
         return metrics;
@@ -232,11 +232,11 @@ public class IdClient {
    * @since 2.0
    */
   @Nonnull
-  public LabelId assignUid(final IdType type,
+  public LabelId assignUid(final LabelType type,
                            final String name) {
 
     validateLabelName(type.toString(), name);
-    IdClientTypeContext instance = idContextForType(type);
+    LabelClientTypeContext instance = idContextForType(type);
 
     try {
       try {
@@ -253,9 +253,9 @@ public class IdClient {
   /**
    * TODO. This does not exactly mirror what assignUid does. We should merge the two.
    */
-  public ListenableFuture<LabelId> createId(final IdType type, final String name) {
+  public ListenableFuture<LabelId> createId(final LabelType type, final String name) {
     validateLabelName(type.toString(), name);
-    IdClientTypeContext instance = idContextForType(type);
+    LabelClientTypeContext instance = idContextForType(type);
     return instance.createId(name);
   }
 
@@ -267,11 +267,11 @@ public class IdClient {
    * @return A future that on completion will contain the name behind the ID
    */
   @Nonnull
-  public ListenableFuture<String> getLabelName(final IdType type,
+  public ListenableFuture<String> getLabelName(final LabelType type,
                                                final LabelId uid) {
     checkNotNull(uid, "Missing UID");
-    IdClientTypeContext idClientTypeContext = idContextForType(type);
-    return idClientTypeContext.getName(uid);
+    LabelClientTypeContext labelClientTypeContext = idContextForType(type);
+    return labelClientTypeContext.getName(uid);
   }
 
   /**
@@ -282,11 +282,11 @@ public class IdClient {
    * @return A future that on completion will contain the ID behind the name
    */
   @Nonnull
-  public ListenableFuture<LabelId> getLabelId(final IdType type,
+  public ListenableFuture<LabelId> getLabelId(final LabelType type,
                                               final String name) {
     checkArgument(!Strings.isNullOrEmpty(name), "Missing label name");
-    IdClientTypeContext idClientTypeContext = idContextForType(type);
-    return idClientTypeContext.getId(name);
+    LabelClientTypeContext labelClientTypeContext = idContextForType(type);
+    return labelClientTypeContext.getId(name);
   }
 
   /**

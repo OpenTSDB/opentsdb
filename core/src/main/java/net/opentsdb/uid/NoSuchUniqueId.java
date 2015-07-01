@@ -18,14 +18,14 @@ import java.util.NoSuchElementException;
 /**
  * Exception used when a Unique ID can't be found.
  *
- * @see IdException
+ * @see LabelException
  */
 @Deprecated
 public final class NoSuchUniqueId extends NoSuchElementException {
 
   static final long serialVersionUID = 1266815251;
   /** The 'type' of the table. */
-  private final IdType type;
+  private final LabelType type;
   /** The ID that couldn't be found. */
   private final LabelId id;
 
@@ -35,14 +35,14 @@ public final class NoSuchUniqueId extends NoSuchElementException {
    * @param type The type of unique ID that triggered the exception.
    * @param id The ID that couldn't be found.
    */
-  public NoSuchUniqueId(final IdType type, final LabelId id) {
+  public NoSuchUniqueId(final LabelType type, final LabelId id) {
     super("No such unique ID for '" + type + "': " + id);
     this.type = type;
     this.id = id;
   }
 
   /** Returns the type of unique ID that couldn't be found. */
-  public IdType type() {
+  public LabelType type() {
     return type;
   }
 

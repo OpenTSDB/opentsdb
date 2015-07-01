@@ -1,6 +1,6 @@
 package net.opentsdb.core;
 
-import static net.opentsdb.uid.IdType.METRIC;
+import static net.opentsdb.uid.LabelType.METRIC;
 import static org.junit.Assert.assertEquals;
 
 import net.opentsdb.DaggerTestComponent;
@@ -27,7 +27,7 @@ public class MetaClientLabelMetaTest {
   @Inject EventBus idEventBus;
   @Inject TsdbStore store;
 
-  @Inject IdClient idClient;
+  @Inject LabelClient labelClient;
   @Inject MetaClient metaClient;
 
   @Inject RealTimePublisher realtimePublisher;

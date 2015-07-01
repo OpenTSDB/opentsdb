@@ -7,9 +7,9 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.IdType;
 import net.opentsdb.uid.Label;
 import net.opentsdb.uid.LabelId;
+import net.opentsdb.uid.LabelType;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -45,7 +45,7 @@ public class DefaultSearchPlugin extends SearchPlugin {
   @Nonnull
   @Override
   public ListenableFuture<Void> deleteLabelMeta(final LabelId id,
-                                                final IdType type) {
+                                                final LabelType type) {
     return Futures.immediateFuture(null);
   }
 

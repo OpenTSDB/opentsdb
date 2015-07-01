@@ -12,8 +12,8 @@ import net.opentsdb.plugins.RealTimePublisher;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.uid.IdType;
 import net.opentsdb.uid.LabelId;
+import net.opentsdb.uid.LabelType;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.AsyncFunction;
@@ -34,7 +34,7 @@ public class MetaClient {
   private static final Logger LOG = LoggerFactory.getLogger(MetaClient.class);
 
   private final TsdbStore store;
-  private final IdClient idClient;
+  private final LabelClient labelClient;
   private final SearchPlugin searchPlugin;
   private final RealTimePublisher realTimePublisher;
 
@@ -44,10 +44,10 @@ public class MetaClient {
   @Inject
   public MetaClient(final TsdbStore store,
                     final SearchPlugin searchPlugin,
-                    final IdClient idClient,
+                    final LabelClient labelClient,
                     final RealTimePublisher realTimePublisher) {
     this.store = checkNotNull(store);
-    this.idClient = checkNotNull(idClient);
+    this.labelClient = checkNotNull(labelClient);
     this.searchPlugin = checkNotNull(searchPlugin);
     this.realTimePublisher = checkNotNull(realTimePublisher);
   }
@@ -126,11 +126,11 @@ public class MetaClient {
    * @param uid The ID of the meta to fetch
    * @return A UIDMeta from storage or a default
    */
-  public ListenableFuture<LabelMeta> getLabelMeta(final IdType type,
+  public ListenableFuture<LabelMeta> getLabelMeta(final LabelType type,
                                                   final LabelId uid) {
     // Verify that the identifier exists before fetching the meta object. The future that
     // #getLabelName returns will contain an exception if it does not exist.
-    return transform(idClient.getLabelName(type, uid), new AsyncFunction<String, LabelMeta>() {
+    return transform(labelClient.getLabelName(type, uid), new AsyncFunction<String, LabelMeta>() {
       @Override
       public ListenableFuture<LabelMeta> apply(final String name) throws Exception {
         return store.getMeta(uid, type);

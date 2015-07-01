@@ -4,11 +4,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Arrays.asList;
 
 import net.opentsdb.core.ConfigModule;
-import net.opentsdb.core.IdClient;
+import net.opentsdb.core.LabelClient;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.uid.IdException;
-import net.opentsdb.uid.IdType;
+import net.opentsdb.uid.LabelException;
 import net.opentsdb.uid.LabelId;
+import net.opentsdb.uid.LabelType;
 import net.opentsdb.utils.InvalidConfigException;
 
 import com.google.common.collect.ImmutableSet;
@@ -37,11 +37,11 @@ import javax.inject.Inject;
 public final class Assign {
   private static final Logger LOG = LoggerFactory.getLogger(Assign.class);
 
-  private final IdClient idClient;
+  private final LabelClient labelClient;
 
   @Inject
-  Assign(final IdClient idClient) {
-    this.idClient = checkNotNull(idClient);
+  Assign(final LabelClient labelClient) {
+    this.labelClient = checkNotNull(labelClient);
   }
 
   /** Prints printHelp. */
@@ -99,7 +99,7 @@ public final class Assign {
 
       final List<?> nonOptionArguments = options.nonOptionArguments();
 
-      final IdType type = type(nonOptionArguments);
+      final LabelType type = type(nonOptionArguments);
       final ImmutableSet<String> names = ImmutableSet.copyOf(
           Arrays.copyOfRange(args, 1, args.length));
 
@@ -135,26 +135,26 @@ public final class Assign {
     return System.getProperty("app.home");
   }
 
-  private static IdType type(final List<?> nonOptionArguments) {
+  private static LabelType type(final List<?> nonOptionArguments) {
     try {
       String stringType = nonOptionArguments.get(0).toString();
-      return IdType.fromValue(stringType);
+      return LabelType.fromValue(stringType);
     } catch (IndexOutOfBoundsException e) {
       throw new IllegalArgumentException("Missing identifier type to assign");
     }
   }
 
-  private ListenableFuture<LabelId> assign(final String name, final IdType type) {
-    final ListenableFuture<LabelId> id = idClient.createId(type, name);
+  private ListenableFuture<LabelId> assign(final String name, final LabelType type) {
+    final ListenableFuture<LabelId> id = labelClient.createId(type, name);
     Futures.addCallback(id, new LogNewIdCallback(name, type));
     return id;
   }
 
   private static class LogNewIdCallback implements FutureCallback<LabelId> {
     private final String name;
-    private final IdType type;
+    private final LabelType type;
 
-    public LogNewIdCallback(final String name, final IdType type) {
+    public LogNewIdCallback(final String name, final LabelType type) {
       this.name = name;
       this.type = type;
     }
@@ -166,7 +166,7 @@ public final class Assign {
 
     @Override
     public void onFailure(final Throwable throwable) {
-      if (throwable instanceof IdException) {
+      if (throwable instanceof LabelException) {
         System.err.println(throwable.getMessage());
       } else {
         LOG.error("{} {}: {}", name, type, throwable.getMessage(), throwable);

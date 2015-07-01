@@ -1,8 +1,8 @@
 package net.opentsdb.web.jackson;
 
 import net.opentsdb.meta.LabelMeta;
-import net.opentsdb.uid.IdType;
 import net.opentsdb.uid.LabelId;
+import net.opentsdb.uid.LabelType;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -11,7 +11,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 abstract class LabelMetaMixIn {
   @JsonCreator
   static LabelMeta create(@JsonProperty("identifier") final LabelId identifier,
-                          @JsonProperty("type") final IdType type,
+                          @JsonProperty("type") final LabelType type,
                           @JsonProperty("name") final String name,
                           @JsonProperty("description") final String description,
                           @JsonProperty("created") final long created) {
@@ -24,7 +24,7 @@ abstract class LabelMetaMixIn {
   /** The type of UID this metadata represents. */
   @JsonProperty
   @JsonDeserialize(using = UniqueIdTypeDeserializer.class)
-  abstract IdType type();
+  abstract LabelType type();
 
   @JsonProperty
   abstract String name();

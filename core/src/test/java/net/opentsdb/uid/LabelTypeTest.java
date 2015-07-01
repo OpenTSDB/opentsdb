@@ -4,44 +4,44 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-public class IdTypeTest {
+public class LabelTypeTest {
   @Test
   public void stringToUniqueIdTypeMetric() throws Exception {
-    assertEquals(IdType.METRIC, IdType.fromValue("Metric"));
+    assertEquals(LabelType.METRIC, LabelType.fromValue("Metric"));
   }
 
   @Test
   public void stringToUniqueIdTypeTagk() throws Exception {
-    assertEquals(IdType.TAGK, IdType.fromValue("TagK"));
+    assertEquals(LabelType.TAGK, LabelType.fromValue("TagK"));
   }
 
   @Test
   public void uniqueIdTypeTagKeyToValue() {
-    assertEquals("tagk", IdType.TAGK.toValue());
+    assertEquals("tagk", LabelType.TAGK.toValue());
   }
 
   @Test
   public void stringToUniqueIdTypeTagv() throws Exception {
-    assertEquals(IdType.TAGV, IdType.fromValue("TagV"));
+    assertEquals(LabelType.TAGV, LabelType.fromValue("TagV"));
   }
 
   @Test
   public void uniqueIdTypeTagValueToValue() {
-    assertEquals("tagv", IdType.TAGV.toValue());
+    assertEquals("tagv", LabelType.TAGV.toValue());
   }
 
   @Test(expected = NullPointerException.class)
   public void stringToUniqueIdTypeNull() throws Exception {
-    IdType.fromValue(null);
+    LabelType.fromValue(null);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void stringToUniqueIdTypeEmpty() throws Exception {
-    IdType.fromValue("");
+    LabelType.fromValue("");
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void stringToUniqueIdTypeInvalid() throws Exception {
-    IdType.fromValue("Not a type");
+    LabelType.fromValue("Not a type");
   }
 }

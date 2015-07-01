@@ -29,18 +29,21 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Represents a table of Unique IDs, manages the lookup and creation of IDs.
+ * This class contains methods for resolving back and forth between the ID and name of individual
+ * IDs. Each instance represents a single type of IDs.
  *
- * <p>Don't attempt to use {@code equals()} or {@code hashCode()} on this class.
+ * <p>Whenever it is known what kind of ID you are working with due to the context of the operation
+ * you should prefer the methods in this class instead of the equivalent methods in {@link
+ * net.opentsdb.core.LabelClient}.
  */
-public class IdClientTypeContext {
-  private static final Logger LOG = LoggerFactory.getLogger(IdClientTypeContext.class);
+public class LabelClientTypeContext {
+  private static final Logger LOG = LoggerFactory.getLogger(LabelClientTypeContext.class);
 
-  /** The TsdbStore to use. */
+  /** The store to use. */
   private final TsdbStore store;
 
-  /** The type of UID represented by this cache. */
-  private final IdType type;
+  /** The type of IDs represented by this cache. */
+  private final LabelType type;
 
   /** Cache for forward mappings (name to ID). */
   private final ConcurrentHashMap<String, LabelId> nameCache = new ConcurrentHashMap<>();
@@ -51,9 +54,9 @@ public class IdClientTypeContext {
   /** Map of pending UID assignments. */
   private final HashMap<String, ListenableFuture<LabelId>> pendingAssignments = new HashMap<>();
 
-  /** Number of times we avoided reading from TsdbStore thanks to the cache. */
+  /** Number of times we avoided reading from the store thanks to the cache. */
   private final Counter cacheHits;
-  /** Number of times we had to read from TsdbStore and populate the cache. */
+  /** Number of times we had to read from the store and populate the cache. */
   private final Counter cacheMisses;
 
   /**
@@ -69,10 +72,10 @@ public class IdClientTypeContext {
    * @param metrics The metric registry to register metrics on
    * @param idEventBus The event bus where to publish ID events
    */
-  public IdClientTypeContext(final TsdbStore store,
-                             final IdType type,
-                             final MetricRegistry metrics,
-                             final EventBus idEventBus) {
+  public LabelClientTypeContext(final TsdbStore store,
+                                final LabelType type,
+                                final MetricRegistry metrics,
+                                final EventBus idEventBus) {
     this.store = checkNotNull(store);
     this.type = checkNotNull(type);
     this.idEventBus = checkNotNull(idEventBus);
@@ -80,7 +83,6 @@ public class IdClientTypeContext {
     cacheHits = new Counter();
     cacheMisses = new Counter();
     registerMetrics(metrics);
-
   }
 
   private void registerMetrics(final MetricRegistry registry) {
@@ -163,7 +165,7 @@ public class IdClientTypeContext {
 
   /**
    * Fetch the label ID behind the provided name and the type associated with this
-   * IdClientTypeContext instance.
+   * LabelClientTypeContext instance.
    *
    * @param name The name to lookup the ID behind
    * @return A future that on completion will contain the ID behind the name

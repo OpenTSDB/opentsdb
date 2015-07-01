@@ -5,9 +5,9 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.IdType;
 import net.opentsdb.uid.Label;
 import net.opentsdb.uid.LabelId;
+import net.opentsdb.uid.LabelType;
 import net.opentsdb.uid.TimeSeriesId;
 
 import com.google.common.base.Optional;
@@ -29,19 +29,19 @@ public abstract class TsdbStore implements Closeable {
   //
   @Nonnull
   public abstract ListenableFuture<LabelId> allocateLabel(final String name,
-                                                          final IdType type);
+                                                          final LabelType type);
 
   @Nonnull
   public abstract ListenableFuture<LabelId> allocateLabel(final String name,
                                                           final LabelId id,
-                                                          final IdType type);
+                                                          final LabelType type);
 
   @Nonnull
-  public abstract ListenableFuture<Void> deleteLabel(final String name, final IdType type);
+  public abstract ListenableFuture<Void> deleteLabel(final String name, final LabelType type);
 
   /**
    * Lookup time series related to a metric, tagk, tagv or any combination thereof. See {@link
-   * net.opentsdb.core.IdClient#executeTimeSeriesQuery} for a more formal specification how the
+   * net.opentsdb.core.LabelClient#executeTimeSeriesQuery} for a more formal specification how the
    * query language and logic.
    *
    * @param query The query that filters out which TSUIDs to lookup
@@ -63,11 +63,11 @@ public abstract class TsdbStore implements Closeable {
 
   @Nonnull
   public abstract ListenableFuture<Optional<LabelId>> getId(final String name,
-                                                            final IdType type);
+                                                            final LabelType type);
 
   @Nonnull
   public abstract ListenableFuture<Optional<String>> getName(final LabelId id,
-                                                             final IdType type);
+                                                             final LabelType type);
 
   //
   // Datapoints
@@ -163,7 +163,7 @@ public abstract class TsdbStore implements Closeable {
   //
   @Nonnull
   public abstract ListenableFuture<LabelMeta> getMeta(final LabelId uid,
-                                                      final IdType type);
+                                                      final LabelType type);
 
   @Nonnull
   public abstract ListenableFuture<Boolean> updateMeta(final LabelMeta meta);

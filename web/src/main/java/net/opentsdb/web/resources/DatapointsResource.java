@@ -66,7 +66,7 @@ public final class DatapointsResource extends Resource {
 
       return response(ACCEPTED);
     } catch (JsonProcessingException e) {
-      LOG.info("Malformed JSON while adding datapoint", e);
+      LOG.info("Malformed JSON while adding data point", e);
       return response(UNPROCESSABLE_ENTITY);
     } catch (IOException e) {
       // We are just reading from memory so nothing should throw an IOException.

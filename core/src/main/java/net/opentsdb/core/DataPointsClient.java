@@ -28,7 +28,7 @@ import javax.inject.Singleton;
 @Singleton
 public class DataPointsClient {
   private final TsdbStore store;
-  private final IdClient idClient;
+  private final LabelClient labelClient;
   private final RealTimePublisher publisher;
 
   private final Timer addDataPointTimer;
@@ -39,12 +39,12 @@ public class DataPointsClient {
    */
   @Inject
   public DataPointsClient(final TsdbStore store,
-                          final IdClient idClient,
+                          final LabelClient labelClient,
                           final RealTimePublisher realTimePublisher,
                           final MetricRegistry metricRegistry,
                           final Config config) {
     this.store = checkNotNull(store);
-    this.idClient = checkNotNull(idClient);
+    this.labelClient = checkNotNull(labelClient);
     this.publisher = checkNotNull(realTimePublisher);
 
     this.addDataPointTimer = metricRegistry.timer(name("add_data_point"));
@@ -79,10 +79,10 @@ public class DataPointsClient {
         "No more than %s tags are allowed but there are %s",
         maxTags, tags.size(), metric, tags);
 
-    IdClient.validateLabelName("metric name", metric);
+    LabelClient.validateLabelName("metric name", metric);
     for (final Map.Entry<String, String> tag : tags.entrySet()) {
-      IdClient.validateLabelName("tag name", tag.getKey());
-      IdClient.validateLabelName("tag value", tag.getValue());
+      LabelClient.validateLabelName("tag name", tag.getKey());
+      LabelClient.validateLabelName("tag value", tag.getValue());
     }
   }
 
@@ -134,7 +134,7 @@ public class DataPointsClient {
     final Timer.Context time = addDataPointTimer.time();
 
     final ListenableFuture<Void> addPointComplete = Futures.transform(
-        idClient.getTimeSeriesId(metric, tags), new AddPointFunction());
+        labelClient.getTimeSeriesId(metric, tags), new AddPointFunction());
 
     StopTimerCallback.stopOn(time, addPointComplete);
 
@@ -180,7 +180,7 @@ public class DataPointsClient {
     final Timer.Context time = addDataPointTimer.time();
 
     final ListenableFuture<Void> addPointComplete = Futures.transform(
-        idClient.getTimeSeriesId(metric, tags), new AddPointFunction());
+        labelClient.getTimeSeriesId(metric, tags), new AddPointFunction());
 
     StopTimerCallback.stopOn(time, addPointComplete);
 
@@ -224,7 +224,7 @@ public class DataPointsClient {
     final Timer.Context time = addDataPointTimer.time();
 
     final ListenableFuture<Void> addPointComplete = Futures.transform(
-        idClient.getTimeSeriesId(metric, tags), new AddPointFunction());
+        labelClient.getTimeSeriesId(metric, tags), new AddPointFunction());
 
     StopTimerCallback.stopOn(time, addPointComplete);
 

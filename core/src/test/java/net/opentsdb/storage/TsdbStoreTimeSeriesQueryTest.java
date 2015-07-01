@@ -5,8 +5,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import net.opentsdb.search.ResolvedSearchQuery;
-import net.opentsdb.uid.IdType;
 import net.opentsdb.uid.LabelId;
+import net.opentsdb.uid.LabelType;
 import net.opentsdb.utils.Pair;
 
 import com.google.common.collect.ImmutableSortedSet;
@@ -39,16 +39,16 @@ public abstract class TsdbStoreTimeSeriesQueryTest {
 
   @Before
   public void setUp() throws Exception {
-    sysCpuUserId = store.allocateLabel("sys.cpu.user", IdType.METRIC).get();
-    sysCpuNiceId = store.allocateLabel("sys.cpu.nice", IdType.METRIC).get();
-    sysCpuIdleId = store.allocateLabel("sys.cpu.idle", IdType.METRIC).get();
-    noValuesId = store.allocateLabel("no.values", IdType.METRIC).get();
+    sysCpuUserId = store.allocateLabel("sys.cpu.user", LabelType.METRIC).get();
+    sysCpuNiceId = store.allocateLabel("sys.cpu.nice", LabelType.METRIC).get();
+    sysCpuIdleId = store.allocateLabel("sys.cpu.idle", LabelType.METRIC).get();
+    noValuesId = store.allocateLabel("no.values", LabelType.METRIC).get();
 
-    tagkHostId = store.allocateLabel("host", IdType.TAGK).get();
-    tagkOwnerId = store.allocateLabel("owner", IdType.TAGK).get();
+    tagkHostId = store.allocateLabel("host", LabelType.TAGK).get();
+    tagkOwnerId = store.allocateLabel("owner", LabelType.TAGK).get();
 
-    tagvWeb01Id = store.allocateLabel("web01", IdType.TAGV).get();
-    tagvWeb02Id = store.allocateLabel("web02", IdType.TAGV).get();
+    tagvWeb01Id = store.allocateLabel("web01", LabelType.TAGV).get();
+    tagvWeb02Id = store.allocateLabel("web02", LabelType.TAGV).get();
   }
 
   @Test

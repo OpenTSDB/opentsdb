@@ -25,11 +25,11 @@ import net.opentsdb.storage.cassandra.functions.ResultSetToVoid;
 import net.opentsdb.storage.cassandra.statements.AddPointStatements;
 import net.opentsdb.storage.cassandra.statements.AddPointStatements.AddPointStatementMarkers;
 import net.opentsdb.time.JdkTimeProvider;
-import net.opentsdb.uid.IdException;
 import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.IdType;
 import net.opentsdb.uid.Label;
+import net.opentsdb.uid.LabelException;
 import net.opentsdb.uid.LabelId;
+import net.opentsdb.uid.LabelType;
 import net.opentsdb.uid.TimeSeriesId;
 
 import com.datastax.driver.core.BoundStatement;
@@ -263,18 +263,18 @@ public class CassandraStore extends TsdbStore {
                                       final ByteBuffer tsid) {
     session.executeAsync(insertTagsStatement.bind()
         .setLong(0, toLong(metric))
-        .setString(1, IdType.METRIC.toValue())
+        .setString(1, LabelType.METRIC.toValue())
         .setBytesUnsafe(2, tsid));
 
     for (final Map.Entry<LabelId, LabelId> entry : tags.entrySet()) {
       session.executeAsync(insertTagsStatement.bind()
           .setLong(0, toLong(entry.getKey()))
-          .setString(1, IdType.TAGK.toValue())
+          .setString(1, LabelType.TAGK.toValue())
           .setBytesUnsafe(2, tsid));
 
       session.executeAsync(insertTagsStatement.bind()
           .setLong(0, toLong(entry.getValue()))
-          .setString(1, IdType.TAGV.toValue())
+          .setString(1, LabelType.TAGV.toValue())
           .setBytesUnsafe(2, tsid));
     }
   }
@@ -287,7 +287,7 @@ public class CassandraStore extends TsdbStore {
   @Nonnull
   @Override
   public ListenableFuture<Optional<LabelId>> getId(final String name,
-                                                   final IdType type) {
+                                                   final LabelType type) {
     ListenableFuture<List<LabelId>> idsFuture = getIds(name, type);
     return transform(idsFuture, new FirstOrAbsentFunction<LabelId>());
   }
@@ -301,7 +301,7 @@ public class CassandraStore extends TsdbStore {
    */
   @Nonnull
   ListenableFuture<List<LabelId>> getIds(final String name,
-                                         final IdType type) {
+                                         final LabelType type) {
     ResultSetFuture idsFuture = session.executeAsync(
         getIdStatement.bind(name, type.toValue()));
 
@@ -329,7 +329,7 @@ public class CassandraStore extends TsdbStore {
   @Nonnull
   @Override
   public ListenableFuture<Optional<String>> getName(final LabelId id,
-                                                    final IdType type) {
+                                                    final LabelType type) {
     ListenableFuture<List<String>> namesFuture = getNames(id, type);
     return transform(namesFuture, new FirstOrAbsentFunction<String>());
   }
@@ -343,7 +343,7 @@ public class CassandraStore extends TsdbStore {
    */
   @Nonnull
   ListenableFuture<List<String>> getNames(final LabelId id,
-                                          final IdType type) {
+                                          final LabelType type) {
     ResultSetFuture namesFuture = session.executeAsync(
         getNameStatement.bind(id, type.toValue()));
 
@@ -371,7 +371,7 @@ public class CassandraStore extends TsdbStore {
   @Nonnull
   @Override
   public ListenableFuture<LabelMeta> getMeta(final LabelId uid,
-                                             final IdType type) {
+                                             final LabelType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -384,7 +384,7 @@ public class CassandraStore extends TsdbStore {
   @Nonnull
   @Override
   public ListenableFuture<Void> deleteLabel(final String name,
-                                            final IdType type) {
+                                            final LabelType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -397,7 +397,7 @@ public class CassandraStore extends TsdbStore {
    * @return A future that contains a boolean that indicates if the id was available
    */
   private ListenableFuture<Boolean> isIdAvailable(final long id,
-                                                  final IdType type) {
+                                                  final LabelType type) {
     return transform(getNames(fromLong(id), type), new IsEmptyFunction());
   }
 
@@ -410,14 +410,14 @@ public class CassandraStore extends TsdbStore {
    * @return A future that contains a boolean that indicates if the name was available
    */
   private ListenableFuture<Boolean> isNameAvailable(final String name,
-                                                    final IdType type) {
+                                                    final LabelType type) {
     return transform(getIds(name, type), new IsEmptyFunction());
   }
 
   /**
    * Check if either of (id, type) and (name, type) are taken or if both are available. If either of
-   * the combinations already are taken the returned future will contain an {@link
-   * net.opentsdb.uid.IdException}.
+   * the combinations already are taken the returned future will contain an
+   * {@link net.opentsdb.uid.LabelException}.
    *
    * @param id The id to check if it is available
    * @param name The name to check if it is available
@@ -427,7 +427,7 @@ public class CassandraStore extends TsdbStore {
    */
   private ListenableFuture<Void> checkAvailable(final long id,
                                                 final String name,
-                                                final IdType type) {
+                                                final LabelType type) {
     ImmutableList<ListenableFuture<Boolean>> availableList =
         ImmutableList.of(isIdAvailable(id, type), isNameAvailable(name, type));
     final ListenableFuture<List<Boolean>> availableFuture = Futures.allAsList(availableList);
@@ -442,12 +442,12 @@ public class CassandraStore extends TsdbStore {
 
         if (!idAvailable) {
           return Futures.immediateFailedFuture(
-              new IdException(id, type, "Id was already taken"));
+              new LabelException(id, type, "Id was already taken"));
         }
 
         if (!nameAvailable) {
           return Futures.immediateFailedFuture(
-              new IdException(name, type, "Name was already taken"));
+              new LabelException(name, type, "Name was already taken"));
         }
 
         return Futures.immediateFuture(null);
@@ -466,7 +466,7 @@ public class CassandraStore extends TsdbStore {
    */
   private ListenableFuture<LabelId> createId(final long id,
                                              final String name,
-                                             final IdType type) {
+                                             final LabelType type) {
     final Date createTimestamp = timeProvider.now();
     final ResultSetFuture save = session.executeAsync(
         createIdStatement.bind(createTimestamp.getTime(),
@@ -488,17 +488,17 @@ public class CassandraStore extends TsdbStore {
    * Allocate an ID for the provided (name, type). This will attempt to generate an ID that is
    * likely to be available. It will then check if this information is available and finally save
    * the information if it is. If the information could be saved the ID will be returned in a
-   * future, otherwise the future will contain an {@link net.opentsdb.uid.IdException}.
+   * future, otherwise the future will contain an {@link LabelException}.
    *
    * @param name The name to allocate an ID for
    * @param type The type of name to allocate an ID for
    * @return A future that contains the newly allocated ID if successful, otherwise the future will
-   * contain a {@link net.opentsdb.uid.IdException}.
+   * contain a {@link LabelException}.
    */
   @Nonnull
   @Override
   public ListenableFuture<LabelId> allocateLabel(final String name,
-                                                 final IdType type) {
+                                                 final LabelType type) {
     // This discards half the hash but it should still work ok with murmur3.
     final long id = Hashing.murmur3_128().hashString(name, CHARSET).asLong();
 
@@ -523,7 +523,7 @@ public class CassandraStore extends TsdbStore {
    * For all intents and purposes this function works as a rename. In the HBase implementation the
    * other method {@link #allocateLabel} uses this method that basically overwrites the value no
    * matter what. This method is also used by the function
-   * {@link net.opentsdb.uid.IdClientTypeContext#rename}.
+   * {@link net.opentsdb.uid.LabelClientTypeContext#rename}.
    *
    * @param name The name to write.
    * @param id The uid to use.
@@ -534,7 +534,7 @@ public class CassandraStore extends TsdbStore {
   @Override
   public ListenableFuture<LabelId> allocateLabel(final String name,
                                                  final LabelId id,
-                                                 final IdType type) {
+                                                 final LabelType type) {
     /*
     TODO #zeeck this method should be considered to be changed to rename and the implementation
     changed in the HBaseStore. One of the prerequisites of this function is that the UID already

@@ -2,8 +2,8 @@ package net.opentsdb.meta;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import net.opentsdb.uid.IdType;
 import net.opentsdb.uid.LabelId;
+import net.opentsdb.uid.LabelType;
 
 import com.google.auto.value.AutoValue;
 
@@ -21,7 +21,7 @@ public abstract class LabelMeta {
    * Create an instance with the provided information.
    */
   public static LabelMeta create(final LabelId identifier,
-                                 final IdType type,
+                                 final LabelType type,
                                  final String name,
                                  final String description,
                                  final long created) {
@@ -34,7 +34,7 @@ public abstract class LabelMeta {
   public abstract LabelId identifier();
 
   /** What type of label this is. */
-  public abstract IdType type();
+  public abstract LabelType type();
 
   /** The name of the label. */
   public abstract String name();

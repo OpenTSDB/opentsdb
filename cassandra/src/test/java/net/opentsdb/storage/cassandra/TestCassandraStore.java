@@ -9,8 +9,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
-import net.opentsdb.uid.IdType;
 import net.opentsdb.uid.LabelId;
+import net.opentsdb.uid.LabelType;
 
 import com.codahale.metrics.MetricRegistry;
 import com.datastax.driver.core.Cluster;
@@ -58,16 +58,16 @@ public class TestCassandraStore {
     store = storeDescriptor.createStore(config, new MetricRegistry());
 
     nameUid.put(METRIC_NAME_ONE, store.allocateLabel(
-        METRIC_NAME_ONE, IdType.METRIC).get());
+        METRIC_NAME_ONE, LabelType.METRIC).get());
 
     nameUid.put(METRIC_NAME_TWO, store.allocateLabel(
-        METRIC_NAME_TWO, IdType.METRIC).get());
+        METRIC_NAME_TWO, LabelType.METRIC).get());
 
     nameUid.put(METRIC_NAME_THREE, store.allocateLabel(
-        METRIC_NAME_THREE, IdType.METRIC).get());
+        METRIC_NAME_THREE, LabelType.METRIC).get());
 
-    TAGK_UID_ONE = store.allocateLabel(TAGK_NAME_ONE, IdType.TAGK).get();
-    TAGV_UID_ONE = store.allocateLabel(TAGV_NAME_ONE, IdType.TAGV).get();
+    TAGK_UID_ONE = store.allocateLabel(TAGK_NAME_ONE, LabelType.TAGK).get();
+    TAGV_UID_ONE = store.allocateLabel(TAGV_NAME_ONE, LabelType.TAGV).get();
 
 
     /*
@@ -156,7 +156,7 @@ public class TestCassandraStore {
 
   @Test
   public void allocateLabel() throws Exception {
-    LabelId newMetricUid = store.allocateLabel("new", IdType.METRIC).get();
+    LabelId newMetricUid = store.allocateLabel("new", LabelType.METRIC).get();
     long maxUid = 0;
     for (LabelId uid : nameUid.values()) {
       maxUid = Math.max(toLong(uid), maxUid);
@@ -167,30 +167,30 @@ public class TestCassandraStore {
   @Test
   public void renameId() {
     fail();
-    //store.allocateLabel("renamed", new byte[]{0, 0, 4}, IdType.METRIC);
+    //store.allocateLabel("renamed", new byte[]{0, 0, 4}, LabelType.METRIC);
   }
 
   @Test
   public void getName() throws Exception {
-    validateValidName(METRIC_NAME_ONE, IdType.METRIC);
-    validateValidName(METRIC_NAME_TWO, IdType.METRIC);
-    validateValidName(METRIC_NAME_THREE, IdType.METRIC);
-    validateInvalidName(mock(LabelId.class), IdType.METRIC);
-    validateValidName(TAGK_NAME_ONE, IdType.TAGK);
-    validateValidName(TAGV_NAME_ONE, IdType.TAGK);
+    validateValidName(METRIC_NAME_ONE, LabelType.METRIC);
+    validateValidName(METRIC_NAME_TWO, LabelType.METRIC);
+    validateValidName(METRIC_NAME_THREE, LabelType.METRIC);
+    validateInvalidName(mock(LabelId.class), LabelType.METRIC);
+    validateValidName(TAGK_NAME_ONE, LabelType.TAGK);
+    validateValidName(TAGV_NAME_ONE, LabelType.TAGK);
   }
 
   @Test
   public void getId() throws Exception {
-    validateValidId(METRIC_NAME_ONE, IdType.METRIC);
-    validateValidId(METRIC_NAME_TWO, IdType.METRIC);
-    validateValidId(METRIC_NAME_THREE, IdType.METRIC);
-    validateInvalidId("Missing", IdType.METRIC);
-    validateValidId(TAGK_NAME_ONE, IdType.TAGK);
-    validateValidId(TAGV_NAME_ONE, IdType.TAGV);
+    validateValidId(METRIC_NAME_ONE, LabelType.METRIC);
+    validateValidId(METRIC_NAME_TWO, LabelType.METRIC);
+    validateValidId(METRIC_NAME_THREE, LabelType.METRIC);
+    validateInvalidId("Missing", LabelType.METRIC);
+    validateValidId(TAGK_NAME_ONE, LabelType.TAGK);
+    validateValidId(TAGV_NAME_ONE, LabelType.TAGV);
   }
 
-  private void validateValidId(final String name, final IdType type)
+  private void validateValidId(final String name, final LabelType type)
       throws Exception {
     Optional<LabelId> value = store.getId(name, type).get();
 
@@ -198,13 +198,13 @@ public class TestCassandraStore {
     assertEquals(nameUid.get(name), value.get());
   }
 
-  private void validateInvalidId(final String name, final IdType type)
+  private void validateInvalidId(final String name, final LabelType type)
       throws Exception {
     Optional<LabelId> value = store.getId(name, type).get();
     assertFalse(value.isPresent());
   }
 
-  private void validateValidName(final String name, final IdType type)
+  private void validateValidName(final String name, final LabelType type)
       throws Exception {
     Optional<String> value = store.getName(nameUid.get(name), type).get();
 
@@ -212,7 +212,7 @@ public class TestCassandraStore {
     assertEquals(name, value.get());
   }
 
-  private void validateInvalidName(final LabelId uid, final IdType type)
+  private void validateInvalidName(final LabelId uid, final LabelType type)
       throws Exception {
     Optional<String> value = store.getName(uid, type).get();
     assertFalse(value.isPresent());

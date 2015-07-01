@@ -18,8 +18,9 @@ import java.util.NoSuchElementException;
 /**
  * Exception used when a name's Unique ID can't be found.
  *
- * @see IdClientTypeContext
+ * @see LabelClientTypeContext
  */
+@Deprecated
 public final class NoSuchUniqueName extends NoSuchElementException {
 
   static final long serialVersionUID = 1266815261;

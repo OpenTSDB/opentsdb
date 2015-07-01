@@ -2,7 +2,7 @@ package net.opentsdb;
 
 import net.opentsdb.core.ConfigModule;
 import net.opentsdb.core.CoreModule;
-import net.opentsdb.core.IdClientTest;
+import net.opentsdb.core.LabelClientTest;
 import net.opentsdb.core.MetaClientAnnotationTest;
 import net.opentsdb.core.MetaClientLabelMetaTest;
 import net.opentsdb.plugins.PluginsModule;
@@ -40,7 +40,7 @@ public interface TestComponent {
 
   void inject(TestUniqueId testUniqueId);
 
-  void inject(IdClientTest idClientTest);
+  void inject(LabelClientTest idClientTest);
 
   void inject(MetaClientAnnotationTest metaClientAnnotationTest);
 

@@ -1,8 +1,8 @@
 package net.opentsdb.core;
 
-import static net.opentsdb.uid.IdType.METRIC;
-import static net.opentsdb.uid.IdType.TAGK;
-import static net.opentsdb.uid.IdType.TAGV;
+import static net.opentsdb.uid.LabelType.METRIC;
+import static net.opentsdb.uid.LabelType.TAGK;
+import static net.opentsdb.uid.LabelType.TAGV;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
@@ -27,12 +27,12 @@ import org.junit.rules.Timeout;
 import java.util.Map;
 import javax.inject.Inject;
 
-public class IdClientTest {
+public class LabelClientTest {
   @Rule
   public final Timeout timeout = Timeout.millis(TestUtil.TIMEOUT);
 
   @Inject TsdbStore store;
-  @Inject IdClient idClient;
+  @Inject LabelClient labelClient;
 
   private LabelId sysCpu0;
   private LabelId host;
@@ -49,17 +49,17 @@ public class IdClientTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void assignUidInvalidCharacter() {
-    idClient.assignUid(METRIC, "Not!A:Valid@Name");
+    labelClient.assignUid(METRIC, "Not!A:Valid@Name");
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void assignUidNullName() {
-    idClient.assignUid(METRIC, null);
+    labelClient.assignUid(METRIC, null);
   }
 
   @Test(expected = NullPointerException.class)
   public void assignUidNullType() {
-    idClient.assignUid(null, "localhost");
+    labelClient.assignUid(null, "localhost");
   }
 
   @Test
@@ -67,30 +67,30 @@ public class IdClientTest {
     final LabelId id = mock(LabelId.class);
     when(store.allocateLabel("region", TAGK))
         .thenReturn(Futures.immediateFuture(id));
-    assertSame(id, idClient.assignUid(TAGK, "region"));
+    assertSame(id, labelClient.assignUid(TAGK, "region"));
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void assignUidTagKeyExists() {
-    idClient.assignUid(TAGK, "host");
+    labelClient.assignUid(TAGK, "host");
   }
 
   @Test(expected = NoSuchUniqueName.class)
   public void executeTimeSeriesQueryMissingName() throws Exception {
     final SearchQuery query = new SearchQuery("nosuchname");
-    idClient.executeTimeSeriesQuery(query).get();
+    labelClient.executeTimeSeriesQuery(query).get();
   }
 
   @Test
   public void getTagNames() throws Exception {
     ImmutableList<LabelId> ids = ImmutableList.of(host, web01);
-    final Map<String, String> tags = idClient.getTagNames(ids).get();
+    final Map<String, String> tags = labelClient.getTagNames(ids).get();
     assertEquals("web01", tags.get("host"));
   }
 
   @Test
   public void getTagNamesEmptyList() throws Exception {
-    final Map<String, String> tags = idClient.getTagNames(ImmutableList.<LabelId>of()).get();
+    final Map<String, String> tags = labelClient.getTagNames(ImmutableList.<LabelId>of()).get();
     assertNotNull(tags);
     assertEquals(0L, tags.size());
   }
@@ -98,66 +98,66 @@ public class IdClientTest {
   @Test(expected = NoSuchUniqueId.class)
   public void getTagNamesNoSuchId() throws Exception {
     ImmutableList<LabelId> ids = ImmutableList.of(mock(LabelId.class), mock(LabelId.class));
-    idClient.getTagNames(ids).get();
+    labelClient.getTagNames(ids).get();
   }
 
   @Test
   public void getLabelId() throws Exception {
-    assertEquals(sysCpu0, idClient.getLabelId(METRIC, "sys.cpu.0").get());
+    assertEquals(sysCpu0, labelClient.getLabelId(METRIC, "sys.cpu.0").get());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void getLabelIdEmptyName() {
-    idClient.getLabelId(TAGV, "");
+    labelClient.getLabelId(TAGV, "");
   }
 
   @Test(expected = NoSuchUniqueName.class)
   public void getLabelIdNoSuchName() throws Exception {
-    idClient.getLabelId(METRIC, "sys.cpu.2").get();
+    labelClient.getLabelId(METRIC, "sys.cpu.2").get();
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void getLabelIdNullName() {
-    idClient.getLabelId(TAGV, null);
+    labelClient.getLabelId(TAGV, null);
   }
 
   @Test(expected = NullPointerException.class)
   public void getLabelIdNullType() {
-    idClient.getLabelId(null, "sys.cpu.1");
+    labelClient.getLabelId(null, "sys.cpu.1");
   }
 
   @Test
   public void getUidName() throws Exception {
-    assertEquals("web01", idClient.getLabelName(TAGV, web01).get());
+    assertEquals("web01", labelClient.getLabelName(TAGV, web01).get());
   }
 
   @Test(expected = NoSuchUniqueId.class)
   public void getLabelNameNoSuchId() throws Exception {
-    idClient.getLabelName(TAGV, mock(LabelId.class)).get();
+    labelClient.getLabelName(TAGV, mock(LabelId.class)).get();
   }
 
   @Test(expected = NullPointerException.class)
   public void getUidNameNullType() throws Exception {
-    idClient.getLabelName(null, mock(LabelId.class));
+    labelClient.getLabelName(null, mock(LabelId.class));
   }
 
   @Test(expected = NullPointerException.class)
   public void getLabelNameNullId() throws Exception {
-    idClient.getLabelName(TAGV, null);
+    labelClient.getLabelName(TAGV, null);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void validateBadString() {
-    IdClient.validateLabelName("test", "this is a test!");
+    LabelClient.validateLabelName("test", "this is a test!");
   }
 
   @Test
   public void validateGoodString() {
-    IdClient.validateLabelName("test", "omg-TSDB/42._foo_");
+    LabelClient.validateLabelName("test", "omg-TSDB/42._foo_");
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void validateNullString() {
-    IdClient.validateLabelName("test", null);
+    LabelClient.validateLabelName("test", null);
   }
 }

@@ -15,15 +15,15 @@ import javax.annotation.Nullable;
  */
 public interface IdLookupStrategy {
   /**
-   * Fetch the ID behind the provided name using the provided {@link IdClientTypeContext}
+   * Fetch the ID behind the provided name using the provided {@link LabelClientTypeContext}
    * instance.
    *
-   * @param idClientTypeContext The IdClientTypeContext instance to use for looking up the ID
+   * @param labelClientTypeContext The LabelClientTypeContext instance to use for looking up the ID
    * @param name The name to find the ID behind
    * @return A future that on completion will contains the ID behind the name
    */
   @Nonnull
-  ListenableFuture<LabelId> getId(final IdClientTypeContext idClientTypeContext,
+  ListenableFuture<LabelId> getId(final LabelClientTypeContext labelClientTypeContext,
                                   final String name);
 
   /**
@@ -35,9 +35,9 @@ public interface IdLookupStrategy {
 
     @Nonnull
     @Override
-    public ListenableFuture<LabelId> getId(final IdClientTypeContext idClientTypeContext,
+    public ListenableFuture<LabelId> getId(final LabelClientTypeContext labelClientTypeContext,
                                            final String name) {
-      return idClientTypeContext.getId(name);
+      return labelClientTypeContext.getId(name);
     }
   }
 
@@ -50,11 +50,11 @@ public interface IdLookupStrategy {
 
     @Nonnull
     @Override
-    public ListenableFuture<LabelId> getId(final IdClientTypeContext idClientTypeContext,
+    public ListenableFuture<LabelId> getId(final LabelClientTypeContext labelClientTypeContext,
                                            final String name) {
       final SettableFuture<LabelId> id = SettableFuture.create();
 
-      Futures.addCallback(idClientTypeContext.getId(name), new FutureCallback<LabelId>() {
+      Futures.addCallback(labelClientTypeContext.getId(name), new FutureCallback<LabelId>() {
         @Override
         public void onSuccess(@Nullable final LabelId result) {
           id.set(result);
@@ -62,7 +62,7 @@ public interface IdLookupStrategy {
 
         @Override
         public void onFailure(final Throwable throwable) {
-          Futures.addCallback(idClientTypeContext.createId(name), new FutureCallback<LabelId>() {
+          Futures.addCallback(labelClientTypeContext.createId(name), new FutureCallback<LabelId>() {
             @Override
             public void onSuccess(@Nullable final LabelId result) {
               id.set(result);
@@ -94,13 +94,13 @@ public interface IdLookupStrategy {
 
     @Nonnull
     @Override
-    public ListenableFuture<LabelId> getId(final IdClientTypeContext idClientTypeContext,
+    public ListenableFuture<LabelId> getId(final LabelClientTypeContext labelClientTypeContext,
                                            final String name) {
       if (Strings.isNullOrEmpty(name) || "*".equals(name)) {
         return Futures.immediateFuture(null);
       }
 
-      return idClientTypeContext.getId(name);
+      return labelClientTypeContext.getId(name);
     }
   }
 }

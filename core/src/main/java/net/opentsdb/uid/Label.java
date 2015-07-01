@@ -11,7 +11,7 @@ public interface Label {
   LabelId id();
 
   @Nonnull
-  IdType type();
+  LabelType type();
 
   @Nonnull
   String name();

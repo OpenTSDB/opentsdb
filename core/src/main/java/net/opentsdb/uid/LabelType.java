@@ -7,9 +7,9 @@ import com.google.common.base.Strings;
 /**
  * Enumerator for different types of IDs.
  */
-public enum IdType {
+public enum LabelType {
   // Think long and hard before changing the identifier arguments bellow.
-  // Changing any of them without updating IdType#fromValue bellow will
+  // Changing any of them without updating LabelType#fromValue bellow will
   // wreck all deployments.
   METRIC("metric"),
   TAGK("tagk"),
@@ -17,7 +17,7 @@ public enum IdType {
 
   private final String identifier;
 
-  IdType(String identifier) {
+  LabelType(String identifier) {
     checkArgument(!Strings.isNullOrEmpty(identifier), "Empty string as 'identifier' argument!");
 
     this.identifier = identifier;
@@ -28,10 +28,10 @@ public enum IdType {
    * #toValue}.
    *
    * @param type The string to convert
-   * @return a valid IdType if matched
+   * @return a valid LabelType if matched
    * @throws IllegalArgumentException if the string did not match a type
    */
-  public static IdType fromValue(final String type) {
+  public static LabelType fromValue(final String type) {
     final String lowerCaseType = type.toLowerCase();
 
     switch (lowerCaseType) {

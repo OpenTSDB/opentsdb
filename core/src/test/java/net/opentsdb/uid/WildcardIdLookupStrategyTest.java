@@ -22,7 +22,7 @@ public class WildcardIdLookupStrategyTest {
   @Inject MetricRegistry metricRegistry;
   @Inject EventBus eventBus;
 
-  private IdClientTypeContext uid;
+  private LabelClientTypeContext uid;
   private IdLookupStrategy lookupStrategy;
 
   @Rule
@@ -32,7 +32,7 @@ public class WildcardIdLookupStrategyTest {
   public void setUp() throws IOException {
     DaggerTestComponent.create().inject(this);
 
-    uid = new IdClientTypeContext(client, IdType.METRIC, metricRegistry, eventBus);
+    uid = new LabelClientTypeContext(client, LabelType.METRIC, metricRegistry, eventBus);
     lookupStrategy = new IdLookupStrategy.WildcardIdLookupStrategy();
   }
 
@@ -53,7 +53,7 @@ public class WildcardIdLookupStrategyTest {
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void testResolveIdGetsId() throws Exception {
-    LabelId id = client.allocateLabel("nameexists", IdType.METRIC).get();
+    LabelId id = client.allocateLabel("nameexists", LabelType.METRIC).get();
     assertEquals(id, lookupStrategy.getId(uid, "nameexists").get());
   }
 

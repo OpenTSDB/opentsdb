@@ -21,7 +21,7 @@ public class IdTypeFromValueBenchmark {
   public String stringType;
 
   @Benchmark
-  public IdType idTypefromValueSwitch() {
-    return IdType.fromValue(stringType);
+  public LabelType idTypefromValueSwitch() {
+    return LabelType.fromValue(stringType);
   }
 }

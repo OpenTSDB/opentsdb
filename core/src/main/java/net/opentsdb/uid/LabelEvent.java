@@ -9,7 +9,7 @@ import javax.annotation.Nonnull;
 public class LabelEvent {
   private final LabelId id;
   private final String name;
-  private final IdType type;
+  private final LabelType type;
 
   /**
    * Create an event for the label with the specified arguments. No arguments should be {@code
@@ -21,7 +21,7 @@ public class LabelEvent {
    */
   public LabelEvent(final LabelId id,
                     final String name,
-                    final IdType type) {
+                    final LabelType type) {
     this.id = id;
     this.name = name;
     this.type = type;
@@ -41,7 +41,7 @@ public class LabelEvent {
 
   /** The type of the label that has had an event. */
   @Nonnull
-  public IdType getType() {
+  public LabelType getType() {
     return type;
   }
 }
