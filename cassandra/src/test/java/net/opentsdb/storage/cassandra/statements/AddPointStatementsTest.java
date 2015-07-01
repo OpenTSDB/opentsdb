@@ -1,6 +1,6 @@
 package net.opentsdb.storage.cassandra.statements;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import net.opentsdb.storage.cassandra.statements.AddPointStatements.AddPointStatementMarkers;
 
