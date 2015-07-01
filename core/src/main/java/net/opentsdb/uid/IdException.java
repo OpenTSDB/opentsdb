@@ -5,13 +5,13 @@ package net.opentsdb.uid;
  */
 public class IdException extends Exception {
   public IdException(final String name,
-                     final UniqueIdType type,
+                     final IdType type,
                      final String message) {
     super(name + " (" + type.toValue() + "): " + message);
   }
 
   public IdException(final long id,
-                     final UniqueIdType type,
+                     final IdType type,
                      final String message) {
     super(id + " (" + type.toValue() + "): " + message);
   }

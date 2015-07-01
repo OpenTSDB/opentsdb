@@ -11,7 +11,7 @@ public class LabelEventTest {
   public void ctorSetsArguments() {
     final LabelId id = mock(LabelId.class);
     final String name = "sys.cpu";
-    final UniqueIdType type = UniqueIdType.METRIC;
+    final IdType type = IdType.METRIC;
 
     LabelCreatedEvent event = new LabelCreatedEvent(id, name, type);
 

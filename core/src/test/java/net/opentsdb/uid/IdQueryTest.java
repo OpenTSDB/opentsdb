@@ -7,7 +7,7 @@ import org.junit.Test;
 
 public class IdQueryTest {
   private static final String ARBITRARY_QUERY = "myQuery";
-  private static final UniqueIdType ARBITRARY_TYPE = UniqueIdType.METRIC;
+  private static final IdType ARBITRARY_TYPE = IdType.METRIC;
   private static final int ARBITRARY_LIMIT = 100;
   private static final int BAD_LIMIT = -100;
 

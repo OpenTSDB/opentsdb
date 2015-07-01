@@ -16,13 +16,13 @@ import net.opentsdb.uid.IdClientTypeContext;
 import net.opentsdb.uid.IdLookupStrategy;
 import net.opentsdb.uid.IdLookupStrategy.WildcardIdLookupStrategy;
 import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.IdType;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.StaticTimeSeriesId;
 import net.opentsdb.uid.TimeSeriesId;
-import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.uid.callbacks.StripedToMap;
 import net.opentsdb.utils.Pair;
 
@@ -89,9 +89,9 @@ public class IdClient {
     metricLookupStrategy = lookupStrategy(
         config.getBoolean("tsd.core.auto_create_metrics"));
 
-    metrics = new IdClientTypeContext(store, UniqueIdType.METRIC, metricsRegistry, idEventBus);
-    tagKeys = new IdClientTypeContext(store, UniqueIdType.TAGK, metricsRegistry, idEventBus);
-    tagValues = new IdClientTypeContext(store, UniqueIdType.TAGV, metricsRegistry, idEventBus);
+    metrics = new IdClientTypeContext(store, IdType.METRIC, metricsRegistry, idEventBus);
+    tagKeys = new IdClientTypeContext(store, IdType.TAGK, metricsRegistry, idEventBus);
+    tagValues = new IdClientTypeContext(store, IdType.TAGV, metricsRegistry, idEventBus);
 
     tsuidQueryTimer = metricsRegistry.timer(name("tsuid.query-time"));
 
@@ -195,7 +195,7 @@ public class IdClient {
     return searchPlugin.executeIdQuery(query);
   }
 
-  IdClientTypeContext idContextForType(UniqueIdType type) {
+  IdClientTypeContext idContextForType(IdType type) {
     switch (type) {
       case METRIC:
         return metrics;
@@ -232,7 +232,7 @@ public class IdClient {
    * @since 2.0
    */
   @Nonnull
-  public LabelId assignUid(final UniqueIdType type,
+  public LabelId assignUid(final IdType type,
                            final String name) {
 
     validateLabelName(type.toString(), name);
@@ -253,7 +253,7 @@ public class IdClient {
   /**
    * TODO. This does not exactly mirror what assignUid does. We should merge the two.
    */
-  public ListenableFuture<LabelId> createId(final UniqueIdType type, final String name) {
+  public ListenableFuture<LabelId> createId(final IdType type, final String name) {
     validateLabelName(type.toString(), name);
     IdClientTypeContext instance = idContextForType(type);
     return instance.createId(name);
@@ -267,7 +267,7 @@ public class IdClient {
    * @return A future that on completion will contain the name behind the ID
    */
   @Nonnull
-  public ListenableFuture<String> getLabelName(final UniqueIdType type,
+  public ListenableFuture<String> getLabelName(final IdType type,
                                                final LabelId uid) {
     checkNotNull(uid, "Missing UID");
     IdClientTypeContext idClientTypeContext = idContextForType(type);
@@ -282,7 +282,7 @@ public class IdClient {
    * @return A future that on completion will contain the ID behind the name
    */
   @Nonnull
-  public ListenableFuture<LabelId> getLabelId(final UniqueIdType type,
+  public ListenableFuture<LabelId> getLabelId(final IdType type,
                                               final String name) {
     checkArgument(!Strings.isNullOrEmpty(name), "Missing label name");
     IdClientTypeContext idClientTypeContext = idContextForType(type);

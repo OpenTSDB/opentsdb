@@ -1,6 +1,6 @@
 package net.opentsdb.web.jackson;
 
-import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.uid.IdType;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -11,11 +11,11 @@ import java.io.IOException;
 /**
  * Helper class for deserializing UID type enum from human readable strings.
  */
-public class UniqueIdTypeDeserializer extends JsonDeserializer<UniqueIdType> {
+public class UniqueIdTypeDeserializer extends JsonDeserializer<IdType> {
   @Override
-  public UniqueIdType deserialize(final JsonParser parser,
+  public IdType deserialize(final JsonParser parser,
                                   final DeserializationContext context)
       throws IOException {
-    return UniqueIdType.fromValue(parser.getValueAsString());
+    return IdType.fromValue(parser.getValueAsString());
   }
 }

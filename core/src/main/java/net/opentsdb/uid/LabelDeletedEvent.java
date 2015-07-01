@@ -15,7 +15,7 @@ public class LabelDeletedEvent extends LabelEvent {
    */
   public LabelDeletedEvent(final LabelId id,
                            final String name,
-                           final UniqueIdType type) {
+                           final IdType type) {
     super(id, name, type);
   }
 }

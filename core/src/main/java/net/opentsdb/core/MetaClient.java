@@ -12,8 +12,8 @@ import net.opentsdb.plugins.RealTimePublisher;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.uid.IdType;
 import net.opentsdb.uid.LabelId;
-import net.opentsdb.uid.UniqueIdType;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.AsyncFunction;
@@ -126,7 +126,7 @@ public class MetaClient {
    * @param uid The ID of the meta to fetch
    * @return A UIDMeta from storage or a default
    */
-  public ListenableFuture<LabelMeta> getLabelMeta(final UniqueIdType type,
+  public ListenableFuture<LabelMeta> getLabelMeta(final IdType type,
                                                   final LabelId uid) {
     // Verify that the identifier exists before fetching the meta object. The future that
     // #getLabelName returns will contain an exception if it does not exist.

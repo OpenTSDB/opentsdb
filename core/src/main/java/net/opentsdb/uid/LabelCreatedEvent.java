@@ -15,7 +15,7 @@ public class LabelCreatedEvent extends LabelEvent {
    */
   public LabelCreatedEvent(final LabelId id,
                            final String name,
-                           final UniqueIdType type) {
+                           final IdType type) {
     super(id, name, type);
   }
 }

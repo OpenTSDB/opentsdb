@@ -38,12 +38,12 @@ public final class TestUniqueId {
 
   @Test(expected = NullPointerException.class)
   public void testCtorNoTsdbStore() {
-    uid = new IdClientTypeContext(null, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new IdClientTypeContext(null, IdType.METRIC, metrics, idEventBus);
   }
 
   @Test(expected = NullPointerException.class)
   public void testCtorNoTable() {
-    uid = new IdClientTypeContext(client, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new IdClientTypeContext(client, IdType.METRIC, metrics, idEventBus);
   }
 
   @Test(expected = NullPointerException.class)
@@ -53,14 +53,14 @@ public final class TestUniqueId {
 
   @Test(expected = NullPointerException.class)
   public void testCtorNoEventbus() {
-    uid = new IdClientTypeContext(client, UniqueIdType.METRIC, metrics, null);
+    uid = new IdClientTypeContext(client, IdType.METRIC, metrics, null);
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void getNameSuccessfulLookup() throws Exception {
-    uid = new IdClientTypeContext(client, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new IdClientTypeContext(client, IdType.METRIC, metrics, idEventBus);
 
-    final LabelId id = client.allocateLabel("foo", UniqueIdType.METRIC).get();
+    final LabelId id = client.allocateLabel("foo", IdType.METRIC).get();
 
     assertEquals("foo", uid.getName(id).get());
     // Should be a cache hit ...
@@ -74,15 +74,15 @@ public final class TestUniqueId {
 
   @Test(expected = NoSuchUniqueId.class, timeout = TestUtil.TIMEOUT)
   public void getNameForNonexistentId() throws Exception {
-    uid = new IdClientTypeContext(client, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new IdClientTypeContext(client, IdType.METRIC, metrics, idEventBus);
     uid.getName(mock(LabelId.class)).get();
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void getIdSuccessfulLookup() throws Exception {
-    uid = new IdClientTypeContext(client, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new IdClientTypeContext(client, IdType.METRIC, metrics, idEventBus);
 
-    final LabelId id = client.allocateLabel("foo", UniqueIdType.METRIC).get();
+    final LabelId id = client.allocateLabel("foo", IdType.METRIC).get();
 
     assertEquals(id, uid.getId("foo").get());
     // Should be a cache hit ...
@@ -98,13 +98,13 @@ public final class TestUniqueId {
 
   @Test(expected = NoSuchUniqueName.class, timeout = TestUtil.TIMEOUT)
   public void getIdForNonexistentName() throws Exception {
-    uid = new IdClientTypeContext(client, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new IdClientTypeContext(client, IdType.METRIC, metrics, idEventBus);
     uid.getId("foo").get();
   }
 
   @Test
   public void createIdPublishesEventOnSuccess() throws Exception {
-    uid = new IdClientTypeContext(client, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new IdClientTypeContext(client, IdType.METRIC, metrics, idEventBus);
     uid.createId("foo").get();
     verify(idEventBus).post(any(LabelCreatedEvent.class));
   }

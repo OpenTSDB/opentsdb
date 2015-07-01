@@ -40,7 +40,7 @@ public class IdClientTypeContext {
   private final TsdbStore store;
 
   /** The type of UID represented by this cache. */
-  private final UniqueIdType type;
+  private final IdType type;
 
   /** Cache for forward mappings (name to ID). */
   private final ConcurrentHashMap<String, LabelId> nameCache = new ConcurrentHashMap<>();
@@ -70,7 +70,7 @@ public class IdClientTypeContext {
    * @param idEventBus The event bus where to publish ID events
    */
   public IdClientTypeContext(final TsdbStore store,
-                             final UniqueIdType type,
+                             final IdType type,
                              final MetricRegistry metrics,
                              final EventBus idEventBus) {
     this.store = checkNotNull(store);

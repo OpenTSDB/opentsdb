@@ -7,51 +7,51 @@ import org.junit.Test;
 public class IdClientTypeContextTypeTest {
   @Test
   public void stringToUniqueIdTypeMetric() throws Exception {
-    assertEquals(UniqueIdType.METRIC, UniqueIdType.fromValue("Metric"));
+    assertEquals(IdType.METRIC, IdType.fromValue("Metric"));
   }
 
   @Test
   public void stringToUniqueIdTypeMetrics() throws Exception {
-    assertEquals(UniqueIdType.METRIC, UniqueIdType.fromValue("MeTRIcs"));
+    assertEquals(IdType.METRIC, IdType.fromValue("MeTRIcs"));
   }
 
   @Test
   public void uniqueIdTypeMetricToValue() {
-    assertEquals("metrics", UniqueIdType.METRIC.toValue());
+    assertEquals("metrics", IdType.METRIC.toValue());
   }
 
   @Test
   public void stringToUniqueIdTypeTagk() throws Exception {
-    assertEquals(UniqueIdType.TAGK, UniqueIdType.fromValue("TagK"));
+    assertEquals(IdType.TAGK, IdType.fromValue("TagK"));
   }
 
   @Test
   public void uniqueIdTypeTagKeyToValue() {
-    assertEquals("tagk", UniqueIdType.TAGK.toValue());
+    assertEquals("tagk", IdType.TAGK.toValue());
   }
 
   @Test
   public void stringToUniqueIdTypeTagv() throws Exception {
-    assertEquals(UniqueIdType.TAGV, UniqueIdType.fromValue("TagV"));
+    assertEquals(IdType.TAGV, IdType.fromValue("TagV"));
   }
 
   @Test
   public void uniqueIdTypeTagValueToValue() {
-    assertEquals("tagv", UniqueIdType.TAGV.toValue());
+    assertEquals("tagv", IdType.TAGV.toValue());
   }
 
   @Test(expected = NullPointerException.class)
   public void stringToUniqueIdTypeNull() throws Exception {
-    UniqueIdType.fromValue(null);
+    IdType.fromValue(null);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void stringToUniqueIdTypeEmpty() throws Exception {
-    UniqueIdType.fromValue("");
+    IdType.fromValue("");
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void stringToUniqueIdTypeInvalid() throws Exception {
-    UniqueIdType.fromValue("Not a type");
+    IdType.fromValue("Not a type");
   }
 }

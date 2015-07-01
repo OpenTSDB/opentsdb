@@ -25,7 +25,7 @@ public final class NoSuchUniqueId extends NoSuchElementException {
 
   static final long serialVersionUID = 1266815251;
   /** The 'type' of the table. */
-  private final UniqueIdType type;
+  private final IdType type;
   /** The ID that couldn't be found. */
   private final LabelId id;
 
@@ -35,14 +35,14 @@ public final class NoSuchUniqueId extends NoSuchElementException {
    * @param type The type of unique ID that triggered the exception.
    * @param id The ID that couldn't be found.
    */
-  public NoSuchUniqueId(final UniqueIdType type, final LabelId id) {
+  public NoSuchUniqueId(final IdType type, final LabelId id) {
     super("No such unique ID for '" + type + "': " + id);
     this.type = type;
     this.id = id;
   }
 
   /** Returns the type of unique ID that couldn't be found. */
-  public UniqueIdType type() {
+  public IdType type() {
     return type;
   }
 

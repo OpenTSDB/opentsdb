@@ -27,10 +27,10 @@ import net.opentsdb.time.JdkTimeProvider;
 import net.opentsdb.uid.IdClientTypeContext;
 import net.opentsdb.uid.IdException;
 import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.IdType;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.TimeSeriesId;
-import net.opentsdb.uid.UniqueIdType;
 
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.Cluster;
@@ -259,18 +259,18 @@ public class CassandraStore extends TsdbStore {
                                       final ByteBuffer tsid) {
     session.executeAsync(insertTagsStatement.bind()
         .setLong(0, toLong(metric))
-        .setString(1, UniqueIdType.METRIC.toValue())
+        .setString(1, IdType.METRIC.toValue())
         .setBytesUnsafe(2, tsid));
 
     for (final Map.Entry<LabelId, LabelId> entry : tags.entrySet()) {
       session.executeAsync(insertTagsStatement.bind()
           .setLong(0, toLong(entry.getKey()))
-          .setString(1, UniqueIdType.TAGK.toValue())
+          .setString(1, IdType.TAGK.toValue())
           .setBytesUnsafe(2, tsid));
 
       session.executeAsync(insertTagsStatement.bind()
           .setLong(0, toLong(entry.getValue()))
-          .setString(1, UniqueIdType.TAGV.toValue())
+          .setString(1, IdType.TAGV.toValue())
           .setBytesUnsafe(2, tsid));
     }
   }
@@ -283,7 +283,7 @@ public class CassandraStore extends TsdbStore {
   @Nonnull
   @Override
   public ListenableFuture<Optional<LabelId>> getId(final String name,
-                                                   final UniqueIdType type) {
+                                                   final IdType type) {
     ListenableFuture<List<LabelId>> idsFuture = getIds(name, type);
     return transform(idsFuture, new FirstOrAbsentFunction<LabelId>());
   }
@@ -297,7 +297,7 @@ public class CassandraStore extends TsdbStore {
    */
   @Nonnull
   ListenableFuture<List<LabelId>> getIds(final String name,
-                                         final UniqueIdType type) {
+                                         final IdType type) {
     ResultSetFuture idsFuture = session.executeAsync(
         getIdStatement.bind(name, type.toValue()));
 
@@ -319,7 +319,7 @@ public class CassandraStore extends TsdbStore {
   @Nonnull
   @Override
   public ListenableFuture<Optional<String>> getName(final LabelId id,
-                                                    final UniqueIdType type) {
+                                                    final IdType type) {
     ListenableFuture<List<String>> namesFuture = getNames(id, type);
     return transform(namesFuture, new FirstOrAbsentFunction<String>());
   }
@@ -333,7 +333,7 @@ public class CassandraStore extends TsdbStore {
    */
   @Nonnull
   ListenableFuture<List<String>> getNames(final LabelId id,
-                                          final UniqueIdType type) {
+                                          final IdType type) {
     ResultSetFuture namesFuture = session.executeAsync(
         getNameStatement.bind(id, type.toValue()));
 
@@ -355,7 +355,7 @@ public class CassandraStore extends TsdbStore {
   @Nonnull
   @Override
   public ListenableFuture<LabelMeta> getMeta(final LabelId uid,
-                                             final UniqueIdType type) {
+                                             final IdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -368,7 +368,7 @@ public class CassandraStore extends TsdbStore {
   @Nonnull
   @Override
   public ListenableFuture<Void> deleteLabel(final String name,
-                                            final UniqueIdType type) {
+                                            final IdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -381,7 +381,7 @@ public class CassandraStore extends TsdbStore {
    * @return A future that contains a boolean that indicates if the id was available
    */
   private ListenableFuture<Boolean> isIdAvailable(final long id,
-                                                  final UniqueIdType type) {
+                                                  final IdType type) {
     return transform(getNames(fromLong(id), type), new IsEmptyFunction());
   }
 
@@ -394,7 +394,7 @@ public class CassandraStore extends TsdbStore {
    * @return A future that contains a boolean that indicates if the name was available
    */
   private ListenableFuture<Boolean> isNameAvailable(final String name,
-                                                    final UniqueIdType type) {
+                                                    final IdType type) {
     return transform(getIds(name, type), new IsEmptyFunction());
   }
 
@@ -411,7 +411,7 @@ public class CassandraStore extends TsdbStore {
    */
   private ListenableFuture<Void> checkAvailable(final long id,
                                                 final String name,
-                                                final UniqueIdType type) {
+                                                final IdType type) {
     ImmutableList<ListenableFuture<Boolean>> availableList =
         ImmutableList.of(isIdAvailable(id, type), isNameAvailable(name, type));
     final ListenableFuture<List<Boolean>> availableFuture = Futures.allAsList(availableList);
@@ -450,7 +450,7 @@ public class CassandraStore extends TsdbStore {
    */
   private ListenableFuture<LabelId> createId(final long id,
                                              final String name,
-                                             final UniqueIdType type) {
+                                             final IdType type) {
     final Date createTimestamp = timeProvider.now();
     final ResultSetFuture save = session.executeAsync(
         createIdStatement.bind(createTimestamp.getTime(),
@@ -482,7 +482,7 @@ public class CassandraStore extends TsdbStore {
   @Nonnull
   @Override
   public ListenableFuture<LabelId> allocateLabel(final String name,
-                                                 final UniqueIdType type) {
+                                                 final IdType type) {
     // This discards half the hash but it should still work ok with murmur3.
     final long id = Hashing.murmur3_128().hashString(name, CHARSET).asLong();
 
@@ -517,7 +517,7 @@ public class CassandraStore extends TsdbStore {
   @Override
   public ListenableFuture<LabelId> allocateLabel(final String name,
                                                  final LabelId id,
-                                                 final UniqueIdType type) {
+                                                 final IdType type) {
     /*
     TODO #zeeck this method should be considered to be changed to rename and the implementation
     changed in the HBaseStore. One of the prerequisites of this function is that the UID already

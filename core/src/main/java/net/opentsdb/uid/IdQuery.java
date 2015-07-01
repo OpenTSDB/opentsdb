@@ -7,7 +7,7 @@ import com.google.common.base.Strings;
 public class IdQuery {
   public static final int NO_LIMIT = 0;
 
-  private final UniqueIdType type;
+  private final IdType type;
   private final String query;
   private final int maxResults;
 
@@ -16,7 +16,7 @@ public class IdQuery {
    * the number of results as indicated with {@code maxResults}.
    */
   public IdQuery(final String query,
-                 final UniqueIdType type,
+                 final IdType type,
                  final int maxResults) {
     checkArgument(maxResults >= 0,
         "The provided max results must either have no limit or be > 0");
@@ -26,7 +26,7 @@ public class IdQuery {
     this.maxResults = maxResults;
   }
 
-  public UniqueIdType getType() {
+  public IdType getType() {
     return type;
   }
 

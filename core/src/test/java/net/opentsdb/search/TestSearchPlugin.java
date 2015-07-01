@@ -13,7 +13,7 @@
 
 package net.opentsdb.search;
 
-import static net.opentsdb.uid.UniqueIdType.METRIC;
+import static net.opentsdb.uid.IdType.METRIC;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 

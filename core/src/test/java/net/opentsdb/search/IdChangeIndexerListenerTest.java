@@ -1,6 +1,6 @@
 package net.opentsdb.search;
 
-import static net.opentsdb.uid.UniqueIdType.METRIC;
+import static net.opentsdb.uid.IdType.METRIC;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -12,7 +12,7 @@ import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.LabelCreatedEvent;
 import net.opentsdb.uid.LabelDeletedEvent;
 import net.opentsdb.uid.LabelId;
-import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.uid.IdType;
 
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.Futures;
@@ -44,14 +44,14 @@ public class IdChangeIndexerListenerTest {
     LabelMeta labelMeta = LabelMeta.create(id, METRIC, "sys.cpu.0", "Description", 1328140801);
     when(store.getMeta(any(LabelId.class), METRIC)).thenReturn(Futures.immediateFuture(labelMeta));
 
-    idEventBus.post(new LabelCreatedEvent(id, "test", UniqueIdType.METRIC));
+    idEventBus.post(new LabelCreatedEvent(id, "test", IdType.METRIC));
     verify(searchPlugin).indexLabelMeta(labelMeta);
   }
 
   @Test
   public void deletedLabelEventRemovesLabelMeta() {
     final LabelDeletedEvent event =
-        new LabelDeletedEvent(mock(LabelId.class), "test", UniqueIdType.METRIC);
+        new LabelDeletedEvent(mock(LabelId.class), "test", IdType.METRIC);
     idEventBus.post(event);
     verify(searchPlugin).deleteLabelMeta(any(LabelId.class), event.getType());
   }

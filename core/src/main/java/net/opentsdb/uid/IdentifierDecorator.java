@@ -6,7 +6,7 @@ package net.opentsdb.uid;
 public interface IdentifierDecorator {
   LabelId getId();
 
-  UniqueIdType getType();
+  IdType getType();
 
   String getName();
 }

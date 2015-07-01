@@ -17,9 +17,9 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.plugins.Plugin;
 import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.IdType;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.LabelId;
-import net.opentsdb.uid.UniqueIdType;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
@@ -63,7 +63,7 @@ public abstract class SearchPlugin extends Plugin {
    */
   @Nonnull
   public abstract ListenableFuture<Void> deleteLabelMeta(final LabelId id,
-                                                         final UniqueIdType type);
+                                                         final IdType type);
 
   /**
    * Index the annotation in the backing store.

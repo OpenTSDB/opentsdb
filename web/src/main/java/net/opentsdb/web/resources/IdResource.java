@@ -5,7 +5,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.CREATED;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNPROCESSABLE_ENTITY;
 
 import net.opentsdb.core.IdClient;
-import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.uid.IdType;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -39,7 +39,7 @@ public final class IdResource extends Resource {
 
       final JsonNode rootNode = objectMapper.readTree(new ByteBufInputStream(req.content()));
 
-      idClient.assignUid(UniqueIdType.fromValue(rootNode.get("type").asText()),
+      idClient.assignUid(IdType.fromValue(rootNode.get("type").asText()),
           rootNode.get("name").asText());
 
       return response(CREATED);

@@ -1,6 +1,6 @@
 package net.opentsdb.core;
 
-import static net.opentsdb.uid.UniqueIdType.METRIC;
+import static net.opentsdb.uid.IdType.METRIC;
 import static org.junit.Assert.assertEquals;
 
 import net.opentsdb.DaggerTestComponent;

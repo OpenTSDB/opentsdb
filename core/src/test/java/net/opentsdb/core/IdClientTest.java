@@ -1,8 +1,8 @@
 package net.opentsdb.core;
 
-import static net.opentsdb.uid.UniqueIdType.METRIC;
-import static net.opentsdb.uid.UniqueIdType.TAGK;
-import static net.opentsdb.uid.UniqueIdType.TAGV;
+import static net.opentsdb.uid.IdType.METRIC;
+import static net.opentsdb.uid.IdType.TAGK;
+import static net.opentsdb.uid.IdType.TAGV;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;

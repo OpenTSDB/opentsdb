@@ -9,9 +9,9 @@ import com.google.common.base.Strings;
 /**
  * Enumerator for different types of UIDs.
  */
-public enum UniqueIdType {
+public enum IdType {
   // Think long and hard before changing the identifier arguments bellow.
-  // Changing any of them without updating UniqueIdType#fromValue bellow will
+  // Changing any of them without updating IdType#fromValue bellow will
   // wreck all deployments.
   METRIC("metrics", Const.METRICS_WIDTH),
   TAGK("tagk", Const.TAG_NAME_WIDTH),
@@ -20,7 +20,7 @@ public enum UniqueIdType {
   public final short width;
   private final String identifier;
 
-  UniqueIdType(String identifier, short width) {
+  IdType(String identifier, short width) {
     checkArgument(!Strings.isNullOrEmpty(identifier), "Empty string as 'identifier' argument!");
     checkArgument(width > 0 && width <= 8, "Invalid width: %s", width);
 
@@ -33,10 +33,10 @@ public enum UniqueIdType {
    * #toValue}.
    *
    * @param type The string to convert
-   * @return a valid UniqueIdType if matched
+   * @return a valid IdType if matched
    * @throws IllegalArgumentException if the string did not match a type
    */
-  public static UniqueIdType fromValue(final String type) {
+  public static IdType fromValue(final String type) {
     if ("metric".equals(type.toLowerCase())
         || "metrics".equals(type.toLowerCase())) {
       return METRIC;

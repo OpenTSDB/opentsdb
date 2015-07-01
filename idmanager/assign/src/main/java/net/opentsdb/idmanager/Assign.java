@@ -8,7 +8,7 @@ import net.opentsdb.core.IdClient;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdException;
 import net.opentsdb.uid.LabelId;
-import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.uid.IdType;
 import net.opentsdb.utils.InvalidConfigException;
 
 import com.google.common.collect.ImmutableSet;
@@ -99,7 +99,7 @@ public final class Assign {
 
       final List<?> nonOptionArguments = options.nonOptionArguments();
 
-      final UniqueIdType type = type(nonOptionArguments);
+      final IdType type = type(nonOptionArguments);
       final ImmutableSet<String> names = ImmutableSet.copyOf(
           Arrays.copyOfRange(args, 1, args.length));
 
@@ -135,16 +135,16 @@ public final class Assign {
     return System.getProperty("app.home");
   }
 
-  private static UniqueIdType type(final List<?> nonOptionArguments) {
+  private static IdType type(final List<?> nonOptionArguments) {
     try {
       String stringType = nonOptionArguments.get(0).toString();
-      return UniqueIdType.fromValue(stringType);
+      return IdType.fromValue(stringType);
     } catch (IndexOutOfBoundsException e) {
       throw new IllegalArgumentException("Missing identifier type to assign");
     }
   }
 
-  private ListenableFuture<LabelId> assign(final String name, final UniqueIdType type) {
+  private ListenableFuture<LabelId> assign(final String name, final IdType type) {
     final ListenableFuture<LabelId> id = idClient.createId(type, name);
     Futures.addCallback(id, new LogNewIdCallback(name, type));
     return id;
@@ -152,9 +152,9 @@ public final class Assign {
 
   private static class LogNewIdCallback implements FutureCallback<LabelId> {
     private final String name;
-    private final UniqueIdType type;
+    private final IdType type;
 
-    public LogNewIdCallback(final String name, final UniqueIdType type) {
+    public LogNewIdCallback(final String name, final IdType type) {
       this.name = name;
       this.type = type;
     }

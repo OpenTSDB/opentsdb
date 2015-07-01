@@ -5,10 +5,10 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.IdType;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.TimeSeriesId;
-import net.opentsdb.uid.UniqueIdType;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Charsets;
@@ -56,8 +56,8 @@ public class MemoryStore extends TsdbStore {
 
   private final Map<TimeSeriesId, NavigableMap<Long, Number>> datapoints;
 
-  private final Table<String, UniqueIdType, LabelId> identifierForward;
-  private final Table<LabelId, UniqueIdType, String> identifierReverse;
+  private final Table<String, IdType, LabelId> identifierForward;
+  private final Table<LabelId, IdType, String> identifierReverse;
 
   public MemoryStore() {
     labelMetas = HashBasedTable.create();
@@ -118,7 +118,7 @@ public class MemoryStore extends TsdbStore {
   @Nonnull
   @Override
   public ListenableFuture<Optional<LabelId>> getId(String name,
-                                                   UniqueIdType type) {
+                                                   IdType type) {
     LabelId id = identifierForward.get(name, type);
     return Futures.immediateFuture(Optional.fromNullable(id));
   }
@@ -126,7 +126,7 @@ public class MemoryStore extends TsdbStore {
   @Nonnull
   @Override
   public ListenableFuture<Optional<String>> getName(final LabelId id,
-                                                    final UniqueIdType type) {
+                                                    final IdType type) {
     final String name = identifierReverse.get(id, type);
     return Futures.immediateFuture(Optional.fromNullable(name));
   }
@@ -134,7 +134,7 @@ public class MemoryStore extends TsdbStore {
   @Nonnull
   @Override
   public ListenableFuture<LabelMeta> getMeta(final LabelId uid,
-                                             final UniqueIdType type) {
+                                             final IdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
     final LabelMeta meta = labelMetas.get(uid, qualifier);
     return Futures.immediateFuture(meta);
@@ -153,7 +153,7 @@ public class MemoryStore extends TsdbStore {
 
   @Nonnull
   @Override
-  public ListenableFuture<Void> deleteLabel(final String name, UniqueIdType type) {
+  public ListenableFuture<Void> deleteLabel(final String name, IdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -165,7 +165,7 @@ public class MemoryStore extends TsdbStore {
   @Nonnull
   @Override
   public ListenableFuture<LabelId> allocateLabel(final String name,
-                                                 final UniqueIdType type) {
+                                                 final IdType type) {
     LabelId id;
 
     do {
@@ -180,7 +180,7 @@ public class MemoryStore extends TsdbStore {
   @Override
   public ListenableFuture<LabelId> allocateLabel(final String name,
                                                  final LabelId id,
-                                                 final UniqueIdType type) {
+                                                 final IdType type) {
     if (identifierReverse.contains(id, type)) {
       throw new IllegalArgumentException("An ID with " + id + " already exists");
     }
@@ -261,9 +261,9 @@ public class MemoryStore extends TsdbStore {
 
   @Override
   public ListenableFuture<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
-    Predicate<UniqueIdType> typeMatchFunction = new Predicate<UniqueIdType>() {
+    Predicate<IdType> typeMatchFunction = new Predicate<IdType>() {
       @Override
-      public boolean apply(@Nullable final UniqueIdType input) {
+      public boolean apply(@Nullable final IdType input) {
         return query.getType() == null || query.getType() == input;
       }
     };
@@ -277,7 +277,7 @@ public class MemoryStore extends TsdbStore {
 
     final List<IdentifierDecorator> result = new ArrayList<>();
 
-    for (final Table.Cell<String, UniqueIdType, LabelId> cell : identifierForward.cellSet()) {
+    for (final Table.Cell<String, IdType, LabelId> cell : identifierForward.cellSet()) {
       if (typeMatchFunction.apply(cell.getColumnKey())
           && nameMatchFunction.apply(cell.getRowKey())) {
         result.add(new IdentifierDecorator() {
@@ -287,7 +287,7 @@ public class MemoryStore extends TsdbStore {
           }
 
           @Override
-          public UniqueIdType getType() {
+          public IdType getType() {
             return cell.getColumnKey();
           }
 
