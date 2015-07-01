@@ -18,7 +18,7 @@ import java.util.NoSuchElementException;
 /**
  * Exception used when a name's Unique ID can't be found.
  *
- * @see UniqueId
+ * @see IdClientTypeContext
  */
 public final class NoSuchUniqueName extends NoSuchElementException {
 

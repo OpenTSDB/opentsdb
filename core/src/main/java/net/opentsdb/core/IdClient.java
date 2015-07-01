@@ -12,6 +12,7 @@ import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.StopTimerCallback;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.uid.IdClientTypeContext;
 import net.opentsdb.uid.IdLookupStrategy;
 import net.opentsdb.uid.IdLookupStrategy.WildcardIdLookupStrategy;
 import net.opentsdb.uid.IdQuery;
@@ -21,7 +22,6 @@ import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.StaticTimeSeriesId;
 import net.opentsdb.uid.TimeSeriesId;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.uid.callbacks.StripedToMap;
 import net.opentsdb.utils.Pair;
@@ -52,11 +52,11 @@ import javax.inject.Singleton;
 @Singleton
 public class IdClient {
   /** Unique IDs for the metric names. */
-  final UniqueId metrics;
+  final IdClientTypeContext metrics;
   /** Unique IDs for the tag names. */
-  final UniqueId tagKeys;
+  final IdClientTypeContext tagKeys;
   /** Unique IDs for the tag values. */
-  final UniqueId tagValues;
+  final IdClientTypeContext tagValues;
 
   private final TsdbStore store;
 
@@ -89,9 +89,9 @@ public class IdClient {
     metricLookupStrategy = lookupStrategy(
         config.getBoolean("tsd.core.auto_create_metrics"));
 
-    metrics = new UniqueId(store, UniqueIdType.METRIC, metricsRegistry, idEventBus);
-    tagKeys = new UniqueId(store, UniqueIdType.TAGK, metricsRegistry, idEventBus);
-    tagValues = new UniqueId(store, UniqueIdType.TAGV, metricsRegistry, idEventBus);
+    metrics = new IdClientTypeContext(store, UniqueIdType.METRIC, metricsRegistry, idEventBus);
+    tagKeys = new IdClientTypeContext(store, UniqueIdType.TAGK, metricsRegistry, idEventBus);
+    tagValues = new IdClientTypeContext(store, UniqueIdType.TAGV, metricsRegistry, idEventBus);
 
     tsuidQueryTimer = metricsRegistry.timer(name("tsuid.query-time"));
 
@@ -195,7 +195,7 @@ public class IdClient {
     return searchPlugin.executeIdQuery(query);
   }
 
-  UniqueId uniqueIdInstanceForType(UniqueIdType type) {
+  IdClientTypeContext idContextForType(UniqueIdType type) {
     switch (type) {
       case METRIC:
         return metrics;
@@ -236,7 +236,7 @@ public class IdClient {
                            final String name) {
 
     validateLabelName(type.toString(), name);
-    UniqueId instance = uniqueIdInstanceForType(type);
+    IdClientTypeContext instance = idContextForType(type);
 
     try {
       try {
@@ -255,7 +255,7 @@ public class IdClient {
    */
   public ListenableFuture<LabelId> createId(final UniqueIdType type, final String name) {
     validateLabelName(type.toString(), name);
-    UniqueId instance = uniqueIdInstanceForType(type);
+    IdClientTypeContext instance = idContextForType(type);
     return instance.createId(name);
   }
 
@@ -270,8 +270,8 @@ public class IdClient {
   public ListenableFuture<String> getLabelName(final UniqueIdType type,
                                                final LabelId uid) {
     checkNotNull(uid, "Missing UID");
-    UniqueId uniqueId = uniqueIdInstanceForType(type);
-    return uniqueId.getName(uid);
+    IdClientTypeContext idClientTypeContext = idContextForType(type);
+    return idClientTypeContext.getName(uid);
   }
 
   /**
@@ -285,8 +285,8 @@ public class IdClient {
   public ListenableFuture<LabelId> getLabelId(final UniqueIdType type,
                                               final String name) {
     checkArgument(!Strings.isNullOrEmpty(name), "Missing label name");
-    UniqueId uniqueId = uniqueIdInstanceForType(type);
-    return uniqueId.getId(name);
+    IdClientTypeContext idClientTypeContext = idContextForType(type);
+    return idClientTypeContext.getId(name);
   }
 
   /**

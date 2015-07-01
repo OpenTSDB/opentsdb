@@ -24,6 +24,7 @@ import net.opentsdb.storage.cassandra.functions.IsEmptyFunction;
 import net.opentsdb.storage.cassandra.functions.ResultSetToVoid;
 import net.opentsdb.storage.cassandra.statements.AddPointStatements;
 import net.opentsdb.time.JdkTimeProvider;
+import net.opentsdb.uid.IdClientTypeContext;
 import net.opentsdb.uid.IdException;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
@@ -505,7 +506,7 @@ public class CassandraStore extends TsdbStore {
   /**
    * For all intents and purposes this function works as a rename. In the HBase implementation the
    * other method {@link #allocateLabel} uses this method that basically overwrites the value no
-   * matter what. This method is also used by the function {@link net.opentsdb.uid.UniqueId#rename}.
+   * matter what. This method is also used by the function {@link IdClientTypeContext#rename}.
    *
    * @param name The name to write.
    * @param id The uid to use.
