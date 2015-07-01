@@ -23,6 +23,7 @@ import net.opentsdb.storage.cassandra.functions.FirstOrAbsentFunction;
 import net.opentsdb.storage.cassandra.functions.IsEmptyFunction;
 import net.opentsdb.storage.cassandra.functions.ResultSetToVoid;
 import net.opentsdb.storage.cassandra.statements.AddPointStatements;
+import net.opentsdb.storage.cassandra.statements.AddPointStatements.AddPointStatementMarkers;
 import net.opentsdb.time.JdkTimeProvider;
 import net.opentsdb.uid.IdException;
 import net.opentsdb.uid.IdQuery;
@@ -203,7 +204,7 @@ public class CassandraStore extends TsdbStore {
                                          final long timestamp,
                                          final float value) {
     final BoundStatement addPointStatement = addFloatStatement.bind()
-        .setFloat(3, value);
+        .setFloat(AddPointStatementMarkers.VALUE.ordinal(), value);
     return addPoint(addPointStatement, tsuid.metric(), tsuid.tags(), timestamp);
   }
 
@@ -213,7 +214,7 @@ public class CassandraStore extends TsdbStore {
                                          final long timestamp,
                                          final double value) {
     final BoundStatement addPointStatement = addDoubleStatement.bind()
-        .setDouble(3, value);
+        .setDouble(AddPointStatementMarkers.VALUE.ordinal(), value);
     return addPoint(addPointStatement, tsuid.metric(), tsuid.tags(), timestamp);
   }
 
@@ -223,7 +224,7 @@ public class CassandraStore extends TsdbStore {
                                          final long timestamp,
                                          final long value) {
     final BoundStatement addPointStatement = addLongStatement.bind()
-        .setLong(3, value);
+        .setLong(AddPointStatementMarkers.VALUE.ordinal(), value);
     return addPoint(addPointStatement, tsuid.metric(), tsuid.tags(), timestamp);
   }
 
@@ -243,10 +244,10 @@ public class CassandraStore extends TsdbStore {
 
     final long baseTime = buildBaseTime(timestamp);
 
-    addPointStatement.setBytesUnsafe(0, tsid);
-    addPointStatement.setLong(1, baseTime);
-    addPointStatement.setLong(2, timestamp);
-    addPointStatement.setLong(4, timestamp);
+    addPointStatement.setBytesUnsafe(AddPointStatementMarkers.ID.ordinal(), tsid);
+    addPointStatement.setLong(AddPointStatementMarkers.BASE_TIME.ordinal(), baseTime);
+    addPointStatement.setLong(AddPointStatementMarkers.TIMESTAMP.ordinal(), timestamp);
+    addPointStatement.setLong(AddPointStatementMarkers.USING_TIMESTAMP.ordinal(), timestamp);
 
     final ResultSetFuture future = session.executeAsync(addPointStatement);
 

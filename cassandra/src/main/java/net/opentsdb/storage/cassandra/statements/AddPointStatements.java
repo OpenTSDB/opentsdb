@@ -62,4 +62,12 @@ public class AddPointStatements {
   public PreparedStatement addLongStatement() {
     return addLongStatement;
   }
+
+  /**
+   * An eum which makes the bind statements more expressive. The ordinal of the values in this enum
+   * must match the order in the add point statements above.
+   */
+  public enum AddPointStatementMarkers {
+    ID, BASE_TIME, TIMESTAMP, VALUE, USING_TIMESTAMP
+  }
 }
