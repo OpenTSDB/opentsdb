@@ -9,7 +9,7 @@ import net.opentsdb.plugins.PluginsModule;
 import net.opentsdb.search.IdChangeIndexerListenerTest;
 import net.opentsdb.storage.StoreModule;
 import net.opentsdb.storage.StoreModuleTest;
-import net.opentsdb.uid.TestUniqueId;
+import net.opentsdb.uid.LabelClientTypeContextTest;
 import net.opentsdb.uid.WildcardIdLookupStrategyTest;
 
 import dagger.Component;
@@ -38,7 +38,7 @@ public interface TestComponent {
 
   void inject(StoreModuleTest storeModuleTest);
 
-  void inject(TestUniqueId testUniqueId);
+  void inject(LabelClientTypeContextTest labelClientTypeContextTest);
 
   void inject(LabelClientTest idClientTest);
 

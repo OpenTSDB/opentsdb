@@ -21,12 +21,12 @@ import java.io.IOException;
 import java.util.SortedMap;
 import javax.inject.Inject;
 
-public final class TestUniqueId {
-  @Inject TsdbStore client;
+public final class LabelClientTypeContextTest {
+  @Inject TsdbStore store;
   @Inject MetricRegistry metrics;
-  @Inject EventBus idEventBus;
+  @Inject EventBus eventBus;
 
-  private LabelClientTypeContext uid;
+  private LabelClientTypeContext typeContext;
 
   @Rule
   public final Timeout timeout = Timeout.millis(TestUtil.TIMEOUT);
@@ -38,33 +38,33 @@ public final class TestUniqueId {
 
   @Test(expected = NullPointerException.class)
   public void testCtorNoTsdbStore() {
-    uid = new LabelClientTypeContext(null, LabelType.METRIC, metrics, idEventBus);
+    typeContext = new LabelClientTypeContext(null, LabelType.METRIC, metrics, eventBus);
   }
 
   @Test(expected = NullPointerException.class)
   public void testCtorNoTable() {
-    uid = new LabelClientTypeContext(client, LabelType.METRIC, metrics, idEventBus);
+    typeContext = new LabelClientTypeContext(store, LabelType.METRIC, metrics, eventBus);
   }
 
   @Test(expected = NullPointerException.class)
   public void testCtorNoType() {
-    uid = new LabelClientTypeContext(client, null, metrics, idEventBus);
+    typeContext = new LabelClientTypeContext(store, null, metrics, eventBus);
   }
 
   @Test(expected = NullPointerException.class)
   public void testCtorNoEventbus() {
-    uid = new LabelClientTypeContext(client, LabelType.METRIC, metrics, null);
+    typeContext = new LabelClientTypeContext(store, LabelType.METRIC, metrics, null);
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void getNameSuccessfulLookup() throws Exception {
-    uid = new LabelClientTypeContext(client, LabelType.METRIC, metrics, idEventBus);
+    typeContext = new LabelClientTypeContext(store, LabelType.METRIC, metrics, eventBus);
 
-    final LabelId id = client.allocateLabel("foo", LabelType.METRIC).get();
+    final LabelId id = store.allocateLabel("foo", LabelType.METRIC).get();
 
-    assertEquals("foo", uid.getName(id).get());
+    assertEquals("foo", typeContext.getName(id).get());
     // Should be a cache hit ...
-    assertEquals("foo", uid.getName(id).get());
+    assertEquals("foo", typeContext.getName(id).get());
 
     final SortedMap<String, Counter> counters = metrics.getCounters();
     assertEquals(1, counters.get("uid.cache-hit:kind=metrics").getCount());
@@ -74,21 +74,21 @@ public final class TestUniqueId {
 
   @Test(expected = NoSuchUniqueId.class, timeout = TestUtil.TIMEOUT)
   public void getNameForNonexistentId() throws Exception {
-    uid = new LabelClientTypeContext(client, LabelType.METRIC, metrics, idEventBus);
-    uid.getName(mock(LabelId.class)).get();
+    typeContext = new LabelClientTypeContext(store, LabelType.METRIC, metrics, eventBus);
+    typeContext.getName(mock(LabelId.class)).get();
   }
 
   @Test(timeout = TestUtil.TIMEOUT)
   public void getIdSuccessfulLookup() throws Exception {
-    uid = new LabelClientTypeContext(client, LabelType.METRIC, metrics, idEventBus);
+    typeContext = new LabelClientTypeContext(store, LabelType.METRIC, metrics, eventBus);
 
-    final LabelId id = client.allocateLabel("foo", LabelType.METRIC).get();
+    final LabelId id = store.allocateLabel("foo", LabelType.METRIC).get();
 
-    assertEquals(id, uid.getId("foo").get());
+    assertEquals(id, typeContext.getId("foo").get());
     // Should be a cache hit ...
-    assertEquals(id, uid.getId("foo").get());
+    assertEquals(id, typeContext.getId("foo").get());
     // Should be a cache hit too ...
-    assertEquals(id, uid.getId("foo").get());
+    assertEquals(id, typeContext.getId("foo").get());
 
     final SortedMap<String, Counter> counters = metrics.getCounters();
     assertEquals(2, counters.get("uid.cache-hit:kind=metrics").getCount());
@@ -98,14 +98,14 @@ public final class TestUniqueId {
 
   @Test(expected = NoSuchUniqueName.class, timeout = TestUtil.TIMEOUT)
   public void getIdForNonexistentName() throws Exception {
-    uid = new LabelClientTypeContext(client, LabelType.METRIC, metrics, idEventBus);
-    uid.getId("foo").get();
+    typeContext = new LabelClientTypeContext(store, LabelType.METRIC, metrics, eventBus);
+    typeContext.getId("foo").get();
   }
 
   @Test
   public void createIdPublishesEventOnSuccess() throws Exception {
-    uid = new LabelClientTypeContext(client, LabelType.METRIC, metrics, idEventBus);
-    uid.createId("foo").get();
-    verify(idEventBus).post(any(LabelCreatedEvent.class));
+    typeContext = new LabelClientTypeContext(store, LabelType.METRIC, metrics, eventBus);
+    typeContext.createId("foo").get();
+    verify(eventBus).post(any(LabelCreatedEvent.class));
   }
 }
