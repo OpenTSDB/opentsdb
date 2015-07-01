@@ -49,6 +49,8 @@ import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.Date;
@@ -61,6 +63,8 @@ import javax.annotation.Nullable;
  * An implementation of {@link TsdbStore} that uses Cassandra as the underlying storage backend.
  */
 public class CassandraStore extends TsdbStore {
+  private static final Logger LOG = LoggerFactory.getLogger(CassandraStore.class);
+
   /**
    * The Cassandra cluster that we are connected to.
    */
@@ -311,7 +315,13 @@ public class CassandraStore extends TsdbStore {
           builder.add(fromLong(id));
         }
 
-        return builder.build();
+        final ImmutableList<LabelId> ids = builder.build();
+
+        if (ids.size() > 1) {
+          LOG.error("Found duplicate IDs for ({}, {})", name, type);
+        }
+
+        return ids;
       }
     });
   }
@@ -347,7 +357,13 @@ public class CassandraStore extends TsdbStore {
           builder.add(name);
         }
 
-        return builder.build();
+        final ImmutableList<String> names = builder.build();
+
+        if (names.size() > 1) {
+          LOG.error("Found duplicate names for ({}, {})", id, type);
+        }
+
+        return names;
       }
     });
   }
