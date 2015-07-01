@@ -6,8 +6,8 @@ import static org.junit.Assert.assertNotNull;
 
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.storage.MemoryLabelId;
-import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.IdType;
+import net.opentsdb.uid.LabelId;
 import net.opentsdb.web.DaggerTestHttpComponent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;

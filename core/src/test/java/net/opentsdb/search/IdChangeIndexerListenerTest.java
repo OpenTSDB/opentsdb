@@ -9,10 +9,10 @@ import static org.mockito.Mockito.when;
 import net.opentsdb.DaggerTestComponent;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.uid.IdType;
 import net.opentsdb.uid.LabelCreatedEvent;
 import net.opentsdb.uid.LabelDeletedEvent;
 import net.opentsdb.uid.LabelId;
-import net.opentsdb.uid.IdType;
 
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.Futures;

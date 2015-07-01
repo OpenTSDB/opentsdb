@@ -162,8 +162,8 @@ public class IdClientTypeContext {
   }
 
   /**
-   * Fetch the label ID behind the provided name and the type associated with this IdClientTypeContext
-   * instance.
+   * Fetch the label ID behind the provided name and the type associated with this
+   * IdClientTypeContext instance.
    *
    * @param name The name to lookup the ID behind
    * @return A future that on completion will contain the ID behind the name

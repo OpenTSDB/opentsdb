@@ -1,8 +1,8 @@
 package net.opentsdb.web.jackson;
 
 import net.opentsdb.meta.LabelMeta;
-import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.IdType;
+import net.opentsdb.uid.LabelId;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

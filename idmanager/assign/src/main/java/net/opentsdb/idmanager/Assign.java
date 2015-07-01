@@ -7,8 +7,8 @@ import net.opentsdb.core.ConfigModule;
 import net.opentsdb.core.IdClient;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdException;
-import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.IdType;
+import net.opentsdb.uid.LabelId;
 import net.opentsdb.utils.InvalidConfigException;
 
 import com.google.common.collect.ImmutableSet;

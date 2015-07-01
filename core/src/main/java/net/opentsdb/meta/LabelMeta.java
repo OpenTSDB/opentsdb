@@ -2,8 +2,8 @@ package net.opentsdb.meta;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.IdType;
+import net.opentsdb.uid.LabelId;
 
 import com.google.auto.value.AutoValue;
 
