@@ -32,14 +32,17 @@ public enum IdType {
    * @throws IllegalArgumentException if the string did not match a type
    */
   public static IdType fromValue(final String type) {
-    if ("metric".equals(type.toLowerCase())) {
-      return METRIC;
-    } else if ("tagk".equals(type.toLowerCase())) {
-      return TAGK;
-    } else if ("tagv".equals(type.toLowerCase())) {
-      return TAGV;
-    } else {
-      throw new IllegalArgumentException("Invalid type: " + type);
+    final String lowerCaseType = type.toLowerCase();
+
+    switch (lowerCaseType) {
+      case "metric":
+        return METRIC;
+      case "tagk":
+        return TAGK;
+      case "tagv":
+        return TAGV;
+      default:
+        throw new IllegalArgumentException("Invalid type: " + type);
     }
   }
 
