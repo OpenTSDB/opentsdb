@@ -10,13 +10,16 @@ import net.opentsdb.plugins.RealTimePublisher;
 import net.opentsdb.stats.StopTimerCallback;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.TimeSeriesId;
+import net.opentsdb.utils.InvalidConfigException;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Strings;
+import com.google.common.primitives.SignedBytes;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.typesafe.config.Config;
 
 import java.util.Map;
 import javax.inject.Inject;
@@ -29,6 +32,7 @@ public class DataPointsClient {
   private final RealTimePublisher publisher;
 
   private final Timer addDataPointTimer;
+  private final byte maxTags;
 
   /**
    * Create a new instance using the given non-null arguments to configure itself.
@@ -37,12 +41,30 @@ public class DataPointsClient {
   public DataPointsClient(final TsdbStore store,
                           final IdClient idClient,
                           final RealTimePublisher realTimePublisher,
-                          final MetricRegistry metricRegistry) {
+                          final MetricRegistry metricRegistry,
+                          final Config config) {
     this.store = checkNotNull(store);
     this.idClient = checkNotNull(idClient);
     this.publisher = checkNotNull(realTimePublisher);
 
     this.addDataPointTimer = metricRegistry.timer(name("add_data_point"));
+
+    // The config library unfortunately doesn't have any API to get any smaller primitive type than
+    // ints so we have to do a little dance to make sure the value is not too extreme since it can
+    // have a significant impact on query performance.
+    final int configMaxTags = config.getInt("tsdb.core.max_tags");
+
+    if (configMaxTags > Byte.MAX_VALUE) {
+      throw new InvalidConfigException(config.getValue("tsdb.core.max_tags"),
+          "The number of maximum allowed tags must not be larger than " + Byte.MAX_VALUE);
+    }
+
+    if (configMaxTags < 1) {
+      throw new InvalidConfigException(config.getValue("tsdb.core.max_tags"),
+          "At least one tag must be allowed");
+    }
+
+    this.maxTags = SignedBytes.checkedCast(configMaxTags);
   }
 
   /**
@@ -50,12 +72,12 @@ public class DataPointsClient {
    *
    * @throws IllegalArgumentException if any of the arguments aren't valid.
    */
-  static void checkMetricAndTags(final String metric, final Map<String, String> tags) {
+  private void checkMetricAndTags(final String metric, final Map<String, String> tags) {
     checkArgument(!Strings.isNullOrEmpty(metric), "Missing metric name", metric, tags);
     checkArgument(!tags.isEmpty(), "At least one tag is required", metric, tags);
-    checkArgument(tags.size() <= Const.MAX_NUM_TAGS,
+    checkArgument(tags.size() <= maxTags,
         "No more than %s tags are allowed but there are %s",
-        Const.MAX_NUM_TAGS, tags.size(), metric, tags);
+        maxTags, tags.size(), metric, tags);
 
     IdClient.validateLabelName("metric name", metric);
     for (final Map.Entry<String, String> tag : tags.entrySet()) {
