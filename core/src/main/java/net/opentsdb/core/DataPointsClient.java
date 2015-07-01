@@ -10,6 +10,7 @@ import net.opentsdb.plugins.RealTimePublisher;
 import net.opentsdb.stats.StopTimerCallback;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.TimeSeriesId;
+import net.opentsdb.utils.InvalidConfigException;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
@@ -48,9 +49,22 @@ public class DataPointsClient {
 
     this.addDataPointTimer = metricRegistry.timer(name("add_data_point"));
 
-    //The config system does not support bytes so we have to cast it.
-    this.maxTags = SignedBytes.checkedCast(config.getInt("tsdb.core.max_tags"));
-    checkArgument(maxTags > 0);
+    // The config library unfortunately doesn't have any API to get any smaller primitive type than
+    // ints so we have to do a little dance to make sure the value is not too extreme since it can
+    // have a significant impact on query performance.
+    final int configMaxTags = config.getInt("tsdb.core.max_tags");
+
+    if (configMaxTags > Byte.MAX_VALUE) {
+      throw new InvalidConfigException(config.getValue("tsdb.core.max_tags"),
+          "The number of maximum allowed tags must not be larger than " + Byte.MAX_VALUE);
+    }
+
+    if (configMaxTags < 1) {
+      throw new InvalidConfigException(config.getValue("tsdb.core.max_tags"),
+          "At least one tag must be allowed");
+    }
+
+    this.maxTags = SignedBytes.checkedCast(configMaxTags);
   }
 
   /**
@@ -78,7 +92,7 @@ public class DataPointsClient {
    * @throws IllegalArgumentException if the timestamp isn't within bounds.
    */
   static long checkTimestamp(long timestamp) {
-    checkArgument(timestamp >= 0, "the timestamp must be postive and greater than zero but was %s",
+    checkArgument(timestamp >= 0, "The timestamp must be positive and greater than zero but was %s",
         timestamp);
 
     return timestamp;
