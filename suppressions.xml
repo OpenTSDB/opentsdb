@@ -16,8 +16,9 @@
   <!-- Don't require javadocs for test methods -->
   <suppress checks="JavadocMethod" files="(all|cassandra|core|idmanager[\\/]assign|web)[\\/]src[\\/]test" />
 
-  <!-- Suppress package-info errors in the test folders -->
+  <!-- Suppress package-info errors in the test and jmh folders -->
   <suppress checks="JavadocPackage" files="[\\/]test[\\/]"/>
+  <suppress checks="JavadocPackage" files="[\\/]jmh[\\/]"/>
 
   <!--
   Supres legacy files that hasn't been rewritten or updated yet.
