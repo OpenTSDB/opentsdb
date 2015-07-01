@@ -2,30 +2,25 @@ package net.opentsdb.uid;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import net.opentsdb.core.Const;
-
 import com.google.common.base.Strings;
 
 /**
- * Enumerator for different types of UIDs.
+ * Enumerator for different types of IDs.
  */
 public enum IdType {
   // Think long and hard before changing the identifier arguments bellow.
   // Changing any of them without updating IdType#fromValue bellow will
   // wreck all deployments.
-  METRIC("metrics", Const.METRICS_WIDTH),
-  TAGK("tagk", Const.TAG_NAME_WIDTH),
-  TAGV("tagv", Const.TAG_VALUE_WIDTH);
+  METRIC("metrics"),
+  TAGK("tagk"),
+  TAGV("tagv");
 
-  public final short width;
   private final String identifier;
 
-  IdType(String identifier, short width) {
+  IdType(String identifier) {
     checkArgument(!Strings.isNullOrEmpty(identifier), "Empty string as 'identifier' argument!");
-    checkArgument(width > 0 && width <= 8, "Invalid width: %s", width);
 
     this.identifier = identifier;
-    this.width = width;
   }
 
   /**
