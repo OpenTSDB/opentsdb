@@ -4,20 +4,10 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-public class IdClientTypeContextTypeTest {
+public class IdTypeTest {
   @Test
   public void stringToUniqueIdTypeMetric() throws Exception {
     assertEquals(IdType.METRIC, IdType.fromValue("Metric"));
-  }
-
-  @Test
-  public void stringToUniqueIdTypeMetrics() throws Exception {
-    assertEquals(IdType.METRIC, IdType.fromValue("MeTRIcs"));
-  }
-
-  @Test
-  public void uniqueIdTypeMetricToValue() {
-    assertEquals("metrics", IdType.METRIC.toValue());
   }
 
   @Test

@@ -11,7 +11,7 @@ public enum IdType {
   // Think long and hard before changing the identifier arguments bellow.
   // Changing any of them without updating IdType#fromValue bellow will
   // wreck all deployments.
-  METRIC("metrics"),
+  METRIC("metric"),
   TAGK("tagk"),
   TAGV("tagv");
 
@@ -32,8 +32,7 @@ public enum IdType {
    * @throws IllegalArgumentException if the string did not match a type
    */
   public static IdType fromValue(final String type) {
-    if ("metric".equals(type.toLowerCase())
-        || "metrics".equals(type.toLowerCase())) {
+    if ("metric".equals(type.toLowerCase())) {
       return METRIC;
     } else if ("tagk".equals(type.toLowerCase())) {
       return TAGK;
