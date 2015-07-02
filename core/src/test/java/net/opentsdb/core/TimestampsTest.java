@@ -7,8 +7,8 @@ import net.opentsdb.time.Timestamps;
 import org.junit.Test;
 
 public class TimestampsTest {
-  private final static long BAD_TIMESTAMP = -9L;
-  private final static long GOOD_TIMESTAMP = 9L;
+  private static final long BAD_TIMESTAMP = -9L;
+  private static final long GOOD_TIMESTAMP = 9L;
 
   @Test(expected = IllegalArgumentException.class)
   public void testCheckTimestampNegativeTimestamp() {
