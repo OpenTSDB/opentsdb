@@ -17,7 +17,7 @@ import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.TestUtil;
 
-import autovalue.shaded.com.google.common.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import org.junit.Before;
 import org.junit.Rule;

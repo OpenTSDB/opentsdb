@@ -189,5 +189,10 @@
     <module name="EmptyCatchBlock">
       <property name="exceptionVariableName" value="expected"/>
     </module>
+
+    <module name="IllegalImport">
+      <!-- The non-shaded classes should be used -->
+      <property name="illegalPkgs" value="autovalue.shaded"/>
+    </module>
   </module>
 </module>

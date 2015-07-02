@@ -14,12 +14,12 @@ import net.opentsdb.web.resources.MetricsResource;
 import net.opentsdb.web.resources.NotFoundResource;
 import net.opentsdb.web.resources.Resource;
 
-import autovalue.shaded.com.google.common.common.collect.ImmutableMap;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.json.MetricsModule;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;
+import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import dagger.Module;
 import dagger.Provides;

@@ -4,7 +4,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import net.opentsdb.web.resources.Resource;
 
-import autovalue.shaded.com.google.common.common.base.CharMatcher;
+import com.google.common.base.CharMatcher;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
