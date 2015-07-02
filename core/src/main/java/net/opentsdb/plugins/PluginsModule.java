@@ -1,6 +1,5 @@
 package net.opentsdb.plugins;
 
-import net.opentsdb.search.DefaultSearchPlugin;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchPluginDescriptor;
 
@@ -16,16 +15,11 @@ public class PluginsModule {
   @Singleton
   SearchPlugin provideSearchPlugin(final Config config) {
     try {
-      // load the search plugin if enabled
-      if (config.getBoolean("tsd.search.enable")) {
-        SearchPluginDescriptor descriptor = PluginLoader.loadSpecificPlugin(
-            config.getString("tsd.search.plugin"),
-            SearchPluginDescriptor.class);
+      SearchPluginDescriptor descriptor = PluginLoader.loadSpecificPlugin(
+          config.getString("tsd.search.plugin"),
+          SearchPluginDescriptor.class);
 
-        return descriptor.create(config);
-      }
-
-      return new DefaultSearchPlugin();
+      return descriptor.create(config);
     } catch (Exception e) {
       throw new IllegalStateException("Unable to instantiate the configured search plugin", e);
     }
@@ -35,16 +29,14 @@ public class PluginsModule {
   @Singleton
   RealTimePublisher provideRealtimePublisher(final Config config) {
     try {
-      // load the realtime publisher plugin if enabled
-      if (config.getBoolean("tsd.rtpublisher.enable")) {
-        RealTimePublisherDescriptor descriptor = PluginLoader.loadSpecificPlugin(
-            config.getString("tsd.rtpublisher.plugin"),
-            RealTimePublisherDescriptor.class);
+      RealTimePublisherDescriptor descriptor = PluginLoader.loadSpecificPlugin(
+          config.getString("tsd.rtpublisher.plugin"),
+          RealTimePublisherDescriptor.class);
 
-        return descriptor.create(config);
-      }
+      return descriptor.create(config);
 
-      return new DefaultRealtimePublisher();
+      //TODO Need to write a realtimepublisher descriptor
+      //return new DefaultRealtimePublisher();
     } catch (Exception e) {
       throw new IllegalStateException("Unable to instantiate the configured realtime publisher", e);
     }
