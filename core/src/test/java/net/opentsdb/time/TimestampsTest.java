@@ -1,8 +1,6 @@
-package net.opentsdb.core;
+package net.opentsdb.time;
 
 import static org.junit.Assert.assertEquals;
-
-import net.opentsdb.time.Timestamps;
 
 import org.junit.Test;
 
