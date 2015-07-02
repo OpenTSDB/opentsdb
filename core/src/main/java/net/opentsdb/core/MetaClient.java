@@ -10,7 +10,6 @@ import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.plugins.PluginError;
 import net.opentsdb.plugins.RealTimePublisher;
 import net.opentsdb.search.SearchPlugin;
-import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.LabelType;
@@ -63,15 +62,15 @@ public class MetaClient {
   }
 
   /**
-   * Executes a search query using the search plugin
+   * Perform a query using the configured search plugin and get the matching label meta objects.
    *
-   * @param query The query to execute
-   * @return A deferred object to wait on for the results to be fetched
-   * @throws IllegalStateException if the search plugin has not been enabled or configured
-   * @since 2.0
+   * @param query A plugin specific query as received without modification
+   * @return A future that on completion contains an {@link Iterable} of label meta objects
+   * @see SearchPlugin#findLabels(String) for information about the format of the query
    */
-  public ListenableFuture<SearchQuery> executeSearch(final SearchQuery query) {
-    return searchPlugin.executeQuery(query);
+  @Nonnull
+  public ListenableFuture<Iterable<LabelMeta>> findLabels(final String query) {
+    return searchPlugin.findLabels(query);
   }
 
   /**

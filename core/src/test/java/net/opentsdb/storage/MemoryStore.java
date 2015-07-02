@@ -4,8 +4,6 @@ import net.opentsdb.core.DataPoints;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.search.ResolvedSearchQuery;
-import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.Label;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.LabelType;
 import net.opentsdb.uid.TimeSeriesId;
@@ -13,7 +11,6 @@ import net.opentsdb.uid.TimeSeriesId;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -29,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * TsdbStore implementation useful in testing calls to and from storage with actual pretend data.
@@ -257,52 +253,6 @@ public class MemoryStore extends TsdbStore {
   @Override
   public ListenableFuture<ImmutableList<DataPoints>> executeQuery(final Object query) {
     throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public ListenableFuture<List<Label>> executeIdQuery(final IdQuery query) {
-    Predicate<LabelType> typeMatchFunction = new Predicate<LabelType>() {
-      @Override
-      public boolean apply(@Nullable final LabelType input) {
-        return query.getType() == null || query.getType() == input;
-      }
-    };
-
-    Predicate<String> nameMatchFunction = new Predicate<String>() {
-      @Override
-      public boolean apply(@Nullable final String name) {
-        return query.getQuery() == null || name.startsWith(query.getQuery());
-      }
-    };
-
-    final List<Label> result = new ArrayList<>();
-
-    for (final Table.Cell<String, LabelType, LabelId> cell : identifierForward.cellSet()) {
-      if (typeMatchFunction.apply(cell.getColumnKey())
-          && nameMatchFunction.apply(cell.getRowKey())) {
-        result.add(new Label() {
-          @Nonnull
-          @Override
-          public LabelId id() {
-            return cell.getValue();
-          }
-
-          @Nonnull
-          @Override
-          public LabelType type() {
-            return cell.getColumnKey();
-          }
-
-          @Nonnull
-          @Override
-          public String name() {
-            return cell.getRowKey();
-          }
-        });
-      }
-    }
-
-    return Futures.immediateFuture(result);
   }
 
   /**

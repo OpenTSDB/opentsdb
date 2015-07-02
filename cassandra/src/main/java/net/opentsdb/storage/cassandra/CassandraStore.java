@@ -25,8 +25,6 @@ import net.opentsdb.storage.cassandra.functions.ResultSetToVoid;
 import net.opentsdb.storage.cassandra.statements.AddPointStatements;
 import net.opentsdb.storage.cassandra.statements.AddPointStatements.AddPointStatementMarkers;
 import net.opentsdb.time.JdkTimeProvider;
-import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.Label;
 import net.opentsdb.uid.LabelException;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.LabelType;
@@ -416,8 +414,8 @@ public class CassandraStore extends TsdbStore {
 
   /**
    * Check if either of (id, type) and (name, type) are taken or if both are available. If either of
-   * the combinations already are taken the returned future will contain an
-   * {@link net.opentsdb.uid.LabelException}.
+   * the combinations already are taken the returned future will contain an {@link
+   * net.opentsdb.uid.LabelException}.
    *
    * @param id The id to check if it is available
    * @param name The name to check if it is available
@@ -587,11 +585,6 @@ public class CassandraStore extends TsdbStore {
   @Override
   public ListenableFuture<ImmutableList<DataPoints>> executeQuery(Object query) {
     throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public ListenableFuture<List<Label>> executeIdQuery(final IdQuery query) {
-    throw new UnsupportedOperationException("Not implemented yet!");
   }
 
   @Override

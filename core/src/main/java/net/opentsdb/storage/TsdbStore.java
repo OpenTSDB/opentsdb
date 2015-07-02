@@ -4,8 +4,6 @@ import net.opentsdb.core.DataPoints;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.search.ResolvedSearchQuery;
-import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.Label;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.LabelType;
 import net.opentsdb.uid.TimeSeriesId;
@@ -49,17 +47,6 @@ public abstract class TsdbStore implements Closeable {
    */
   public abstract ListenableFuture<List<byte[]>> executeTimeSeriesQuery(
       final ResolvedSearchQuery query);
-
-  /**
-   * Lookup all IDs that matches the provided {@link net.opentsdb.uid.IdQuery}. There are no demands
-   * on how the exact the results are but the lookup should be efficient. In fact, the provided
-   * should be viewed as a hint about what should be returned but in reality all IDs or nothing at
-   * all may be returned.
-   *
-   * @param query An object that describes the query parameters
-   * @return A future that on completion will contain with a list of matching IDs
-   */
-  public abstract ListenableFuture<List<Label>> executeIdQuery(final IdQuery query);
 
   @Nonnull
   public abstract ListenableFuture<Optional<LabelId>> getId(final String name,

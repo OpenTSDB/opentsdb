@@ -1,47 +1,23 @@
-// This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
-//
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
 
 package net.opentsdb.search;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.plugins.Plugin;
-import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.Label;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.LabelType;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
-import java.util.List;
 import javax.annotation.Nonnull;
 
 /**
- * Search plugins allow data from OpenTSDB to be published to a search indexer. Many great products
- * already exist for searching so it doesn't make sense to re-implement an engine within OpenTSDB.
- * Likewise, going directly to the storage system for searching isn't efficient.
+ * Implementations of this plugin provides advanced search capabilities to clients. The index
+ * manipulation methods will be called on changes to the domain objects.
  *
- * <p><b>Note:</b> Since canonical information is stored in the underlying OpenTSDB database, the
- * same document may be re-indexed more than once. This may happen if someone runs a full
- * re-indexing thread to make sure the search engine is up to date, particularly after a TSD crash
- * where some data may not have been sent. Be sure to account for that when indexing. Each object
- * has a way to uniquely identify it, see the method notes below.
- *
- * <p><b>Warning:</b> All indexing methods should be performed asynchronously. You may want to
- * create a queue in the implementation to store data until you can ship it off to the service.
- * Every indexing method should return as quickly as possible.
- *
- * @since 2.0
+ * <p>The canonical information will always be stored in the database that is managed by the {@link
+ * net.opentsdb.storage.TsdbStore} and the same information may be indexed more than once when the
+ * user runs a full re-index for example.
  */
 public abstract class SearchPlugin extends Plugin {
   /**
@@ -50,6 +26,7 @@ public abstract class SearchPlugin extends Plugin {
    * @param meta A validated {@link LabelMeta} instance to index
    * @return A future that indicates the completion of the request.
    */
+  @Nonnull
   public abstract ListenableFuture<Void> indexLabelMeta(final LabelMeta meta);
 
   /**
@@ -71,6 +48,7 @@ public abstract class SearchPlugin extends Plugin {
    * @param note The annotation to index
    * @return A future that indicates the completion of the request.
    */
+  @Nonnull
   public abstract ListenableFuture<Void> indexAnnotation(final Annotation note);
 
   /**
@@ -79,22 +57,19 @@ public abstract class SearchPlugin extends Plugin {
    * @param note The annotation to remove
    * @return A future that indicates the completion of the request.
    */
+  @Nonnull
   public abstract ListenableFuture<Void> deleteAnnotation(final Annotation note);
 
   /**
-   * Executes a very basic search query, returning the results in the SearchQuery object passed in.
+   * Perform a query against this search plugins backing store and get the matching label meta
+   * objects.
    *
-   * @param query The query to execute against the search engine
-   * @return The query results
-   */
-  public abstract ListenableFuture<SearchQuery> executeQuery(final SearchQuery query);
-
-  /**
-   * Should look up IDs that match the parameters described in the provided {@link
-   * net.opentsdb.uid.IdQuery}.
+   * <p>There are no expectations on what kind of filtering the backing store has to support. If the
+   * search plugin does not support filtering then an empty {@link Iterable} should be returned.
    *
-   * @param query The parameters for the query
-   * @return A future that on completion contains a list of matching IDs.
+   * @param query A plugin specific query as received without modification
+   * @return A future that on completion contains an {@link Iterable} of label meta objects
    */
-  public abstract ListenableFuture<List<Label>> executeIdQuery(final IdQuery query);
+  @Nonnull
+  public abstract ListenableFuture<Iterable<LabelMeta>> findLabels(final String query);
 }
