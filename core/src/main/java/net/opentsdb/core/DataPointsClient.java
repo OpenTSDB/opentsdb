@@ -9,6 +9,7 @@ import net.opentsdb.plugins.PluginError;
 import net.opentsdb.plugins.RealTimePublisher;
 import net.opentsdb.stats.StopTimerCallback;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.time.Timestamps;
 import net.opentsdb.uid.TimeSeriesId;
 import net.opentsdb.utils.InvalidConfigException;
 
@@ -87,18 +88,6 @@ public class DataPointsClient {
   }
 
   /**
-   * Validates that the timestamp is within valid bounds.
-   *
-   * @throws IllegalArgumentException if the timestamp isn't within bounds.
-   */
-  static long checkTimestamp(long timestamp) {
-    checkArgument(timestamp >= 0, "The timestamp must be positive and greater than zero but was %s",
-        timestamp);
-
-    return timestamp;
-  }
-
-  /**
    * Adds a single floating-point value data point in the TSDB.
    *
    * @param metric A non-empty string.
@@ -116,7 +105,7 @@ public class DataPointsClient {
                                          final long timestamp,
                                          final float value,
                                          final Map<String, String> tags) {
-    checkTimestamp(timestamp);
+    Timestamps.checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
     class AddPointFunction implements AsyncFunction<TimeSeriesId, Void> {
@@ -162,7 +151,7 @@ public class DataPointsClient {
                                          final long timestamp,
                                          final double value,
                                          final Map<String, String> tags) {
-    checkTimestamp(timestamp);
+    Timestamps.checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
     class AddPointFunction implements AsyncFunction<TimeSeriesId, Void> {
@@ -206,7 +195,7 @@ public class DataPointsClient {
                                          final long timestamp,
                                          final long value,
                                          final Map<String, String> tags) {
-    checkTimestamp(timestamp);
+    Timestamps.checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
     class AddPointFunction implements AsyncFunction<TimeSeriesId, Void> {

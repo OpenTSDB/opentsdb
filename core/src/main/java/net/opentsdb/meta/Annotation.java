@@ -3,6 +3,7 @@ package net.opentsdb.meta;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import net.opentsdb.time.TimeRanges;
 import net.opentsdb.uid.LabelId;
 
 import com.google.auto.value.AutoValue;
@@ -20,12 +21,11 @@ import javax.annotation.Nonnull;
  * based key value pairs.
  *
  * <p>The start time must be larger than 0. The end time must be larger than zero or equal to {@link
- * #NOT_ENDED}. An annotation with an end time that is equal to {@link #NOT_ENDED} will be
- * interpreted as not having ended yet.
+ * TimeRanges#NOT_ENDED}. An annotation with an end time that is equal to
+ * {@link TimeRanges#NOT_ENDED} will be interpreted as not having ended yet.
  */
 @AutoValue
 public abstract class Annotation implements Comparable<Annotation> {
-  public static final long NOT_ENDED = -1L;
 
   /**
    * Create a new annotation instance with the provided information.
@@ -41,10 +41,7 @@ public abstract class Annotation implements Comparable<Annotation> {
                                   final String message,
                                   final Map<String, String> properties) {
     checkArgument(!tags.isEmpty(), "An annotation must be associated with at least one tag");
-    checkArgument(startTime > 0L, "Start time must but larger than 0 but was %s", startTime);
-    checkArgument(endTime > 0L || endTime == NOT_ENDED,
-        "End time must be larger than 0 or equal to Annotation.END_TIME but was %s", endTime);
-    checkArgument(startTime <= endTime);
+    TimeRanges.checkTimeRange(startTime, endTime);
     final ImmutableMap<LabelId, LabelId> immutableTags = ImmutableMap.copyOf(tags);
     final ImmutableMap<String, String> immutableProperties = ImmutableMap.copyOf(properties);
     return new AutoValue_Annotation(metric, immutableTags, startTime, endTime, message,
