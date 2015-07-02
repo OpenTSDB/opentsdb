@@ -1,9 +1,10 @@
 package net.opentsdb.core;
 
-import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 import net.opentsdb.time.Timestamps;
+
+import org.junit.Test;
 
 public class TimestampsTest {
   private final static long BAD_TIMESTAMP = -9L;

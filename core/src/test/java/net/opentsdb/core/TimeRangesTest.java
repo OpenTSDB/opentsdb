@@ -1,10 +1,10 @@
 package net.opentsdb.core;
 
-
-import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 import net.opentsdb.time.TimeRanges;
+
+import org.junit.Test;
 
 public class TimeRangesTest {
   private static final long GOOD_START = 10L;
