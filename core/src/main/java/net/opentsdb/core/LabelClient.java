@@ -51,11 +51,11 @@ import javax.inject.Singleton;
 
 @Singleton
 public class LabelClient {
-  /** Unique IDs for the metric names. */
+  /** Label type context for the metric names. */
   final LabelClientTypeContext metrics;
-  /** Unique IDs for the tag names. */
+  /** Label type context for the tag names. */
   final LabelClientTypeContext tagKeys;
-  /** Unique IDs for the tag values. */
+  /** Label type context for the tag values. */
   final LabelClientTypeContext tagValues;
 
   private final TsdbStore store;
@@ -206,17 +206,6 @@ public class LabelClient {
       default:
         throw new IllegalArgumentException(type + " is unknown");
     }
-  }
-
-  /**
-   * Discards all in-memory caches.
-   *
-   * @since 1.1
-   */
-  public void dropCaches() {
-    metrics.dropCaches();
-    tagKeys.dropCaches();
-    tagValues.dropCaches();
   }
 
   /**
