@@ -1,16 +1,19 @@
-package net.opentsdb.core;
+package net.opentsdb.time;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-public class TimeRange {
+public final class TimeRanges {
   public static final long NOT_ENDED = -1;
+
+  private TimeRanges() {
+  }
 
   /**
    * Validates that the starTime timestamp is within valid bounds.
    *
    * @throws IllegalArgumentException if the timestamp isn't within bounds.
    */
-  public static long checkStartTime(long startTime) {
+  public static long checkStartTime(final long startTime) {
     checkArgument(startTime >= 0,
         "The timestamp must be positive and greater than zero but was %s", startTime);
 
@@ -22,7 +25,7 @@ public class TimeRange {
    *
    * @throws IllegalArgumentException if the timestamp is negative or not equaling #NOT_ENDED.
    */
-  public static long checkEndTime(long endTime) {
+  public static long checkEndTime(final long endTime) {
     checkArgument(endTime >= 0 || endTime == NOT_ENDED,
         "End time must be larger than 0 or equal to END_TIME but was %s", endTime);
 
@@ -36,7 +39,7 @@ public class TimeRange {
    *
    * @throws IllegalArgumentException if endTime is negative.
    */
-  public static long checkFiniteEndTime(long endTime) {
+  public static long checkFiniteEndTime(final long endTime) {
     checkArgument(endTime >= 0,
         "End time must be larger than or equal to zero");
 
@@ -53,7 +56,7 @@ public class TimeRange {
    * @throws IllegalArgumentException if either starTime or endTime is invalid or timespan
    * is negative. A timespan without an end is checked and allowed.
    */
-  public static void checkTimespan(final long startTime, final long endTime) {
+  public static void checkTimeRange(final long startTime, final long endTime) {
     checkStartTime(startTime);
 
     checkEndTime(endTime);
@@ -73,7 +76,7 @@ public class TimeRange {
    * @throws IllegalArgumentException if either startTime or endTime is invalid or
    * timespan is negative
    */
-  public static void checkFiniteTimespan(long startTime, long endTime) {
+  public static void checkFiniteTimeRange(final long startTime, final long endTime) {
     checkStartTime(startTime);
 
     checkFiniteEndTime(endTime);

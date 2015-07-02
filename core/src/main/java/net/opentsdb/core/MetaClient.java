@@ -12,6 +12,7 @@ import net.opentsdb.plugins.RealTimePublisher;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.time.TimeRanges;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.LabelType;
 
@@ -88,7 +89,7 @@ public class MetaClient {
                                                     final long startTime) {
     checkNotNull(metric);
     checkArgument(!tags.isEmpty());
-    TimeRange.checkStartTime(startTime);
+    TimeRanges.checkStartTime(startTime);
 
     return store.getAnnotation(metric, tags, startTime);
   }
@@ -107,7 +108,7 @@ public class MetaClient {
                                        final long startTime) {
     checkNotNull(metric);
     checkArgument(!tags.isEmpty(), "At least one tag is required");
-    TimeRange.checkStartTime(startTime);
+    TimeRanges.checkStartTime(startTime);
 
     return store.deleteAnnotation(metric, tags, startTime);
   }
@@ -191,7 +192,7 @@ public class MetaClient {
                                                final long endTime) {
     checkNotNull(metric, "Missing a metric", metric, tags);
     checkArgument(!tags.isEmpty(), "At least one tag is required", metric, tags);
-    TimeRange.checkFiniteTimespan(startTime, endTime);
+    TimeRanges.checkFiniteTimeRange(startTime, endTime);
 
     return store.deleteAnnotations(metric, tags, startTime, endTime);
   }
