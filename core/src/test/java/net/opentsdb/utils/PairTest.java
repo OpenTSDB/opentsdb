@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TestPair {
+public class PairTest {
 
   @Test
   public void defaultCtor() {

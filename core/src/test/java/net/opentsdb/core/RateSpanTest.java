@@ -26,7 +26,7 @@ import java.util.NoSuchElementException;
 /**
  * Tests {@link RateSpan}.
  */
-public class TestRateSpan {
+public class RateSpanTest {
 
   private static final DataPoint[] DATA_POINTS = new DataPoint[]{
       MutableDataPoint.ofDoubleValue(1356998400000L, 40.0),

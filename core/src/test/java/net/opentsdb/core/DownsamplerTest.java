@@ -31,7 +31,7 @@ import java.util.List;
 
 
 /** Tests {@link Downsampler}. */
-public class TestDownsampler {
+public class DownsamplerTest {
 
   private static final long BASE_TIME = 1356998400000L;
   private static final DataPoint[] DATA_POINTS = new DataPoint[]{

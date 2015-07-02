@@ -25,7 +25,7 @@ import org.junit.Test;
 
 import java.util.NoSuchElementException;
 
-public final class TestSpan {
+public final class SpanTest {
   @Test(expected = IllegalArgumentException.class)
   public void ctorEmptyDataPoints() {
     new Span(ImmutableSortedSet.<DataPoints>of());

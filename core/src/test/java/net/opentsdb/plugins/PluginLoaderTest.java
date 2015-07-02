@@ -7,7 +7,7 @@ import org.junit.Test;
 
 import java.util.List;
 
-public final class TestPluginLoader {
+public final class PluginLoaderTest {
   @Test
   public void loadSpecificPlugin() {
     DummyPlugin plugin = PluginLoader.loadSpecificPlugin(
