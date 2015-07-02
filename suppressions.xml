@@ -38,7 +38,9 @@
   <suppress checks="." files="DownsamplerTest.java$" />
   <suppress checks="." files="RateSpanTest.java$" />
   <suppress checks="." files="AggregationIteratorTest.java$" />
-  <suppress checks="." files="TSSubqueryTest.java$" />
+  <suppress checks="." files="TSSubQueryTest.java$" />
   <suppress checks="." files="SearchQueryTest.java$" />
+  <suppress checks="." files="AggregatorsTest.java$" />
+  <suppress checks="." files="SpanTest.java$" />
 
 </suppressions>
