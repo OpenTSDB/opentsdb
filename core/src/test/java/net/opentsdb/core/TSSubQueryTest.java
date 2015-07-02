@@ -22,7 +22,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public final class TestTSSubQuery {
+public final class TSSubQueryTest {
 
   /**
    * Sets up an object with good, common values for testing the validation function with an "m" type

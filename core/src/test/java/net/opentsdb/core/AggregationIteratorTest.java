@@ -27,7 +27,7 @@ import org.junit.Test;
 
 
 /** Tests {@link AggregationIterator}. */
-public class TestAggregationIterator {
+public class AggregationIteratorTest {
 
   private static final long BASE_TIME = 1356998400000L;
   private static final DataPoint[] DATA_POINTS_1 = new DataPoint[]{

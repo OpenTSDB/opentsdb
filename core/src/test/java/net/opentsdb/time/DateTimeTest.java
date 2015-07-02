@@ -26,7 +26,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
 
-public final class TestDateTime {
+public final class DateTimeTest {
   private TimeProvider clock;
 
   @Before

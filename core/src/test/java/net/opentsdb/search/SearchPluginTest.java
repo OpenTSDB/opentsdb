@@ -22,7 +22,7 @@ import net.opentsdb.uid.LabelId;
 
 import org.junit.Test;
 
-public abstract class TestSearchPlugin {
+public abstract class SearchPluginTest {
   protected SearchPlugin search;
 
   @Test

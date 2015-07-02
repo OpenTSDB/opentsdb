@@ -18,7 +18,7 @@ import org.junit.Test;
 
 import java.util.Random;
 
-public final class TestAggregators {
+public final class AggregatorsTest {
 
   private static final Random random;
   /**

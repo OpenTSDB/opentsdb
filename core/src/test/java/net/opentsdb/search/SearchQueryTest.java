@@ -19,7 +19,7 @@ import net.opentsdb.search.SearchQuery.SearchType;
 
 import org.junit.Test;
 
-public final class TestSearchQuery {
+public final class SearchQueryTest {
 
   @Test
   public void parseSearchTypeTSMeta() throws Exception {

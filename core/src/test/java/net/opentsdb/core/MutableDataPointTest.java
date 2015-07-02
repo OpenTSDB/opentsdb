@@ -23,7 +23,7 @@ import org.junit.Test;
 /**
  * Tests {@link MutableDataPoint}.
  */
-public class TestMutableDataPoint {
+public class MutableDataPointTest {
 
   @Test
   public void testMutableDataPoint() {

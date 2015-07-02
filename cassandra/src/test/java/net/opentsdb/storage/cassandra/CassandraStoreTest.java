@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-public class TestCassandraStore {
+public class CassandraStoreTest {
   private static final String METRIC_NAME_ONE = "sys";
   private static final String METRIC_NAME_TWO = "cpu0";
   private static final String METRIC_NAME_THREE = "cpu1";
