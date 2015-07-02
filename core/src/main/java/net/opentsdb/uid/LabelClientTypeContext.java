@@ -1,19 +1,22 @@
 package net.opentsdb.uid;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.Futures.transform;
 import static net.opentsdb.stats.Metrics.name;
 import static net.opentsdb.stats.Metrics.tag;
 
+import net.opentsdb.stats.CacheEvictionCountGauge;
+import net.opentsdb.stats.CacheHitRateGauge;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.FutureCallback;
@@ -24,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
-import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -46,18 +48,13 @@ public class LabelClientTypeContext {
   private final LabelType type;
 
   /** Cache for forward mappings (name to ID). */
-  private final ConcurrentHashMap<String, LabelId> nameCache = new ConcurrentHashMap<>();
+  private final Cache<String, LabelId> nameCache;
 
   /** Cache for backward mappings (ID to name). */
-  private final ConcurrentHashMap<LabelId, String> idCache = new ConcurrentHashMap<>();
+  private final Cache<LabelId, String> idCache;
 
   /** Map of pending UID assignments. */
   private final HashMap<String, ListenableFuture<LabelId>> pendingAssignments = new HashMap<>();
-
-  /** Number of times we avoided reading from the store thanks to the cache. */
-  private final Counter cacheHits;
-  /** Number of times we had to read from the store and populate the cache. */
-  private final Counter cacheMisses;
 
   /**
    * The event bus to which the id changes done by this instance will be published.
@@ -80,32 +77,29 @@ public class LabelClientTypeContext {
     this.type = checkNotNull(type);
     this.idEventBus = checkNotNull(idEventBus);
 
-    cacheHits = new Counter();
-    cacheMisses = new Counter();
+    nameCache = CacheBuilder.newBuilder()
+        .maximumSize(200000)
+        .recordStats()
+        .build();
+
+    idCache = CacheBuilder.newBuilder()
+        .maximumSize(200000)
+        .recordStats()
+        .build();
+
     registerMetrics(metrics);
   }
 
   private void registerMetrics(final MetricRegistry registry) {
-    Metrics.Tag typeTag = tag("kind", type.toValue());
-    registry.register(name("uid.cache-hit", typeTag), cacheHits);
-    registry.register(name("uid.cache-miss", typeTag), cacheMisses);
+    Metrics.Tag typeTag = tag("type", type.toValue());
 
-    registry.register(name("uid.cache-size", typeTag), new Gauge<Integer>() {
-      @Override
-      public Integer getValue() {
-        return nameCache.size() + idCache.size();
-      }
-    });
-  }
+    registry.register(name("labels.names.hitRate", typeTag), new CacheHitRateGauge(nameCache));
+    registry.register(name("labels.names.evictionCount", typeTag),
+        new CacheEvictionCountGauge(nameCache));
 
-  /**
-   * Causes this instance to discard all its in-memory caches.
-   *
-   * @since 1.1
-   */
-  public void dropCaches() {
-    nameCache.clear();
-    idCache.clear();
+    registry.register(name("labels.ids.hitRate", typeTag), new CacheHitRateGauge(idCache));
+    registry.register(name("labels.ids.evictionCount", typeTag),
+        new CacheEvictionCountGauge(idCache));
   }
 
   /**
@@ -121,12 +115,12 @@ public class LabelClientTypeContext {
    */
   @Nonnull
   public ListenableFuture<String> getName(final LabelId id) {
-    final String name = getNameFromCache(id);
+    final String name = idCache.getIfPresent(id);
+
     if (name != null) {
-      cacheHits.inc();
       return Futures.immediateFuture(name);
     }
-    cacheMisses.inc();
+
     class GetNameFunction implements Function<Optional<String>, String> {
       @Nullable
       @Override
@@ -146,21 +140,14 @@ public class LabelClientTypeContext {
     return transform(store.getName(id, type), new GetNameFunction());
   }
 
-  @Nullable
-  private String getNameFromCache(final LabelId id) {
-    return idCache.get(id);
-  }
-
   private void addNameToCache(final LabelId id,
                               final String name) {
-    String found = idCache.get(id);
-    if (found == null) {
-      found = idCache.putIfAbsent(id, name);
-    }
-    if (found != null && !found.equals(name)) {
-      throw new IllegalStateException("id=" + id + " => name="
-                                      + name + ", already mapped to " + found);
-    }
+    final String foundName = idCache.getIfPresent(id);
+
+    checkState(foundName == null || foundName.equals(name),
+        "id %s was already mapped to %s, tried to map to %s", id, foundName, name);
+
+    idCache.put(id, name);
   }
 
   /**
@@ -172,12 +159,12 @@ public class LabelClientTypeContext {
    */
   @Nonnull
   public ListenableFuture<LabelId> getId(final String name) {
-    final LabelId id = getIdFromCache(name);
+    final LabelId id = nameCache.getIfPresent(name);
+
     if (id != null) {
-      cacheHits.inc();
       return Futures.immediateFuture(id);
     }
-    cacheMisses.inc();
+
     class GetIdFunction implements Function<Optional<LabelId>, LabelId> {
       @Nullable
       @Override
@@ -197,21 +184,14 @@ public class LabelClientTypeContext {
     return transform(store.getId(name, type), new GetIdFunction());
   }
 
-  @Nullable
-  private LabelId getIdFromCache(final String name) {
-    return nameCache.get(name);
-  }
-
   private void addIdToCache(final String name,
                             final LabelId id) {
-    LabelId found = nameCache.get(name);
-    if (found == null) {
-      found = nameCache.putIfAbsent(name, id);
-    }
-    if (found != null && !found.equals(id)) {
-      throw new IllegalStateException("name=" + name + " => id="
-                                      + id + ", already mapped to " + found);
-    }
+    final LabelId foundId = nameCache.getIfPresent(name);
+
+    checkState(foundId == null || foundId.equals(id),
+        "name %s was already mapped to %s, tried to map to %s", name, foundId, id);
+
+    nameCache.put(name, id);
   }
 
   /** Adds the bidirectional mapping in the cache. */
@@ -302,7 +282,7 @@ public class LabelClientTypeContext {
             // Update cache.
             addIdToCache(newname, oldUid);  // add     new name -> ID
             idCache.put(oldUid, newname);   // update  ID -> new name
-            nameCache.remove(oldname);      // remove  old name -> ID
+            nameCache.invalidate(oldname);  // remove  old name -> ID
 
             // Delete the old forward mapping.
             return store.deleteLabel(oldname, type);
