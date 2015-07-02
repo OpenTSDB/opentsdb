@@ -34,6 +34,11 @@
   <suppress checks="." files="TSSubQuery.java$" />
 
   <suppress checks="." files="SeekableViewsForTest.java$" />
-  <suppress checks="." files="TestDateTime.java$" />
-  <suppress checks="." files="TestDownsampler.java$" />
+  <suppress checks="." files="DateTimeTest.java$" />
+  <suppress checks="." files="DownsamplerTest.java$" />
+  <suppress checks="." files="RateSpanTest.java$" />
+  <suppress checks="." files="AggregationIteratorTest.java$" />
+  <suppress checks="." files="TSSubqueryTest.java$" />
+  <suppress checks="." files="SearchQueryTest.java$" />
+
 </suppressions>
