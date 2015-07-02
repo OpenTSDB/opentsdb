@@ -3,7 +3,6 @@ package net.opentsdb.plugins;
 import net.opentsdb.search.DefaultSearchPlugin;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchPluginDescriptor;
-import net.opentsdb.storage.TsdbStore;
 
 import com.typesafe.config.Config;
 import dagger.Module;
@@ -15,8 +14,7 @@ import javax.inject.Singleton;
 public class PluginsModule {
   @Provides
   @Singleton
-  SearchPlugin provideSearchPlugin(final Config config,
-                                   final TsdbStore store) {
+  SearchPlugin provideSearchPlugin(final Config config) {
     try {
       // load the search plugin if enabled
       if (config.getBoolean("tsd.search.enable")) {
@@ -27,7 +25,7 @@ public class PluginsModule {
         return descriptor.create(config);
       }
 
-      return new DefaultSearchPlugin(store);
+      return new DefaultSearchPlugin();
     } catch (Exception e) {
       throw new IllegalStateException("Unable to instantiate the configured search plugin", e);
     }

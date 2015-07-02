@@ -14,8 +14,6 @@ import net.opentsdb.stats.StopTimerCallback;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdLookupStrategy;
 import net.opentsdb.uid.IdLookupStrategy.WildcardIdLookupStrategy;
-import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.Label;
 import net.opentsdb.uid.LabelClientTypeContext;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.LabelType;
@@ -182,17 +180,6 @@ public class LabelClient {
     }
 
     return transform(allAsList(futures), new StripedToMap<String>());
-  }
-
-  /**
-   * Given an {@link net.opentsdb.uid.IdQuery} instance this method will perform a search using the
-   * configured {@link net.opentsdb.search.SearchPlugin}.
-   *
-   * @param query The query specifying the search parameters.
-   * @return A future that on completion will contain the result of the query.
-   */
-  public ListenableFuture<List<Label>> suggest(final IdQuery query) {
-    return searchPlugin.executeIdQuery(query);
   }
 
   LabelClientTypeContext idContextForType(LabelType type) {
