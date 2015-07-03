@@ -29,14 +29,19 @@ public class ConfigModule {
 
   private final Config config;
 
+  /**
+   * Create a new config module that will provide a configuration loaded from the default
+   * (application) file as dictated by the config library.
+   */
   public ConfigModule() {
     this(ConfigFactory.load(DEFAULT_PARSE_OPTIONS));
   }
 
   /**
-   * Create a config module that uses the provided Config instance.
+   * Create a new config module that will provide the given config instance to the dagger object
+   * graph.
    *
-   * @param config The config object to read from
+   * @param config The config object that will be provided
    */
   protected ConfigModule(final Config config) {
     this.config = config.withFallback(
@@ -48,12 +53,29 @@ public class ConfigModule {
     this(overrides.withFallback(config));
   }
 
+  /**
+   * Create a new config module that will provide a configuration loaded from the default
+   * (application) file as dictated by the config library with the provided configuration values
+   * overridden.
+   *
+   * @param overrides The configuration values that should override the default ones
+   * @return A newly instantiated config module
+   * @throws com.typesafe.config.ConfigException.IO if the default config is missing
+   */
   @Nonnull
   public static ConfigModule defaultWithOverrides(final Map<String, ?> overrides) {
     final Config configOverrides = ConfigFactory.parseMap(overrides, "overrides");
     return new ConfigModule(ConfigFactory.load(DEFAULT_PARSE_OPTIONS), configOverrides);
   }
 
+  /**
+   * Create a new config module that will provide a configuration that has been loaded from the
+   * provided file.
+   *
+   * @param configFile A file object that points to the configuration file to load
+   * @return A newly instantiated config module
+   * @throws com.typesafe.config.ConfigException.IO if the file is missing
+   */
   @Nonnull
   public static ConfigModule fromFile(final File configFile) {
     return new ConfigModule(ConfigFactory.parseFileAnySyntax(configFile, DEFAULT_PARSE_OPTIONS));
