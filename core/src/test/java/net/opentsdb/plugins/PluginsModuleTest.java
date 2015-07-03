@@ -7,9 +7,7 @@ import net.opentsdb.TestComponent;
 import net.opentsdb.core.ConfigModule;
 import net.opentsdb.search.DefaultSearchPlugin;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
+import com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -23,11 +21,9 @@ public class PluginsModuleTest {
 
   @Test(expected = IllegalStateException.class)
   public void testProvideRealTimePublisherThrowsExceptionWrongConfig() {
-    final Config config = ConfigFactory.load()
-        .withValue("tsd.rtpublisher.plugin", ConfigValueFactory.fromAnyRef("doesNotExist"));
-
     final TestComponent component = DaggerTestComponent.builder()
-        .configModule(new ConfigModule(config))
+        .configModule(ConfigModule.defaultWithOverrides(
+            ImmutableMap.of("tsd.rtpublisher.plugin", "doesNotExist")))
         .build();
 
     component.realTimePublisher();
@@ -45,11 +41,9 @@ public class PluginsModuleTest {
 
   @Test(expected = IllegalStateException.class)
   public void testProvideSearchPluginThrowsExceptionWrongConfig() {
-    final Config config = ConfigFactory.load()
-        .withValue("tsd.search.plugin", ConfigValueFactory.fromAnyRef("doesNotExist"));
-
     final TestComponent component = DaggerTestComponent.builder()
-        .configModule(new ConfigModule(config))
+        .configModule(ConfigModule.defaultWithOverrides(
+            ImmutableMap.of("tsd.search.plugin", "doesNotExist")))
         .build();
 
     component.searchPlugin();

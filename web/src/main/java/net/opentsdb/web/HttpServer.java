@@ -45,7 +45,7 @@ public final class HttpServer extends CommandLineApplication {
       final File configFile = options.valueOf(application.getConfigSpec());
 
       HttpServerComponent httpServerComponent = DaggerHttpServerComponent.builder()
-          .configModule(new ConfigModule(configFile))
+          .configModule(ConfigModule.fromFile(configFile))
           .build();
 
       final Config config = httpServerComponent.config();

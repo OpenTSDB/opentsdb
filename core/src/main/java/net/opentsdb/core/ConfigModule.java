@@ -9,6 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.util.Map;
+import javax.annotation.Nonnull;
 import javax.inject.Singleton;
 
 /**
@@ -22,21 +24,13 @@ import javax.inject.Singleton;
 @Module
 public class ConfigModule {
   private static final Logger LOG = LoggerFactory.getLogger(ConfigModule.class);
+  private static final ConfigParseOptions DEFAULT_PARSE_OPTIONS = ConfigParseOptions.defaults()
+      .setAllowMissing(false);
 
   private final Config config;
 
-  public ConfigModule(final File configFile) {
-    this(ConfigFactory.parseFileAnySyntax(configFile,
-        ConfigParseOptions.defaults().setAllowMissing(false)));
-  }
-
-  public ConfigModule(final File configFile, final Config overrides) {
-    this(ConfigFactory.parseFileAnySyntax(configFile,
-        ConfigParseOptions.defaults().setAllowMissing(false)), overrides);
-  }
-
   public ConfigModule() {
-    this(ConfigFactory.load());
+    this(ConfigFactory.load(DEFAULT_PARSE_OPTIONS));
   }
 
   /**
@@ -44,14 +38,25 @@ public class ConfigModule {
    *
    * @param config The config object to read from
    */
-  public ConfigModule(final Config config) {
+  protected ConfigModule(final Config config) {
     this.config = config.withFallback(
-        ConfigFactory.parseResourcesAnySyntax("reference"));
+        ConfigFactory.parseResourcesAnySyntax("reference", DEFAULT_PARSE_OPTIONS));
     LOG.info("Loaded config from {}", config.origin());
   }
 
   private ConfigModule(final Config config, final Config overrides) {
     this(overrides.withFallback(config));
+  }
+
+  @Nonnull
+  public static ConfigModule defaultWithOverrides(final Map<String, ?> overrides) {
+    final Config configOverrides = ConfigFactory.parseMap(overrides, "overrides");
+    return new ConfigModule(ConfigFactory.load(DEFAULT_PARSE_OPTIONS), configOverrides);
+  }
+
+  @Nonnull
+  public static ConfigModule fromFile(final File configFile) {
+    return new ConfigModule(ConfigFactory.parseFileAnySyntax(configFile, DEFAULT_PARSE_OPTIONS));
   }
 
   @Provides
