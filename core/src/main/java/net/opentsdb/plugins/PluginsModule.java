@@ -34,9 +34,6 @@ public class PluginsModule {
           RealTimePublisherDescriptor.class);
 
       return descriptor.create(config);
-
-      //TODO Need to write a realtimepublisher descriptor
-      //return new DefaultRealtimePublisher();
     } catch (Exception e) {
       throw new IllegalStateException("Unable to instantiate the configured realtime publisher", e);
     }

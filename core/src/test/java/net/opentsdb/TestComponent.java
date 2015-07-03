@@ -6,7 +6,9 @@ import net.opentsdb.core.LabelClientTest;
 import net.opentsdb.core.MetaClientAnnotationTest;
 import net.opentsdb.core.MetaClientLabelMetaTest;
 import net.opentsdb.plugins.PluginsModule;
+import net.opentsdb.plugins.RealTimePublisher;
 import net.opentsdb.search.IdChangeIndexerListenerTest;
+import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.storage.StoreModule;
 import net.opentsdb.storage.StoreModuleTest;
 import net.opentsdb.uid.LabelClientTypeContextTest;
@@ -47,4 +49,8 @@ public interface TestComponent {
   void inject(IdChangeIndexerListenerTest idChangeIndexerListenerTest);
 
   void inject(WildcardIdLookupStrategyTest wildcardIdLookupStrategyTest);
+
+  SearchPlugin searchPlugin();
+
+  RealTimePublisher realTimePublisher();
 }

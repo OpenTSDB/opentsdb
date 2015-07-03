@@ -44,7 +44,7 @@ public class ConfigModule {
    *
    * @param config The config object to read from
    */
-  protected ConfigModule(final Config config) {
+  public ConfigModule(final Config config) {
     this.config = config.withFallback(
         ConfigFactory.parseResourcesAnySyntax("reference"));
     LOG.info("Loaded config from {}", config.origin());
