@@ -9,6 +9,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
+import net.opentsdb.storage.TsdbStoreTest;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.LabelType;
 
@@ -27,7 +28,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-public class CassandraStoreTest {
+public class CassandraStoreTest extends TsdbStoreTest<CassandraStore> {
   private static final String METRIC_NAME_ONE = "sys";
   private static final String METRIC_NAME_TWO = "cpu0";
   private static final String METRIC_NAME_THREE = "cpu1";
@@ -39,7 +40,6 @@ public class CassandraStoreTest {
 
   private Config config;
   private CassandraStoreDescriptor storeDescriptor;
-  private CassandraStore store;
   private Map<String, LabelId> nameUid = new HashMap<>();
 
   @Rule
