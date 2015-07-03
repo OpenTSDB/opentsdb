@@ -23,7 +23,7 @@ import javax.inject.Singleton;
 public class ConfigModule {
   private static final Logger LOG = LoggerFactory.getLogger(ConfigModule.class);
 
-  protected final Config config;
+  private final Config config;
 
   public ConfigModule(final File configFile) {
     this(ConfigFactory.parseFileAnySyntax(configFile,
@@ -56,7 +56,7 @@ public class ConfigModule {
 
   @Provides
   @Singleton
-  Config provideConfig() {
+  public Config provideConfig() {
     return config;
   }
 }
