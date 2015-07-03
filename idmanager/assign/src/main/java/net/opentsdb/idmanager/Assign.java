@@ -104,7 +104,7 @@ public final class Assign {
           Arrays.copyOfRange(args, 1, args.length));
 
       final AssignComponent assignComponent = DaggerAssignComponent.builder()
-          .configModule(new ConfigModule(configFile))
+          .configModule(ConfigModule.fromFile(configFile))
           .build();
 
       final TsdbStore store = assignComponent.store();
