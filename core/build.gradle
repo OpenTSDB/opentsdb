@@ -23,7 +23,7 @@ dependencies {
 }
 
 jmh {
-    jmhVersion = '1.9.3'
+    jmhVersion = '1.10.1'
     failOnError = true
     warmupIterations = 10
     iterations = 10

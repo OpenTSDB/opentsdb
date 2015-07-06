@@ -3,6 +3,7 @@ package net.opentsdb.utils;
 import com.google.common.primitives.Longs;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
@@ -14,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Benchmark)
+@Fork(3)
 public class MoreLongsBenchmark {
   @Param({"4", "123123123", "9223372036854775807"})
   public String stringLong;
