@@ -10,6 +10,7 @@ dependencies {
             libraries.dagger,
             libraries.metrics_core,
             libraries.metrics_jvm,
+            libraries.jopt,
             libraries.netty,
 
             libraries.jackson_core,

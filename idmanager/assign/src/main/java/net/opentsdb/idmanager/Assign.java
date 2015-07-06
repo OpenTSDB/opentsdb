@@ -1,9 +1,9 @@
 package net.opentsdb.idmanager;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static java.util.Arrays.asList;
 
-import net.opentsdb.core.ConfigModule;
+import net.opentsdb.application.CommandLineApplication;
+import net.opentsdb.application.CommandLineOptions;
 import net.opentsdb.core.LabelClient;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.LabelException;
@@ -17,15 +17,12 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.typesafe.config.ConfigException;
-import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -44,31 +41,6 @@ public final class Assign {
     this.labelClient = checkNotNull(labelClient);
   }
 
-  /** Prints printHelp. */
-  private static void printHelp(final OptionParser parser) {
-    System.err.println("Usage: tsdb id assign [OPTIONS] <TYPE> [NAME]...");
-    System.err.println("Create IDs for NAME(s), or names read from standard"
-                       + " input of type TYPE.");
-    System.err.println();
-
-    try {
-      parser.printHelpOn(System.err);
-    } catch (IOException e) {
-      throw new AssertionError("PrintStream (System.err) never throws");
-    }
-
-    System.err.println();
-    System.err.println("With no NAME, or when NAME is -, read standard input.");
-    System.err.println();
-
-    System.exit(2);
-  }
-
-  private static void printError(final String errorMessage) {
-    System.err.println("assign: " + errorMessage);
-    System.err.println("Try 'tsdb id assign --help' for more information");
-  }
-
   /**
    * Entry-point for the assign application. The assign program is normally not executed directly
    * but rather through the main project.
@@ -76,36 +48,32 @@ public final class Assign {
    * @param args The command-line arguments
    */
   public static void main(final String[] args) {
-    OptionParser parser = new OptionParser();
+    final CommandLineApplication application = CommandLineApplication.builder()
+        .command("id assign")
+        .usage("[OPTIONS] <TYPE> [NAME]...")
+        .description("Create IDs for NAME(s), or names read from standard input of type TYPE.")
+        .helpText("With no NAME, or when NAME is -, read standard input.")
+        .build();
 
-    parser.acceptsAll(asList("help", "h"),
-        "display this help and exit").forHelp();
-    parser.acceptsAll(asList("verbose", "v"),
-        "Print more logging messages and not just errors.");
-    ArgumentAcceptingOptionSpec<File> configSpec = parser.acceptsAll(asList("config", "c"),
-        "Path to a configuration file (default: Searches for file see docs).")
-        .withRequiredArg()
-        .ofType(File.class)
-        .defaultsTo(new File(appHome(), "config/opentsdb"));
+    final OptionParser parser = new OptionParser();
+    final CommandLineOptions cmdOptions = new CommandLineOptions(parser);
 
     try {
-      final OptionSet options = parser.parse(args);
+      final OptionSet options = cmdOptions.parseOptions(args);
 
-      if (options.has("help")) {
-        printHelp(parser);
+      if (cmdOptions.shouldPrintHelp()) {
+        application.printHelp(parser);
       }
 
-      final File configFile = options.valueOf(configSpec);
+      final AssignComponent assignComponent = DaggerAssignComponent.builder()
+          .configModule(cmdOptions.configModule())
+          .build();
 
       final List<?> nonOptionArguments = options.nonOptionArguments();
 
       final LabelType type = type(nonOptionArguments);
       final ImmutableSet<String> names = ImmutableSet.copyOf(
           Arrays.copyOfRange(args, 1, args.length));
-
-      final AssignComponent assignComponent = DaggerAssignComponent.builder()
-          .configModule(ConfigModule.fromFile(configFile))
-          .build();
 
       final TsdbStore store = assignComponent.store();
       final Assign assign = assignComponent.assign();
@@ -120,7 +88,7 @@ public final class Assign {
       Futures.allAsList(assignments).get();
       store.close();
     } catch (IllegalArgumentException | OptionException e) {
-      printError(e.getMessage());
+      application.printError(e.getMessage());
       System.exit(42);
     } catch (InvalidConfigException | ConfigException e) {
       System.err.println(e.getMessage());
@@ -129,10 +97,6 @@ public final class Assign {
       LOG.error("Fatal error while assigning id", e);
       System.exit(42);
     }
-  }
-
-  private static String appHome() {
-    return System.getProperty("app.home");
   }
 
   private static LabelType type(final List<?> nonOptionArguments) {
