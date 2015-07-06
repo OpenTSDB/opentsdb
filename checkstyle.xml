@@ -15,7 +15,7 @@
   <module name="JavadocPackage"/>
 
   <module name="SuppressionFilter">
-    <property name="file" value="suppressions.xml"/>
+    <property name="file" value="${rootDir}/suppressions.xml"/>
   </module>
 
   <module name="TreeWalker">
