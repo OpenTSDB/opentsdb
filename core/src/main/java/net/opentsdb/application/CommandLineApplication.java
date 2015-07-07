@@ -4,7 +4,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.auto.value.AutoValue;
-import joptsimple.OptionParser;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -32,13 +31,13 @@ public abstract class CommandLineApplication {
     outputStream().println("Try 'tsdb " + command() + " --help' for more information");
   }
 
-  public void printHelp(final OptionParser parser) {
+  public void printHelpAndExit(final CommandLineOptions options) {
     outputStream().println("Usage: tsdb " + command() + ' ' + usage());
     outputStream().println(description());
     outputStream().println();
 
     try {
-      parser.printHelpOn(outputStream());
+      options.optionParser().printHelpOn(outputStream());
     } catch (IOException e) {
       throw new AssertionError("PrintStream (System.err) never throws");
     }

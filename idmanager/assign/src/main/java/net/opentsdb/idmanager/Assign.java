@@ -18,7 +18,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.typesafe.config.ConfigException;
 import joptsimple.OptionException;
-import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,14 +54,13 @@ public final class Assign {
         .helpText("With no NAME, or when NAME is -, read standard input.")
         .build();
 
-    final OptionParser parser = new OptionParser();
-    final CommandLineOptions cmdOptions = new CommandLineOptions(parser);
+    final CommandLineOptions cmdOptions = new CommandLineOptions();
 
     try {
       final OptionSet options = cmdOptions.parseOptions(args);
 
       if (cmdOptions.shouldPrintHelp()) {
-        application.printHelp(parser);
+        application.printHelpAndExit(cmdOptions);
       }
 
       final AssignComponent assignComponent = DaggerAssignComponent.builder()

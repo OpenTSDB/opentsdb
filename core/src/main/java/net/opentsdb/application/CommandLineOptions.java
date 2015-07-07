@@ -18,6 +18,10 @@ public class CommandLineOptions {
 
   private OptionSet options;
 
+  public CommandLineOptions() {
+    this(new OptionParser());
+  }
+
   public CommandLineOptions(final OptionParser optionParser) {
     this.optionParser = checkNotNull(optionParser);
 
@@ -54,5 +58,9 @@ public class CommandLineOptions {
   public boolean shouldPrintHelp() {
     checkState(options != null, "Arguments have not been parsed yet. Call #parseOptions first.");
     return options.has("help");
+  }
+
+  protected OptionParser optionParser() {
+    return optionParser;
   }
 }
