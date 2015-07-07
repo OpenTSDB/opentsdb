@@ -1,9 +1,11 @@
 package net.opentsdb.web;
 
-import net.opentsdb.core.ConfigModule;
+import net.opentsdb.application.CommandLineApplication;
+import net.opentsdb.application.CommandLineOptions;
 import net.opentsdb.utils.EventLoopGroups;
 import net.opentsdb.utils.InvalidConfigException;
 
+import com.google.common.io.Closeables;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 import io.netty.bootstrap.ServerBootstrap;
@@ -13,16 +15,9 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.handler.logging.LoggingHandler;
 import joptsimple.OptionException;
-import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 
-import java.io.File;
-
-public final class HttpServer extends CommandLineApplication {
-  public HttpServer(final OptionParser optionParser) {
-    super("web", "[OPTIONS]", "Start the REST API server", optionParser);
-  }
-
+public final class HttpServer {
   /**
    * Entry-point for the http server application. The assign program is normally not executed
    * directly but rather through the main project.
@@ -30,22 +25,29 @@ public final class HttpServer extends CommandLineApplication {
    * @param args The command-line arguments
    */
   public static void main(String[] args) {
-    final OptionParser optionParser = new OptionParser();
-    final HttpServer application = new HttpServer(optionParser);
+    // Release an FD that we don't need or want
+    Closeables.closeQuietly(System.in);
+
+    final CommandLineApplication cliApplication = CommandLineApplication.builder()
+        .command("web")
+        .description("Start the REST API server")
+        .helpText("The REST server will respond to regular HTTP 1.1 requests")
+        .usage("[OPTIONS]")
+        .build();
+
+    final CommandLineOptions cmdOptions = new CommandLineOptions();
 
     try {
-      final OptionSet options = optionParser.parse(args);
+      final OptionSet options = cmdOptions.parseOptions(args);
 
       if (options.has("help")) {
-        application.printHelp(optionParser);
+        cliApplication.printHelpAndExit(cmdOptions);
       }
 
-      configureLogger(options.valueOf(application.getLoggerConfigSpec()));
-
-      final File configFile = options.valueOf(application.getConfigSpec());
+      cmdOptions.configureLogger();
 
       HttpServerComponent httpServerComponent = DaggerHttpServerComponent.builder()
-          .configModule(ConfigModule.fromFile(configFile))
+          .configModule(cmdOptions.configModule())
           .build();
 
       final Config config = httpServerComponent.config();
@@ -73,7 +75,7 @@ public final class HttpServer extends CommandLineApplication {
         workerGroup.shutdownGracefully();
       }
     } catch (IllegalArgumentException | OptionException | InterruptedException e) {
-      application.printError(e.getMessage());
+      cliApplication.printError(e.getMessage());
       System.exit(42);
     } catch (InvalidConfigException | ConfigException e) {
       System.err.println(e.getMessage());

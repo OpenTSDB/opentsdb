@@ -11,8 +11,13 @@ import java.io.File;
 
 public class ConfigModuleTest {
   @Test(expected = ConfigException.IO.class)
-  public void testFromFile() throws Exception {
+  public void testFromFileDoesNotExist() throws Exception {
     ConfigModule.fromFile(new File("doesNotExist"));
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testFromNullFile() throws Exception {
+    ConfigModule.fromFile(null);
   }
 
   @Test
