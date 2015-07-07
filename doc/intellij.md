@@ -25,7 +25,12 @@ The file `doc/intellij-opentsdb-style.xml` contains a pre-configured IntelliJ co
 configuration that you can copy to `.idea/codeStyleSettings.xml` for automatic formatting.
 
 There is also a checkstyle configuration that can be used in IntelliJ if you install the plugin. The
-checkstyle configuration is located in `checkstyle.xml`.
+checkstyle configuration is located in `checkstyle.xml`. You may need to add the line bellow to the
+file `.idea/checkstyle-idea.xml` to get the plugin working.
+
+```
+<entry key="property-1.rootDir" value="$PROJECT_DIR$" />
+```
 
 One final useful tool is the IntelliJ findbugs plugin which can help to spot unnecessary bugs. All
 of the mentioned tools are generally executed as part of the build process and pull requests are
