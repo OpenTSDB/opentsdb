@@ -194,7 +194,7 @@
       <!-- The non-shaded classes should be used -->
       <property name="illegalPkgs" value="autovalue.shaded"/>
       <!-- JUnit 4 style tests should be used -->
-      <property name="illegalPkgs" value="junit.framework.TestCase"/>
+      <property name="illegalPkgs" value="junit.framework"/>
     </module>
   </module>
 </module>
