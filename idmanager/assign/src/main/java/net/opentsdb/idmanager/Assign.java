@@ -63,6 +63,8 @@ public final class Assign {
         application.printHelpAndExit(cmdOptions);
       }
 
+      cmdOptions.configureLogger();
+
       final AssignComponent assignComponent = DaggerAssignComponent.builder()
           .configModule(cmdOptions.configModule())
           .build();

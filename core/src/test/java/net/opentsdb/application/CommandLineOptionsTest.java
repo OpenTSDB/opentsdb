@@ -25,13 +25,13 @@ public class CommandLineOptionsTest {
 
   @Test
   public void testParsesShortHelp() throws Exception {
-    cmdOptions.parseOptions(new String[] {"-h"});
+    cmdOptions.parseOptions(new String[]{"-h"});
     assertTrue(cmdOptions.shouldPrintHelp());
   }
 
   @Test
   public void testParsesLongHelp() throws Exception {
-    cmdOptions.parseOptions(new String[] {"--help"});
+    cmdOptions.parseOptions(new String[]{"--help"});
     assertTrue(cmdOptions.shouldPrintHelp());
   }
 
@@ -47,13 +47,30 @@ public class CommandLineOptionsTest {
 
   @Test
   public void testConfigFileDefault() throws Exception {
-    cmdOptions.parseOptions(new String[] {});
+    cmdOptions.parseOptions(new String[]{});
     assertEquals(new File("config/opentsdb"), cmdOptions.configFile());
   }
 
   @Test
   public void testConfigFileParsed() throws Exception {
-    cmdOptions.parseOptions(new String[] {"-c", "manualConfig.conf"});
+    cmdOptions.parseOptions(new String[]{"-c", "manualConfig.conf"});
     assertEquals(new File("manualConfig.conf"), cmdOptions.configFile());
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void testLoggerConfigFileThrowsOnNoParse() throws Exception {
+    cmdOptions.loggerConfigFile();
+  }
+
+  @Test
+  public void testLoggerConfigFileDefault() throws Exception {
+    cmdOptions.parseOptions(new String[]{});
+    assertEquals(new File("config/logback.xml"), cmdOptions.loggerConfigFile());
+  }
+
+  @Test
+  public void testLoggerConfigFileParsed() throws Exception {
+    cmdOptions.parseOptions(new String[]{"--logger-config", "manualConfig.xml"});
+    assertEquals(new File("manualConfig.xml"), cmdOptions.loggerConfigFile());
   }
 }

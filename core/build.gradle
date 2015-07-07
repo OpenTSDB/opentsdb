@@ -7,6 +7,7 @@ project.ext.distFiles = files("src/main/dist")
 
 dependencies {
     compile libraries.config,
+            libraries.logback,
             libraries.dagger,
             libraries.metrics_core,
             libraries.metrics_jvm,
