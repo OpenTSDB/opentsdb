@@ -17,6 +17,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 
+/**
+ * An instance of this class knows has to parse command line arguments and defines some common
+ * behavior such as which config files to load by default and how they can be overridden.
+ */
 public class CommandLineOptions {
   private final OptionParser optionParser;
 
@@ -29,7 +33,11 @@ public class CommandLineOptions {
     this(new OptionParser());
   }
 
-  public CommandLineOptions(final OptionParser optionParser) {
+  /**
+   * Create a new instance that uses the provided option parser to parse arguments read from the
+   * command line.
+   */
+  protected CommandLineOptions(final OptionParser optionParser) {
     this.optionParser = checkNotNull(optionParser);
 
     optionParser.acceptsAll(asList("help", "h"),
@@ -52,20 +60,46 @@ public class CommandLineOptions {
     return System.getProperty("app.home");
   }
 
+  /**
+   * Reads the configuration file specified in the command line arguments.
+   *
+   * @return The file from which the configuration should be read from
+   * @throws IllegalStateException if the command line arguments have not been parsed yet
+   * @see #parseOptions(String[]) for how to parse the arguments
+   */
   public File configFile() {
     checkState(options != null, "Arguments have not been parsed yet. Call #parseOptions first.");
     return options.valueOf(configSpec);
   }
 
+  /**
+   * Create a {@link ConfigModule} that provides a configuration the is based on the configuration
+   * file returned by {@link #configFile()}.
+   *
+   * @see #configFile()
+   */
   public ConfigModule configModule() {
     return ConfigModule.fromFile(configFile());
   }
 
+  /**
+   * Reads the logger configuration file specified in the command line arguments.
+   *
+   * @return The file from which the logback logger should read its configuration from
+   * @throws IllegalStateException if the command line arguments have not been parsed yet
+   * @see #parseOptions(String[]) for how to parse the arguments
+   */
   public File loggerConfigFile() {
     checkState(options != null, "Arguments have not been parsed yet. Call #parseOptions first.");
     return options.valueOf(loggerConfigSpec);
   }
 
+  /**
+   * Configure the logback logging infrastructure based on the logback config file specified in the
+   * command line arguments or the default configuration file if none was specified.
+   *
+   * @see #loggerConfigFile()
+   */
   public void configureLogger() {
     LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
 
@@ -83,12 +117,21 @@ public class CommandLineOptions {
     StatusPrinter.printInCaseOfErrorsOrWarnings(context);
   }
 
+  /**
+   * Parse the provided string array as command line arguments. The {@code args} are usually the
+   * parameter to the {@code public static void main(String[] args)} method.
+   */
   public OptionSet parseOptions(final String[] args) {
     checkState(options == null, "Options have already been parsed");
     this.options = optionParser.parse(args);
     return options;
   }
 
+  /**
+   * Check if the command line arguments contained the help argument.
+   *
+   * @return {@code true} if the help should be printed, {@code false} if not
+   */
   public boolean shouldPrintHelp() {
     checkState(options != null, "Arguments have not been parsed yet. Call #parseOptions first.");
     return options.has("help");

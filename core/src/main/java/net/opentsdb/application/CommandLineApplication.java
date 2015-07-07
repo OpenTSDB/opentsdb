@@ -8,6 +8,11 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.PrintStream;
 
+/**
+ * A value class that holds meta information about a command line application such as the command to
+ * start it, a description and where to {@link #outputStream() print error messages}. Use the {@link
+ * #builder()} to create instances.
+ */
 @AutoValue
 public abstract class CommandLineApplication {
   CommandLineApplication() {
@@ -26,11 +31,21 @@ public abstract class CommandLineApplication {
 
   abstract PrintStream outputStream();
 
+  /**
+   * Print the error message decorated with the command name and instructions for viewing the help.
+   *
+   * @param errorMessage The error message to print
+   */
   public void printError(final String errorMessage) {
     outputStream().println(command() + ": " + errorMessage);
     outputStream().println("Try 'tsdb " + command() + " --help' for more information");
   }
 
+  /**
+   * Print the help and usage instructions to the {@link #outputStream()} and exit.
+   *
+   * @param options The command line options that specifies the argument usage
+   */
   public void printHelpAndExit(final CommandLineOptions options) {
     outputStream().println("Usage: tsdb " + command() + ' ' + usage());
     outputStream().println(description());
@@ -51,10 +66,17 @@ public abstract class CommandLineApplication {
 
   abstract String usage();
 
+  /**
+   * A builder for creating {@link CommandLineApplication command line applications} that makes sure
+   * that the instances have all information.
+   */
   @AutoValue.Builder
   public abstract static class Builder {
     abstract CommandLineApplication autoBuild();
 
+    /**
+     * Build an instance with the previously set information.
+     */
     public CommandLineApplication build() {
       final CommandLineApplication application = autoBuild();
       checkState(!isNullOrEmpty(application.command()));
