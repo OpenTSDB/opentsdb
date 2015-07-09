@@ -467,8 +467,7 @@ public class CassandraStore extends TsdbStore {
                                              final LabelType type) {
     final Date createTimestamp = timeProvider.now();
     final ResultSetFuture save = session.executeAsync(
-        createIdStatement.bind(createTimestamp.getTime(),
-            id, type.toValue(), createTimestamp, name,
+        createIdStatement.bind(id, type.toValue(), createTimestamp, name,
             name, type.toValue(), createTimestamp, id));
 
     return transform(save, new AsyncFunction<ResultSet, LabelId>() {
