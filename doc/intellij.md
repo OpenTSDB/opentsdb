@@ -40,8 +40,9 @@ changes.
 ## Caveats
 
 Currently there is a problem with IntelliJ overwriting the generated test classes when it builds the
-JMH source set so from time to time you may have to run the Gradle `testClasses` task to regenerate
-them. See #156 for more details.
+JMH source set so from time to time you may have to run
+`gradle checkstyleMain checkstyleTest checkstyleJmhgit` to regenerate them. See #156 for more
+details.
 
 One other minor caveat is that some compile-only dependencies are included in the runtime for build
 done in IntelliJ. See #155 for more details.
