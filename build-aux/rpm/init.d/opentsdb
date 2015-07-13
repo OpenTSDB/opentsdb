@@ -78,7 +78,7 @@ start() {
   : ${JVMARGS:=-DLOG_FILE_PREFIX=${LOG_FILE} -enableassertions -enablesystemassertions $JVMXMX -XX:OnOutOfMemoryError=/usr/share/opentsdb/tools/opentsdb_restart.py}
   export JVMARGS
 
-  if [ "`id -u -n`" == root ] ; then
+  if [ "`id -u -n`" != root ] ; then
     # Changes the owner of the log directory to allow non-root OpenTSDB
     # daemons to create and rename log files.
     chown $USER: $LOG_DIR > /dev/null 2>&1
