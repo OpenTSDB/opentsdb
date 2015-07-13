@@ -202,6 +202,7 @@ public class QueryUtil {
     System.arraycopy(metric, 0, end_row, Const.SALT_WIDTH(), metric_width);
     
     final Scanner scanner = tsdb.getClient().newScanner(table);
+    scanner.setMaxNumRows(tsdb.getConfig().scanner_maxNumRows());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily(family);

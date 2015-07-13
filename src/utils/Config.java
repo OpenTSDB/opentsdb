@@ -102,6 +102,9 @@ public class Config {
   
   /** tsd.core.tree.enable_processing */
   private boolean enable_tree_processing = false;
+
+  /** tsd.storage.hbase.scanner.maxNumRows */
+  private int scanner_max_num_rows = 128;
   
   /**
    * The list of properties configured to their defaults or modified by users
@@ -218,6 +221,11 @@ public class Config {
   /** @return whether or not to record a 1 for every TSUID */
   public boolean enable_tsuid_tracking() {
     return enable_tsuid_tracking;
+  }
+
+  /** @return maximum number of rows to be fetched per round trip while scanning HBase */
+  public int scanner_maxNumRows() {
+    return scanner_max_num_rows;
   }
   
   /** @return whether or not chunked requests are supported */
@@ -498,6 +506,7 @@ public class Config {
     default_map.put("tsd.search.enable", "false");
     default_map.put("tsd.search.plugin", "");
     default_map.put("tsd.stats.canonical", "false");
+    default_map.put("tsd.storage.hbase.scanner.maxNumRows", "128");
     default_map.put("tsd.storage.fix_duplicates", "false");
     default_map.put("tsd.storage.flush_interval", "1000");
     default_map.put("tsd.storage.hbase.data_table", "tsdb");
@@ -635,6 +644,8 @@ public class Config {
     }
     enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
     fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
+    scanner_max_num_rows = this.getInt("tsd.storage.hbase.scanner.maxNumRows");
+
   }
   
   /**
