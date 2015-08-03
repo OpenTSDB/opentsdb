@@ -33,7 +33,7 @@ public final class Aggregators {
   
   /** Returns the number of data points stored in the series or range.  */
   public static final Aggregator COUNT = new Count(
-      Interpolation.LERP, "count");
+      Interpolation.ZIM, "count");
   
   /** Aggregator that sums up all the data points. */
   public static final Aggregator SUM = new Sum(
@@ -74,8 +74,8 @@ public final class Aggregators {
   private static final HashMap<String, Aggregator> aggregators;
 
   static {
-    aggregators = new HashMap<String, Aggregator>(8);
-	aggregators.put("count", COUNT);
+    aggregators = new HashMap<String, Aggregator>(9);
+    aggregators.put("count", COUNT);
     aggregators.put("sum", SUM);
     aggregators.put("min", MIN);
     aggregators.put("max", MAX);
@@ -123,6 +123,7 @@ public final class Aggregators {
     public long runLong(final Longs values) {
       long result = 1;
       while (values.hasNextValue()) {
+        values.nextLongValue();
         result ++;
       }
       return result;
@@ -131,6 +132,7 @@ public final class Aggregators {
     public double runDouble(final Doubles values) {
       double result = 1;
       while (values.hasNextValue()) {
+        values.nextDoubleValue();
         result ++;
       }
       return result;
