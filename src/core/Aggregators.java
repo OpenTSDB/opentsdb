@@ -111,6 +111,46 @@ public final class Aggregators {
     throw new NoSuchElementException("No such aggregator: " + name);
   }
   
+ private static final class Percentile implements Aggregator {
+	    private final Interpolation method;
+	    private final String name;
+	    private DescriptiveStatistics stats;
+	    
+	    public Percentile(final Interpolation method, final String name) {
+	      this.method = method;
+	      this.name = name;
+	      this.stats = new DescriptiveStatistics();
+	    }
+	    
+	    public long runLong(final Longs values) {
+	    	
+	      while (values.hasNextValue()) {
+	        stats.addValue(values.nextLongValue());
+	      }
+	      return (long) stats.getPercentile(50);
+	    }
+
+	    public double runDouble(final Doubles values) {
+
+	      while (values.hasNextValue()) {
+		        stats.addValue(values.nextDoubleValue());
+		      }
+		  return (long) stats.getPercentile(50);
+
+	    }
+
+	    public String toString() {
+	      return name;
+	    }
+
+		@Override
+		public Interpolation interpolationMethod() {
+			return method;
+		}
+
+	    
+	  }
+  
     private static final class Count implements Aggregator {
     private final Interpolation method;
     private final String name;
