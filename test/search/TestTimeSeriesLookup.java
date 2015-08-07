@@ -542,6 +542,22 @@ public class TestTimeSeriesLookup {
     assertArrayEquals(test_tsuids.get(3), tsuids.get(2));
   }
   
+  @Test
+  public void limitVerification() throws Exception {
+    generateData();
+    final List<Pair<String, String>> tags = 
+        new ArrayList<Pair<String, String>>(1);
+    tags.add(new Pair<String, String>("host", "web01"));
+    final SearchQuery query = new SearchQuery(tags);
+    query.setUseMeta(false);
+    query.setLimit(1);
+    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
+    final List<byte[]> tsuids = lookup.lookup();
+    assertNotNull(tsuids);
+    assertEquals(1, tsuids.size());
+    assertArrayEquals(test_tsuids.get(0), tsuids.get(0));
+  }
+  
   // TODO test the dump to stdout
   
   /**
