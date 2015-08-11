@@ -14,12 +14,13 @@ package net.opentsdb.tsd;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
@@ -39,7 +40,6 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -54,7 +54,9 @@ import com.stumbleupon.async.Deferred;
   HBaseClient.class, RowLock.class, UniqueIdRpc.class, KeyValue.class, 
   GetRequest.class, Scanner.class, UniqueId.class})
 public final class TestUniqueIdRpc {
-  private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
+  private final static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
+  private final static byte[] UID_TABLE = "tsdb-uid".getBytes(MockBase.ASCII());
+  private final static byte[] META_TABLE = "tsdb-meta".getBytes();
   private TSDB tsdb = null;
   private HBaseClient client = mock(HBaseClient.class);
   private UniqueId metrics = mock(UniqueId.class);
@@ -915,17 +917,17 @@ public final class TestUniqueIdRpc {
     
     storage = new MockBase(tsdb, client, true, true, true, true);
     
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 1 }, 
         NAME_FAMILY,
         "metrics".getBytes(MockBase.ASCII()), 
         "sys.cpu.0".getBytes(MockBase.ASCII()));
 
-    storage.addColumn(new byte[] { 0, 0, 3 }, 
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 3 }, 
         NAME_FAMILY,
         "metrics".getBytes(MockBase.ASCII()), 
         "sys.cpu.2".getBytes(MockBase.ASCII()));
 
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 1 }, 
         NAME_FAMILY,
         "metric_meta".getBytes(MockBase.ASCII()), 
         ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
@@ -955,139 +957,152 @@ public final class TestUniqueIdRpc {
     tagv.set(tsdb, tag_values);
     
     storage = new MockBase(tsdb, client, true, true, true, true);
-    storage.setFamily(NAME_FAMILY);
+    final List<byte[]> families = new ArrayList<byte[]>(1);
+    families.add(TSMeta.FAMILY);
+    storage.addTable(META_TABLE, families);
     
-    storage.addColumn(new byte[] { 0, 0, 1 },
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 1 },
         NAME_FAMILY,
         "metrics".getBytes(MockBase.ASCII()),
         "sys.cpu.0".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 1 }, 
         NAME_FAMILY,
         "metric_meta".getBytes(MockBase.ASCII()), 
         ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"System CPU\"}").getBytes(MockBase.ASCII()));   
-    storage.addColumn(new byte[] { 0, 0, 2 }, 
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 2 }, NAME_FAMILY,
         "metrics".getBytes(MockBase.ASCII()),
         "sys.cpu.2".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 2 }, 
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 2 }, NAME_FAMILY,
         "metric_meta".getBytes(MockBase.ASCII()), 
         ("{\"uid\":\"000002\",\"type\":\"METRIC\",\"name\":\"sys.cpu.2\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"System CPU\"}").getBytes(MockBase.ASCII()));
     
-    storage.addColumn(new byte[] { 0, 0, 1 },
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 1 },
         NAME_FAMILY,
         "tagk".getBytes(MockBase.ASCII()),
         "host".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 1 }, 
         NAME_FAMILY,
         "tagk_meta".getBytes(MockBase.ASCII()), 
         ("{\"uid\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Host server name\"}").getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 2 },
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 2 }, NAME_FAMILY,
         "tagk".getBytes(MockBase.ASCII()),
         "datacenter".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 2 }, 
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 2 }, NAME_FAMILY,
         "tagk_meta".getBytes(MockBase.ASCII()), 
         ("{\"uid\":\"000002\",\"type\":\"TAGK\",\"name\":\"datacenter\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Host server name\"}").getBytes(MockBase.ASCII()));
 
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 1 }, 
         NAME_FAMILY,
         "tagv".getBytes(MockBase.ASCII()),
         "web01".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 1 }, 
         NAME_FAMILY,
         "tagv_meta".getBytes(MockBase.ASCII()), 
         ("{\"uid\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Web server 1\"}").getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 3 }, 
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 3 }, NAME_FAMILY,
         "tagv".getBytes(MockBase.ASCII()),
         "web02".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 3 }, 
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 3 }, NAME_FAMILY,
         "tagv_meta".getBytes(MockBase.ASCII()), 
         ("{\"uid\":\"000003\",\"type\":\"TAGV\",\"name\":\"web02\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Web server 1\"}").getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 2 }, 
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 2 }, NAME_FAMILY,
         "tagv".getBytes(MockBase.ASCII()),
         "dc01".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 2 }, 
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 2 }, NAME_FAMILY,
         "tagv_meta".getBytes(MockBase.ASCII()), 
         ("{\"uid\":\"000002\",\"type\":\"TAGV\",\"name\":\"dc01\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Web server 1\"}").getBytes(MockBase.ASCII()));
 
-    storage.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
-        NAME_FAMILY,
+    storage.addColumn(META_TABLE, new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
+        TSMeta.FAMILY,
         "ts_meta".getBytes(MockBase.ASCII()),
         ("{\"tsuid\":\"000001000001000001\",\"displayName\":\"Display\"," +
             "\"description\":\"Description\",\"notes\":\"Notes\",\"created" +
             "\":1366671600,\"custom\":null,\"units\":\"\",\"dataType\":" +
             "\"Data\",\"retention\":42,\"max\":1.0,\"min\":\"NaN\"}")
             .getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
-        NAME_FAMILY,
+    storage.addColumn(META_TABLE, new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
+        TSMeta.FAMILY,
         "ts_ctr".getBytes(MockBase.ASCII()),
         Bytes.fromLong(1L));
 
-    storage.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 2 },
-        NAME_FAMILY,
+    storage.addColumn(META_TABLE, 
+        new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 2 },
+        TSMeta.FAMILY,
         "ts_meta".getBytes(MockBase.ASCII()),
         ("{\"tsuid\":\"000002000001000001000002000002\",\"displayName\":\"Display\"," +
             "\"description\":\"Description\",\"notes\":\"Notes\",\"created" +
             "\":1366671600,\"custom\":null,\"units\":\"\",\"dataType\":" +
             "\"Data\",\"retention\":42,\"max\":1.0,\"min\":\"NaN\"}")
             .getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 2 },
-        NAME_FAMILY,
+    storage.addColumn(META_TABLE, 
+        new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 2 },
+        TSMeta.FAMILY,
         "ts_ctr".getBytes(MockBase.ASCII()),
         Bytes.fromLong(1L));
-    storage.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 3, 0, 0, 2, 0, 0, 2 },
-        NAME_FAMILY,
+    storage.addColumn(META_TABLE, 
+        new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 3, 0, 0, 2, 0, 0, 2 },
+        TSMeta.FAMILY,
         "ts_meta".getBytes(MockBase.ASCII()),
         ("{\"tsuid\":\"000002000001000003000002000002\",\"displayName\":\"Display\"," +
             "\"description\":\"Description\",\"notes\":\"Notes\",\"created" +
             "\":1366671600,\"custom\":null,\"units\":\"\",\"dataType\":" +
             "\"Data\",\"retention\":42,\"max\":1.0,\"min\":\"NaN\"}")
             .getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 3, 0, 0, 2, 0, 0, 2 },
-        NAME_FAMILY,
+    storage.addColumn(META_TABLE, 
+        new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 3, 0, 0, 2, 0, 0, 2 },
+        TSMeta.FAMILY,
         "ts_ctr".getBytes(MockBase.ASCII()),
         Bytes.fromLong(1L));
 
     when(metrics.getId("sys.cpu.0")).thenReturn(new byte[] { 0, 0, 1 });
-    when(metrics.getIdAsync("sys.cpu.0")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
+    when(metrics.getIdAsync("sys.cpu.0")).thenReturn(
+        Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(metrics.getNameAsync(new byte[] { 0, 0, 1 }))
       .thenReturn(Deferred.fromResult("sys.cpu.0"));
     when(metrics.getId("sys.cpu.2")).thenReturn(new byte[] { 0, 0, 2 });
-    when(metrics.getIdAsync("sys.cpu.2")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
+    when(metrics.getIdAsync("sys.cpu.2")).thenReturn(
+        Deferred.fromResult(new byte[] { 0, 0, 2 }));
     when(metrics.getNameAsync(new byte[] { 0, 0, 2 }))
       .thenReturn(Deferred.fromResult("sys.cpu.2"));
 
     when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_names.getIdAsync("host")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
+    when(tag_names.getIdAsync("host")).thenReturn(
+        Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(tag_names.getNameAsync(new byte[] { 0, 0, 1 }))
       .thenReturn(Deferred.fromResult("host"));
     when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_values.getIdAsync("web01")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
+    when(tag_values.getIdAsync("web01")).thenReturn(
+        Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(tag_values.getNameAsync(new byte[] { 0, 0, 1 }))
       .thenReturn(Deferred.fromResult("web01"));
     when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 3 });
-    when(tag_values.getIdAsync("web02")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 3 }));
+    when(tag_values.getIdAsync("web02")).thenReturn(
+        Deferred.fromResult(new byte[] { 0, 0, 3 }));
     when(tag_values.getNameAsync(new byte[] { 0, 0, 3 }))
       .thenReturn(Deferred.fromResult("web02"));
 
     when(tag_names.getId("datacenter")).thenReturn(new byte[] { 0, 0, 2 });
-    when(tag_names.getIdAsync("datacenter")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
+    when(tag_names.getIdAsync("datacenter")).thenReturn(
+        Deferred.fromResult(new byte[] { 0, 0, 2 }));
     when(tag_names.getNameAsync(new byte[] { 0, 0, 2 }))
       .thenReturn(Deferred.fromResult("datacenter"));
     when(tag_values.getId("dc01")).thenReturn(new byte[] { 0, 0, 2 });
-    when(tag_values.getIdAsync("dc01")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
+    when(tag_values.getIdAsync("dc01")).thenReturn(
+        Deferred.fromResult(new byte[] { 0, 0, 2 }));
     when(tag_values.getNameAsync(new byte[] { 0, 0, 2 }))
       .thenReturn(Deferred.fromResult("dc01"));
     

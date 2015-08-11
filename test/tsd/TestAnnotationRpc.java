@@ -116,6 +116,7 @@ public final class TestAnnotationRpc {
   
   @Test
   public void get() throws Exception {
+    storage.dumpToSystemOut();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
     "/api/annotation?tsuid=000001000001000001&start_time=1388450562");
     rpc.execute(tsdb, query);

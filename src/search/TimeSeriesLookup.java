@@ -23,6 +23,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
+import net.opentsdb.meta.TSMeta;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -200,6 +201,8 @@ public class TimeSeriesLookup {
   private Scanner getScanner(final StringBuilder tagv_filter) {
     final Scanner scanner = tsdb.getClient().newScanner(
         query.useMeta() ? tsdb.metaTable() : tsdb.dataTable());
+    scanner.setFamily(
+        query.useMeta() ? TSMeta.FAMILY : TSDB.FAMILY());
     
     // if a metric is given, we need to resolve it's UID and set the start key
     // to the UID and the stop key to the next row by incrementing the UID. 

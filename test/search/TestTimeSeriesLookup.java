@@ -185,6 +185,7 @@ public class TestTimeSeriesLookup {
   
   @Test (expected = NoSuchUniqueName.class)
   public void noSuchMetricMeta() throws Exception {
+    storage = new MockBase(tsdb, client, true, true, true, true);
     final SearchQuery query = new SearchQuery("sys.cpu.system");
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
     lookup.lookup();
@@ -293,6 +294,7 @@ public class TestTimeSeriesLookup {
   
   @Test (expected = NoSuchUniqueName.class)
   public void noSuchTagkMeta() throws Exception {
+    storage = new MockBase(tsdb, client, true, true, true, true);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>("dc", null));
@@ -386,6 +388,7 @@ public class TestTimeSeriesLookup {
   
   @Test (expected = NoSuchUniqueName.class)
   public void noSuchTagvMeta() throws Exception {
+    storage = new MockBase(tsdb, client, true, true, true, true);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(null, "web03"));
@@ -574,11 +577,14 @@ public class TestTimeSeriesLookup {
    */
   private void generateMeta() {
     storage = new MockBase(tsdb, client, true, true, true, true);
-    storage.setFamily("t".getBytes(MockBase.ASCII()));
+    final List<byte[]> families = new ArrayList<byte[]>(1);
+    families.add(TSMeta.FAMILY);
+    storage.addTable("tsdb-meta".getBytes(), families);
     
     final byte[] val = new byte[] { 0, 0, 0, 0, 0, 0, 0, 1 };
     for (final byte[] tsuid : test_tsuids) {
-      storage.addColumn(tsuid, TSMeta.COUNTER_QUALIFIER(), val);
+      storage.addColumn("tsdb-meta".getBytes(), tsuid, TSMeta.FAMILY, 
+          TSMeta.COUNTER_QUALIFIER(), val);
     }
   }
   

@@ -77,7 +77,7 @@ public final class TSMeta {
   private static final Charset CHARSET = Charset.forName("ISO-8859-1");
   
   /** The single column family used by this class. */
-  private static final byte[] FAMILY = "name".getBytes(CHARSET);
+  public static final byte[] FAMILY = "name".getBytes(CHARSET);
   
   /** The cell qualifier to use for timeseries meta */
   private static final byte[] META_QUALIFIER = "ts_meta".getBytes(CHARSET);
