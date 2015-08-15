@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.query.filter.TagVFilter;
@@ -83,7 +84,7 @@ public class SaltScanner {
   private final TSDB tsdb;
   
   /** A counter used to determine how many scanners are still running */
-  private volatile int completed_tasks = 0;
+  private AtomicInteger completed_tasks = new AtomicInteger();
   
   /** When the scanning started. We store the scan latency once all scanners
    * are done.*/
@@ -430,7 +431,7 @@ public class SaltScanner {
   private void validateAndTriggerCallback(final List<KeyValue> kvs, 
           final Map<byte[], List<Annotation>> annotations) {
 
-    final int tasks = ++completed_tasks;
+    final int tasks = completed_tasks.incrementAndGet();
     if (kvs.size() > 0) {
       kv_map.put(tasks, kvs);
     }
@@ -473,7 +474,7 @@ public class SaltScanner {
       }
     }
     
-    final int tasks = ++completed_tasks;
+    final int tasks = completed_tasks.incrementAndGet();
     if (tasks >= Const.SALT_BUCKETS()) {
       results.callback(exception);
     }
