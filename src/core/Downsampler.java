@@ -192,8 +192,55 @@ public class Downsampler implements SeekableView, DataPoint {
     }
 
     /** Returns timestamp aligned by interval. */
-    private long alignTimestamp(long timestamp) {
-      return timestamp - (timestamp % interval_ms);
+     private long alignTimestamp(long timestamp) {
+       // 1 year (365days), align the timestamp at the first day of year.
+       if (interval_ms == 31536000000L)
+         return toFirstDayOfYear(timestamp);
+	   // 1 month (31days), align the timestamp at the first day of month. 
+       else if (interval_ms == 2678400000L)
+         return toFirstDayOfMonth(timestamp);
+	   // 1 week (7days), align the timestamp at the first day of week.
+	   else if (interval_ms == 604800000L)
+		 return toFirstDayOfWeek(timestamp);
+	   // default timestamp normalization (tsdb v2.1.0)
+       else
+         return timestamp - (timestamp % interval_ms);
+    }
+    
+    /** Returns timestamp aligned at the first day of month. */    
+    private long toFirstDayOfMonth(long timestamp) {
+		Calendar c = Calendar.getInstance();
+        c.setTimeInMillis(timestamp);
+		c.set(Calendar.DAY_OF_MONTH, 1);
+        c.set(Calendar.HOUR_OF_DAY, 0);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+		c.set(Calendar.MILLISECOND, 0);
+        return c.getTimeInMillis();
+    }
+	
+	/** Returns timestamp aligned at the first day of week (Monday). */    
+    private long toFirstDayOfWeek(long timestamp) {
+		Calendar c = Calendar.getInstance();
+        c.setTimeInMillis(timestamp);
+		c.set(Calendar.DAY_OF_WEEK, 2); // 1-sun, 2-mon.
+        c.set(Calendar.HOUR_OF_DAY, 0);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+		c.set(Calendar.MILLISECOND, 0);
+        return c.getTimeInMillis();
+    }
+
+	/** Returns timestamp aligned at the first day of year. */
+    private long toFirstDayOfYear(long timestamp) {
+        Calendar c = Calendar.getInstance();
+        c.setTimeInMillis(timestamp);
+		c.set(Calendar.DAY_OF_YEAR, 1);
+        c.set(Calendar.HOUR_OF_DAY, 0);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+	    c.set(Calendar.MILLISECOND, 0);
+        return c.getTimeInMillis();
     }
 
     // ---------------------- //
