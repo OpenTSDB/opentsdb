@@ -147,6 +147,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
   // Styling options.
   private final CheckBox smooth = new CheckBox();
   private final ListBox styles = new ListBox();
+  private String timezone = "";
 
   /**
    * Handles every change to the query form and gets a new graph.
@@ -787,6 +788,13 @@ public class QueryUi implements EntryPoint, HistoryListener {
     autoreload.setValue(qs.containsKey("autoreload"), true);
     maybeSetTextbox(qs, "autoreload", autoreoload_interval);
 
+    //get the tz param value
+    final ArrayList<String> tzvalues = qs.get("tz");
+    if (tzvalues == null)
+      timezone = "";
+    else
+      timezone = tzvalues.get(0);
+
     final ArrayList<String> newmetrics = qs.get("m");
     if (newmetrics == null) {  // Clear all metric forms.
       final int toremove = metrics.getWidgetCount() - 1;
@@ -893,6 +901,10 @@ public class QueryUi implements EntryPoint, HistoryListener {
       // a special parameter that the server will delete from the query.
       url.append("&ignore=" + nrequests++);
     }
+
+    if(timezone.length() > 1)
+      url.append("&tz=").append(timezone);
+
     if (!addAllMetrics(url)) {
       return;
     }
