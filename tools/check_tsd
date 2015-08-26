@@ -98,9 +98,9 @@ def main(argv):
 
     options.percent_over /= 100.0 # Convert to range 0-1
 
-    if not options.critical:
+    if options.critical is None:
         options.critical = options.warning
-    elif not options.warning:
+    elif options.warning is None:
         options.warning = options.critical
 
     # argument construction
