@@ -412,7 +412,6 @@ final class TsdbQuery implements Query {
       final ByteMap<Void> literals = new ByteMap<Void>();
       final List<TagVFilter> literal_filters = new ArrayList<TagVFilter>();
       TagVFilter current = null;
-      boolean not_key = false;
       do { // yeah, I'm breakin out the do!!!
         current = current_iterator.next();
         if (tagk == null) {
@@ -429,9 +428,6 @@ final class TsdbQuery implements Query {
           }
           literal_filters.add(current);
         }
-        if (current.isNotKeyFilter()) {
-          not_key = true;
-        }
 
         if (next != null && Bytes.memcmp(tagk, next.getTagkBytes()) != 0) {
           break;
@@ -440,21 +436,14 @@ final class TsdbQuery implements Query {
       } while (current_iterator.hasNext() && 
           Bytes.memcmp(tagk, current.getTagkBytes()) == 0);
 
-      if (gbs > 0 && !not_key) {
+      if (gbs > 0) {
         if (group_bys == null) {
           group_bys = new ArrayList<byte[]>();
         }
         group_bys.add(current.getTagkBytes());
       }
       
-      if (not_key) {
-        // special value to notify the row key regex builder that we don't want
-        // rows with this tagk
-        row_key_literals.put(current.getTagkBytes(), new byte[0][]);
-      } else if (literals.size() > 0) {
-        // TODO - a good optimization would be to remove the filter from the
-        // list passed to the scanner since we'll have it in the regex. However 
-        // that would then "OR" the literal filters
+      if (literals.size() > 0) {
         if (literals.size() + row_key_literals_count > 
             tsdb.getConfig().getInt("tsd.query.filter.expansion_limit")) {
           LOG.debug("Skipping literals for " + current.getTagk() + 

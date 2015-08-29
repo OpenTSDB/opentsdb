@@ -37,7 +37,7 @@ public class TestTagVNotKeyFilter {
   @Test
   public void ctorNullFilter() throws Exception {
     TagVFilter filter = new TagVNotKeyFilter(TAGK, null);
-    assertTrue(filter.isNotKeyFilter());
+    assertTrue(filter.postScan());
   }
   
   @Test (expected = IllegalArgumentException.class)

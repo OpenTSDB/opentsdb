@@ -15,9 +15,9 @@ public class TagVNotKeyFilter extends TagVFilter {
       throw new IllegalArgumentException("The filter must be empty for the " + 
           FILTER_NAME + " filter");
     }
-    not_key = true;
+    post_scan = true;
   }
-
+  
   @Override
   public Deferred<Boolean> match(Map<String, String> tags) {
     if (tags.containsKey(tagk)) {

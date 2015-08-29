@@ -97,9 +97,11 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
       tagv_filter_map.put(TagVWildcardFilter.TagVIWildcardFilter.FILTER_NAME, 
           new Pair<Class<?>, Constructor<? extends TagVFilter>>(TagVWildcardFilter.TagVIWildcardFilter.class,
               TagVWildcardFilter.TagVIWildcardFilter.class.getDeclaredConstructor(String.class, String.class)));
+      /* TODO - this requires either a better HBase filter or more logic on our side
       tagv_filter_map.put(TagVNotKeyFilter.FILTER_NAME, 
           new Pair<Class<?>, Constructor<? extends TagVFilter>>(TagVNotKeyFilter.class,
               TagVNotKeyFilter.class.getDeclaredConstructor(String.class, String.class)));
+       */
     } catch (SecurityException e) {
       throw new RuntimeException("Failed to load a tag value filter", e);
     } catch (NoSuchMethodException e) {
@@ -122,11 +124,6 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
   /** Whether or not to also group by this filter */
   @JsonProperty
   protected boolean group_by;
-  
-  /** Flag the implementation can set to tell the scanner to pick up rows that 
-   * DON'T have the given tagk (regardless of value)
-   */
-  protected boolean not_key;
   
   /** A flag to indicate whether or not we need to execute a post-scan lookup */
   protected boolean post_scan = true;
@@ -529,9 +526,6 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
 
   /** @return Whether or not this filter should be executed against scan results */
   public boolean postScan() {
-    if (not_key) {
-      return false;
-    }
     return post_scan;
   }
   
@@ -539,11 +533,6 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
    * scan results */
   public void setPostScan(final boolean post_scan) {
     this.post_scan = post_scan;
-  }
-  
-  @JsonIgnore
-  public boolean isNotKeyFilter() {
-    return not_key;
   }
   
   @Override
