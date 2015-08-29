@@ -256,4 +256,15 @@ public class DateTime {
       throw new IllegalArgumentException("Invalid timezone name: " + tzname);
     }
   }
+
+  /**
+   * Pass through to {@link System.currentTimeMillis} for use in classes to
+   * make unit testing easier. Mocking System.class is a bad idea in general
+   * so placing this here and mocking DateTime.class is MUCH cleaner.
+   * @return The current epoch time in milliseconds
+   * @since 2.1
+   */
+  public static long currentTimeMillis() {
+    return System.currentTimeMillis();
+  }
 }
