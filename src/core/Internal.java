@@ -95,7 +95,18 @@ public final class Internal {
   public static long baseTime(final TSDB tsdb, final byte[] row) {
     return Bytes.getUnsignedInt(row, tsdb.metrics.width());
   }
-
+  
+  /** @return the time normalized to an hour boundary in epoch seconds */
+  public static long baseTime(final long timestamp) {
+    if ((timestamp & Const.SECOND_MASK) != 0) {
+      // drop the ms timestamp to seconds to calculate the base timestamp
+      return ((timestamp / 1000) - 
+          ((timestamp / 1000) % Const.MAX_TIMESPAN));
+    } else {
+      return (timestamp - (timestamp % Const.MAX_TIMESPAN));
+    }
+  }
+  
   /** @see Tags#getTags */
   public static Map<String, String> getTags(final TSDB tsdb, final byte[] row) {
     return Tags.getTags(tsdb, row);
