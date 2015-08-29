@@ -531,6 +531,21 @@ public final class Tags {
       throw new RuntimeException("Should never happen!", e);
     }
   }
+  
+  /**
+   * Resolves a set of tag strings to their UIDs asynchronously
+   * @param tsdb the TSDB to use for access
+   * @param tags The tags to resolve 
+   * @return A deferred with the list of UIDs in tagk1, tagv1, .. tagkn, tagvn
+   * order
+   * @throws NoSuchUniqueName if one of the elements in the map contained an
+   * unknown tag name or tag value.
+   * @since 2.1
+   */
+  public static Deferred<ArrayList<byte[]>> resolveAllAsync(final TSDB tsdb,
+      final Map<String, String> tags) {
+    return resolveAllInternalAsync(tsdb, tags, false);
+  }   
 
   /**
   * Resolves (and creates, if necessary) all the tags (name=value) into the a
