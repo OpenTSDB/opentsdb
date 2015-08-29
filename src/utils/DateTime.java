@@ -262,7 +262,7 @@ public class DateTime {
    * make unit testing easier. Mocking System.class is a bad idea in general
    * so placing this here and mocking DateTime.class is MUCH cleaner.
    * @return The current epoch time in milliseconds
-   * @since 2.2
+   * @since 2.1
    */
   public static long currentTimeMillis() {
     return System.currentTimeMillis();
