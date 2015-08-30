@@ -53,6 +53,7 @@ import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.Histogram;
+import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.StatsCollector;
 
 /**
@@ -168,6 +169,9 @@ public final class TSDB {
       tag_names.setTSDB(this);
       tag_values.setTSDB(this);
     }
+    
+    QueryStats.setEnableDuplicates(
+        config.getBoolean("tsd.query.allow_simultaneous_duplicates"));
     
     if (config.getBoolean("tsd.core.preload_uid_cache")) {
       final ByteMap<UniqueId> uid_cache_map = new ByteMap<UniqueId>();

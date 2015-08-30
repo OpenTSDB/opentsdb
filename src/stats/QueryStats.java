@@ -52,6 +52,10 @@ public class QueryStats {
   /** Determines how many query stats to keep in the cache */
   private static int COMPLETED_QUERY_CACHE_SIZE = 256;
   
+  /** Whether or not to allow duplicate queries from the same endpoint to
+   * run simultaneously. */
+  private static boolean ENABLE_DUPLICATES = false;
+  
   /** Stores queries currently executing. If a thread doesn't call into 
    * markComplete then it's possible for this map to fill up.
    * Hash is the remote + query */
@@ -118,15 +122,25 @@ public class QueryStats {
     this.query = query;
     executed = 1;
     query_start = DateTime.currentTimeMillis();
-    LOG.debug("New query for remote " + remote_address + " with hash " + 
-        hashCode() + " on thread " + Thread.currentThread().getId());
-    if (running_queries.putIfAbsent(this.hashCode(), this) != null) {
-      throw new QueryException("Query is already executing for endpoint: " + 
-          remote_address);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("New query for remote " + remote_address + " with hash " + 
+          hashCode() + " on thread " + Thread.currentThread().getId());
     }
-    LOG.debug("Successfully put new query for remote " + remote_address + 
-        " with hash " + hashCode() + " on thread " + 
-        Thread.currentThread().getId() + " w q " + query.toString());
+    if (running_queries.putIfAbsent(this.hashCode(), this) != null) {
+      if (ENABLE_DUPLICATES) {
+        LOG.warn("Query " + query + " is already executing for endpoint: " + 
+          remote_address);
+      } else {
+        throw new QueryException("Query is already executing for endpoint: " + 
+            remote_address);
+      }
+    } else {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Successfully put new query for remote " + remote_address + 
+            " with hash " + hashCode() + " on thread " + 
+            Thread.currentThread().getId() + " w q " + query.toString());
+      }
+    }
   }
   
   /**
@@ -190,8 +204,9 @@ public class QueryStats {
     time_total = DateTime.currentTimeMillis() - query_start;
     synchronized (running_queries) {
       if (!running_queries.containsKey(this.hashCode())) {
-        //throw new IllegalDataException("Query was already marked as complete");
-        LOG.error("Query was already marked as complete: " + this);
+        if (!ENABLE_DUPLICATES) {
+          LOG.warn("Query was already marked as complete: " + this);
+        }
         return;
       }
       running_queries.remove(this.hashCode());
@@ -359,5 +374,10 @@ public class QueryStats {
   /** @return an exception if it was associated with this query */
   public Throwable getException() {
     return exception;
+  }
+
+  /** @param whether or not to allow duplicate queries to run */
+  public static void setEnableDuplicates(final boolean enable_dupes) {
+    ENABLE_DUPLICATES = enable_dupes;
   }
 }
