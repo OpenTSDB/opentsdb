@@ -91,9 +91,9 @@ def main(argv):
     elif options.ignore_recent < 0:
         parser.error('--ignore-recent must be positive.')
 
-    if not options.critical:
+    if options.critical is None:
         options.critical = options.warning
-    elif not options.warning:
+    elif options.warning is None:
         options.warning = options.critical
 
     # argument construction
