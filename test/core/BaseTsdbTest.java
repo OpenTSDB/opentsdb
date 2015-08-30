@@ -34,6 +34,8 @@ import org.hbase.async.Scanner;
 import org.jboss.netty.util.HashedWheelTimer;
 import org.junit.Before;
 import org.junit.runner.RunWith;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -121,20 +123,44 @@ public class BaseTsdbTest {
   void setupMetricMaps() {
     when(metrics.getId(METRIC_STRING)).thenReturn(METRIC_BYTES);
     when(metrics.getIdAsync(METRIC_STRING))
-      .thenReturn(Deferred.fromResult(METRIC_BYTES));
+      .thenAnswer(new Answer<Deferred<byte[]>>() {
+          @Override
+          public Deferred<byte[]> answer(InvocationOnMock invocation)
+              throws Throwable {
+            return Deferred.fromResult(METRIC_BYTES);
+          }
+      });
     when(metrics.getOrCreateId(METRIC_STRING))
       .thenReturn(METRIC_BYTES);
     
     when(metrics.getId(METRIC_B_STRING)).thenReturn(METRIC_B_BYTES);
     when(metrics.getIdAsync(METRIC_B_STRING))
-      .thenReturn(Deferred.fromResult(METRIC_B_BYTES));
+      .thenAnswer(new Answer<Deferred<byte[]>>() {
+          @Override
+          public Deferred<byte[]> answer(InvocationOnMock invocation)
+              throws Throwable {
+            return Deferred.fromResult(METRIC_B_BYTES);
+          }
+      });
     when(metrics.getOrCreateId(METRIC_B_STRING))
       .thenReturn(METRIC_B_BYTES);
     
     when(metrics.getNameAsync(METRIC_BYTES))
-      .thenReturn(Deferred.fromResult(METRIC_STRING));
+      .thenAnswer(new Answer<Deferred<String>>() {
+          @Override
+          public Deferred<String> answer(InvocationOnMock invocation)
+              throws Throwable {
+            return Deferred.fromResult(METRIC_STRING);
+          }
+      });
     when(metrics.getNameAsync(METRIC_B_BYTES))
-      .thenReturn(Deferred.fromResult(METRIC_B_STRING));
+      .thenAnswer(new Answer<Deferred<String>>() {
+            @Override
+            public Deferred<String> answer(InvocationOnMock invocation)
+                throws Throwable {
+              return Deferred.fromResult(METRIC_B_STRING);
+            }
+        });
     when(metrics.getNameAsync(NSUI_METRIC))
       .thenThrow(new NoSuchUniqueId("metrics", NSUI_METRIC));
     
@@ -150,21 +176,45 @@ public class BaseTsdbTest {
     when(tag_names.getId(TAGK_STRING)).thenReturn(TAGK_BYTES);
     when(tag_names.getOrCreateId(TAGK_STRING)).thenReturn(TAGK_BYTES);
     when(tag_names.getIdAsync(TAGK_STRING))
-      .thenReturn(Deferred.fromResult(TAGK_BYTES));
+      .thenAnswer(new Answer<Deferred<byte[]>>() {
+            @Override
+            public Deferred<byte[]> answer(InvocationOnMock invocation)
+                throws Throwable {
+              return Deferred.fromResult(TAGK_BYTES);
+            }
+        });
     when(tag_names.getOrCreateIdAsync(TAGK_STRING))
       .thenReturn(Deferred.fromResult(TAGK_BYTES));
     
     when(tag_names.getId(TAGK_B_STRING)).thenReturn(TAGK_B_BYTES);
     when(tag_names.getOrCreateId(TAGK_B_STRING)).thenReturn(TAGK_B_BYTES);
     when(tag_names.getIdAsync(TAGK_B_STRING))
-      .thenReturn(Deferred.fromResult(TAGK_B_BYTES));
+      .thenAnswer(new Answer<Deferred<byte[]>>() {
+            @Override
+            public Deferred<byte[]> answer(InvocationOnMock invocation)
+                throws Throwable {
+              return Deferred.fromResult(TAGK_B_BYTES);
+            }
+        });
     when(tag_names.getOrCreateIdAsync(TAGK_B_STRING))
       .thenReturn(Deferred.fromResult(TAGK_B_BYTES));
     
     when(tag_names.getNameAsync(TAGK_BYTES))
-      .thenReturn(Deferred.fromResult(TAGK_STRING));
+      .thenAnswer(new Answer<Deferred<String>>() {
+            @Override
+            public Deferred<String> answer(InvocationOnMock invocation)
+                throws Throwable {
+              return Deferred.fromResult(TAGK_STRING);
+            }
+        });
     when(tag_names.getNameAsync(TAGK_B_BYTES))
-      .thenReturn(Deferred.fromResult(TAGK_B_STRING));
+      .thenAnswer(new Answer<Deferred<String>>() {
+            @Override
+            public Deferred<String> answer(InvocationOnMock invocation)
+                throws Throwable {
+              return Deferred.fromResult(TAGK_B_STRING);
+            }
+        });
     when(tag_names.getNameAsync(NSUI_TAGK))
       .thenThrow(new NoSuchUniqueId("tagk", NSUI_TAGK));
     
@@ -180,14 +230,26 @@ public class BaseTsdbTest {
     when(tag_values.getId(TAGV_STRING)).thenReturn(TAGV_BYTES);
     when(tag_values.getOrCreateId(TAGV_STRING)).thenReturn(TAGV_BYTES);
     when(tag_values.getIdAsync(TAGV_STRING))
-      .thenReturn(Deferred.fromResult(TAGV_BYTES));
+      .thenAnswer(new Answer<Deferred<byte[]>>() {
+          @Override
+          public Deferred<byte[]> answer(InvocationOnMock invocation)
+              throws Throwable {
+            return Deferred.fromResult(TAGV_BYTES);
+          }
+      });
     when(tag_values.getOrCreateIdAsync(TAGV_STRING))
       .thenReturn(Deferred.fromResult(TAGV_BYTES));
   
     when(tag_values.getId(TAGV_B_STRING)).thenReturn(TAGV_B_BYTES);
     when(tag_values.getOrCreateId(TAGV_B_STRING)).thenReturn(TAGV_B_BYTES);
     when(tag_values.getIdAsync(TAGV_B_STRING))
-      .thenReturn(Deferred.fromResult(TAGV_B_BYTES));
+      .thenAnswer(new Answer<Deferred<byte[]>>() {
+            @Override
+            public Deferred<byte[]> answer(InvocationOnMock invocation)
+                throws Throwable {
+              return Deferred.fromResult(TAGV_B_BYTES);
+            }
+        });
     when(tag_values.getOrCreateIdAsync(TAGV_B_STRING))
       .thenReturn(Deferred.fromResult(TAGV_B_BYTES));
     
