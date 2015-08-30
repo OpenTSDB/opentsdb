@@ -61,6 +61,58 @@ public final class TestTSDB extends BaseTsdbTest {
   }
   
   @Test
+  public void ctorNullClient() throws Exception {
+    assertNotNull(new TSDB(null, config));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void ctorNullConfig() throws Exception {
+    new TSDB(client, null);
+  }
+  
+  @Test
+  public void ctorOverrideUIDWidths() throws Exception {
+    // assert defaults
+    assertEquals(3, TSDB.metrics_width());
+    assertEquals(3, TSDB.tagk_width());
+    assertEquals(3, TSDB.tagv_width());
+    
+    config.overrideConfig("tsd.storage.uid.width.metric", "1");
+    config.overrideConfig("tsd.storage.uid.width.tagk", "4");
+    config.overrideConfig("tsd.storage.uid.width.tagv", "5");
+    final TSDB tsdb = new TSDB(client, config);
+    assertEquals(1, TSDB.metrics_width());
+    assertEquals(4, TSDB.tagk_width());
+    assertEquals(5, TSDB.tagv_width());
+    assertEquals(1, tsdb.metrics.width());
+    assertEquals(4, tsdb.tag_names.width());
+    assertEquals(5, tsdb.tag_values.width());
+    
+    // IMPORTANT Restore
+    config.overrideConfig("tsd.storage.uid.width.metric", "3");
+    config.overrideConfig("tsd.storage.uid.width.tagk", "3");
+    config.overrideConfig("tsd.storage.uid.width.tagv", "3");
+    new TSDB(client, config);
+  }
+  
+  @Test
+  public void ctorOverrideSalt() throws Exception {
+    assertEquals(20, Const.SALT_BUCKETS());
+    assertEquals(0, Const.SALT_WIDTH());
+    
+    config.overrideConfig("tsd.storage.salt.buckets", "15");
+    config.overrideConfig("tsd.storage.salt.width", "2");
+    new TSDB(client, config);
+    assertEquals(15, Const.SALT_BUCKETS());
+    assertEquals(2, Const.SALT_WIDTH());
+    
+    // IMPORTANT Restore
+    config.overrideConfig("tsd.storage.salt.buckets", "20");
+    config.overrideConfig("tsd.storage.salt.width", "0");
+    new TSDB(client, config);
+  }
+  
+  @Test
   public void initializePluginsDefaults() {
     // no configured plugin path, plugins disabled, no exceptions
     tsdb.initializePlugins(true);

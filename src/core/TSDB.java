@@ -70,11 +70,11 @@ public final class TSDB {
   /** Charset used to convert Strings to byte arrays and back. */
   private static final Charset CHARSET = Charset.forName("ISO-8859-1");
   private static final String METRICS_QUAL = "metrics";
-  private static final short METRICS_WIDTH = 3;
+  private static short METRICS_WIDTH = 3;
   private static final String TAG_NAME_QUAL = "tagk";
-  private static final short TAG_NAME_WIDTH = 3;
+  private static short TAG_NAME_WIDTH = 3;
   private static final String TAG_VALUE_QUAL = "tagv";
-  private static final short TAG_VALUE_WIDTH = 3;
+  private static short TAG_VALUE_WIDTH = 3;
 
   /** Client for the HBase cluster to use.  */
   final HBaseClient client;
@@ -142,6 +142,25 @@ public final class TSDB {
       this.client = new HBaseClient(async_config);
     } else {
       this.client = client;
+    }
+    
+    // SALT AND UID WIDTHS
+    // Users really wanted this to be set via config instead of having to 
+    // compile. Hopefully they know NOT to change these after writing data.
+    if (config.hasProperty("tsd.storage.uid.width.metric")) {
+      METRICS_WIDTH = config.getShort("tsd.storage.uid.width.metric");
+    }
+    if (config.hasProperty("tsd.storage.uid.width.tagk")) {
+      TAG_NAME_WIDTH = config.getShort("tsd.storage.uid.width.tagk");
+    }
+    if (config.hasProperty("tsd.storage.uid.width.tagv")) {
+      TAG_VALUE_WIDTH = config.getShort("tsd.storage.uid.width.tagv");
+    }
+    if (config.hasProperty("tsd.storage.salt.buckets")) {
+      Const.setSaltBuckets(config.getInt("tsd.storage.salt.buckets"));
+    }
+    if (config.hasProperty("tsd.storage.salt.width")) {
+      Const.setSaltWidth(config.getInt("tsd.storage.salt.width"));
     }
     
     table = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);

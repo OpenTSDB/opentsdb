@@ -88,22 +88,55 @@ public final class Const {
    * queries as the salt calculation will differ. Scanning queries will be OK
    * though.
    */
-  private static final int SALT_BUCKETS = 20;
+  private static int SALT_BUCKETS = 20;
   public static int SALT_BUCKETS() {
     return SALT_BUCKETS;
   }
   
   /**
+   * -------------- WARNING ----------------
+   * Package private method to override the bucket size. 
+   * ONLY change this value in your configs if you are starting out with a brand
+   * new install or set of tables. Users wanted this, lets hope they don't 
+   * regret it.
+   * @param buckets The number of buckets to use.
+   * @throws IllegalArgumentException if the bucket size is less than 1. You
+   * *could* have one bucket if you plan to change it later, but *shrug*
+   */
+  static void setSaltBuckets(final int buckets) {
+    if (buckets < 1) {
+      throw new IllegalArgumentException("Salt buckets must be greater than 0");
+    }
+    SALT_BUCKETS = buckets;
+  }
+  
+  /**
    * Width of the salt in bytes.
-   * Its width should be proportional to MAX_SALT data type.
+   * Its width should be proportional to SALT_BUCKETS data type.
    * When set to 0, salting is disabled.
-   * if SALT_WIDTH = 1, the MAX_SALT should be byte
-   * if SALT_WIDTH = 2, the MAX_SALT can be byte or short
+   * if SALT_WIDTH = 1, the SALT_BUCKETS should be byte
+   * if SALT_WIDTH = 2, the SALT_BUCKETS can be byte or short
    * WARNING: Do NOT change this after you start writing data or you will not
    * be able to query for anything.
    */
-  private static final int SALT_WIDTH = 0;
+  private static int SALT_WIDTH = 0;
   public static int SALT_WIDTH() {
     return SALT_WIDTH;
+  }
+
+  /**
+   * -------------- WARNING ----------------
+   * Package private method to override the salt byte width. 
+   * ONLY change this value in your configs if you are starting out with a brand
+   * new install or set of tables. Users wanted this, lets hope they don't 
+   * regret it.
+   * @param buckets The number of bytes of salt to use
+   * @throws IllegalArgumentException if width < 0 or > 8
+   */
+  static void setSaltWidth(final int width) {
+    if (width < 0 || width > 8) {
+      throw new IllegalArgumentException("Salt width must be between 0 and 8");
+    }
+    SALT_WIDTH = width;
   }
 }
