@@ -291,11 +291,10 @@ final class UniqueIdRpc implements HttpRpc {
         } catch (IllegalArgumentException e) {
           throw new BadRequestException(e);
         }
-        final TSUIDQuery tsuid_query = new TSUIDQuery(tsdb);
+        final TSUIDQuery tsuid_query = new TSUIDQuery(tsdb, metric, tags);
         try {
-          tsuid_query.setQuery(metric, tags);
           final List<TSMeta> tsmetas = tsuid_query.getTSMetas()
-          .joinUninterruptibly();
+              .joinUninterruptibly();
           query.sendReply(query.serializer().formatTSMetaListV1(tsmetas));
         } catch (NoSuchUniqueName e) {
           throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
