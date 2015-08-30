@@ -179,7 +179,7 @@ final class QueryRpc implements HttpRpc {
   }
   
   /**
-   * 
+   * Processes a last data point query
    * @param tsdb The TSDB to which we belong
    * @param query The HTTP query to parse/respond
    */
@@ -206,12 +206,10 @@ final class QueryRpc implements HttpRpc {
           "Missing sub queries");
     }
     
-    // list of getLastPoint calls
-    final ArrayList<Deferred<IncomingDataPoint>> calls = 
-      new ArrayList<Deferred<IncomingDataPoint>>();
-    // list of calls to TSUIDQuery for scanning the tsdb-meta table
-    final ArrayList<Deferred<Object>> tsuid_query_wait = 
-      new ArrayList<Deferred<Object>>();
+    // a list of deferreds to wait on
+    final ArrayList<Deferred<Object>> calls = new ArrayList<Deferred<Object>>();
+    // final results for serialization
+    final List<IncomingDataPoint> results = new ArrayList<IncomingDataPoint>();
     
     /**
      * Used to catch exceptions 
@@ -231,7 +229,29 @@ final class QueryRpc implements HttpRpc {
         } else {
           throw e;
         }
-      }  
+      }
+      @Override
+      public String toString() {
+        return "Error back";
+      }
+    }
+    
+    final class FetchCB implements Callback<Object, ArrayList<IncomingDataPoint>> {
+      @Override
+      public Object call(final ArrayList<IncomingDataPoint> dps) throws Exception {
+        synchronized(results) {
+          for (final IncomingDataPoint dp : dps) {
+            if (dp != null) {
+              results.add(dp);
+            }
+          }
+        }
+        return null;
+      }
+      @Override
+      public String toString() {
+        return "Fetched data points CB";
+      }
     }
     
     /**
@@ -244,73 +264,70 @@ final class QueryRpc implements HttpRpc {
         if (tsuids == null || tsuids.isEmpty()) {
           return null;
         }
-        
+        final ArrayList<Deferred<IncomingDataPoint>> deferreds =
+            new ArrayList<Deferred<IncomingDataPoint>>(tsuids.size());
         for (Map.Entry<byte[], Long> entry : tsuids.entrySet()) {
-          calls.add(TSUIDQuery.getLastPoint(tsdb, entry.getKey(), 
+          deferreds.add(TSUIDQuery.getLastPoint(tsdb, entry.getKey(), 
               data_query.getResolveNames(), data_query.getBackScan(), 
               entry.getValue()));
         }
+        calls.add(Deferred.group(deferreds).addCallback(new FetchCB()));
         return null;
       }
-    }
-    
-    /**
-     * Callback used to force the thread to wait for the TSUIDQueries to complete
-     */
-    final class TSUIDQueryWaitCB implements Callback<Object, ArrayList<Object>> {
-      public Object call(ArrayList<Object> arg0) throws Exception {
-        return null;
+      @Override
+      public String toString() {
+        return "TSMeta scan CB";
       }
     }
-    
+
     /**
      * Used to wait on the list of data point deferreds. Once they're all done
      * this will return the results to the call via the serializer
      */
-    final class FinalCB implements Callback<Object, ArrayList<IncomingDataPoint>> {
-      @SuppressWarnings("unchecked")
-      public Object call(final ArrayList<IncomingDataPoint> data_points) 
-        throws Exception {
-        if (data_points == null) {
-          query.sendReply(query.serializer()
-              .formatLastPointQueryV1(Collections.EMPTY_LIST));
-        } else {
-          query.sendReply(query.serializer()
-              .formatLastPointQueryV1(data_points));
-        }
+    final class FinalCB implements Callback<Object, ArrayList<Object>> {
+      public Object call(final ArrayList<Object> done) throws Exception {
+        query.sendReply(query.serializer().formatLastPointQueryV1(results));
         return null;
       }
+      @Override
+      public String toString() {
+        return "Final CB";
+      }
     }
+    
     try {   
       // start executing the queries
-      for (LastPointSubQuery sub_query : data_query.getQueries()) {
+      for (final LastPointSubQuery sub_query : data_query.getQueries()) {
+        final ArrayList<Deferred<IncomingDataPoint>> deferreds =
+            new ArrayList<Deferred<IncomingDataPoint>>();
         // TSUID queries take precedence so if there are any TSUIDs listed, 
         // process the TSUIDs and ignore the metric/tags
         if (sub_query.getTSUIDs() != null && !sub_query.getTSUIDs().isEmpty()) {
-          for (String tsuid : sub_query.getTSUIDs()) {
-            calls.add(TSUIDQuery.getLastPoint(tsdb, UniqueId.stringToUid(tsuid), 
-                data_query.getResolveNames(), data_query.getBackScan(), 0));
+          for (final String tsuid : sub_query.getTSUIDs()) {
+            final TSUIDQuery tsuid_query = new TSUIDQuery(tsdb, 
+                UniqueId.stringToUid(tsuid));
+            deferreds.add(tsuid_query.getLastPoint(data_query.getResolveNames(), 
+                data_query.getBackScan()));
           }
         } else {
-          final TSUIDQuery tsuid_query = new TSUIDQuery(tsdb);
           @SuppressWarnings("unchecked")
-          final HashMap<String, String> tags = 
-            (HashMap<String, String>) (sub_query.getTags() != null ? 
-              sub_query.getTags() : Collections.EMPTY_MAP);
-          tsuid_query.setQuery(sub_query.getMetric(), tags);
-          tsuid_query_wait.add(
-              tsuid_query.getLastWriteTimes().addCallback(new TSUIDQueryCB()));
+          final TSUIDQuery tsuid_query = 
+              new TSUIDQuery(tsdb, sub_query.getMetric(), 
+                  sub_query.getTags() != null ? 
+                      sub_query.getTags() : Collections.EMPTY_MAP);
+          if (data_query.getBackScan() > 0) {
+            deferreds.add(tsuid_query.getLastPoint(data_query.getResolveNames(), 
+                data_query.getBackScan()));
+          } else {
+            calls.add(tsuid_query.getLastWriteTimes().addCallback(new TSUIDQueryCB()));
+          }
+        }
+        
+        if (deferreds.size() > 0) {
+          calls.add(Deferred.group(deferreds).addCallback(new FetchCB()));
         }
       }
       
-      if (!tsuid_query_wait.isEmpty()) {
-        // wait on the time series queries first. If you don't, they may try
-        // to add deferreds to the calls list
-        Deferred.group(tsuid_query_wait)
-          .addCallback(new TSUIDQueryWaitCB())
-          .addErrback(new ErrBack())
-          .joinUninterruptibly();
-      }
       Deferred.group(calls)
         .addCallback(new FinalCB())
         .addErrback(new ErrBack())

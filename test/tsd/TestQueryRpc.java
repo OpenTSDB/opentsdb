@@ -20,8 +20,6 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 import org.powermock.api.mockito.PowerMockito;
 import org.mockito.Matchers;
 import java.lang.reflect.Method;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.ArrayList;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
@@ -29,7 +27,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.TSSubQuery;
 import net.opentsdb.utils.Config;
-import org.hbase.async.HBaseClient;
+
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Before;
 import org.junit.Test;
@@ -38,6 +36,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import net.opentsdb.uid.NoSuchUniqueName;
 import com.stumbleupon.async.Deferred;
+
 /**
  * Unit tests for the Query RPC class that handles parsing user queries for
  * timeseries data and returning that data
@@ -322,4 +321,5 @@ public final class TestQueryRpc {
   }
 
   //TODO(cl) add unit tests for the rate options parsing
+
 }
