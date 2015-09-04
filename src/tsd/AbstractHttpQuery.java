@@ -286,6 +286,14 @@ public abstract class AbstractHttpQuery {
    */
   public void done() {
     final int processing_time = processingTimeMillis();
+   final String url = request.getUri();
+   final String msg = String.format("HTTP %s done in %d ms", url, processing_time);
+   if (url.startsWith("/api/put") && LOG.isDebugEnabled()) {
+     // NOTE: Suppresses too many log lines from /api/put.
+     LOG.debug(msg);
+   } else {
+     logInfo(msg);
+   }
     logInfo("HTTP " + request.getUri() + " done in " + processing_time + "ms");
   }
   
