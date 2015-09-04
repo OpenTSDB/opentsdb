@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -25,7 +24,6 @@ import org.jboss.netty.channel.socket.nio.NioServerBossPool;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioWorkerPool;
 import org.jboss.netty.channel.socket.oio.OioServerSocketChannelFactory;
-import org.jboss.netty.util.ThreadNameDeterminer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +35,7 @@ import net.opentsdb.tsd.RpcManager;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.FileSystem;
 import net.opentsdb.utils.Threads;
-import net.opentsdb.graph.Plot;
+
 /**
  * Main class of the TSD, the Time Series Daemon.
  */
@@ -151,6 +149,9 @@ final class TSDMain {
     try {
       tsdb = new TSDB(config);
       tsdb.initializePlugins(true);
+      if (config.getBoolean("tsd.storage.hbase.prefetch_meta")) {
+        tsdb.preFetchHBaseMeta();
+      }
       
       // Make sure we don't even start if we can't find our tables.
       tsdb.checkNecessaryTablesExist().joinUninterruptibly();

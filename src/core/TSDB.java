@@ -1175,6 +1175,34 @@ public final class TSDB {
     }
   }
   
+  /**
+   * Blocks while pre-fetching meta data from the data and uid tables
+   * so that performance improves, particularly with a large number of 
+   * regions and region servers.
+   * @since 2.2
+   */
+  public void preFetchHBaseMeta() {
+    LOG.info("Pre-fetching meta data for all tables");
+    final long start = System.currentTimeMillis();
+    final ArrayList<Deferred<Object>> deferreds = new ArrayList<Deferred<Object>>();
+    deferreds.add(client.prefetchMeta(table));
+    deferreds.add(client.prefetchMeta(uidtable));
+    
+    // TODO(cl) - meta, tree, etc
+    
+    try {
+      Deferred.group(deferreds).join();
+      LOG.info("Fetched meta data for tables in " + 
+          (System.currentTimeMillis() - start) + "ms");
+    } catch (InterruptedException e) {
+      LOG.error("Interrupted", e);
+      Thread.currentThread().interrupt();
+      return;
+    } catch (Exception e) {
+      LOG.error("Failed to prefetch meta for our tables", e);
+    }
+  }
+  
   // ------------------ //
   // Compaction helpers //
   // ------------------ //
