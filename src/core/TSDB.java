@@ -548,6 +548,10 @@ public final class TSDB {
     collector.record("hbase.nsre", stats.noSuchRegionExceptions());
     collector.record("hbase.nsre.rpcs_delayed",
                      stats.numRpcDelayedDueToNSRE());
+    collector.record("hbase.region_clients.open",
+        stats.regionClients());
+    collector.record("hbase.region_clients.idle_closed",
+        stats.idleConnectionsClosed());
 
     compactionq.collectStats(collector);
     // Collect Stats from Plugins

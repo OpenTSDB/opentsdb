@@ -1032,6 +1032,17 @@ class HttpJsonSerializer extends HttpSerializer {
   }
   
   /**
+   * format a list of region client statistics
+   * @param stats The list of region client stats to format
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws JSONException if serialization failed
+   * @since 2.2
+   */
+  public ChannelBuffer formatRegionStatsV1(final List<Map<String, Object>> stats) {
+    return serializeJSON(stats);
+  }
+
+  /**
    * Format a list of JVM statistics
    * @param stats The JVM stats map to format
    * @return A ChannelBuffer object to pass on to the caller

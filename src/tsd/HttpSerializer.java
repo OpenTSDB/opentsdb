@@ -686,6 +686,20 @@ public abstract class HttpSerializer {
   }
   
   /**
+   * format a list of region client statistics
+   * @param stats The list of region client stats to format
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   * @since 2.2
+   */
+  public ChannelBuffer formatRegionStatsV1(final List<Map<String, Object>> stats) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatRegionStatsV1");
+  }
+  
+  /**
    * Format a list of JVM statistics
    * @param map The JVM stats list to format
    * @return A ChannelBuffer object to pass on to the caller

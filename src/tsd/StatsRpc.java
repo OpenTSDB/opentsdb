@@ -30,6 +30,7 @@ import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.JSON;
 
+import org.hbase.async.RegionClientStats;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -92,6 +93,9 @@ public final class StatsRpc implements TelnetRpc, HttpRpc {
       } else if ("query".equals(endpoint)) {
         printQueryStats(query);
         return;
+      } else if ("region_clients".equals(endpoint)) {
+        printRegionClientStats(tsdb, query);
+        return;
       }
     } catch (IllegalArgumentException e) {
       // this is thrown if the url doesn't start with /api. To maintain backwards
@@ -140,6 +144,37 @@ public final class StatsRpc implements TelnetRpc, HttpRpc {
     collectThreadStats(collector);
     tsdb.collectStats(collector);
   }
+  
+  /**
+   * Display stats for each region client
+   * @param tsdb The TSDB to use for fetching stats
+   * @param query The query to respond to
+   */
+  private void printRegionClientStats(final TSDB tsdb, final HttpQuery query) {
+    final List<RegionClientStats> region_stats = tsdb.getClient().regionStats();
+    final List<Map<String, Object>> stats = 
+        new ArrayList<Map<String, Object>>(region_stats.size());
+    for (final RegionClientStats rcs : region_stats) {
+      final Map<String, Object> stat_map = new HashMap<String, Object>(8);
+      stat_map.put("rpcsSent", rcs.rpcsSent());
+      stat_map.put("rpcsInFlight", rcs.inflightRPCs());
+      stat_map.put("pendingRPCs", rcs.pendingRPCs());
+      stat_map.put("pendingBatchedRPCs", rcs.pendingBatchedRPCs());
+      stat_map.put("dead", rcs.isDead());
+      stat_map.put("rpcid", rcs.rpcID());
+      stat_map.put("endpoint", rcs.remoteEndpoint());
+      stat_map.put("rpcsTimedout", rcs.rpcsTimedout());
+      stat_map.put("rpcResponsesTimedout", rcs.rpcResponsesTimedout());
+      stat_map.put("rpcResponsesUnknown", rcs.rpcResponsesUnknown());
+      stat_map.put("inflightBreached", rcs.inflightBreached());
+      stat_map.put("pendingBreached", rcs.pendingBreached());
+      stat_map.put("writesBlocked", rcs.writesBlocked());
+      
+      stats.add(stat_map);
+    }
+    query.sendReply(query.serializer().formatRegionStatsV1(stats));
+  }
+  
   
   /**
    * Grabs a snapshot of all JVM thread states and formats it in a manner to
