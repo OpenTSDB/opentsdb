@@ -147,7 +147,8 @@ tsdb_SRC := \
 	src/utils/JSON.java \
 	src/utils/JSONException.java	\
 	src/utils/Pair.java	\
-	src/utils/PluginLoader.java
+	src/utils/PluginLoader.java	\
+	src/utils/Threads.java
 
 tsdb_DEPS = \
 	$(ASYNCHBASE)	\
