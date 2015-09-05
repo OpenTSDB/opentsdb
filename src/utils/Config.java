@@ -506,6 +506,7 @@ public class Config {
     default_map.put("tsd.storage.hbase.meta_table", "tsdb-meta");
     default_map.put("tsd.storage.hbase.zk_quorum", "localhost");
     default_map.put("tsd.storage.hbase.zk_basedir", "/hbase");
+    default_map.put("tsd.storage.hbase.prefetch_meta", "false");
     default_map.put("tsd.storage.enable_appends", "false");
     default_map.put("tsd.storage.repair_appends", "false");
     default_map.put("tsd.storage.enable_compaction", "true");
