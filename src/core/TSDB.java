@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -36,6 +37,9 @@ import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
+import org.jboss.netty.util.HashedWheelTimer;
+import org.jboss.netty.util.Timeout;
+import org.jboss.netty.util.Timer;
 
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
@@ -46,6 +50,7 @@ import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.PluginLoader;
+import net.opentsdb.utils.Threads;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -98,6 +103,9 @@ public final class TSDB {
   /** Configuration object for all TSDB components */
   final Config config;
 
+  /** Timer used for various tasks such as idle timeouts or query timeouts */
+  private final HashedWheelTimer timer;
+  
   /**
    * Row keys that need to be compacted.
    * Whenever we write a new data point to a row, we add the row key to this
@@ -177,7 +185,7 @@ public final class TSDB {
     tag_names = new UniqueId(this.client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
     tag_values = new UniqueId(this.client, uidtable, TAG_VALUE_QUAL, TAG_VALUE_WIDTH);
     compactionq = new CompactionQueue(this);
-
+    
     if (config.hasProperty("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
     }
@@ -188,6 +196,8 @@ public final class TSDB {
       tag_names.setTSDB(this);
       tag_values.setTSDB(this);
     }
+    
+    timer = Threads.newTimer("TSDB Timer");
     
     QueryStats.setEnableDuplicates(
         config.getBoolean("tsd.query.allow_simultaneous_duplicates"));
@@ -874,9 +884,44 @@ public final class TSDB {
     final ArrayList<Deferred<Object>> deferreds = 
       new ArrayList<Deferred<Object>>();
     
-    final class HClientShutdown implements Callback<Object, ArrayList<Object>> {
-      public Object call(final ArrayList<Object> args) {
-        return client.shutdown();
+    final class FinalShutdown implements Callback<Object, Object> {
+      @Override
+      public Object call(Object result) throws Exception {
+        if (result instanceof Exception) {
+          LOG.error("A previous shutdown failed", (Exception)result);
+        }
+        final Set<Timeout> timeouts = timer.stop();
+        // TODO - at some point we should clean these up.
+        if (timeouts.size() > 0) {
+          LOG.warn("There were " + timeouts.size() + " timer tasks queued");
+        }
+        LOG.info("Completed shutting down the TSDB");
+        return Deferred.fromResult(null);
+      }
+    }
+    
+    final class SEHShutdown implements Callback<Object, Object> {
+      @Override
+      public Object call(Object result) throws Exception {
+        if (result instanceof Exception) {
+          LOG.error("Shutdown of the HBase client failed", (Exception)result);
+        }
+        LOG.info("Shutting down storage exception handler plugin: " + 
+            storage_exception_handler.getClass().getCanonicalName());
+        return storage_exception_handler.shutdown().addBoth(new FinalShutdown());
+      }
+      @Override
+      public String toString() {
+        return "SEHShutdown";
+      }
+    }
+    
+    final class HClientShutdown implements Callback<Deferred<Object>, ArrayList<Object>> {
+      public Deferred<Object> call(final ArrayList<Object> args) {
+        if (storage_exception_handler != null) {
+          return client.shutdown().addBoth(new SEHShutdown());
+        }
+        return client.shutdown().addBoth(new FinalShutdown());
       }
       public String toString() {
         return "shutdown HBase client";
@@ -896,7 +941,7 @@ public final class TSDB {
         } else {
           LOG.error("Failed to shutdown the TSD", e);
         }
-        return client.shutdown();
+        return new HClientShutdown().call(null);
       }
       public String toString() {
         return "shutdown HBase client after error";
@@ -931,9 +976,9 @@ public final class TSDB {
     
     // wait for plugins to shutdown before we close the client
     return deferreds.size() > 0
-      ? Deferred.group(deferreds).addCallbacks(new HClientShutdown(),
-                                               new ShutdownErrback())
-      : client.shutdown();
+      ? Deferred.group(deferreds).addCallbackDeferring(new HClientShutdown())
+          .addErrback(new ShutdownErrback())
+      : new HClientShutdown().call(null);
   }
 
   /**
@@ -1205,6 +1250,11 @@ public final class TSDB {
     } catch (Exception e) {
       LOG.error("Failed to prefetch meta for our tables", e);
     }
+  }
+  
+  /** @return the timer used for various house keeping functions */
+  public Timer getTimer() {
+    return timer;
   }
   
   // ------------------ //

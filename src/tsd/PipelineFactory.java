@@ -49,7 +49,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   // PipelineFactory is needed.
   private final ConnectionManager connmgr = new ConnectionManager();
   private final DetectHttpOrRpc HTTP_OR_RPC = new DetectHttpOrRpc();
-  private final Timer timer = new HashedWheelTimer(new PipelineThreadFactory());
+  private final Timer timer;
   private final ChannelHandler timeoutHandler;
 
   /** Stateless handler for RPCs. */
@@ -85,7 +85,8 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   public PipelineFactory(final TSDB tsdb, final RpcManager manager) {
     this.tsdb = tsdb;
     this.socketTimeout = tsdb.getConfig().getInt("tsd.core.socket.timeout");
-    this.timeoutHandler = new IdleStateHandler(this.timer, 0, 0, this.socketTimeout);
+    timer = tsdb.getTimer();
+    this.timeoutHandler = new IdleStateHandler(timer, 0, 0, this.socketTimeout);
     this.rpchandler = new RpcHandler(tsdb, manager);
     try {
       HttpQuery.initializeSerializerMaps(tsdb);
@@ -150,22 +151,6 @@ public final class PipelineFactory implements ChannelPipelineFactory {
     }
 
   }
-
-  /**
-   * A class to generate a daemon thread for the idle connection timer.
-   */
-  class PipelineThreadFactory implements ThreadFactory {
-    @Override
-    public Thread newThread(final Runnable r) {
-      final Thread t = new Thread(r, "PipelineFactoryTimer");
-      t.setDaemon(true);
-      return t;
-    }
-    
-    @Override
-    public String toString() {
-      return "Pipeline timer thread factory";
-    }
-  }
+  
 }
  
