@@ -114,6 +114,7 @@ tsdb_SRC := \
 	src/utils/PluginLoader.java
 
 tsdb_DEPS = \
+	$(ALPN_BOOT)	\
 	$(ASYNCHBASE)	\
 	$(GUAVA)	\
 	$(LOG4J_OVER_SLF4J)	\
