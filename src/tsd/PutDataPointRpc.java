@@ -16,14 +16,19 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.TimeoutException;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.jboss.netty.util.Timeout;
+import org.jboss.netty.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,13 +41,16 @@ import net.opentsdb.uid.NoSuchUniqueName;
 /** Implements the "put" telnet-style command. */
 final class PutDataPointRpc implements TelnetRpc, HttpRpc {
   private static final Logger LOG = LoggerFactory.getLogger(PutDataPointRpc.class);
+  private static final ArrayList<Boolean> EMPTY_DEFERREDS = 
+      new ArrayList<Boolean>(0);
   private static final AtomicLong requests = new AtomicLong();
   private static final AtomicLong hbase_errors = new AtomicLong();
   private static final AtomicLong invalid_values = new AtomicLong();
   private static final AtomicLong illegal_arguments = new AtomicLong();
   private static final AtomicLong unknown_metrics = new AtomicLong();
   private static final AtomicLong writes_blocked = new AtomicLong();
-
+  private static final AtomicLong writes_timedout = new AtomicLong();
+  
   public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                   final String[] cmd) {
     requests.incrementAndGet();
@@ -118,27 +126,49 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     
     final boolean show_details = query.hasQueryStringParam("details");
     final boolean show_summary = query.hasQueryStringParam("summary");
+    final boolean synchronous = query.hasQueryStringParam("sync");
+    final int sync_timeout = query.hasQueryStringParam("sync_timeout") ? 
+        Integer.parseInt(query.getQueryStringParam("sync_timeout")) : 0;
+    // this is used to coordinate timeouts
+    final AtomicBoolean sending_response = new AtomicBoolean();
+    sending_response.set(false);
+        
     final ArrayList<HashMap<String, Object>> details = show_details
       ? new ArrayList<HashMap<String, Object>>() : null;
-    long success = 0;
-    long total = 0;
-    
+    int queued = 0;
+    final List<Deferred<Boolean>> deferreds = synchronous ? 
+        new ArrayList<Deferred<Boolean>>(dps.size()) : null;
     for (final IncomingDataPoint dp : dps) {
 
       /** Handles passing a data point to the storage exception handler if 
        * we were unable to store it for any reason */
-      final class PutErrback implements Callback<Object, Exception> {
-        public Object call(final Exception arg) {
+      final class PutErrback implements Callback<Boolean, Exception> {
+        public Boolean call(final Exception arg) {
           handleStorageException(tsdb, dp, arg);
           hbase_errors.incrementAndGet();
-          return null;
+          
+          if (show_details) {
+            details.add(getHttpDetails("Storage exception: " 
+                + arg.getMessage(), dp));
+          }
+          return false;
         }
         public String toString() {
-          return "HTTP Put exception";
+          return "HTTP Put Exception CB";
         }
       }
       
-      total++;
+      /** Simply marks the put as successful */
+      final class SuccessCB implements Callback<Boolean, Object> {
+        @Override
+        public Boolean call(final Object obj) {
+          return true;
+        }
+        public String toString() {
+          return "HTTP Put success CB";
+        }
+      }
+      
       try {
         if (dp.getMetric() == null || dp.getMetric().isEmpty()) {
           if (show_details) {
@@ -172,16 +202,19 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
           illegal_arguments.incrementAndGet();
           continue;
         }
+        final Deferred<Object> deferred;
         if (Tags.looksLikeInteger(dp.getValue())) {
-          tsdb.addPoint(dp.getMetric(), dp.getTimestamp(), 
-              Tags.parseLong(dp.getValue()), dp.getTags())
-              .addErrback(new PutErrback());
+          deferred = tsdb.addPoint(dp.getMetric(), dp.getTimestamp(), 
+              Tags.parseLong(dp.getValue()), dp.getTags());
         } else {
-          tsdb.addPoint(dp.getMetric(), dp.getTimestamp(), 
-              Float.parseFloat(dp.getValue()), dp.getTags())
-              .addErrback(new PutErrback());
+          deferred = tsdb.addPoint(dp.getMetric(), dp.getTimestamp(), 
+              Float.parseFloat(dp.getValue()), dp.getTags());
         }
-        success++;
+        if (synchronous) {
+          deferreds.add(deferred.addCallback(new SuccessCB()));
+        }
+        deferred.addErrback(new PutErrback());
+        ++queued;
       } catch (NumberFormatException x) {
         if (show_details) {
           details.add(this.getHttpDetails("Unable to parse value to a number", 
@@ -204,29 +237,169 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
       }
     }
     
-    final long failures = total - success;
-    if (!show_summary && !show_details) {
-      if (failures > 0) {
-        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-            "One or more data points had errors", 
-            "Please see the TSD logs or append \"details\" to the put request");
-      } else {
-        query.sendReply(HttpResponseStatus.NO_CONTENT, "".getBytes());
+    /** A timer task that will respond to the user with the number of timeouts
+     * for synchronous writes. */
+    class PutTimeout implements TimerTask {
+      final int queued;
+      public PutTimeout(final int queued) {
+        this.queued = queued;
       }
-    } else {
-      final HashMap<String, Object> summary = new HashMap<String, Object>();
-      summary.put("success", success);
-      summary.put("failed", failures);
-      if (show_details) {
-        summary.put("errors", details);
+      @Override
+      public void run(final Timeout timeout) throws Exception {
+        if (sending_response.get()) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Put data point call " + query + 
+                " already responded successfully");
+          }
+          return;
+        } else {
+          sending_response.set(true);
+        }
+        
+        // figure out how many writes are outstanding
+        int good_writes = 0;
+        int failed_writes = 0;
+        int timeouts = 0;
+        for (int i = 0; i < deferreds.size(); i++) {
+          try {
+            if (deferreds.get(i).join(1)) {
+              ++good_writes;
+            } else {
+              ++failed_writes;
+            }
+          } catch (TimeoutException te) {
+            if (show_details) {
+              details.add(getHttpDetails("Write timedout", dps.get(i)));
+            }
+            ++timeouts;
+          }
+        }
+        writes_timedout.addAndGet(timeouts);
+        final int failures = dps.size() - queued;
+        if (!show_summary && !show_details) {
+          throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+              "The put call has timedout with " + good_writes 
+                + " successful writes, " + failed_writes + " failed writes and "
+                + timeouts + " timed out writes.", 
+              "Please see the TSD logs or append \"details\" to the put request");
+        } else {
+          final HashMap<String, Object> summary = new HashMap<String, Object>();
+          summary.put("success", good_writes);
+          summary.put("failed", failures + failed_writes);
+          summary.put("timeouts", timeouts);
+          if (show_details) {
+            summary.put("errors", details);
+          }
+          
+          query.sendReply(HttpResponseStatus.BAD_REQUEST, 
+              query.serializer().formatPutV1(summary));
+        }
+      }
+    }
+    
+    // now after everything has been sent we can schedule a timeout if so
+    // the caller asked for a synchronous write.
+    final Timeout timeout = sync_timeout > 0 ? 
+        tsdb.getTimer().newTimeout(new PutTimeout(queued), sync_timeout, 
+            TimeUnit.MILLISECONDS) : null;
+    
+    /** Serializes the response to the client */
+    class GroupCB implements Callback<Object, ArrayList<Boolean>> {
+      final int queued;
+      public GroupCB(final int queued) {
+        this.queued = queued;
       }
       
-      if (failures > 0) {
-        query.sendReply(HttpResponseStatus.BAD_REQUEST, 
-            query.serializer().formatPutV1(summary));
-      } else {
-        query.sendReply(query.serializer().formatPutV1(summary));
+      @Override
+      public Object call(final ArrayList<Boolean> results) {
+        if (sending_response.get()) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Put data point call " + query + " was marked as timedout");
+          }
+          return null;
+        } else {
+          sending_response.set(true);
+          if (timeout != null) {
+            timeout.cancel();
+          }
+        }
+        int good_writes = 0;
+        int failed_writes = 0;
+        for (final boolean result : results) {
+          if (result) {
+            ++good_writes;
+          } else {
+            ++failed_writes;
+          }
+        }
+        
+        final int failures = dps.size() - queued;
+        if (!show_summary && !show_details) {
+          if (failures + failed_writes > 0) {
+            query.sendReply(HttpResponseStatus.BAD_REQUEST, 
+                query.serializer().formatErrorV1(
+                    new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+                "One or more data points had errors", 
+                "Please see the TSD logs or append \"details\" to the put request")));
+          } else {
+            query.sendReply(HttpResponseStatus.NO_CONTENT, "".getBytes());
+          }
+        } else {
+          final HashMap<String, Object> summary = new HashMap<String, Object>();
+          if (sync_timeout > 0) {
+            summary.put("timeouts", 0);
+          }
+          summary.put("success", results.isEmpty() ? queued : good_writes);
+          summary.put("failed", failures + failed_writes);
+          if (show_details) {
+            summary.put("errors", details);
+          }
+          
+          if (failures > 0) {
+            query.sendReply(HttpResponseStatus.BAD_REQUEST, 
+                query.serializer().formatPutV1(summary));
+          } else {
+            query.sendReply(query.serializer().formatPutV1(summary));
+          }
+        }
+        
+        return null;
       }
+      @Override
+      public String toString() {
+        return "put data point serialization callback";
+      }
+    }
+    
+    /** Catches any unexpected exceptions thrown in the callback chain */
+    class ErrCB implements Callback<Object, Exception> {
+      @Override
+      public Object call(final Exception e) throws Exception {
+        if (sending_response.get()) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Put data point call " + query + " was marked as timedout");
+          }
+          return null;
+        } else {
+          sending_response.set(true);
+          if (timeout != null) {
+            timeout.cancel();
+          }
+        }
+        LOG.error("Unexpected exception", e);
+        throw new RuntimeException("Unexpected exception", e);
+      }
+      @Override
+      public String toString() {
+        return "put data point error callback";
+      }
+    }
+    
+    if (synchronous) {
+      Deferred.groupInOrder(deferreds).addCallback(new GroupCB(queued))
+        .addErrback(new ErrCB());
+    } else {
+      new GroupCB(queued).call(EMPTY_DEFERREDS);
     }
   }
   

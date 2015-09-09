@@ -21,6 +21,8 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
@@ -32,6 +34,8 @@ import net.opentsdb.utils.Config;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.Scanner;
 import org.jboss.netty.util.HashedWheelTimer;
+import org.jboss.netty.util.Timeout;
+import org.jboss.netty.util.TimerTask;
 import org.junit.Before;
 import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
@@ -521,4 +525,62 @@ public class BaseTsdbTest {
     note.syncToStorage(tsdb, false).joinUninterruptibly();
   }
 
+  /**
+   * A fake {@link org.jboss.netty.util.Timer} implementation.
+   * Instead of executing the task it will store that task in a internal state
+   * and provides a function to start the execution of the stored task.
+   * This implementation thus allows the flexibility of simulating the
+   * things that will be going on during the time out period of a TimerTask.
+   * This was mainly return to simulate the timeout period for
+   * alreadyNSREdRegion test, where the region will be in the NSREd mode only
+   * during this timeout period, which was difficult to simulate using the
+   * above {@link FakeTimer} implementation, as we don't get back the control
+   * during the timeout period
+   *
+   * Here it will hold at most two Tasks. We have two tasks here because when
+   * one is being executed, it may call for newTimeOut for another task.
+   */
+  public static final class FakeTaskTimer extends HashedWheelTimer {
+
+    public TimerTask newPausedTask = null;
+    public TimerTask pausedTask = null;
+    public Timeout timeout = null;
+
+    @Override
+    public synchronized Timeout newTimeout(final TimerTask task,
+                                           final long delay,
+                                           final TimeUnit unit) {
+      if (pausedTask == null) {
+        pausedTask = task;
+      }  else if (newPausedTask == null) {
+        newPausedTask = task;
+      } else {
+        throw new IllegalStateException("Cannot Pause Two Timer Tasks");
+      }
+      timeout = mock(Timeout.class);
+      return timeout;
+    }
+
+    @Override
+    public Set<Timeout> stop() {
+      return null;
+    }
+
+    public boolean continuePausedTask() {
+      if (pausedTask == null) {
+        return false;
+      }
+      try {
+        if (newPausedTask != null) {
+          throw new IllegalStateException("Cannot be in this state");
+        }
+        pausedTask.run(null);  // Argument never used in this code base
+        pausedTask = newPausedTask;
+        newPausedTask = null;
+        return true;
+      } catch (Exception e) {
+        throw new RuntimeException("Timer task failed: " + pausedTask, e);
+      }
+    }
+  }
 }
