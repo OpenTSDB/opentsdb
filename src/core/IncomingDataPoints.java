@@ -100,9 +100,9 @@ final class IncomingDataPoints implements WritableDataPoints {
     if (tags.size() <= 0) {
       throw new IllegalArgumentException("Need at least one tag (metric="
           + metric + ", tags=" + tags + ')');
-    } else if (tags.size() > Const.MAX_NUM_TAGS) {
+    } else if (tags.size() > Const.MAX_NUM_TAGS()) {
       throw new IllegalArgumentException("Too many tags: " + tags.size()
-          + " maximum allowed: " + Const.MAX_NUM_TAGS + ", tags: " + tags);
+          + " maximum allowed: " + Const.MAX_NUM_TAGS() + ", tags: " + tags);
     }
 
     Tags.validateString("metric name", metric);

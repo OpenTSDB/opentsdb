@@ -15,6 +15,7 @@ public class TestFsckSalted extends TestFsck {
     PowerMockito.mockStatic(Const.class);
     PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(2);
     PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    PowerMockito.when(Const.MAX_NUM_TAGS()).thenReturn((short) 8);
     
     GLOBAL_ROW = new byte[] {0, 0, 0, 0, 0x52, (byte)0xC3, 0x5A, (byte)0x80};
     ROW = MockBase.stringToBytes("0000000150E22700000001000001");
