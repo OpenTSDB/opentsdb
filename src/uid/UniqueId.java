@@ -43,7 +43,6 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
-import net.opentsdb.stats.StatsCollector;
 
 /**
  * Represents a table of Unique IDs, manages the lookup and creation of IDs.
@@ -940,6 +939,105 @@ public final class UniqueId implements UniqueIdInterface {
     // Success!
   }
 
+  /**
+   * Attempts to remove the mappings for the given string from the UID table
+   * as well as the cache. If used, the caller should remove the entry from all
+   * TSD caches as well.
+   * <p>
+   * WARNING: This is a best attempt only method in that we'll lookup the UID
+   * for the given string, then issue two delete requests, one for each mapping.
+   * If either mapping fails then the cache can be re-populated later on with
+   * stale data. In that case, please run the FSCK utility.
+   * <p>
+   * WARNING 2: This method will NOT delete time series data or TSMeta data 
+   * associated with the UIDs. It only removes them from the UID table. Deleting
+   * a metric is generally safe as you won't query over it in the future. But
+   * deleting tag keys or values can cause queries to fail if they find data
+   * without a corresponding name.
+   * 
+   * @param name The name of the UID to delete
+   * @return A deferred to wait on for completion. The result will be null if
+   * successful, an exception otherwise.
+   * @throws NoSuchUniqueName if the UID string did not exist in storage
+   * @throws IllegalStateException if the TSDB wasn't set for this UID object
+   * @since 2.2
+   */
+  public Deferred<Object> deleteAsync(final String name) {
+    if (tsdb == null) {
+      throw new IllegalStateException("The TSDB is null for this UID object.");
+    }
+    final byte[] uid = new byte[id_width];
+    final ArrayList<Deferred<Object>> deferreds = 
+        new ArrayList<Deferred<Object>>(2);
+    
+    /** Catches errors and still cleans out the cache */
+    class ErrCB implements Callback<Object, Exception> {
+      @Override
+      public Object call(final Exception ex) throws Exception {
+        name_cache.remove(name);
+        id_cache.remove(fromBytes(uid));
+        LOG.error("Failed to delete " + fromBytes(kind) + " UID " + name 
+            + " but still cleared the cache", ex);
+        return ex;
+      }
+    }
+    
+    /** Used to wait on the group of delete requests */
+    class GroupCB implements Callback<Deferred<Object>, ArrayList<Object>> {
+      @Override
+      public Deferred<Object> call(final ArrayList<Object> response) 
+          throws Exception {
+        name_cache.remove(name);
+        id_cache.remove(fromBytes(uid));
+        LOG.info("Successfully deleted " + fromBytes(kind) + " UID " + name);
+        return Deferred.fromResult(null);
+      }
+    }
+    
+    /** Called after fetching the UID from storage */
+    class LookupCB implements Callback<Deferred<Object>, byte[]> {
+      @Override
+      public Deferred<Object> call(final byte[] stored_uid) throws Exception {
+        if (stored_uid == null) {
+          return Deferred.fromError(new NoSuchUniqueName(kind(), name));
+        }
+        System.arraycopy(stored_uid, 0, uid, 0, id_width);
+        final DeleteRequest forward = 
+            new DeleteRequest(table, toBytes(name), ID_FAMILY, kind);
+        deferreds.add(tsdb.getClient().delete(forward));
+        
+        final DeleteRequest reverse = 
+            new DeleteRequest(table, uid, NAME_FAMILY, kind);
+        deferreds.add(tsdb.getClient().delete(reverse));
+        
+        final DeleteRequest meta = new DeleteRequest(table, uid, NAME_FAMILY, 
+            toBytes((type.toString().toLowerCase() + "_meta")));
+        deferreds.add(tsdb.getClient().delete(meta));
+        return Deferred.group(deferreds).addCallbackDeferring(new GroupCB());
+      }
+    }
+    
+    final byte[] cached_uid = name_cache.get(name);
+    if (cached_uid == null) {
+      return getIdFromHBase(name).addCallbackDeferring(new LookupCB())
+          .addErrback(new ErrCB());
+    }
+    System.arraycopy(cached_uid, 0, uid, 0, id_width);
+    final DeleteRequest forward = 
+        new DeleteRequest(table, toBytes(name), ID_FAMILY, kind);
+    deferreds.add(tsdb.getClient().delete(forward));
+    
+    final DeleteRequest reverse = 
+        new DeleteRequest(table, uid, NAME_FAMILY, kind);
+    deferreds.add(tsdb.getClient().delete(reverse));
+    
+    final DeleteRequest meta = new DeleteRequest(table, uid, NAME_FAMILY, 
+        toBytes((type.toString().toLowerCase() + "_meta")));
+    deferreds.add(tsdb.getClient().delete(meta));
+    return Deferred.group(deferreds).addCallbackDeferring(new GroupCB())
+        .addErrback(new ErrCB());
+  }
+  
   /** The start row to scan on empty search strings.  `!' = first ASCII char. */
   private static final byte[] START_ROW = new byte[] { '!' };
 
