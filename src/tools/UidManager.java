@@ -64,6 +64,7 @@ final class UidManager {
         + "  assign <kind> <name> [names]:"
         + " Assign an ID for the given name(s).\n"
         + "  rename <kind> <name> <newname>: Renames this UID.\n"
+        + "  delete <kind> <name>: Deletes this UID.\n"
         + "  fsck: [fix] [delete_unknown] Checks the consistency of UIDs.\n"
         + "        fix            - Fix errors. By default errors are logged.\n"
         + "        delete_unknown - Remove columns with unknown qualifiers.\n"
@@ -164,6 +165,18 @@ final class UidManager {
         return 2;
       }
       return rename(tsdb.getClient(), table, idwidth, args);
+    } else if (args[0].equals("delete")) {
+      if (nargs != 3) {
+        usage("Wrong number of arguments");
+        return 2;
+      }
+
+      try {
+        return delete(tsdb, table, args);
+      } catch (Exception e) {
+        LOG.error("Unexpected exception", e);
+        return 4;
+      } 
     } else if (args[0].equals("fsck")) {
       boolean fix = false;
       boolean fix_unknowns = false;
@@ -390,6 +403,30 @@ final class UidManager {
     return 0;
   }
 
+  /**
+   * Implements the {@code delete} subcommand.
+   * @param client The HBase client to use.
+   * @param table The name of the HBase table to use.
+   * @param args Command line arguments ({@code assign name [names]}).
+   * @return The exit status of the command (0 means success).
+   */
+  private static int delete(final TSDB tsdb, final byte[] table,
+      final String[] args) throws Exception {
+    final String kind = args[1];
+    final String name = args[2];
+    try {
+      tsdb.deleteUidAsync(kind, name).join();
+    } catch (HBaseException e) {
+      LOG.error("error while processing delete " + name, e);
+      return 3;
+    } catch (NoSuchUniqueName e) {
+      LOG.error(e.getMessage());
+      return 1;
+    }
+    LOG.info("UID " + kind + ' ' + name + " deleted.");
+    return 0;
+  }
+  
   /**
    * Implements the {@code fsck} subcommand.
    * @param client The HBase client to use.
