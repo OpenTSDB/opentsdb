@@ -185,16 +185,12 @@ public final class TSDB {
     tag_names = new UniqueId(this.client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
     tag_values = new UniqueId(this.client, uidtable, TAG_VALUE_QUAL, TAG_VALUE_WIDTH);
     compactionq = new CompactionQueue(this);
+    metrics.setTSDB(this);
+    tag_names.setTSDB(this);
+    tag_values.setTSDB(this);
     
     if (config.hasProperty("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
-    }
-    if (config.enable_realtime_ts() || config.enable_realtime_uid()) {
-      // this is cleaner than another constructor and defaults to null. UIDs 
-      // will be refactored with DAL code anyways
-      metrics.setTSDB(this);
-      tag_names.setTSDB(this);
-      tag_values.setTSDB(this);
     }
     
     timer = Threads.newTimer("TSDB Timer");
@@ -1090,6 +1086,29 @@ public final class TSDB {
     } else {
       LOG.warn("Unknown type name: " + type);
       throw new IllegalArgumentException("Unknown type name");
+    }
+  }
+  
+  /**
+   * Attempts to delete the given UID name mapping from the storage table as
+   * well as the local cache.
+   * @param type The type of UID to delete. Must be "metrics", "tagk" or "tagv"
+   * @param name The name of the UID to delete
+   * @return A deferred to wait on for completion, or an exception if thrown
+   * @throws IllegalArgumentException if the type is invalid
+   * @since 2.2
+   */
+  public Deferred<Object> deleteUidAsync(final String type, final String name) {
+    final UniqueIdType uid_type = UniqueId.stringToUniqueIdType(type);
+    switch (uid_type) {
+    case METRIC:
+      return metrics.deleteAsync(name);
+    case TAGK:
+      return tag_names.deleteAsync(name);
+    case TAGV:
+      return tag_values.deleteAsync(name);
+    default:
+      throw new IllegalArgumentException("Unrecognized UID type: " + uid_type); 
     }
   }
   
