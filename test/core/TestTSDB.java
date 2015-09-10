@@ -94,7 +94,20 @@ public final class TestTSDB extends BaseTsdbTest {
     config.overrideConfig("tsd.storage.uid.width.tagv", "3");
     new TSDB(client, config);
   }
-  
+
+  @Test
+  public void ctorOverrideMaxNumTags() throws Exception {
+    assertEquals(8, Const.MAX_NUM_TAGS());
+
+    config.overrideConfig("tsd.storage.max_tags", "12");
+    new TSDB(client, config);
+    assertEquals(12, Const.MAX_NUM_TAGS());
+
+    // IMPORTANT Restore
+    config.overrideConfig("tsd.storage.max_tags", "8");
+    new TSDB(client, config);
+  }
+
   @Test
   public void ctorOverrideSalt() throws Exception {
     assertEquals(20, Const.SALT_BUCKETS());
@@ -111,7 +124,7 @@ public final class TestTSDB extends BaseTsdbTest {
     config.overrideConfig("tsd.storage.salt.width", "0");
     new TSDB(client, config);
   }
-  
+
   @Test
   public void initializePluginsDefaults() {
     // no configured plugin path, plugins disabled, no exceptions

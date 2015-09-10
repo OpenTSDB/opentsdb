@@ -164,6 +164,9 @@ public final class TSDB {
     if (config.hasProperty("tsd.storage.uid.width.tagv")) {
       TAG_VALUE_WIDTH = config.getShort("tsd.storage.uid.width.tagv");
     }
+    if (config.hasProperty("tsd.storage.max_tags")) {
+      Const.setMaxNumTags(config.getShort("tsd.storage.max_tags"));
+    }
     if (config.hasProperty("tsd.storage.salt.buckets")) {
       Const.setSaltBuckets(config.getInt("tsd.storage.salt.buckets"));
     }

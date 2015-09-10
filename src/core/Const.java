@@ -19,8 +19,26 @@ public final class Const {
   public static final short TIMESTAMP_BYTES = 4;
 
   /** Maximum number of tags allowed per data point.  */
-  public static final short MAX_NUM_TAGS = 8;
-  // 8 is an aggressive limit on purpose.  Can always be increased later.
+  private static short MAX_NUM_TAGS = 8;
+  public static short MAX_NUM_TAGS() {
+    return MAX_NUM_TAGS;
+  }
+
+  /**
+   * -------------- WARNING ----------------
+   * Package private method to override the maximum number of tags.
+   * 8 is an aggressive limit on purpose to avoid performance issues.
+   * @param tags The number of tags to allow
+   * @throws IllegalArgumentException if the number of tags is less
+   * than 1 (OpenTSDB requires at least one tag per metric).
+   */
+  static void setMaxNumTags(final short tags) {
+    if (tags < 1) {
+      throw new IllegalArgumentException("tsd.storage.max_tags must be greater than 0");
+    }
+    MAX_NUM_TAGS = tags;
+  }
+
 
   /** Number of LSBs in time_deltas reserved for flags.  */
   public static final short FLAG_BITS = 4;
