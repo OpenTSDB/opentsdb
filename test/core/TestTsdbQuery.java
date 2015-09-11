@@ -453,6 +453,22 @@ public final class TestTsdbQuery extends BaseTsdbTest {
         ForTesting.getGroupBys(query).get(0));
   }
   
+  @Test
+  public void deleteDatapoints() throws Exception {
+    setDataPointStorage();
+    
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
+    query.setStartTime(1356998400);
+    query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
+    
+    query.setDelete(true);
+    final DataPoints[] dps1 = query.run();
+    assertEquals(1, dps1.length);
+    // second run should be empty
+    final DataPoints[] dps2 = query.run();
+    assertEquals(0, dps2.length);
+  }
+  
   /** @return a simple TSQuery object for testing */
   private TSQuery getTSQuery() {
     final TSQuery ts_query = new TSQuery();

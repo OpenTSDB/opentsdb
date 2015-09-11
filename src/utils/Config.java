@@ -515,6 +515,7 @@ public class Config {
     default_map.put("tsd.storage.compaction.max_concurrent_flushes", "10000");
     default_map.put("tsd.storage.compaction.flush_speed", "2");
     default_map.put("tsd.http.show_stack_trace", "true");
+    default_map.put("tsd.http.query.allow_delete", "false");
     default_map.put("tsd.http.request.enable_chunked", "false");
     default_map.put("tsd.http.request.max_chunk", "4096");
     default_map.put("tsd.http.request.cors_domains", "");

@@ -28,6 +28,7 @@ import java.util.Map.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.hbase.async.Bytes;
+import org.hbase.async.DeleteRequest;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -79,6 +80,9 @@ final class TsdbQuery implements Query {
 
   /** End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
   private long end_time = UNSET;
+  
+  /** Whether or not to delete the queried data */
+  private boolean delete;
 
   /** ID of the metric being looked up. */
   private byte[] metric;
@@ -192,7 +196,17 @@ final class TsdbQuery implements Query {
     }
     return end_time;
   }
-
+  
+  @Override
+  public void setDelete(boolean delete) {
+    this.delete = delete;
+  }
+  
+  @Override
+  public boolean getDelete() {
+    return delete;
+  }
+  
   @Override
   public void setTimeSeries(final String metric,
       final Map<String, String> tags,
@@ -294,6 +308,7 @@ final class TsdbQuery implements Query {
     final TSSubQuery sub_query = query.getQueries().get(index);
     setStartTime(query.startTime());
     setEndTime(query.endTime());
+    setDelete(query.getDelete());
     query_index = index;
     
     // set common options
@@ -361,7 +376,6 @@ final class TsdbQuery implements Query {
           .addCallback(new MetricCB());
     }
   }
-  
   
   @Override
   public void downsample(final long interval, final Aggregator downsampler,
@@ -690,6 +704,11 @@ final class TsdbQuery implements Query {
         * @param row The row to add
         */
        void processRow(final byte[] key, final ArrayList<KeyValue> row) {
+         if (delete) {
+           final DeleteRequest del = new DeleteRequest(tsdb.dataTable(), key);
+           tsdb.getClient().delete(del);
+         }
+         
          Span datapoints = spans.get(key);
          if (datapoints == null) {
            datapoints = new Span(tsdb);

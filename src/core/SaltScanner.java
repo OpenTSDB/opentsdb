@@ -28,6 +28,7 @@ import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes.ByteMap;
+import org.hbase.async.DeleteRequest;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 import org.slf4j.Logger;
@@ -90,6 +91,9 @@ public class SaltScanner {
    * are done.*/
   private long start_time; // milliseconds.
 
+  /** Whether or not to delete the queried data */
+  private final boolean delete;
+  
   /** A list of filters to iterate over when processing rows */
   private final List<TagVFilter> filters;
   
@@ -113,6 +117,26 @@ public class SaltScanner {
                                       final List<Scanner> scanners, 
                                       final TreeMap<byte[], Span> spans,
                                       final List<TagVFilter> filters) {
+    this(tsdb, metric, scanners, spans, filters, false);
+  }
+  
+  /**
+   * Default ctor that performs some validation. Call {@link scan} after 
+   * construction to actually start fetching data.
+   * @param tsdb The TSDB to which we belong
+   * @param metric The metric we're expecting to fetch
+   * @param scanners A list of HBase scanners, one for each bucket
+   * @param spans The span map to store results in
+   * @param delete Whether or not to delete the queried data
+   * @param filters A list of filters for processing
+   * @throws IllegalArgumentException if any required data was missing or
+   * we had invalid parameters.
+   */
+  public SaltScanner(final TSDB tsdb, final byte[] metric, 
+                                      final List<Scanner> scanners, 
+                                      final TreeMap<byte[], Span> spans,
+                                      final List<TagVFilter> filters,
+                                      final boolean delete) {
     if (Const.SALT_WIDTH() < 1) {
       throw new IllegalArgumentException(
           "Salting is disabled. Use the regular scanner");
@@ -148,6 +172,7 @@ public class SaltScanner {
     this.metric = metric;
     this.tsdb = tsdb;
     this.filters = filters;
+    this.delete = delete;
   }
 
   /**
@@ -402,11 +427,17 @@ public class SaltScanner {
     }
     
     /**
-     * Finds or creates the span for this row, compacts it and stores it.
+     * Finds or creates the span for this row, compacts it and stores it. Also
+     * fires off a delete request for the row if told to.
      * @param key The row key to use for fetching the span
      * @param row The row to add
      */
     void processRow(final byte[] key, final ArrayList<KeyValue> row) {
+      if (delete) {
+        final DeleteRequest del = new DeleteRequest(tsdb.dataTable(), key);
+        tsdb.getClient().delete(del);
+      }
+      
       List<Annotation> notes = annotations.get(key);
       if (notes == null) {
         notes = new ArrayList<Annotation>();

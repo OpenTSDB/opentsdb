@@ -90,6 +90,9 @@ public final class TSQuery {
   /** Whether or not to include stats summary in the output */
   private boolean show_summary;
   
+  /** Whether or not to delete the queried data */
+  private boolean delete = false;
+  
   /** The query status for tracking over all performance of this query */
   private QueryStats query_stats;
   
@@ -350,6 +353,11 @@ public final class TSQuery {
     return this.show_summary;
   }
   
+  /** @return Whether or not to delete the queried data @since 2.2 */
+  public boolean getDelete() {
+    return this.delete;
+  }
+  
   /** @return the query stats object. Ignored during JSON serialization */
   @JsonIgnore
   public QueryStats getQueryStats() {
@@ -430,6 +438,11 @@ public final class TSQuery {
     this.show_summary = show_summary;
   }
 
+  /** @param delete whether or not to delete the queried data @since 2.2 */
+  public void setDelete(boolean delete) {
+    this.delete = delete;
+  }
+  
   /** @param query_stats the query stats object to associate with this query */
   public void setQueryStats(final QueryStats query_stats) {
     this.query_stats = query_stats;

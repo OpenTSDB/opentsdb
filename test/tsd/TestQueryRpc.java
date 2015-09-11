@@ -521,5 +521,16 @@ public final class TestQueryRpc {
     }
   }
   
+  @Test (expected = BadRequestException.class)
+  public void deleteDatapointsBadRequest() throws Exception {
+    HttpQuery query = NettyMocks.deleteQuery(tsdb,
+      "/api/query?start=1356998400&m=sum:sys.cpu.user", "");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
+    final String json =
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("Deleting data is not enabled"));
+  }
+  
   //TODO(cl) add unit tests for the rate options parsing
 }
