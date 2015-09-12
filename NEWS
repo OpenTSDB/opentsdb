@@ -1,11 +1,32 @@
 OpenTSDB - User visible changes.
 
-* Version 2.1.0 RC1 (2015-04-04)
+* Version 2.1.1 (2015-09-12)
+
+Bug Fixes:
+  - Relax the pgrep regex to correctly find and kill the java process in the RPM init.d
+    script.
+  - Improve query performance slightly when aggregating multiple series.
+  - Fix the /api/search/lookup API call to properly handle the limit parameter.
+  - Fix the /api/query/last endpoint to properly handle missing tsdb-meta tables.
+
+* Version 2.1.0 (2015-05-06)
+
+Bug Fixes:
+  - FSCK was not handling compacted and floating point duplicates properly. Now they 
+    are merged correctly.
+  - TSMeta data updates were not loading the latest data from storage on response
+  - The config class will now trim spaces from booleans and integers
+  - On shutdown, the idle state handler could prevent the TSD from shutting down
+    gracefully. A new thread factory sets that thread as a daemon thread.
+  - TSMeta objects were not generated if multiple writes for the same data point arrived
+    in succession due to buffering atomic increments. Increments are no longer buffered.
+  - Updated paths to the deprecated Google Code repo for dependencies.
+
+* Version 2.1.0 RC2 (2015-04-04)
 
 Noteworthy Changes:
   - Handle idle connections in Netty by closing them after some period of inactivity
   - Support compressed HTTP responses
-  - 
 
 Bug Fixes:
   - Various RPM script and package fixes
