@@ -1,5 +1,14 @@
 OpenTSDB - User visible changes.
 
+* Version 2.1.1 (2015-09-12)
+
+Bug Fixes:
+  - Relax the pgrep regex to correctly find and kill the java process in the RPM init.d
+    script.
+  - Improve query performance slightly when aggregating multiple series.
+  - Fix the /api/search/lookup API call to properly handle the limit parameter.
+  - Fix the /api/query/last endpoint to properly handle missing tsdb-meta tables.
+
 * Version 2.1.0 (2015-05-06)
 
 Bug Fixes:
