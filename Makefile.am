@@ -143,6 +143,7 @@ tsdb_SRC := \
 	src/utils/ByteArrayPair.java \
 	src/utils/Config.java \
 	src/utils/DateTime.java \
+	src/utils/Exceptions.java \
 	src/utils/FileSystem.java \
 	src/utils/JSON.java \
 	src/utils/JSONException.java	\
@@ -252,6 +253,7 @@ test_SRC := \
 	test/utils/TestByteArrayPair.java \
 	test/utils/TestConfig.java \
 	test/utils/TestDateTime.java \
+	test/utils/TestExceptions.java \
 	test/utils/TestJSON.java \
 	test/utils/TestPair.java \
 	test/utils/TestPluginLoader.java
