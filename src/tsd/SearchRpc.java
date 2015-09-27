@@ -16,9 +16,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
@@ -29,6 +34,7 @@ import net.opentsdb.search.SearchQuery.SearchType;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.utils.Exceptions;
 import net.opentsdb.utils.Pair;
 
 /**
@@ -166,44 +172,119 @@ final class SearchRpc implements HttpRpc {
           "Missing metric and tags. Please supply at least one value.");
     }
     final long start = System.currentTimeMillis();
-    try {
-      final List<byte[]> tsuids = 
-          new TimeSeriesLookup(tsdb, search_query).lookup();
-
-      search_query.setTotalResults(tsuids.size());
-      // TODO maybe track in nanoseconds so we can get a floating point. But most
-      // lookups will probably take a fair amount of time.
-      search_query.setTime(System.currentTimeMillis() - start);
-      
-      final List<Object> results = new ArrayList<Object>(tsuids.size());
-      
-      Map<String, Object> series;
-      List<byte[]> tag_ids;
-      
-      // TODO - honor limit and pagination
-      for (final byte[] tsuid : tsuids) {
-        series = new HashMap<String, Object>((tsuid.length / 2) + 1);
-        try {
-          series.put("tsuid", UniqueId.uidToString(tsuid));
-          series.put("metric", RowKey.metricNameAsync(tsdb, tsuid)
-                      .joinUninterruptibly());
-          tag_ids = UniqueId.getTagPairsFromTSUID(tsuid);
-          series.put("tags", Tags.resolveIdsAsync(tsdb, tag_ids)
-              .joinUninterruptibly());
-        } catch (NoSuchUniqueId nsui) {
-          throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
-              "Unable to resolve one or more UIDs", nsui);
-        } catch (Exception e) {
-          throw new RuntimeException("Shouldn't be here", e);
-        }
-        results.add(series);
+    
+    class MetricCB implements Callback<Object, String> {
+      final Map<String, Object> series;
+      MetricCB(final Map<String, Object> series) {
+        this.series = series;
       }
       
-      search_query.setResults(results);
-      query.sendReply(query.serializer().formatSearchResultsV1(search_query));
-    } catch (NoSuchUniqueName nsun) {
-      throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
-          "Unable to resolve one or more names", nsun);
+      @Override
+      public Object call(final String name) throws Exception {
+        series.put("metric", name);
+        return null;
+      }
     }
+    
+    class TagsCB implements Callback<Object, HashMap<String, String>> {
+      final Map<String, Object> series;
+      TagsCB(final Map<String, Object> series) {
+        this.series = series;
+      }
+      
+      @Override
+      public Object call(final HashMap<String, String> names) throws Exception {
+        series.put("tags", names);
+        return null;
+      }
+    }
+    
+    class Serialize implements Callback<Object, ArrayList<Object>> {
+      final List<Object> results;
+      Serialize(final List<Object> results) {
+        this.results = results;
+      }
+      
+      @Override
+      public Object call(final ArrayList<Object> ignored) throws Exception {
+        search_query.setResults(results);
+        search_query.setTime(System.currentTimeMillis() - start);
+        query.sendReply(query.serializer().formatSearchResultsV1(search_query));
+        return null;
+      }
+    }
+    
+    class LookupCB implements Callback<Deferred<Object>, List<byte[]>> {
+      @Override
+      public Deferred<Object> call(final List<byte[]> tsuids) throws Exception {
+        final List<Object> results = new ArrayList<Object>(tsuids.size());
+        search_query.setTotalResults(tsuids.size());
+        
+        final ArrayList<Deferred<Object>> deferreds = 
+            new ArrayList<Deferred<Object>>(tsuids.size());
+        
+        for (final byte[] tsuid : tsuids) {
+          // has to be concurrent if the uid table is split across servers
+          final Map<String, Object> series = 
+              new ConcurrentHashMap<String, Object>(3);
+          results.add(series);
+          
+          series.put("tsuid", UniqueId.uidToString(tsuid));
+          deferreds.add(RowKey.metricNameAsync(tsdb, tsuid)
+              .addCallback(new MetricCB(series)));
+          
+          final List<byte[]> tag_ids = UniqueId.getTagPairsFromTSUID(tsuid);
+          deferreds.add(Tags.resolveIdsAsync(tsdb, tag_ids)
+              .addCallback(new TagsCB(series)));
+        }
+        
+        return Deferred.group(deferreds).addCallback(new Serialize(results));
+      }
+    }
+    
+    class ErrCB implements Callback<Object, Exception> {
+      @Override
+      public Object call(final Exception e) throws Exception {
+        if (e instanceof NoSuchUniqueId) {
+          query.sendReply(HttpResponseStatus.NOT_FOUND,
+              query.serializer().formatErrorV1(
+                  new BadRequestException(HttpResponseStatus.NOT_FOUND, 
+              "Unable to resolve one or more TSUIDs", (NoSuchUniqueId)e)));
+        } else if (e instanceof NoSuchUniqueName) {
+          query.sendReply(HttpResponseStatus.NOT_FOUND,
+            query.serializer().formatErrorV1(
+              new BadRequestException(HttpResponseStatus.NOT_FOUND, 
+              "Unable to resolve one or more UIDs", (NoSuchUniqueName)e)));
+        } else if (e instanceof DeferredGroupException) {
+          final Throwable ex = Exceptions.getCause((DeferredGroupException)e);
+          if (ex instanceof NoSuchUniqueId) {
+            query.sendReply(HttpResponseStatus.NOT_FOUND,
+                query.serializer().formatErrorV1(
+                    new BadRequestException(HttpResponseStatus.NOT_FOUND, 
+                "Unable to resolve one or more TSUIDs", (NoSuchUniqueId)ex)));
+          } else if (ex instanceof NoSuchUniqueName) {
+            query.sendReply(HttpResponseStatus.NOT_FOUND,
+              query.serializer().formatErrorV1(
+                new BadRequestException(HttpResponseStatus.NOT_FOUND, 
+                "Unable to resolve one or more UIDs", (NoSuchUniqueName)ex)));
+          } else {
+            query.sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+                query.serializer().formatErrorV1(
+                    new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+                "Unexpected exception", ex)));
+          }
+        } else {
+          query.sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+              query.serializer().formatErrorV1(
+                  new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+              "Unexpected exception", e)));
+        }
+        return null;
+      }
+    }
+    
+    new TimeSeriesLookup(tsdb, search_query).lookupAsync()
+      .addCallback(new LookupCB())
+      .addErrback(new ErrCB());
   }
 }

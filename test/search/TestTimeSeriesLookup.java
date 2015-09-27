@@ -54,7 +54,7 @@ import com.stumbleupon.async.Deferred;
 public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   // tsuids
-  private static List<byte[]> test_tsuids = new ArrayList<byte[]>(7);
+  public static List<byte[]> test_tsuids = new ArrayList<byte[]>(7);
   static {
     test_tsuids.add(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });
     test_tsuids.add(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 2 });
@@ -69,6 +69,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Before
   public void beforeLocal() {
+    storage = new MockBase(tsdb, client, true, true, true, true);
     when(metrics.getIdAsync("no.values"))
       .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 11 }));
     when(metrics.getIdAsync("filtered"))
@@ -77,7 +78,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void metricOnlyMeta() throws Exception {
-    generateMeta();
+    generateMeta(tsdb, storage);
     final SearchQuery query = new SearchQuery(METRIC_STRING);
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
     final List<byte[]> tsuids = lookup.lookup();
@@ -90,7 +91,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   // returns everything
   @Test
   public void metricOnlyMetaStar() throws Exception {
-    generateMeta();
+    generateMeta(tsdb, storage);
     final SearchQuery query = new SearchQuery("*");
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
     final List<byte[]> tsuids = lookup.lookup();
@@ -100,7 +101,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void metricOnlyData() throws Exception {
-    generateData();
+    generateData(tsdb, storage);
     final SearchQuery query = new SearchQuery(METRIC_STRING);
     query.setUseMeta(false);
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
@@ -113,7 +114,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void metricOnly2Meta() throws Exception {
-    generateMeta();
+    generateMeta(tsdb, storage);
     final SearchQuery query = new SearchQuery(METRIC_B_STRING);
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
     final List<byte[]> tsuids = lookup.lookup();
@@ -124,7 +125,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void metricOnly2Data() throws Exception {
-    generateData();
+    generateData(tsdb, storage);
     final SearchQuery query = new SearchQuery(METRIC_B_STRING);
     query.setUseMeta(false);
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);    
@@ -136,7 +137,6 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test (expected = NoSuchUniqueName.class)
   public void noSuchMetricMeta() throws Exception {
-    storage = new MockBase(tsdb, client, true, true, true, true);
     final SearchQuery query = new SearchQuery(NSUN_METRIC);
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
     lookup.lookup();
@@ -144,7 +144,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void metricOnlyNoValuesMeta() throws Exception {
-    generateMeta();
+    generateMeta(tsdb, storage);
     final SearchQuery query = new SearchQuery("no.values");
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
     final List<byte[]> tsuids = lookup.lookup();
@@ -154,7 +154,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void metricOnlyNoValuesData() throws Exception {
-    generateData();
+    generateData(tsdb, storage);
     final SearchQuery query = new SearchQuery("no.values");
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
     query.setUseMeta(false);
@@ -165,7 +165,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void tagkOnlyMeta() throws Exception {
-    generateMeta();
+    generateMeta(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(TAGK_STRING, null));
@@ -181,7 +181,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void tagkOnlyMetaStar() throws Exception {
-    generateMeta();
+    generateMeta(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(TAGK_STRING, "*"));
@@ -197,7 +197,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void tagkOnlyData() throws Exception {
-    generateData();
+    generateData(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(TAGK_STRING, null));
@@ -215,7 +215,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void tagkOnly2Meta() throws Exception {
-    generateMeta();
+    generateMeta(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(TAGK_B_STRING, null));
@@ -230,7 +230,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void tagkOnly2Data() throws Exception {
-    generateData();
+    generateData(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(TAGK_B_STRING, null));
@@ -247,7 +247,6 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test (expected = NoSuchUniqueName.class)
   public void noSuchTagkMeta() throws Exception {
-    storage = new MockBase(tsdb, client, true, true, true, true);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(NSUN_TAGK, null));
@@ -258,7 +257,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void tagvOnlyMeta() throws Exception {
-    generateMeta();
+    generateMeta(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(null, TAGV_STRING));
@@ -275,7 +274,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void tagvOnlyMetaStar() throws Exception {
-    generateMeta();
+    generateMeta(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>("*", TAGV_STRING));
@@ -292,7 +291,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void tagvOnlyData() throws Exception {
-    generateData();
+    generateData(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(null, TAGV_STRING));
@@ -311,7 +310,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void tagvOnly2Meta() throws Exception {
-    generateMeta();
+    generateMeta(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(null, TAGV_B_STRING));
@@ -326,7 +325,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void tagvOnly2Data() throws Exception {
-    generateData();
+    generateData(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(null, TAGV_B_STRING));
@@ -343,7 +342,6 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test (expected = NoSuchUniqueName.class)
   public void noSuchTagvMeta() throws Exception {
-    storage = new MockBase(tsdb, client, true, true, true, true);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(null, NSUN_TAGV));
@@ -354,7 +352,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void metricAndTagkMeta() throws Exception {
-    generateMeta();
+    generateMeta(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(TAGK_STRING, null));
@@ -369,7 +367,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void metricAndTagkMetaStar() throws Exception {
-    generateMeta();
+    generateMeta(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(TAGK_STRING, "*"));
@@ -384,7 +382,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void metricAndTagkData() throws Exception {
-    generateData();
+    generateData(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(TAGK_STRING, null));
@@ -400,7 +398,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void metricAndTagvMeta() throws Exception {
-    generateMeta();
+    generateMeta(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(null, TAGV_B_STRING));
@@ -414,7 +412,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void metricAndTagvMetaStar() throws Exception {
-    generateMeta();
+    generateMeta(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>("*", TAGV_B_STRING));
@@ -428,7 +426,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void metricAndTagvData() throws Exception {
-    generateData();
+    generateData(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(null, TAGV_B_STRING));
@@ -443,7 +441,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void metricAndTagPairMeta() throws Exception {
-    generateMeta();
+    generateMeta(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(TAGK_STRING, TAGV_STRING));
@@ -457,7 +455,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void metricAndTagPairData() throws Exception {
-    generateData();
+    generateData(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(TAGK_STRING, TAGV_STRING));
@@ -473,7 +471,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void tagPairOnlyMeta() throws Exception {
-    generateMeta();
+    generateMeta(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(TAGK_STRING, TAGV_STRING));
@@ -489,7 +487,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void tagPairOnlyData() throws Exception {
-    generateData();
+    generateData(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(TAGK_STRING, TAGV_STRING));
@@ -507,7 +505,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   
   @Test
   public void limitVerification() throws Exception {
-    generateData();
+    generateData(tsdb, storage);
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(TAGK_STRING, TAGV_STRING));
@@ -526,8 +524,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   /**
    * Stores some data in the mock tsdb-meta table for unit testing
    */
-  private void generateMeta() {
-    storage = new MockBase(tsdb, client, true, true, true, true);
+  public static void generateMeta(final TSDB tsdb, final MockBase storage) {
     final List<byte[]> families = new ArrayList<byte[]>(1);
     families.add(TSMeta.FAMILY);
     storage.addTable("tsdb-meta".getBytes(), families);
@@ -542,8 +539,7 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
   /**
    * Stores some data in the mock tsdb data table for unit testing
    */
-  private void generateData() {
-    storage = new MockBase(tsdb, client, true, true, true, true);
+  public static void generateData(final TSDB tsdb, final MockBase storage) {
     storage.setFamily("t".getBytes(MockBase.ASCII()));
     
     final byte[] qual = new byte[] { 0, 0 };
