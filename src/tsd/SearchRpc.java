@@ -13,6 +13,7 @@
 package net.opentsdb.tsd;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,7 @@ import net.opentsdb.search.SearchQuery.SearchType;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Exceptions;
 import net.opentsdb.utils.Pair;
 
@@ -230,7 +232,8 @@ final class SearchRpc implements HttpRpc {
           results.add(series);
           
           series.put("tsuid", UniqueId.uidToString(tsuid));
-          deferreds.add(RowKey.metricNameAsync(tsdb, tsuid)
+          byte[] metric_uid = Arrays.copyOfRange(tsuid, 0, TSDB.metrics_width());
+          deferreds.add(tsdb.getUidName(UniqueIdType.METRIC, metric_uid)
               .addCallback(new MetricCB(series)));
           
           final List<byte[]> tag_ids = UniqueId.getTagPairsFromTSUID(tsuid);
