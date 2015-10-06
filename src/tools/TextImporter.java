@@ -259,6 +259,10 @@ final class TextImporter {
    * @throws IOException when shit happens.
    */
   private static BufferedReader open(final String path) throws IOException {
+    if (path.equals("-")) {
+      return new BufferedReader(new InputStreamReader(System.in));
+    }
+
     InputStream is = new FileInputStream(path);
     if (path.endsWith(".gz")) {
       is = new GZIPInputStream(is);
