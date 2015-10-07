@@ -498,13 +498,13 @@ public class TimeSeriesLookup {
     }
     
     // catch any left over tagk/tag pairs
-    if (index < pairs.size()){
+    if (index < pairs.size()){ // This condition is true whenever the first tagk in the pairs has a null value.
       buf.setLength(0);
       buf.append("(?s)^.{").append(query.useMeta() ? TSDB.metrics_width() : 
         TSDB.metrics_width() + Const.SALT_WIDTH())
          .append("}");
       if (!query.useMeta()) {
-        buf.append("(?:.{").append(Const.TIMESTAMP_BYTES).append("})*");
+	buf.append("(?:.{").append(Const.TIMESTAMP_BYTES).append("})");
       }
       
       ByteArrayPair last_pair = null;
@@ -525,7 +525,7 @@ public class TimeSeriesLookup {
             buf.append(")");
           }
           // moving on to the next tagk set
-          buf.append("(?:.{6})*"); // catch tag pairs in between
+	  buf.append("(?:.{").append(tagsize).append("})*"); // catch tag pairs in between
           buf.append("(?:");
           if (pairs.get(index).getKey() != null && 
               pairs.get(index).getValue() != null) {
@@ -535,7 +535,7 @@ public class TimeSeriesLookup {
           } else {
             buf.append("\\Q");
             QueryUtil.addId(buf, pairs.get(index).getKey(), true);
-            buf.append("(?:.{").append(value_width).append("})+");
+	    buf.append("(?:.{").append(value_width).append("})");
           }
         }
         last_pair = pairs.get(index);

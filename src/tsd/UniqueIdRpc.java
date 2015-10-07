@@ -573,8 +573,9 @@ final class UniqueIdRpc implements HttpRpc {
     try {
     buf.write(tsdb.getUID(UniqueIdType.METRIC, metric));
       for (Entry<String, String> e: sortedTags.entrySet()) {
-        buf.write(tsdb.getUID(UniqueIdType.TAGK, e.getKey()), 0, 3);
-        buf.write(tsdb.getUID(UniqueIdType.TAGV, e.getValue()), 0, 3);
+        // Fix for net.opentsdb.tsd.TestUniqueIdRpc.tsuidPostByM()
+        buf.write(tsdb.getUID(UniqueIdType.TAGK, e.getKey()), 0, TSDB.tagk_width());
+        buf.write(tsdb.getUID(UniqueIdType.TAGV, e.getValue()), 0, TSDB.tagv_width());
       }
     } catch (IOException e) {
       throw new BadRequestException(e);
