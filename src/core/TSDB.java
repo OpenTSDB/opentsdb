@@ -1115,6 +1115,52 @@ public final class TSDB {
     }
   }
   
+  /**
+   * Attempts to rename a UID from existing name to the given name
+   * Used by the UniqueIdRpc call to rename name of existing metrics, tagks or
+   * tagvs. The name must pass validation. If the UID doesn't exist, the method
+   * will throw an error. Chained IllegalArgumentException is directly exposed
+   * to caller. If the rename was successful, this method returns.
+   * @param type The type of uid to rename, one of metric, tagk and tagv
+   * @param oldname The existing name of the uid object
+   * @param newname The new name to be used on the uid object
+   * @throws IllegalArgumentException if error happened
+   * @since 2.2
+   */
+  public void renameUid(final String type, final String oldname,
+      final String newname) {
+    Tags.validateString(type, oldname);
+    Tags.validateString(type, newname);
+    if (type.toLowerCase().equals("metric")) {
+      try {
+        this.metrics.getId(oldname);
+        this.metrics.rename(oldname, newname);
+      } catch (NoSuchUniqueName nsue) {
+        throw new IllegalArgumentException("Name(\"" + oldname +
+            "\") does not exist");
+      }
+    } else if (type.toLowerCase().equals("tagk")) {
+      try {
+        this.tag_names.getId(oldname);
+        this.tag_names.rename(oldname, newname);
+      } catch (NoSuchUniqueName nsue) {
+        throw new IllegalArgumentException("Name(\"" + oldname +
+            "\") does not exist");
+      }
+    } else if (type.toLowerCase().equals("tagv")) {
+      try {
+        this.tag_values.getId(oldname);
+        this.tag_values.rename(oldname, newname);
+      } catch (NoSuchUniqueName nsue) {
+        throw new IllegalArgumentException("Name(\"" + oldname +
+            "\") does not exist");
+      }
+    } else {
+      LOG.warn("Unknown type name: " + type);
+      throw new IllegalArgumentException("Unknown type name");
+    }
+  }
+
   /** @return the name of the UID table as a byte array for client requests */
   public byte[] uidTable() {
     return this.uidtable;

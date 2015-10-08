@@ -27,6 +27,7 @@ import net.opentsdb.utils.Config;
 
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
+import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
@@ -1063,6 +1064,82 @@ public final class TestUniqueId {
   }
 
   @Test
+  public void rename() throws Exception {
+    uid = new UniqueId(client, table, METRIC, 3);
+    final byte[] foo_id = { 0, 'a', 0x42 };
+    final byte[] foo_name = { 'f', 'o', 'o' };
+
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(foo_name, ID, METRIC_ARRAY, foo_id));
+    when(client.get(anyGet()))
+        .thenReturn(Deferred.fromResult(kvs))
+        .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+    when(client.put(anyPut())).thenAnswer(answerTrue());
+    when(client.delete(anyDelete())).thenAnswer(answerTrue());
+
+    uid.rename("foo", "bar");
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void renameNewNameExists() throws Exception {
+    uid = new UniqueId(client, table, METRIC, 3);
+    final byte[] foo_id = { 0, 'a', 0x42 };
+    final byte[] foo_name = { 'f', 'o', 'o' };
+    final byte[] bar_id = { 1, 'b', 0x43 };
+    final byte[] bar_name = { 'b', 'a', 'r' };
+
+    ArrayList<KeyValue> foo_kvs = new ArrayList<KeyValue>(1);
+    ArrayList<KeyValue> bar_kvs = new ArrayList<KeyValue>(1);
+    foo_kvs.add(new KeyValue(foo_name, ID, METRIC_ARRAY, foo_id));
+    bar_kvs.add(new KeyValue(bar_name, ID, METRIC_ARRAY, bar_id));
+    when(client.get(anyGet()))
+        .thenReturn(Deferred.fromResult(foo_kvs))
+        .thenReturn(Deferred.fromResult(bar_kvs));
+    when(client.put(anyPut())).thenAnswer(answerTrue());
+    when(client.delete(anyDelete())).thenAnswer(answerTrue());
+
+    uid.rename("foo", "bar");
+  }
+
+  @Test (expected = IllegalStateException.class)
+  public void renameRaceCondition() throws Exception {
+    // Simulate a race between client A(default) and client B.
+    // A and B rename same UID to different name.
+    // B waits till A start to invoke PutRequest to start.
+
+    uid = new UniqueId(client, table, METRIC, 3);
+    HBaseClient client_b = mock(HBaseClient.class);
+    final UniqueId uid_b = new UniqueId(client_b, table, METRIC, 3);
+
+    final byte[] foo_id = { 0, 'a', 0x42 };
+    final byte[] foo_name = { 'f', 'o', 'o' };
+
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(foo_name, ID, METRIC_ARRAY, foo_id));
+
+    when(client_b.get(anyGet()))
+        .thenReturn(Deferred.fromResult(kvs))
+        .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+    when(client_b.put(anyPut())).thenAnswer(answerTrue());
+    when(client_b.delete(anyDelete())).thenAnswer(answerTrue());
+
+    final Answer<Deferred<Boolean>> the_race = new Answer<Deferred<Boolean>>() {
+      public Deferred<Boolean> answer(final InvocationOnMock inv) throws Exception {
+        uid_b.rename("foo", "xyz");
+        return Deferred.fromResult(true);
+      }
+    };
+
+    when(client.get(anyGet()))
+        .thenReturn(Deferred.fromResult(kvs))
+        .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+    when(client.put(anyPut())).thenAnswer(the_race);
+    when(client.delete(anyDelete())).thenAnswer(answerTrue());
+
+    uid.rename("foo", "bar");
+  }
+
+  @Test
   public void deleteCached() throws Exception {
     setupStorage();
     uid = new UniqueId(client, table, METRIC, 3);
@@ -1220,6 +1297,18 @@ public final class TestUniqueId {
     return any(PutRequest.class);
   }
   
+  private static DeleteRequest anyDelete() {
+    return any(DeleteRequest.class);
+  }
+
+  private static Answer<Deferred<Boolean>> answerTrue() {
+    return new Answer<Deferred<Boolean>>() {
+      public Deferred<Boolean> answer(final InvocationOnMock inv) {
+        return Deferred.fromResult(true);
+      }
+    };
+  }
+
   @SuppressWarnings("unchecked")
   private static Callback<byte[], ArrayList<KeyValue>> anyByteCB() {
     return any(Callback.class);

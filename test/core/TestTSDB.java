@@ -401,6 +401,52 @@ public final class TestTSDB extends BaseTsdbTest {
     tsdb.assignUid("metric", "Not!A:Valid@Name");
   }
   
+  @Test (expected = IllegalArgumentException.class)
+  public void renameUidInvalidNewname() {
+    tsdb.renameUid("metric", "existing", null);
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void renameUidNonexistentMetric() {
+    when(metrics.getId("sys.cpu.1")).thenThrow(
+        new NoSuchUniqueName("metric", "sys.cpu.1"));
+    tsdb.renameUid("metric", "sys.cpu.1", "sys.cpu.2");
+  }
+
+  @Test
+  public void renameUidMetric() {
+    tsdb.renameUid("metric", "sys.cpu.1", "sys.cpu.2");
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void renameUidNonexistentTagk() {
+    when(tag_names.getId("datacenter")).thenThrow(
+        new NoSuchUniqueName("tagk", "datacenter"));
+    tsdb.renameUid("tagk", "datacenter", "datacluster");
+  }
+
+  @Test
+  public void renameUidTagk() {
+    tsdb.renameUid("tagk", "datacenter", "datacluster");
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void renameUidNonexistentTagv() {
+    when(tag_values.getId("localhost")).thenThrow(
+        new NoSuchUniqueName("tagv", "localhost"));
+    tsdb.renameUid("tagv", "localhost", "127.0.0.1");
+  }
+
+  @Test
+  public void renameUidTagv() {
+    tsdb.renameUid("tagv", "localhost", "127.0.0.1");
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void renameUidBadType() {
+    tsdb.renameUid("wrongtype", METRIC_STRING, METRIC_STRING);
+  }
+
   @Test
   public void uidTable() {
     assertNotNull(tsdb.uidTable());
