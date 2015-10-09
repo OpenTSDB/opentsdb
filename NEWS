@@ -1,5 +1,14 @@
 OpenTSDB - User visible changes.
 
+* Version 2.1.2 (2015-11-09)
+
+Bug Fixes:
+  - Fix the built-in UI to handle query parameter parsing properly (found when Firefox 
+    changed their URI behavior)
+  - Fix comments about the Zookeeper quorum setting in various config files.
+  - Fix quoting in the Makefile when installing.
+  - Make sure builds write files in the proper location on FreeBSD.
+
 * Version 2.1.1 (2015-09-12)
 
 Bug Fixes:
