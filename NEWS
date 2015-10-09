@@ -1,5 +1,19 @@
 OpenTSDB - User visible changes.
 
+* Version 2.2.0 RC2 (2015-11-09)
+
+Noteworthy Changes:
+  - Allow overriding the metric and tag UID widths via config file instead of
+    having to modify the source code.
+
+Bug Fixes:
+  - OOM handling script now handles multiple TSDs installed on the same host.
+  - Fix a bug where queries never return if an exception is thrown from the
+    storage layer.
+  - Fix random metric UID assignment in the CLI tool.
+  - Fix for meta data sync when salting is enabled.
+  - 
+
 * Version 2.2.0 RC1 (2015-09-12)
 
 Noteworthy Changes:
@@ -48,6 +62,15 @@ Bug Fixes:
   - Fix more issues with the FSCK around deleting columns that were in the list (#436)
   - Avoid OOM issues over Telnet when the sending client isn't reading errors off it's
     socket fast enough by blocking writes.
+
+* Version 2.1.2 (2015-11-09)
+
+Bug Fixes:
+  - Fix the built-in UI to handle query parameter parsing properly (found when Firefox 
+    changed their URI behavior)
+  - Fix comments about the Zookeeper quorum setting in various config files.
+  - Fix quoting in the Makefile when installing.
+  - Make sure builds write files in the proper location on FreeBSD.
 
 * Version 2.1.1 (2015-09-12)
 
