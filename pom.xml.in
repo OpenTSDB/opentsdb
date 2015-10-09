@@ -365,9 +365,10 @@
     </dependency>
 
     <dependency>
-      <groupId>org.hbase</groupId>
-      <artifactId>asynchbase</artifactId>
-      <version>@ASYNCHBASE_VERSION@</version>
+      <groupId>com.pythian.opentsdb</groupId>
+      <artifactId>asyncbigtable</artifactId>
+      <version>@ASYNCBIGTABLE_VERSION@</version>
+      <classifier>jar-with-dependencies</classifier>
     </dependency>
 
     <!-- runtime dependencies -->
