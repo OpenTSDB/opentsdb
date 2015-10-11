@@ -103,6 +103,7 @@ final class BatchedDataPoints implements WritableDataPoints {
     IncomingDataPoints.checkMetricAndTags(metric, tags);
     try {
       row_key = IncomingDataPoints.rowKeyTemplate(tsdb, metric, tags);
+      RowKey.prefixKeyWithSalt(row_key);
       reset();
     }
     catch (RuntimeException e) {
@@ -222,7 +223,8 @@ final class BatchedDataPoints implements WritableDataPoints {
      */
     if (base_time == Long.MIN_VALUE) {
       base_time = incomingBaseTime;
-      Bytes.setInt(row_key, (int) base_time, tsdb.metrics.width());
+      Bytes.setInt(row_key, (int) base_time, 
+          tsdb.metrics.width() + Const.SALT_WIDTH());
     }
 
     if (incomingBaseTime - base_time >= Const.MAX_TIMESPAN) {
@@ -302,7 +304,8 @@ final class BatchedDataPoints implements WritableDataPoints {
     if (row_key == null) {
       throw new IllegalStateException("Instance was not properly constructed!");
     }
-    final byte[] id = Arrays.copyOfRange(row_key, 0, tsdb.metrics.width());
+    final byte[] id = Arrays.copyOfRange(row_key, 0, 
+        tsdb.metrics.width() + Const.SALT_WIDTH());
     return tsdb.metrics.getNameAsync(id);
   }
 

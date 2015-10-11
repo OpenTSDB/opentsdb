@@ -201,6 +201,7 @@ final class IncomingDataPoints implements WritableDataPoints {
     checkMetricAndTags(metric, tags);
     try {
       row = rowKeyTemplate(tsdb, metric, tags);
+      RowKey.prefixKeyWithSalt(row);
     } catch (RuntimeException e) {
       throw e;
     } catch (Exception e) {
@@ -242,6 +243,8 @@ final class IncomingDataPoints implements WritableDataPoints {
     // internal datastructures.
     row = Arrays.copyOf(row, row.length);
     Bytes.setInt(row, (int) base_time, tsdb.metrics.width());
+    RowKey.prefixKeyWithSalt(row); // in case the timestamp will be involved in
+                                   // salting later
     tsdb.scheduleForCompaction(row, (int) base_time);
     return base_time;
   }
@@ -343,7 +346,7 @@ final class IncomingDataPoints implements WritableDataPoints {
 
   /** Extracts the base timestamp from the row key. */
   private long baseTime() {
-    return Bytes.getUnsignedInt(row, tsdb.metrics.width());
+    return Bytes.getUnsignedInt(row, Const.SALT_WIDTH() + tsdb.metrics.width());
   }
 
   public Deferred<Object> addPoint(final long timestamp, final long value) {
