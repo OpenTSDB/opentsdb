@@ -37,6 +37,7 @@ import net.opentsdb.utils.Pair;
 public final class Tags {
 
   private static final Logger LOG = LoggerFactory.getLogger(Tags.class);
+  private static String allowSpecialChars = "";
 
   private Tags() {
     // Can't create instances of this utility class.
@@ -547,7 +548,7 @@ public final class Tags {
       final char c = s.charAt(i);
       if (!(('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') 
           || ('0' <= c && c <= '9') || c == '-' || c == '_' || c == '.' 
-          || c == '/' || Character.isLetter(c))) {
+          || c == '/' || Character.isLetter(c) || isAllowSpecialChars(c))) {
         throw new IllegalArgumentException("Invalid " + what
             + " (\"" + s + "\"): illegal character: " + c);
       }
@@ -808,4 +809,20 @@ public final class Tags {
     return true;
   }
 
+  /**
+   * Set the special characters due to allowing for a key or a value of the tag.
+   * @param characters character sequences as a string
+   */
+  public static void setAllowSpecialChars(String characters) {
+    allowSpecialChars = characters == null ? "" : characters;
+  }
+
+  /**
+   * Returns true if the character can be used a tag name or a tag value.
+   * @param character
+   * @return
+   */
+  static boolean isAllowSpecialChars(char character) {
+    return allowSpecialChars.indexOf(character) != -1;
+  }
 }

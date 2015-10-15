@@ -230,6 +230,10 @@ public final class TSDB {
       UniqueId.preloadUidCache(this, uid_cache_map);
     }
     
+    if (config.getString("tsd.core.tag.allow_specialchars") != null) {
+      Tags.setAllowSpecialChars(config.getString("tsd.core.tag.allow_specialchars"));
+    }
+    
     // load up the functions that require the TSDB object
     ExpressionFactory.addTSDBFunctions(this);
     

@@ -942,4 +942,20 @@ public final class TestTags {
     final ByteMap<byte[]> uids = Tags.getTagUids(new byte[] {});
     assertEquals(0, uids.size());
   }
+
+  @Test
+  public void setAllowSpecialChars() throws Exception {
+    assertFalse(Tags.isAllowSpecialChars('!'));
+
+    Tags.setAllowSpecialChars(null);
+    assertFalse(Tags.isAllowSpecialChars('!'));
+
+    Tags.setAllowSpecialChars("");
+    assertFalse(Tags.isAllowSpecialChars('!'));
+
+    Tags.setAllowSpecialChars("!)(%");
+    assertTrue(Tags.isAllowSpecialChars('!'));
+    assertTrue(Tags.isAllowSpecialChars('('));
+    assertTrue(Tags.isAllowSpecialChars('%'));
+  }
 }
