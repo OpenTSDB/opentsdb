@@ -743,7 +743,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
   }
 
   private void refreshFromQueryString() {
-    final QueryString qs = getQueryString(History.getToken());
+    final QueryString qs = getQueryString(URL.decode(History.getToken()));
 
     maybeSetTextbox(qs, "start", start_datebox.getTextBox());
     maybeSetTextbox(qs, "end", end_datebox.getTextBox());
@@ -909,7 +909,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
           if (autoreload.getValue()) {
             history += "&autoreload=" + autoreoload_interval.getText();
           }
-          if (!history.equals(History.getToken())) {
+          if (!history.equals(URL.decode(History.getToken()))) {
             History.newItem(history, false);
           }
 
