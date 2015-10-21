@@ -57,9 +57,7 @@ public final class Bytes {
    */
   public static byte[] createMaxByteArray(int num_bytes) {
     byte[] max_byte_arr = new byte[num_bytes];
-    for (int i = 0; i < max_byte_arr.length; i++) {
-      max_byte_arr[i] = (byte) 0xff;
-    }
+    Arrays.fill(max_byte_arr, (byte) 0xff);
     return max_byte_arr;
   }
 
