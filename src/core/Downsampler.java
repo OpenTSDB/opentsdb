@@ -13,6 +13,7 @@
 package net.opentsdb.core;
 
 import java.util.NoSuchElementException;
+import java.util.TimeZone;
 
 
 /**
@@ -193,7 +194,8 @@ public class Downsampler implements SeekableView, DataPoint {
 
     /** Returns timestamp aligned by interval. */
     private long alignTimestamp(long timestamp) {
-      return timestamp - (timestamp % interval_ms);
+      long tzOffset = TimeZone.getDefault().getRawOffset();
+      return timestamp - ((timestamp + tzOffset) % interval_ms);
     }
 
     // ---------------------- //
