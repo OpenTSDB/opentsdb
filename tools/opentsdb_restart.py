@@ -8,8 +8,11 @@ This is known to work with python2.6 and above.
 import os
 import subprocess
 
+service_name = "opentsdb"
+if 'NAME' in os.environ:
+    service_name = os.environ['NAME']
 
-subprocess.call(["service", "opentsdb", "stop"])
+subprocess.call(["service", service_name, "stop"])
 # Close any file handles we inherited from our parent JVM. We need
 # to do this before restarting so that the socket isn't held open.
 openfiles = [int(f) for f in os.listdir("/proc/self/fd")]
@@ -17,4 +20,4 @@ openfiles = [int(f) for f in os.listdir("/proc/self/fd")]
 # that there is less chance of errors with those standard streams.
 # Other files start at fd 3.
 os.closerange(3, max(openfiles))
-subprocess.call(["service", "opentsdb", "start"])
+subprocess.call(["service", service_name, "start"])
