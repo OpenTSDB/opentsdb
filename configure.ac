@@ -24,6 +24,16 @@ AC_CONFIG_FILES([
 AC_CONFIG_FILES([opentsdb.spec])
 AC_CONFIG_FILES([build-aux/fetchdep.sh], [chmod +x build-aux/fetchdep.sh])
 
+AC_ARG_WITH([bigtable],
+            [AS_HELP_STRING([--with-bigtable], [enable bigtable backend])],
+            [with_bigtable=yes],
+            [with_bigtable=no])
+
+AS_IF([test "x$with_bigtable" = "xyes"],
+  [AM_CONDITIONAL(BIGTABLE, true)],
+  [AM_CONDITIONAL(BIGTABLE, false)]
+)
+
 TSDB_FIND_PROG([md5], [md5sum md5 gmd5sum digest])
 if test x`basename "$MD5"` = x'digest'; then
   MD5='digest -a md5'

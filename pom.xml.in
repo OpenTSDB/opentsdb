@@ -365,6 +365,12 @@
     </dependency>
 
     <dependency>
+      <groupId>org.hbase</groupId>
+      <artifactId>asynchbase</artifactId>
+      <version>@ASYNCHBASE_VERSION@</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.pythian.opentsdb</groupId>
       <artifactId>asyncbigtable</artifactId>
       <version>@ASYNCBIGTABLE_VERSION@</version>
