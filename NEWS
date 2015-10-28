@@ -1,11 +1,81 @@
 OpenTSDB - User visible changes.
 
-* Version 2.1.0 RC1 (2015-04-04)
+* Version 2.2.0 RC1 (2015-09-12)
+
+Noteworthy Changes:
+  - Add the option to randomly assign UIDs to metrics to improve distribution across
+    HBase region servers.
+  - Introduce salting of data to improve distribution of high cardinality regions
+    across region servers.
+  - Introduce query stats for tracking various timings related to TSD queries.
+  - Add more stats endpoints including /threads, /jvm and /region_clients
+  - Allow for deleting UID mappings via CLI or the API
+  - Name the various threads for easier debugging, particularly for distinguishing
+    between TSD and AsyncHBase threads.
+  - Allow for pre-fetching all of the meta information for the tables to improve
+    performance.
+  - Update to the latest AsyncHBase with support for secure HBase clusters and RPC
+    timeouts.
+  - Allow for overriding metric and tag widths via the config file. (Be careful!)
+  - URLs from the API are now relative instead of absolute, allowing for easier reverse
+    proxy use.
+  - Allow for percent deviation in the Nagios check
+  - Let queries skip over unknown tag values that may not exist yet (via config)
+  - Add various query filters such as case (in)sensitive pipes, wildcards and pipes
+    over tag values. Filters do not work over metrics at this time.
+  - Add support for writing data points using Appends in HBase as a way of writing
+    compacted data without having to read and re-write at the top of each hour.
+  - Introduce an option to emit NaNs or Nulls in the JSON output when downsampling and
+    a bucket is missing values.
+  - Introduce query time flags to show the original query along with some timing stats
+    in the response.
+  - Introduce a storage exception handler plugin that will allow users to spool or
+    requeue data points that fail writes to HBase due to various issues.
+  - Rework the HTTP pipeline to support plugins with RPC implementations.
+  - Allow for some style options in the Gnuplot graphs.
+  - Allow for timing out long running HTTP queries.
+  - Text importer will now log and continue bad rows instead of failing.
+  - New percentile and count aggregators.
+  - Add the /api/annotations endpoint to fetch multiple annotations in one call.
+  - Add a class to support improved bulk imports by batching requests in memory for a 
+    full hour before writing.
+  
+Bug Fixes:
+  - Modify the .rpm build to allow dashes in the name.
+  - Allow the Nagios check script to handle 0 values properly in checks.
+  - Fix FSCK where floating point values were not processed correctly (#430)
+  - Fix missing information from the /appi/uid/tsmeta calls (#498)
+  - Fix more issues with the FSCK around deleting columns that were in the list (#436)
+  - Avoid OOM issues over Telnet when the sending client isn't reading errors off it's
+    socket fast enough by blocking writes.
+
+* Version 2.1.1 (2015-09-12)
+
+Bug Fixes:
+  - Relax the pgrep regex to correctly find and kill the java process in the RPM init.d
+    script.
+  - Improve query performance slightly when aggregating multiple series.
+  - Fix the /api/search/lookup API call to properly handle the limit parameter.
+  - Fix the /api/query/last endpoint to properly handle missing tsdb-meta tables.
+
+* Version 2.1.0 (2015-05-06)
+
+Bug Fixes:
+  - FSCK was not handling compacted and floating point duplicates properly. Now they 
+    are merged correctly.
+  - TSMeta data updates were not loading the latest data from storage on response
+  - The config class will now trim spaces from booleans and integers
+  - On shutdown, the idle state handler could prevent the TSD from shutting down
+    gracefully. A new thread factory sets that thread as a daemon thread.
+  - TSMeta objects were not generated if multiple writes for the same data point arrived
+    in succession due to buffering atomic increments. Increments are no longer buffered.
+  - Updated paths to the deprecated Google Code repo for dependencies.
+
+* Version 2.1.0 RC2 (2015-04-04)
 
 Noteworthy Changes:
   - Handle idle connections in Netty by closing them after some period of inactivity
   - Support compressed HTTP responses
-  - 
 
 Bug Fixes:
   - Various RPM script and package fixes

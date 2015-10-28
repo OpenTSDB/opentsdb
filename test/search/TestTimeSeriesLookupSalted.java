@@ -10,21 +10,31 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+package net.opentsdb.search;
 
+import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.uid.UniqueId;
+import net.opentsdb.utils.Config;
+
+import org.hbase.async.HBaseClient;
+import org.hbase.async.KeyValue;
+import org.hbase.async.Scanner;
 import org.junit.Before;
+import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
-import org.powermock.reflect.Whitebox;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
-public class TestTsdbQuerySaltedAppend extends TestTsdbQueryQueries {
-  
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
+  KeyValue.class, Scanner.class, TimeSeriesLookup.class, Const.class })
+public class TestTimeSeriesLookupSalted extends TestTimeSeriesLookup {
+
   @Before
-  public void beforeLocal() { 
-    Whitebox.setInternalState(config, "enable_appends", true);
+  public void beforeLocalSalted() throws Exception {
     PowerMockito.mockStatic(Const.class);
     PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
-    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(2);
-    PowerMockito.when(Const.MAX_NUM_TAGS()).thenReturn((short) 8);
-    query = new TsdbQuery(tsdb);
+    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(4);
   }
 }
