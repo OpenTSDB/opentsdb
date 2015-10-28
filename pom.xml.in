@@ -484,7 +484,6 @@
     </profile>
   </profiles>
 
-
   <parent>
     <groupId>org.sonatype.oss</groupId>
     <artifactId>oss-parent</artifactId>
