@@ -129,11 +129,17 @@ if BIGTABLE
 tsdb_DEPS += \
 	$(ALPN_BOOT)	\
 	$(ASYNCBIGTABLE)
+
+maven_profile_bigtable := true
+maven_profile_hbase := false
 else
 tsdb_DEPS += \
 	$(ASYNCHBASE) \
 	$(PROTOBUF) \
 	$(ZOOKEEPER)
+
+maven_profile_bigtable := false
+maven_profile_hbase := true
 endif
 
 test_SRC := \
@@ -606,6 +612,8 @@ pom.xml: pom.xml.in Makefile
 	    -e 's/@spec_title@/$(spec_title)/' \
 	    -e 's/@spec_vendor@/$(spec_vendor)/' \
 	    -e 's/@spec_version@/$(PACKAGE_VERSION)/' \
+	    -e 's/@maven_profile_hbase@/$(maven_profile_hbase)/' \
+	    -e 's/@maven_profile_bigtable@/$(maven_profile_bigtable)/' \
 	    ; \
 	} >$@-t
 	mv $@-t ../$@
