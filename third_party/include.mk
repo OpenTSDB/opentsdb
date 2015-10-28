@@ -21,7 +21,6 @@ THIRD_PARTY =
 include third_party/guava/include.mk
 include third_party/gwt/include.mk
 include third_party/hamcrest/include.mk
-include third_party/hbase/include.mk
 include third_party/jackson/include.mk
 include third_party/javassist/include.mk
 include third_party/junit/include.mk
@@ -30,8 +29,15 @@ include third_party/mockito/include.mk
 include third_party/netty/include.mk
 include third_party/objenesis/include.mk
 include third_party/powermock/include.mk
-include third_party/protobuf/include.mk
 include third_party/slf4j/include.mk
 include third_party/suasync/include.mk
 include third_party/validation-api/include.mk
+
+if BIGTABLE
+include third_party/alpn-boot/include.mk
+include third_party/asyncbigtable/include.mk
+else
+include third_party/hbase/include.mk
+include third_party/protobuf/include.mk
 include third_party/zookeeper/include.mk
+endif
