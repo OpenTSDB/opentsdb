@@ -403,7 +403,7 @@ public class TimeSeriesLookup {
         key = metric_uid;
       } else {
         key = new byte[Const.SALT_WIDTH() + TSDB.metrics_width()];
-        key[0] = (byte)salt;
+        System.arraycopy(RowKey.getSaltBytes(salt), 0, key, 0, Const.SALT_WIDTH());
         System.arraycopy(metric_uid, 0, key, Const.SALT_WIDTH(), metric_uid.length);
       }
       scanner.setStartKey(key);
@@ -416,7 +416,7 @@ public class TimeSeriesLookup {
           key = UniqueId.longToUID(uid, TSDB.metrics_width());
         } else {
           key = new byte[Const.SALT_WIDTH() + TSDB.metrics_width()];
-          key[0] = (byte)salt;
+          System.arraycopy(RowKey.getSaltBytes(salt), 0, key, 0, Const.SALT_WIDTH());
           System.arraycopy(UniqueId.longToUID(uid, TSDB.metrics_width()), 0, 
               key, Const.SALT_WIDTH(), metric_uid.length);
         }

@@ -392,7 +392,7 @@ final class MetaSync extends Thread {
           
           // now process the UID metric meta data
           final byte[] metric_uid_bytes = 
-            Arrays.copyOfRange(tsuid, 0, Const.SALT_WIDTH() + TSDB.metrics_width()); 
+            Arrays.copyOfRange(tsuid, 0, TSDB.metrics_width());
           final String metric_uid = UniqueId.uidToString(metric_uid_bytes);
           Long last_get = metric_uids.get(metric_uid);
           
