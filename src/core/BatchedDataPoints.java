@@ -304,7 +304,7 @@ final class BatchedDataPoints implements WritableDataPoints {
     if (row_key == null) {
       throw new IllegalStateException("Instance was not properly constructed!");
     }
-    final byte[] id = Arrays.copyOfRange(row_key, 0, 
+    final byte[] id = Arrays.copyOfRange(row_key, Const.SALT_WIDTH(),
         tsdb.metrics.width() + Const.SALT_WIDTH());
     return tsdb.metrics.getNameAsync(id);
   }
