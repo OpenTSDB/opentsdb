@@ -112,11 +112,6 @@ then
   USE_BIGTABLE=1
   echo "Running OpenTSDB with Bigtable support"
 
-  test -n "$HBASE_CONF" || {
-    echo >&2 'The environment variable HBASE_CONF must be set'
-    exit 1
-  }
-
   ALPN_BOOT_JAR=$(find $localdir -name alpn-boot\*.jar)
   exec $JAVA $JVMARGS -classpath "$CLASSPATH:$HBASE_CONF" -Xbootclasspath/p:$ALPN_BOOT_JAR net.opentsdb.tools.$MAINCLASS "$@"
 else
