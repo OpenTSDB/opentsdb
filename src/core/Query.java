@@ -105,7 +105,7 @@ public interface Query {
    * to run asynchronously and use different scanners, we can allow different 
    * TSUIDs.
    * <b>Note:</b> This method will not check to determine if the TSUIDs are 
-   * valid, since that wastes time and we *assume* that the user provides TUSIDs
+   * valid, since that wastes time and we *assume* that the user provides TSUIDs
    * that are up to date.
    * @param tsuids A list of one or more TSUIDs to scan for
    * @param function The aggregation function to use on results
@@ -125,7 +125,7 @@ public interface Query {
    * to run asynchronously and use different scanners, we can allow different 
    * TSUIDs.
    * <b>Note:</b> This method will not check to determine if the TSUIDs are 
-   * valid, since that wastes time and we *assume* that the user provides TUSIDs
+   * valid, since that wastes time and we *assume* that the user provides TSUIDs
    * that are up to date.
    * @param tsuids A list of one or more TSUIDs to scan for
    * @param function The aggregation function to use on results
