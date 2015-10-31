@@ -12,7 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.expression;
 
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -24,68 +24,109 @@ import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.SeekableView;
 import net.opentsdb.meta.Annotation;
 
-import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
 
+/**
+ * A class to store an array of data points processed through expressions along
+ * with the original meta data of the result set (metric, tags, etc).
+ * @since 2.3
+ */
 public class PostAggregatedDataPoints implements DataPoints {
 
-  private final DataPoints baseDataPoints;
+  /** The original results from storage, used for fetching meta data */
+  private final DataPoints base_data_points;
+  
+  /** The results of the expression calculation */
   private final DataPoint[] points;
 
+  /** An optional alias for the results */
   private String alias = null;
 
-  public PostAggregatedDataPoints(DataPoints baseDataPoints, DataPoint[] points) {
-    this.baseDataPoints = baseDataPoints;
+  /**
+   * Default ctor
+   * @param base_data_points The original results from storage for fetching meta
+   * @param points The results of the expression calculation
+   */
+  public PostAggregatedDataPoints(final DataPoints base_data_points, 
+      final DataPoint[] points) {
+    if (base_data_points == null) {
+      throw new IllegalArgumentException("base_data_points cannot be null");
+    }
+    if (points == null) {
+      throw new IllegalArgumentException("points cannot be null");
+    }
+    this.base_data_points = base_data_points;
     this.points = points;
   }
 
   @Override
   public String metricName() {
-    if (alias != null) return alias;
-    else return baseDataPoints.metricName();
+    if (alias != null) {
+      return alias;
+    } else {
+      return base_data_points.metricName();
+    }
   }
 
   @Override
   public Deferred<String> metricNameAsync() {
-    if (alias != null) return Deferred.fromResult(alias);
-    return baseDataPoints.metricNameAsync();
+    if (alias != null) {
+      return Deferred.fromResult(alias);
+    }
+    return base_data_points.metricNameAsync();
   }
 
   @Override
   public Map<String, String> getTags() {
-    if (alias != null) return Maps.newHashMap();
-    else return baseDataPoints.getTags();
+    if (alias != null) {
+      return Collections.<String, String>emptyMap();
+    } else {
+      return base_data_points.getTags();
+    }
   }
 
   @Override
   public Deferred<Map<String, String>> getTagsAsync() {
-    Map<String, String> def = new HashMap<String, String>();
-    if (alias != null) return Deferred.fromResult(def);
-    return baseDataPoints.getTagsAsync();
+    if (alias != null) {
+      return Deferred.fromResult(Collections.<String, String>emptyMap());
+    }
+    return base_data_points.getTagsAsync();
   }
 
   @Override
   public List<String> getAggregatedTags() {
-    return baseDataPoints.getAggregatedTags();
-  }
-
-  public void setAlias(String alias) {
-    this.alias = alias;
+    if (alias != null) {
+      return Collections.<String>emptyList();
+    }
+    return base_data_points.getAggregatedTags();
   }
 
   @Override
   public Deferred<List<String>> getAggregatedTagsAsync() {
-    return baseDataPoints.getAggregatedTagsAsync();
+    if (alias != null) {
+      return Deferred.fromResult(Collections.<String>emptyList());
+    }
+    return base_data_points.getAggregatedTagsAsync();
   }
 
   @Override
   public List<String> getTSUIDs() {
-    return baseDataPoints.getTSUIDs();
+    return base_data_points.getTSUIDs();
   }
 
   @Override
   public List<Annotation> getAnnotations() {
-    return baseDataPoints.getAnnotations();
+    return base_data_points.getAnnotations();
+  }
+  
+  @Override
+  public ByteMap<byte[]> getTagUids() {
+    return base_data_points.getTagUids();
+  }
+
+  @Override
+  public int getQueryIndex() {
+    return base_data_points.getQueryIndex();
   }
 
   @Override
@@ -122,13 +163,17 @@ public class PostAggregatedDataPoints implements DataPoints {
   public double doubleValue(int i) {
     return points[i].doubleValue();
   }
-
+  
+  /**
+   * An iterator working over the data points resulting from the expression
+   * calculation.
+   */
   static class SeekableViewImpl implements SeekableView {
 
-    private int pos=0;
+    private int pos = 0;
     private final DataPoint[] dps;
-
-    public SeekableViewImpl(DataPoint[] dps) {
+    
+    SeekableViewImpl(final DataPoint[] dps) {
       this.dps = dps;
     }
 
@@ -142,18 +187,18 @@ public class PostAggregatedDataPoints implements DataPoints {
       if (hasNext()) {
         return dps[pos++];
       } else {
-        throw new NoSuchElementException("tsdb uses exceptions to determine end of iterators");
+        throw new NoSuchElementException("no more elements");
       }
     }
 
     @Override
     public void remove() {
-      throw new RuntimeException("Not supported exception");
+      throw new UnsupportedOperationException();
     }
 
     @Override
     public void seek(long timestamp) {
-      for (int i=pos; i<dps.length; i++) {
+      for (int i = pos; i < dps.length; i++) {
         if (dps[i].timestamp() >= timestamp) {
           break;
         } else {
@@ -163,14 +208,9 @@ public class PostAggregatedDataPoints implements DataPoints {
     }
   }
 
-  @Override
-  public ByteMap<byte[]> getTagUids() {
-    return baseDataPoints.getTagUids();
+  /** @param alias The alias to set for the time series. Used in place of
+   * the metric and nulls out all tags. */
+  public void setAlias(String alias) {
+    this.alias = alias;
   }
-
-  @Override
-  public int getQueryIndex() {
-    return baseDataPoints.getQueryIndex();
-  }
-
 }
