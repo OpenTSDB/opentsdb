@@ -37,6 +37,13 @@ include third_party/apache/include.mk
 if BIGTABLE
 include third_party/alpn-boot/include.mk
 include third_party/asyncbigtable/include.mk
+ASYNCCASSANDRA_VERSION = 0.0
+ASYNCHBASE_VERSION = 0.0
+ZOOKEEPER_VERSION = 0.0
+else
+if CASSANDRA
+include third_party/asynccassandra/include.mk
+ASYNCBIGTABLE_VERSION = 0.0
 ASYNCHBASE_VERSION = 0.0
 ZOOKEEPER_VERSION = 0.0
 else
@@ -44,4 +51,6 @@ include third_party/hbase/include.mk
 include third_party/protobuf/include.mk
 include third_party/zookeeper/include.mk
 ASYNCBIGTABLE_VERSION = 0.0
+ASYNCCASSANDRA_VERSION = 0.0
+endif
 endif

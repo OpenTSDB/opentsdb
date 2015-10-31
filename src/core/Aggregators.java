@@ -77,6 +77,11 @@ public final class Aggregators {
   public static final Aggregator MIMMAX = new Max(
       Interpolation.MIN, "mimmax");
   
+  /** Return the product of two time series 
+   * @since 2.3 */
+  public static final Aggregator MULTIPLY = new Multiply(
+      Interpolation.LERP, "multiply");
+  
   /** Aggregator that returns the number of data points.
    * WARNING: This currently interpolates with zero-if-missing. In this case 
    * counts will be off when counting multiple time series. Only use this when
@@ -150,6 +155,7 @@ public final class Aggregators {
     aggregators.put("zimsum", ZIMSUM);
     aggregators.put("mimmin", MIMMIN);
     aggregators.put("mimmax", MIMMAX);
+    aggregators.put("multiply", MULTIPLY);
 
     PercentileAgg[] percentiles = {
        p999, p99, p95, p90, p75, p50, 
@@ -517,5 +523,31 @@ public final class Aggregators {
       }
     }
 
+  }
+
+  private static final class Multiply extends Aggregator {
+    
+    public Multiply(final Interpolation method, final String name) {
+      super(method, name);
+    }
+
+    @Override
+    public long runLong(Longs values) {
+      long result = values.nextLongValue();
+      while (values.hasNextValue()) {
+        result *= values.nextLongValue();
+      }
+      return result;
+    }
+
+    @Override
+    public double runDouble(Doubles values) {
+      double result = values.nextDoubleValue();
+      while (values.hasNextValue()) {
+        double d = values.nextDoubleValue();
+        result *= d;
+      }
+      return result;
+    }
   }
 }

@@ -180,6 +180,14 @@ tsdb_DEPS += \
 	$(ASYNCBIGTABLE)
 maven_profile_bigtable := true
 maven_profile_hbase := false
+maven_profile_cassandra := false
+else
+if CASSANDRA
+tsdb_DEPS += \
+	$(ASYNCCASSANDRA)
+maven_profile_bigtable := false
+maven_profile_hbase := false
+maven_profile_cassandra := true
 else
 tsdb_DEPS += \
 	$(ASYNCHBASE) \
@@ -187,6 +195,8 @@ tsdb_DEPS += \
  	$(ZOOKEEPER)
 maven_profile_bigtable := false
 maven_profile_hbase := true
+maven_profile_cassandra := false
+endif
 endif
 
 test_SRC := \
@@ -695,6 +705,7 @@ pom.xml: pom.xml.in Makefile
 	  sed <$< \
 	    -e 's/@ASYNCHBASE_VERSION@/$(ASYNCHBASE_VERSION)/' \
 	    -e 's/@ASYNCBIGTABLE_VERSION@/$(ASYNCBIGTABLE_VERSION)/' \
+	    -e 's/@ASYNCCASSANDRA_VERSION@/$(ASYNCCASSANDRA_VERSION)/' \
 	    -e 's/@GUAVA_VERSION@/$(GUAVA_VERSION)/' \
 	    -e 's/@GWT_VERSION@/$(GWT_VERSION)/' \
 	    -e 's/@HAMCREST_VERSION@/$(HAMCREST_VERSION)/' \
@@ -717,6 +728,7 @@ pom.xml: pom.xml.in Makefile
 	    -e 's/@spec_version@/$(PACKAGE_VERSION)/' \
 	    -e 's/@maven_profile_hbase@/$(maven_profile_hbase)/' \
 	    -e 's/@maven_profile_bigtable@/$(maven_profile_bigtable)/' \
+	    -e 's/@maven_profile_cassandrae@/$(maven_profile_cassandra)/' \
 	    ; \
 	} >$@-t
 	mv $@-t ../$@

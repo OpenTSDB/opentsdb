@@ -25,13 +25,23 @@ AC_CONFIG_FILES([opentsdb.spec])
 AC_CONFIG_FILES([build-aux/fetchdep.sh], [chmod +x build-aux/fetchdep.sh])
 
 AC_ARG_WITH([bigtable],
-            [AS_HELP_STRING([--with-bigtable], [enable bigtable backend])],
+            [AS_HELP_STRING([--with-bigtable], [Enable Google's Bigtable backend])],
             [with_bigtable=yes],
             [with_bigtable=no])
 
 AS_IF([test "x$with_bigtable" = "xyes"],
   [AM_CONDITIONAL(BIGTABLE, true)],
   [AM_CONDITIONAL(BIGTABLE, false)]
+)
+
+AC_ARG_WITH([cassandra],
+            [AS_HELP_STRING([--with-cassandra], [Enable Cassandra backend])],
+            [with_cassandra=yes],
+            [with_cassandra=no])
+
+AS_IF([test "x$with_cassandra" = "xyes"],
+  [AM_CONDITIONAL(CASSANDRA, true)],
+  [AM_CONDITIONAL(CASSANDRA, false)]
 )
 
 TSDB_FIND_PROG([md5], [md5sum md5 gmd5sum digest])
