@@ -53,6 +53,11 @@ public final class Aggregators {
   public static final Aggregator AVG = new Avg(
       Interpolation.LERP, "avg");
 
+  /** Return the product of two time series 
+   * @since 2.3 */
+  public static final Aggregator MULTIPLY = new Multiply(
+      Interpolation.LERP, "multiply");
+  
   /** Aggregator that returns the Standard Deviation of the data points. */
   public static final Aggregator DEV = new StdDev(
       Interpolation.LERP, "dev");
@@ -139,6 +144,7 @@ public final class Aggregators {
     aggregators.put("min", MIN);
     aggregators.put("max", MAX);
     aggregators.put("avg", AVG);
+    aggregators.put("mult", MULTIPLY);
     aggregators.put("dev", DEV);
     aggregators.put("count", COUNT);
     aggregators.put("zimsum", ZIMSUM);
@@ -313,6 +319,32 @@ public final class Aggregators {
    
   }
 
+  private static final class Multiply extends Aggregator {
+    
+    public Multiply(final Interpolation method, final String name) {
+      super(method, name);
+    }
+
+    @Override
+    public long runLong(Longs values) {
+      long result = values.nextLongValue();
+      while (values.hasNextValue()) {
+        result *= values.nextLongValue();
+      }
+      return result;
+    }
+
+    @Override
+    public double runDouble(Doubles values) {
+      double result = values.nextDoubleValue();
+      while (values.hasNextValue()) {
+        result *= values.nextDoubleValue();
+      }
+      return result;
+    }
+    
+  }
+  
   /**
    * Standard Deviation aggregator.
    * Can compute without storing all of the data points in memory at the same
