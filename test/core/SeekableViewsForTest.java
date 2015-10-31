@@ -32,7 +32,8 @@ public class SeekableViewsForTest {
   }
 
   /**
-   * Creates a {@link SeekableView} that generates a sequence of data points.
+   * Creates a {@link SeekableView} that generates a sequence of data points
+   * where the starting value is 1 and it is incremented by 1 each iteration.
    * @param start_time Starting timestamp
    * @param sample_period Average sample period of data points
    * @param num_data_points Total number of data points to generate
@@ -43,8 +44,28 @@ public class SeekableViewsForTest {
                                        final long sample_period,
                                        final int num_data_points,
                                        final boolean is_integer) {
+    return generator(start_time, sample_period, num_data_points,
+                                  is_integer, 0, 1);
+  }
+  
+  /**
+   * Creates a {@link SeekableView} that generates a sequence of data points.
+   * @param start_time Starting timestamp
+   * @param sample_period Average sample period of data points
+   * @param num_data_points Total number of data points to generate
+   * @param is_integer True to generate a sequence of integer data points.
+   * @param starting_value The starting data point value.
+   * @param increment How much to increment the values each iteration.
+   * @return A {@link SeekableView} object
+   */
+  public static SeekableView generator(final long start_time,
+                                       final long sample_period,
+                                       final int num_data_points,
+                                       final boolean is_integer,
+                                       final double starting_value,
+                                       final double increment) {
     return new DataPointGenerator(start_time, sample_period, num_data_points,
-                                  is_integer);
+     is_integer, starting_value, increment);
   }
 
   /** Iterates an array of data points. */
@@ -88,32 +109,38 @@ public class SeekableViewsForTest {
   /** Generates a sequence of data points. */
   private static class DataPointGenerator implements SeekableView {
 
-    private final long start_time_ms;
     private final long sample_period_ms;
     private final int num_data_points;
     private final boolean is_integer;
+    private final double increment;
     private final MutableDataPoint current_data = new MutableDataPoint();
-    private int current = 0;
-
+    private final MutableDataPoint next_data = new MutableDataPoint();
+    private int dps_emitted = 0;
+    
     DataPointGenerator(final long start_time_ms, final long sample_period_ms,
-                       final int num_data_points, final boolean is_integer) {
-      this.start_time_ms = start_time_ms;
+        final int num_data_points, final boolean is_integer, 
+        final double starting_value, final double increment) {
       this.sample_period_ms = sample_period_ms;
       this.num_data_points = num_data_points;
       this.is_integer = is_integer;
-      rewind();
+      this.increment = increment;
+      if (is_integer) {
+        next_data.reset(start_time_ms, (long)starting_value);
+      } else {
+        next_data.reset(start_time_ms, starting_value);
+      }
     }
 
     @Override
     public boolean hasNext() {
-      return current < num_data_points;
+      return dps_emitted < num_data_points;
     }
 
     @Override
     public DataPoint next() {
       if (hasNext()) {
-        generateData();
-        ++current;
+        current_data.reset(next_data);
+        advance();
         return current_data;
       }
       throw new NoSuchElementException("no more values");
@@ -126,44 +153,32 @@ public class SeekableViewsForTest {
 
     @Override
     public void seek(long timestamp) {
-      rewind();
-      current = (int)((timestamp -1 - start_time_ms) / sample_period_ms);
-      if (current < 0) {
-        current = 0;
-      }
-      while (generateTimestamp() < timestamp) {
-        ++current;
+      while (next_data.timestamp() < timestamp && dps_emitted < num_data_points) {
+        advance();
       }
     }
-
-    private void rewind() {
-      current = 0;
-      generateData();
-    }
-
-    private void generateData() {
+    
+    private void advance() {
       if (is_integer) {
-        current_data.reset(generateTimestamp(), current);
+        next_data.reset(next_data.timestamp() + sample_period_ms, 
+            next_data.longValue() + (long)increment);
       } else {
-        current_data.reset(generateTimestamp(), (double)current);
+        next_data.reset(next_data.timestamp() + sample_period_ms, 
+            next_data.doubleValue() + increment);
       }
-    }
-
-    private long generateTimestamp() {
-      long timestamp = start_time_ms + sample_period_ms * current;
-      return timestamp + (((current % 2) == 0) ? -1000 : 1000);
+      dps_emitted++;
     }
   }
 
   @Test
   public void testDataPointGenerator() {
-    DataPointGenerator dpg = new DataPointGenerator(100000, 10000, 5, true);
+    SeekableView dpg = generator(100000, 10000, 5, true);
     DataPoint[] expected_data_points = new DataPoint[] {
-        MutableDataPoint.ofLongValue(99000, 0),
-        MutableDataPoint.ofLongValue(111000, 1),
-        MutableDataPoint.ofLongValue(119000, 2),
-        MutableDataPoint.ofLongValue(131000, 3),
-        MutableDataPoint.ofLongValue(139000, 4),
+        MutableDataPoint.ofLongValue(100000, 0),
+        MutableDataPoint.ofLongValue(110000, 1),
+        MutableDataPoint.ofLongValue(120000, 2),
+        MutableDataPoint.ofLongValue(130000, 3),
+        MutableDataPoint.ofLongValue(140000, 4),
     };
     for (DataPoint expected: expected_data_points) {
       assertTrue(dpg.hasNext());
@@ -176,13 +191,13 @@ public class SeekableViewsForTest {
 
   @Test
   public void testDataPointGenerator_double() {
-    DataPointGenerator dpg = new DataPointGenerator(100000, 10000, 5, false);
+    SeekableView dpg = generator(100000, 10000, 5, false);
     DataPoint[] expected_data_points = new DataPoint[] {
-        MutableDataPoint.ofDoubleValue(99000, 0),
-        MutableDataPoint.ofDoubleValue(111000, 1),
-        MutableDataPoint.ofDoubleValue(119000, 2),
-        MutableDataPoint.ofDoubleValue(131000, 3),
-        MutableDataPoint.ofDoubleValue(139000, 4),
+        MutableDataPoint.ofDoubleValue(100000, 0),
+        MutableDataPoint.ofDoubleValue(110000, 1),
+        MutableDataPoint.ofDoubleValue(120000, 2),
+        MutableDataPoint.ofDoubleValue(130000, 3),
+        MutableDataPoint.ofDoubleValue(140000, 4),
     };
     for (DataPoint expected: expected_data_points) {
       assertTrue(dpg.hasNext());
@@ -195,12 +210,12 @@ public class SeekableViewsForTest {
 
   @Test
   public void testDataPointGenerator_seek() {
-    DataPointGenerator dpg = new DataPointGenerator(100000, 10000, 5, true);
+    SeekableView dpg = generator(100000, 10000, 5, true);
     dpg.seek(119000);
     DataPoint[] expected_data_points = new DataPoint[] {
-        MutableDataPoint.ofLongValue(119000, 2),
-        MutableDataPoint.ofLongValue(131000, 3),
-        MutableDataPoint.ofLongValue(139000, 4),
+        MutableDataPoint.ofLongValue(120000, 2),
+        MutableDataPoint.ofLongValue(130000, 3),
+        MutableDataPoint.ofLongValue(140000, 4),
     };
     for (DataPoint expected: expected_data_points) {
       assertTrue(dpg.hasNext());
@@ -213,13 +228,14 @@ public class SeekableViewsForTest {
 
   @Test
   public void testDataPointGenerator_seekToFirst() {
-    DataPointGenerator dpg = new DataPointGenerator(100000, 10000, 5, true);
+    SeekableView dpg = generator(100000, 10000, 5, true);
     dpg.seek(100000);
     DataPoint[] expected_data_points = new DataPoint[] {
-        MutableDataPoint.ofLongValue(111000, 1),
-        MutableDataPoint.ofLongValue(119000, 2),
-        MutableDataPoint.ofLongValue(131000, 3),
-        MutableDataPoint.ofLongValue(139000, 4),
+        MutableDataPoint.ofLongValue(100000, 0),
+        MutableDataPoint.ofLongValue(110000, 1),
+        MutableDataPoint.ofLongValue(120000, 2),
+        MutableDataPoint.ofLongValue(130000, 3),
+        MutableDataPoint.ofLongValue(140000, 4),
     };
     for (DataPoint expected: expected_data_points) {
       assertTrue(dpg.hasNext());
@@ -232,13 +248,13 @@ public class SeekableViewsForTest {
 
   @Test
   public void testDataPointGenerator_seekToSecond() {
-    DataPointGenerator dpg = new DataPointGenerator(100000, 10000, 5, true);
+    SeekableView dpg = generator(100000, 10000, 5, true);
     dpg.seek(100001);
     DataPoint[] expected_data_points = new DataPoint[] {
-        MutableDataPoint.ofLongValue(111000, 1),
-        MutableDataPoint.ofLongValue(119000, 2),
-        MutableDataPoint.ofLongValue(131000, 3),
-        MutableDataPoint.ofLongValue(139000, 4),
+        MutableDataPoint.ofLongValue(110000, 1),
+        MutableDataPoint.ofLongValue(120000, 2),
+        MutableDataPoint.ofLongValue(130000, 3),
+        MutableDataPoint.ofLongValue(140000, 4),
     };
     for (DataPoint expected: expected_data_points) {
       assertTrue(dpg.hasNext());
