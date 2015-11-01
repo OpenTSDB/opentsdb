@@ -1,3 +1,15 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2015  The OpenTSDB Authors.
+//
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or (at your
+// option) any later version.  This program is distributed in the hope that it
+// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+// General Public License for more details.  You should have received a copy
+// of the GNU Lesser General Public License along with this program.  If not,
+// see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.expression;
 
 import java.util.ArrayList;
@@ -11,225 +23,330 @@ import net.opentsdb.core.Aggregator;
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.MutableDataPoint;
 import net.opentsdb.core.SeekableView;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.Aggregators.Interpolation;
 
-import com.google.common.collect.Lists;
-
+/**
+ * Implements a moving average function windowed on either the number of 
+ * data points or a unit of time.
+ * @since 2.3
+ */
 public class MovingAverage implements Expression {
-
+  
   @Override
-  public DataPoints[] evaluate(final TSQuery data_query, List<DataPoints[]> queryResults, List<String> params) {
-    if (queryResults == null || queryResults.isEmpty()) {
+  public DataPoints[] evaluate(final TSQuery data_query, 
+      final List<DataPoints[]> query_results, final List<String> params) {
+    if (data_query == null) {
+      throw new IllegalArgumentException("Missing time series query");
+    }
+    if (query_results == null || query_results.isEmpty()) {
       return new DataPoints[]{};
     }
-
     if (params == null || params.isEmpty()) {
-      throw new NullPointerException("Need aggregation window for moving average");
+      throw new IllegalArgumentException("Missing moving average window size");
     }
 
     String param = params.get(0);
-    if (param == null || param.length() == 0) {
-      throw new NullPointerException("Invalid window='" + param + "'");
+    if (param == null || param.isEmpty()) {
+      throw new IllegalArgumentException("Missing moving average window size");
     }
-
     param = param.trim();
 
-    long numPoints = -1;
-    boolean isTimeUnit = false;
-    if (param.matches("[0-9]+")) {
-      numPoints = Integer.parseInt(param);
+    long condition = -1;
+    boolean is_time_unit = false;
+    if (param.matches("^[0-9]+$")) {
+      try {
+        condition = Integer.parseInt(param);
+      } catch (NumberFormatException nfe) {
+        throw new IllegalArgumentException(
+            "Invalid parameter, must be an integer", nfe);
+      }
     } else if (param.startsWith("'") && param.endsWith("'")) {
-      numPoints = parseParam(param);
-      isTimeUnit = true;
+      condition = parseParam(param);
+      is_time_unit = true;
+    } else {
+      throw new IllegalArgumentException("Unparseable window size: " + param);
+    }
+    if (condition <= 0) {
+      throw new IllegalArgumentException("Moving average window must be an "
+          + "integer greater than zero");
     }
 
-    if (numPoints <= 0) {
-      throw new RuntimeException("numPoints <= 0");
-    }
-
-    int size = 0;
-    for (DataPoints[] results: queryResults) {
-      size = size + results.length;
+    int num_results = 0;
+    for (final DataPoints[] results : query_results) {
+      num_results += results.length;
     }
     
-    PostAggregatedDataPoints[] seekablePoints = new PostAggregatedDataPoints[size];
-    int ix=0;
+    final PostAggregatedDataPoints[] post_agg_results = 
+        new PostAggregatedDataPoints[num_results];
+    int ix = 0;
     // one or more queries (m=...&m=...&m=...)
-    for (DataPoints[] results: queryResults) {
+    for (final DataPoints[] sub_query_result : query_results) {
       // group bys (m=sum:foo{host=*})
-      for (DataPoints dpoints: results) {
-        List<DataPoint> mutablePoints = new ArrayList<DataPoint>();
-        for (DataPoint point: dpoints) {
-          mutablePoints.add(point.isInteger() ?
-                  MutableDataPoint.ofLongValue(point.timestamp(), point.longValue())
-                  : MutableDataPoint.ofDoubleValue(point.timestamp(), point.doubleValue()));
+      for (final DataPoints dps: sub_query_result) {
+        // TODO(cl) - Avoid iterating and copying if we can help it. We should
+        // be able to pass the original DataPoints object to the seekable view
+        // and then iterate through it.
+        final List<DataPoint> mutable_points = new ArrayList<DataPoint>();
+        for (final DataPoint point: dps) {
+          // avoid flip-flopping between integers and floats, always use double
+          // for average.
+          mutable_points.add(
+              MutableDataPoint.ofDoubleValue(point.timestamp(), point.toDouble()));
         }
         
-        seekablePoints[ix++] = new PostAggregatedDataPoints(dpoints,
-                mutablePoints.toArray(new DataPoint[mutablePoints.size()]));
+        post_agg_results[ix++] = new PostAggregatedDataPoints(dps,
+                mutable_points.toArray(new DataPoint[mutable_points.size()]));
       }
     }
     
-    SeekableView[] views = new SeekableView[size];
-    for (int i=0; i<size; i++) {
-      views[i] = seekablePoints[i].iterator();
+    final SeekableView[] views = new SeekableView[num_results];
+    for (int i=0; i<num_results; i++) {
+      views[i] = post_agg_results[i].iterator();
     }
     
-    SeekableView view = new AggregationIterator(views,
+    final Aggregator moving_average = new MovingAverageAggregator(
+            Aggregators.Interpolation.LERP, "movingAverage", 
+            condition, is_time_unit);
+    final SeekableView view = new AggregationIterator(views,
             data_query.startTime(), data_query.endTime(),
-            new MovingAverageAggregator(Aggregators.Interpolation.LERP, "movingAverage", numPoints, isTimeUnit),
+            moving_average, 
             Aggregators.Interpolation.LERP, false);
     
-    List<DataPoint> points = Lists.newArrayList();
+    // TODO(cl) - here's a good place to return the AggregationIterators instead
+    // of processing them in situ and making copies
+    final List<DataPoint> points = new ArrayList<DataPoint>();
     while (view.hasNext()) {
       DataPoint mdp = view.next();
-      points.add(mdp.isInteger() ?
-              MutableDataPoint.ofLongValue(mdp.timestamp(), mdp.longValue()) :
-              MutableDataPoint.ofDoubleValue(mdp.timestamp(), mdp.doubleValue()));
+      points.add(MutableDataPoint.ofDoubleValue(mdp.timestamp(), mdp.toDouble()));
     }
 
-    if (queryResults.size() > 0 && queryResults.get(0).length > 0) {
-      return new DataPoints[]{new PostAggregatedDataPoints(queryResults.get(0)[0],
+    if (query_results.size() > 0 && query_results.get(0).length > 0) {
+      return new DataPoints[]{new PostAggregatedDataPoints(query_results.get(0)[0],
               points.toArray(new DataPoint[points.size()]))};
     } else {
       return new DataPoints[]{};
     }
   }
 
-  public long parseParam(String param) {
-    char[] chars = param.toCharArray();
-    int tuIndex = 0;
+  /**
+   * Parses the parameter string to fetch the window size
+   * <p>
+   * Package private for UTs
+   * @param param The string to parse
+   * @return The window size (number of points or a unit of time in ms)
+   */
+  long parseParam(final String param) {
+    if (param == null || param.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Window parameter may not be null or empty");
+    }
+    final char[] chars = param.toCharArray();
+    int idx = 0;
     for (int c = 1; c < chars.length; c++) {
       if (Character.isDigit(chars[c])) {
-        tuIndex++;
+        idx++;
       } else {
         break;
       }
     }
-
-    if (tuIndex == 0) {
-      throw new RuntimeException("Invalid Parameter: " + param);
+    if (idx < 1) {
+      throw new IllegalArgumentException("Invalid moving window parameter: " 
+          + param);
     }
 
-    int time = Integer.parseInt(param.substring(1, tuIndex + 1));
-    String unit = param.substring(tuIndex+1, param.length() - 1);
-
-    if ("min".equals(unit)) {
-      return TimeUnit.MILLISECONDS.convert(time, TimeUnit.MINUTES);
-    } else if ("hr".equals(unit)) {
-      return TimeUnit.MILLISECONDS.convert(time, TimeUnit.HOURS);
-    } else if ("sec".equals(unit)) {
-      return TimeUnit.MILLISECONDS.convert(time, TimeUnit.SECONDS);
-    } else {
-      throw new RuntimeException("unknown time unit=" + unit);
+    try {
+      final int time = Integer.parseInt(param.substring(1, idx + 1));
+      final String unit = param.substring(idx + 1, param.length() - 1);
+  
+      // TODO(CL) - add a Graphite unit parser to DateTime for this kind of conversion
+      if ("day".equals(unit) || "d".equals(unit)) {
+        return TimeUnit.MILLISECONDS.convert(time, TimeUnit.DAYS);
+      } else if ("hr".equals(unit) || "hour".equals(unit) || "h".equals(unit)) {
+        return TimeUnit.MILLISECONDS.convert(time, TimeUnit.HOURS);
+      } else if ("min".equals(unit) || "m".equals(unit)) {
+        return TimeUnit.MILLISECONDS.convert(time, TimeUnit.MINUTES); 
+      } else if ("sec".equals(unit) || "s".equals(unit)) {
+        return TimeUnit.MILLISECONDS.convert(time, TimeUnit.SECONDS);
+      } else {
+        throw new IllegalArgumentException("Unknown time unit=" + unit 
+            + " in window=" + param);
+      }
+    } catch (NumberFormatException nfe) {
+      throw new IllegalArgumentException("Unable to parse moving window "
+          + "parameter: " + param, nfe);
     }
-
   }
 
   @Override
-  public String writeStringField(List<String> queryParams, String innerExpression) {
-    return "movingAverage(" + innerExpression + ")";
+  public String writeStringField(final List<String> query_params, 
+      final String inner_expression) {
+    return "movingAverage(" + inner_expression + ")";
   }
 
+  /**
+   * An aggregator that expects a single data point for each iteration. The
+   * values are prepended to a linked list. Next it iterates over the list until
+   * it either runs out of values (and returns a 0 with the proper timestamp) or
+   * returns the average of all values in the given window (time or number based).
+   * <p>
+   * Package private for unit testing
+   */
   static final class MovingAverageAggregator extends Aggregator {
-    private LinkedList<SumPoint> list = new LinkedList<SumPoint>();
-    private final long numPoints;
-    private final boolean isTimeUnit;
+    /** The individual values in the window */
+    private final LinkedList<DataPoint> accumulation;
+    /** The condition to satisfy, either a time unit or # of data points */
+    private final long condition;
+    /** Whether or not the condition is a time unit or the # of data points */
+    private final boolean is_time_unit;
+    /** Sentinel used to kick out the first timed window value */
+    private boolean window_started;
     
-    public MovingAverageAggregator(final Interpolation method, final String name, long numPoints, boolean isTimeUnit) {
+    /**
+     * Ctor for this implementation
+     * @param method The interpolation method to use (ignored)
+     * @param name The name of this aggregator
+     * @param condition The windowing condition
+     * @param is_time_unit Whether or not the condition is a time unit or 
+     * the # of data points
+     */
+    public MovingAverageAggregator(final Interpolation method, final String name, 
+        final long condition, final boolean is_time_unit) {
       super(method, name);
-      this.numPoints = numPoints;
-      this.isTimeUnit = isTimeUnit;
+      this.condition = condition;
+      this.is_time_unit = is_time_unit;
+      accumulation = new LinkedList<DataPoint>();
     }
 
     @Override
     public long runLong(final Longs values) {
-      long sum = values.nextLongValue();
-      while (values.hasNextValue()) {
-        sum += values.nextLongValue();
+      final long value = values.nextLongValue();
+      if (values.hasNextValue()) {
+        throw new IllegalDataException(
+            "There should only be one value in " + values);
       }
+      final long ts = ((DataPoint) values).timestamp();
+      accumulation.addFirst(MutableDataPoint.ofLongValue(ts, value));
 
-      if (values instanceof DataPoint) {
-        long ts = ((DataPoint) values).timestamp();
-        list.addFirst(new SumPoint(ts, sum));
+      // for timed windows we need to skip the first data point in the series
+      // as we have no idea what the previous value's timestamp was.
+      if (is_time_unit && !window_started) {
+        window_started = true;
+        return 0;
       }
+      
+      long sum = 0; 
+      int count = 0;
+      final Iterator<DataPoint> iter = accumulation.iterator();
+      boolean condition_met = false;
+      long time_window_cumulation = 0; // how many ms are in our window
+      long last_ts = -1; // the timestamp of the previous dp
 
-      long result=0; int count=0;
-
-      Iterator<SumPoint> iter = list.iterator();
-      SumPoint first = iter.next();
-      boolean conditionMet = false;
-
-      // now sum up the preceeding points
+      // now sum up the preceding points
       while(iter.hasNext()) {
-        SumPoint next = iter.next();
-        result += (Long) next.val;
+        final DataPoint dp = iter.next();
+        if (is_time_unit) {
+          if (last_ts < 0) {
+            last_ts = dp.timestamp();
+          } else {
+            time_window_cumulation += last_ts - dp.timestamp();
+            last_ts = dp.timestamp();
+            if (time_window_cumulation >= condition) {
+              condition_met = true;
+              break;
+            }
+          }
+        }
+        // cast to long if we dumped a double in there
+        sum += dp.isInteger() ? dp.longValue() : dp.doubleValue();
         count++;
-        if (!isTimeUnit && count >= numPoints) {
-          conditionMet = true;
-          break;
-        } else if (isTimeUnit && ((first.ts - next.ts) > numPoints)) {
-          conditionMet = true;
+        if (!is_time_unit && count >= condition) {
+          condition_met = true;
           break;
         }
       }
-
-      if (!conditionMet || count == 0) {
-        return 0;
+      while (iter.hasNext()) {
+        // should drop the last entry in the linked list to avoid accumulating
+        // everything in memory
+        iter.next();
+        iter.remove();
       }
 
-      return result/count;
+      if (!condition_met || count == 0) {
+        return 0;
+      }
+      return sum / count;
     }
 
     @Override
     public double runDouble(Doubles values) {
-      double sum = values.nextDoubleValue();
-      while (values.hasNextValue()) {
-        sum += values.nextDoubleValue();
+      final double value = values.nextDoubleValue();
+      if (values.hasNextValue()) {
+        throw new IllegalDataException(
+            "There should only be one value in " + values);
       }
-
-      if (values instanceof DataPoint) {
-        long ts = ((DataPoint) values).timestamp();
-        list.addFirst(new SumPoint(ts, sum));
+      final long ts = ((DataPoint) values).timestamp();
+      accumulation.addFirst(MutableDataPoint.ofDoubleValue(ts, value));
+      
+      // for timed windows we need to skip the first data point in the series
+      // as we have no idea what the previous value's timestamp was.
+      if (is_time_unit && !window_started) {
+        window_started = true;
+        return 0;
       }
-
-      double result=0; int count=0;
-
-      Iterator<SumPoint> iter = list.iterator();
-      SumPoint first = iter.next();
-      boolean conditionMet = false;
-
-      // now sum up the preceeding points
+      
+      double sum = 0;
+      int count = 0;
+      final Iterator<DataPoint> iter = accumulation.iterator();
+      boolean condition_met = false;
+      long time_window_cumulation = 0; // how many ms are in our window
+      long last_ts = -1; // the timestamp of the previous dp
+      
+      // now sum up the preceding points
       while(iter.hasNext()) {
-        SumPoint next = iter.next();
-        result += (Double) next.val;
-        count++;
-        if (!isTimeUnit && count >= numPoints) {
-          conditionMet = true;
-          break;
-        } else if (isTimeUnit && ((first.ts - next.ts) > numPoints)) {
-          conditionMet = true;
+        final DataPoint dp = iter.next();
+        
+        if (is_time_unit) {
+          if (last_ts < 0) {
+            last_ts = dp.timestamp();
+          } else {
+            time_window_cumulation += last_ts - dp.timestamp();
+            last_ts = dp.timestamp();
+            if (time_window_cumulation >= condition) {
+              condition_met = true;
+              break;
+            }
+          }
+        }
+        
+        // cast to double if we dumped a long in there
+        final double v = dp.isInteger() ? dp.longValue() : dp.doubleValue();
+        if (!Double.isNaN(v)) {
+          // skip NaNs to avoid NaNing everything in the window.
+          sum += v;
+          count++;
+        }
+        
+        if (!is_time_unit && count >= condition) {
+          condition_met = true;
           break;
         }
       }
+      
+      while (iter.hasNext()) {
+        // should drop the last entry in the linked list to avoid accumulating
+        // everything in memory
+        iter.next();
+        iter.remove();
+      }
 
-      if (!conditionMet || count == 0) {
+      if (!condition_met || count == 0) {
         return 0;
       }
-
-      return result/count;
-    }
-
-    class SumPoint {
-      long ts;
-      Object val;
-      public SumPoint(long ts, Object val) {
-        this.ts = ts;
-        this.val = val;
-      }
+      return sum/count;
     }
   }
 }
