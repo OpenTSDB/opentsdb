@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.expression;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import net.opentsdb.core.DataPoint;
@@ -20,41 +21,64 @@ import net.opentsdb.core.MutableDataPoint;
 import net.opentsdb.core.SeekableView;
 import net.opentsdb.core.TSQuery;
 
+/**
+ * Modifies each data point in the series with the absolute value, tossing away
+ * the signed component.
+ * @since 2.3
+ */
 public class Absolute implements Expression {
 
   @Override
-  public DataPoints[] evaluate(TSQuery data_query, List<DataPoints[]> queryResults, List<String> params) {
-    if (queryResults == null || queryResults.isEmpty()) {
-      throw new NullPointerException("Query results cannot be empty");
+  public DataPoints[] evaluate(final TSQuery data_query, 
+      final List<DataPoints[]> query_results, final List<String> params) {
+    if (data_query == null) {
+      throw new IllegalArgumentException("Missing time series query");
     }
-
-    DataPoints[] inputPoints = queryResults.get(0);
-    DataPoints[] outputPoints = new DataPoints[inputPoints.length];
-
-    for (int i=0; i<inputPoints.length; i++) {
-      outputPoints[i] = abs(inputPoints[i]);
+    if (query_results == null || query_results.isEmpty()) {
+      return new DataPoints[]{};
     }
-
-    return outputPoints;
+    
+    int num_results = 0;
+    for (DataPoints[] results: query_results) {
+      num_results += results.length;
+    }
+    
+    final DataPoints[] results = new DataPoints[num_results];
+    int ix = 0;
+    // one or more sub queries (m=...&m=...&m=...)
+    for (final DataPoints[] sub_query_result : query_results) {
+      // group bys (m=sum:foo{host=*})
+      for (final DataPoints dps : sub_query_result) {
+        results[ix++] = abs(dps);
+      }
+    }
+    return results;
   }
 
-  protected DataPoints abs(DataPoints points) {
-    int size = points.size();
-    DataPoint[] dps = new DataPoint[size];
+  /**
+   * Iterate over each data point and store the absolute value
+   * @param points The data points to modify
+   * @return The resulting data points
+   */
+  private DataPoints abs(final DataPoints points) {
+    // TODO(cl) - Using an array as the size function may not return the exact
+    // results and we should figure a way to avoid copying data anyway.
+    final List<DataPoint> dps = new ArrayList<DataPoint>();
 
-    SeekableView view = points.iterator();
-    int i=0;
+    final SeekableView view = points.iterator();
     while (view.hasNext()) {
       DataPoint pt = view.next();
       if (pt.isInteger()) {
-        dps[i] = MutableDataPoint.ofDoubleValue(pt.timestamp(), Math.abs(pt.longValue()));
+        dps.add(MutableDataPoint.ofLongValue(
+            pt.timestamp(), Math.abs(pt.longValue())));
       } else {
-        dps[i] = MutableDataPoint.ofDoubleValue(pt.timestamp(), Math.abs(pt.doubleValue()));
+        dps.add(MutableDataPoint.ofDoubleValue(
+            pt.timestamp(), Math.abs(pt.doubleValue())));
       }
-      i++;
     }
-
-    return new PostAggregatedDataPoints(points, dps);
+    final DataPoint[] results = new DataPoint[dps.size()];
+    dps.toArray(results);
+    return new PostAggregatedDataPoints(points, results);
   }
 
   @Override

@@ -74,6 +74,7 @@ tsdb_SRC := \
 	src/meta/TSUIDQuery.java	\
 	src/meta/UIDMeta.java	\
 	src/query/QueryUtil.java	\
+	src/query/expression/Absolute.java	\
 	src/query/expression/HighestCurrent.java	\
 	src/query/expression/HighestMax.java	\
 	src/query/expression/MovingAverage.java	\
@@ -223,6 +224,7 @@ test_SRC := \
 	test/meta/TestTSMeta.java	\
 	test/meta/TestTSUIDQuery.java	\
 	test/meta/TestUIDMeta.java	\
+	test/query/expression/TestAbsolute.java	\
 	test/query/expression/TestHighestCurrent.java	\
 	test/query/expression/TestHighestMax.java	\
 	test/query/expression/TestMovingAverage.java	\
