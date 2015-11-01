@@ -13,6 +13,7 @@
 package net.opentsdb.query.expression;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -217,6 +218,80 @@ public class TestHighestMax {
       assertEquals(v, dp.longValue());
       ts += INTERVAL;
       v += 1;
+    }
+  }
+  
+  @Test
+  public void evaluateTopN2with2SeriesDouble() throws Exception {
+    params.add("2");
+    SeekableView view2 = SeekableViewsForTest.generator(START_TIME, INTERVAL, 
+        NUM_POINTS, false, 10, 1.5);
+    DataPoints dps2 = PowerMockito.mock(DataPoints.class);
+    when(dps2.iterator()).thenReturn(view2);
+    when(dps2.metricName()).thenReturn("sys.mem");
+    group_bys = new DataPoints[] { dps, dps2 };
+    query_results.clear();
+    query_results.add(group_bys);
+    
+    final DataPoints[] results = func.evaluate(data_query, query_results, params);
+    
+    assertEquals(2, results.length);
+    assertEquals("sys.mem", results[0].metricName());
+    assertEquals(METRIC, results[1].metricName());
+    
+    long ts = START_TIME;
+    double v = 10;
+    for (DataPoint dp : results[0]) {
+      assertEquals(ts, dp.timestamp());
+      assertFalse(dp.isInteger());
+      assertEquals(v, dp.doubleValue(), 0.001);
+      ts += INTERVAL;
+      v += 1.5;
+    }
+    
+    ts = START_TIME;
+    v = 1;
+    for (DataPoint dp : results[1]) {
+      assertEquals(ts, dp.timestamp());
+      assertTrue(dp.isInteger());
+      assertEquals(v, dp.toDouble(), 0.001);
+      ts += INTERVAL;
+      v += 1;
+    }
+  }
+  
+  @Test
+  public void evaluateTopN1with2SeriesLongDoubleMixed() throws Exception {
+    params.add("1");
+    SeekableView view2 = SeekableViewsForTest.generator(START_TIME, INTERVAL, 
+        NUM_POINTS, false, 10, 1.5, true);
+    DataPoints dps2 = PowerMockito.mock(DataPoints.class);
+    when(dps2.iterator()).thenReturn(view2);
+    when(dps2.metricName()).thenReturn("sys.mem");
+    group_bys = new DataPoints[] { dps, dps2 };
+    query_results.clear();
+    query_results.add(group_bys);
+    
+    final DataPoints[] results = func.evaluate(data_query, query_results, params);
+    
+    assertEquals(1, results.length);
+    assertEquals("sys.mem", results[0].metricName());
+    
+    long ts = START_TIME;
+    double v = 10;
+    boolean toggle = true;
+    for (DataPoint dp : results[0]) {
+      assertEquals(ts, dp.timestamp());
+      if (toggle) {
+        assertTrue(dp.isInteger());
+        assertEquals(v, dp.longValue(), 0.001);
+      } else {
+        assertFalse(dp.isInteger());
+        assertEquals(v, dp.doubleValue(), 0.001);
+      }
+      toggle = !toggle;
+      ts += INTERVAL;
+      v += 1.5;
     }
   }
   

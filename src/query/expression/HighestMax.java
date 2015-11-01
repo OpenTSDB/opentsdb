@@ -136,13 +136,7 @@ public class HighestMax implements Expression {
       }
     }
     
-    Arrays.sort(max_by_ts, new Comparator<TopNSortingEntry>() {
-      @Override
-      public int compare(TopNSortingEntry o1, TopNSortingEntry o2) {
-        // we want in descending order
-        return -1 * Double.compare(o1.val, o2.val);
-      }
-    });
+    Arrays.sort(max_by_ts);
     
     final int result_count = Math.min(topn, num_results);
     final DataPoints[] results = new DataPoints[result_count];
@@ -154,18 +148,25 @@ public class HighestMax implements Expression {
   }
 
   /**
-   * Helper class for sorting the series
+   * Helper class for sorting the series. It will sort from highest to lowest.
    */
-  static class TopNSortingEntry {
+  static class TopNSortingEntry implements Comparable<TopNSortingEntry> {
     final double val;
     final int pos;
+    
     public TopNSortingEntry(final double val, final int pos) {
       this.val = val;
       this.pos = pos;
     }
+    
     @Override
     public String toString() {
       return "{" + val + "," + pos + "}";
+    }
+    
+    @Override
+    public int compareTo(final TopNSortingEntry o) {
+      return -1 * Double.compare(val, o.val);
     }
   }
 
@@ -264,6 +265,7 @@ public class HighestMax implements Expression {
         doubles[ix++] = values.nextDoubleValue();
       }
       for (int i = 0; i < total_series;i++) {
+        // TODO(cl) - Properly handle NaNs here
         max_doubles[i] = Math.max(max_doubles[i], doubles[i]);
       }
 
