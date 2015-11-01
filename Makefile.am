@@ -78,6 +78,7 @@ tsdb_SRC := \
 	src/query/expression/HighestMax.java	\
 	src/query/expression/MovingAverage.java	\
 	src/query/expression/PostAggregatedDataPoints.java	\
+	src/query/expression/Scale.java	\
 	src/query/filter/TagVFilter.java	\
 	src/query/filter/TagVLiteralOrFilter.java	\
 	src/query/filter/TagVNotKeyFilter.java	\
@@ -226,6 +227,7 @@ test_SRC := \
 	test/query/expression/TestHighestMax.java	\
 	test/query/expression/TestMovingAverage.java	\
 	test/query/expression/TestPostAggregatedDataPoints.java	\
+	test/query/expression/TestScale.java	\
 	test/query/filter/TestTagVFilter.java	\
 	test/query/filter/TestTagVLiteralOrFilter.java	\
 	test/query/filter/TestTagVNotKeyFilter.java	\
