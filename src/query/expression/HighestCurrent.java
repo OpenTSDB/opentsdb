@@ -14,7 +14,6 @@ package net.opentsdb.query.expression;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 
 import net.opentsdb.core.AggregationIterator;
@@ -26,146 +25,184 @@ import net.opentsdb.core.MutableDataPoint;
 import net.opentsdb.core.SeekableView;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.Aggregators.Interpolation;
+import net.opentsdb.query.expression.HighestMax.TopNSortingEntry;
 
+/**
+ * Implements top-n functionality by iterating over each of the time series,
+ * sorting and returning the top "n" time series with the highest current (or
+ * latest) value.
+ * @since 2.3
+ */
 public class HighestCurrent implements Expression {
 
   @Override
-  public DataPoints[] evaluate(TSQuery data_query, List<DataPoints[]> queryResults,
-                               List<String> params) {
-    if (queryResults == null || queryResults.isEmpty()) {
-      throw new NullPointerException("Query results cannot be empty");
+  public DataPoints[] evaluate(final TSQuery data_query, 
+      final List<DataPoints[]> query_results, final List<String> params) {
+    if (data_query == null) {
+      throw new IllegalArgumentException("Missing time series query");
     }
-
+    if (query_results == null || query_results.isEmpty()) {
+      return new DataPoints[]{};
+    }
+    // TODO(cl) - allow for empty top-n maybe? Just sort the results by max?
     if (params == null || params.isEmpty()) {
-      throw new NullPointerException("Need aggregation window for moving average");
+      throw new IllegalArgumentException("Need aggregation window for moving average");
     }
 
     String param = params.get(0);
     if (param == null || param.length() == 0) {
-      throw new NullPointerException("Invalid window='" + param + "'");
+      throw new IllegalArgumentException("Missing top n value "
+          + "(number of series to return)");
     }
 
-    int k = Integer.parseInt(param.trim());
-
-    int size = 0;
-    for (DataPoints[] results: queryResults) {
-      size = size + results.length;
+    int topn = 0;
+    if (param.matches("^[0-9]+$")) {
+      try {
+        topn = Integer.parseInt(param);
+      } catch (NumberFormatException nfe) {
+        throw new IllegalArgumentException(
+            "Invalid parameter, must be an integer", nfe);
+      }
+    } else {
+      throw new IllegalArgumentException("Unparseable top n value: " + param);
+    }
+    if (topn < 1) {
+      throw new IllegalArgumentException("Top n value must be greater "
+          + "than zero: " + topn);
     }
 
-    PostAggregatedDataPoints[] seekablePoints = new PostAggregatedDataPoints[size];
-    int ix=0;
-    for (DataPoints[] results: queryResults) {
-      for (DataPoints dpoints: results) {
-        List<DataPoint> mutablePoints = new ArrayList<DataPoint>();
-        for (DataPoint point: dpoints) {
-          mutablePoints.add(point.isInteger() ?
-                  MutableDataPoint.ofLongValue(point.timestamp(), point.longValue())
-                  : MutableDataPoint.ofDoubleValue(point.timestamp(), point.doubleValue()));
+    int num_results = 0;
+    for (DataPoints[] results: query_results) {
+      num_results += results.length;
+    }
+
+    final PostAggregatedDataPoints[] post_agg_results = 
+        new PostAggregatedDataPoints[num_results];
+    int ix = 0;
+    // one or more sub queries (m=...&m=...&m=...)
+    for (final DataPoints[] sub_query_result : query_results) {
+      // group bys (m=sum:foo{host=*})
+      for (final DataPoints dps : sub_query_result) {
+        // TODO(cl) - Avoid iterating and copying if we can help it. We should
+        // be able to pass the original DataPoints object to the seekable view
+        // and then iterate through it.
+        final List<DataPoint> mutable_points = new ArrayList<DataPoint>();
+        for (final DataPoint point : dps) {
+          mutable_points.add(point.isInteger() ?
+              MutableDataPoint.ofLongValue(point.timestamp(), point.longValue())
+            : MutableDataPoint.ofDoubleValue(point.timestamp(), point.doubleValue()));
         }
-        seekablePoints[ix++] = new PostAggregatedDataPoints(dpoints,
-                mutablePoints.toArray(new DataPoint[mutablePoints.size()]));
+        post_agg_results[ix++] = new PostAggregatedDataPoints(dps,
+                mutable_points.toArray(new DataPoint[mutable_points.size()]));
       }
     }
-
-    if (k >= size) {
-      return seekablePoints;
+    
+    final SeekableView[] views = new SeekableView[num_results];
+    for (int i = 0; i < num_results; i++) {
+      views[i] = post_agg_results[i].iterator();
     }
 
-    SeekableView[] views = new SeekableView[size];
-    for (int i=0; i<size; i++) {
-      views[i] = seekablePoints[i].iterator();
-    }
-
-    MaxLatestAggregator aggregator = new
+    final MaxLatestAggregator aggregator = new
             MaxLatestAggregator(Aggregators.Interpolation.LERP,
-            "maxLatest", size, data_query.startTime(), data_query.endTime());
+            "maxLatest", num_results, data_query.startTime(), data_query.endTime());
 
-    SeekableView view = (new AggregationIterator(views,
+    final SeekableView view = (new AggregationIterator(views,
             data_query.startTime(), data_query.endTime(),
             aggregator, Aggregators.Interpolation.LERP, false));
 
-    // slurp all the points
+    // slurp all the points even though we aren't using them at this stage
     while (view.hasNext()) {
-      DataPoint mdp = view.next();
-      Object o = mdp.isInteger() ? mdp.longValue() : mdp.doubleValue();
+      final DataPoint mdp = view.next();
+      @SuppressWarnings("unused")
+      final Object o = mdp.isInteger() ? mdp.longValue() : mdp.doubleValue();
     }
 
-    long[] maxLongs = aggregator.getLongMaxes();
-    double[] maxDoubles = aggregator.getDoubleMaxes();
-    Entry[] maxesPerTS = new Entry[size];
+    final long[] max_longs = aggregator.getLongMaxes();
+    final double[] max_doubles = aggregator.getDoubleMaxes();
+    final TopNSortingEntry[] max_by_ts = 
+        new TopNSortingEntry[num_results];
     if (aggregator.hasDoubles() && aggregator.hasLongs()) {
-      for (int i=0; i<size; i++) {
-        maxesPerTS[i] = new Entry(Math.max((double)maxLongs[i], maxDoubles[i]), i);
+      for (int i = 0; i < num_results; i++) {
+        max_by_ts[i] = new TopNSortingEntry(
+            Math.max((double)max_longs[i], max_doubles[i]), i);
       }
     } else if (aggregator.hasLongs() && !aggregator.hasDoubles()) {
-      for (int i=0; i<size; i++) {
-        maxesPerTS[i] = new Entry((double) maxLongs[i], i);
+      for (int i = 0; i < num_results; i++) {
+        max_by_ts[i] = new TopNSortingEntry((double) max_longs[i], i);
       }
     } else if (aggregator.hasDoubles() && !aggregator.hasLongs()) {
-      for (int i=0; i<size; i++) {
-        maxesPerTS[i] = new Entry(maxDoubles[i], i);
+      for (int i = 0; i < num_results; i++) {
+        max_by_ts[i] = new TopNSortingEntry(max_doubles[i], i);
       }
     }
 
-    Arrays.sort(maxesPerTS, new Comparator<Entry>() {
-      @Override
-      public int compare(Entry o1, Entry o2) {
-        return -1 * Double.compare(o1.val, o2.val);
-      }
-    });
+    Arrays.sort(max_by_ts);
 
-    DataPoints[] results = new DataPoints[k];
-    for (int i=0; i<k; i++) {
-      results[i] = seekablePoints[maxesPerTS[i].pos];
+    final int result_count = Math.min(topn, num_results);
+    final DataPoints[] results = new DataPoints[result_count];
+    for (int i = 0; i < result_count; i++) {
+      results[i] = post_agg_results[max_by_ts[i].pos];
     }
 
     return results;
   }
-
-  class Entry {
-    public Entry(double val, int pos) {
-      this.val = val;
-      this.pos = pos;
-    }
-    double val;
-    int pos;
-  }
-
-  @Override
-  public String writeStringField(List<String> queryParams, String innerExpression) {
-    return "highestCurrent(" + innerExpression + ")";
-  }
-
   
+  @Override
+  public String writeStringField(final List<String> query_params, 
+      final String inner_expression) {
+    return "highestCurrent(" + inner_expression + ")";
+  }
+  
+  /**
+   * Aggregator that stores only the latest value for each series so that they
+   * can be sorted on it
+   */
   public static class MaxLatestAggregator extends Aggregator {
-    private final int size;
-    private final long[] maxLongs;
-    private final double[] maxDoubles;
-    private final long start;
-    private final long end;
-    private boolean hasLongs = false;
-    private boolean hasDoubles = false;
-    private long latestTS = -1;
+    /** The total number of series in the result set, including sub queries and
+     * group bys */
+    private final int total_series;
+    /** An array of maximum integers by time series */
+    private final long[] max_longs;
+    /** An array of maximum doubles by time series */
+    private final double[] max_doubles;
+    /** Whether or not any of the series contain integers */
+    private boolean has_longs = false;
+    /** Whether or not any of the series contain doubles */
+    private boolean has_doubles = false;
+    /** Query start time in milliseconds for filtering */
+    private long start;
+    /** Query end time in milliseconds for filtering */
+    private long end;
+    /** The most recent timestamp in the different series */
+    private long latest_ts = -1;
 
-    public MaxLatestAggregator(Interpolation method, String name, int size,
-                               long startTimeInMillis, long endTimeInMillis) {
+    /**
+     * An aggregator that keeps track of the maximum latest value for each series
+     * @param method The interpolation method (not used)
+     * @param name The name of the aggregator 
+     * @param total_series The total number of series in the result set, 
+     * including sub queries and group bys
+     * @param start Query start time in milliseconds for filtering
+     * @param end Query end time in milliseconds for filtering
+     */
+    public MaxLatestAggregator(final Interpolation method, final String name, 
+        final int total_series, final long start, final long end) {
       super(method, name);
-      this.size = size;
-      this.start = startTimeInMillis;
-      this.end = endTimeInMillis;
+      this.total_series = total_series;
+      this.start = start;
+      this.end = end;
+      this.max_longs = new long[total_series];
+      this.max_doubles = new double[total_series];
 
-
-      this.maxLongs = new long[size];
-      this.maxDoubles = new double[size];
-
-      for (int i=0; i<size; i++) {
-        maxDoubles[i] = Double.MIN_VALUE;
-        maxLongs[i] = Long.MIN_VALUE;
+      for (int i = 0; i < total_series; i++) {
+        max_doubles[i] = Double.MIN_VALUE;
+        max_longs[i] = Long.MIN_VALUE;
       }
     }
 
     @Override
     public long runLong(Longs values) {
+      // TODO(cl) - Can we get anything other than a DataPoint?
       if (values instanceof DataPoint) {
         long ts = ((DataPoint) values).timestamp();
         //data point falls outside required range
@@ -174,7 +211,7 @@ public class HighestCurrent implements Expression {
         }
       }
 
-      long[] longs = new long[size];
+      final long[] longs = new long[total_series];
       int ix = 0;
       longs[ix++] = values.nextLongValue();
       while (values.hasNextValue()) {
@@ -182,18 +219,19 @@ public class HighestCurrent implements Expression {
       }
 
       if (values instanceof DataPoint) {
-        long ts = ((DataPoint) values).timestamp();
-        if (ts > latestTS) {
-          System.arraycopy(longs, 0, maxLongs, 0, size);
+        final long ts = ((DataPoint) values).timestamp();
+        if (ts > latest_ts) {
+          System.arraycopy(longs, 0, max_longs, 0, total_series);
         }
       }
 
-      hasLongs = true;
+      has_longs = true;
       return 0;
     }
 
     @Override
     public double runDouble(Doubles values) {
+      // TODO(cl) - Can we get anything other than a DataPoint?
       if (values instanceof DataPoint) {
         long ts = ((DataPoint) values).timestamp();
         //data point falls outside required range
@@ -202,7 +240,8 @@ public class HighestCurrent implements Expression {
         }
       }
 
-      double[] doubles = new double[size];
+      // TODO(cl) - Properly handle NaNs here
+      final double[] doubles = new double[total_series];
       int ix = 0;
       doubles[ix++] = values.nextDoubleValue();
       while (values.hasNextValue()) {
@@ -210,30 +249,30 @@ public class HighestCurrent implements Expression {
       }
 
       if (values instanceof DataPoint) {
-        long ts = ((DataPoint) values).timestamp();
-        if (ts > latestTS) {
-          System.arraycopy(doubles, 0, maxDoubles, 0, size);
+        final long ts = ((DataPoint) values).timestamp();
+        if (ts > latest_ts) {
+          System.arraycopy(doubles, 0, max_doubles, 0, total_series);
         }
       }
 
-      hasDoubles = true;
+      has_doubles = true;
       return 0;
     }
 
     public long[] getLongMaxes() {
-      return maxLongs;
+      return max_longs;
     }
 
     public double[] getDoubleMaxes() {
-      return maxDoubles;
+      return max_doubles;
     }
 
     public boolean hasLongs() {
-      return hasLongs;
+      return has_longs;
     }
 
     public boolean hasDoubles() {
-      return hasDoubles;
+      return has_doubles;
     }
     
   }
