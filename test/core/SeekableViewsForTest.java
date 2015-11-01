@@ -64,8 +64,32 @@ public class SeekableViewsForTest {
                                        final boolean is_integer,
                                        final double starting_value,
                                        final double increment) {
+    return generator(start_time, sample_period, num_data_points,
+     is_integer, starting_value, increment, false);
+  }
+  
+  /**
+   * Creates a {@link SeekableView} that generates a sequence of data points.
+   * @param start_time Starting timestamp
+   * @param sample_period Average sample period of data points
+   * @param num_data_points Total number of data points to generate
+   * @param is_integer True to generate a sequence of integer data points.
+   * @param starting_value The starting data point value.
+   * @param increment How much to increment the values each iteration.
+   * @param wholes_as_integer Whether or not to return whole numbers (1.0, 2.0, 
+   * etc) as integers to test for functions that should support both.
+   * Note: Ignored if is_integer is true.
+   * @return A {@link SeekableView} object
+   */
+  public static SeekableView generator(final long start_time,
+                                       final long sample_period,
+                                       final int num_data_points,
+                                       final boolean is_integer,
+                                       final double starting_value,
+                                       final double increment,
+                                       final boolean wholes_as_integer) {
     return new DataPointGenerator(start_time, sample_period, num_data_points,
-     is_integer, starting_value, increment);
+     is_integer, starting_value, increment, wholes_as_integer);
   }
 
   /** Iterates an array of data points. */
@@ -115,19 +139,28 @@ public class SeekableViewsForTest {
     private final double increment;
     private final MutableDataPoint current_data = new MutableDataPoint();
     private final MutableDataPoint next_data = new MutableDataPoint();
+    private final boolean wholes_as_integer;
     private int dps_emitted = 0;
     
     DataPointGenerator(final long start_time_ms, final long sample_period_ms,
         final int num_data_points, final boolean is_integer, 
-        final double starting_value, final double increment) {
+        final double starting_value, final double increment,
+        final boolean wholes_as_integer) {
       this.sample_period_ms = sample_period_ms;
       this.num_data_points = num_data_points;
       this.is_integer = is_integer;
       this.increment = increment;
+      this.wholes_as_integer = wholes_as_integer;
       if (is_integer) {
         next_data.reset(start_time_ms, (long)starting_value);
       } else {
-        next_data.reset(start_time_ms, starting_value);
+        if (wholes_as_integer && 
+            (starting_value == Math.floor(starting_value)) && 
+            !Double.isInfinite(starting_value)) {
+          next_data.reset(start_time_ms, (long)starting_value);
+        } else {
+          next_data.reset(start_time_ms, starting_value);
+        }
       }
     }
 
@@ -163,13 +196,20 @@ public class SeekableViewsForTest {
         next_data.reset(next_data.timestamp() + sample_period_ms, 
             next_data.longValue() + (long)increment);
       } else {
-        next_data.reset(next_data.timestamp() + sample_period_ms, 
-            next_data.doubleValue() + increment);
+        final double next = next_data.toDouble() + increment;
+        if (wholes_as_integer && 
+            (next == Math.floor(next)) && !Double.isInfinite(next)) {
+          next_data.reset(next_data.timestamp() + sample_period_ms, (long)next);
+        } else {
+          next_data.reset(next_data.timestamp() + sample_period_ms, next);
+        }
       }
       dps_emitted++;
     }
+    
+    
   }
-
+  
   @Test
   public void testDataPointGenerator() {
     SeekableView dpg = generator(100000, 10000, 5, true);
@@ -261,6 +301,29 @@ public class SeekableViewsForTest {
       DataPoint dp = dpg.next();
       assertEquals(expected.timestamp(), dp.timestamp());
       assertEquals(expected.longValue(), dp.longValue());
+    }
+    assertFalse(dpg.hasNext());
+  }
+
+  @Test
+  public void testDataPointGeneratorWholes() {
+    SeekableView dpg = generator(100000, 10000, 5, false, 0, 1.5, true);
+    DataPoint[] expected_data_points = new DataPoint[] {
+        MutableDataPoint.ofLongValue(100000, 0),
+        MutableDataPoint.ofDoubleValue(110000, 1.5),
+        MutableDataPoint.ofLongValue(120000, 3),
+        MutableDataPoint.ofDoubleValue(130000, 4.5),
+        MutableDataPoint.ofLongValue(140000, 6),
+    };
+    for (DataPoint expected: expected_data_points) {
+      assertTrue(dpg.hasNext());
+      DataPoint dp = dpg.next();
+      assertEquals(expected.timestamp(), dp.timestamp());
+      if (expected.isInteger()) {
+        assertEquals(expected.longValue(), dp.longValue());
+      } else {
+        assertEquals(expected.doubleValue(), dp.doubleValue(), 0.001);
+      }
     }
     assertFalse(dpg.hasNext());
   }
