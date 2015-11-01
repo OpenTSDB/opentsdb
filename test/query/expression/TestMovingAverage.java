@@ -275,6 +275,84 @@ public class TestMovingAverage {
     }
   }
 
+  @Test
+  public void evaluateGroupBy() throws Exception {
+    params.add("1");
+    SeekableView view2 = SeekableViewsForTest.generator(START_TIME, INTERVAL, 
+        NUM_POINTS, true, 10, 1);
+    DataPoints dps2 = PowerMockito.mock(DataPoints.class);
+    when(dps2.iterator()).thenReturn(view2);
+    when(dps2.metricName()).thenReturn("sys.mem");
+    group_bys = new DataPoints[] { dps, dps2 };
+    query_results.clear();
+    query_results.add(group_bys);
+    
+    final DataPoints[] results = func.evaluate(data_query, query_results, params);
+    
+    assertEquals(2, results.length);
+    assertEquals(METRIC, results[0].metricName());
+    assertEquals("sys.mem", results[1].metricName());
+    
+    long ts = START_TIME;
+    double v = 1;
+    for (DataPoint dp : results[0]) {
+      assertEquals(ts, dp.timestamp());
+      assertFalse(dp.isInteger());
+      assertEquals(v, dp.doubleValue(), 0.001);
+      ts += INTERVAL;
+      v += 1;
+    }
+    
+    ts = START_TIME;
+    v = 10;
+    for (DataPoint dp : results[1]) {
+      assertEquals(ts, dp.timestamp());
+      assertFalse(dp.isInteger());
+      assertEquals(v, dp.doubleValue(), 0.001);
+      ts += INTERVAL;
+      v += 1;
+    }
+  }
+  
+  @Test
+  public void evaluateSubQuery() throws Exception {
+    params.add("1");
+    
+    SeekableView view2 = SeekableViewsForTest.generator(START_TIME, INTERVAL, 
+        NUM_POINTS, true, 10, 1);
+    DataPoints dps2 = PowerMockito.mock(DataPoints.class);
+    when(dps2.iterator()).thenReturn(view2);
+    when(dps2.metricName()).thenReturn("sys.mem");
+    DataPoints[] group_bys2 = new DataPoints[] { dps2 };
+    query_results.add(group_bys2);
+    
+    final DataPoints[] results = func.evaluate(data_query, query_results, params);
+    
+    assertEquals(2, results.length);
+    assertEquals(METRIC, results[0].metricName());
+    assertEquals("sys.mem", results[1].metricName());
+    
+    long ts = START_TIME;
+    double v = 1;
+    for (DataPoint dp : results[0]) {
+      assertEquals(ts, dp.timestamp());
+      assertFalse(dp.isInteger());
+      assertEquals(v, dp.doubleValue(), 0.001);
+      ts += INTERVAL;
+      v += 1;
+    }
+    
+    ts = START_TIME;
+    v = 10;
+    for (DataPoint dp : results[1]) {
+      assertEquals(ts, dp.timestamp());
+      assertFalse(dp.isInteger());
+      assertEquals(v, dp.doubleValue(), 0.001);
+      ts += INTERVAL;
+      v += 1;
+    }
+  }
+  
   @Test (expected = IllegalArgumentException.class)
   public void evaluateNullQuery() throws Exception {
     params.add("1");

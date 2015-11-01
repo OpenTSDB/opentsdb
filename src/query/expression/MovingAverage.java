@@ -54,7 +54,7 @@ public class MovingAverage implements Expression {
       throw new IllegalArgumentException("Missing moving average window size");
     }
     param = param.trim();
-
+    
     long condition = -1;
     boolean is_time_unit = false;
     if (param.matches("^[0-9]+$")) {
@@ -103,35 +103,28 @@ public class MovingAverage implements Expression {
       }
     }
     
-    final SeekableView[] views = new SeekableView[num_results];
-    for (int i=0; i<num_results; i++) {
-      views[i] = post_agg_results[i].iterator();
+    final DataPoints[] results = new DataPoints[num_results];
+    for (int i = 0; i < num_results; i++) {
+      final Aggregator moving_average = new MovingAverageAggregator(
+          Aggregators.Interpolation.LERP, "movingAverage", 
+          condition, is_time_unit);
+      final SeekableView[] metrics_groups = new SeekableView[] { 
+          post_agg_results[i].iterator() };
+      final SeekableView view = new AggregationIterator(metrics_groups,
+              data_query.startTime(), data_query.endTime(),
+              moving_average, 
+              Aggregators.Interpolation.LERP, false);
+      final List<DataPoint> points = new ArrayList<DataPoint>();
+      while (view.hasNext()) {
+        final DataPoint mdp = view.next();
+        points.add(MutableDataPoint.ofDoubleValue(mdp.timestamp(), mdp.toDouble()));
+      }
+      results[i] = new PostAggregatedDataPoints(post_agg_results[i],
+        points.toArray(new DataPoint[points.size()]));
     }
-    
-    final Aggregator moving_average = new MovingAverageAggregator(
-            Aggregators.Interpolation.LERP, "movingAverage", 
-            condition, is_time_unit);
-    final SeekableView view = new AggregationIterator(views,
-            data_query.startTime(), data_query.endTime(),
-            moving_average, 
-            Aggregators.Interpolation.LERP, false);
-    
-    // TODO(cl) - here's a good place to return the AggregationIterators instead
-    // of processing them in situ and making copies
-    final List<DataPoint> points = new ArrayList<DataPoint>();
-    while (view.hasNext()) {
-      DataPoint mdp = view.next();
-      points.add(MutableDataPoint.ofDoubleValue(mdp.timestamp(), mdp.toDouble()));
-    }
-
-    if (query_results.size() > 0 && query_results.get(0).length > 0) {
-      return new DataPoints[]{new PostAggregatedDataPoints(query_results.get(0)[0],
-              points.toArray(new DataPoint[points.size()]))};
-    } else {
-      return new DataPoints[]{};
-    }
+    return results;
   }
-
+  
   /**
    * Parses the parameter string to fetch the window size
    * <p>
