@@ -13,11 +13,13 @@
 package net.opentsdb.query.expression;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.TSQuery;
 
 import org.junit.Before;
@@ -40,6 +42,7 @@ public class TestExpressions {
   public void before() throws Exception {
     data_query = mock(TSQuery.class);
     metric_queries = new ArrayList<String>();
+    ExpressionFactory.addFunction("foo", new FooExpression());
   }
   
   @Test
@@ -54,6 +57,40 @@ public class TestExpressions {
     final ExpressionTree tree = Expressions.parse(
         "   scale(sys.cpu)", metric_queries, data_query);
     assertEquals("scale()", tree.toString());
+  }
+
+  @Test
+  public void parseMultiParameter() {
+    final String expr = "foo(sum:proc.sys.cpu,, sum:proc.meminfo.memfree)";
+    final ExpressionTree tree = Expressions.parse(expr, metric_queries, null);
+    assertEquals("foo(proc.sys.cpu,proc.meminfo.memfree)", tree.toString());
+    assertEquals(2, metric_queries.size());
+    assertEquals("sum:proc.sys.cpu", metric_queries.get(0));
+    assertEquals("sum:proc.meminfo.memfree", metric_queries.get(1));
+    assertNull(tree.funcParams());
+  }
+  
+  @Test
+  public void parseNestedExpr() {
+    final String expr = "foo(sum:proc.sys.cpu,, foo(sum:proc.a.b))";
+    final ExpressionTree tree = Expressions.parse(expr, metric_queries, null);
+    assertEquals("foo(foo(proc.a.b),proc.sys.cpu)", tree.toString());
+    assertEquals(2, metric_queries.size());
+    assertEquals("sum:proc.sys.cpu", metric_queries.get(0));
+    assertEquals("sum:proc.a.b", metric_queries.get(1));
+    assertNull(tree.funcParams());
+  }
+  
+  @Test
+  public void parseExprWithParam() {
+    final String expr = "foo(sum:proc.sys.cpu,, 100,, 3.1415)";
+    final ExpressionTree tree = Expressions.parse(expr, metric_queries, null);
+    assertEquals("foo(proc.sys.cpu)", tree.toString());
+    assertEquals(1, metric_queries.size());
+    assertEquals("sum:proc.sys.cpu", metric_queries.get(0));
+    assertEquals(2, tree.funcParams().size());
+    assertEquals("100", tree.funcParams().get(0));
+    assertEquals("3.1415", tree.funcParams().get(1));
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -92,4 +129,19 @@ public class TestExpressions {
   }
 
   //TODO - Need to add more tests around parsing nested functions and params
+  
+  /** Dummy test expression implementation */
+  private static class FooExpression implements Expression {
+    @Override
+    public DataPoints[] evaluate(final TSQuery data_query, 
+        final List<DataPoints[]> query_results, final List<String> params) {
+      return new DataPoints[0];
+    }
+
+    @Override
+    public String writeStringField(final List<String> query_params, 
+        final String inner_expressions) {
+      return "foo(" + inner_expressions + ")";
+    }
+  }
 }
