@@ -42,6 +42,8 @@ import net.opentsdb.core.TSSubQuery;
 import net.opentsdb.core.Tags;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSUIDQuery;
+import net.opentsdb.query.expression.ExpressionTree;
+import net.opentsdb.query.expression.Expressions;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -90,8 +92,10 @@ final class QueryRpc implements HttpRpc {
     
     if (endpoint.toLowerCase().equals("last")) {
       handleLastDataPointQuery(tsdb, query);
+    } else if (endpoint.toLowerCase().equals("gexp")){
+      handleQuery(tsdb, query, true);
     } else {
-      handleQuery(tsdb, query);
+      handleQuery(tsdb, query, false);
     }
   }
 
@@ -99,10 +103,14 @@ final class QueryRpc implements HttpRpc {
    * Processing for a data point query
    * @param tsdb The TSDB to which we belong
    * @param query The HTTP query to parse/respond
+   * @param allow_expressions Whether or not expressions should be parsed
+   * (based on the endpoint)
    */
-  private void handleQuery(final TSDB tsdb, final HttpQuery query) {
+  private void handleQuery(final TSDB tsdb, final HttpQuery query, 
+      final boolean allow_expressions) {
     final long start = DateTime.currentTimeMillis();
     final TSQuery data_query;
+    final List<ExpressionTree> expressions;
     if (query.method() == HttpMethod.POST) {
       switch (query.apiVersion()) {
       case 0:
@@ -114,8 +122,10 @@ final class QueryRpc implements HttpRpc {
             "Requested API version not implemented", "Version " + 
             query.apiVersion() + " is not implemented");
       }
+      expressions = null;
     } else {
-      data_query = this.parseQuery(tsdb, query);
+      expressions = new ArrayList<ExpressionTree>();
+      data_query = this.parseQuery(tsdb, query, expressions);
     }
     
     if (query.getAPIMethod() == HttpMethod.DELETE &&
@@ -192,8 +202,20 @@ final class QueryRpc implements HttpRpc {
     class QueriesCB implements Callback<Object, ArrayList<DataPoints[]>> {
       public Object call(final ArrayList<DataPoints[]> query_results) 
         throws Exception {
-        results.addAll(query_results);
-
+        if (allow_expressions) {
+          // process each of the expressions into a new list, then merge it
+          // with the original. This avoids possible recursion loops.
+          final List<DataPoints[]> expression_results = 
+              new ArrayList<DataPoints[]>(expressions.size());
+          // let exceptions bubble up
+          for (final ExpressionTree expression : expressions) {
+            expression_results.add(expression.evaluate(query_results));
+          }
+          results.addAll(expression_results);
+        } else {
+          results.addAll(query_results);
+        }
+        
         /** Simply returns the buffer once serialization is complete and logs it */
         class SendIt implements Callback<Object, ChannelBuffer> {
           public Object call(final ChannelBuffer buffer) throws Exception {
@@ -432,10 +454,13 @@ final class QueryRpc implements HttpRpc {
    * Parses a query string legacy style query from the URI
    * @param tsdb The TSDB we belong to
    * @param query The HTTP Query for parsing
+   * @param expressions A list of parsed expression trees filled from the URI.
+   * If this is null, it means any expressions in the URI will be skipped.
    * @return A TSQuery if parsing was successful
    * @throws BadRequestException if parsing was unsuccessful
    */
-  private TSQuery parseQuery(final TSDB tsdb, final HttpQuery query) {
+  private TSQuery parseQuery(final TSDB tsdb, final HttpQuery query, 
+      final List<ExpressionTree> expressions) {
     final TSQuery data_query = new TSQuery();
     
     data_query.setStart(query.getRequiredQueryStringParam("start"));
@@ -485,6 +510,30 @@ final class QueryRpc implements HttpRpc {
       final List<String> legacy_queries = query.getQueryStringParams("m");      
       for (String q : legacy_queries) {
         this.parseMTypeSubQuery(q, data_query);
+      }
+    }
+    
+    // TODO - testing out the graphite style expressions here with the "exp" 
+    // param that could stand for experimental or expression ;)
+    if (expressions != null) {
+      if (query.hasQueryStringParam("exp")) {
+        final List<String> uri_expressions = query.getQueryStringParams("exp");
+        final List<String> metric_queries = new ArrayList<String>(
+            uri_expressions.size());
+        // parse the expressions into their trees. If one or more expressions 
+        // are improper then it will toss an exception up
+        expressions.addAll(Expressions.parseExpressions(
+            uri_expressions, data_query, metric_queries));
+        // iterate over each of the parsed metric queries and store it in the
+        // TSQuery list so that we fetch the data for them.
+        for (final String mq: metric_queries) {
+          parseMTypeSubQuery(mq, data_query);
+        }
+      }
+    } else {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Received a request with an expression but at the "
+            + "wrong endpoint: " + query);
       }
     }
     

@@ -12,9 +12,13 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.expression;
 
+import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.List;
 
 import net.opentsdb.core.TSQuery;
+import net.opentsdb.query.expression.parser.ParseException;
+import net.opentsdb.query.expression.parser.SyntaxChecker;
 
 /**
  * Static class with helpers to parse and deal with expressions
@@ -64,6 +68,33 @@ public class Expressions {
     return root;
   }
 
+  /**
+   * Parses a list of string expressions into the proper trees, adding the
+   * metrics to the {@link metric_queries} list.
+   * @param expressions A list of zero or more expressions (if empty, you get an
+   * empty tree list back)
+   * @param ts_query The original query with timestamps
+   * @param metric_queries The list to fill with metrics to fetch
+   */
+  public static List<ExpressionTree> parseExpressions(
+                                            final List<String> expressions, 
+                                            final TSQuery ts_query, 
+                                            final List<String> metric_queries) {
+    final List<ExpressionTree> trees = 
+        new ArrayList<ExpressionTree>(expressions.size());
+    for (final String expr: expressions) {
+      final SyntaxChecker checker = new SyntaxChecker(new StringReader(expr));
+      checker.setMetricQueries(metric_queries);
+      checker.setTSQuery(ts_query);
+      try {
+        trees.add(checker.EXPRESSION());
+      } catch (ParseException e) {
+        throw new IllegalArgumentException("Failed to parse " + expr, e);
+      }
+    }
+    return trees;
+  }
+  
   /**
    * Helper to parse out the function(s) and parameters
    * @param reader The reader used for iterating over the expression
