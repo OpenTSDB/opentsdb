@@ -1,0 +1,68 @@
+PARSER_BEGIN(SyntaxChecker)
+package net.opentsdb.query.expression.parser;
+
+import net.opentsdb.query.expression.ExpressionTree;
+import net.opentsdb.core.TSQuery;
+
+import java.util.List;
+import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
+
+/**
+* A simple class for validating the expressions
+* @since 2.3
+*/
+public class SyntaxChecker {
+
+  private TSQuery data_query;
+  private List<String> metricQueries;
+
+  public void setTSQuery(TSQuery data_query) {
+    this.data_query = data_query;
+  }
+
+  public void setMetricQueries(List<String> metricQueries) {
+    this.metricQueries = metricQueries;
+  }
+
+  public static void main(String[] args) {
+    try {
+      new SyntaxChecker(new java.io.StringReader(args[0])).EXPRESSION();
+      System.out.println("Syntax is okay");
+    } catch (Throwable e) {
+      // Catching Throwable is ugly but JavaCC throws Error objects!
+      System.out.println("Syntax check failed: " + e.getMessage());
+    }
+  }
+}
+
+PARSER_END(SyntaxChecker)
+
+SKIP:  { " " | "\t" | "\n" | "\r"                    }
+TOKEN: { <NAME: ("*" | (["a" - "z"] | ["A" - "Z"]| ["0"-"9"] | "-" | "_" | "#" | "/" | "$" | "@" | "|" | "." | "'" | "]" | "[")+ )> }
+TOKEN: { <PARAM: ("&&")> }
+
+ExpressionTree EXPRESSION():  {Token name; int paramIndex=0;}  {
+        name=<NAME> { ExpressionTree tree=new ExpressionTree(name.image,data_query); }
+        "(" PARAMETER(tree, paramIndex++) ("," PARAMETER(tree, paramIndex++))* ")"
+        {return tree;}
+}
+
+void PARAMETER(ExpressionTree tree, int paramIndex):  {String metric; Token param; ExpressionTree subTree;}  {
+        subTree=EXPRESSION() {tree.addSubExpression(subTree, paramIndex);} |
+        metric=METRIC() {metricQueries.add(metric); tree.addSubMetricQuery(metric, metricQueries.size()-1, paramIndex);} |
+        param=<NAME> {tree.addFunctionParameter(param.image);}
+}
+
+// metric is agg:[interval-agg:][rate:]metric[{tag=value,...}]
+String METRIC()    :  {Token agg,itvl,rate,metric,tagk,tagv; StringBuilder builder = new StringBuilder();
+                     Joiner JOINER = Joiner.on(",").skipNulls();
+                     List<String> tagPairs = Lists.newArrayList();
+                     } {
+                        agg =  <NAME> ":" { builder.append(agg.image).append(":"); }
+                        (itvl=<NAME> ":" { builder.append(itvl.image).append(":"); })?
+                        (rate=<NAME> ":" { builder.append(rate.image).append(":"); })?
+                        metric=<NAME> { builder.append(metric.image); }
+                        ("{" tagk=<NAME> "=" tagv=<NAME> {tagPairs.add(tagk+"="+tagv);}
+                             ("," tagk=<NAME> "=" tagv=<NAME> {tagPairs.add(tagk+"="+tagv);})* "}")?
+                             {if (tagPairs.size() > 0) builder.append("{").append(JOINER.join(tagPairs)).append("}"); return builder.toString();} }

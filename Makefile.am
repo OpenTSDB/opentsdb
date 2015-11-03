@@ -171,6 +171,7 @@ tsdb_DEPS = \
 	$(JACKSON_ANNOTATIONS)	\
 	$(JACKSON_CORE)	\
 	$(JACKSON_DATABIND)	\
+	$(JAVACC)	\
 	$(NETTY)	\
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
@@ -194,7 +195,7 @@ else
 tsdb_DEPS += \
 	$(ASYNCHBASE) \
 	$(PROTOBUF) \
- 	$(ZOOKEEPER)
+	$(ZOOKEEPER)
 maven_profile_bigtable := false
 maven_profile_hbase := true
 maven_profile_cassandra := false
@@ -329,11 +330,11 @@ test_DEPS = \
 	$(tsdb_DEPS) \
 	$(JAVASSIST)	\
 	$(JUNIT)	\
-        $(HAMCREST)	\
+	$(HAMCREST)	\
 	$(MOCKITO)	\
-        $(OBJENESIS)	\
+	$(OBJENESIS)	\
 	$(POWERMOCK_MOCKITO)	\
-        $(jar)
+	$(jar)
 
 httpui_SRC := \
 	src/tsd/client/DateTimeBox.java	\
@@ -346,6 +347,11 @@ httpui_SRC := \
 	src/tsd/client/ValidatedTextBox.java
 
 httpui_DEPS = src/tsd/QueryUi.gwt.xml
+
+# TODO(CL) - There is likely a MUCH better way to compile and add the expression sources and jars.
+expr_package = net/opentsdb/query/expression/parser
+expr_src_dir = $(abs_builddir)/src/$(expr_package)
+get_expr_classes = `classes=''; for f in $(packagedir)$(expr_package)/*.class; do classes="$$classes $$f"; done; echo $$classes;`
 
 #dist_pkgdata_DATA = src/logback.xml
 dist_static_DATA = src/tsd/static/favicon.ico
@@ -405,7 +411,7 @@ install-exec-hook:
 $(builddata_SRC): .git/HEAD $(tsdb_SRC) $(top_srcdir)/build-aux/gen_build_data.sh
 	$(srcdir)/build-aux/gen_build_data.sh $(builddata_SRC) $(package).$(builddata_subpackage) $(PACKAGE_VERSION)
 
-jar: $(jar) .javac-unittests-stamp .gwtc-stamp
+jar: runjavacc $(jar) .javac-unittests-stamp .gwtc-stamp
 
 JAVA_COMPILE := $(JAVAC) $(AM_JAVACFLAGS) -d .
 
@@ -419,6 +425,9 @@ filter_src = \
      test -f "$(srcdir)/$$i" && i="$(srcdir)/$$i"; \
      src="$$src $$i";; \
    esac; \
+ done; \
+ for f in $(expr_src_dir)/*.java; do \
+   src="$$src $$f"; \
  done; \
  test -n "$$src" || exit 0
 # Touches all the targets if any of the dependencies are newer.
@@ -438,7 +447,7 @@ find_jar = test -f "$$jar" && echo "$$jar" || echo "$(srcdir)/$$jar"
 get_dep_classpath = `for jar in $(tsdb_DEPS); do $(find_jar); done | tr '\n' ':'`
 .javac-stamp: $(tsdb_SRC) $(builddata_SRC)
 	@$(filter_src); cp=$(get_dep_classpath); \
-          echo "$(JAVA_COMPILE) -cp $$cp $$src"; \
+          echo "DO THA COMPILE!!! $(JAVA_COMPILE) -cp $$cp $$src"; \
                 $(JAVA_COMPILE) -cp $$cp $$src
 	@touch "$@"
 
@@ -653,7 +662,7 @@ manifest: .javac-stamp .git/HEAD
           echo "Implementation-Vendor: $(spec_vendor)"; } >"$@"
 
 $(jar): manifest .javac-stamp $(classes)
-	$(JAR) cfm `basename $(jar)` manifest $(classes_with_nested_classes) \
+	$(JAR) cfm `basename $(jar)` manifest $(classes_with_nested_classes) $(get_expr_classes) \
          || { rv=$$? && rm -f `basename $(jar)` && exit $$rv; }
 #                       ^^^^^^^^^^^^^^^^^^^^^^^
 # I've seen cases where `jar' exits with an error but leaves a partially built .jar file!
@@ -676,6 +685,9 @@ $(JAVADOC_DIR)/index.html: $(tsdb_SRC)
 	$(JAVADOC) -d $(JAVADOC_DIR) -classpath $(get_dep_classpath) \
           -link $(JDK_JAVADOC) -link $(NETTY_JAVADOC) -link $(SUASYNC_JAVADOC) \
           $? $(builddata_SRC)
+
+runjavacc:
+	$(JAVA) -cp $(JAVACC) javacc -STATIC:false -LOOKAHEAD:5 -OUTPUT_DIRECTORY:$(expr_src_dir) $(abs_srcdir)/src/parser.jj; echo PWD: `pwd`;
 
 dist-hook:
 	$(mkdir_p) $(distdir)/.git
