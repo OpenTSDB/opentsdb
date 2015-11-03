@@ -1,3 +1,9 @@
+/** Options required by Maven */
+options {
+  STATIC = false;
+  LOOKAHEAD = 5;
+}
+
 PARSER_BEGIN(SyntaxChecker)
 package net.opentsdb.query.expression.parser;
 

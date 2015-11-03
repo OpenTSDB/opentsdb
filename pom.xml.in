@@ -314,6 +314,28 @@
         </configuration>
       </plugin>
 
+      <plugin>
+        <groupId>com.helger.maven</groupId>
+        <artifactId>ph-javacc-maven-plugin</artifactId>
+        <version>2.8.0</version>
+        <executions>
+          <execution>
+            <id>jjc</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>javacc</goal>
+            </goals>
+            <configuration>
+              <jdkVersion>1.6</jdkVersion>
+              <javadocFriendlyComments>true</javadocFriendlyComments>
+              <packageName>net.opentsdb.query.expression.parser</packageName>
+              <sourceDirectory>${basedir}/src/</sourceDirectory>
+              <outputDirectory>${project.build.directory}/generated-sources/</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      
     </plugins>
   </build>
 

@@ -687,7 +687,7 @@ $(JAVADOC_DIR)/index.html: $(tsdb_SRC)
           $? $(builddata_SRC)
 
 runjavacc:
-	$(JAVA) -cp $(JAVACC) javacc -STATIC:false -LOOKAHEAD:5 -OUTPUT_DIRECTORY:$(expr_src_dir) $(abs_srcdir)/src/parser.jj; echo PWD: `pwd`;
+	$(JAVA) -cp $(JAVACC) javacc -OUTPUT_DIRECTORY:$(expr_src_dir) $(abs_srcdir)/src/parser.jj; echo PWD: `pwd`;
 
 dist-hook:
 	$(mkdir_p) $(distdir)/.git
