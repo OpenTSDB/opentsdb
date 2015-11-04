@@ -153,6 +153,7 @@ tsdb_SRC := \
 	src/uid/UniqueId.java	\
 	src/uid/UniqueIdInterface.java \
 	src/utils/ByteArrayPair.java \
+	src/utils/ByteSet.java \
 	src/utils/Config.java \
 	src/utils/DateTime.java \
 	src/utils/Exceptions.java \
@@ -296,6 +297,7 @@ test_SRC := \
 	test/uid/TestRandomUniqueId.java	\
 	test/uid/TestUniqueId.java \
 	test/utils/TestByteArrayPair.java \
+	test/utils/TestByteSet.java \
 	test/utils/TestConfig.java \
 	test/utils/TestDateTime.java \
 	test/utils/TestExceptions.java \
