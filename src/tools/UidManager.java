@@ -40,6 +40,7 @@ import net.opentsdb.meta.TSMeta;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 
 /**
@@ -158,7 +159,7 @@ final class UidManager {
         usage("Wrong number of arguments");
         return 2;
       }
-      return assign(tsdb.getClient(), table, idwidth, args);
+      return assign(tsdb, table, idwidth, args);
     } else if (args[0].equals("rename")) {
       if (nargs != 4) {
         usage("Wrong number of arguments");
@@ -349,22 +350,27 @@ final class UidManager {
 
   /**
    * Implements the {@code assign} subcommand.
-   * @param client The HBase client to use.
+   * @param tsdb The TSDB to use.
    * @param table The name of the HBase table to use.
    * @param idwidth Number of bytes on which the UIDs should be.
    * @param args Command line arguments ({@code assign name [names]}).
    * @return The exit status of the command (0 means success).
    */
-  private static int assign(final HBaseClient client,
+  private static int assign(final TSDB tsdb,
                             final byte[] table,
                             final short idwidth,
                             final String[] args) {
-    final UniqueId uid = new UniqueId(client, table, args[1], (int) idwidth);
+    boolean randomize = false;
+    if (UniqueIdType.valueOf(args[1]) == UniqueIdType.METRIC) {
+      randomize = tsdb.getConfig().getBoolean("tsd.core.uid.random_metrics");
+    }
+    final UniqueId uid = new UniqueId(tsdb.getClient(), table, args[1], 
+        (int) idwidth, randomize);
     for (int i = 2; i < args.length; i++) {
       try {
         uid.getOrCreateId(args[i]);
         // Lookup again the ID we've just created and print it.
-        extactLookupName(client, table, idwidth, args[1], args[i]);
+        extactLookupName(tsdb.getClient(), table, idwidth, args[1], args[i]);
       } catch (HBaseException e) {
         LOG.error("error while processing " + args[i], e);
         return 3;
