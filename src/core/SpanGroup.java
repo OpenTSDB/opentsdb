@@ -13,6 +13,7 @@
 package net.opentsdb.core;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -327,6 +328,11 @@ final class SpanGroup implements DataPoints {
       spans.get(0).metricNameAsync();
   }
 
+  @Override
+  public byte[] metricUID() {
+    return spans.isEmpty() ? new byte[] {} : spans.get(0).metricUID();
+  }
+  
   public Map<String, String> getTags() {
     try {
       return getTagsAsync().joinUninterruptibly();
@@ -387,6 +393,22 @@ final class SpanGroup implements DataPoints {
     }
     
     return resolveAggTags(aggregated_tag_uids);
+  }
+  
+  @Override
+  public List<byte[]> getAggregatedTagUids() {
+    if (aggregated_tag_uids != null) {
+      return new ArrayList<byte[]>(aggregated_tag_uids);
+    }
+    
+    if (spans.isEmpty()) {
+      return Collections.emptyList();
+    }
+    
+    if (aggregated_tag_uids == null) {
+      computeTags();
+    }
+    return new ArrayList<byte[]>(aggregated_tag_uids);
   }
 
   public List<String> getTSUIDs() {

@@ -75,6 +75,14 @@ public class PostAggregatedDataPoints implements DataPoints {
     }
     return base_data_points.metricNameAsync();
   }
+  
+  @Override
+  public byte[] metricUID() {
+    if (alias != null) {
+      return new byte[] { };
+    }
+    return base_data_points.metricUID();
+  }
 
   @Override
   public Map<String, String> getTags() {
@@ -109,6 +117,14 @@ public class PostAggregatedDataPoints implements DataPoints {
     return base_data_points.getAggregatedTagsAsync();
   }
 
+  @Override
+  public List<byte[]> getAggregatedTagUids() {
+    if (alias != null) {
+      return Collections.<byte[]>emptyList();
+    }
+    return base_data_points.getAggregatedTagUids();
+  }
+  
   @Override
   public List<String> getTSUIDs() {
     return base_data_points.getTSUIDs();

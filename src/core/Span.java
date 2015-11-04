@@ -86,6 +86,12 @@ final class Span implements DataPoints {
     return rows.get(0).metricNameAsync();
   }
 
+  @Override
+  public byte[] metricUID() {
+    checkNotEmpty();
+    return rows.get(0).metricUID();
+  }
+  
   /**
    * @return the list of tag pairs for the rows in this span
    * @throws IllegalStateException if the span was empty
@@ -120,6 +126,11 @@ final class Span implements DataPoints {
   public Deferred<List<String>> getAggregatedTagsAsync() {
     final List<String> empty = Collections.emptyList();
     return Deferred.fromResult(empty);
+  }
+  
+  @Override
+  public List<byte[]> getAggregatedTagUids() {
+    return Collections.emptyList();
   }
 
   /** @return the number of data points in this span, O(n)
