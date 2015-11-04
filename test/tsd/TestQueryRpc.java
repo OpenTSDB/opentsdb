@@ -520,8 +520,9 @@ public final class TestQueryRpc {
       rpc.execute(tsdb, query);
       fail("expected BadRequestException");
     } catch (final BadRequestException exn) {
+      System.out.println(exn.getMessage());
       assertTrue(exn.getMessage().startsWith(
-          "No such fill policy: 'badbadbad': must be one of:"));
+          "Unrecognized fill policy: badbadbad"));
     }
   }
   
