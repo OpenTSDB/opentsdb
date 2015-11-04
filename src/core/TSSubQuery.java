@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.utils.ByteSet;
 
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableMap;
@@ -271,6 +272,21 @@ public final class TSSubQuery {
       filters = new ArrayList<TagVFilter>();
     }
     return filters;
+  }
+  
+  /** @return the unique set of tagks from the filters. May be null if no filters
+   * were set. Must make sure to resolve the string tag to UIDs in the filter first.
+   * @since 2.3
+   */
+  public ByteSet getFilterTagKs() {
+    if (filters == null || filters.isEmpty()) {
+      return null;
+    }
+    final ByteSet tagks = new ByteSet();
+    for (final TagVFilter filter : filters) {
+      tagks.add(filter.getTagkBytes());
+    }
+    return tagks;
   }
   
   /** @param aggregator the name of an aggregation function */

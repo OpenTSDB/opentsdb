@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -29,6 +30,7 @@ import net.opentsdb.query.filter.TagVLiteralOrFilter;
 import net.opentsdb.query.filter.TagVWildcardFilter;
 
 import org.junit.Test;
+import org.powermock.reflect.Whitebox;
 
 public final class TestTSSubQuery {
 
@@ -185,6 +187,19 @@ public final class TestTSSubQuery {
     assertEquals(300000, sub.downsampleInterval());
   }
 
+  @Test
+  public void getFilterTagks() {
+    final TagVFilter filter = TagVFilter.Builder()
+        .setFilter("*nari").setType("wildcard").setTagk("host").build();
+    Whitebox.setInternalState(filter, "tagk_bytes", new byte[] { 0, 0, 1 });
+    TSSubQuery sub = getMetricForValidate();
+    sub.setFilters(Arrays.asList(filter));
+    sub.validateAndSetQuery();
+    
+    assertEquals(1, sub.getFilterTagKs().size());
+    assertArrayEquals(new byte[] { 0, 0, 1 }, sub.getFilterTagKs().iterator().next());
+  }
+  
   // NOTE: Each of the hash and equals  tests should make sure that we the code
   // doesn't change after validation.
   
