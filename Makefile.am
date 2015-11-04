@@ -82,6 +82,7 @@ tsdb_SRC := \
 	src/query/expression/ExpressionTree.java	\
 	src/query/expression/HighestCurrent.java	\
 	src/query/expression/HighestMax.java	\
+	src/query/expression/ITimeSyncedIterator.java	\
 	src/query/expression/NumericFillPolicy.java	\
 	src/query/expression/MovingAverage.java	\
 	src/query/expression/PostAggregatedDataPoints.java	\
