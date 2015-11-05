@@ -89,12 +89,13 @@ tsdb_SRC := \
 	src/query/expression/PostAggregatedDataPoints.java	\
 	src/query/expression/Scale.java	\
 	src/query/expression/TimeSyncedIterator.java	\
+	src/query/expression/TimeSyncedIterator.java	\
 	src/query/filter/TagVFilter.java	\
 	src/query/filter/TagVLiteralOrFilter.java	\
 	src/query/filter/TagVNotKeyFilter.java	\
 	src/query/filter/TagVNotLiteralOrFilter.java	\
 	src/query/filter/TagVRegexFilter.java	\
-	src/query/filter/TagVWildcardFilter.java	\
+	src/query/filter/VariableIterator.java	\
 	src/search/SearchPlugin.java	\
 	src/search/SearchQuery.java	\
 	src/search/TimeSeriesLookup.java	\
