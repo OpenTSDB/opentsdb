@@ -76,6 +76,7 @@ tsdb_SRC := \
 	src/query/QueryUtil.java	\
 	src/query/expression/Absolute.java	\
 	src/query/expression/Expression.java	\
+	src/query/expression/ExpressionDataPoint.java	\
 	src/query/expression/ExpressionFactory.java	\
 	src/query/expression/ExpressionReader.java	\
 	src/query/expression/Expressions.java	\
@@ -87,6 +88,7 @@ tsdb_SRC := \
 	src/query/expression/MovingAverage.java	\
 	src/query/expression/PostAggregatedDataPoints.java	\
 	src/query/expression/Scale.java	\
+	src/query/expression/TimeSyncedIterator.java	\
 	src/query/filter/TagVFilter.java	\
 	src/query/filter/TagVLiteralOrFilter.java	\
 	src/query/filter/TagVNotKeyFilter.java	\
@@ -243,6 +245,7 @@ test_SRC := \
 	test/meta/TestTSMeta.java	\
 	test/meta/TestTSUIDQuery.java	\
 	test/meta/TestUIDMeta.java	\
+	test/query/expression/BaseTimeSyncedIteratorTest.java	\
 	test/query/expression/TestAbsolute.java	\
 	test/query/expression/TestExpressionFactory.java	\
 	test/query/expression/TestExpressionReader.java	\
@@ -254,6 +257,7 @@ test_SRC := \
 	test/query/expression/TestMovingAverage.java	\
 	test/query/expression/TestPostAggregatedDataPoints.java	\
 	test/query/expression/TestScale.java	\
+	test/query/expression/TestTimeSyncedIterator.java	\
 	test/query/filter/TestTagVFilter.java	\
 	test/query/filter/TestTagVLiteralOrFilter.java	\
 	test/query/filter/TestTagVNotKeyFilter.java	\
