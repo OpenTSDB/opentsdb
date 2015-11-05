@@ -83,6 +83,7 @@ tsdb_SRC := \
 	src/query/expression/ExpressionTree.java	\
 	src/query/expression/HighestCurrent.java	\
 	src/query/expression/HighestMax.java	\
+	src/query/expression/IntersectionIterator.java	\
 	src/query/expression/ITimeSyncedIterator.java	\
 	src/query/expression/NumericFillPolicy.java	\
 	src/query/expression/MovingAverage.java	\
@@ -254,6 +255,7 @@ test_SRC := \
 	test/query/expression/TestExpressionTree.java	\
 	test/query/expression/TestHighestCurrent.java	\
 	test/query/expression/TestHighestMax.java	\
+	test/query/expression/TestIntersectionIterator.java	\
 	test/query/expression/TestNumericFillPolicy.java	\
 	test/query/expression/TestMovingAverage.java	\
 	test/query/expression/TestPostAggregatedDataPoints.java	\
