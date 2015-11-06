@@ -18,6 +18,7 @@ import java.util.Map;
 
 import net.opentsdb.core.BaseTsdbTest;
 import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.FillPolicy;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.TSSubQuery;
@@ -132,9 +133,10 @@ public class BaseTimeSyncedIteratorTest extends BaseTsdbTest {
       results.put(Integer.toString(index), 
           new Pair<TSSubQuery, DataPoints[]>(
               query.getQueries().get(index), dps));
-      iterators.put(Integer.toString(index), 
-          new TimeSyncedIterator(Integer.toString(index), 
-              query.getQueries().get(index).getFilterTagKs(), dps));
+      final ITimeSyncedIterator it = new TimeSyncedIterator(Integer.toString(index), 
+          query.getQueries().get(index).getFilterTagKs(), dps);
+      it.setFillPolicy(new NumericFillPolicy(FillPolicy.NOT_A_NUMBER));
+      iterators.put(Integer.toString(index), it);
       index++;
     }
   }
@@ -311,9 +313,9 @@ public class BaseTimeSyncedIteratorTest extends BaseTsdbTest {
     tags = new HashMap<String, String>(2);
     tags.put("D", "G");
     tags.put("E", "E");
-    tsdb.addPoint("B", 1431561600, 14, tags).joinUninterruptibly();
-    tsdb.addPoint("B", 1431561660, 15, tags).joinUninterruptibly();
-    tsdb.addPoint("B", 1431561720, 16, tags).joinUninterruptibly();
+    tsdb.addPoint("B", 1431561600, 17, tags).joinUninterruptibly();
+    tsdb.addPoint("B", 1431561660, 18, tags).joinUninterruptibly();
+    tsdb.addPoint("B", 1431561720, 19, tags).joinUninterruptibly();
   }
   
   /**

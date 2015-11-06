@@ -90,7 +90,7 @@ tsdb_SRC := \
 	src/query/expression/PostAggregatedDataPoints.java	\
 	src/query/expression/Scale.java	\
 	src/query/expression/TimeSyncedIterator.java	\
-	src/query/expression/TimeSyncedIterator.java	\
+	src/query/expression/UnionIterator.java	\
 	src/query/filter/TagVFilter.java	\
 	src/query/filter/TagVLiteralOrFilter.java	\
 	src/query/filter/TagVNotKeyFilter.java	\
@@ -261,6 +261,7 @@ test_SRC := \
 	test/query/expression/TestPostAggregatedDataPoints.java	\
 	test/query/expression/TestScale.java	\
 	test/query/expression/TestTimeSyncedIterator.java	\
+	test/query/expression/TestUnionIterator.java	\
 	test/query/filter/TestTagVFilter.java	\
 	test/query/filter/TestTagVLiteralOrFilter.java	\
 	test/query/filter/TestTagVNotKeyFilter.java	\
