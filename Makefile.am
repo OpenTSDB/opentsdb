@@ -97,6 +97,15 @@ tsdb_SRC := \
 	src/query/filter/TagVNotLiteralOrFilter.java	\
 	src/query/filter/TagVRegexFilter.java	\
 	src/query/filter/VariableIterator.java	\
+	src/query/pojo/Downsampler.java	\
+	src/query/pojo/Expression.java	\
+	src/query/pojo/Filter.java	\
+	src/query/pojo/Join.java	\
+	src/query/pojo/Metric.java	\
+	src/query/pojo/Output.java	\
+	src/query/pojo/Query.java	\
+	src/query/pojo/Timespan.java	\
+	src/query/pojo/Validatable.java	\
 	src/search/SearchPlugin.java	\
 	src/search/SearchQuery.java	\
 	src/search/TimeSeriesLookup.java	\
@@ -268,6 +277,15 @@ test_SRC := \
 	test/query/filter/TestTagVNotLiteralOrFilter.java	\
 	test/query/filter/TestTagVRegexFilter.java	\
 	test/query/filter/TestTagVWildcardFilter.java	\
+	test/query/pojo/TestDownsampler.java	\
+	test/query/pojo/TestExpression.java	\
+	test/query/pojo/TestFilter.java	\
+	test/query/pojo/TestJoin.java	\
+	test/query/pojo/TestMetric.java	\
+	test/query/pojo/TestOutput.java	\
+	test/query/pojo/TestQuery.java	\
+	test/query/pojo/TestTimespan.java	\
+	test/query/pojo/TestValidatable.java	\
 	test/search/TestSearchPlugin.java	\
 	test/search/TestSearchQuery.java	\
 	test/search/TestTimeSeriesLookup.java	\
