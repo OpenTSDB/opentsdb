@@ -78,6 +78,7 @@ tsdb_SRC := \
 	src/query/expression/Expression.java	\
 	src/query/expression/ExpressionDataPoint.java	\
 	src/query/expression/ExpressionFactory.java	\
+	src/query/expression/ExpressionIterator.java	\
 	src/query/expression/ExpressionReader.java	\
 	src/query/expression/Expressions.java	\
 	src/query/expression/ExpressionTree.java	\
@@ -91,12 +92,13 @@ tsdb_SRC := \
 	src/query/expression/Scale.java	\
 	src/query/expression/TimeSyncedIterator.java	\
 	src/query/expression/UnionIterator.java	\
+	src/query/expression/VariableIterator.java	\
 	src/query/filter/TagVFilter.java	\
 	src/query/filter/TagVLiteralOrFilter.java	\
 	src/query/filter/TagVNotKeyFilter.java	\
 	src/query/filter/TagVNotLiteralOrFilter.java	\
 	src/query/filter/TagVRegexFilter.java	\
-	src/query/filter/VariableIterator.java	\
+	src/query/filter/TagVWildcardFilter.java	\
 	src/query/pojo/Downsampler.java	\
 	src/query/pojo/Expression.java	\
 	src/query/pojo/Filter.java	\
@@ -180,6 +182,7 @@ tsdb_SRC := \
 	src/utils/Threads.java
 
 tsdb_DEPS = \
+	$(COMMONS_LOGGING)	\
 	$(GUAVA)	\
 	$(LOG4J_OVER_SLF4J)	\
 	$(LOGBACK_CLASSIC)	\
@@ -188,6 +191,8 @@ tsdb_DEPS = \
 	$(JACKSON_CORE)	\
 	$(JACKSON_DATABIND)	\
 	$(JAVACC)	\
+	$(JEXL)	\
+	$(JGRAPHT)	\
 	$(NETTY)	\
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
@@ -259,6 +264,7 @@ test_SRC := \
 	test/query/expression/BaseTimeSyncedIteratorTest.java	\
 	test/query/expression/TestAbsolute.java	\
 	test/query/expression/TestExpressionFactory.java	\
+	test/query/expression/TestExpressionIterator.java	\
 	test/query/expression/TestExpressionReader.java	\
 	test/query/expression/TestExpressions.java	\
 	test/query/expression/TestExpressionTree.java	\
@@ -285,7 +291,6 @@ test_SRC := \
 	test/query/pojo/TestOutput.java	\
 	test/query/pojo/TestQuery.java	\
 	test/query/pojo/TestTimespan.java	\
-	test/query/pojo/TestValidatable.java	\
 	test/search/TestSearchPlugin.java	\
 	test/search/TestSearchQuery.java	\
 	test/search/TestTimeSeriesLookup.java	\
@@ -769,6 +774,8 @@ pom.xml: pom.xml.in Makefile
 	    -e 's/@SUASYNC_VERSION@/$(SUASYNC_VERSION)/' \
 	    -e 's/@ZOOKEEPER_VERSION@/$(ZOOKEEPER_VERSION)/' \
 	    -e 's/@APACHE_MATH_VERSION@/$(APACHE_MATH_VERSION)/' \
+	    -e 's/@JEXL_VERSION@/$(JEXL_VERSION)/' \
+	    -e 's/@JGRAPHT_VERSION@/$(JGRAPHT_VERSION)/' \
 	    -e 's/@spec_title@/$(spec_title)/' \
 	    -e 's/@spec_vendor@/$(spec_vendor)/' \
 	    -e 's/@spec_version@/$(PACKAGE_VERSION)/' \

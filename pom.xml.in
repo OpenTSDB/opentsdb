@@ -388,6 +388,18 @@
       <artifactId>commons-math3</artifactId>
       <version>@APACHE_MATH_VERSION@</version>
     </dependency>
+    
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-jexl</artifactId>
+      <version>@JEXL_VERSION@</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.jgrapht</groupId>
+      <artifactId>jgrapht-core</artifactId>
+      <version>@JGRAPHT_VERSION@</version>
+    </dependency>
 
     <!-- runtime dependencies -->
 
