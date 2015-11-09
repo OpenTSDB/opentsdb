@@ -291,7 +291,7 @@ test_SRC := \
 	test/query/pojo/TestMetric.java	\
 	test/query/pojo/TestOutput.java	\
 	test/query/pojo/TestQuery.java	\
-	test/query/pojo/TestTimespan.java	\
+	test/query/pojo/TestTimeSpan.java	\
 	test/search/TestSearchPlugin.java	\
 	test/search/TestSearchQuery.java	\
 	test/search/TestTimeSeriesLookup.java	\
