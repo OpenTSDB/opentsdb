@@ -566,6 +566,20 @@ final class TsdbQuery implements Query {
       long timeout = tsdb.getConfig().getLong("tsd.query.timeout");
       private final Set<String> skips = new HashSet<String>();
       private final Set<String> keepers = new HashSet<String>();
+      
+      /** Error callback that will capture an exception from AsyncHBase and store
+       * it so we can bubble it up to the caller.
+       */
+      class ErrorCB implements Callback<Object, Exception> {
+        @Override
+        public Object call(final Exception e) throws Exception {
+          LOG.error("Scanner " + scanner + " threw an exception", e);
+          scanner.close();
+          results.callback(e);
+          return null;
+        }
+      }
+      
       /**
       * Starts the scanner and is called recursively to fetch the next set of
       * rows from the scanner.
@@ -574,7 +588,7 @@ final class TsdbQuery implements Query {
       */
        public Object scan() {
          starttime = System.nanoTime();
-         return scanner.nextRows().addCallback(this);
+         return scanner.nextRows().addCallback(this).addErrback(new ErrorCB());
        }
   
       /**

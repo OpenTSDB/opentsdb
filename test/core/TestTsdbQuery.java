@@ -16,7 +16,9 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,6 +27,7 @@ import java.util.List;
 import net.opentsdb.core.TsdbQuery.ForTesting;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.filter.TagVWildcardFilter;
+import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.DateTime;
 
@@ -467,6 +470,25 @@ public final class TestTsdbQuery extends BaseTsdbTest {
     // second run should be empty
     final DataPoints[] dps2 = query.run();
     assertEquals(0, dps2.length);
+  }
+  
+  @Test
+  public void scannerException() throws Exception {
+    storeLongTimeSeriesSeconds(true, false);
+    final RuntimeException ex = new RuntimeException("Boo!");
+    storage.throwException(MockBase.stringToBytes(
+        "00000150E22700000001000001"), ex, true);
+    
+    storage.dumpToSystemOut();
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
+    try {
+      query.run();
+      fail("Expected a RuntimeException");
+    } catch (RuntimeException e) {
+      assertSame(ex, e);
+    }
   }
   
   /** @return a simple TSQuery object for testing */
