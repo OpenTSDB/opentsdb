@@ -94,10 +94,10 @@ public class IncomingDataPoint {
     final StringBuilder buf = new StringBuilder();
     buf.append("metric=").append(this.metric);
     buf.append(" ts=").append(this.timestamp);
-    buf.append(" value=").append(this.value).append(" ");
+    buf.append(" value=").append(this.value);
     if (this.tags != null) {
       for (Map.Entry<String, String> entry : this.tags.entrySet()) {
-        buf.append(entry.getKey()).append("=").append(entry.getValue());
+        buf.append(" ").append(entry.getKey()).append("=").append(entry.getValue());
       }
     }
     return buf.toString();
