@@ -49,6 +49,7 @@ import net.opentsdb.stats.QueryStats;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.JSON;
 
 /**
  * Handles queries for timeseries datapoints. Each request is parsed into a
@@ -94,6 +95,9 @@ final class QueryRpc implements HttpRpc {
       handleLastDataPointQuery(tsdb, query);
     } else if (endpoint.toLowerCase().equals("gexp")){
       handleQuery(tsdb, query, true);
+    } else if (endpoint.toLowerCase().equals("exp")) {
+      handleExpressionQuery(tsdb, query);
+      return;
     } else {
       handleQuery(tsdb, query, false);
     }
@@ -276,6 +280,20 @@ final class QueryRpc implements HttpRpc {
       data_query.buildQueriesAsync(tsdb).addCallback(new BuildCB())
         .addErrback(new ErrorCB());
     }
+  }
+  
+  /**
+   * Handles an expression query
+   * @param tsdb The TSDB to which we belong
+   * @param query The HTTP query to parse/respond
+   * @since 2.3
+   */
+  private void handleExpressionQuery(final TSDB tsdb, final HttpQuery query) {
+    final net.opentsdb.query.pojo.Query v2_query = 
+        JSON.parseToObject(query.getContent(), net.opentsdb.query.pojo.Query.class);
+    v2_query.validate();
+    final QueryExecutor executor = new QueryExecutor(tsdb, v2_query);
+    executor.execute(query);
   }
   
   /**
