@@ -354,7 +354,7 @@ printdeps:
 # This is kind of a hack, but I couldn't find a better way to adjust the paths
 # in the script before it gets installed...
 install-exec-hook:
-	script=tsdb; pkgdatadir='$(pkgdatadir)'; configdir='$(pkgdatadir)/etc/opentsdb'; \
+	script=tsdb; pkgdatadir='$(pkgdatadir)'; configdir='$(sysconfigdir)/etc/opentsdb'; \
           abs_srcdir=''; abs_builddir=''; $(edit_tsdb_script)
 	cat tsdb.tmp >"$(DESTDIR)$(bindir)/tsdb"
 	rm -f tsdb.tmp
@@ -411,7 +411,7 @@ gwtc: .gwtc-stamp
 	@$(mkdir_p) gwt
 	{ cd $(srcdir) && cat $(httpui_SRC); } | $(MD5) >"$@-t"
 	cmp -s "$@" "$@-t" && exit 0; \
-        $(JAVA) $(GWTC_JVM_ARGS) -cp $(GWT_CLASSPATH) com.google.gwt.dev.Compiler \
+        $(JAVA) -Djava.util.prefs.userRoot=$(HOME) $(GWTC_JVM_ARGS) -cp $(GWT_CLASSPATH) com.google.gwt.dev.Compiler \
             $(GWTC_ARGS) -war gwt tsd.QueryUi
 	@mv "$@-t" "$@"
 
