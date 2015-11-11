@@ -387,14 +387,15 @@ httpui_SRC := \
 httpui_DEPS = src/tsd/QueryUi.gwt.xml
 
 # TODO(CL) - There is likely a MUCH better way to compile and add the expression sources and jars.
+expr_grammar = $(srcdir)/src/parser.jj
 expr_package = net/opentsdb/query/expression/parser
-expr_src_dir = $(abs_builddir)/src/$(expr_package)
+expr_src_dir = $(builddir)/src/$(expr_package)
 get_expr_classes = `classes=''; for f in $(packagedir)$(expr_package)/*.class; do classes="$$classes $$f"; done; echo $$classes;`
 
 #dist_pkgdata_DATA = src/logback.xml
 dist_static_DATA = src/tsd/static/favicon.ico
 
-EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) \
+EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) $(expr_grammar) \
         $(test_plugin_SRC) $(test_plugin_MF) $(test_plugin_SVCS:%=test/%) \
         $(THIRD_PARTY) $(THIRD_PARTY:=.md5) \
         $(httpui_SRC) $(httpui_DEPS) \
@@ -449,7 +450,7 @@ install-exec-hook:
 $(builddata_SRC): .git/HEAD $(tsdb_SRC) $(top_srcdir)/build-aux/gen_build_data.sh
 	$(srcdir)/build-aux/gen_build_data.sh $(builddata_SRC) $(package).$(builddata_subpackage) $(PACKAGE_VERSION)
 
-jar: runjavacc $(jar) .javac-unittests-stamp .gwtc-stamp
+jar: $(jar) .javac-unittests-stamp .gwtc-stamp
 
 JAVA_COMPILE := $(JAVAC) $(AM_JAVACFLAGS) -d .
 
@@ -483,9 +484,9 @@ $(tsdb_SRC): $(tsdb_DEPS)
 
 find_jar = test -f "$$jar" && echo "$$jar" || echo "$(srcdir)/$$jar"
 get_dep_classpath = `for jar in $(tsdb_DEPS); do $(find_jar); done | tr '\n' ':'`
-.javac-stamp: $(tsdb_SRC) $(builddata_SRC)
+.javac-stamp: $(tsdb_SRC) $(builddata_SRC) runjavacc
 	@$(filter_src); cp=$(get_dep_classpath); \
-          echo "DO THA COMPILE!!! $(JAVA_COMPILE) -cp $$cp $$src"; \
+          echo "$(JAVA_COMPILE) -cp $$cp $$src"; \
                 $(JAVA_COMPILE) -cp $$cp $$src
 	@touch "$@"
 
@@ -725,7 +726,7 @@ $(JAVADOC_DIR)/index.html: $(tsdb_SRC)
           $? $(builddata_SRC)
 
 runjavacc:
-	$(JAVA) -cp $(JAVACC) javacc -OUTPUT_DIRECTORY:$(expr_src_dir) $(abs_srcdir)/src/parser.jj; echo PWD: `pwd`;
+	$(JAVA) -cp $(JAVACC) javacc -OUTPUT_DIRECTORY:$(expr_src_dir) $(expr_grammar); echo PWD: `pwd`;
 
 dist-hook:
 	$(mkdir_p) $(distdir)/.git
