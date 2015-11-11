@@ -450,8 +450,8 @@ install-data-local: staticroot install-data-lib install-data-tools \
     install-data-bin install-data-etc
 	@$(NORMAL_INSTALL)
 	test -z "$(staticdir)" || $(mkdir_p) "$(DESTDIR)$(staticdir)"
-	@set -e; pwd; ls -lFh; (cd "$(DEV_TSD_STATICROOT)"; \
-          list=`find -L . ! -type d`); for p in $$list; do \
+	@set -e; pwd; ls -lFh; cd "$(DEV_TSD_STATICROOT)"; \
+          list=`find -L . ! -type d`; for p in $$list; do \
           p=$${p#./}; \
 	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
           dstdir=`dirname "$(DESTDIR)$(staticdir)/$$p"`; \
