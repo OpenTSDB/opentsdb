@@ -79,10 +79,13 @@ public class ExpressionDataPoint implements DataPoint {
   public ExpressionDataPoint(final DataPoints dps) {
     metric_uids = new ByteSet();
     metric_uids.add(dps.metricUID());
-    tags = (ByteMap<byte[]>) dps.getTagUids().clone();
+    tags = dps.getTagUids() != null ? 
+        (ByteMap<byte[]>) dps.getTagUids().clone() : new ByteMap<byte[]>();
     aggregated_tags = new ByteSet();
-    for (final byte[] tagk : dps.getAggregatedTagUids()) {
-      aggregated_tags.add(tagk);
+    if (dps.getAggregatedTagUids() != null) {
+      for (final byte[] tagk : dps.getAggregatedTagUids()) {
+        aggregated_tags.add(tagk);
+      }
     }
     tsuids = new HashSet<String>(dps.getTSUIDs());
     // TODO - restore when these are faster
