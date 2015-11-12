@@ -56,6 +56,9 @@ public class ExpressionDataPoint implements DataPoint {
   /** The data point overwritten each time through the iterator */
   private final MutableDataPoint dp;
   
+  /** An index in the original {@link TimeSyncedIterator} iterator array */
+  private int index;
+  
   /**
    * Default ctor that simply sets up new objects for all internal fields.
    * TODO - lazily initialize the field to avoid unused objects
@@ -224,4 +227,13 @@ public class ExpressionDataPoint implements DataPoint {
     return dp.toDouble();
   }
   
+  /** @param index The index in the {@link TimeSyncedIterator} array */
+  public void setIndex(final int index) {
+    this.index = index;
+  }
+  
+  /** @return the index in the {@link TimeSyncedIterator} array */
+  public int getIndex() {
+    return index;
+  }
 }

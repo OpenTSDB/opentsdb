@@ -46,6 +46,9 @@ public class UnionIterator implements ITimeSyncedIterator, VariableIterator {
   /** A list of the current values for each series post intersection */
   private final Map<String, ExpressionDataPoint[]> current_values;
 
+  /** A map used for single series iteration where the array is the index */
+  private final Map<String, int[]> single_series_matrix;
+  
   /** A map of the sub query index to their names for intersection computation */
   private final String[] index_to_names;
   
@@ -92,6 +95,7 @@ public class UnionIterator implements ITimeSyncedIterator, VariableIterator {
     timestamp = Long.MAX_VALUE;
     queries = new HashMap<String, ITimeSyncedIterator>(results.size());
     current_values = new HashMap<String, ExpressionDataPoint[]>(results.size());
+    single_series_matrix = new HashMap<String, int[]>(results.size());
     index_to_names = new String[results.size()];
     fill_policy = new NumericFillPolicy(FillPolicy.ZERO);
     fill_dp = new ExpressionDataPoint();
@@ -134,6 +138,7 @@ public class UnionIterator implements ITimeSyncedIterator, VariableIterator {
     timestamp = Long.MAX_VALUE;
     queries = new HashMap<String, ITimeSyncedIterator>(iterator.queries.size());
     current_values = new HashMap<String, ExpressionDataPoint[]>(queries.size());
+    single_series_matrix = new HashMap<String, int[]>(queries.size());
     index_to_names = new String[queries.size()];
     fill_policy = iterator.fill_policy;
     
@@ -204,14 +209,25 @@ public class UnionIterator implements ITimeSyncedIterator, VariableIterator {
       ordered_union) {
     for (final String id : queries.keySet()) {
       current_values.put(id, new ExpressionDataPoint[ordered_union.size()]);
+      // TODO - blech. Fill with a sentinel value to reflect "no data here!"
+      final int[] m = new int[ordered_union.size()];
+      for (int i = 0; i < m.length; i++) {
+        m[i] = -1;
+      }
+      single_series_matrix.put(id, m);
     }
     
     int i = 0;
-    for (final ExpressionDataPoint[] idps : ordered_union.values()) {
+    for (final Entry<byte[], ExpressionDataPoint[]> entry : ordered_union.entrySet()) {
+      final ExpressionDataPoint[] idps = entry.getValue();
       for (int x = 0; x < idps.length; x++) {
         final ExpressionDataPoint[] current_dps = 
             current_values.get(index_to_names[x]);
         current_dps[i] = idps[x];
+        final int[] m = single_series_matrix.get(index_to_names[x]);
+        if (idps[x] != null) {
+          m[i] = idps[x].getIndex();
+        }
       }
       ++i;
     }
@@ -411,4 +427,29 @@ public class UnionIterator implements ITimeSyncedIterator, VariableIterator {
   public int getSeriesSize() {
     return series_size;
   }
+
+  @Override
+  public boolean hasNext(int index) {
+    for (final Entry<String, int[]> entry : single_series_matrix.entrySet()) {
+      final int idx = entry.getValue()[index];
+      if (idx >= 0 && queries.get(entry.getKey()).hasNext(idx)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
+  public void next(int index) {
+    if (!hasNext()) {
+      throw new IllegalDataException("No more data");
+    }
+    for (final Entry<String, int[]> entry : single_series_matrix.entrySet()) {
+      final int idx = entry.getValue()[index];
+      if (idx >= 0) {
+        queries.get(entry.getKey()).next(idx);
+      }
+    }
+  }
+  
 }

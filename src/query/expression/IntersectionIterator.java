@@ -497,4 +497,25 @@ public class IntersectionIterator implements ITimeSyncedIterator, VariableIterat
   public ITimeSyncedIterator getCopy() {
     return new IntersectionIterator(this);
   }
+
+  @Override
+  public boolean hasNext(int index) {
+    for (final ITimeSyncedIterator sub : queries.values()) {
+      if (sub.hasNext(index)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
+  public void next(int index) {
+    if (!hasNext()) {
+      throw new IllegalDataException("No more data");
+    }
+    for (final ITimeSyncedIterator sub : queries.values()) {
+      sub.next(index);
+    }
+  }
+
 }

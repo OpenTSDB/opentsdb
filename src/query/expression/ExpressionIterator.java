@@ -414,4 +414,38 @@ public class ExpressionIterator implements ITimeSyncedIterator {
     final ExpressionIterator ei = new ExpressionIterator(this);
     return ei;
   }
+
+  @Override
+  public boolean hasNext(final int i) {
+    return iterator.hasNext(i);
+  }
+  
+  @Override
+  public void next(final int i) {
+    iterator.next(i);
+    
+    // set aside a couple of addresses for the variables
+    double val;
+    double result;
+    // this here is why life sucks. there MUST be a better way to bind variables
+    long ts = Long.MAX_VALUE;
+    for (final String variable : names) {
+      if (iteration_results.get(variable)[i] == null) {
+        context.set(variable, results.get(variable).getFillPolicy().getValue());
+      } else {
+        if (iteration_results.get(variable)[i].timestamp() < ts) {
+          ts = iteration_results.get(variable)[i].timestamp();
+        }
+        val = iteration_results.get(variable)[i].toDouble();
+        if (Double.isNaN(val)) {
+          context.set(variable, results.get(variable).getFillPolicy().getValue());
+        } else {
+          context.set(variable, val);
+        }
+      }
+    }
+    result = (Double)expression.execute(context);
+    dps[i].reset(ts, result);
+  }
+  
 }

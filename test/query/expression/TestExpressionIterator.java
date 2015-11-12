@@ -1019,8 +1019,8 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
   }
   
   @Test
-  public void scratch() throws Exception {
-    threeDifE();
+  public void unionSingleSeriesIteration() throws Exception {
+    oneExtraSameE();
     queryAB_Dstar();
     remapResults();
     
@@ -1031,28 +1031,51 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
     
     exp.compile();
     final ExpressionDataPoint[] dps = exp.values();
-    assertEquals(6, dps.length);
-    //validateMeta(dps, true);
+    double[] values = new double[] { 12, 18, 17 };
     
-    long ts = 1431561600000L;
-    double[] values = new double[] { 1, 11, 4, 14, 7, 17 };
-    long its = exp.nextTimestamp();
-    while (exp.hasNext()) {
-      exp.next(its);
-      for (int i = 0; i < dps.length; i++) {
-        System.out.println(dps[i].timestamp() + " " + dps[i].toDouble());
-      }
-      
-      for (int i = 0; i < values.length; i++) {
+    for (int i = 0; i < dps.length; i++) {
+      long ts = 1431561600000L;
+      while (exp.hasNext(i)) {
+        exp.next(i);
         assertEquals(ts, dps[i].timestamp());
-        assertEquals(values[i], dps[i].toDouble(), 0.0001);
-        ++values[i];
+        assertEquals(values[i], dps[i].toDouble(), 0.001);
+
+        ts += 60000;
+        if (i < dps.length - 1) {
+          values[i] += 2;
+        } else {
+          values[i]++;
+        }
       }
-      
-      ts += 60000;
-      its = exp.nextTimestamp();
     }
-    validateMeta(dps, false);
+  }
+  
+  @Test
+  public void intersectionSingleSeriesIteration() throws Exception {
+    oneExtraSameE();
+    queryAB_Dstar();
+    remapResults();
+    
+    ExpressionIterator exp = new ExpressionIterator("ei", "a + b", 
+        SetOperator.INTERSECTION, false, false);
+    exp.addResults("a", iterators.get("a"));
+    exp.addResults("b", iterators.get("b"));
+    
+    exp.compile();
+    final ExpressionDataPoint[] dps = exp.values();
+    double[] values = new double[] { 12, 18 };
+    
+    for (int i = 0; i < dps.length; i++) {
+      long ts = 1431561600000L;
+      while (exp.hasNext(i)) {
+        exp.next(i);
+        assertEquals(ts, dps[i].timestamp());
+        assertEquals(values[i], dps[i].toDouble(), 0.001);
+        ts += 60000;
+        values[i] += 2;
+      }
+    }
+    
   }
   
   /**

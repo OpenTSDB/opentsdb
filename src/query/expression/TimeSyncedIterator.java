@@ -133,7 +133,11 @@ public class TimeSyncedIterator implements ITimeSyncedIterator {
         emitter_values[i].reset(timestamp, fill_policy.getValue());
       } else {
         emitter_values[i].reset(current_values[i]);
-        next(i); // move to the next value for this guy
+        if (!iterators[i].hasNext()) {
+          current_values[i] = null;
+        } else {
+          current_values[i] = iterators[i].next();
+        }
       }
     }
     return emitter_values;
@@ -152,20 +156,25 @@ public class TimeSyncedIterator implements ITimeSyncedIterator {
     }
     return ts;
   }
-
-  /**
-   * Moves the selected series to the next value. If the iterator has been
-   * nulled out (no more data) then this is a no-op.
-   * @param i The iterator index to advance
-   */
-  private void next(final int i) {
-    if (!iterators[i].hasNext()) {
-      current_values[i] = null;
-      return;
+  
+  @Override
+  public void next(final int i) {
+    if (current_values[i] == null) {
+      throw new RuntimeException("No more elements");
     }
-    current_values[i] = iterators[i].next();
+    emitter_values[i].reset(current_values[i]);
+    if (iterators[i].hasNext()) {
+      current_values[i] = iterators[i].next();
+    } else {
+      current_values[i] = null;
+    }
   }
-
+  
+  @Override
+  public boolean hasNext(final int i) {
+    return current_values[i] != null;
+  }
+  
   @Override
   public int getIndex() {
     return index;
@@ -232,6 +241,7 @@ public class TimeSyncedIterator implements ITimeSyncedIterator {
       } else {
         current_values[i] = iterators[i].next();
         emitter_values[i] = new ExpressionDataPoint(dps[i]);
+        emitter_values[i].setIndex(i);
       }
     }
   }
