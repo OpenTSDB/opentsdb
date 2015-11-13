@@ -91,6 +91,7 @@ tsdb_SRC := \
 	src/query/expression/ITimeSyncedIterator.java	\
 	src/query/expression/NumericFillPolicy.java	\
 	src/query/expression/MovingAverage.java	\
+	src/query/expression/MultiplySeries.java	\
 	src/query/expression/PostAggregatedDataPoints.java	\
 	src/query/expression/Scale.java	\
 	src/query/expression/SumSeries.java	\
@@ -280,6 +281,7 @@ test_SRC := \
 	test/query/expression/TestIntersectionIterator.java	\
 	test/query/expression/TestNumericFillPolicy.java	\
 	test/query/expression/TestMovingAverage.java	\
+	test/query/expression/TestMultiplySeries.java	\
 	test/query/expression/TestPostAggregatedDataPoints.java	\
 	test/query/expression/TestScale.java	\
 	test/query/expression/TestSumSeries.java	\
