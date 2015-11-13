@@ -75,7 +75,8 @@ tsdb_SRC := \
 	src/meta/UIDMeta.java	\
 	src/query/QueryUtil.java	\
 	src/query/expression/Absolute.java	\
-	src/query/expression/EDPtoDPS.java	\
+	src/query/expression/Expression.java	\
+	src/query/expression/DivideSeries.java	\
 	src/query/expression/Expression.java	\
 	src/query/expression/ExpressionDataPoint.java	\
 	src/query/expression/ExpressionFactory.java	\
@@ -265,6 +266,7 @@ test_SRC := \
 	test/meta/TestUIDMeta.java	\
 	test/query/expression/BaseTimeSyncedIteratorTest.java	\
 	test/query/expression/TestAbsolute.java	\
+	test/query/expression/TestDivideSeries.java	\
 	test/query/expression/TestExpressionFactory.java	\
 	test/query/expression/TestExpressionIterator.java	\
 	test/query/expression/TestExpressionReader.java	\

@@ -54,6 +54,7 @@ import net.opentsdb.utils.Threads;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.query.expression.ExpressionFactory;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
@@ -208,6 +209,10 @@ public final class TSDB {
       uid_cache_map.put(TAG_VALUE_QUAL.getBytes(CHARSET), tag_values);
       UniqueId.preloadUidCache(this, uid_cache_map);
     }
+    
+    // load up the functions that require the TSDB object
+    ExpressionFactory.addTSDBFunctions(this);
+    
     LOG.debug(config.dumpConfiguration());
   }
   

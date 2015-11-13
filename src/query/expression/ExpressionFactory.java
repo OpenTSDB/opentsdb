@@ -15,6 +15,8 @@ package net.opentsdb.query.expression;
 import java.util.HashMap;
 import java.util.Map;
 
+import net.opentsdb.core.TSDB;
+
 /**
  * A static class that stores and instantiates a static map of the available
  * functions.
@@ -36,6 +38,15 @@ public final class ExpressionFactory {
   
   /** Don't instantiate me! */
   private ExpressionFactory() { }
+  
+  /**
+   * Adds more functions to the map that depend on an instantiated TSDB object.
+   * Only call this once please.
+   * @param tsdb The TSDB object to initialize with
+   */
+  public static void addTSDBFunctions(final TSDB tsdb) {
+    available_functions.put("divideSeries", new DivideSeries(tsdb));
+  }
   
   /**
    * Add an expression to the map.
