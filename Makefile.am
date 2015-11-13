@@ -75,6 +75,7 @@ tsdb_SRC := \
 	src/meta/UIDMeta.java	\
 	src/query/QueryUtil.java	\
 	src/query/expression/Absolute.java	\
+	src/query/expression/EDPtoDPS.java	\
 	src/query/expression/Expression.java	\
 	src/query/expression/ExpressionDataPoint.java	\
 	src/query/expression/ExpressionFactory.java	\
