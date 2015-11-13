@@ -46,6 +46,7 @@ public final class ExpressionFactory {
    */
   public static void addTSDBFunctions(final TSDB tsdb) {
     available_functions.put("divideSeries", new DivideSeries(tsdb));
+    available_functions.put("sumSeries", new SumSeries(tsdb));
   }
   
   /**

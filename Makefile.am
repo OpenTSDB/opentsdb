@@ -92,6 +92,7 @@ tsdb_SRC := \
 	src/query/expression/MovingAverage.java	\
 	src/query/expression/PostAggregatedDataPoints.java	\
 	src/query/expression/Scale.java	\
+	src/query/expression/SumSeries.java	\
 	src/query/expression/TimeSyncedIterator.java	\
 	src/query/expression/UnionIterator.java	\
 	src/query/expression/VariableIterator.java	\
@@ -279,6 +280,7 @@ test_SRC := \
 	test/query/expression/TestMovingAverage.java	\
 	test/query/expression/TestPostAggregatedDataPoints.java	\
 	test/query/expression/TestScale.java	\
+	test/query/expression/TestSumSeries.java	\
 	test/query/expression/TestTimeSyncedIterator.java	\
 	test/query/expression/TestUnionIterator.java	\
 	test/query/filter/TestTagVFilter.java	\
