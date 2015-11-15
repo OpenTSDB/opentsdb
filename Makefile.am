@@ -78,6 +78,7 @@ tsdb_SRC := \
 	src/query/expression/Expression.java	\
 	src/query/expression/DiffSeries.java	\
 	src/query/expression/DivideSeries.java	\
+	src/query/expression/EDPtoDPS.java	\
 	src/query/expression/Expression.java	\
 	src/query/expression/ExpressionDataPoint.java	\
 	src/query/expression/ExpressionFactory.java	\
