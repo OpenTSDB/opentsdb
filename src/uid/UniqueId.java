@@ -632,7 +632,7 @@ public final class UniqueId implements UniqueIdInterface {
     try {
       return getIdAsync(name).joinUninterruptibly();
     } catch (NoSuchUniqueName e) {
-      if (type.equals(UniqueIdType.METRIC) && !checkNameIsValid(name)) {
+      if (!checkNameIsValid(name)) {
         LOG.info("UID cannot be assigned, name is not acceptable: " + name);
         throw new RuntimeException("UID cannot be assigned, name is not acceptable: " + name);
       }
@@ -694,8 +694,17 @@ public final class UniqueId implements UniqueIdInterface {
   public Boolean checkNameIsValid(final String name) throws RuntimeException {
     final List<Pattern> rxs = new ArrayList();
     try {
-      String uid_patterns = tsdb.getConfig().getString(
-              "tsd.core.auto_create_metrics_patterns");
+      String uid_patterns;
+      switch (type) {
+        case METRIC: uid_patterns = tsdb.getConfig().auto_metric_patterns();
+          break;
+        case TAGK: uid_patterns = tsdb.getConfig().auto_tagk_patterns();
+          break;
+        case TAGV: uid_patterns = tsdb.getConfig().auto_tagv_patterns();
+          break;
+        default:
+          throw new RuntimeException("Should never be here");
+      }
       String[] patterns = uid_patterns.split(",");
 
       for (String pattern : patterns) {
