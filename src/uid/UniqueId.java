@@ -20,6 +20,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -631,6 +632,10 @@ public final class UniqueId implements UniqueIdInterface {
     try {
       return getIdAsync(name).joinUninterruptibly();
     } catch (NoSuchUniqueName e) {
+      if (type.equals(UniqueIdType.METRIC) && !checkNameIsValid(name)) {
+        LOG.info("UID cannot be assigned, name is not acceptable: " + name);
+        throw new RuntimeException("UID cannot be assigned, name is not acceptable: " + name);
+      }
       Deferred<byte[]> assignment = null;
       boolean pending = false;
       synchronized (pending_assignments) {
@@ -675,6 +680,42 @@ public final class UniqueId implements UniqueIdInterface {
       return uid;
     } catch (Exception e) {
       throw new RuntimeException("Should never be here", e);
+    }
+  }
+
+  /**
+   * Checks to see if the provided string matches the acceptable
+   * patterns from the configuration.
+   * <p>
+   *
+   * @param name The name to compare to the acceptable name regexes
+   * @return
+     */
+  public Boolean checkNameIsValid(final String name) throws RuntimeException {
+//    if (!type.equals(UniqueIdType.METRIC)) {
+//      LOG.debug("Not evaluating patterns for type " + type.toString());
+//      return true;
+//    }
+    final List<Pattern> rxs = new ArrayList();
+    try {
+      String uid_patterns = tsdb.getConfig().getString(
+              "tsd.core.auto_create_metrics_patterns");
+      String[] patterns = uid_patterns.split(",");
+
+      for (String pattern : patterns) {
+        rxs.add(Pattern.compile(pattern));
+      }
+
+      for (Pattern rx : rxs) {
+        if (rx.matcher(name).matches()) {
+          LOG.debug("Accepted name for UID: " + name + " based on '" + rx.toString() + "'");
+          return true;
+        }
+      }
+      LOG.debug("Rejected name for UID: " + name);
+      return false;
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to check name (" + name + ") against patterns.", e);
     }
   }
 
