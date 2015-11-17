@@ -120,6 +120,9 @@ final class CliOptions {
       // map the overrides
       if (entry.getKey().toLowerCase().equals("--auto-metric")) {
         config.overrideConfig("tsd.core.auto_create_metrics", "true");
+      } else if (entry.getKey().toLowerCase().equals("--auto-metric-pattern")) {
+        config.overrideConfig("tsd.core.auto_create_metrics_patterns",
+            entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--table")) {
         config.overrideConfig("tsd.storage.hbase.data_table", entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--uidtable")) {
