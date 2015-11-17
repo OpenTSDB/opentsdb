@@ -692,10 +692,6 @@ public final class UniqueId implements UniqueIdInterface {
    * @return
      */
   public Boolean checkNameIsValid(final String name) throws RuntimeException {
-//    if (!type.equals(UniqueIdType.METRIC)) {
-//      LOG.debug("Not evaluating patterns for type " + type.toString());
-//      return true;
-//    }
     final List<Pattern> rxs = new ArrayList();
     try {
       String uid_patterns = tsdb.getConfig().getString(
