@@ -51,7 +51,7 @@ public final class ExpressionFactory {
     available_functions.put("sumSeries", new SumSeries(tsdb));
     available_functions.put("sum", new SumSeries(tsdb));
     available_functions.put("diffSeries", new DiffSeries(tsdb));
-    available_functions.put("subtract", new DiffSeries(tsdb));
+    available_functions.put("difference", new DiffSeries(tsdb));
     available_functions.put("multiplySeries", new MultiplySeries(tsdb));
     available_functions.put("multiply", new MultiplySeries(tsdb));
   }
