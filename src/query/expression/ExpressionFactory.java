@@ -29,6 +29,7 @@ public final class ExpressionFactory {
       new HashMap<String, Expression>();
   
   static {
+    available_functions.put("alias", new Alias());
     available_functions.put("scale", new Scale());
     available_functions.put("absolute", new Absolute());
     available_functions.put("movingAverage", new MovingAverage());
@@ -46,9 +47,13 @@ public final class ExpressionFactory {
    */
   public static void addTSDBFunctions(final TSDB tsdb) {
     available_functions.put("divideSeries", new DivideSeries(tsdb));
+    available_functions.put("divide", new DivideSeries(tsdb));
     available_functions.put("sumSeries", new SumSeries(tsdb));
+    available_functions.put("sum", new SumSeries(tsdb));
     available_functions.put("diffSeries", new DiffSeries(tsdb));
+    available_functions.put("difference", new DiffSeries(tsdb));
     available_functions.put("multiplySeries", new MultiplySeries(tsdb));
+    available_functions.put("multiply", new MultiplySeries(tsdb));
   }
   
   /**
