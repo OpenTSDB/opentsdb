@@ -57,9 +57,23 @@ public final class UniqueId implements UniqueIdInterface {
 
   /** Enumerator for different types of UIDS @since 2.0 */
   public enum UniqueIdType {
-    METRIC,
-    TAGK,
-    TAGV
+    METRIC("metrics"),
+    TAGK("tagk"),
+    TAGV("tagv");
+
+    private final String name;
+
+    private UniqueIdType(String s) {
+        name = s;
+    }
+
+    public boolean equalsName(String otherType) {
+        return (otherType == null) ? false : name.equals(otherType);
+    }
+
+    public String toString() {
+       return this.name;
+    }
   }
   
   /** Charset used to convert Strings to byte arrays and back. */
