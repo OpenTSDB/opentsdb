@@ -36,6 +36,8 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import com.stumbleupon.async.Deferred;
+
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
@@ -66,7 +68,7 @@ public class TestScale {
     
     dps = PowerMockito.mock(DataPoints.class);
     when(dps.iterator()).thenReturn(view);
-    when(dps.metricName()).thenReturn(METRIC);
+    when(dps.metricNameAsync()).thenReturn(Deferred.fromResult(METRIC));
     
     group_bys = new DataPoints[] { dps };
     
@@ -84,7 +86,7 @@ public class TestScale {
         NUM_POINTS, true, 10, 1);
     DataPoints dps2 = PowerMockito.mock(DataPoints.class);
     when(dps2.iterator()).thenReturn(view2);
-    when(dps2.metricName()).thenReturn("sys.mem");
+    when(dps2.metricNameAsync()).thenReturn(Deferred.fromResult("sys.mem"));
     group_bys = new DataPoints[] { dps, dps2 };
     query_results.clear();
     query_results.add(group_bys);
@@ -122,7 +124,7 @@ public class TestScale {
         NUM_POINTS, false, 10, 1.5);
     DataPoints dps2 = PowerMockito.mock(DataPoints.class);
     when(dps2.iterator()).thenReturn(view2);
-    when(dps2.metricName()).thenReturn("sys.mem");
+    when(dps2.metricNameAsync()).thenReturn(Deferred.fromResult("sys.mem"));
     group_bys = new DataPoints[] { dps, dps2 };
     query_results.clear();
     query_results.add(group_bys);
@@ -160,7 +162,7 @@ public class TestScale {
         NUM_POINTS, true, 10, 1);
     DataPoints dps2 = PowerMockito.mock(DataPoints.class);
     when(dps2.iterator()).thenReturn(view2);
-    when(dps2.metricName()).thenReturn("sys.mem");
+    when(dps2.metricNameAsync()).thenReturn(Deferred.fromResult("sys.mem"));
     group_bys = new DataPoints[] { dps, dps2 };
     query_results.clear();
     query_results.add(group_bys);
@@ -199,7 +201,7 @@ public class TestScale {
         NUM_POINTS, true, 10, 1);
     DataPoints dps2 = PowerMockito.mock(DataPoints.class);
     when(dps2.iterator()).thenReturn(view2);
-    when(dps2.metricName()).thenReturn("sys.mem");
+    when(dps2.metricNameAsync()).thenReturn(Deferred.fromResult("sys.mem"));
     group_bys = new DataPoints[] { dps, dps2 };
     query_results.clear();
     query_results.add(group_bys);
@@ -237,7 +239,7 @@ public class TestScale {
         NUM_POINTS, true, 10, 1);
     DataPoints dps2 = PowerMockito.mock(DataPoints.class);
     when(dps2.iterator()).thenReturn(view2);
-    when(dps2.metricName()).thenReturn("sys.mem");
+    when(dps2.metricNameAsync()).thenReturn(Deferred.fromResult("sys.mem"));
     group_bys = new DataPoints[] { dps, dps2 };
     query_results.clear();
     query_results.add(group_bys);
@@ -275,7 +277,7 @@ public class TestScale {
         NUM_POINTS, true, 10, 1);
     DataPoints dps2 = PowerMockito.mock(DataPoints.class);
     when(dps2.iterator()).thenReturn(view2);
-    when(dps2.metricName()).thenReturn("sys.mem");
+    when(dps2.metricNameAsync()).thenReturn(Deferred.fromResult("sys.mem"));
     group_bys = new DataPoints[] { dps, dps2 };
     query_results.clear();
     query_results.add(group_bys);
@@ -309,7 +311,7 @@ public class TestScale {
         NUM_POINTS, true, 10, 1);
     DataPoints dps2 = PowerMockito.mock(DataPoints.class);
     when(dps2.iterator()).thenReturn(view2);
-    when(dps2.metricName()).thenReturn("sys.mem");
+    when(dps2.metricNameAsync()).thenReturn(Deferred.fromResult("sys.mem"));
     group_bys = new DataPoints[] { dps, dps2 };
     query_results.clear();
     query_results.add(group_bys);
