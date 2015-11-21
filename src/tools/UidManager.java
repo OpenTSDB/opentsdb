@@ -361,7 +361,7 @@ final class UidManager {
                             final short idwidth,
                             final String[] args) {
     boolean randomize = false;
-    if (UniqueIdType.valueOf(args[1]) == UniqueIdType.METRIC) {
+    if (UniqueId.stringToUniqueIdType(args[1]) == UniqueIdType.METRIC) {
       randomize = tsdb.getConfig().getBoolean("tsd.core.uid.random_metrics");
     }
     final UniqueId uid = new UniqueId(tsdb.getClient(), table, args[1], 
