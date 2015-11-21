@@ -270,6 +270,7 @@ test_SRC := \
 	test/meta/TestUIDMeta.java	\
 	test/query/expression/BaseTimeSyncedIteratorTest.java	\
 	test/query/expression/TestAbsolute.java	\
+	test/query/expression/TestAlias.java	\
 	test/query/expression/TestDiffSeries.java	\
 	test/query/expression/TestDivideSeries.java	\
 	test/query/expression/TestExpressionFactory.java	\

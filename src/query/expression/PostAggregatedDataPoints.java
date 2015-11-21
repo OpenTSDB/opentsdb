@@ -15,6 +15,7 @@ package net.opentsdb.query.expression;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 
 import org.hbase.async.Bytes.ByteMap;
@@ -24,6 +25,7 @@ import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.SeekableView;
 import net.opentsdb.meta.Annotation;
 
+import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 /**
@@ -61,16 +63,34 @@ public class PostAggregatedDataPoints implements DataPoints {
 
   @Override
   public String metricName() {
-    if (alias != null) {
-      return alias;
-    } else {
-      return base_data_points.metricName();
+    try {
+      return metricNameAsync().join();
+    } catch (Exception e) {
+      throw new RuntimeException("Unexpected exception waiting for "
+          + "name resolution", e);
     }
   }
 
   @Override
   public Deferred<String> metricNameAsync() {
     if (alias != null) {
+      if (alias.contains("@") && getTagUids().size() > 0) {
+        // need to resolve the tag UIDs for the templating feature
+        
+        class TemplateFill implements Callback<Deferred<String>, 
+            Map<String, String>> {
+          @Override
+          public Deferred<String> call(final Map<String, String> tags)
+              throws Exception {
+            for (final Entry<String, String> pair : tags.entrySet()) {
+              alias = alias.replace("@" + pair.getKey(), pair.getValue());
+            }
+            return Deferred.fromResult(alias);
+          }
+        }
+        return base_data_points.getTagsAsync()
+            .addCallbackDeferring(new TemplateFill());
+      }
       return Deferred.fromResult(alias);
     }
     return base_data_points.metricNameAsync();
