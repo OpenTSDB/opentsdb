@@ -41,6 +41,10 @@ final class ConnectionManager extends SimpleChannelHandler {
   private static final AtomicLong exceptions_closed = new AtomicLong();
   private static final AtomicLong exceptions_reset = new AtomicLong();
   private static final AtomicLong exceptions_timeout = new AtomicLong();
+  /**
+   * max connections can be serviced by tsd, if over limit, tsd will close new connection.
+   */
+  private int connectionsLimit;
 
   private static final DefaultChannelGroup channels =
     new DefaultChannelGroup("all-channels");
@@ -50,7 +54,9 @@ final class ConnectionManager extends SimpleChannelHandler {
   }
 
   /** Constructor. */
-  public ConnectionManager() {
+  public ConnectionManager(int connectionsLimit) {
+    LOG.info("totalConnections limit is set : " + connectionsLimit);
+    this.connectionsLimit = connectionsLimit;
   }
 
   /**
@@ -73,7 +79,14 @@ final class ConnectionManager extends SimpleChannelHandler {
 
   @Override
   public void channelOpen(final ChannelHandlerContext ctx,
-                          final ChannelStateEvent e) {
+                          final ChannelStateEvent e) throws IOException {
+    if (connectionsLimit > 0) {
+      int channelsSize = channels.size();
+      if (channelsSize >= connectionsLimit) {
+        e.getChannel().close();
+        throw new IOException("now channels size " + channelsSize + " is exceed total connections limit " + connectionsLimit);
+      }
+    }
     channels.add(e.getChannel());
     connections_established.incrementAndGet();
   }
