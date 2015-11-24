@@ -117,11 +117,11 @@ final class Fsck {
   final AtomicLong vle_fixed = new AtomicLong();
   
   /** Length of the metric + timestamp for key validation */
-  private static int key_prefix_length = Const.SALT_WIDTH() + 
+  private int key_prefix_length = Const.SALT_WIDTH() +
       TSDB.metrics_width() + Const.TIMESTAMP_BYTES;
   
   /** Length of a tagk + tagv pair for key validation */
-  private static int key_tags_length = TSDB.tagk_width() + TSDB.tagv_width();
+  private int key_tags_length = TSDB.tagk_width() + TSDB.tagv_width();
   
   /** How often to report progress */
   private static long report_rows = 10000;
