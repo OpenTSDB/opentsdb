@@ -1474,6 +1474,120 @@ storage.dumpToSystemOut();
     assertEquals(-1, storage.numColumns(ROW));
   }
   
+  @Test
+  public void appendOK() throws Exception {
+    final byte[] qual1 = { 0x0, 0x07 };
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = { 0x0, 0x27 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] appendq = { 0x05, 0x0, 0x0 };
+    storage.addColumn(ROW, appendq, 
+        MockBase.concatByteArrays(qual1, val1, qual2, val2));
+    
+    final Fsck fsck = new Fsck(tsdb, options);
+    fsck.runFullTable();
+    assertEquals(1, fsck.kvs_processed.get());
+    assertEquals(0, fsck.bad_compacted_columns.get());
+    assertEquals(1, fsck.append_dps.get());
+    assertEquals(0, fsck.append_dps_fixed.get());
+    assertEquals(0, fsck.totalErrors());
+    assertEquals(0, fsck.correctable());
+    assertArrayEquals( MockBase.concatByteArrays(qual1, val1, qual2, val2), 
+        storage.getColumn(ROW, appendq));
+  }
+  
+  @Test
+  public void appendOutOfOrder() throws Exception {
+    final byte[] qual1 = { 0x0, 0x07 };
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = { 0x0, 0x27 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] appendq = { 0x05, 0x0, 0x0 };
+    storage.addColumn(ROW, appendq, 
+        MockBase.concatByteArrays(qual2, val2, qual1, val1));
+    
+    final Fsck fsck = new Fsck(tsdb, options);
+    fsck.runFullTable();
+    assertEquals(1, fsck.kvs_processed.get());
+    assertEquals(0, fsck.bad_compacted_columns.get());
+    assertEquals(1, fsck.append_dps.get());
+    assertEquals(0, fsck.append_dps_fixed.get());
+    assertEquals(0, fsck.totalErrors());
+    assertEquals(0, fsck.correctable());
+    assertArrayEquals( MockBase.concatByteArrays(qual2, val2, qual1, val1), 
+        storage.getColumn(ROW, appendq));
+  }
+  
+  @Test
+  public void appendOutOfOrderFixed() throws Exception {
+    config.overrideConfig("tsd.storage.repair_appends", "true");
+    final byte[] qual1 = { 0x0, 0x07 };
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = { 0x0, 0x27 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] appendq = { 0x05, 0x0, 0x0 };
+    storage.addColumn(ROW, appendq, 
+        MockBase.concatByteArrays(qual2, val2, qual1, val1));
+    
+    final Fsck fsck = new Fsck(tsdb, options);
+    fsck.runFullTable();
+    assertEquals(1, fsck.kvs_processed.get());
+    assertEquals(0, fsck.bad_compacted_columns.get());
+    assertEquals(1, fsck.append_dps.get());
+    assertEquals(1, fsck.append_dps_fixed.get());
+    assertEquals(0, fsck.totalErrors());
+    assertEquals(0, fsck.correctable());
+    assertArrayEquals( MockBase.concatByteArrays(qual1, val1, qual2, val2), 
+        storage.getColumn(ROW, appendq));
+  }
+  
+  @Test
+  public void appendDupe() throws Exception {
+    final byte[] qual1 = { 0x0, 0x07 };
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = { 0x0, 0x27 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] appendq = { 0x05, 0x0, 0x0 };
+    storage.addColumn(ROW, appendq, 
+        MockBase.concatByteArrays(qual1, val1, qual1, val1, qual2, val2));
+    
+    final Fsck fsck = new Fsck(tsdb, options);
+    fsck.runFullTable();
+    assertEquals(1, fsck.kvs_processed.get());
+    assertEquals(0, fsck.bad_compacted_columns.get());
+    assertEquals(1, fsck.append_dps.get());
+    assertEquals(0, fsck.append_dps_fixed.get());
+    assertEquals(0, fsck.totalErrors());
+    assertEquals(0, fsck.correctable());
+    assertArrayEquals( MockBase.concatByteArrays(qual1, val1, qual1, val1, qual2, val2), 
+        storage.getColumn(ROW, appendq));
+  }
+  /*
+   * TODO - Fix dupes in the appends by re-writing the data. Right now it just
+   * resolves them at query time but leaves the values in storage.
+  @Test
+  public void appendDupeFix() throws Exception {
+    final byte[] qual1 = { 0x0, 0x07 };
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = { 0x0, 0x27 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] appendq = { 0x05, 0x0, 0x0 };
+    storage.addColumn(ROW, appendq, 
+        MockBase.concatByteArrays(qual1, val1, qual1, val1, qual2, val2));
+    
+    final Fsck fsck = new Fsck(tsdb, options);
+    fsck.runFullTable();
+    assertEquals(1, fsck.kvs_processed.get());
+    assertEquals(0, fsck.bad_compacted_columns.get());
+    assertEquals(1, fsck.append_dps.get());
+    assertEquals(1, fsck.append_dps_fixed.get());
+    assertEquals(0, fsck.totalErrors());
+    assertEquals(0, fsck.correctable());
+    assertArrayEquals( MockBase.concatByteArrays(qual1, val1, qual2, val2), 
+        storage.getColumn(ROW, appendq));
+  }
+  */
+  
   // VLE --------------------------------------------
   
   @Test
