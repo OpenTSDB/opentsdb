@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-ASYNCCASSANDRA_VERSION := 0.0.1-20151102.192826-2
+ASYNCCASSANDRA_VERSION := 0.0.1-20151104.191228-3
 ASYNCCASSANDRA := third_party/asynccassandra/asynccassandra-$(ASYNCCASSANDRA_VERSION)-jar-with-dependencies.jar
 ASYNCCASSANDRA_BASE_URL := https://oss.sonatype.org/content/repositories/snapshots/net/opentsdb/asynccassandra/0.0.1-SNAPSHOT/
 
