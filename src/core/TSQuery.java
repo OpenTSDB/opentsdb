@@ -174,8 +174,10 @@ public final class TSQuery {
     }
     
     // validate queries
+    int i = 0;
     for (TSSubQuery sub : queries) {
       sub.validateAndSetQuery();
+      sub.setIndex(i++);
     }
   }
   
