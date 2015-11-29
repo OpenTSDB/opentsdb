@@ -156,8 +156,8 @@ final class IncomingDataPoints implements WritableDataPoints {
     final short tag_value_width = tsdb.tag_values.width();
     final short num_tags = (short) tags.size();
 
-    int row_size = (metric_width + Const.TIMESTAMP_BYTES + tag_name_width
-        * num_tags + tag_value_width * num_tags);
+    int row_size = (Const.SALT_WIDTH() + metric_width + Const.TIMESTAMP_BYTES 
+        + tag_name_width * num_tags + tag_value_width * num_tags);
     final byte[] row = new byte[row_size];
 
     // Lookup or create the metric ID.
@@ -171,7 +171,7 @@ final class IncomingDataPoints implements WritableDataPoints {
     // Copy the metric ID at the beginning of the row key.
     class CopyMetricInRowKeyCB implements Callback<byte[], byte[]> {
       public byte[] call(final byte[] metricid) {
-        copyInRowKey(row, (short) 0, metricid);
+        copyInRowKey(row, (short) Const.SALT_WIDTH(), metricid);
         return row;
       }
     }
@@ -180,7 +180,7 @@ final class IncomingDataPoints implements WritableDataPoints {
     class CopyTagsInRowKeyCB implements
         Callback<Deferred<byte[]>, ArrayList<byte[]>> {
       public Deferred<byte[]> call(final ArrayList<byte[]> tags) {
-        short pos = metric_width;
+        short pos = (short) (Const.SALT_WIDTH() + metric_width);
         pos += Const.TIMESTAMP_BYTES;
         for (final byte[] tag : tags) {
           copyInRowKey(row, pos, tag);
@@ -242,7 +242,7 @@ final class IncomingDataPoints implements WritableDataPoints {
     // because the HBase client may still hold a reference to it in its
     // internal datastructures.
     row = Arrays.copyOf(row, row.length);
-    Bytes.setInt(row, (int) base_time, tsdb.metrics.width());
+    Bytes.setInt(row, (int) base_time, Const.SALT_WIDTH() + tsdb.metrics.width());
     RowKey.prefixKeyWithSalt(row); // in case the timestamp will be involved in
                                    // salting later
     tsdb.scheduleForCompaction(row, (int) base_time);
