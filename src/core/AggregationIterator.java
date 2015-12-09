@@ -15,12 +15,15 @@ package net.opentsdb.core;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
-
-import com.google.common.annotations.VisibleForTesting;
+import java.util.TimeZone;
 
 import net.opentsdb.core.Aggregators.Interpolation;
+import net.opentsdb.utils.DateTime;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Iterator that aggregates multiple spans or time series data and does linear
@@ -225,7 +228,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
     return create(spans, start_time, end_time, aggregator, method, downsampler,
         sample_interval_ms, rate, rate_options, null);
   }
-  
+
   /**
    * Creates a new iterator for a {@link SpanGroup}.
    * @param spans Spans in a group.
@@ -246,7 +249,6 @@ final class AggregationIterator implements SeekableView, DataPoint,
    * @param fill_policy Policy specifying whether to interpolate or to fill
    * missing intervals with special values.
    * @return An {@link AggregationIterator} object.
-   * @since 2.2
    */
   public static AggregationIterator create(final List<Span> spans,
                                            final long start_time,
@@ -258,15 +260,56 @@ final class AggregationIterator implements SeekableView, DataPoint,
                                            final boolean rate,
                                            final RateOptions rate_options,
                                            final FillPolicy fill_policy) {
+    return create(spans, start_time, end_time, aggregator, method, downsampler,
+        sample_interval_ms, rate, rate_options, fill_policy, null, false);
+  }
+  
+  /**
+   * Creates a new iterator for a {@link SpanGroup}.
+   * @param spans Spans in a group.
+   * @param start_time Any data point strictly before this timestamp will be
+   * ignored.
+   * @param end_time Any data point strictly after this timestamp will be
+   * ignored.
+   * @param aggregator The aggregation function to use.
+   * @param method Interpolation method to use when aggregating time series
+   * @param downsampler Aggregation function to use to group data points
+   * within an interval.
+   * @param sample_interval_ms Number of milliseconds wanted between each data
+   * point.
+   * @param rate If {@code true}, the rate of the series will be used instead
+   * of the actual values.
+   * @param rate_options Specifies the optional additional rate calculation
+   * options.
+   * @param fill_policy Policy specifying whether to interpolate or to fill
+   * missing intervals with special values.
+   * @param timezone The timezone to use for aligning intervals based on the calendar.
+   * @param use_calendar A flag denoting whether or not to align intervals based on the calendar.
+   * @return An {@link AggregationIterator} object.
+   * @since 2.2
+   */
+  public static AggregationIterator create(final List<Span> spans,
+                                           final long start_time,
+                                           final long end_time,
+                                           final Aggregator aggregator,
+                                           final Interpolation method,
+                                           final Aggregator downsampler,
+                                           final long sample_interval_ms,
+                                           final boolean rate,
+                                           final RateOptions rate_options,
+                                           final FillPolicy fill_policy,
+                                           final String timezone,
+                                           final boolean use_calendar) {
     final int size = spans.size();
     final SeekableView[] iterators = new SeekableView[size];
+    TimeZone tz = DateTime.timezones.get(timezone);
     for (int i = 0; i < size; i++) {
       SeekableView it;
       if (downsampler == null) {
         it = spans.get(i).spanIterator();
       } else {
         it = spans.get(i).downsampler(start_time, end_time, sample_interval_ms, 
-            downsampler, fill_policy);
+            downsampler, fill_policy, tz, use_calendar);
       }
       if (rate) {
         it = new RateSpan(it, rate_options);

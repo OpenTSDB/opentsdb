@@ -473,6 +473,23 @@ final class QueryRpc implements HttpRpc {
         data_query.setShowSummary(true);
     }
     
+    if (query.hasQueryStringParam("tz")) {
+      data_query.setTimezone(query.getQueryStringParam("tz"));
+    }
+    
+    if (query.hasQueryStringParam("use_calendar")) {
+      final String val = query.getQueryStringParam("use_calendar").trim().toUpperCase();
+      final boolean use_calendar;
+      if (val.equals("TRUE")) {
+        use_calendar = true;
+      } else {
+        use_calendar = false;
+      }
+      data_query.setUseCalendar(use_calendar);
+    } else {
+      data_query.setUseCalendar(tsdb.getConfig().use_calendar());
+    }
+
     // handle tsuid queries first
     if (query.hasQueryStringParam("tsuid")) {
       final List<String> tsuids = query.getQueryStringParams("tsuid");     

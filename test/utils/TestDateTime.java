@@ -33,6 +33,8 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PrepareForTest({ DateTime.class, System.class })
 public final class TestDateTime {
 
+  private static final TimeZone UTC_TIME_ZONE = DateTime.timezones.get("UTC");
+  
   @Before
   public void before() {
     PowerMockito.mockStatic(System.class);
@@ -370,6 +372,50 @@ public final class TestDateTime {
     PowerMockito.mockStatic(System.class);
     when(System.currentTimeMillis()).thenReturn(1388534400000L);
     assertEquals(1388534400000L, DateTime.currentTimeMillis());
+  }
+
+  @Test
+  public void toStartOfMonthBoundaryChecks() {
+    // test start and end with timestamp corresponding to 2013-10-01T00:00:00Z
+    assertEquals(1380585600000L, DateTime.toStartOfMonth(1380585600000L, UTC_TIME_ZONE));
+    assertEquals(1383263999999L, DateTime.toEndOfMonth(1380585600000L, UTC_TIME_ZONE));
+
+    // test start and end with timestamp corresponding to 2013-10-31T23:59:59Z
+    assertEquals(1380585600000L, DateTime.toStartOfMonth(1383263999999L, UTC_TIME_ZONE));
+    assertEquals(1383263999999L, DateTime.toEndOfMonth(1383263999999L, UTC_TIME_ZONE));
+  }
+
+  @Test
+  public void toStartOfWeekBoundaryChecks() {
+    // test start and end with timestamp corresponding to 2015-12-061T00:00:00Z, which is a Sunday
+    assertEquals(1449360000000L, DateTime.toStartOfWeek(1449360000000L, UTC_TIME_ZONE));
+    assertEquals(1449964799999L, DateTime.toEndOfWeek(1449360000000L, UTC_TIME_ZONE));
+
+    // test start and end with timestamp corresponding to 2015-12-12T23:59:59Z
+    assertEquals(1449360000000L, DateTime.toStartOfWeek(1449964799999L, UTC_TIME_ZONE));
+    assertEquals(1449964799999L, DateTime.toEndOfWeek(1449964799999L, UTC_TIME_ZONE));
+  }
+
+  @Test
+  public void toStartOfYearBoundaryChecks() {
+    // test start and end with timestamp corresponding to 2015-01-01T00:00:00Z
+    assertEquals(1420070400000L, DateTime.toStartOfYear(1420070400000L, UTC_TIME_ZONE));
+    assertEquals(1451606399999L, DateTime.toEndOfYear(1420070400000L, UTC_TIME_ZONE));
+
+    // test start and end with timestamp corresponding to 2015-12-31T23:59:59Z
+    assertEquals(1420070400000L, DateTime.toStartOfYear(1451606399999L, UTC_TIME_ZONE));
+    assertEquals(1451606399999L, DateTime.toEndOfYear(1451606399999L, UTC_TIME_ZONE));
+  }
+
+  @Test
+  public void toStartOfDayBoundaryChecks() {
+    // test start and end with timestamp corresponding to 2015-01-01T00:00:00Z
+    assertEquals(1420070400000L, DateTime.toStartOfDay(1420070400000L, UTC_TIME_ZONE));
+    assertEquals(1420156799999L, DateTime.toEndOfDay(1420070400000L, UTC_TIME_ZONE));
+
+    // test start and end with timestamp corresponding to 2015-01-01T23:59:59Z
+    assertEquals(1420070400000L, DateTime.toStartOfDay(1420156799999L, UTC_TIME_ZONE));
+    assertEquals(1420156799999L, DateTime.toEndOfDay(1420156799999L, UTC_TIME_ZONE));
   }
 
 }

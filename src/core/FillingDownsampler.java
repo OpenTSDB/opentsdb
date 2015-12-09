@@ -13,6 +13,7 @@
 package net.opentsdb.core;
 
 import java.util.NoSuchElementException;
+import java.util.TimeZone;
 
 /**
  * A specialized downsampler that returns special values, based on the fill
@@ -30,7 +31,7 @@ public class FillingDownsampler extends Downsampler {
   protected final FillPolicy fill_policy;
 
   /** 
-   * Create a new nulling downsampler.
+   * Ctor (preserved for backward compatibility).
    * @param source The iterator to access the underlying data.
    * @param start_time The time in milliseconds at which the data begins.
    * @param end_time The time in milliseconds at which the data ends.
@@ -44,8 +45,30 @@ public class FillingDownsampler extends Downsampler {
   FillingDownsampler(final SeekableView source, final long start_time,
       final long end_time, final long interval_ms,
       final Aggregator downsampler, final FillPolicy fill_policy) {
+    this(source, start_time, end_time, interval_ms, downsampler, fill_policy, null, false);
+  }
+  
+  
+  /** 
+   * Create a new nulling downsampler.
+   * @param source The iterator to access the underlying data.
+   * @param start_time The time in milliseconds at which the data begins.
+   * @param end_time The time in milliseconds at which the data ends.
+   * @param interval_ms The interval in milli seconds wanted between each data
+   * point.
+   * @param downsampler The downsampling function to use.
+   * @param fill_policy Policy specifying whether to interpolate or to fill
+   * missing intervals with special values.
+   * @param timezone The timezone to use for aligning intervals based on the calendar.
+   * @throws IllegalArgumentException if fill_policy is interpolation.
+   */
+  FillingDownsampler(final SeekableView source, final long start_time,
+      final long end_time, final long interval_ms,
+      final Aggregator downsampler, final FillPolicy fill_policy,
+      final TimeZone timezone,
+      final boolean use_calendar) {
     // Lean on the superclass implementation.
-    super(source, interval_ms, downsampler);
+    super(source, interval_ms, downsampler, timezone, use_calendar);
 
     // Ensure we aren't given a bogus fill policy.
     if (FillPolicy.NONE == fill_policy) {
