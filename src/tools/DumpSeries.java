@@ -16,6 +16,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 
 import org.hbase.async.DeleteRequest;
@@ -96,49 +97,51 @@ final class DumpSeries {
 
     final StringBuilder buf = new StringBuilder();
     for (final Query query : queries) {
-      final Scanner scanner = Internal.getScanner(query);
-      ArrayList<ArrayList<KeyValue>> rows;
-      while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
-        for (final ArrayList<KeyValue> row : rows) {
-          buf.setLength(0);
-          final byte[] key = row.get(0).key();
-          final long base_time = Internal.baseTime(tsdb, key);
-          final String metric = Internal.metricName(tsdb, key);
-          // Print the row key.
-          if (!importformat) {
-            buf.append(Arrays.toString(key))
-              .append(' ')
-              .append(metric)
-              .append(' ')
-              .append(base_time)
-              .append(" (").append(date(base_time)).append(") ");
-            try {
-              buf.append(Internal.getTags(tsdb, key));
-            } catch (RuntimeException e) {
-              buf.append(e.getClass().getName() + ": " + e.getMessage());
-            }
-            buf.append('\n');
-            System.out.print(buf);
-          }
-
-          // Print individual cells.
-          buf.setLength(0);
-          if (!importformat) {
-            buf.append("  ");
-          }
-          for (final KeyValue kv : row) {
-            // Discard everything or keep initial spaces.
-            buf.setLength(importformat ? 0 : 2);
-            formatKeyValue(buf, tsdb, importformat, kv, base_time, metric);
-            if (buf.length() > 0) {
+      final List<Scanner> scanners = Internal.getScanners(query);
+      for (Scanner scanner : scanners) {
+        ArrayList<ArrayList<KeyValue>> rows;
+        while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
+          for (final ArrayList<KeyValue> row : rows) {
+            buf.setLength(0);
+            final byte[] key = row.get(0).key();
+            final long base_time = Internal.baseTime(tsdb, key);
+            final String metric = Internal.metricName(tsdb, key);
+            // Print the row key.
+            if (!importformat) {
+              buf.append(Arrays.toString(key))
+                      .append(' ')
+                      .append(metric)
+                      .append(' ')
+                      .append(base_time)
+                      .append(" (").append(date(base_time)).append(") ");
+              try {
+                buf.append(Internal.getTags(tsdb, key));
+              } catch (RuntimeException e) {
+                buf.append(e.getClass().getName() + ": " + e.getMessage());
+              }
               buf.append('\n');
               System.out.print(buf);
             }
-          }
 
-          if (delete) {
-            final DeleteRequest del = new DeleteRequest(table, key);
-            client.delete(del);
+            // Print individual cells.
+            buf.setLength(0);
+            if (!importformat) {
+              buf.append("  ");
+            }
+            for (final KeyValue kv : row) {
+              // Discard everything or keep initial spaces.
+              buf.setLength(importformat ? 0 : 2);
+              formatKeyValue(buf, tsdb, importformat, kv, base_time, metric);
+              if (buf.length() > 0) {
+                buf.append('\n');
+                System.out.print(buf);
+              }
+            }
+
+            if (delete) {
+              final DeleteRequest del = new DeleteRequest(table, key);
+              client.delete(del);
+            }
           }
         }
       }
