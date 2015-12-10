@@ -274,7 +274,8 @@ public final class TSSubQuery {
     if (filters == null) {
       filters = new ArrayList<TagVFilter>();
     }
-    return filters;
+    // send a copy so ordering doesn't mess up the hash code
+    return new ArrayList<TagVFilter>(filters);
   }
   
   /** @return the unique set of tagks from the filters. May be null if no filters
