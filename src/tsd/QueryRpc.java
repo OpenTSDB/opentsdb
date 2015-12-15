@@ -129,7 +129,7 @@ final class QueryRpc implements HttpRpc {
       expressions = null;
     } else {
       expressions = new ArrayList<ExpressionTree>();
-      data_query = this.parseQuery(tsdb, query, expressions);
+      data_query = parseQuery(tsdb, query);
     }
     
     if (query.getAPIMethod() == HttpMethod.DELETE &&
@@ -477,7 +477,7 @@ final class QueryRpc implements HttpRpc {
    * @return A TSQuery if parsing was successful
    * @throws BadRequestException if parsing was unsuccessful
    */
-  private TSQuery parseQuery(final TSDB tsdb, final HttpQuery query, 
+  public static TSQuery parseQuery(final TSDB tsdb, final HttpQuery query) {
       final List<ExpressionTree> expressions) {
     final TSQuery data_query = new TSQuery();
     
@@ -520,14 +520,14 @@ final class QueryRpc implements HttpRpc {
     if (query.hasQueryStringParam("tsuid")) {
       final List<String> tsuids = query.getQueryStringParams("tsuid");     
       for (String q : tsuids) {
-        this.parseTsuidTypeSubQuery(q, data_query);
+        parseTsuidTypeSubQuery(q, data_query);
       }
     }
     
     if (query.hasQueryStringParam("m")) {
       final List<String> legacy_queries = query.getQueryStringParams("m");      
       for (String q : legacy_queries) {
-        this.parseMTypeSubQuery(q, data_query);
+        parseMTypeSubQuery(q, data_query);
       }
     }
     
@@ -570,7 +570,7 @@ final class QueryRpc implements HttpRpc {
    * @throws BadRequestException if we are unable to parse the query or it is
    * missing components
    */
-  private void parseMTypeSubQuery(final String query_string, 
+  private static void parseMTypeSubQuery(final String query_string, 
       TSQuery data_query) {
     if (query_string == null || query_string.isEmpty()) {
       throw new BadRequestException("The query string was empty");
@@ -623,7 +623,7 @@ final class QueryRpc implements HttpRpc {
    * @throws BadRequestException if we are unable to parse the query or it is
    * missing components
    */
-  private void parseTsuidTypeSubQuery(final String query_string, 
+  private static void parseTsuidTypeSubQuery(final String query_string, 
       TSQuery data_query) {
     if (query_string == null || query_string.isEmpty()) {
       throw new BadRequestException("The tsuid query string was empty");

@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
@@ -39,20 +38,15 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.opentsdb.core.Aggregator;
-import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
-import net.opentsdb.core.DownsamplingSpecification;
 import net.opentsdb.core.Query;
-import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.Tags;
+import net.opentsdb.core.TSQuery;
 import net.opentsdb.graph.Plot;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 
@@ -857,69 +851,11 @@ final class GraphHandler implements HttpRpc {
    * @throws IllegalArgumentException if the metric or tags were malformed.
    */
   private static Query[] parseQuery(final TSDB tsdb, final HttpQuery query) {
-    final List<String> ms = query.getQueryStringParams("m");
-    if (ms == null) {
-      throw BadRequestException.missingParameter("m");
-    }
-    final Query[] tsdbqueries = new Query[ms.size()];
-    int nqueries = 0;
-    for (final String m : ms) {
-      // m is of the following forms:
-      //   agg:[interval-agg:][rate[{counter[,[countermax][,resetvalue]]}]:]
-      //     metric[{tag=value,...}]
-      // Where the parts in square brackets `[' .. `]' are optional.
-      final String[] parts = Tags.splitString(m, ':');
-      int i = parts.length;
-      if (i < 2 || i > 4) {
-        throw new BadRequestException("Invalid parameter m=" + m + " ("
-          + (i < 2 ? "not enough" : "too many") + " :-separated parts)");
-      }
-      final Aggregator agg = getAggregator(parts[0]);
-      i--;  // Move to the last part (the metric name).
-      final HashMap<String, String> parsedtags = new HashMap<String, String>();
-      final String metric = Tags.parseWithMetric(parts[i], parsedtags);
-      final boolean rate = parts[--i].startsWith("rate");
-      final RateOptions rate_options = QueryRpc.parseRateOptions(rate, parts[i]);
-      if (rate) {
-        i--;  // Move to the next part.
-      }
-      final Query tsdbquery = tsdb.newQuery();
-      try {
-        tsdbquery.setTimeSeries(metric, parsedtags, agg, rate, rate_options);
-      } catch (NoSuchUniqueName e) {
-        throw new BadRequestException(e.getMessage());
-      }
-      // downsampling function & interval.
-      if (i > 0) {
-        // downsampler given, so parse it
-        final DownsamplingSpecification ds_spec =
-          new DownsamplingSpecification(parts[1]);
-
-        tsdbquery.downsample(ds_spec.getInterval(), ds_spec.getFunction(),
-          ds_spec.getFillPolicy());
-      } else {
-        // no downsampler
-        tsdbquery.downsample(1000, agg,
-          DownsamplingSpecification.DEFAULT_FILL_POLICY);
-      }
-      tsdbqueries[nqueries++] = tsdbquery;
-    }
-    return tsdbqueries;
+    final TSQuery q = QueryRpc.parseQuery(tsdb, query);
+    q.validateAndSetQuery();
+    return q.buildQueries(tsdb);
   }
-
-  /**
-   * Returns the aggregator with the given name.
-   * @param name Name of the aggregator to get.
-   * @throws BadRequestException if there's no aggregator with this name.
-   */
-  private static final Aggregator getAggregator(final String name) {
-    try {
-      return Aggregators.get(name);
-    } catch (NoSuchElementException e) {
-      throw new BadRequestException("No such aggregation function: " + name);
-    }
-  }
-
+  
   private static final PlotThdFactory thread_factory = new PlotThdFactory();
 
   private static final class PlotThdFactory implements ThreadFactory {
