@@ -185,6 +185,46 @@ public final class TestTSSubQuery {
     assertEquals(300000, sub.downsampleInterval());
   }
 
+  @Test
+  public void validateWithFilterAndGroupByFilter() {
+    TSSubQuery sub = getMetricForValidate();
+    final List<TagVFilter> filters = new ArrayList<TagVFilter>(1);
+    filters.add(new TagVWildcardFilter("colo", "lga*"));
+    sub.setFilters(filters);
+    Map<String, String> tags = new HashMap<String, String>();
+    tags.put("host", TagVWildcardFilter.FILTER_NAME + "(*nari)");
+    sub.setTags(tags);
+    
+    sub.validateAndSetQuery();
+    assertEquals("sys.cpu.0", sub.getMetric());
+    assertEquals(TagVWildcardFilter.FILTER_NAME + "(*nari)", 
+        sub.getTags().get("host"));
+    assertEquals(1, sub.getFilters().size());
+    assertEquals(Aggregators.SUM, sub.aggregator());
+    assertEquals(Aggregators.AVG, sub.downsampler());
+    assertEquals(300000, sub.downsampleInterval());
+  }
+  
+  @Test
+  public void validateWithFilterAndGroupByFilterSameTag() {
+    TSSubQuery sub = getMetricForValidate();
+    final List<TagVFilter> filters = new ArrayList<TagVFilter>(1);
+    filters.add(new TagVWildcardFilter("host", "veti*"));
+    sub.setFilters(filters);
+    Map<String, String> tags = new HashMap<String, String>();
+    tags.put("host", TagVWildcardFilter.FILTER_NAME + "(*nari)");
+    sub.setTags(tags);
+    
+    sub.validateAndSetQuery();
+    assertEquals("sys.cpu.0", sub.getMetric());
+    assertEquals(TagVWildcardFilter.FILTER_NAME + "(*nari)", 
+        sub.getTags().get("host"));
+    assertEquals(1, sub.getFilters().size());
+    assertEquals(Aggregators.SUM, sub.aggregator());
+    assertEquals(Aggregators.AVG, sub.downsampler());
+    assertEquals(300000, sub.downsampleInterval());
+  }
+  
   // NOTE: Each of the hash and equals  tests should make sure that we the code
   // doesn't change after validation.
   
