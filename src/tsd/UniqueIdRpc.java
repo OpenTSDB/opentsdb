@@ -22,6 +22,7 @@ import java.util.Map.Entry;
 import java.util.TreeMap;
 
 import org.hbase.async.Bytes;
+import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.PutRequest;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -549,6 +550,7 @@ final class UniqueIdRpc implements HttpRpc {
    * @param data_query The query we're building
    * @throws BadRequestException if we are unable to parse the query or it is
    * missing components
+   * @todo - make this asynchronous
    */
   private String getTSUIDForMetric(final String query_string, TSDB tsdb) {
     if (query_string == null || query_string.isEmpty()) {
@@ -565,16 +567,23 @@ final class UniqueIdRpc implements HttpRpc {
     } catch (IllegalArgumentException e) {
       throw new BadRequestException(e);
     }
-    final TreeMap<String, String> sortedTags = new TreeMap<String, String>(tags);
+    
+    // sort the UIDs on tagk values
+    final ByteMap<byte[]> tag_uids = new ByteMap<byte[]>();
+    for (final Entry<String, String> pair : tags.entrySet()) {
+      tag_uids.put(tsdb.getUID(UniqueIdType.TAGK, pair.getKey()), 
+          tsdb.getUID(UniqueIdType.TAGV, pair.getValue()));
+    }
+    
     // Byte Buffer to generate TSUID, pre allocated to the size of the TSUID
     final ByteArrayOutputStream buf = new ByteArrayOutputStream(
-        TSDB.metrics_width() + sortedTags.size() * 
+        TSDB.metrics_width() + tag_uids.size() * 
         (TSDB.tagk_width() + TSDB.tagv_width()));
     try {
-    buf.write(tsdb.getUID(UniqueIdType.METRIC, metric));
-      for (Entry<String, String> e: sortedTags.entrySet()) {
-        buf.write(tsdb.getUID(UniqueIdType.TAGK, e.getKey()), 0, 3);
-        buf.write(tsdb.getUID(UniqueIdType.TAGV, e.getValue()), 0, 3);
+      buf.write(tsdb.getUID(UniqueIdType.METRIC, metric));
+      for (final Entry<byte[], byte[]> uids: tag_uids.entrySet()) {
+        buf.write(uids.getKey());
+        buf.write(uids.getValue());
       }
     } catch (IOException e) {
       throw new BadRequestException(e);
