@@ -119,7 +119,7 @@ public class TagVWildcardFilter extends TagVFilter {
       // match all
       return Deferred.fromResult(true);
     } else if (case_insensitive) {
-      tags.get(tagk).toLowerCase();
+      tagv = tags.get(tagk).toLowerCase();
     }
     if (has_postfix && !has_prefix && 
         !tagv.endsWith(components[components.length-1])) {

@@ -260,6 +260,14 @@ public class TestTagVWildcardFilter {
   }
   
   @Test
+  public void matchPostfixCaseInsensitiveValue() throws Exception {
+    tags.put(TAGK, "ogg-01.ops.ankh.MORPORK.com");
+    TagVFilter filter = new TagVWildcardFilter(TAGK, 
+        "*.MorPork.com", true);
+    assertTrue(filter.match(tags).join());
+  }
+  
+  @Test
   public void matchPrefixCaseInsensitive() throws Exception {
     TagVFilter filter = new TagVWildcardFilter(TAGK, 
         "Ogg*", true);
