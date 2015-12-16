@@ -129,7 +129,7 @@ final class QueryRpc implements HttpRpc {
       expressions = null;
     } else {
       expressions = new ArrayList<ExpressionTree>();
-      data_query = parseQuery(tsdb, query);
+      data_query = parseQuery(tsdb, query, expressions);
     }
     
     if (query.getAPIMethod() == HttpMethod.DELETE &&
@@ -477,7 +477,7 @@ final class QueryRpc implements HttpRpc {
    * @return A TSQuery if parsing was successful
    * @throws BadRequestException if parsing was unsuccessful
    */
-  public static TSQuery parseQuery(final TSDB tsdb, final HttpQuery query) {
+  public static TSQuery parseQuery(final TSDB tsdb, final HttpQuery query,
       final List<ExpressionTree> expressions) {
     final TSQuery data_query = new TSQuery();
     
