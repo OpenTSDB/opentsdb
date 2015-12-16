@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module rename-to="queryui">
   <inherits name="com.google.gwt.user.User"/>
-  <inherits name="com.google.gwt.user.theme.standard.Standard"/>
+  <inherits name="com.sensei.themes.opentsdb.Opentsdb"/>
   <inherits name="com.google.gwt.http.HTTP"/>
   <inherits name="com.google.gwt.json.JSON"/>
   <entry-point class="tsd.client.QueryUi"/>

@@ -404,7 +404,9 @@ expr_src_dir = $(builddir)/src/$(expr_package)
 get_expr_classes = `classes=''; for f in $(packagedir)$(expr_package)/*.class; do classes="$$classes $$f"; done; echo $$classes;`
 
 #dist_pkgdata_DATA = src/logback.xml
-dist_static_DATA = src/tsd/static/favicon.ico
+dist_static_DATA = \
+	src/tsd/static/favicon.ico	\
+	src/tsd/static/openTSDB_header.jpg
 
 EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) $(expr_grammar) \
         $(test_plugin_SRC) $(test_plugin_MF) $(test_plugin_SVCS:%=test/%) \
@@ -502,14 +504,14 @@ get_dep_classpath = `for jar in $(tsdb_DEPS); do $(find_jar); done | tr '\n' ':'
 	@touch "$@"
 
 VALIDATION_API_CLASSPATH = `jar=$(VALIDATION_API); $(find_jar)`:`jar=$(VALIDATION_API_SOURCES); $(find_jar)`
-GWT_CLASSPATH = $(VALIDATION_API_CLASSPATH):`jar=$(GWT_DEV); $(find_jar)`:`jar=$(GWT_USER); $(find_jar)`:$(srcdir)/src
+GWT_CLASSPATH = $(VALIDATION_API_CLASSPATH):`jar=$(GWT_DEV); $(find_jar)`:`jar=$(GWT_USER); $(find_jar)`:`jar=$(GWT_THEME); $(find_jar)`:$(srcdir)/src
 # The GWT compiler is way too slow, that's not very Googley.  So we save the
 # MD5 of the files we compile in the stamp file and everytime `make' things it
 # needs to recompile the GWT code, we verify whether the code really changed
 # or whether it's just a file that was touched (which happens frequently when
 # using Git while rebasing and whatnot).
 gwtc: .gwtc-stamp
-.gwtc-stamp: $(httpui_SRC) $(httpui_DEPS) $(VALIDATION_API) $(VALIDATION_API_SOURCES) $(GWT_DEV) $(GWT_USER)
+.gwtc-stamp: $(httpui_SRC) $(httpui_DEPS) $(VALIDATION_API) $(VALIDATION_API_SOURCES) $(GWT_DEV) $(GWT_USER) $(GWT_THEME)
 	@$(mkdir_p) gwt
 	{ cd $(srcdir) && cat $(httpui_SRC); } | $(MD5) >"$@-t"
 	cmp -s "$@" "$@-t" && exit 0; \
@@ -773,6 +775,7 @@ pom.xml: pom.xml.in Makefile
 	    -e 's/@ASYNCCASSANDRA_VERSION@/$(ASYNCCASSANDRA_VERSION)/' \
 	    -e 's/@GUAVA_VERSION@/$(GUAVA_VERSION)/' \
 	    -e 's/@GWT_VERSION@/$(GWT_VERSION)/' \
+	    -e 's/@GWT_THEME_VERSION@/$(GWT_THEME_VERSION)/' \
 	    -e 's/@HAMCREST_VERSION@/$(HAMCREST_VERSION)/' \
 	    -e 's/@JACKSON_VERSION@/$(JACKSON_VERSION)/' \
 	    -e 's/@JAVASSIST_VERSION@/$(JAVASSIST_VERSION)/' \
@@ -845,7 +848,8 @@ debian: dist staticroot
 	chmod 755 $(distdir)/debian/DEBIAN/*
 	cp $(top_srcdir)/build-aux/deb/init.d/opentsdb $(distdir)/debian/etc/init.d
 	cp $(jar) $(distdir)/debian/usr/share/opentsdb/lib
-	cp -r staticroot/favicon.ico $(distdir)/debian/usr/share/opentsdb/static
+	cp -r staticroot/icon.ico $(distdir)/debian/usr/share/opentsdb/static
+	cp -r staticroot/openTSDB_header.jpg $(distdir)/debian/usr/share/opentsdb/static
 	cp -r gwt/queryui/* $(distdir)/debian/usr/share/opentsdb/static
 	`for dep_jar in $(tsdb_DEPS); do cp $$dep_jar \
 	     $(distdir)/debian/usr/share/opentsdb/lib; done;`

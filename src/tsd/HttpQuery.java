@@ -1017,7 +1017,6 @@ final class HttpQuery extends AbstractHttpQuery {
     + "body{font-family:arial,sans-serif;margin-left:2em}"
     + "A.l:link{color:#6f6f6f}"
     + "A.u:link{color:green}"
-    + ".subg{background-color:#e2f4f7}"
     + ".fwf{font-family:monospace;white-space:pre-wrap}"
     + "//--></style>";
 
@@ -1025,12 +1024,10 @@ final class HttpQuery extends AbstractHttpQuery {
     "</head>\n"
     + "<body text=#000000 bgcolor=#ffffff>"
     + "<table border=0 cellpadding=2 cellspacing=0 width=100%>"
-    + "<tr><td rowspan=3 width=1% nowrap><b>"
-    + "<font color=#c71a32 size=10>T</font>"
-    + "<font color=#00a189 size=10>S</font>"
-    + "<font color=#1a65b7 size=10>D</font>"
-    + "&nbsp;&nbsp;</b><td>&nbsp;</td></tr>"
-    + "<tr><td class=subg><font color=#507e9b><b>";
+    + "<tr><td rowspan=3 width=1% nowrap>"
+    + "<img src=/s/opentsdb_header.jpg>"
+    + "<td>&nbsp;</td></tr>"
+    + "<tr><td><font color=#507e9b><b>";
 
   private static final String PAGE_BODY_MID =
     "</b></td></tr>"

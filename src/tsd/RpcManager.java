@@ -568,7 +568,7 @@ public final class RpcManager {
       query.sendReply(HttpQuery.makePage(
         "<script type=text/javascript language=javascript"
         + " src=s/queryui.nocache.js></script>",
-        "TSD", "Time Series Database", buf.toString()));
+        "OpenTSDB", "", buf.toString()));
     }
   }
   
