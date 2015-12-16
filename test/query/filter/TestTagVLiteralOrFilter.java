@@ -86,6 +86,15 @@ public class TestTagVLiteralOrFilter {
   }
   
   @Test
+  public void matchCaseInsensitiveValue() throws Exception {
+    tags.put(TAGK, "CMTDIBBLER");
+    TagVFilter filter = new TagVLiteralOrFilter(TAGK, 
+        "LutZe|CMtDibbler|Slant", true);
+    assertTrue(filter.match(tags).join());
+    assertTrue(((TagVLiteralOrFilter)filter).isCaseInsensitive());
+  }
+  
+  @Test
   public void matchCaseInsensitiveFail() throws Exception {
     TagVFilter filter = new TagVLiteralOrFilter(TAGK, 
         "LutZe|CMtDibble|Slant", true);
