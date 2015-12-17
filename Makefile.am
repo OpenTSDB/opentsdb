@@ -406,7 +406,7 @@ get_expr_classes = `classes=''; for f in $(packagedir)$(expr_package)/*.class; d
 #dist_pkgdata_DATA = src/logback.xml
 dist_static_DATA = \
 	src/tsd/static/favicon.ico	\
-	src/tsd/static/openTSDB_header.jpg
+	src/tsd/static/opentsdb_header.jpg
 
 EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) $(expr_grammar) \
         $(test_plugin_SRC) $(test_plugin_MF) $(test_plugin_SVCS:%=test/%) \
