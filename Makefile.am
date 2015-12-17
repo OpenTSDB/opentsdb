@@ -307,7 +307,7 @@ httpui_DEPS = src/tsd/QueryUi.gwt.xml
 #dist_pkgdata_DATA = src/logback.xml
 dist_static_DATA = \
 	src/tsd/static/favicon.ico	\
-	src/tsd/static/openTSDB_header.jpg
+	src/tsd/static/opentsdb_header.jpg
 
 EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) \
         $(test_plugin_SRC) $(test_plugin_MF) $(test_plugin_SVCS:%=test/%) \
