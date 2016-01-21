@@ -429,6 +429,25 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       }
       return tot_values;
     }
+    
+    private byte[] fromLong(long value) {
+    	final byte[] v;
+        
+        if (tsdb.config.use_hbase_counters()) {
+        	v = Bytes.fromLong(value);
+        }  
+        else if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
+          v = new byte[] { (byte) value };
+        } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
+          v = Bytes.fromShort((short) value);
+        } else if (Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE) {
+          v = Bytes.fromInt((int) value);
+        } else {
+          v = Bytes.fromLong(value);
+        }
+        
+        return v;
+    }
 
     /**
      * Process datapoints from the heap in order, merging into a sorted list.  Handles duplicates
@@ -448,7 +467,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           final byte[] discardedVal = col.getCopyOfCurrentValue();
           if (!Arrays.equals(existingVal, discardedVal)) {
             duplicates_different.incrementAndGet();
-            if (!tsdb.config.fix_duplicates()) {
+            if (!tsdb.config.fix_duplicates() && !tsdb.config.sum_duplicates()) {
               throw new IllegalDataException("Duplicate timestamp for key="
                   + Arrays.toString(row.get(0).key()) + ", ms_offset=" + ts + ", older="
                   + Arrays.toString(existingVal) + ", newer=" + Arrays.toString(discardedVal)
@@ -459,6 +478,55 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
                 + Arrays.toString(discardedVal));
           } else {
             duplicates_same.incrementAndGet();
+          }
+          
+          if (tsdb.config.sum_duplicates()) {
+        	  short current_flags = Internal.getFlagsFromQualifier(compacted_qual.getLastSegment());
+        	  short discarded_flags = col.getFlagsFromQualifier();
+        	          	  
+        	  boolean is_current_long = ((current_flags & Const.FLAG_FLOAT) == 0x0);
+        	  boolean is_discarded_long = ((discarded_flags & Const.FLAG_FLOAT) == 0x0);
+        	  
+        	  /* the current value flags determine the type of the output (long or double) */
+        	  
+        	  double current_val = 0.0;
+        	  double discarded_val = 0.0;        	  
+        	  
+        	  if (is_current_long) {
+        		  current_val =  Internal.extractIntegerValue(existingVal, 0, (byte)current_flags);
+        	  } else {
+        		  current_val = Internal.extractFloatingPointValue(existingVal, 0, (byte) current_flags);
+        	  }
+        	  
+        	  if (is_discarded_long) {
+        		  discarded_val = Internal.extractIntegerValue(discardedVal, 0, (byte)discarded_flags);
+        	  } else {
+        		  discarded_val = Internal.extractFloatingPointValue(discardedVal, 0, (byte) current_flags);
+        	  }
+    		  
+    		  current_val += discarded_val;
+    		  byte[] new_val = null;
+    		  current_flags = 0;
+    		  
+    		  if (is_current_long) {
+    			  new_val = fromLong((long) current_val);
+    			  current_flags = (short) (new_val.length - 1);
+    		  } else {
+    			  new_val = Bytes.fromLong(Double.doubleToRawLongBits(current_val));
+    			  current_flags = Const.FLAG_FLOAT | 0x7;
+    		  }
+    		  
+    		  final byte[] new_qualifier = Internal.buildQualifier(col.getColumnTimestamp(), current_flags);
+    		  
+    		  /* now remove the last value & qualifier (existing one) and write the updated value and qualifier */
+    		  
+    		  prevTs = ts;
+    		  compacted_val.removeLastSegment();
+    		  compacted_qual.removeLastSegment();
+			  col.writeToBuffers(new_qualifier, new_val, compacted_qual, compacted_val);
+			  ms_in_row |= col.isMilliseconds();
+		      s_in_row |= !col.isMilliseconds();        		          	  
+        	  
           }
         } else {
           prevTs = ts;
