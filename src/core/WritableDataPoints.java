@@ -57,7 +57,7 @@ public interface WritableDataPoints extends DataPoints {
    * @throws HBaseException (deferred) if there was a problem while persisting
    * data.
    */
-  Deferred<Object> addPoint(long timestamp, long value);
+  Deferred addPoint(long timestamp, long value);
 
   /**
    * Appends a {@code float} data point to this sequence.
@@ -78,7 +78,7 @@ public interface WritableDataPoints extends DataPoints {
    * @throws HBaseException (deferred) if there was a problem while persisting
    * data.
    */
-  Deferred<Object> addPoint(long timestamp, float value);
+  Deferred addPoint(long timestamp, float value);
 
   /**
    * Specifies for how long to buffer edits, in milliseconds.
