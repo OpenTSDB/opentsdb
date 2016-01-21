@@ -72,6 +72,9 @@ public class Config {
   
   /** tsd.storage.enable_compaction */
   private boolean enable_compactions = true;
+  
+  /** tsd.storage.hbase.use_hbase_counters */
+  private boolean use_hbase_counters = false;
 
   /** tsd.core.meta.enable_realtime_ts */
   private boolean enable_realtime_ts = false;
@@ -90,6 +93,9 @@ public class Config {
 
   /** tsd.storage.fix_duplicates */
   private boolean fix_duplicates = false;
+  
+  /** tsd.storage.sum_duplicates */
+  private boolean sum_duplicates = false;
 
   /** tsd.http.request.max_chunk */
   private int max_chunked_requests = 4096; 
@@ -176,6 +182,14 @@ public class Config {
   /** @return the enable_compaction value */
   public boolean enable_compactions() {
     return enable_compactions;
+  }
+  
+  public boolean use_hbase_counters() {
+	  return use_hbase_counters;
+  }
+  
+  public boolean sum_duplicates() {
+	  return sum_duplicates;
   }
   
   /** @return whether or not to record new TSMeta objects in real time */
@@ -463,6 +477,8 @@ public class Config {
     default_map.put("tsd.storage.hbase.zk_quorum", "localhost");
     default_map.put("tsd.storage.hbase.zk_basedir", "/hbase");
     default_map.put("tsd.storage.enable_compaction", "true");
+    default_map.put("tsd.storage.hbase.use_hbase_counters", "false");
+    default_map.put("tsd.storage.sum_duplicates", "false");    
     default_map.put("tsd.http.show_stack_trace", "true");
     default_map.put("tsd.http.request.enable_chunked", "false");
     default_map.put("tsd.http.request.max_chunk", "4096");
@@ -567,7 +583,9 @@ public class Config {
     auto_metric = this.getBoolean("tsd.core.auto_create_metrics");
     auto_tagk = this.getBoolean("tsd.core.auto_create_tagks");
     auto_tagv = this.getBoolean("tsd.core.auto_create_tagvs");
-    enable_compactions = this.getBoolean("tsd.storage.enable_compaction");
+    enable_compactions = this.getBoolean("tsd.storage.enable_compaction");    
+    use_hbase_counters = this.getBoolean("tsd.storage.hbase.use_hbase_counters");
+    sum_duplicates = this.getBoolean("tsd.storage.sum_duplicates");
     enable_chunked_requests = this.getBoolean("tsd.http.request.enable_chunked");
     enable_realtime_ts = this.getBoolean("tsd.core.meta.enable_realtime_ts");
     enable_realtime_uid = this.getBoolean("tsd.core.meta.enable_realtime_uid");
