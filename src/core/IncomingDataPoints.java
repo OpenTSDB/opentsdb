@@ -22,6 +22,7 @@ import java.util.Map;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.PutRequest;
 
@@ -235,7 +236,7 @@ final class IncomingDataPoints implements WritableDataPoints {
     tsdb.scheduleForCompaction(row, (int) base_time);
     return base_time;
   }
-
+  
   /**
    * Implements {@link #addPoint} by storing a value with a specific flag.
    * @param timestamp The timestamp to associate with the value.
@@ -244,7 +245,7 @@ final class IncomingDataPoints implements WritableDataPoints {
    * point).
    * @return A deferred object that indicates the completion of the request.
    */
-  private Deferred<Object> addPointInternal(final long timestamp, final byte[] value,
+  private Deferred addPointInternal(final long timestamp, final byte[] value,
                                             final short flags) {
     if (row == null) {
       throw new IllegalStateException("setSeries() never called!");
@@ -285,30 +286,38 @@ final class IncomingDataPoints implements WritableDataPoints {
     // Java is so stupid with its auto-promotion of int to float.
     final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
 
-    final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY,
-                                            qualifier, value);
-    // TODO(tsuna): The following timing is rather useless.  First of all,
-    // the histogram never resets, so it tends to converge to a certain
-    // distribution and never changes.  What we really want is a moving
-    // histogram so we can see how the latency distribution varies over time.
-    // The other problem is that the Histogram class isn't thread-safe and
-    // here we access it from a callback that runs in an unknown thread, so
-    // we might miss some increments.  So let's comment this out until we
-    // have a proper thread-safe moving histogram.
-    //final long start_put = System.nanoTime();
-    //final Callback<Object, Object> cb = new Callback<Object, Object>() {
-    //  public Object call(final Object arg) {
-    //    putlatency.add((int) ((System.nanoTime() - start_put) / 1000000));
-    //    return arg;
-    //  }
-    //  public String toString() {
-    //    return "time put request";
-    //  }
-    //};
-
-    // TODO(tsuna): Add an errback to handle some error cases here.
-    point.setDurable(!batch_import);
-    return tsdb.client.put(point)/*.addBoth(cb)*/;
+    boolean isLong = ((flags & Const.FLAG_FLOAT) == 0x0);
+    
+    if (isLong && tsdb.config.use_hbase_counters()) {
+    	    	
+    	AtomicIncrementRequest counterRequest = new AtomicIncrementRequest(tsdb.table, row, TSDB.FAMILY, qualifier, Bytes.getLong(value));
+    	return tsdb.client.atomicIncrement(counterRequest, !batch_import);
+    } else {
+    	final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY,
+                qualifier, value);
+		// TODO(tsuna): The following timing is rather useless.  First of all,
+		// the histogram never resets, so it tends to converge to a certain
+		// distribution and never changes.  What we really want is a moving
+		// histogram so we can see how the latency distribution varies over time.
+		// The other problem is that the Histogram class isn't thread-safe and
+		// here we access it from a callback that runs in an unknown thread, so
+		// we might miss some increments.  So let's comment this out until we
+		// have a proper thread-safe moving histogram.
+		//final long start_put = System.nanoTime();
+		//final Callback<Object, Object> cb = new Callback<Object, Object>() {
+		//  public Object call(final Object arg) {
+		//    putlatency.add((int) ((System.nanoTime() - start_put) / 1000000));
+		//    return arg;
+		//  }
+		//  public String toString() {
+		//    return "time put request";
+		//  }
+		//};
+		
+		// TODO(tsuna): Add an errback to handle some error cases here.
+		point.setDurable(!batch_import);
+		return tsdb.client.put(point)/*.addBoth(cb)*/;
+    }    
   }
 
   private void grow() {
@@ -326,9 +335,11 @@ final class IncomingDataPoints implements WritableDataPoints {
     return Bytes.getUnsignedInt(row, tsdb.metrics.width());
   }
 
-  public Deferred<Object> addPoint(final long timestamp, final long value) {
+  public Deferred addPoint(final long timestamp, final long value) {
     final byte[] v;
-    if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
+    if (tsdb.config.use_hbase_counters()) {
+    	v = Bytes.fromLong(value);
+    } else if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
       v = new byte[] { (byte) value };
     } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
       v = Bytes.fromShort((short) value);
@@ -337,11 +348,11 @@ final class IncomingDataPoints implements WritableDataPoints {
     } else {
       v = Bytes.fromLong(value);
     }
-    final short flags = (short) (v.length - 1);  // Just the length.
+    final short flags = (short) (v.length - 1);  // Just the length
     return addPointInternal(timestamp, v, flags);
   }
 
-  public Deferred<Object> addPoint(final long timestamp, final float value) {
+  public Deferred addPoint(final long timestamp, final float value) {
     if (Float.isNaN(value) || Float.isInfinite(value)) {
       throw new IllegalArgumentException("value is NaN or Infinite: " + value
                                          + " for timestamp=" + timestamp);
