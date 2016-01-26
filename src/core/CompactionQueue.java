@@ -796,7 +796,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     private final short timestamp_pos;
 
     public Cmp(final TSDB tsdb) {
-      timestamp_pos = Const.SALT_WIDTH() + tsdb.metrics.width();
+      timestamp_pos = (short) (Const.SALT_WIDTH() + tsdb.metrics.width());
     }
 
     @Override
