@@ -792,16 +792,16 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    */
   private static final class Cmp implements Comparator<byte[]> {
 
-    /** On how many bytes do we encode metrics IDs.  */
-    private final short metric_width;
+    /** The position with which the timestamp of metric starts.  */
+    private final short timestamp_pos;
 
     public Cmp(final TSDB tsdb) {
-      metric_width = tsdb.metrics.width();
+      timestamp_pos = Const.SALT_WIDTH() + tsdb.metrics.width();
     }
 
     @Override
     public int compare(final byte[] a, final byte[] b) {
-      final int c = Bytes.memcmp(a, b, metric_width, Const.TIMESTAMP_BYTES);
+      final int c = Bytes.memcmp(a, b, timestamp_pos, Const.TIMESTAMP_BYTES);
       // If the timestamps are equal, sort according to the entire row key.
       return c != 0 ? c : Bytes.memcmp(a, b);
     }
