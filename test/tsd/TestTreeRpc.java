@@ -1152,7 +1152,7 @@ public final class TestTreeRpc {
     root.setDisplayName("ROOT");
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
-    storage.addColumn(root.compileBranchId(), Tree.TREE_FAMILY(),
+    storage.addColumn(root.compiledBranchId(), Tree.TREE_FAMILY(),
         "branch".getBytes(MockBase.ASCII()), 
         (byte[])branchToStorageJson.invoke(root));
     
@@ -1279,18 +1279,18 @@ public final class TestTreeRpc {
     path.put(2, "cpu");
     branch.prependParentPath(path);
     branch.setDisplayName("cpu");
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    storage.addColumn(branch.compiledBranchId(), Tree.TREE_FAMILY(),
         "branch".getBytes(MockBase.ASCII()), 
         (byte[])branchToStorageJson.invoke(branch));
     
     Leaf leaf = new Leaf("user", "000001000001000001");
     qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    storage.addColumn(branch.compiledBranchId(), Tree.TREE_FAMILY(),
         qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
     
     leaf = new Leaf("nice", "000002000002000002");
     qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    storage.addColumn(branch.compiledBranchId(), Tree.TREE_FAMILY(),
         qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
     
     // child branch
@@ -1298,13 +1298,13 @@ public final class TestTreeRpc {
     path.put(3, "mboard");
     branch.prependParentPath(path);
     branch.setDisplayName("mboard");
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    storage.addColumn(branch.compiledBranchId(), Tree.TREE_FAMILY(),
         "branch".getBytes(MockBase.ASCII()), 
         (byte[])branchToStorageJson.invoke(branch));
     
     leaf = new Leaf("Asus", "000003000003000003");
     qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    storage.addColumn(branch.compiledBranchId(), Tree.TREE_FAMILY(),
         qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
   }
   

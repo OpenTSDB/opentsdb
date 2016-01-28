@@ -123,7 +123,7 @@ public final class TestTreeBuilder {
     root.setDisplayName("ROOT");
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
-    storage.addColumn(root.compileBranchId(), 
+    storage.addColumn(root.compiledBranchId(),
         "branch".getBytes(MockBase.ASCII()), 
         (byte[])toStorageJson.invoke(root));
   }
@@ -628,7 +628,7 @@ public final class TestTreeBuilder {
   public void processTimeseriesMetaFormatBadType() throws Exception {
     tree.getRules().get(3).get(0).setDisplayFormat("Wrong: {tag_name}");
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(5, storage.numRows());
+    assertEquals(7, storage.numRows());
     final Branch branch = JSON.parseToObject(
         storage.getColumn(Branch.stringToId(
           "00010001A2460001CB54247F7202C3165573"), 
@@ -640,7 +640,7 @@ public final class TestTreeBuilder {
   public void processTimeseriesMetaFormatOverride() throws Exception {
     tree.getRules().get(3).get(0).setDisplayFormat("OVERRIDE");
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(5, storage.numRows());
+    assertEquals(7, storage.numRows());
     final Branch branch = JSON.parseToObject(
         storage.getColumn(Branch.stringToId(
           "00010001A2460001CB54247F72024E3D0BCC"), 

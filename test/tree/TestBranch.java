@@ -23,7 +23,9 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import net.opentsdb.core.TSDB;
@@ -127,22 +129,6 @@ public final class TestBranch {
   }
   
   @Test
-  public void compareToLess() {
-    final Branch branch = buildTestBranch(tree);;
-    final Branch branch2 = buildTestBranch(tree);;
-    branch2.setDisplayName("Ardvark");
-    assertTrue(branch.compareTo(branch2) > 0);
-  }
-  
-  @Test
-  public void compareToGreater() {
-    final Branch branch = buildTestBranch(tree);;
-    final Branch branch2 = buildTestBranch(tree);;
-    branch2.setDisplayName("Zelda");
-    assertTrue(branch.compareTo(branch2) < 0);
-  }
-  
-  @Test
   public void getBranchIdRoot() {
     final Branch branch = buildTestBranch(tree);;
     assertEquals("0001", branch.getBranchId());
@@ -150,14 +136,23 @@ public final class TestBranch {
   
   @Test
   public void getBranchIdChild() {
-    final Branch branch = buildTestBranch(tree);;
-    assertEquals("0001D119F20E", branch.getBranches().first().getBranchId());
+    final Branch branch = buildTestBranch(tree);
+    Set<String> expected = new HashSet<String>();
+    expected.add("0001D119F20E");
+    expected.add("000194815E4F");
+    for (Branch b : branch.getBranches()) {
+      assertEquals(true, expected.contains(b.getBranchId()));
+      expected.remove(b.getBranchId());
+    }
   }
   
   @Test
   public void addChild() throws Exception {
     final Branch branch = buildTestBranch(tree);
     final Branch child = new Branch(tree.getTreeId());
+    child.setDisplayName("UniqueName");
+    child.prependParentPath(new TreeMap<Integer, String>());
+    child.addBranchToPath();
     assertTrue(branch.addChild(child));
     assertEquals(3, branch.getBranches().size());
     assertEquals(2, branch.getLeaves().size());
@@ -167,6 +162,9 @@ public final class TestBranch {
   public void addChildNoLocalBranches() throws Exception {
     final Branch branch = buildTestBranch(tree);;
     final Branch child = new Branch(tree.getTreeId());
+    child.setDisplayName("UniqueName");
+    child.prependParentPath(new TreeMap<Integer, String>());
+    child.addBranchToPath();
     Field branches = Branch.class.getDeclaredField("branches");
     branches.setAccessible(true);
     branches.set(branch, null);
@@ -180,6 +178,9 @@ public final class TestBranch {
   public void addChildNoChanges() throws Exception {
     final Branch branch = buildTestBranch(tree);;
     final Branch child = new Branch(tree.getTreeId());
+    child.setDisplayName("UniqueName");
+    child.prependParentPath(new TreeMap<Integer, String>());
+    child.addBranchToPath();
     assertTrue(branch.addChild(child));
     assertFalse(branch.addChild(child));
     assertEquals(3, branch.getBranches().size());
@@ -240,28 +241,28 @@ public final class TestBranch {
   }
   
   @Test
-  public void compileBranchId() {
+  public void compiledBranchId() {
     final Branch branch = buildTestBranch(tree);;
-    assertArrayEquals(new byte[] { 0, 1 }, branch.compileBranchId());
+    assertArrayEquals(new byte[] { 0, 1 }, branch.compiledBranchId());
   }
   
   @Test
-  public void compileBranchIdChild() {
+  public void compiledBranchIdChild() {
     final Branch branch = buildTestBranch(tree);;
     assertArrayEquals(new byte[] { 0, 1 , (byte) 0xD1, 0x19, (byte) 0xF2, 0x0E }, 
-        branch.getBranches().first().compileBranchId());
+        branch.getBranches().descendingSet().first().compiledBranchId());
   }
   
   @Test (expected = IllegalArgumentException.class)
-  public void compileBranchIdEmptyDisplayName() {
+  public void compiledBranchIdEmptyDisplayName() {
     final Branch branch = new Branch(1);
-    branch.compileBranchId();
+    branch.compiledBranchId();
   }
   
   @Test (expected = IllegalArgumentException.class)
-  public void compileBranchIdInvalidId() {
+  public void compiledBranchIdInvalidId() {
     final Branch branch = new Branch(0);
-    branch.compileBranchId();
+    branch.compiledBranchId();
   }
 
   @Test
@@ -401,7 +402,7 @@ public final class TestBranch {
     final Branch branch = buildTestBranch(tree);
     Leaf leaf = new Leaf("Alarms", "ABCD");
     byte[] qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    storage.addColumn(branch.compiledBranchId(), Tree.TREE_FAMILY(),
         qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
     
     branch.storeBranch(storage.getTSDB(), tree, true);
@@ -421,7 +422,7 @@ public final class TestBranch {
     final Branch branch = buildTestBranch(tree);
     Leaf leaf = new Leaf("Alarms", "0101");
     byte[] qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    storage.addColumn(branch.compiledBranchId(), Tree.TREE_FAMILY(),
         qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
     
     branch.storeBranch(storage.getTSDB(), tree, true);
@@ -506,6 +507,7 @@ public final class TestBranch {
     path.put(0, "ROOT");
     path.put(1, "sys");
     branch.prependParentPath(path);
+    branch.addBranchToPath();
        
     final Map<Integer, String> compiled_path = branch.getPath();
     assertNotNull(compiled_path);
@@ -518,6 +520,7 @@ public final class TestBranch {
     branch.setDisplayName("cpu");
     final TreeMap<Integer, String> path = new TreeMap<Integer, String>();
     branch.prependParentPath(path);
+    branch.addBranchToPath();
        
     final Map<Integer, String> compiled_path = branch.getPath();
     assertNotNull(compiled_path);
@@ -543,11 +546,13 @@ public final class TestBranch {
     Branch child = new Branch(1);
     child.prependParentPath(root_path);
     child.setDisplayName("System");
+    child.addBranchToPath();
     root.addChild(child);
     
     child = new Branch(tree.getTreeId());
     child.prependParentPath(root_path);
     child.setDisplayName("Network");
+    child.addBranchToPath();
     root.addChild(child);
 
     Leaf leaf = new Leaf("Alarms", "ABCD");
@@ -577,18 +582,18 @@ public final class TestBranch {
     path.put(2, "cpu");
     branch.prependParentPath(path);
     branch.setDisplayName("cpu");
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    storage.addColumn(branch.compiledBranchId(), Tree.TREE_FAMILY(),
         "branch".getBytes(MockBase.ASCII()), 
         (byte[])toStorageJson.invoke(branch));
     
     Leaf leaf = new Leaf("user", "000001000001000001");
     byte[] qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    storage.addColumn(branch.compiledBranchId(), Tree.TREE_FAMILY(),
         qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
     
     leaf = new Leaf("nice", "000002000002000002");
     qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    storage.addColumn(branch.compiledBranchId(), Tree.TREE_FAMILY(),
         qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
     
     // child branch
@@ -596,13 +601,13 @@ public final class TestBranch {
     path.put(3, "mboard");
     branch.prependParentPath(path);
     branch.setDisplayName("mboard");
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    storage.addColumn(branch.compiledBranchId(), Tree.TREE_FAMILY(),
         "branch".getBytes(MockBase.ASCII()), 
         (byte[])toStorageJson.invoke(branch));
     
     leaf = new Leaf("Asus", "000003000003000003");
     qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    storage.addColumn(branch.compiledBranchId(), Tree.TREE_FAMILY(),
         qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
   }
 }
