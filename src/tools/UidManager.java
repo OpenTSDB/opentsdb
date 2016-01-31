@@ -125,6 +125,7 @@ final class UidManager {
       rc = runCommand(tsdb, table, idwidth, ignorecase, args);
     } finally {
       try {
+        LOG.info("Shutting down TSD....");
         tsdb.getClient().shutdown().joinUninterruptibly();
         LOG.info("Gracefully shutdown the TSD");
       } catch (Exception e) {
@@ -990,7 +991,7 @@ final class UidManager {
       threads[i].join();
       LOG.info("[" + i + "] Finished");
     }
-    
+    LOG.info("All metasync threads have completed");
     // make sure buffered data is flushed to storage before exiting
     tsdb.flush().joinUninterruptibly();
     
