@@ -187,7 +187,8 @@ public class TimeSeriesLookup {
       limit = 0;
     }
         
-    class ScannerCB implements Callback<List<byte[]>, ArrayList<ArrayList<KeyValue>>> {
+    class ScannerCB implements Callback<Deferred<List<byte[]>>, 
+      ArrayList<ArrayList<KeyValue>>> {
       private final Scanner scanner;
       // used to avoid dupes when scanning the data table
       private byte[] last_tsuid = null;
@@ -198,11 +199,11 @@ public class TimeSeriesLookup {
       }
       
       Deferred<List<byte[]>> scan() {
-        return scanner.nextRows().addCallback(this);
+        return scanner.nextRows().addCallbackDeferring(this);
       }
       
       @Override
-      public List<byte[]> call(final ArrayList<ArrayList<KeyValue>> rows)
+      public Deferred<List<byte[]>> call(final ArrayList<ArrayList<KeyValue>> rows)
           throws Exception {
         if (rows == null) {
           scanner.close();
@@ -210,7 +211,7 @@ public class TimeSeriesLookup {
             LOG.debug("Lookup query matched " + tsuids.size() + " time series in " +
                 (System.currentTimeMillis() - start) + " ms");
           }
-          return tsuids;
+          return Deferred.fromResult(tsuids);
         }
         
         for (final ArrayList<KeyValue> row : rows) {
@@ -260,8 +261,7 @@ public class TimeSeriesLookup {
           ++rows_read;
         }
         
-        scan();
-        return tsuids;
+        return scan();
       }
       
       @Override
