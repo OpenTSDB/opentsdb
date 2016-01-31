@@ -93,6 +93,11 @@ final class LogsRpc implements HttpRpc {
       final Logger root =
         (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
       logbuf = (CyclicBufferAppender<ILoggingEvent>) root.getAppender("CYCLIC");
+      if (logbuf == null) {
+        throw new BadRequestException(
+            "No CyclicBufferAppender found. Please configure logback "
+            + "to store the latest log entries.");
+      }
     }
 
     public Iterator<String> iterator() {
