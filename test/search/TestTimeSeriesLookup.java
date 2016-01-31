@@ -519,6 +519,25 @@ public class TestTimeSeriesLookup extends BaseTsdbTest {
     assertArrayEquals(test_tsuids.get(0), tsuids.get(0));
   }
   
+  @Test (expected = RuntimeException.class)
+  public void scannerException() throws Exception {
+    generateData(tsdb, storage);
+    final byte[] row = Const.SALT_WIDTH() > 0 ?
+        MockBase.stringToBytes(
+            "0300000400000000000001000001000003000005") :
+        MockBase.stringToBytes(
+            "00000400000000000001000001000003000005");
+    storage.throwException(row, new RuntimeException("Boo!"));
+    final List<Pair<String, String>> tags = 
+        new ArrayList<Pair<String, String>>(1);
+    tags.add(new Pair<String, String>(TAGK_STRING, TAGV_STRING));
+    final SearchQuery query = new SearchQuery(tags);
+    query.setUseMeta(false);
+    query.setLimit(1);
+    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
+    lookup.lookup();
+  }
+  
   // TODO test the dump to stdout
   
   /**
