@@ -109,7 +109,7 @@ public final class Branch implements Comparable<Branch> {
 
   /** The path/name of the branch */
   private TreeMap<Integer, String> path;
-  
+
   /**
    * Default empty constructor necessary for de/serialization
    */
@@ -153,9 +153,9 @@ public final class Branch implements Comparable<Branch> {
   }
   
   /**
-   * Just compares the branch display name
+   * Compares branch ids
    * @param obj The object to compare this to
-   * @return True if the branch IDs are the same or the incoming object is 
+   * @return True iff the branch ids are the same or the incoming object is
    * this one
    */
   @Override
@@ -171,7 +171,11 @@ public final class Branch implements Comparable<Branch> {
     }
     
     final Branch branch = (Branch)obj;
-    return display_name.equals(branch.display_name);
+    String branchId = getBranchId();
+    if (branchId == null) {
+      return branch.getBranchId() == null;
+    }
+    return branchId.equals(branch.getBranchId());
   }
   
   /**
@@ -180,7 +184,7 @@ public final class Branch implements Comparable<Branch> {
    */
   @Override
   public int compareTo(Branch branch) {
-    return this.display_name.compareToIgnoreCase(branch.display_name);
+    return getBranchId().compareTo(branch.getBranchId());
   }
   
   /** @return Information about this branch including ID and display name */
@@ -256,7 +260,7 @@ public final class Branch implements Comparable<Branch> {
       return true;
     }
   }
-  
+
   /**
    * Attempts to compile the branch ID for this branch. In order to successfully
    * compile, the {@code tree_id}, {@code path} and {@code display_name} must
@@ -265,7 +269,7 @@ public final class Branch implements Comparable<Branch> {
    * @return The branch ID as a byte array
    * @throws IllegalArgumentException if any required parameters are missing
    */
-  public byte[] compileBranchId() {
+  public byte[] compiledBranchId() {
     if (tree_id < 1 || tree_id > 65535) {
       throw new IllegalArgumentException("Missing or invalid tree ID");
     }
@@ -273,19 +277,8 @@ public final class Branch implements Comparable<Branch> {
     if (path == null) {
       throw new IllegalArgumentException("Missing branch path");
     }
-    if (display_name == null || display_name.isEmpty()) {
-      throw new IllegalArgumentException("Missing display name");
-    }
-    
-    // first, make sure the display name is at the tip of the tree set
-    if (path.isEmpty()) {
-      path.put(0, display_name);
-    } else if (!path.lastEntry().getValue().equals(display_name)) {
-      final int depth = path.lastEntry().getKey() + 1;
-      path.put(depth, display_name);
-    }
-    
-    final byte[] branch_id = new byte[Tree.TREE_ID_WIDTH() + 
+
+    final byte[] branch_id = new byte[Tree.TREE_ID_WIDTH() +
                                       ((path.size() - 1) * INT_WIDTH)];
     int index = 0;
     final byte[] tree_bytes = Tree.idToBytes(tree_id);
@@ -302,7 +295,6 @@ public final class Branch implements Comparable<Branch> {
       System.arraycopy(hash, 0, branch_id, index, hash.length);
       index += hash.length;
     }
-    
     return branch_id;
   }
   
@@ -350,8 +342,7 @@ public final class Branch implements Comparable<Branch> {
     
     // compile the row key by making sure the display_name is in the path set
     // row ID = <treeID>[<parent.display_name.hashCode()>...]
-    final byte[] row = this.compileBranchId(); 
-    
+    final byte[] row = this.compiledBranchId();
     // compile the object for storage, this will toss exceptions if we are
     // missing anything important
     final byte[] storage_data = toStorageJson();
@@ -698,16 +689,12 @@ public final class Branch implements Comparable<Branch> {
 
   /** @return The ID of this branch */
   public String getBranchId() {
-    final byte[] id = compileBranchId();
-    if (id == null) {
-      return null;
-    }
+    final byte[] id = compiledBranchId();
     return UniqueId.uidToString(id);
   }
   
   /** @return The path of the tree */
   public Map<Integer, String> getPath() {
-    compileBranchId();
     return path;
   }
 
@@ -742,6 +729,23 @@ public final class Branch implements Comparable<Branch> {
   /** @param display_name Public name to display */
   public void setDisplayName(String display_name) {
     this.display_name = display_name;
+  }
+
+  /** Adds display_name to path */
+  public void addBranchToPath() {
+    if (this.path.isEmpty()) {
+      this.path.put(0, display_name);
+    } else {
+      this.path.put(this.path.lastKey() + 1, display_name);
+    }
+  }
+
+  /** Replaces last element in path by display_name */
+  public void replaceBranchInPath() {
+    if (path.isEmpty()) {
+      throw new IllegalStateException("Cannot replace branch in empty path");
+    }
+    path.put(path.lastKey(), display_name);
   }
 
  }

@@ -222,23 +222,14 @@ public final class TreeBuilder {
             storage_calls.add(tree.flushNotMatched(tsdb));
           }
           
-        } else if (current_branch == null) {
-          
-          // something was wrong with the rule set that resulted in an empty
-          // branch. Since this is likely a user error, log it instead of
-          // throwing an exception
-          LOG.warn("Processed TSUID [" + meta + 
-              "] resulted in a null branch on tree: " + tree.getTreeId());
-          
         } else if (!is_testing) {
           
           // iterate through the generated tree store the tree and leaves,
           // adding the parent path as we go
-          Branch cb = current_branch;
-          Map<Integer, String> path = branch.getPath();
-          cb.prependParentPath(path);
+          Branch cb = branch;
+
           while (cb != null) {
-            if (cb.getLeaves() != null || 
+            if (cb.getLeaves() != null ||
                 !processed_branches.containsKey(cb.getBranchId())) {
               LOG.debug("Flushing branch to storage: " + cb);
 
@@ -276,11 +267,7 @@ public final class TreeBuilder {
             if (cb.getBranches() == null) {
               cb = null;
             } else {
-              path = cb.getPath();
-              // we should only have one child if we're building a tree, so we 
-              // only need to grab the first one
               cb = cb.getBranches().first();
-              cb.prependParentPath(path);
             }
           }
           
@@ -294,17 +281,12 @@ public final class TreeBuilder {
           // we are testing, so compile the branch paths so that the caller can
           // fetch the root branch object and return it from an RPC call
           Branch cb = current_branch;
-          branch.addChild(cb);
-          Map<Integer, String> path = branch.getPath();
-          cb.prependParentPath(path);
           while (cb != null) {
             if (cb.getBranches() == null) {
               cb = null;
             } else {
-              path = cb.getPath();
               // we should only have one child if we're building
               cb = cb.getBranches().first();
-              cb.prependParentPath(path);
             }
           }
         }
@@ -399,11 +381,9 @@ public final class TreeBuilder {
         if (branch == null) {
           LOG.info("Couldn't find the root branch, initializing");
           final Branch root = new Branch(tree_id);
+          root.prependParentPath(new TreeMap<Integer, String>());
           root.setDisplayName("ROOT");
-          final TreeMap<Integer, String> root_path = 
-            new TreeMap<Integer, String>();
-          root_path.put(0, "ROOT");
-          root.prependParentPath(root_path);
+          root.addBranchToPath();
           if (is_testing) {
             return Deferred.fromResult(root);
           } else {
@@ -423,7 +403,6 @@ public final class TreeBuilder {
       LOG.debug("Loaded cached root for tree: " + tree_id);
       return Deferred.fromResult(new Branch(cached));
     }
-    
     LOG.debug("Loading or initializing root for tree: " + tree_id);
     return Branch.fetchBranchOnly(tsdb, Tree.idToBytes(tree_id))
       .addCallbackDeferring(new RootCB());
@@ -594,17 +573,14 @@ public final class TreeBuilder {
    * a bad configuration.
    */
   private boolean processRuleset(final Branch parent_branch, int depth) {
-
     // when we've passed the final rule, just return to stop the recursion
     if (rule_idx > max_rule_level) {
       return true;
     }
-    
-    // setup the branch for this iteration and set the "current_branch" 
-    // reference. It's not final as we'll be copying references back and forth
-    final Branch previous_branch = current_branch;
-    current_branch = new Branch(tree.getTreeId());
-    
+
+    Branch currentBranch = new Branch(tree.getTreeId());
+    currentBranch.prependParentPath(parent_branch.getPath());
+    current_branch = currentBranch;
     // fetch the current rule level or try to find the next one
     TreeMap<Integer, TreeRule> rule_level = fetchRuleLevel();
     if (rule_level == null) {
@@ -616,7 +592,6 @@ public final class TreeBuilder {
       // set the local rule
       rule = entry.getValue();
       testMessage("Processing rule: " + rule);
-      
       // route to the proper handler based on the rule type
       if (rule.getType() == TreeRuleType.METRIC) {
         parseMetricRule();
@@ -633,16 +608,15 @@ public final class TreeBuilder {
         throw new IllegalArgumentException("Unkown rule type: " + 
             rule.getType());
       }
-      
       // rules on a given level are ORd so the first one that matches, we bail
       if (current_branch.getDisplayName() != null && 
           !current_branch.getDisplayName().isEmpty()) {
         break;
       }
     }
-    
+
     // if no match was found on the level, then we need to set no match
-    if (current_branch.getDisplayName() == null || 
+    if (current_branch.getDisplayName() == null ||
         current_branch.getDisplayName().isEmpty()) {
       if (not_matched == null) {
         not_matched = new String(rule.toString());
@@ -666,68 +640,35 @@ public final class TreeBuilder {
     }
     
     // call ourselves recursively until we hit a leaf or run out of rules
-    final boolean complete = processRuleset(current_branch, ++depth);
+    boolean complete;
+    if (currentBranch.getDisplayName() == null || currentBranch.getDisplayName().isEmpty()) {
+      complete = processRuleset(parent_branch, ++depth);
+      currentBranch = parent_branch;
+    } else {
+      complete = processRuleset(currentBranch, ++depth);
+    }
     
     // if the recursion loop is complete, we either have a leaf or need to roll
     // back
     if (complete) {
-      // if the current branch is null or empty, we didn't match, so roll back
-      // to the previous branch and tell it to be the leaf
-      if (current_branch == null || current_branch.getDisplayName() == null || 
-          current_branch.getDisplayName().isEmpty()) {
-        LOG.trace("Got to a null branch");
-        current_branch = previous_branch;
+      if (currentBranch == parent_branch) {
         return true;
       }
-      
-      // if the parent has an empty ID, we need to roll back till we find one
-      if (parent_branch.getDisplayName() == null || 
-          parent_branch.getDisplayName().isEmpty()) {
-        testMessage("Depth [" + depth + 
-            "] Parent branch was empty, rolling back");
-        return true;
-      }
-      
       // add the leaf to the parent and roll back
-      final Leaf leaf = new Leaf(current_branch.getDisplayName(), 
+      final Leaf leaf = new Leaf(currentBranch.getDisplayName(),
           meta.getTSUID());
       parent_branch.addLeaf(leaf, tree);
       testMessage("Depth [" + depth + "] Adding leaf [" + leaf + 
           "] to parent branch [" + parent_branch + "]");
-      current_branch = previous_branch;
-      return false;
-    }
-    
-    // if a rule level failed to match, we just skip the result swap
-    if ((previous_branch == null || previous_branch.getDisplayName().isEmpty()) 
-        && !current_branch.getDisplayName().isEmpty()) {
-      if (depth > 2) {
-        testMessage("Depth [" + depth + 
-            "] Skipping a non-matched branch, returning: " + current_branch);
-      }
-      return false;
-    }
-
-    // if the current branch is empty, skip it
-    if (current_branch.getDisplayName() == null || 
-        current_branch.getDisplayName().isEmpty()) {
-      testMessage("Depth [" + depth + "] Branch was empty");
-      current_branch = previous_branch;
-      return false;
-    }
-    
-    // if the previous and current branch are the same, we just discard the 
-    // previous, since the current may have a leaf
-    if (current_branch.getDisplayName().equals(previous_branch.getDisplayName())){
-      testMessage("Depth [" + depth + "] Current was the same as previous");
       return false;
     }
     
     // we've found a new branch, so add it
-    parent_branch.addChild(current_branch);
-    testMessage("Depth [" + depth + "] Adding branch: " + current_branch + 
+    if (parent_branch != currentBranch) {
+      parent_branch.addChild(currentBranch);
+    }
+    testMessage("Depth [" + depth + "] Adding branch: " + currentBranch +
         " to parent: " + parent_branch);
-    current_branch = previous_branch;
     return false;
   }
 
@@ -1045,7 +986,10 @@ public final class TreeBuilder {
     // set it to the parsed value and exit
     String format = rule.getDisplayFormat();
     if (format == null || format.isEmpty()) {
-      current_branch.setDisplayName(extracted_value);
+      if (!extracted_value.isEmpty()) {
+        current_branch.setDisplayName(extracted_value);
+        current_branch.addBranchToPath();
+      }
       return;
     }
     
@@ -1078,7 +1022,10 @@ public final class TreeBuilder {
         }
       }
     }
-    current_branch.setDisplayName(format);
+    if (!format.isEmpty()) {
+      current_branch.setDisplayName(format);
+      current_branch.addBranchToPath();
+    }
   }
   
   /**
