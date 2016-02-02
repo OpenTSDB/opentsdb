@@ -24,6 +24,7 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.ClientStats;
@@ -579,12 +580,16 @@ public final class TSDB {
    * @throws HBaseException (deferred) if there was a problem while persisting
    * data.
    */
-  public Deferred<Object> addPoint(final String metric,
+  public Deferred addPoint(final String metric,
                                    final long timestamp,
                                    final long value,
                                    final Map<String, String> tags) {
     final byte[] v;
-    if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
+    
+    if (config.use_hbase_counters()) {
+    	v = Bytes.fromLong(value);
+    }  
+    else if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
       v = new byte[] { (byte) value };
     } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
       v = Bytes.fromShort((short) value);
@@ -596,7 +601,7 @@ public final class TSDB {
     final short flags = (short) (v.length - 1);  // Just the length.
     return addPointInternal(metric, timestamp, v, tags, flags);
   }
-
+  
   /**
    * Adds a double precision floating-point value data point in the TSDB.
    * @param metric A non-empty string.
@@ -619,7 +624,7 @@ public final class TSDB {
    * data.
    * @since 1.2
    */
-  public Deferred<Object> addPoint(final String metric,
+  public Deferred addPoint(final String metric,
                                    final long timestamp,
                                    final double value,
                                    final Map<String, String> tags) {
@@ -655,7 +660,7 @@ public final class TSDB {
    * @throws HBaseException (deferred) if there was a problem while persisting
    * data.
    */
-  public Deferred<Object> addPoint(final String metric,
+  public Deferred addPoint(final String metric,
                                    final long timestamp,
                                    final float value,
                                    final Map<String, String> tags) {
@@ -669,8 +674,8 @@ public final class TSDB {
                             Bytes.fromInt(Float.floatToRawIntBits(value)),
                             tags, flags);
   }
-
-  private Deferred<Object> addPointInternal(final String metric,
+    
+  private Deferred addPointInternal(final String metric,
                                             final long timestamp,
                                             final byte[] value,
                                             final Map<String, String> tags,
@@ -698,11 +703,21 @@ public final class TSDB {
     
     Bytes.setInt(row, (int) base_time, metrics.width());
     scheduleForCompaction(row, (int) base_time);
-    final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
     
-    // TODO(tsuna): Add a callback to time the latency of HBase and store the
-    // timing in a moving Histogram (once we have a class for this).
-    Deferred<Object> result = client.put(point);
+    boolean isLong = ((flags & Const.FLAG_FLOAT) == 0x0);
+    Deferred<? extends Object> result = null;
+    
+    if (isLong && config.use_hbase_counters()) {
+    	    	
+    	AtomicIncrementRequest counterRequest = new AtomicIncrementRequest(table, row, FAMILY, qualifier, Bytes.getLong(value));
+    	result = client.atomicIncrement(counterRequest);
+    } else {
+    	final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
+    	// TODO(tsuna): Add a callback to time the latency of HBase and store the
+        // timing in a moving Histogram (once we have a class for this).
+        result = client.put(point);
+    }
+            
     if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() && 
         !config.enable_tsuid_tracking() && rt_publisher == null) {
       return result;
@@ -831,6 +846,8 @@ public final class TSDB {
         deferreds.add(rpc.shutdown());
       }
     }
+    
+    // TsdbQuery.thread_pool.shutdown();
     
     // wait for plugins to shutdown before we close the client
     return deferreds.size() > 0

@@ -57,6 +57,15 @@ final class ByteBufferList {
     segments.add(new BufferSegment(buf, offset, len));
     total_length += len;
   }
+  
+  public BufferSegment removeLastSegment() {
+	  if (segments.isEmpty()) {
+		  return null;
+	  }
+	  BufferSegment seg = segments.remove(segments.size() - 1);
+	  total_length -= seg.len;
+	  return seg;
+  }
 
   /**
    * Get the most recently added segment.
