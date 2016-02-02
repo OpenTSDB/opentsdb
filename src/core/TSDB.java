@@ -823,7 +823,7 @@ public final class TSDB {
       }
     }
     
-    TsdbQuery.thread_pool.shutdown();
+    // TsdbQuery.thread_pool.shutdown();
     
     // wait for plugins to shutdown before we close the client
     return deferreds.size() > 0
