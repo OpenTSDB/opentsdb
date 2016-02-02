@@ -148,21 +148,22 @@ public class TestRowKey extends BaseTsdbTest {
   public void rowKeyFromTSUIDSalted() throws Exception {
     PowerMockito.mockStatic(Const.class);
     PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(2);
     
     final byte[] tsuid = { 0, 0, 1, 0, 0, 1, 0, 0, 2 };
-    byte[] key = { 0, 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
+    byte[] key = { 1, 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
     assertArrayEquals(key, RowKey.rowKeyFromTSUID(tsdb, tsuid, 1356998400));
     
     // zero timestamp
-    key = new byte[] { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2 };
+    key = new byte[] { 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2 };
     assertArrayEquals(key, RowKey.rowKeyFromTSUID(tsdb, tsuid, 0));
     
     // negative timestamp; honey badger don't care
-    key = new byte[] { 0, 0, 0, 1, -1, -21, 88, -128, 0, 0, 1, 0, 0, 2 };
+    key = new byte[] { 1, 0, 0, 1, -1, -21, 88, -128, 0, 0, 1, 0, 0, 2 };
     assertArrayEquals(key, RowKey.rowKeyFromTSUID(tsdb, tsuid, -1356998400));
     
     PowerMockito.when(Const.SALT_WIDTH()).thenReturn(4);
-    key = new byte[] { 0, 0, 0, 0,  0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+    key = new byte[] { 0, 0, 0, 1, 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 2 };
     assertArrayEquals(key, RowKey.rowKeyFromTSUID(tsdb, tsuid, 1356998400));
   }

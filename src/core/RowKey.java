@@ -98,6 +98,7 @@ final public class RowKey {
     System.arraycopy(tsuid, tsdb.metrics.width(), row, 
         Const.SALT_WIDTH() + tsdb.metrics.width() + Const.TIMESTAMP_BYTES, 
         tsuid.length - tsdb.metrics.width());
+    RowKey.prefixKeyWithSalt(row);
     return row;
   }
 

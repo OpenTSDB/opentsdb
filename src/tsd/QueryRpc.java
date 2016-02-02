@@ -314,9 +314,9 @@ final class QueryRpc implements HttpRpc {
       }
     }
     
-    final class FetchCB implements Callback<Object, ArrayList<IncomingDataPoint>> {
+    final class FetchCB implements Callback<Deferred<Object>, ArrayList<IncomingDataPoint>> {
       @Override
-      public Object call(final ArrayList<IncomingDataPoint> dps) throws Exception {
+      public Deferred<Object> call(final ArrayList<IncomingDataPoint> dps) throws Exception {
         synchronized(results) {
           for (final IncomingDataPoint dp : dps) {
             if (dp != null) {
@@ -324,7 +324,7 @@ final class QueryRpc implements HttpRpc {
             }
           }
         }
-        return null;
+        return Deferred.fromResult(null);
       }
       @Override
       public String toString() {
@@ -337,8 +337,8 @@ final class QueryRpc implements HttpRpc {
      * metric and/or tags. If matches were found, it fires off a number of
      * getLastPoint requests, adding the deferreds to the calls list
      */
-    final class TSUIDQueryCB implements Callback<Object, ByteMap<Long>> {
-      public Object call(final ByteMap<Long> tsuids) throws Exception {
+    final class TSUIDQueryCB implements Callback<Deferred<Object>, ByteMap<Long>> {
+      public Deferred<Object> call(final ByteMap<Long> tsuids) throws Exception {
         if (tsuids == null || tsuids.isEmpty()) {
           return null;
         }
@@ -349,8 +349,7 @@ final class QueryRpc implements HttpRpc {
               data_query.getResolveNames(), data_query.getBackScan(), 
               entry.getValue()));
         }
-        calls.add(Deferred.group(deferreds).addCallback(new FetchCB()));
-        return null;
+        return Deferred.group(deferreds).addCallbackDeferring(new FetchCB());
       }
       @Override
       public String toString() {
@@ -397,12 +396,13 @@ final class QueryRpc implements HttpRpc {
             deferreds.add(tsuid_query.getLastPoint(data_query.getResolveNames(), 
                 data_query.getBackScan()));
           } else {
-            calls.add(tsuid_query.getLastWriteTimes().addCallback(new TSUIDQueryCB()));
+            calls.add(tsuid_query.getLastWriteTimes()
+                .addCallbackDeferring(new TSUIDQueryCB()));
           }
         }
         
         if (deferreds.size() > 0) {
-          calls.add(Deferred.group(deferreds).addCallback(new FetchCB()));
+          calls.add(Deferred.group(deferreds).addCallbackDeferring(new FetchCB()));
         }
       }
       
