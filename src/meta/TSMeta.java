@@ -338,15 +338,14 @@ public final class TSMeta {
   }
   
   /**
-   * Attempts to store a new, blank timeseries meta object via a CompareAndSet
+   * Attempts to store a new, blank timeseries meta object
    * <b>Note:</b> This should not be called by user accessible methods as it will 
    * overwrite any data already in the column.
    * <b>Note:</b> This call does not guarantee that the UIDs exist before
    * storing as it should only be called *after* a data point has been recorded
    * or during a meta sync. 
    * @param tsdb The TSDB to use for storage access
-   * @return True if the CAS completed successfully (and no TSMeta existed 
-   * previously), false if something was already stored in the TSMeta column.
+   * @return True if the TSMeta created(or updated) successfully
    * @throws HBaseException if there was an issue fetching
    * @throws IllegalArgumentException if parsing failed
    * @throws JSONException if the object could not be serialized
@@ -587,10 +586,10 @@ public final class TSMeta {
             }
             
             LOG.info("Successfullly created new TSUID entry for: " + meta);
-            final Deferred<TSMeta> meta = getFromStorage(tsdb, tsuid)
-              .addCallbackDeferring(
-                new LoadUIDs(tsdb, UniqueId.uidToString(tsuid)));
-            return meta.addCallbackDeferring(new FetchNewCB());
+            return Deferred.fromResult(meta)
+                    .addCallbackDeferring(
+                            new LoadUIDs(tsdb, UniqueId.uidToString(tsuid)))
+                    .addCallbackDeferring(new FetchNewCB());
           }
           
         }
