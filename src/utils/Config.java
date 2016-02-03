@@ -500,7 +500,7 @@ public class Config {
     default_map.put("tsd.core.uid.random_metrics", "false");
     default_map.put("tsd.query.filter.expansion_limit", "4096");
     default_map.put("tsd.query.skip_unresolved_tagvs", "false");
-    default_map.put("tsd.query.allow_simultaneous_duplicates", "false");
+    default_map.put("tsd.query.allow_simultaneous_duplicates", "true");
     default_map.put("tsd.rtpublisher.enable", "false");
     default_map.put("tsd.rtpublisher.plugin", "");
     default_map.put("tsd.search.enable", "false");
