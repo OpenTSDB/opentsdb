@@ -822,9 +822,10 @@ public final class TestInternal {
     assertEquals(1099511627775L, Internal.getMaxUnsignedValueOnBytes(5));
     assertEquals(281474976710655L, Internal.getMaxUnsignedValueOnBytes(6));
     assertEquals(72057594037927935L, Internal.getMaxUnsignedValueOnBytes(7));
+    assertEquals(Long.MAX_VALUE, Internal.getMaxUnsignedValueOnBytes(8));
     
     try {
-      Internal.getMaxUnsignedValueOnBytes(8);
+      Internal.getMaxUnsignedValueOnBytes(9);
       fail("Expected an IllegalArgumentException");
     } catch (IllegalArgumentException e) {
       assertNotNull(e);
