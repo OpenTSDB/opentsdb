@@ -611,6 +611,68 @@ public final class TSMeta {
     return tsdb.getClient().atomicIncrement(inc).addCallbackDeferring(
         new TSMetaCB());
   }
+
+  public static void storeIfNecessary(final TSDB tsdb, final byte[] tsuid) {
+    final GetRequest get = new GetRequest(tsdb.metaTable(), tsuid);
+    get.family(FAMILY);
+    get.qualifier(META_QUALIFIER);
+
+    final class CreateNewCB implements Callback<Deferred<Boolean>, Object> {
+
+      @Override
+      public Deferred<Boolean> call(Object arg0) throws Exception {
+        final TSMeta meta = new TSMeta(tsuid, System.currentTimeMillis() / 1000);
+
+        final class FetchNewCB implements Callback<Deferred<Boolean>, TSMeta> {
+
+          @Override
+          public Deferred<Boolean> call(TSMeta stored_meta) throws Exception {
+
+            // pass to the search plugin
+            tsdb.indexTSMeta(stored_meta);
+
+            // pass through the trees
+            tsdb.processTSMetaThroughTrees(stored_meta);
+
+            return Deferred.fromResult(true);
+          }
+        }
+
+        final class StoreNewCB implements Callback<Deferred<Boolean>, Boolean> {
+
+          @Override
+          public Deferred<Boolean> call(Boolean success) throws Exception {
+            if (!success) {
+              LOG.warn("Unable to save metadata: " + meta);
+              return Deferred.fromResult(false);
+            }
+
+            LOG.info("Successfullly created new TSUID entry for: " + meta);
+            return Deferred.fromResult(meta)
+                    .addCallbackDeferring(
+                            new LoadUIDs(tsdb, UniqueId.uidToString(tsuid)))
+                    .addCallbackDeferring(new FetchNewCB());
+          }
+        }
+
+        return meta.storeNew(tsdb).addCallbackDeferring(new StoreNewCB());
+      }
+    }
+
+    final class ExistsCB implements Callback<Deferred<Boolean>, ArrayList<KeyValue>> {
+
+      @Override
+      public Deferred<Boolean> call(ArrayList<KeyValue> row) throws Exception {
+        if (row == null || row.isEmpty() || row.get(0).value() == null) {
+          return Deferred.fromResult(new Object())
+                         .addCallbackDeferring(new CreateNewCB());
+        }
+        return Deferred.fromResult(true);
+      }
+    }
+
+    tsdb.getClient().get(get).addCallbackDeferring(new ExistsCB());
+  }
   
   /**
    * Attempts to fetch the timeseries meta data from storage. 
