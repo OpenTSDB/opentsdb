@@ -24,20 +24,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.hbase.async.Bytes;
-import org.hbase.async.DeleteRequest;
-import org.hbase.async.HBaseException;
-import org.hbase.async.KeyValue;
-import org.hbase.async.Scanner;
-import org.hbase.async.Bytes.ByteMap;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-import com.stumbleupon.async.DeferredGroupException;
-
 import net.opentsdb.query.QueryUtil;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.stats.Histogram;
@@ -45,6 +31,20 @@ import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.DateTime;
+
+import org.hbase.async.Bytes;
+import org.hbase.async.Bytes.ByteMap;
+import org.hbase.async.DeleteRequest;
+import org.hbase.async.HBaseException;
+import org.hbase.async.KeyValue;
+import org.hbase.async.Scanner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
 
 /**
  * Non-synchronized implementation of {@link Query}.
@@ -131,6 +131,12 @@ final class TsdbQuery implements Query {
   
   /** Tag value filters to apply post scan */
   private List<TagVFilter> filters;
+
+  /** The timezone to use for aligning intervals based on the calendar */
+  private String timezone;
+
+  /** A flag denoting whether or not to align intervals based on the calendar */
+  private boolean use_calendar;
   
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
@@ -210,6 +216,35 @@ final class TsdbQuery implements Query {
     return delete;
   }
   
+  /** 
+   * Sets the timezone to use for aligning intervals based on the calendar.
+   * @param timezone the timezone to use
+   */
+  public void setTimezone(String timezone) {
+    this.timezone = timezone;
+  }
+  
+  /** @return the timezone to use for aligning intervals based on the calendar. */
+  @Override
+  public String getTimezone() {
+    return this.timezone;
+  }
+
+  /** 
+   * Sets a flag denoting whether or not to align intervals based on the calendar.
+   * @param use_calendar true, if the intervals should be aligned based on the calendar; false, otherwise
+   */
+  @Override
+  public void setUseCalendar(boolean use_calendar) {
+    this.use_calendar = use_calendar;
+  }
+  
+  /** @return A flag denoting whether or not to align intervals based on the calendar. */
+  @Override
+  public boolean getUseCalendar() {
+    return this.use_calendar;
+  }
+
   @Override
   public void setTimeSeries(final String metric,
       final Map<String, String> tags,
@@ -311,6 +346,8 @@ final class TsdbQuery implements Query {
     final TSSubQuery sub_query = query.getQueries().get(index);
     setStartTime(query.startTime());
     setEndTime(query.endTime());
+    setTimezone(query.getTimezone());
+    setUseCalendar(query.getUseCalendar());
     setDelete(query.getDelete());
     query_index = index;
     
@@ -774,7 +811,8 @@ final class TsdbQuery implements Query {
                                               rate, rate_options,
                                               aggregator,
                                               sample_interval_ms, downsampler,
-                                              query_index, fill_policy);
+                                              query_index, fill_policy, timezone,
+                                              use_calendar);
         return new SpanGroup[] { group };
       }
   
@@ -819,7 +857,7 @@ final class TsdbQuery implements Query {
                                    getScanEndTimeSeconds(),
                                    null, rate, rate_options, aggregator,
                                    sample_interval_ms, downsampler, query_index, 
-                                   fill_policy);
+                                   fill_policy, timezone, use_calendar);
           // Copy the array because we're going to keep `group' and overwrite
           // its contents. So we want the collection to have an immutable copy.
           final byte[] group_copy = new byte[group.length];

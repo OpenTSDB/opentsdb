@@ -108,8 +108,14 @@ final class SpanGroup implements DataPoints {
   /** The TSDB to which we belong, used for resolution */
   private final TSDB tsdb;
   
+  /** The timezone to use for aligning intervals based on the calendar */
+  private final String timezone;
+
+  /** A flag denoting whether or not to align intervals based on the calendar */
+  private final boolean use_calendar;
+
   /**
-   * Ctor.
+   * Ctor (preserved for purposes of backward compatibility).
    * @param tsdb The TSDB we belong to.
    * @param start_time Any data point strictly before this timestamp will be
    * ignored.
@@ -151,6 +157,8 @@ final class SpanGroup implements DataPoints {
    * @param interval Number of milliseconds wanted between each data point.
    * @param downsampler Aggregation function to use to group data points
    * within an interval.
+   * @param timezone The timezone to use for aligning intervals based on the calendar.
+   * @param use_calendar A flag denoting whether or not to align intervals based on the calendar.
    * @since 2.0
    */
   SpanGroup(final TSDB tsdb,
@@ -160,7 +168,7 @@ final class SpanGroup implements DataPoints {
             final Aggregator aggregator,
             final long interval, final Aggregator downsampler) {
     this(tsdb, start_time, end_time, spans, rate, rate_options, aggregator, 
-        interval, downsampler, -1, FillPolicy.NONE);
+        interval, downsampler, -1, FillPolicy.NONE, null, false);
   }
 
   /**
@@ -191,6 +199,42 @@ final class SpanGroup implements DataPoints {
             final Aggregator aggregator,
             final long interval, final Aggregator downsampler, final int query_index,
             final FillPolicy fill_policy) {
+    this(tsdb, start_time, end_time, spans, rate, rate_options, aggregator, 
+        interval, downsampler, query_index, fill_policy, null, false);
+    
+  }
+  
+  /**
+   * Ctor.
+   * @param tsdb The TSDB we belong to.
+   * @param start_time Any data point strictly before this timestamp will be
+   * ignored.
+   * @param end_time Any data point strictly after this timestamp will be
+   * ignored.
+   * @param spans A sequence of initial {@link Spans} to add to this group.
+   * Ignored if {@code null}. Additional spans can be added with {@link #add}.
+   * @param rate If {@code true}, the rate of the series will be used instead
+   * of the actual values.
+   * @param rate_options Specifies the optional additional rate calculation options.
+   * @param aggregator The aggregation function to use.
+   * @param interval Number of milliseconds wanted between each data point.
+   * @param downsampler Aggregation function to use to group data points
+   * within an interval.
+   * @param query_index index of the original query
+   * @param fill_policy Policy specifying whether to interpolate or to fill
+   * missing intervals with special values.
+   * @param timezone The timezone to use for aligning intervals based on the calendar.
+   * @since 2.2
+   */
+  SpanGroup(final TSDB tsdb,
+            final long start_time, final long end_time,
+            final Iterable<Span> spans,
+            final boolean rate, final RateOptions rate_options,
+            final Aggregator aggregator,
+            final long interval, final Aggregator downsampler, final int query_index,
+            final FillPolicy fill_policy,
+            final String timezone,
+            final boolean use_calendar) {
      annotations = new ArrayList<Annotation>();
      this.start_time = (start_time & Const.SECOND_MASK) == 0 ? 
          start_time * 1000 : start_time;
@@ -209,6 +253,8 @@ final class SpanGroup implements DataPoints {
      this.query_index = query_index;
      this.fill_policy = fill_policy;
      this.tsdb = tsdb;
+     this.timezone = timezone;
+     this.use_calendar = use_calendar;
   }
   
   /**
@@ -431,7 +477,8 @@ final class SpanGroup implements DataPoints {
     return AggregationIterator.create(spans, start_time, end_time, aggregator,
                                   aggregator.interpolationMethod(),
                                   downsampler, sample_interval,
-                                  rate, rate_options, fill_policy);
+                                  rate, rate_options, fill_policy, timezone,
+                                  use_calendar);
   }
 
   /**

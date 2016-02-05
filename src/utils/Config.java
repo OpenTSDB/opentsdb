@@ -103,6 +103,9 @@ public class Config {
   /** tsd.core.tree.enable_processing */
   private boolean enable_tree_processing = false;
   
+  /** tsd.query.downsample.use_calendar */
+  private boolean use_calendar = false;
+
   /**
    * The list of properties configured to their defaults or modified by users
    */
@@ -245,6 +248,12 @@ public class Config {
     return enable_tree_processing;
   }
   
+  /** @return whether or not to align to the Gregorian calendar when downsampling a 
+   * daily, weekly, monthly, or yearly interval */
+  public boolean use_calendar() {
+    return use_calendar;
+  }
+
   /**
    * Allows for modifying properties after creation or loading.
    * 
@@ -523,6 +532,7 @@ public class Config {
       + "Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, "
       + "X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since");
     default_map.put("tsd.query.timeout", "0");
+    default_map.put("tsd.query.downsample.use_calendar", "false");
 
     for (Map.Entry<String, String> entry : default_map.entrySet()) {
       if (!properties.containsKey(entry.getKey()))
@@ -635,6 +645,7 @@ public class Config {
     }
     enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
     fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
+    use_calendar = this.getBoolean("tsd.query.downsample.use_calendar");
   }
   
   /**

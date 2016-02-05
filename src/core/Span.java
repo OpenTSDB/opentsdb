@@ -18,8 +18,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.TimeZone;
 
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
@@ -463,15 +465,39 @@ final class Span implements DataPoints {
                           final long interval_ms,
                           final Aggregator downsampler,
                           final FillPolicy fill_policy) {
+    return downsampler(start_time, end_time, interval_ms, downsampler, fill_policy, null, false);       
+  }
+
+  /**
+   * Package private iterator method to access data while downsampling with the
+   * option to force interpolation.
+   * @param start_time The time in milliseconds at which the data begins.
+   * @param end_time The time in milliseconds at which the data ends.
+   * @param interval_ms The interval in milli seconds wanted between each data
+   * point.
+   * @param downsampler The downsampling function to use.
+   * @param fill_policy Policy specifying whether to interpolate or to fill
+   * missing intervals with special values.
+   * @param timezone The timezone used for purposes of defining interval boundaries
+   * @param use_calendar A flag denoting whether or not to align intervals based on the calendar
+   * @return A new downsampler.
+   */
+  Downsampler downsampler(final long start_time,
+                          final long end_time,
+                          final long interval_ms,
+                          final Aggregator downsampler,
+                          final FillPolicy fill_policy,
+                          final TimeZone timezone,
+                          final boolean use_calendar) {
     if (FillPolicy.NONE == fill_policy) {
       // The default downsampler simply skips missing intervals, causing the
       // span group to linearly interpolate.
-      return new Downsampler(spanIterator(), interval_ms, downsampler);
+      return new Downsampler(spanIterator(), interval_ms, downsampler, timezone, use_calendar);
     } else {
       // Otherwise, we need to instantiate a downsampler that can fill missing
       // intervals with special values.
       return new FillingDownsampler(spanIterator(), start_time, end_time,
-        interval_ms, downsampler, fill_policy);
+        interval_ms, downsampler, fill_policy, timezone, use_calendar);
     }
   }
 

@@ -33,6 +33,7 @@ import net.opentsdb.query.filter.TagVLiteralOrFilter;
 import net.opentsdb.query.filter.TagVRegexFilter;
 import net.opentsdb.query.filter.TagVWildcardFilter;
 import net.opentsdb.storage.MockDataPoints;
+import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 
@@ -42,8 +43,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-
-import net.opentsdb.uid.NoSuchUniqueName;
 
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
@@ -303,6 +302,59 @@ public final class TestQueryRpc {
     assertEquals(0, sub.getFilters().size());
   }
   
+  @Test
+  public void parseQueryMTypeWTimeZone() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:sys.cpu.0&tz=EST");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    assertEquals("EST", tsq.getTimezone());
+  }
+
+  @Test
+  public void parseQueryMTypeWUseCalendar() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:sys.cpu.0&use_calendar=true");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    assertEquals(true, tsq.getUseCalendar());
+
+    /* If the tsdb.query.downsample.use_calendar Config setting is set to true,
+     * then it should be possible to override this setting through the
+     * use_calendar querystring parameter.
+     */
+    TSDB tsdb2 = mock(TSDB.class);
+    Config config = mock(Config.class);
+    when(tsdb2.getConfig()).thenReturn(config);
+    when(config.use_calendar()).thenReturn(true);
+    
+    query = NettyMocks.getQuery(tsdb2, 
+        "/api/query?start=1h-ago&m=sum:sys.cpu.0&use_calendar=false");
+    tsq = (TSQuery) parseQuery.invoke(rpc, tsdb2, query);
+    assertEquals(false, tsq.getUseCalendar());
+  
+  }
+
+  @Test
+  public void parseQueryMTypeWOutUseCalendar() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:sys.cpu.0");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    assertEquals(false, tsq.getUseCalendar());
+    
+    /* If the tsdb.query.downsample.use_calendar Config setting is set to true,
+     * then the TSQuery objects use_calendar setting should also be set to
+     * true, even if the use_calendar parameter is missing from the query string
+     */
+    TSDB tsdb2 = mock(TSDB.class);
+    Config config = mock(Config.class);
+    when(tsdb2.getConfig()).thenReturn(config);
+    when(config.use_calendar()).thenReturn(true);
+    
+    query = NettyMocks.getQuery(tsdb2, 
+        "/api/query?start=1h-ago&m=sum:sys.cpu.0");
+    tsq = (TSQuery) parseQuery.invoke(rpc, tsdb2, query);
+    assertEquals(true, tsq.getUseCalendar());
+  }
+
   @Test
   public void parseQueryTSUIDType() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 

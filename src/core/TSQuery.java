@@ -95,6 +95,9 @@ public final class TSQuery {
   
   /** The query status for tracking over all performance of this query */
   private QueryStats query_stats;
+
+  /** A flag denoting whether or not to align intervals based on the calendar */
+  private boolean use_calendar;
   
   /**
    * Default constructor necessary for POJO de/serialization
@@ -303,6 +306,11 @@ public final class TSQuery {
     return timezone;
   }
 
+  /** @return the flag denoting whether intervals should be aligned based on the calendar */
+  public boolean getUseCalendar() {
+    return use_calendar;
+  }
+  
   /** @return a map of serializer options */
   public Map<String, ArrayList<String>> getOptions() {
     return options;
@@ -386,6 +394,11 @@ public final class TSQuery {
   /** @param timezone an optional timezone for date parsing */
   public void setTimezone(String timezone) {
     this.timezone = timezone;
+  }
+
+  /** @param use_calendar a flag denoting whether or not to align intervals based on the calendar */
+  public void setUseCalendar(boolean use_calendar) {
+    this.use_calendar = use_calendar;
   }
 
   /** @param options a map of options to pass on to the serializer */
