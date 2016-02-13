@@ -14,6 +14,8 @@ package net.opentsdb.core;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.never;
@@ -28,16 +30,20 @@ import java.util.List;
 import java.util.Map;
 
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.MockBase.MockScanner;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
+import org.hbase.async.FilterList;
 import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
+import com.stumbleupon.async.Deferred;
 
 /**
  * An integration test class that makes sure our query path is up to snuff.
@@ -1446,4 +1452,93 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     verify(tag_values, atLeast(1)).getNameAsync(TAGV_B_BYTES);
     assertEquals(0, dps.length);
   }
+
+  @Test
+  public void filterExplicitTagsOK() throws Exception {
+    tsdb.getConfig().overrideConfig("tsd.query.enable_fuzzy", "true");
+    storeLongTimeSeriesSeconds(true, false);
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setExplicitTags(true);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+
+    final DataPoints[] dps = query.run();
+    
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    
+    int value = 1;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(value, dp.longValue());
+      value++;
+    }
+    assertEquals(300, dps[0].aggregatedSize());
+    // assert fuzzy
+    for (final MockScanner scanner : storage.getScanners()) {
+      assertTrue(scanner.getFilter() instanceof FilterList);
+    }
+  }
+  
+  @Test
+  public void filterExplicitTagsGroupByOK() throws Exception {
+    tsdb.getConfig().overrideConfig("tsd.query.enable_fuzzy", "true");
+    storeLongTimeSeriesSeconds(true, false);
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "*");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setExplicitTags(true);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+
+    final DataPoints[] dps = query.run();
+    
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    
+    int value = 1;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(value, dp.longValue());
+      value++;
+    }
+    assertEquals(300, dps[0].aggregatedSize());
+    // assert fuzzy
+    for (final MockScanner scanner : storage.getScanners()) {
+      assertTrue(scanner.getFilter() instanceof FilterList);
+    }
+  }
+  
+  @Test
+  public void filterExplicitTagsMissing() throws Exception {
+    tsdb.getConfig().overrideConfig("tsd.query.enable_fuzzy", "true");
+    when(tag_names.getIdAsync("colo"))
+      .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 0, 4 }));
+    when(tag_values.getIdAsync("lga"))
+    .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 0, 4 }));
+    storeLongTimeSeriesSeconds(true, false);
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tags.put("colo", "lga");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setExplicitTags(true);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+
+    final DataPoints[] dps = query.run();
+    
+    assertNotNull(dps);
+    assertEquals(0, dps.length);
+    // assert fuzzy
+    for (final MockScanner scanner : storage.getScanners()) {
+      assertTrue(scanner.getFilter() instanceof FilterList);
+    }
+  }
+  
 }

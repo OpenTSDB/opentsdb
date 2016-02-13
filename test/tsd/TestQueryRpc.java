@@ -308,6 +308,55 @@ public final class TestQueryRpc {
   }
   
   @Test
+  public void parseQueryMTypeWExplicit() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:explicit_tags:sys.cpu.0{host=web01}");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSSubQuery sub = tsq.getQueries().get(0);
+    assertNotNull(sub.getTags());
+    assertEquals("literal_or(web01)", sub.getTags().get("host"));
+    assertTrue(sub.getExplicitTags());
+  }
+  
+  @Test
+  public void parseQueryMTypeWExplicitAndRate() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:explicit_tags:rate:sys.cpu.0{host=web01}");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSSubQuery sub = tsq.getQueries().get(0);
+    assertNotNull(sub.getTags());
+    assertEquals("literal_or(web01)", sub.getTags().get("host"));
+    assertTrue(sub.getRate());
+    assertTrue(sub.getExplicitTags());
+  }
+  
+  @Test
+  public void parseQueryMTypeWExplicitAndRateAndDS() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:explicit_tags:rate:1m-sum:sys.cpu.0{host=web01}");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSSubQuery sub = tsq.getQueries().get(0);
+    assertNotNull(sub.getTags());
+    assertEquals("literal_or(web01)", sub.getTags().get("host"));
+    assertTrue(sub.getRate());
+    assertTrue(sub.getExplicitTags());
+    assertEquals("1m-sum", sub.getDownsample());
+  }
+  
+  @Test
+  public void parseQueryMTypeWExplicitAndDSAndRate() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:explicit_tags:1m-sum:rate:sys.cpu.0{host=web01}");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    TSSubQuery sub = tsq.getQueries().get(0);
+    assertNotNull(sub.getTags());
+    assertEquals("literal_or(web01)", sub.getTags().get("host"));
+    assertTrue(sub.getRate());
+    assertTrue(sub.getExplicitTags());
+    assertEquals("1m-sum", sub.getDownsample());
+  }
+  
+  @Test
   public void parseQueryTSUIDType() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&tsuid=sum:010101");

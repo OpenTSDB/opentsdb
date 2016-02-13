@@ -630,6 +630,8 @@ final class QueryRpc implements HttpRpc {
         }
       } else if (Character.isDigit(parts[x].charAt(0))) {
         sub_query.setDownsample(parts[x]);
+      } else if (parts[x].toLowerCase().startsWith("explicit_tags")) {
+        sub_query.setExplicitTags(true);
       }
     }
     

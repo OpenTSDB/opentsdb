@@ -73,6 +73,9 @@ public final class TSSubQuery {
    * tags map. In the future we'll have special JSON objects for them. */
   private List<TagVFilter> filters;
   
+  /** Whether or not to match series with ONLY the given tags */
+  private boolean explicit_tags;
+  
   /** Index of the sub query */
   private int index;
   
@@ -89,7 +92,7 @@ public final class TSSubQuery {
     // NOTE: Do not add any non-user submitted variables to the hash. We don't
     // want the hash to change after validation.
     return Objects.hashCode(aggregator, metric, tsuids, downsample, rate, 
-        rate_options, filters);
+        rate_options, filters, explicit_tags);
   }
   
   @Override
@@ -113,7 +116,8 @@ public final class TSSubQuery {
         && Objects.equal(downsample, query.downsample)
         && Objects.equal(rate, query.rate)
         && Objects.equal(rate_options, query.rate_options)
-        && Objects.equal(filters, query.filters);
+        && Objects.equal(filters, query.filters) 
+        && Objects.equal(explicit_tags, query.explicit_tags);
   }
   
   public String toString() {
@@ -151,8 +155,12 @@ public final class TSSubQuery {
       .append(", rate=")
       .append(rate)
       .append(", rate_options=")
-      .append(rate_options);
-    buf.append(")");
+      .append(rate_options)
+      .append(", explicit_tags=")
+      .append("explicit_tags")
+      .append(", index=")
+      .append(index)
+      .append(")");
     return buf.toString();
   }
   
@@ -297,6 +305,12 @@ public final class TSSubQuery {
     return tagks;
   }
   
+  /** @return whether or not to match series with ONLY the given tags 
+   * @since 2.3 */
+  public boolean getExplicitTags() {
+    return explicit_tags;
+  }
+  
   /** @return the index of the sub query
    * @since 2.3 */
   public int getIndex() {
@@ -349,6 +363,12 @@ public final class TSSubQuery {
    * @since 2.2 */
   public void setFilters(List<TagVFilter> filters) {
     this.filters = filters;
+  }
+  
+  /** @param whether or not to match series with ONLY the given tags 
+   * @since 2.3 */
+  public void setExplicitTags(final boolean explicit_tags) {
+    this.explicit_tags = explicit_tags;
   }
   
   /** @param index the index of the sub query
