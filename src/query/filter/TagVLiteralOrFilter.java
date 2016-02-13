@@ -147,7 +147,7 @@ public class TagVLiteralOrFilter extends TagVFilter {
   /** @return a string describing the filter */
   public static String description() {
     return "Accepts one or more exact values and matches if the series contains "
-        + "any of them. Multiple values can be included and must be seperated "
+        + "any of them. Multiple values can be included and must be separated "
         + "by the | (pipe) character. The filter is case sensitive and will not "
         + "allow characters that TSDB does not allow at write time.";
   }
@@ -196,7 +196,7 @@ public class TagVLiteralOrFilter extends TagVFilter {
     /** @return a string describing the filter */
     public static String description() {
       return "Accepts one or more exact values and matches if the series contains "
-          + "any of them. Multiple values can be included and must be seperated "
+          + "any of them. Multiple values can be included and must be separated "
           + "by the | (pipe) character. The filter is case insensitive and will not "
           + "allow characters that TSDB does not allow at write time.";
     }
