@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -30,7 +29,6 @@ import net.opentsdb.query.filter.TagVLiteralOrFilter;
 import net.opentsdb.query.filter.TagVWildcardFilter;
 
 import org.junit.Test;
-import org.powermock.reflect.Whitebox;
 
 public final class TestTSSubQuery {
 
@@ -555,6 +553,25 @@ public final class TestTSSubQuery {
     assertFalse(sub1 == sub2);
   }
 
+  @Test
+  public void testHashCodeandEqualsExplicitTags() {
+    final TSSubQuery sub1 = getBaseQuery();
+    final int hash_a = sub1.hashCode();
+
+    sub1.setExplicitTags(true);
+    final int hash_b = sub1.hashCode();
+    assertFalse(hash_a == sub1.hashCode());
+    sub1.validateAndSetQuery();
+    assertEquals(hash_b, sub1.hashCode());
+    
+    TSSubQuery sub2 = getBaseQuery();
+    sub2.setExplicitTags(true);
+    
+    assertEquals(hash_b, sub2.hashCode());
+    assertEquals(sub1, sub2);
+    assertFalse(sub1 == sub2);
+  }
+  
   @Test
   public void testEqualsNull() {
     final TSSubQuery sub1 = getBaseQuery();

@@ -12,6 +12,9 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.nio.charset.Charset;
+import java.util.TimeZone;
+
 /** Constants used in various places.  */
 public final class Const {
 
@@ -38,7 +41,19 @@ public final class Const {
     }
     MAX_NUM_TAGS = tags;
   }
-
+  
+  /** The default ASCII character set for encoding tables and qualifiers that
+   * don't depend on user input that may be encoded with UTF.
+   * Charset to use with our server-side row-filter.
+   * We use this one because it preserves every possible byte unchanged.
+   */
+  public static final Charset ASCII_CHARSET = Charset.forName("ISO-8859-1");
+  
+  /** Used for metrics, tags names and tag values */
+  public static final Charset UTF8_CHARSET = Charset.forName("UTF8");
+  
+  /** The UTC timezone used for rollup and calendar conversions */
+  public static final TimeZone UTC_TZ = TimeZone.getTimeZone("UTC");
 
   /** Number of LSBs in time_deltas reserved for flags.  */
   public static final short FLAG_BITS = 4;
