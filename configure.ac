@@ -14,7 +14,7 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 # Semantic Versioning (see http://semver.org/).
-AC_INIT([opentsdb], [2.1.3], [opentsdb@googlegroups.com])
+AC_INIT([opentsdb], [2.1.4], [opentsdb@googlegroups.com])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([foreign])
 
