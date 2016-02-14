@@ -86,6 +86,22 @@ public final class Internal {
     return ((TsdbQuery) query).getScanner();
   }
 
+  /** Returns a set of scanners, one for each bucket if salted, or one scanner
+   * if salting is disabled. 
+   * @see TsdbQuery#getScanner() */
+  public static List<Scanner> getScanners(final Query query) {
+    final List<Scanner> scanners = new ArrayList<Scanner>(
+        Const.SALT_WIDTH() > 0 ? Const.SALT_BUCKETS() : 1);
+    if (Const.SALT_WIDTH() > 0) {
+      for (int i = 0; i < Const.SALT_BUCKETS(); i++) {
+        scanners.add(((TsdbQuery) query).getScanner(i));
+      }
+    } else {
+      scanners.add(((TsdbQuery) query).getScanner());
+    }
+    return scanners;
+  }
+  
   /** @see RowKey#metricName */
   public static String metricName(final TSDB tsdb, final byte[] id) {
     return RowKey.metricName(tsdb, id);
@@ -93,7 +109,7 @@ public final class Internal {
 
   /** Extracts the timestamp from a row key.  */
   public static long baseTime(final TSDB tsdb, final byte[] row) {
-    return Bytes.getUnsignedInt(row, tsdb.metrics.width());
+    return Bytes.getUnsignedInt(row, Const.SALT_WIDTH() + TSDB.metrics_width());
   }
   
   /** @return the time normalized to an hour boundary in epoch seconds */
@@ -855,7 +871,7 @@ public final class Internal {
     buf.append("(?s)"  // Ensure we use the DOTALL flag.
                + "^.{")
        // ... start by skipping the metric ID and timestamp.
-       .append(TSDB.metrics_width() + Const.TIMESTAMP_BYTES)
+       .append(Const.SALT_WIDTH() + metric_width + Const.TIMESTAMP_BYTES)
        .append("}(");
     
     for (final byte[] tags : uids) {
@@ -869,5 +885,26 @@ public final class Internal {
     buf.setCharAt(buf.length() - 1, ')');
     buf.append("$");
     scanner.setKeyRegexp(buf.toString(), Charset.forName("ISO-8859-1"));
+  }
+
+  /**
+   * Simple helper to calculate the max value for any width of long from 0 to 8
+   * bytes. 
+   * @param width The width of the byte array we're comparing
+   * @return The maximum unsigned integer value on {@link width} bytes. Note:
+   * If you ask for 8 bytes, it will return the max signed value. This is due
+   * to Java lacking unsigned integers... *sigh*.
+   * @since 2.2
+   */
+  public static long getMaxUnsignedValueOnBytes(final int width) {
+    if (width < 0 || width > 8) {
+      throw new IllegalArgumentException("Width must be from 1 to 8 bytes: " 
+          + width);
+    }
+    if (width < 8) {
+      return ((long) 1 << width * Byte.SIZE) - 1;
+    } else {
+      return Long.MAX_VALUE;
+    }
   }
 }

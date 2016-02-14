@@ -15,7 +15,9 @@ package net.opentsdb.core;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 
@@ -30,7 +32,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ Internal.class })
+@PrepareForTest({ Internal.class, Const.class })
 public final class TestInternal {
   private static final byte[] KEY = 
     { 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
@@ -809,7 +811,34 @@ public final class TestInternal {
     assertArrayEquals(new byte[] { (byte) 0xF0, 0x00, 0x02, 0x07 }, 
         Internal.extractQualifier(qual, 2));
   }
-
+ 
+  @Test
+  public void getMaxUnsignedValueOnBytes() throws Exception {
+    assertEquals(0, Internal.getMaxUnsignedValueOnBytes(0));
+    assertEquals(255, Internal.getMaxUnsignedValueOnBytes(1));
+    assertEquals(65535, Internal.getMaxUnsignedValueOnBytes(2));
+    assertEquals(16777215, Internal.getMaxUnsignedValueOnBytes(3));
+    assertEquals(4294967295L, Internal.getMaxUnsignedValueOnBytes(4));
+    assertEquals(1099511627775L, Internal.getMaxUnsignedValueOnBytes(5));
+    assertEquals(281474976710655L, Internal.getMaxUnsignedValueOnBytes(6));
+    assertEquals(72057594037927935L, Internal.getMaxUnsignedValueOnBytes(7));
+    assertEquals(Long.MAX_VALUE, Internal.getMaxUnsignedValueOnBytes(8));
+    
+    try {
+      Internal.getMaxUnsignedValueOnBytes(9);
+      fail("Expected an IllegalArgumentException");
+    } catch (IllegalArgumentException e) {
+      assertNotNull(e);
+    }
+    
+    try {
+      Internal.getMaxUnsignedValueOnBytes(-1);
+      fail("Expected an IllegalArgumentException");
+    } catch (IllegalArgumentException e) {
+      assertNotNull(e);
+    }
+  }
+  
   /** Shorthand to create a {@link KeyValue}.  */
   private static KeyValue makekv(final byte[] qualifier, final byte[] value) {
     return new KeyValue(KEY, FAMILY, qualifier, value);

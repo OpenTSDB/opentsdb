@@ -267,4 +267,42 @@ public class DateTime {
   public static long currentTimeMillis() {
     return System.currentTimeMillis();
   }
+
+  /**
+   * Pass through to {@link System.nanoTime} for use in classes to
+   * make unit testing easier. Mocking System.class is a bad idea in general
+   * so placing this here and mocking DateTime.class is MUCH cleaner.
+   * @return The current epoch time in milliseconds
+   * @since 2.2
+   */
+  public static long nanoTime() {
+    return System.nanoTime();
+  }
+
+  /**
+   * Converts the long nanosecond value to a double in milliseconds
+   * @param ts The timestamp or value in nanoseconds
+   * @return The timestamp in milliseconds
+   * @since 2.2
+   */
+  public static double msFromNano(final long ts) {
+    return (double)ts / 1000000;
+  }
+  
+  /**
+   * Calculates the difference between two values and returns the time in
+   * milliseconds as a double.
+   * @param end The end timestamp
+   * @param start The start timestamp
+   * @return The value in milliseconds
+   * @throws IllegalArgumentException if end is less than start
+   * @since 2.2
+   */
+  public static double msFromNanoDiff(final long end, final long start) {
+    if (end < start) {
+      throw new IllegalArgumentException("End (" + end + ") cannot be less "
+          + "than start (" + start + ")");
+    }
+    return ((double) end - (double) start) / 1000000;
+  }
 }

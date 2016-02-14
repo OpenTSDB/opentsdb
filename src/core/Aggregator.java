@@ -23,8 +23,24 @@ import net.opentsdb.core.Aggregators.Interpolation;
  * sequence of {@link Longs Longs} or {@link Doubles Doubles} and return an
  * aggregated value.
  */
-public interface Aggregator {
+public abstract class Aggregator {
+  
+  /** Interpolation method this aggregator uses across time series */
+  private final Interpolation interpolation_method;
+  
+  /** String name of the aggregator */
+  private final String name;
 
+  /**
+   * Create a new instance of this class.
+   * @param interpolationMethod The interpolation method to use.
+   * @param name The name of this aggregator.
+   */
+  protected Aggregator(final Interpolation interpolationMethod, final String name) {
+    this.interpolation_method = interpolationMethod;
+    this.name = name;
+  }
+  
   /**
    * A sequence of {@code long}s.
    * <p>
@@ -76,19 +92,26 @@ public interface Aggregator {
    * @param values The sequence to aggregate.
    * @return The aggregated value.
    */
-  long runLong(Longs values);
+  abstract long runLong(Longs values);
 
   /**
    * Aggregates a sequence of {@code double}s.
    * @param values The sequence to aggregate.
    * @return The aggregated value.
    */
-  double runDouble(Doubles values);
+  abstract double runDouble(Doubles values);
 
   /** 
    * Returns the interpolation method to use when working with data points
    * across time series.
    * @return The interpolation method to use
    */
-  Interpolation interpolationMethod();
+  Interpolation interpolationMethod() {
+    return interpolation_method;
+  }
+  
+  @Override
+  public String toString() {
+    return name;
+  }
 }

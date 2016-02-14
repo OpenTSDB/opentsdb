@@ -40,7 +40,7 @@ import com.google.gwt.user.client.ui.TextBoxBase;
  */
 final class RemoteOracle extends SuggestOracle {
 
-  private static final String SUGGEST_URL = "/suggest?type=";  // + type&q=foo
+  private static final String SUGGEST_URL = "suggest?type=";  // + type&q=foo
 
   /**
    * Maps an oracle type to its suggestion cache.

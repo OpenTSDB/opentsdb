@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -24,7 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
@@ -40,6 +40,7 @@ import net.opentsdb.meta.TSMeta;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 
 /**
@@ -64,6 +65,7 @@ final class UidManager {
         + "  assign <kind> <name> [names]:"
         + " Assign an ID for the given name(s).\n"
         + "  rename <kind> <name> <newname>: Renames this UID.\n"
+        + "  delete <kind> <name>: Deletes this UID.\n"
         + "  fsck: [fix] [delete_unknown] Checks the consistency of UIDs.\n"
         + "        fix            - Fix errors. By default errors are logged.\n"
         + "        delete_unknown - Remove columns with unknown qualifiers.\n"
@@ -158,13 +160,25 @@ final class UidManager {
         usage("Wrong number of arguments");
         return 2;
       }
-      return assign(tsdb.getClient(), table, idwidth, args);
+      return assign(tsdb, table, idwidth, args);
     } else if (args[0].equals("rename")) {
       if (nargs != 4) {
         usage("Wrong number of arguments");
         return 2;
       }
       return rename(tsdb.getClient(), table, idwidth, args);
+    } else if (args[0].equals("delete")) {
+      if (nargs != 3) {
+        usage("Wrong number of arguments");
+        return 2;
+      }
+
+      try {
+        return delete(tsdb, table, args);
+      } catch (Exception e) {
+        LOG.error("Unexpected exception", e);
+        return 4;
+      } 
     } else if (args[0].equals("fsck")) {
       boolean fix = false;
       boolean fix_unknowns = false;
@@ -337,22 +351,27 @@ final class UidManager {
 
   /**
    * Implements the {@code assign} subcommand.
-   * @param client The HBase client to use.
+   * @param tsdb The TSDB to use.
    * @param table The name of the HBase table to use.
    * @param idwidth Number of bytes on which the UIDs should be.
    * @param args Command line arguments ({@code assign name [names]}).
    * @return The exit status of the command (0 means success).
    */
-  private static int assign(final HBaseClient client,
+  private static int assign(final TSDB tsdb,
                             final byte[] table,
                             final short idwidth,
                             final String[] args) {
-    final UniqueId uid = new UniqueId(client, table, args[1], (int) idwidth);
+    boolean randomize = false;
+    if (UniqueId.stringToUniqueIdType(args[1]) == UniqueIdType.METRIC) {
+      randomize = tsdb.getConfig().getBoolean("tsd.core.uid.random_metrics");
+    }
+    final UniqueId uid = new UniqueId(tsdb.getClient(), table, args[1], 
+        (int) idwidth, randomize);
     for (int i = 2; i < args.length; i++) {
       try {
         uid.getOrCreateId(args[i]);
         // Lookup again the ID we've just created and print it.
-        extactLookupName(client, table, idwidth, args[1], args[i]);
+        extactLookupName(tsdb.getClient(), table, idwidth, args[1], args[i]);
       } catch (HBaseException e) {
         LOG.error("error while processing " + args[i], e);
         return 3;
@@ -391,6 +410,30 @@ final class UidManager {
     return 0;
   }
 
+  /**
+   * Implements the {@code delete} subcommand.
+   * @param client The HBase client to use.
+   * @param table The name of the HBase table to use.
+   * @param args Command line arguments ({@code assign name [names]}).
+   * @return The exit status of the command (0 means success).
+   */
+  private static int delete(final TSDB tsdb, final byte[] table,
+      final String[] args) throws Exception {
+    final String kind = args[1];
+    final String name = args[2];
+    try {
+      tsdb.deleteUidAsync(kind, name).join();
+    } catch (HBaseException e) {
+      LOG.error("error while processing delete " + name, e);
+      return 3;
+    } catch (NoSuchUniqueName e) {
+      LOG.error(e.getMessage());
+      return 1;
+    }
+    LOG.info("UID " + kind + ' ' + name + " deleted.");
+    return 0;
+  }
+  
   /**
    * Implements the {@code fsck} subcommand.
    * @param client The HBase client to use.
@@ -956,11 +999,9 @@ final class UidManager {
    */
   private static int metaSync(final TSDB tsdb) throws Exception {
     final long start_time = System.currentTimeMillis() / 1000;
-    final long max_id = CliUtils.getMaxMetricID(tsdb);
-    
+
     // now figure out how many IDs to divy up between the workers
     final int workers = Runtime.getRuntime().availableProcessors() * 2;
-    final double quotient = (double)max_id / (double)workers;
     final Set<Integer> processed_tsuids = 
       Collections.synchronizedSet(new HashSet<Integer>());
     final ConcurrentHashMap<String, Long> metric_uids = 
@@ -969,27 +1010,22 @@ final class UidManager {
       new ConcurrentHashMap<String, Long>();
     final ConcurrentHashMap<String, Long> tagv_uids = 
       new ConcurrentHashMap<String, Long>();
-    
-    long index = 1;
-    
-    LOG.info("Max metric ID is [" + max_id + "]");
-    LOG.info("Spooling up [" + workers + "] worker threads");
-    final Thread[] threads = new Thread[workers];
-    for (int i = 0; i < workers; i++) {
-      threads[i] = new MetaSync(tsdb, index, quotient, processed_tsuids, 
-          metric_uids, tagk_uids, tagv_uids, i);
-      threads[i].setName("MetaSync # " + i);
-      threads[i].start();
-      index += quotient;
-      if (index < max_id) {
-        index++;
-      }
+
+    final List<Scanner> scanners = CliUtils.getDataTableScanners(tsdb, workers);
+    LOG.info("Spooling up [" + scanners.size() + "] worker threads");
+    final List<Thread> threads = new ArrayList<Thread>(scanners.size());
+    int i = 0;
+    for (final Scanner scanner : scanners) {
+      final MetaSync worker = new MetaSync(tsdb, scanner, processed_tsuids, 
+          metric_uids, tagk_uids, tagv_uids, i++);
+      worker.setName("Sync #" + i);
+      worker.start();
+      threads.add(worker);
     }
-    
-    // wait till we're all done
-    for (int i = 0; i < workers; i++) {
-      threads[i].join();
-      LOG.info("[" + i + "] Finished");
+
+    for (final Thread thread : threads) {
+      thread.join();
+      LOG.info("Thread [" + thread + "] Finished");
     }
     LOG.info("All metasync threads have completed");
     // make sure buffered data is flushed to storage before exiting

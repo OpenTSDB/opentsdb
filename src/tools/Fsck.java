@@ -34,6 +34,7 @@ import org.hbase.async.Scanner;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.AppendDataPoints;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
@@ -92,6 +93,8 @@ final class Fsck {
   final AtomicLong rows_processed = new AtomicLong();
   final AtomicLong valid_datapoints = new AtomicLong();
   final AtomicLong annotations = new AtomicLong();
+  final AtomicLong append_dps = new AtomicLong();
+  final AtomicLong append_dps_fixed = new AtomicLong();
   final AtomicLong bad_key = new AtomicLong();
   final AtomicLong bad_key_fixed = new AtomicLong();
   final AtomicLong duplicates = new AtomicLong();
@@ -114,11 +117,11 @@ final class Fsck {
   final AtomicLong vle_fixed = new AtomicLong();
   
   /** Length of the metric + timestamp for key validation */
-  private static int key_prefix_length = TSDB.metrics_width() + 
-      Const.TIMESTAMP_BYTES;
+  private int key_prefix_length = Const.SALT_WIDTH() +
+      TSDB.metrics_width() + Const.TIMESTAMP_BYTES;
   
   /** Length of a tagk + tagv pair for key validation */
-  private static int key_tags_length = TSDB.tagk_width() + TSDB.tagv_width();
+  private int key_tags_length = TSDB.tagk_width() + TSDB.tagv_width();
   
   /** How often to report progress */
   private static long report_rows = 10000;
@@ -142,30 +145,25 @@ final class Fsck {
   public void runFullTable() throws Exception {
     LOG.info("Starting full table scan");
     final long start_time = System.currentTimeMillis() / 1000;
-    final long max_id = CliUtils.getMaxMetricID(tsdb);
-    
     final int workers = options.threads() > 0 ? options.threads() :
       Runtime.getRuntime().availableProcessors() * 2;
-    final double quotient = (double)max_id / (double)workers;
-    LOG.info("Max metric ID is [" + max_id + "]");
-    LOG.info("Spooling up [" + workers + "] worker threads");
-    long index = 1;
-    final Thread[] threads = new Thread[workers];
-    for (int i = 0; i < workers; i++) {
-      threads[i] = new FsckWorker(index, quotient, i);
-      threads[i].setName("Fsck #" + i);
-      threads[i].start();
-      index += quotient;
-      if (index < max_id) {
-        index++;
-      }
+    
+    final List<Scanner> scanners = CliUtils.getDataTableScanners(tsdb, workers);
+    LOG.info("Spooling up [" + scanners.size() + "] worker threads");
+    final List<Thread> threads = new ArrayList<Thread>(scanners.size());
+    int i = 0;
+    for (final Scanner scanner : scanners) {
+      final FsckWorker worker = new FsckWorker(scanner, i++);
+      worker.setName("Fsck #" + i);
+      worker.start();
+      threads.add(worker);
     }
 
     final Thread reporter = new ProgressReporter();
     reporter.start();
-    for (int i = 0; i < workers; i++) {
-      threads[i].join();
-      LOG.info("Thread [" + i + "] Finished");
+    for (final Thread thread : threads) {
+      thread.join();
+      LOG.info("Thread [" + thread + "] Finished");
     }
     reporter.interrupt();
     
@@ -190,8 +188,20 @@ final class Fsck {
     reporter.start();
     
     for (final Query query : queries) {
-      final FsckWorker worker = new FsckWorker(query, 0);
-      worker.run();
+      final List<Scanner> scanners = Internal.getScanners(query);
+      final List<Thread> threads = new ArrayList<Thread>(scanners.size());
+      int i = 0;
+      for (final Scanner scanner : scanners) {
+        final FsckWorker worker = new FsckWorker(scanner, i++);
+        worker.setName("Fsck #" + i);
+        worker.start();
+        threads.add(worker);
+      }
+
+      for (final Thread thread : threads) {
+        thread.join();
+        LOG.info("Thread [" + thread + "] Finished");
+      }
     }
     reporter.interrupt();
     
@@ -226,15 +236,12 @@ final class Fsck {
    * performs the actual FSCK process.
    */
   final class FsckWorker extends Thread {
-    /** Optional value of the first metric this worker should start on, should 
-     * be >0 */
-    final long start_id;
-    /** Value of the metric this worker should end on */
-    final long end_id;
     /** Id of the thread this worker belongs to */
     final int thread_id;
     /** Optional query to execute instead of a full table scan */
     final Query query;
+    /** The scanner to use for iterating over a chunk of the table */
+    final Scanner scanner;
     /** Set of TSUIDs this worker has seen. Used to avoid UID resolution for
      * previously processed row keys */
     final Set<String> tsuids = new HashSet<String>();
@@ -250,28 +257,13 @@ final class Fsck {
     
     /**
      * Ctor for running a worker on a chunk of the data table
-     * @param start_id The first metric this worker should start on
-     * @param quotient How many metrics the worker should cover
+     * @param scanner The scanner to use for iterationg
      * @param thread_id Id of the thread this worker is assigned for logging
      */
-    FsckWorker(final long start_id, final double quotient, final int thread_id) {
-      this.start_id = start_id;
-      this.end_id = start_id + (long) quotient + 1; // teensy bit of overlap
+    FsckWorker(final Scanner scanner, final int thread_id) {
+      this.scanner = scanner;
       this.thread_id = thread_id;
       query = null;
-    }
-    
-    /**
-     * Ctor for running an FSCK over a specific query, scanning only rows that
-     * match the filter.
-     * @param query The query to execute
-     * @param thread_id Id of the thread this worker is assigned for logging
-     */
-    FsckWorker(final Query query, final int thread_id) {
-      start_id = 0;
-      end_id = 0;
-      this.thread_id = thread_id;
-      this.query = query;
     }
     
     /**
@@ -281,9 +273,6 @@ final class Fsck {
      * appropriate.
      */
     public void run() {
-      final Scanner scanner = query != null ? Internal.getScanner(query) :
-        CliUtils.getDataTableScanner(tsdb, start_id, end_id);
-      
       // store every data point for the row in here 
       final TreeMap<Long, ArrayList<DP>> datapoints = 
         new TreeMap<Long, ArrayList<DP>>();
@@ -350,7 +339,7 @@ final class Fsck {
       }
       
       final long base_time = Bytes.getUnsignedInt(row.get(0).key(), 
-          TSDB.metrics_width());
+          Const.SALT_WIDTH() + TSDB.metrics_width());
       
       for (final KeyValue kv : row) {
         kvs_processed.getAndIncrement();
@@ -395,6 +384,18 @@ final class Fsck {
           // TODO - perform validation of the annotation
           if (qual[0] == Annotation.PREFIX()) {
             annotations.getAndIncrement();
+            continue;
+          } else if (qual[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
+            append_dps.getAndIncrement();
+            try {
+              final AppendDataPoints adps = new AppendDataPoints();
+              adps.parseKeyValue(tsdb, kv);
+              if (adps.repairedDeferred() != null) {
+                append_dps_fixed.incrementAndGet();
+              }
+            } catch (RuntimeException e) {
+              LOG.error("Unexpected exception processing append data point: " + kv, e);
+            }
             continue;
           }
           LOG.warn("Found an object possibly from a future version of OpenTSDB\n\t"
@@ -514,7 +515,7 @@ final class Fsck {
       }
       
       // Process the time series ID by resolving the UIDs to names if we haven't
-      // already seen this particular TSUID
+      // already seen this particular TSUID. Note that getTSUID accounts for salt
       final byte[] tsuid = UniqueId.getTSUIDFromKey(key, TSDB.metrics_width(), 
           Const.TIMESTAMP_BYTES);
       if (!tsuids.contains(tsuid)) {
@@ -642,36 +643,40 @@ final class Fsck {
             dp_index++) {
           duplicates.getAndIncrement();
           DP dp = time_map.getValue().get(dp_index);
-          final byte flags = (byte)Internal.getFlagsFromQualifier(dp.kv.qualifier());
-          buf.append("    ")
-            .append("write time: (")
-            .append(dp.kv.timestamp())
-            .append(" - ")
-            .append(new Date(dp.kv.timestamp()))
-            .append(") ")
-            .append(" compacted: (")
-            .append(dp.compacted)
-            .append(")  qualifier: ")
-            .append(Arrays.toString(dp.kv.qualifier()))
-            .append(" value: ")
-            .append(Internal.isFloat(dp.kv.qualifier()) ?
-              Internal.extractFloatingPointValue(dp.value(), 0, flags) :
-              Internal.extractIntegerValue(dp.value(), 0, flags))
-            .append("\n");
-          unique_columns.put(dp.kv.qualifier(), dp.kv.value());
-          if (options.fix() && options.resolveDupes()) {
-            if (compact_row) {
-              // Scheduled for deletion by compaction.
-              duplicates_fixed_comp.getAndIncrement();
-            } else if (!dp.compacted) {
-              LOG.debug("Removing duplicate data point: " + dp.kv);
-              tsdb.getClient().delete(
-                new DeleteRequest(
-                  tsdb.dataTable(), dp.kv.key(), dp.kv.family(), dp.qualifier()
-                )
-              );
-              duplicates_fixed.getAndIncrement();
+          try {
+            final byte flags = (byte)Internal.getFlagsFromQualifier(dp.kv.qualifier());
+            buf.append("    ")
+              .append("write time: (")
+              .append(dp.kv.timestamp())
+              .append(" - ")
+              .append(new Date(dp.kv.timestamp()))
+              .append(") ")
+              .append(" compacted: (")
+              .append(dp.compacted)
+              .append(")  qualifier: ")
+              .append(Arrays.toString(dp.kv.qualifier()))
+              .append(" value: ")
+              .append(Internal.isFloat(dp.kv.qualifier()) ?
+                Internal.extractFloatingPointValue(dp.value(), 0, flags) :
+                Internal.extractIntegerValue(dp.value(), 0, flags))
+              .append("\n");
+            unique_columns.put(dp.kv.qualifier(), dp.kv.value());
+            if (options.fix() && options.resolveDupes()) {
+              if (compact_row) {
+                // Scheduled for deletion by compaction.
+                duplicates_fixed_comp.getAndIncrement();
+              } else if (!dp.compacted) {
+                LOG.debug("Removing duplicate data point: " + dp.kv);
+                tsdb.getClient().delete(
+                  new DeleteRequest(
+                    tsdb.dataTable(), dp.kv.key(), dp.kv.family(), dp.qualifier()
+                  )
+                );
+                duplicates_fixed.getAndIncrement();
+              }
             }
+          } catch (Exception e) {
+            LOG.error("Unexpected exception processing DP: " + dp);
           }
         }
         if (options.lastWriteWins()) {

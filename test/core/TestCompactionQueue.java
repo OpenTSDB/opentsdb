@@ -88,6 +88,7 @@ public final class TestCompactionQueue {
     Whitebox.setInternalState(config, "enable_compactions", true);
     Whitebox.setInternalState(config, "fix_duplicates", true);
     Whitebox.setInternalState(tsdb, "config", config);
+    when(tsdb.getConfig()).thenReturn(config);
     // Stub out the compaction thread, so it doesn't even start.
     PowerMockito.whenNew(CompactionQueue.Thrd.class).withNoArguments()
       .thenReturn(mock(CompactionQueue.Thrd.class));
@@ -134,6 +135,25 @@ public final class TestCompactionQueue {
   }
   
   @Test
+  public void oneCellAppend() throws Exception {
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    final byte[] qual = { 0x00, 0x07 };
+    final byte[] val = Bytes.fromLong(42L);
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual, val)));
+    final KeyValue kv = compactionq.compact(kvs, annotations);
+    assertArrayEquals(qual, kv.qualifier());
+    assertArrayEquals(val, kv.value());
+    
+    // We had nothing to do so...
+    // ... verify there were no put.
+    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    // ... verify there were no delete.
+    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+  }
+  
+  @Test
   public void oneCellRowWAnnotation() throws Exception {
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
     ArrayList<Annotation> annotations = new ArrayList<Annotation>(1);
@@ -141,6 +161,27 @@ public final class TestCompactionQueue {
     final byte[] qual = { 0x00, 0x07 };
     final byte[] val = Bytes.fromLong(42L);
     kvs.add(makekv(qual, val));
+    final KeyValue kv = compactionq.compact(kvs, annotations);
+    assertArrayEquals(qual, kv.qualifier());
+    assertArrayEquals(val, kv.value());
+    assertEquals(1, annotations.size());
+    
+    // We had nothing to do so...
+    // ... verify there were no put.
+    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    // ... verify there were no delete.
+    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+  }
+  
+  @Test
+  public void oneCellAppendWAnnotiation() throws Exception {
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(1);
+    kvs.add(makekv(note_qual, note));
+    final byte[] qual = { 0x00, 0x07 };
+    final byte[] val = Bytes.fromLong(42L);
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual, val)));
     final KeyValue kv = compactionq.compact(kvs, annotations);
     assertArrayEquals(qual, kv.qualifier());
     assertArrayEquals(val, kv.value());
@@ -232,6 +273,27 @@ public final class TestCompactionQueue {
   }
   
   @Test
+  public void twoCellAppend() throws Exception {
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    final byte[] qual = { 0x00, 0x07 };
+    final byte[] val = Bytes.fromLong(42L);
+    final byte[] qual2 = { 0x00, 0x17 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual, val, qual2, val2)));
+    final KeyValue kv = compactionq.compact(kvs, annotations);
+    assertArrayEquals(MockBase.concatByteArrays(qual, qual2), kv.qualifier());
+    assertArrayEquals(MockBase.concatByteArrays(val, val2, ZERO), kv.value());
+    
+    // We had nothing to do so...
+    // ... verify there were no put.
+    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    // ... verify there were no delete.
+    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+  }
+  
+  @Test
   public void twoCellRowWAnnotation() throws Exception {
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
     ArrayList<Annotation> annotations = new ArrayList<Annotation>(1);
@@ -255,6 +317,29 @@ public final class TestCompactionQueue {
     verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual1, qual2 }));
   }
 
+  @Test
+  public void twoCellAppendWAnnotations() throws Exception {
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(1);
+    kvs.add(makekv(note_qual, note));
+    final byte[] qual = { 0x00, 0x07 };
+    final byte[] val = Bytes.fromLong(42L);
+    final byte[] qual2 = { 0x00, 0x17 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual, val, qual2, val2)));
+    final KeyValue kv = compactionq.compact(kvs, annotations);
+    assertArrayEquals(MockBase.concatByteArrays(qual, qual2), kv.qualifier());
+    assertArrayEquals(MockBase.concatByteArrays(val, val2, ZERO), kv.value());
+    assertEquals(1, annotations.size());
+    
+    // We had nothing to do so...
+    // ... verify there were no put.
+    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    // ... verify there were no delete.
+    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+  }
+  
   @Test
   public void fullRowSeconds() throws Exception {
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(3600);
@@ -1115,6 +1200,302 @@ public final class TestCompactionQueue {
         MockBase.concatByteArrays(val1, val2, val3, val4, val5, val6, MIXED_FLAG));
     // And we had to delete the 3 partially compacted columns.
     verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual12, qual34, qual56 }));
+  }
+  
+  @Test
+  public void appendsAndLaterPuts() throws Exception {
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    final byte[] qual = { 0x00, 0x07 };
+    final byte[] val = Bytes.fromLong(42L);
+    final byte[] qual2 = { 0x00, 0x17 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] qual3 = { 0x00, 0x27 };
+    final byte[] val3 = Bytes.fromLong(3L);
+    final byte[] qual4 = { 0x00, 0x37 };
+    final byte[] val4 = Bytes.fromLong(2L);
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual, val, qual2, val2)));
+    kvs.add(makekv(qual3, val3));
+    kvs.add(makekv(qual4, val4));
+    final KeyValue kv = compactionq.compact(kvs, annotations);
+    assertArrayEquals(MockBase.concatByteArrays(qual, qual2, qual3, qual4), 
+        kv.qualifier());
+    assertArrayEquals(MockBase.concatByteArrays(val, val2, val3, val4, ZERO), 
+        kv.value());
+    
+    // We had nothing to do so...
+    // ... verify there were no put.
+    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    // ... verify there were no delete.
+    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+  }
+  
+  @Test
+  public void appendsAndEarlierPuts() throws Exception {
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    final byte[] qual = { 0x00, 0x07 };
+    final byte[] val = Bytes.fromLong(42L);
+    final byte[] qual2 = { 0x00, 0x17 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] qual3 = { 0x00, 0x27 };
+    final byte[] val3 = Bytes.fromLong(3L);
+    final byte[] qual4 = { 0x00, 0x37 };
+    final byte[] val4 = Bytes.fromLong(2L);
+    kvs.add(makekv(qual, val));
+    kvs.add(makekv(qual2, val2));
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual3, val3, qual4, val4)));
+    final KeyValue kv = compactionq.compact(kvs, annotations);
+    assertArrayEquals(MockBase.concatByteArrays(qual, qual2, qual3, qual4), 
+        kv.qualifier());
+    assertArrayEquals(MockBase.concatByteArrays(val, val2, val3, val4, ZERO), 
+        kv.value());
+    
+    // We had nothing to do so...
+    // ... verify there were no put.
+    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    // ... verify there were no delete.
+    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+  }
+  
+  @Test
+  public void appendsAndInterspersedPuts() throws Exception {
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    final byte[] qual = { 0x00, 0x07 };
+    final byte[] val = Bytes.fromLong(42L);
+    final byte[] qual2 = { 0x00, 0x17 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] qual3 = { 0x00, 0x27 };
+    final byte[] val3 = Bytes.fromLong(3L);
+    final byte[] qual4 = { 0x00, 0x37 };
+    final byte[] val4 = Bytes.fromLong(2L);
+    kvs.add(makekv(qual, val));
+    kvs.add(makekv(qual3, val3));
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual2, val2, qual4, val4)));
+    final KeyValue kv = compactionq.compact(kvs, annotations);
+    assertArrayEquals(MockBase.concatByteArrays(qual, qual2, qual3, qual4), 
+        kv.qualifier());
+    assertArrayEquals(MockBase.concatByteArrays(val, val2, val3, val4, ZERO), 
+        kv.value());
+    
+    // We had nothing to do so...
+    // ... verify there were no put.
+    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    // ... verify there were no delete.
+    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+  }
+  
+  @Test
+  public void doubleAppends() throws Exception {
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    final byte[] qual = { 0x00, 0x07 };
+    final byte[] val = Bytes.fromLong(42L);
+    final byte[] qual2 = { 0x00, 0x17 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] qual3 = { 0x00, 0x27 };
+    final byte[] val3 = Bytes.fromLong(3L);
+    final byte[] qual4 = { 0x00, 0x37 };
+    final byte[] val4 = Bytes.fromLong(2L);
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual, val, qual2, val2)));
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual3, val3, qual4, val4)));
+    final KeyValue kv = compactionq.compact(kvs, annotations);
+    assertArrayEquals(MockBase.concatByteArrays(qual, qual2, qual3, qual4), 
+        kv.qualifier());
+    assertArrayEquals(MockBase.concatByteArrays(val, val2, val3, val4, ZERO), 
+        kv.value());
+    
+    // We had nothing to do so...
+    // ... verify there were no put.
+    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    // ... verify there were no delete.
+    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+  }
+  
+  @Test
+  public void tripleAppends() throws Exception {
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    final byte[] qual = { 0x00, 0x07 };
+    final byte[] val = Bytes.fromLong(42L);
+    final byte[] qual2 = { 0x00, 0x17 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] qual3 = { 0x00, 0x27 };
+    final byte[] val3 = Bytes.fromLong(3L);
+    final byte[] qual4 = { 0x00, 0x37 };
+    final byte[] val4 = Bytes.fromLong(2L);
+    final byte[] qual5 = { 0x00, 0x47 };
+    final byte[] val5 = Bytes.fromLong(1L);
+    final byte[] qual6 = { 0x00, 0x57 };
+    final byte[] val6 = Bytes.fromLong(0L);
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual, val, qual2, val2)));
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual3, val3, qual4, val4)));
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual5, val5, qual6, val6)));
+    final KeyValue kv = compactionq.compact(kvs, annotations);
+    assertArrayEquals(MockBase.concatByteArrays(
+        qual, qual2, qual3, qual4, qual5, qual6), kv.qualifier());
+    assertArrayEquals(MockBase.concatByteArrays(
+        val, val2, val3, val4, val5, val6, ZERO), kv.value());
+    
+    // We had nothing to do so...
+    // ... verify there were no put.
+    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    // ... verify there were no delete.
+    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+  }
+  
+  @Test
+  public void doubleAppendsAndPuts() throws Exception {
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    final byte[] qual = { 0x00, 0x07 };
+    final byte[] val = Bytes.fromLong(42L);
+    final byte[] qual2 = { 0x00, 0x17 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] qual3 = { 0x00, 0x27 };
+    final byte[] val3 = Bytes.fromLong(3L);
+    final byte[] qual4 = { 0x00, 0x37 };
+    final byte[] val4 = Bytes.fromLong(2L);
+    final byte[] qual5 = { 0x00, 0x47 };
+    final byte[] val5 = Bytes.fromLong(1L);
+    final byte[] qual6 = { 0x00, 0x57 };
+    final byte[] val6 = Bytes.fromLong(0L);
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual, val, qual2, val2)));
+    kvs.add(makekv(qual3, val3));
+    kvs.add(makekv(qual4, val4));
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual5, val5, qual6, val6)));
+    final KeyValue kv = compactionq.compact(kvs, annotations);
+    assertArrayEquals(MockBase.concatByteArrays(
+        qual, qual2, qual3, qual4, qual5, qual6), kv.qualifier());
+    assertArrayEquals(MockBase.concatByteArrays(
+        val, val2, val3, val4, val5, val6, ZERO), kv.value());
+    
+    // We had nothing to do so...
+    // ... verify there were no put.
+    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    // ... verify there were no delete.
+    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+  }
+  
+  @Test
+  public void appendsAndCompacted() throws Exception {
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    final byte[] qual = { 0x00, 0x07 };
+    final byte[] val = Bytes.fromLong(42L);
+    final byte[] qual2 = { 0x00, 0x17 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] qual3 = { 0x00, 0x27 };
+    final byte[] val3 = Bytes.fromLong(3L);
+    final byte[] qual4 = { 0x00, 0x37 };
+    final byte[] val4 = Bytes.fromLong(2L);
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual, val, qual2, val2)));
+    kvs.add(makekv(MockBase.concatByteArrays(qual3, qual4), 
+        MockBase.concatByteArrays(val3, val4, ZERO)));
+    final KeyValue kv = compactionq.compact(kvs, annotations);
+    assertArrayEquals(MockBase.concatByteArrays(qual, qual2, qual3, qual4), 
+        kv.qualifier());
+    assertArrayEquals(MockBase.concatByteArrays(val, val2, val3, val4, ZERO), 
+        kv.value());
+    
+    // We had nothing to do so...
+    // ... verify there were no put.
+    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    // ... verify there were no delete.
+    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+  }
+  
+  @Test
+  public void appendsAndCompactedAndPuts() throws Exception {
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    final byte[] qual = { 0x00, 0x07 };
+    final byte[] val = Bytes.fromLong(42L);
+    final byte[] qual2 = { 0x00, 0x17 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] qual3 = { 0x00, 0x27 };
+    final byte[] val3 = Bytes.fromLong(3L);
+    final byte[] qual4 = { 0x00, 0x37 };
+    final byte[] val4 = Bytes.fromLong(2L);
+    final byte[] qual5 = { 0x00, 0x47 };
+    final byte[] val5 = Bytes.fromLong(1L);
+    final byte[] qual6 = { 0x00, 0x57 };
+    final byte[] val6 = Bytes.fromLong(0L);
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual, val, qual2, val2)));
+    kvs.add(makekv(MockBase.concatByteArrays(qual3, qual4), 
+        MockBase.concatByteArrays(val3, val4, ZERO)));
+    kvs.add(makekv(qual5, val5));
+    kvs.add(makekv(qual6, val6));
+    final KeyValue kv = compactionq.compact(kvs, annotations);
+    assertArrayEquals(MockBase.concatByteArrays(
+        qual, qual2, qual3, qual4, qual5, qual6), kv.qualifier());
+    assertArrayEquals(MockBase.concatByteArrays(
+        val, val2, val3, val4, val5, val6, ZERO), kv.value());
+    
+    // We had nothing to do so...
+    // ... verify there were no put.
+    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    // ... verify there were no delete.
+    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+  }
+  
+  @Test
+  public void appendsDuplicatePuts() throws Exception {
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    final byte[] qual = { 0x00, 0x07 };
+    final byte[] val = Bytes.fromLong(42L);
+    final byte[] qual2 = { 0x00, 0x17 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual, val, qual2, val2)));
+    kvs.add(makekv(qual, val));
+    kvs.add(makekv(qual2, val2));
+    final KeyValue kv = compactionq.compact(kvs, annotations);
+    assertArrayEquals(MockBase.concatByteArrays(qual, qual2), kv.qualifier());
+    assertArrayEquals(MockBase.concatByteArrays(val, val2, ZERO), kv.value());
+    
+    // We had nothing to do so...
+    // ... verify there were no put.
+    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    // ... verify there were no delete.
+    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+  }
+  
+  @Test
+  public void appendsDuplicateCompacted() throws Exception {
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    final byte[] qual = { 0x00, 0x07 };
+    final byte[] val = Bytes.fromLong(42L);
+    final byte[] qual2 = { 0x00, 0x17 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER, 
+        MockBase.concatByteArrays(qual, val, qual2, val2)));
+    kvs.add(makekv(MockBase.concatByteArrays(qual, qual2), 
+        MockBase.concatByteArrays(val, val2, ZERO)));
+    final KeyValue kv = compactionq.compact(kvs, annotations);
+    assertArrayEquals(MockBase.concatByteArrays(qual, qual2), kv.qualifier());
+    assertArrayEquals(MockBase.concatByteArrays(val, val2, ZERO), kv.value());
+    
+    // We had nothing to do so...
+    // ... verify there were no put.
+    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    // ... verify there were no delete.
+    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
   }
   
   // ----------------- //

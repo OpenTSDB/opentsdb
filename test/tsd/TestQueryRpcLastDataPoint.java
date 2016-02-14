@@ -16,14 +16,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.nio.charset.Charset;
-import java.util.HashMap;
-import java.util.Map;
 
+import net.opentsdb.core.BaseTsdbTest;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TestTSUIDQuery;
@@ -50,34 +46,14 @@ import com.stumbleupon.async.Deferred;
 @PrepareForTest({ TSDB.class, HBaseClient.class, Config.class, HttpQuery.class, 
   Query.class, Deferred.class, UniqueId.class, DateTime.class, KeyValue.class,
   Scanner.class })
-public class TestQueryRpcLastDataPoint {
-  private Config config;
-  private TSDB tsdb;
-  private HBaseClient client;
+public class TestQueryRpcLastDataPoint extends BaseTsdbTest {
   private QueryRpc rpc;
-  private MockBase storage;
-  private Map<String, String> tags;
   
   @Before
-  public void before() throws Exception {
-    tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
+  public void beforeLocal() throws Exception {
+    Whitebox.setInternalState(config, "enable_tsuid_incrementing", true);
+    Whitebox.setInternalState(config, "enable_realtime_ts", true);
     rpc = new QueryRpc();
-    config = mock(Config.class);
-    when(config.getString("tsd.storage.hbase.data_table")).thenReturn("tsdb");
-    when(config.getString("tsd.storage.hbase.uid_table")).thenReturn("tsdb-uid");
-    when(config.getString("tsd.storage.hbase.meta_table")).thenReturn("tsdb-meta");
-    when(config.getString("tsd.storage.hbase.tree_table")).thenReturn("tsdb-tree");
-    when(config.getString("tsd.http.show_stack_trace")).thenReturn("true");
-    when(config.enable_tsuid_incrementing()).thenReturn(true);
-    when(config.enable_realtime_ts()).thenReturn(true);
-    client = mock(HBaseClient.class);
-    
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
-    Whitebox.setInternalState(tsdb, "client", client);
-    
     storage = new MockBase(tsdb, client, true, true, true, true);
     TestTSUIDQuery.setupStorage(tsdb, storage);
   }
@@ -334,7 +310,7 @@ public class TestQueryRpcLastDataPoint {
   @Test
   public void qsMetricNSUNMetric() throws Exception {
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
-        "/api/query/last?timeseries=sys.cpu.system{host=web01}");
+        "/api/query/last?timeseries=sys.cpu.nice{host=web01}");
     try {
       rpc.execute(tsdb, query);
       fail("Expected a BadRequestException");
@@ -591,11 +567,11 @@ public class TestQueryRpcLastDataPoint {
   public void qsTSUIDNSUITagk() throws Exception {
     PowerMockito.mockStatic(DateTime.class);
     PowerMockito.when(DateTime.currentTimeMillis()).thenReturn(1356998400000L);
-    storage.addColumn(MockBase.stringToBytes("00000150E22700000003000001"), 
+    storage.addColumn(MockBase.stringToBytes("00000150E22700000004000001"), 
         new byte[] { 0, 0 }, new byte[] { 0x2A });
     
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
-        "/api/query/last?tsuids=000001000003000001&back_scan=1&resolve");
+        "/api/query/last?tsuids=000001000004000001&back_scan=1&resolve");
     try {
       rpc.execute(tsdb, query);
       fail("Expected a BadRequestException");
@@ -609,11 +585,11 @@ public class TestQueryRpcLastDataPoint {
   public void qsTSUIDNSUITagv() throws Exception {
     PowerMockito.mockStatic(DateTime.class);
     PowerMockito.when(DateTime.currentTimeMillis()).thenReturn(1356998400000L);
-    storage.addColumn(MockBase.stringToBytes("00000150E22700000001000004"), 
+    storage.addColumn(MockBase.stringToBytes("00000150E22700000001000003"), 
         new byte[] { 0, 0 }, new byte[] { 0x2A });
     
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
-        "/api/query/last?tsuids=000001000001000004&back_scan=1&resolve");
+        "/api/query/last?tsuids=000001000001000003&back_scan=1&resolve");
     try {
       rpc.execute(tsdb, query);
       fail("Expected a BadRequestException");

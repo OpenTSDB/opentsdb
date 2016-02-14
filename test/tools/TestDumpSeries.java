@@ -14,7 +14,6 @@ package net.opentsdb.tools;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -42,7 +41,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -85,10 +83,8 @@ public class TestDumpSeries {
 
   @Before
   public void before() throws Exception {
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
     config = new Config(false);
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(client, config);
     
     storage = new MockBase(tsdb, client, true, true, true, true);
     storage.setFamily("t".getBytes(MockBase.ASCII()));

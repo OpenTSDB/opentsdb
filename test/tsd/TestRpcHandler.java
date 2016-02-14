@@ -15,46 +15,51 @@ package net.opentsdb.tsd;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mock;
 
-import net.opentsdb.core.TSDB;
-import net.opentsdb.utils.Config;
+import java.lang.reflect.Method;
+
+import com.google.common.net.HttpHeaders;
 
 import org.hbase.async.HBaseClient;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
+import org.jboss.netty.channel.SucceededChannelFuture;
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
 import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jboss.netty.handler.codec.http.HttpVersion;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.powermock.reflect.Whitebox;
 
-import com.google.common.net.HttpHeaders;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.utils.Config;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ TSDB.class, Config.class, HBaseClient.class, RpcHandler.class, 
+@PrepareForTest({ TSDB.class, Config.class, HBaseClient.class, RpcHandler.class,
   HttpQuery.class, MessageEvent.class, DefaultHttpResponse.class, 
   ChannelHandlerContext.class })
 public final class TestRpcHandler {
   private TSDB tsdb = null;
+  private RpcManager rpc_manager;
   private ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
   private HBaseClient client = mock(HBaseClient.class);
   private MessageEvent message = mock(MessageEvent.class);
@@ -62,21 +67,25 @@ public final class TestRpcHandler {
   @Before
   public void before() throws Exception {
     final Config config = new Config(false);
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(client, config);
+    rpc_manager = RpcManager.instance(tsdb);
+  }
+  
+  @After
+  public void after() {
+    rpc_manager.shutdown();
   }
   
   @Test
   public void ctorDefaults() {
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = new RpcHandler(tsdb, rpc_manager);
     assertNotNull(rpc);
   }
   
   @Test
   public void ctorCORSPublic() {
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", "*");
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = new RpcHandler(tsdb, rpc_manager);
     assertNotNull(rpc);
   }
   
@@ -84,7 +93,7 @@ public final class TestRpcHandler {
   public void ctorCORSSeparated() {
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
         "aurther.com,dent.net,beeblebrox.org");
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = new RpcHandler(tsdb, rpc_manager);
     assertNotNull(rpc);
   }
   
@@ -92,7 +101,7 @@ public final class TestRpcHandler {
   public void ctorCORSPublicAndDomains() {
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
         "*,aurther.com,dent.net,beeblebrox.org");
-    new RpcHandler(tsdb);
+    new RpcHandler(tsdb, rpc_manager);
   }
   
   @Test
@@ -114,7 +123,7 @@ public final class TestRpcHandler {
       }
     );
     
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = new RpcHandler(tsdb, rpc_manager);
     rpc.messageReceived(ctx, message);
   }
   
@@ -139,7 +148,7 @@ public final class TestRpcHandler {
     );
     
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", "*");
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = new RpcHandler(tsdb, rpc_manager);
     rpc.messageReceived(ctx, message);
   }
   
@@ -165,7 +174,7 @@ public final class TestRpcHandler {
     
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
         "aurther.com,dent.net,42.com,beeblebrox.org");
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = new RpcHandler(tsdb, rpc_manager);
     rpc.messageReceived(ctx, message);
   }
   
@@ -190,7 +199,7 @@ public final class TestRpcHandler {
     
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
         "aurther.com,dent.net,beeblebrox.org");
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = new RpcHandler(tsdb, rpc_manager);
     rpc.messageReceived(ctx, message);
   }
   
@@ -212,7 +221,7 @@ public final class TestRpcHandler {
       }
     );
     
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = new RpcHandler(tsdb, rpc_manager);
     rpc.messageReceived(ctx, message);
   }
   
@@ -235,7 +244,7 @@ public final class TestRpcHandler {
       }
     );
     
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = new RpcHandler(tsdb, rpc_manager);
     rpc.messageReceived(ctx, message);
   }
   
@@ -260,7 +269,7 @@ public final class TestRpcHandler {
     );
     
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", "*");
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = new RpcHandler(tsdb, rpc_manager);
     rpc.messageReceived(ctx, message);
   }
   
@@ -286,7 +295,7 @@ public final class TestRpcHandler {
     
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
       "aurther.com,dent.net,42.com,beeblebrox.org");
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = new RpcHandler(tsdb, rpc_manager);
     rpc.messageReceived(ctx, message);
   }
   
@@ -311,14 +320,79 @@ public final class TestRpcHandler {
     
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
       "aurther.com,dent.net,beeblebrox.org");
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = new RpcHandler(tsdb, rpc_manager);
     rpc.messageReceived(ctx, message);
   }
   
-  private void handleHttpRpc(final HttpRequest req, final Answer<?> answer) {
+  @Test
+  public void createQueryInstanceForBuiltin() throws Exception {
+    final RpcHandler rpc = new RpcHandler(tsdb, rpc_manager);
+    final Channel mockChan = NettyMocks.fakeChannel();
+    final Method meth = Whitebox.getMethod(RpcHandler.class, "createQueryInstance", 
+        TSDB.class, HttpRequest.class, Channel.class);
+    AbstractHttpQuery query = (AbstractHttpQuery) meth.invoke(
+        rpc, tsdb, 
+        new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.OPTIONS, "/api/v1/version"), 
+        mockChan);
+    assertTrue(query instanceof HttpQuery);
+    
+    query = (AbstractHttpQuery) meth.invoke(
+        rpc, tsdb, 
+        new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.OPTIONS, "/api/version"), 
+        mockChan);
+    assertTrue(query instanceof HttpQuery);
+    
+    query = (AbstractHttpQuery) meth.invoke(
+        rpc, tsdb, 
+        new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.OPTIONS, "/q"), 
+        mockChan);
+    assertTrue(query instanceof HttpQuery);
+    
+    query = (AbstractHttpQuery) meth.invoke(
+        rpc, tsdb, 
+        new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.OPTIONS, "/"), 
+        mockChan);
+    assertTrue(query instanceof HttpQuery);
+  }
+  
+  @Test(expected=BadRequestException.class)
+  public void createQueryInstanceEmptyRequestInvalid() throws Exception {
+    final RpcHandler rpc = new RpcHandler(tsdb, rpc_manager);
+    final Channel mockChan = NettyMocks.fakeChannel();
+    final Method meth = Whitebox.getMethod(RpcHandler.class, "createQueryInstance", 
+        TSDB.class, HttpRequest.class, Channel.class);
+    meth.invoke(
+        rpc, tsdb, 
+        new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.OPTIONS, ""), 
+        mockChan);
+  }
+  
+  @Test
+  public void emptyPathIsBadRequest() throws Exception {
+    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
+        HttpMethod.GET, "");
+    
+    final Channel mockChan = handleHttpRpc(req,
+      new Answer<ChannelFuture>() {
+        public ChannelFuture answer(final InvocationOnMock args) 
+          throws Throwable {
+          DefaultHttpResponse response = 
+              (DefaultHttpResponse)args.getArguments()[0];
+            assertEquals(HttpResponseStatus.BAD_REQUEST, response.getStatus());
+            return new SucceededChannelFuture((Channel) args.getMock());
+        }        
+      }
+    );
+    
+    final RpcHandler rpc = new RpcHandler(tsdb, rpc_manager);
+    Whitebox.invokeMethod(rpc, "handleHttpQuery", tsdb, mockChan, req);
+  }
+  
+  private Channel handleHttpRpc(final HttpRequest req, final Answer<?> answer) {
     final Channel channel = NettyMocks.fakeChannel();
     when(message.getMessage()).thenReturn(req);
     when(message.getChannel()).thenReturn(channel);
     when(channel.write((DefaultHttpResponse)any())).thenAnswer(answer);
+    return channel;
   }
 }

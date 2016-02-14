@@ -26,7 +26,9 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import org.hbase.async.Bytes;
+import org.hbase.async.Bytes.ByteMap;
 
+import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.Pair;
@@ -203,6 +205,72 @@ public final class Tags {
   }
   
   /**
+   * Parses the metric and tags out of the given string.
+   * @param metric A string of the form "metric" or "metric{tag=value,...}" or
+   * now "metric{groupby=filter}{filter=filter}".
+   * @param filters A list of filters to write the results to. May not be null
+   * @return The name of the metric.
+   * @throws IllegalArgumentException if the metric is malformed or the filter
+   * list is null.
+   * @since 2.2
+   */
+  public static String parseWithMetricAndFilters(final String metric, 
+      final List<TagVFilter> filters) {
+    if (metric == null || metric.isEmpty()) {
+      throw new IllegalArgumentException("Metric cannot be null or empty");
+    }
+    if (filters == null) {
+      throw new IllegalArgumentException("Filters cannot be null");
+    }
+    final int curly = metric.indexOf('{');
+    if (curly < 0) {
+      return metric;
+    }
+    final int len = metric.length();
+    if (metric.charAt(len - 1) != '}') {  // "foo{"
+      throw new IllegalArgumentException("Missing '}' at the end of: " + metric);
+    } else if (curly == len - 2) {  // "foo{}"
+      return metric.substring(0, len - 2);
+    }
+    final int close = metric.indexOf('}');
+    final HashMap<String, String> filter_map = new HashMap<String, String>();
+    if (close != metric.length() - 1) { // "foo{...}{tagk=filter}" 
+      final int filter_bracket = metric.lastIndexOf('{');
+      for (final String filter : splitString(metric.substring(filter_bracket + 1, 
+          metric.length() - 1), ',')) {
+        if (filter.isEmpty()) {
+          break;
+        }
+        filter_map.clear();
+        try {
+          parse(filter_map, filter);
+          TagVFilter.mapToFilters(filter_map, filters, false);
+        } catch (IllegalArgumentException e) {
+          throw new IllegalArgumentException("When parsing filter '" + filter
+              + "': " + e.getMessage(), e);
+        }
+      }
+    }
+    
+    // substring the tags out of "foo{a=b,...,x=y}" and parse them.
+    for (final String tag : splitString(metric.substring(curly + 1, close), ',')) {
+      try {
+        if (tag.isEmpty() && close != metric.length() - 1){
+          break;
+        }
+        filter_map.clear();
+        parse(filter_map, tag);
+        TagVFilter.tagsToFilters(filter_map, filters);
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException("When parsing tag '" + tag
+                                           + "': " + e.getMessage(), e);
+      }
+    }
+    // Return the "foo" part of "foo{a=b,...,x=y}"
+    return metric.substring(0, curly);
+  }
+      
+  /**
    * Parses an integer value as a long from the given character sequence.
    * <p>
    * This is equivalent to {@link Long#parseLong(String)} except it's up to
@@ -293,7 +361,8 @@ public final class Tags {
     final short name_width = tsdb.tag_names.width();
     final short value_width = tsdb.tag_values.width();
     // TODO(tsuna): Can do a binary search.
-    for (short pos = (short) (tsdb.metrics.width() + Const.TIMESTAMP_BYTES);
+    for (short pos = (short) (Const.SALT_WIDTH() + 
+        tsdb.metrics.width() + Const.TIMESTAMP_BYTES);
          pos < row.length;
          pos += name_width + value_width) {
       if (rowContains(row, pos, tag_id)) {
@@ -354,7 +423,8 @@ public final class Tags {
     final short name_width = tsdb.tag_names.width();
     final short value_width = tsdb.tag_values.width();
     final short tag_bytes = (short) (name_width + value_width);
-    final short metric_ts_bytes = (short) (tsdb.metrics.width()
+    final short metric_ts_bytes = (short) (Const.SALT_WIDTH() 
+                                           + tsdb.metrics.width()
                                            + Const.TIMESTAMP_BYTES);
     
     final ArrayList<Deferred<String>> deferreds = 
@@ -392,6 +462,31 @@ public final class Tags {
     return Deferred.groupInOrder(deferreds).addCallback(new NameCB());
   }
 
+  /**
+   * Returns the tag key and value pairs as a byte map given a row key
+   * @param row The row key to parse the UIDs from
+   * @return A byte map with tagk and tagv pairs as raw UIDs
+   * @since 2.2
+   */
+  public static ByteMap<byte[]> getTagUids(final byte[] row) {
+    final ByteMap<byte[]> uids = new ByteMap<byte[]>();
+    final short name_width = TSDB.tagk_width();
+    final short value_width = TSDB.tagv_width();
+    final short tag_bytes = (short) (name_width + value_width);
+    final short metric_ts_bytes = (short) (TSDB.metrics_width()
+                                           + Const.TIMESTAMP_BYTES
+                                           + Const.SALT_WIDTH());
+
+    for (short pos = metric_ts_bytes; pos < row.length; pos += tag_bytes) {
+      final byte[] tmp_name = new byte[name_width];
+      final byte[] tmp_value = new byte[value_width];
+      System.arraycopy(row, pos, tmp_name, 0, name_width);
+      System.arraycopy(row, pos + name_width, tmp_value, 0, value_width);
+      uids.put(tmp_name, tmp_value);
+    }
+    return uids;
+  }
+  
   /**
    * Ensures that a given string is a valid metric name or tag name/value.
    * @param what A human readable description of what's being validated.
@@ -577,6 +672,8 @@ public final class Tags {
     throws NoSuchUniqueId {
     try {
       return resolveIdsAsync(tsdb, tags).joinUninterruptibly();
+    } catch (NoSuchUniqueId e) {
+      throw e;
     } catch (Exception e) {
       throw new RuntimeException("Shouldn't be here", e);
     }

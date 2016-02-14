@@ -93,8 +93,8 @@
               <executable>build-aux/gen_build_data.sh</executable>
               <!-- optional -->
               <arguments>
-                <argument>target/generated-sources/net/opentsdb/BuildData.java</argument>
-                <argument>net.opentsdb</argument>
+                <argument>target/generated-sources/net/opentsdb/tools/BuildData.java</argument>
+                <argument>net.opentsdb.tools</argument>
                 <argument>BuildData</argument>
               </arguments>
             </configuration>
@@ -126,10 +126,16 @@
                 <argument>net/opentsdb/tsd/DummyHttpSerializer.class</argument>
                 <argument>-C</argument>
                 <argument>target/test-classes</argument>
+                <argument>net/opentsdb/tsd/DummyHttpRpcPlugin.class</argument>
+                <argument>-C</argument>
+                <argument>target/test-classes</argument>
                 <argument>net/opentsdb/tsd/DummyRpcPlugin.class</argument>
                 <argument>-C</argument>
                 <argument>target/test-classes</argument>
                 <argument>net/opentsdb/tsd/DummyRTPublisher.class</argument>
+                <argument>-C</argument>
+                <argument>target/test-classes</argument>
+                <argument>net/opentsdb/tsd/DummySEHPlugin.class</argument>
                 <argument>-C</argument>
                 <argument>test</argument>
                 <argument>META-INF/services/net.opentsdb.plugin.DummyPlugin</argument>
@@ -141,10 +147,16 @@
                 <argument>META-INF/services/net.opentsdb.tsd.HttpSerializer</argument>
                 <argument>-C</argument>
                 <argument>test</argument>
+                <argument>META-INF/services/net.opentsdb.tsd.HttpRpcPlugin</argument>
+                <argument>-C</argument>
+                <argument>test</argument>
                 <argument>META-INF/services/net.opentsdb.tsd.RpcPlugin</argument>
                 <argument>-C</argument>
                 <argument>test</argument>
                 <argument>META-INF/services/net.opentsdb.tsd.RTPublisher</argument>
+                <argument>-C</argument>
+                <argument>test</argument>
+                <argument>META-INF/services/net.opentsdb.tsd.StorageExceptionHandler</argument>
               </arguments>
             </configuration>
             <phase>test-compile</phase>
@@ -278,7 +290,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-gpg-plugin</artifactId>
-        <version>1.4</version>
+        <version>1.5</version>
         <executions>
          <execution>
             <id>sign-artifacts</id>
@@ -288,8 +300,17 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+      
+      <plugin>
+        <groupId>org.sonatype.plugins</groupId>
+        <artifactId>nexus-staging-maven-plugin</artifactId>
+        <version>1.6.3</version>
+        <extensions>true</extensions>
         <configuration>
-          <keyname>tsunanet@gmail.com</keyname>
+           <serverId>ossrh</serverId>
+           <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+           <autoReleaseAfterClose>false</autoReleaseAfterClose>
         </configuration>
       </plugin>
 
@@ -370,6 +391,12 @@
       <version>@ASYNCHBASE_VERSION@</version>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-math3</artifactId>
+      <version>@APACHE_MATH_VERSION@</version>
+    </dependency>
+
     <!-- runtime dependencies -->
 
     <dependency>
@@ -447,6 +474,12 @@
       <groupId>com.google.gwt</groupId>
       <artifactId>gwt-user</artifactId>
       <version>@GWT_VERSION@</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>net.opentsdb</groupId>
+      <artifactId>opentsdb_gwt_theme</artifactId>
+      <version>@GWT_THEME_VERSION@</version>
     </dependency>
 
   </dependencies>

@@ -17,6 +17,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 
 import java.text.SimpleDateFormat;
@@ -30,7 +31,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ DateTime.class })
+@PrepareForTest({ DateTime.class, System.class })
 public final class TestDateTime {
 
   @Before
@@ -364,4 +365,40 @@ public final class TestDateTime {
   public void setDefaultTimezoneNull() {
     DateTime.setDefaultTimezone(null);
   }
+
+  @Test
+  public void currentTimeMillis() {
+    PowerMockito.mockStatic(System.class);
+    when(System.currentTimeMillis()).thenReturn(1388534400000L);
+    assertEquals(1388534400000L, DateTime.currentTimeMillis());
+  }
+  
+  @Test
+  public void nanoTime() {
+    PowerMockito.mockStatic(System.class);
+    when(System.nanoTime()).thenReturn(1388534400000000000L);
+    assertEquals(1388534400000000000L, DateTime.nanoTime());
+  }
+
+  @Test
+  public void msFromNano() {
+    assertEquals(0, DateTime.msFromNano(0), 0.0001);
+    assertEquals(1, DateTime.msFromNano(1000000), 0.0001);
+    assertEquals(-1, DateTime.msFromNano(-1000000), 0.0001);
+    assertEquals(1.5, DateTime.msFromNano(1500000), 0.0001);
+    assertEquals(1.123, DateTime.msFromNano(1123000), 0.0001);
+  }
+  
+  @Test
+  public void msFromNanoDiff() {
+    assertEquals(0, DateTime.msFromNanoDiff(1000000, 1000000), 0.0001);
+    assertEquals(0.5, DateTime.msFromNanoDiff(1500000, 1000000), 0.0001);
+    assertEquals(1.5, DateTime.msFromNanoDiff(1500000, 0), 0.0001);
+    assertEquals(0.5, DateTime.msFromNanoDiff(-1000000, -1500000), 0.0001);
+    try {
+      assertEquals(0.5, DateTime.msFromNanoDiff(1000000, 1500000), 0.0001);
+      fail("Expected an IllegalArgumentException");
+    } catch (IllegalArgumentException e) {}
+  }
+
 }

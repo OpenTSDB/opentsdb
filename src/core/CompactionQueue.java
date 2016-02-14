@@ -27,7 +27,6 @@ import com.stumbleupon.async.Deferred;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.hbase.async.Bytes;
 import org.hbase.async.HBaseRpc;
 import org.hbase.async.KeyValue;
@@ -76,6 +75,18 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   /** On how many bytes do we encode metrics IDs.  */
   private final short metric_width;
 
+  /** How frequently the compaction thread wakes up to flush stuff.  */
+  private final int flush_interval;  // seconds
+
+  /** Minimum number of rows we'll attempt to compact at once.  */
+  private final int min_flush_threshold;  // rows
+
+  /** Maximum number of rows we'll compact concurrently.  */
+  private final int max_concurrent_flushes;  // rows
+
+  /** If this is X then we'll flush X times faster than we really need.  */
+  private final int flush_speed;  // multiplicative factor
+
   /**
    * Constructor.
    * @param tsdb The TSDB we belong to.
@@ -84,6 +95,10 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     super(new Cmp(tsdb));
     this.tsdb = tsdb;
     metric_width = tsdb.metrics.width();
+    flush_interval = tsdb.config.getInt("tsd.storage.compaction.flush_interval");
+    min_flush_threshold = tsdb.config.getInt("tsd.storage.compaction.min_flush_threshold");
+    max_concurrent_flushes = tsdb.config.getInt("tsd.storage.compaction.max_concurrent_flushes");
+    flush_speed = tsdb.config.getInt("tsd.storage.compaction.flush_speed");
     if (tsdb.config.enable_compactions()) {
       startCompactionThread();
     }
@@ -153,8 +168,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       return Deferred.fromResult(new ArrayList<Object>(0));
     }
     final ArrayList<Deferred<Object>> ds =
-      new ArrayList<Deferred<Object>>(Math.min(maxflushes,
-                                               MAX_CONCURRENT_FLUSHES));
+      new ArrayList<Deferred<Object>>(Math.min(maxflushes, max_concurrent_flushes));
     int nflushes = 0;
     int seed = (int) (System.nanoTime() % 3);
     for (final byte[] row : this.keySet()) {
@@ -164,10 +178,11 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       if (seed == row.hashCode() % 3) {
         continue;
       }
-      final long base_time = Bytes.getUnsignedInt(row, metric_width);
+      final long base_time = Bytes.getUnsignedInt(row, 
+          Const.SALT_WIDTH() + metric_width);
       if (base_time > cut_off) {
         break;
-      } else if (nflushes == MAX_CONCURRENT_FLUSHES) {
+      } else if (nflushes == max_concurrent_flushes) {
         // We kicked off the compaction of too many rows already, let's wait
         // until they're done before kicking off more.
         break;
@@ -185,10 +200,10 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       ds.add(tsdb.get(row).addCallbacks(compactcb, handle_read_error));
     }
     final Deferred<ArrayList<Object>> group = Deferred.group(ds);
-    if (nflushes == MAX_CONCURRENT_FLUSHES && maxflushes > 0) {
+    if (nflushes == max_concurrent_flushes && maxflushes > 0) {
       // We're not done yet.  Once this group of flushes completes, we need
       // to kick off more.
-      tsdb.flush();  // Speed up this batch by telling the client to flush.
+      tsdb.getClient().flush();  // Speed up this batch by telling the client to flush.
       final int maxflushez = maxflushes;  // Make it final for closure.
       final class FlushMoreCB implements Callback<Deferred<ArrayList<Object>>,
                                                   ArrayList<Object>> {
@@ -270,6 +285,10 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     // KeyValue containing the longest qualifier for the datapoint, used to optimize
     // checking if the compacted qualifier already exists.
     private KeyValue longest;
+    
+    // the latest append column. If set then we don't want to re-write the row
+    // and if we only had a single column with a single value, we return this.
+    private KeyValue last_append_column;
 
     public Compaction(ArrayList<KeyValue> row, KeyValue[] compacted, List<Annotation> annotations) {
       nkvs = row.size();
@@ -348,7 +367,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
       if (compacted != null) {  // Caller is interested in the compacted form.
         compacted[0] = compact;
-        final long base_time = Bytes.getUnsignedInt(compact.key(), metric_width);
+        final long base_time = Bytes.getUnsignedInt(compact.key(), 
+            Const.SALT_WIDTH() + metric_width);
         final long cut_off = System.currentTimeMillis() / 1000
             - Const.MAX_TIMESPAN - 1;
         if (base_time > cut_off) {  // If row is too recent...
@@ -370,21 +390,26 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           deferred = deferred.addCallbacks(new DeleteCompactedCB(to_delete), handle_write_error);
         }
         return deferred;
-      } else {
+      } else if (last_append_column == null) {
         // We had nothing to write, because one of the cells is already the
         // correctly compacted version, so we can go ahead and delete the
         // individual cells directly.
         new DeleteCompactedCB(to_delete).call(null);
         return null;
+      } else {
+        return null;
       }
     }
 
     /**
-     * Find the first datapoint column in a row.
+     * Find the first datapoint column in a row. It may be an appended column
      *
      * @return the first found datapoint column in the row, or null if none
      */
     private KeyValue findFirstDatapointColumn() {
+      if (last_append_column != null) {
+        return last_append_column;
+      }
       for (final KeyValue kv : row) {
         if (isDatapoint(kv)) {
           return kv;
@@ -402,12 +427,26 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     private int buildHeapProcessAnnotations() {
       int tot_values = 0;
       for (final KeyValue kv : row) {
-        final byte[] qual = kv.qualifier();
-        final int len = qual.length;
+        byte[] qual = kv.qualifier();
+        int len = qual.length;
         if ((len & 1) != 0) {
           // process annotations and other extended formats
           if (qual[0] == Annotation.PREFIX()) {
             annotations.add(JSON.parseToObject(kv.value(), Annotation.class));
+          } else if (qual[0] == AppendDataPoints.APPEND_COLUMN_PREFIX){
+            final AppendDataPoints adp = new AppendDataPoints();
+            tot_values += adp.parseKeyValue(tsdb, kv).size();
+            last_append_column = new KeyValue(kv.key(), kv.family(), 
+                adp.qualifier(), kv.timestamp(), adp.value());
+            if (longest == null || 
+                longest.qualifier().length < last_append_column.qualifier().length) {
+              longest = last_append_column;
+            }
+            final ColumnDatapointIterator col = 
+                new ColumnDatapointIterator(last_append_column);
+            if (col.hasMoreData()) {
+              heap.add(col);
+            }
           } else {
             LOG.warn("Ignoring unexpected extended format type " + qual[0]);
           }
@@ -437,7 +476,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
      * @param compacted_qual qualifiers for sorted datapoints
      * @param compacted_val values for sorted datapoints
      */
-    private void mergeDatapoints(ByteBufferList compacted_qual, ByteBufferList compacted_val) {
+    private void mergeDatapoints(ByteBufferList compacted_qual, 
+        ByteBufferList compacted_val) {
       int prevTs = -1;
       while (!heap.isEmpty()) {
         final ColumnDatapointIterator col = heap.remove();
@@ -505,11 +545,19 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     /**
      * Make sure we don't delete the row that is the result of the compaction, so we
      * remove the compacted value from the list of values to delete if it is there.
+     * Also, if one or more columns were appends then we don't want to mess with
+     * the row for now.
      *
      * @param compact the compacted column
      * @return true if we need to write the compacted value
      */
     private boolean updateDeletesCheckForWrite(KeyValue compact) {
+      if (last_append_column != null) {
+        // TODO appends are involved so we may want to squash dps into the 
+        // append or vice-versa. 
+        return false;
+      }
+      
       // if the longest entry isn't as long as the compacted one, obviously the compacted
       // one can't have already existed
       if (longest != null && longest.qualifier().length >= compact.qualifier().length) {
@@ -650,21 +698,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     thread.start();
   }
 
-  /** How frequently the compaction thread wakes up flush stuff.  */
-  // TODO(tsuna): Make configurable?
-  private static final int FLUSH_INTERVAL = 10;  // seconds
 
-  /** Minimum number of rows we'll attempt to compact at once.  */
-  // TODO(tsuna): Make configurable?
-  private static final int MIN_FLUSH_THRESHOLD = 100;  // rows
-
-  /** Maximum number of rows we'll compact concurrently.  */
-  // TODO(tsuna): Make configurable?
-  private static final int MAX_CONCURRENT_FLUSHES = 10000;  // rows
-
-  /** If this is X then we'll flush X times faster than we really need.  */
-  // TODO(tsuna): Make configurable?
-  private static final int FLUSH_SPEED = 2;  // multiplicative factor
 
   /**
    * Background thread to trigger periodic compactions.
@@ -682,7 +716,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           // Flush if  we have too many rows to recompact.
           // Note that in we might not be able to actually
           // flush anything if the rows aren't old enough.
-          if (size > MIN_FLUSH_THRESHOLD) {
+          if (size > min_flush_threshold) {
             // How much should we flush during this iteration?  This scheme is
             // adaptive and flushes at a rate that is proportional to the size
             // of the queue, so we flush more aggressively if the queue is big.
@@ -701,8 +735,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
             // FLUSH_SPEED is 2, then instead of taking 1h to flush what we have
             // for the previous hour, we'll take only 30m.  This is desirable so
             // that we evict old entries from the queue a bit faster.
-            final int maxflushes = Math.max(MIN_FLUSH_THRESHOLD,
-              size * FLUSH_INTERVAL * FLUSH_SPEED / Const.MAX_TIMESPAN);
+            final int maxflushes = Math.max(min_flush_threshold,
+              size * flush_interval * flush_speed / Const.MAX_TIMESPAN);
             final long now = System.currentTimeMillis();
             flush(now / 1000 - Const.MAX_TIMESPAN - 1, maxflushes);
             if (LOG.isDebugEnabled()) {
@@ -740,7 +774,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           return;
         }
         try {
-          Thread.sleep(FLUSH_INTERVAL * 1000);
+          Thread.sleep(flush_interval * 1000);
         } catch (InterruptedException e) {
           LOG.error("Compaction thread interrupted, doing one last flush", e);
           flush();
@@ -758,16 +792,16 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    */
   private static final class Cmp implements Comparator<byte[]> {
 
-    /** On how many bytes do we encode metrics IDs.  */
-    private final short metric_width;
+    /** The position with which the timestamp of metric starts.  */
+    private final short timestamp_pos;
 
     public Cmp(final TSDB tsdb) {
-      metric_width = tsdb.metrics.width();
+      timestamp_pos = (short) (Const.SALT_WIDTH() + tsdb.metrics.width());
     }
 
     @Override
     public int compare(final byte[] a, final byte[] b) {
-      final int c = Bytes.memcmp(a, b, metric_width, Const.TIMESTAMP_BYTES);
+      final int c = Bytes.memcmp(a, b, timestamp_pos, Const.TIMESTAMP_BYTES);
       // If the timestamps are equal, sort according to the entire row key.
       return c != 0 ? c : Bytes.memcmp(a, b);
     }

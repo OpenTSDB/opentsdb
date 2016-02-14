@@ -68,6 +68,9 @@ def main(argv):
     parser.add_option('-I', '--ignore-recent', default=0, type='int',
             metavar='SECONDS', help='Ignore data points that are that'
             ' are that recent.')
+    parser.add_option('-P', '--percent-over', dest='percent_over', default=0,
+            metavar='PERCENT', type='float', help='Only alarm if PERCENT of the data'
+            ' points violate the threshold.')
     parser.add_option('-S', '--ssl', default=False, action='store_true',
             help='Make queries to OpenTSDB via SSL (https)')
     (options, args) = parser.parse_args(args=argv[1:])
@@ -90,10 +93,14 @@ def main(argv):
                      ' critical threshold (-c).')
     elif options.ignore_recent < 0:
         parser.error('--ignore-recent must be positive.')
+    elif options.percent_over < 0 or options.percent_over > 100:
+        parser.error('--percent-over must be in the range 0..100.')
 
-    if not options.critical:
+    options.percent_over /= 100.0 # Convert to range 0-1
+
+    if options.critical is None:
         options.critical = options.warning
-    elif not options.warning:
+    elif options.warning is None:
         options.warning = options.critical
 
     # argument construction
@@ -173,6 +180,8 @@ def main(argv):
     badval = None  # Value of the bad value we found, if any.
     npoints = 0    # How many values have we seen?
     nbad = 0       # How many bad values have we seen?
+    ncrit = 0      # How many critical values have we seen?
+    nwarn = 0      # How many warning values have we seen?
     for datapoint in datapoints:
         datapoint = datapoint.split()
         ts = int(datapoint[1])
@@ -188,19 +197,25 @@ def main(argv):
         bad = False  # Is the current value bad?
         # compare to warning/crit
         if comparator(val, options.critical):
-            rv = 2
             bad = True
-            nbad += 1
+            ncrit += 1
+            nwarn += 1
         elif rv < 2 and comparator(val, options.warning):
-            rv = 1
             bad = True
-            nbad += 1
+            nwarn += 1
         if (bad and
             (badval is None  # First bad value we find.
              or comparator(val, badval))):  # Worse value.
             badval = val
             badts = ts
-
+    if ncrit > 0 and (float(ncrit) / npoints > options.percent_over):
+        rv = 2
+        nbad = ncrit
+    elif nwarn > 0 and (float(nwarn) / npoints > options.percent_over):
+        rv = 1
+        nbad = nwarn
+    else:
+        rv=0
     if options.verbose and len(datapoints) != npoints:
         print ('ignored %d/%d data points for being more than %ds old'
                % (len(datapoints) - npoints, len(datapoints), options.duration))
@@ -210,6 +225,15 @@ def main(argv):
         if options.verbose:
             print ('worse data point value=%s at ts=%s' % (badval, badts))
         badts = time.asctime(time.localtime(badts))
+
+    bad_pct = nbad * 100.0 / npoints
+
+    if options.bad_percent is not None and rv > 0 \
+        and bad_pct < options.bad_percent:
+            if options.verbose:
+                print 'ignoring alarm, less than %.1f%% bad values (found %.1f%%)' % \
+                    (options.bad_percent, bad_pct)
+            rv = 0
 
     # in nrpe, pipe character is something special, but it's used in tag
     # searches.  Translate it to something else for the purposes of output.
@@ -226,7 +250,7 @@ def main(argv):
             threshold = options.critical
         print ('%s: %s%s %s %s: %d/%d bad values (%.1f%%) worst: %r @ %s'
                % (level, options.metric, ttags, options.comparator, threshold,
-                  nbad, npoints, nbad * 100.0 / npoints, badval, badts))
+                  nbad, npoints, bad_pct, badval, badts))
     return rv
 
 

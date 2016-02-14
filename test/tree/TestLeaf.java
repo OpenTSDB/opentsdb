@@ -16,9 +16,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
@@ -35,7 +37,6 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -50,7 +51,9 @@ import com.stumbleupon.async.DeferredGroupException;
   GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
   Scanner.class })
 public final class TestLeaf {
-  private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
+  private final static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
+  private final static byte[] TREE_TABLE = "tsdb-tree".getBytes(MockBase.ASCII());
+  private final static byte[] UID_TABLE = "tsdb-uid".getBytes(MockBase.ASCII());
   private TSDB tsdb;
   private HBaseClient client = mock(HBaseClient.class);
   private MockBase storage;
@@ -58,23 +61,24 @@ public final class TestLeaf {
   @Before
   public void before() throws Exception {
     final Config config = new Config(false);
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(client, config);
     
     storage = new MockBase(tsdb, client, true, true, true, true);
+    final List<byte[]> families = new ArrayList<byte[]>();
+    families.add(Tree.TREE_FAMILY());
+    storage.addTable(TREE_TABLE, families);
     
-    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 1 }, NAME_FAMILY,
         "metrics".getBytes(MockBase.ASCII()),
         "sys.cpu.0".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 1 }, NAME_FAMILY,
         "tagk".getBytes(MockBase.ASCII()),
         "host".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
+    storage.addColumn(UID_TABLE, new byte[] { 0, 0, 1 }, NAME_FAMILY,
         "tagv".getBytes(MockBase.ASCII()),
         "web01".getBytes(MockBase.ASCII()));
     
-    storage.addColumn(new byte[] { 0, 1 }, Tree.TREE_FAMILY(),
+    storage.addColumn(TREE_TABLE, new byte[] { 0, 1 }, Tree.TREE_FAMILY(),
         new Leaf("0", "000001000001000001").columnQualifier(), 
         ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000001\"}")
         .getBytes(MockBase.ASCII()));
@@ -154,7 +158,7 @@ public final class TestLeaf {
     final Tree tree = TestTree.buildTestTree();
     assertTrue(leaf.storeLeaf(tsdb, new byte[] { 0, 1 }, tree)
         .joinUninterruptibly());
-    assertEquals(2, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(2, storage.numColumns(TREE_TABLE, new byte[] { 0, 1 }));
   }
   
   @Test
@@ -163,7 +167,7 @@ public final class TestLeaf {
     final Tree tree = TestTree.buildTestTree();
     assertTrue(leaf.storeLeaf(tsdb, new byte[] { 0, 1 }, tree)
         .joinUninterruptibly());
-    assertEquals(1, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(1, storage.numColumns(TREE_TABLE, new byte[] { 0, 1 }));
   }
   
   @Test
@@ -172,7 +176,7 @@ public final class TestLeaf {
     final Tree tree = TestTree.buildTestTree();
     assertFalse(leaf.storeLeaf(tsdb, new byte[] { 0, 1 }, tree)
         .joinUninterruptibly());
-    assertEquals(1, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(1, storage.numColumns(TREE_TABLE, new byte[] { 0, 1 }));
     assertEquals(1, tree.getCollisions().size());
   }
   

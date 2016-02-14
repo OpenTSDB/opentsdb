@@ -584,7 +584,7 @@ public final class TestConfig {
     }
   }
   
-  @Test (expected = NullPointerException.class)
+  @Test
   public void getDirectoryNameNull() throws Exception {
     final Config config = new Config(false);
     assertNull(config.getDirectoryName("tsd.unitest"));

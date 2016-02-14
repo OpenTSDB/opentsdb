@@ -204,23 +204,33 @@ public final class Plot {
       final PrintWriter datafile = new PrintWriter(datafiles[i]);
       try {
         for (final DataPoint d : datapoints.get(i)) {
-          final long ts = d.timestamp() / 1000;
-          if (ts >= (start_time & UNSIGNED) && ts <= (end_time & UNSIGNED)) {
-            npoints++;
-          }
-          datafile.print(ts + utc_offset);
-          datafile.print(' ');
+          final long ts = d.timestamp() / 1000;          
           if (d.isInteger()) {
+            datafile.print(ts + utc_offset);
+            datafile.print(' ');
             datafile.print(d.longValue());
           } else {
             final double value = d.doubleValue();
-            if (value != value || Double.isInfinite(value)) {
-              throw new IllegalStateException("NaN or Infinity found in"
+
+            if (Double.isInfinite(value)) {
+              // Infinity is invalid.
+              throw new IllegalStateException("Infinity found in"
                   + " datapoints #" + i + ": " + value + " d=" + d);
+            } else if (Double.isNaN(value)) {
+              // NaNs should be skipped.
+              continue;
             }
+
+            datafile.print(ts + utc_offset);
+            datafile.print(' ');
             datafile.print(value);
           }
+          
           datafile.print('\n');
+          
+          if (ts >= (start_time & UNSIGNED) && ts <= (end_time & UNSIGNED)) {
+            npoints++;
+          }
         }
       } finally {
         datafile.close();
@@ -258,6 +268,7 @@ public final class Plot {
         .append(Short.toString(height));
       final String smooth = params.remove("smooth");
       final String fgcolor = params.remove("fgcolor");
+      final String style = params.remove("style");
       String bgcolor = params.remove("bgcolor");
       if (fgcolor != null && bgcolor == null) {
         // We can't specify a fgcolor without specifying a bgcolor.
@@ -292,7 +303,8 @@ public final class Plot {
       final int nseries = datapoints.size();
       if (nseries > 0) {
         gp.write("set grid\n"
-                 + "set style data linespoints\n");
+                 + "set style data ");
+        gp.append(style != null? style : "linespoint").append("\n");
         if (!params.containsKey("key")) {
           gp.write("set key right box\n");
         }

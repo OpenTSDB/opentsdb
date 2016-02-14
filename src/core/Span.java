@@ -24,6 +24,7 @@ import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
+import org.hbase.async.Bytes.ByteMap;
 
 import com.stumbleupon.async.Deferred;
 
@@ -105,6 +106,12 @@ final class Span implements DataPoints {
     return rows.get(0).getTagsAsync();
   }
   
+  @Override
+  public ByteMap<byte[]> getTagUids() {
+    checkNotEmpty();
+    return rows.get(0).getTagUids();
+  }
+  
   /** @return an empty list since aggregated tags cannot exist on a single span */
   public List<String> getAggregatedTags() {
     return Collections.emptyList();
@@ -161,12 +168,14 @@ final class Span implements DataPoints {
       final byte[] key = row.key();
       final RowSeq last = rows.get(rows.size() - 1);
       final short metric_width = tsdb.metrics.width();
-      final short tags_offset = (short) (metric_width + Const.TIMESTAMP_BYTES);
+      final short tags_offset = 
+          (short) (Const.SALT_WIDTH() + metric_width + Const.TIMESTAMP_BYTES);
       final short tags_bytes = (short) (key.length - tags_offset);
       String error = null;
       if (key.length != last.key.length) {
         error = "row key length mismatch";
-      } else if (Bytes.memcmp(key, last.key, 0, metric_width) != 0) {
+      } else if (
+          Bytes.memcmp(key, last.key, Const.SALT_WIDTH(), metric_width) != 0) {
         error = "metric ID mismatch";
       } else if (Bytes.memcmp(key, last.key, tags_offset, tags_bytes) != 0) {
         error = "tags mismatch";
@@ -186,7 +195,8 @@ final class Span implements DataPoints {
     if (last_ts >= rowseq.timestamp(0)) {
       // scan to see if we need to merge into an existing row
       for (final RowSeq rs : rows) {
-        if (Bytes.memcmp(rs.key, row.key()) == 0) {
+        if (Bytes.memcmp(rs.key, row.key(), Const.SALT_WIDTH(), 
+            (rs.key.length - Const.SALT_WIDTH())) == 0) {
           rs.addRow(row);
           return;
         }
@@ -387,11 +397,17 @@ final class Span implements DataPoints {
       current_row = rows.get(0).internalIterator();
     }
 
+    // ------------------ //
+    // Iterator interface //
+    // ------------------ //
+    
+    @Override
     public boolean hasNext() {
       return (current_row.hasNext()             // more points in this row
               || row_index < rows.size() - 1);  // or more rows
     }
 
+    @Override
     public DataPoint next() {
       if (current_row.hasNext()) {
         return current_row.next();
@@ -403,10 +419,16 @@ final class Span implements DataPoints {
       throw new NoSuchElementException("no more elements");
     }
 
+    @Override
     public void remove() {
       throw new UnsupportedOperationException();
     }
 
+    // ---------------------- //
+    // SeekableView interface //
+    // ---------------------- //
+    
+    @Override
     public void seek(final long timestamp) {
       int row_index = seekRow(timestamp);
       if (row_index != this.row_index) {
@@ -416,6 +438,7 @@ final class Span implements DataPoints {
       current_row.seek(timestamp);
     }
 
+    @Override
     public String toString() {
       return "Span.Iterator(row_index=" + row_index
         + ", current_row=" + current_row + ", span=" + Span.this + ')';
@@ -424,13 +447,35 @@ final class Span implements DataPoints {
   }
 
   /**
-   * Package private iterator method to access data while downsampling.
+   * Package private iterator method to access data while downsampling with the
+   * option to force interpolation.
+   * @param start_time The time in milliseconds at which the data begins.
+   * @param end_time The time in milliseconds at which the data ends.
    * @param interval_ms The interval in milli seconds wanted between each data
    * point.
    * @param downsampler The downsampling function to use.
+   * @param fill_policy Policy specifying whether to interpolate or to fill
+   * missing intervals with special values.
+   * @return A new downsampler.
    */
-  Downsampler downsampler(final long interval_ms,
-                          final Aggregator downsampler) {
-    return new Downsampler(spanIterator(), interval_ms, downsampler);
+  Downsampler downsampler(final long start_time,
+                          final long end_time,
+                          final long interval_ms,
+                          final Aggregator downsampler,
+                          final FillPolicy fill_policy) {
+    if (FillPolicy.NONE == fill_policy) {
+      // The default downsampler simply skips missing intervals, causing the
+      // span group to linearly interpolate.
+      return new Downsampler(spanIterator(), interval_ms, downsampler);
+    } else {
+      // Otherwise, we need to instantiate a downsampler that can fill missing
+      // intervals with special values.
+      return new FillingDownsampler(spanIterator(), start_time, end_time,
+        interval_ms, downsampler, fill_policy);
+    }
+  }
+
+  public int getQueryIndex() {
+    throw new UnsupportedOperationException("Not mapped to a query");
   }
 }

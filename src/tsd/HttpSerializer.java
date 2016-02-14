@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -459,6 +460,24 @@ public abstract class HttpSerializer {
   }
   
   /**
+   * Format the results from a timeseries data query
+   * @param query The TSQuery object used to fetch the results
+   * @param results The data fetched from storage
+   * @param globals An optional list of global annotation objects
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   * @since 2.2
+   */
+  public Deferred<ChannelBuffer> formatQueryAsyncV1(final TSQuery query, 
+      final List<DataPoints[]> results, final List<Annotation> globals) 
+      throws IOException {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatQueryV1");
+  }
+  
+  /**
    * Format a list of last data points
    * @param data_points The results of the query
    * @return A ChannelBuffer object to pass on to the caller
@@ -653,6 +672,62 @@ public abstract class HttpSerializer {
   }
   
   /**
+   * Format a list of thread statistics
+   * @param stats The thread statistics list to format
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   * @since 2.2
+   */
+  public ChannelBuffer formatThreadStatsV1(final List<Map<String, Object>> stats) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatThreadStatsV1");
+  }
+  
+  /**
+   * format a list of region client statistics
+   * @param stats The list of region client stats to format
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   * @since 2.2
+   */
+  public ChannelBuffer formatRegionStatsV1(final List<Map<String, Object>> stats) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatRegionStatsV1");
+  }
+  
+  /**
+   * Format a list of JVM statistics
+   * @param map The JVM stats list to format
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   * @since 2.2
+   */
+  public ChannelBuffer formatJVMStatsV1(final Map<String, Map<String, Object>> map) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatJVMStatsV1");
+  }
+  
+  /**
+   * Format the query stats
+   * @param query_stats Map of query statistics
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   * @since 2.2
+   */
+  public ChannelBuffer formatQueryStatsV1(final Map<String, Object> query_stats) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatQueryStatsV1");
+  }
+  
+  /**
    * Format the response from a search query
    * @param results The query (hopefully filled with results) to serialize
    * @return A ChannelBuffer object to pass on to the caller
@@ -676,6 +751,20 @@ public abstract class HttpSerializer {
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
         " has not implemented formatConfigV1");
+  }
+  
+  /**
+   * Format the loaded filter configurations
+   * @param config The filters to serialize
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatFilterConfigV1(
+      final Map<String, Map<String, String>> config) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatFilterConfigV1");
   }
   
   /**

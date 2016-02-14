@@ -30,4 +30,11 @@ GWT_USER_BASE_URL := http://central.maven.org/maven2/com/google/gwt/gwt-user/$(G
 $(GWT_USER): $(GWT_USER).md5
 	set dummy "$(GWT_USER_BASE_URL)" "$(GWT_USER)"; shift; $(FETCH_DEPENDENCY)
 
-THIRD_PARTY += $(GWT_DEV) $(GWT_USER)
+GWT_THEME_VERSION := 1.0.0
+GWT_THEME := third_party/gwt/opentsdb-gwt-theme-$(GWT_THEME_VERSION).jar
+GWT_THEME_BASE_URL := http://central.maven.org/maven2/net/opentsdb/opentsdb-gwt-theme/$(GWT_THEME_VERSION)
+
+$(GWT_THEME): $(GWT_THEME).md5
+	set dummy "$(GWT_THEME_BASE_URL)" "$(GWT_THEME)"; shift; $(FETCH_DEPENDENCY)
+	
+THIRD_PARTY += $(GWT_DEV) $(GWT_USER) $(GWT_THEME)

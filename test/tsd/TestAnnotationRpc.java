@@ -14,7 +14,6 @@ package net.opentsdb.tsd;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.nio.charset.Charset;
@@ -37,7 +36,6 @@ import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -63,13 +61,11 @@ public final class TestAnnotationRpc {
   @Before
   public void before() throws Exception {
     final Config config = new Config(false);
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(client, config);
     
     storage = new MockBase(tsdb, client, true, true, true, true);
     
- // add a global
+    // add a global
     storage.addColumn(global_row_key, 
         new byte[] { 1, 0, 0 }, 
         ("{\"startTime\":1328140800,\"endTime\":1328140801,\"description\":" + 
@@ -120,6 +116,7 @@ public final class TestAnnotationRpc {
   
   @Test
   public void get() throws Exception {
+    storage.dumpToSystemOut();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
     "/api/annotation?tsuid=000001000001000001&start_time=1388450562");
     rpc.execute(tsdb, query);
@@ -130,6 +127,14 @@ public final class TestAnnotationRpc {
   public void getGlobal() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
     "/api/annotation?start_time=1328140800");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+  }
+  
+  @Test
+  public void getGlobals() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/annotations?start_time=1328140800");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
   }
@@ -145,6 +150,13 @@ public final class TestAnnotationRpc {
   public void getGlobalNotFound() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
     "/api/annotation?start_time=1388450563");
+    rpc.execute(tsdb, query);
+  }
+  
+  @Test (expected = BadRequestException.class)
+  public void getGlobalsNotFound() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/annotation?start_time=1388450563");
     rpc.execute(tsdb, query);
   }
   

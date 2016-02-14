@@ -65,14 +65,11 @@ final class AnnotationRpc implements HttpRpc {
     // GET
     if (method == HttpMethod.GET) {
       try {
-        final Annotation stored_annotation = 
-          Annotation.getAnnotation(tsdb, note.getTSUID(), note.getStartTime())
-            .joinUninterruptibly();
-        if (stored_annotation == null) {
-          throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
-              "Unable to locate annotation in storage");
+        if ("annotations".toLowerCase().equals(uri[0])) {
+          fetchMultipleAnnotations(tsdb, note, query);
+        } else {
+          fetchSingleAnnotation(tsdb, note, query);
         }
-        query.sendReply(query.serializer().formatAnnotationV1(stored_annotation));
       } catch (BadRequestException e) {
         throw e;
       } catch (Exception e) {
@@ -345,6 +342,33 @@ final class AnnotationRpc implements HttpRpc {
     return note;
   }
 
+  private void fetchSingleAnnotation(final TSDB tsdb, final Annotation note,
+                                     final HttpQuery query) throws Exception {
+    final Annotation stored_annotation =
+      Annotation.getAnnotation(tsdb, note.getTSUID(), note.getStartTime())
+        .joinUninterruptibly();
+    if (stored_annotation == null) {
+      throw new BadRequestException(HttpResponseStatus.NOT_FOUND,
+          "Unable to locate annotation in storage");
+    }
+    query.sendReply(query.serializer().formatAnnotationV1(stored_annotation));
+  }
+
+  private void fetchMultipleAnnotations(final TSDB tsdb, final Annotation note,
+                                        final HttpQuery query) throws Exception {
+    if (note.getEndTime() == 0) {
+      note.setEndTime(System.currentTimeMillis());
+    }
+    final List<Annotation> annotations =
+      Annotation.getGlobalAnnotations(tsdb, note.getStartTime(), note.getEndTime())
+        .joinUninterruptibly();
+    if (annotations == null) {
+      throw new BadRequestException(HttpResponseStatus.NOT_FOUND,
+          "Unable to locate annotations in storage");
+    }
+    query.sendReply(query.serializer().formatAnnotationsV1(annotations));
+  }
+  
   /**
    * Parses a query string for a bulk delet request
    * @param query The query to parse

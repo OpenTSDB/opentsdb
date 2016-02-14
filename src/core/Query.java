@@ -40,8 +40,8 @@ public interface Query {
   /**
    * Returns the start time of the graph.
    * @return A strictly positive integer.
-   * @throws IllegalStateException if {@link #setStartTime} was never called on
-   * this instance before.
+   * @throws IllegalStateException if {@link #setStartTime(long)} was never 
+   * called on this instance before.
    */
   long getStartTime();
 
@@ -67,6 +67,20 @@ public interface Query {
    */
   long getEndTime();
 
+  /**
+   * Sets whether or not the data queried will be deleted.
+   * @param delete True if data should be deleted, false otherwise.
+   * @since 2.2
+   */
+  void setDelete(boolean delete);
+
+  /**
+   * Returns whether or not the data queried will be deleted.
+   * @return A boolean
+   * @since 2.2
+   */
+  boolean getDelete();
+  
   /**
   * Sets the time series to the query.
   * @param metric The metric to retrieve from the TSDB.
@@ -141,6 +155,24 @@ public interface Query {
       final RateOptions rate_options);
   
   /**
+   * Prepares a query against HBase by setting up group bys and resolving
+   * strings to UIDs asynchronously. This replaces calls to all of the setters
+   * like the {@link setTimeSeries}, {@link setStartTime}, etc. 
+   * Make sure to wait on the deferred return before calling {@link runAsync}. 
+   * @param query The main query to fetch the start and end time from
+   * @param index The index of which sub query we're executing
+   * @return A deferred to wait on for UID resolution. The result doesn't have
+   * any meaning and can be discarded.
+   * @throws IllegalArgumentException if the query was missing sub queries or
+   * the index was out of bounds.
+   * @throws NoSuchUniqueName if the name of a metric, or a tag name/value
+   * does not exist. (Bubbles up through the deferred)
+   * @since 2.2
+   */
+  public Deferred<Object> configureFromQuery(final TSQuery query, 
+      final int index);
+  
+  /**
    * Downsamples the results by specifying a fixed interval between points.
    * <p>
    * Technically, downsampling means reducing the sampling interval.  Here
@@ -154,6 +186,18 @@ public interface Query {
    * within an interval.
    */
   void downsample(long interval, Aggregator downsampler);
+
+  /**
+   * Sets an optional downsampling function on this query
+   * @param interval The interval, in milliseconds to rollup data points
+   * @param downsampler An aggregation function to use when rolling up data points
+   * @param fill_policy Policy specifying whether to interpolate or to fill
+   * missing intervals with special values.
+   * @throws NullPointerException if the aggregation function is null
+   * @throws IllegalArgumentException if the interval is not greater than 0
+   * @since 2.2
+   */
+  void downsample(long interval, Aggregator downsampler, FillPolicy fill_policy);
 
   /**
    * Runs this query.

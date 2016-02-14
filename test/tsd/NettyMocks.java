@@ -12,17 +12,22 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
+import java.net.SocketAddress;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
 
+import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelFuture;
+import org.jboss.netty.channel.DefaultChannelFuture;
 import org.jboss.netty.channel.DefaultChannelPipeline;
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -63,6 +68,11 @@ public final class NettyMocks {
     final Channel chan = mock(Channel.class);
     when(chan.toString()).thenReturn("[fake channel]");
     when(chan.isConnected()).thenReturn(true);
+    when(chan.isWritable()).thenReturn(true);
+    
+    final SocketAddress socket = mock(SocketAddress.class);
+    when(socket.toString()).thenReturn("192.168.1.1:4243");
+    when(chan.getRemoteAddress()).thenReturn(socket);
     return chan;
   }
   
@@ -191,6 +201,13 @@ public final class NettyMocks {
     }
     req.headers().set("Content-Type", type);
     return new HttpQuery(tsdb, req, channelMock);
+  }
+
+  /** @param the query to mock a future callback for */
+  public static void mockChannelFuture(final HttpQuery query) {
+    final ChannelFuture future = new DefaultChannelFuture(query.channel(), false);
+    when(query.channel().write(any(ChannelBuffer.class))).thenReturn(future);
+    future.setSuccess();
   }
   
   /**

@@ -24,32 +24,29 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.opentsdb.core.Aggregator;
-import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
-import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.Tags;
+import net.opentsdb.core.TSQuery;
 import net.opentsdb.graph.Plot;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 
@@ -693,6 +690,9 @@ final class GraphHandler implements HttpRpc {
     if ((value = popParam(querystring, "smooth")) != null) {
       params.put("smooth", value);
     }
+    if ((value = popParam(querystring, "style")) != null) {
+      params.put("style", value);
+    }
     // This must remain after the previous `if' in order to properly override
     // any previous `key' parameter if a `nokey' parameter is given.
     if ((value = popParam(querystring, "nokey")) != null) {
@@ -793,20 +793,27 @@ final class GraphHandler implements HttpRpc {
             .append('=').append(tag.getValue());
         }
         for (final DataPoint d : dp) {
-          asciifile.print(metric);
-          asciifile.print(' ');
-          asciifile.print((d.timestamp() / 1000));
-          asciifile.print(' ');
           if (d.isInteger()) {
+            printMetricHeader(asciifile, metric, d.timestamp());
             asciifile.print(d.longValue());
           } else {
+            // Doubles require extra processing.
             final double value = d.doubleValue();
-            if (value != value || Double.isInfinite(value)) {
-              throw new IllegalStateException("NaN or Infinity:" + value
+
+            // Value might be NaN or infinity.
+            if (Double.isInfinite(value)) {
+              // Infinity is invalid.
+              throw new IllegalStateException("Infinity:" + value
                 + " d=" + d + ", query=" + query);
+            } else if (Double.isNaN(value)) {
+              // NaNs should be skipped.
+              continue;
             }
+
+            printMetricHeader(asciifile, metric, d.timestamp());
             asciifile.print(value);
           }
+
           asciifile.print(tagbuf);
           asciifile.print('\n');
         }
@@ -822,6 +829,20 @@ final class GraphHandler implements HttpRpc {
   }
 
   /**
+   * Helper method to write metric name and timestamp.
+   * @param writer The writer to which to write.
+   * @param metric The metric name.
+   * @param timestamp The timestamp.
+   */
+  private static void printMetricHeader(final PrintWriter writer, final String metric,
+      final long timestamp) {
+    writer.print(metric);
+    writer.print(' ');
+    writer.print(timestamp / 1000L);
+    writer.print(' ');
+  }
+  
+  /**
    * Parses the {@code /q} query in a list of {@link Query} objects.
    * @param tsdb The TSDB to use.
    * @param query The HTTP query for {@code /q}.
@@ -830,75 +851,11 @@ final class GraphHandler implements HttpRpc {
    * @throws IllegalArgumentException if the metric or tags were malformed.
    */
   private static Query[] parseQuery(final TSDB tsdb, final HttpQuery query) {
-    final List<String> ms = query.getQueryStringParams("m");
-    if (ms == null) {
-      throw BadRequestException.missingParameter("m");
-    }
-    final Query[] tsdbqueries = new Query[ms.size()];
-    int nqueries = 0;
-    for (final String m : ms) {
-      // m is of the following forms:
-      //   agg:[interval-agg:][rate[{counter[,[countermax][,resetvalue]]}]:]
-      //     metric[{tag=value,...}]
-      // Where the parts in square brackets `[' .. `]' are optional.
-      final String[] parts = Tags.splitString(m, ':');
-      int i = parts.length;
-      if (i < 2 || i > 4) {
-        throw new BadRequestException("Invalid parameter m=" + m + " ("
-          + (i < 2 ? "not enough" : "too many") + " :-separated parts)");
-      }
-      final Aggregator agg = getAggregator(parts[0]);
-      i--;  // Move to the last part (the metric name).
-      final HashMap<String, String> parsedtags = new HashMap<String, String>();
-      final String metric = Tags.parseWithMetric(parts[i], parsedtags);
-      final boolean rate = parts[--i].startsWith("rate");
-      final RateOptions rate_options = QueryRpc.parseRateOptions(rate, parts[i]);
-      if (rate) {
-        i--;  // Move to the next part.
-      }
-      final Query tsdbquery = tsdb.newQuery();
-      try {
-        tsdbquery.setTimeSeries(metric, parsedtags, agg, rate, rate_options);
-      } catch (NoSuchUniqueName e) {
-        throw new BadRequestException(e.getMessage());
-      }
-      // downsampling function & interval.
-      if (i > 0) {
-        final int dash = parts[1].indexOf('-', 1);  // 1st char can't be `-'.
-        if (dash < 0) {
-          throw new BadRequestException("Invalid downsampling specifier '"
-                                        + parts[1] + "' in m=" + m);
-        }
-        Aggregator downsampler;
-        try {
-          downsampler = Aggregators.get(parts[1].substring(dash + 1));
-        } catch (NoSuchElementException e) {
-          throw new BadRequestException("No such downsampling function: "
-                                        + parts[1].substring(dash + 1));
-        }
-        final long interval = DateTime.parseDuration(parts[1].substring(0, dash));
-        tsdbquery.downsample(interval, downsampler);
-      } else {
-        tsdbquery.downsample(1000, agg);
-      }
-      tsdbqueries[nqueries++] = tsdbquery;
-    }
-    return tsdbqueries;
+    final TSQuery q = QueryRpc.parseQuery(tsdb, query);
+    q.validateAndSetQuery();
+    return q.buildQueries(tsdb);
   }
-
-  /**
-   * Returns the aggregator with the given name.
-   * @param name Name of the aggregator to get.
-   * @throws BadRequestException if there's no aggregator with this name.
-   */
-  private static final Aggregator getAggregator(final String name) {
-    try {
-      return Aggregators.get(name);
-    } catch (NoSuchElementException e) {
-      throw new BadRequestException("No such aggregation function: " + name);
-    }
-  }
-
+  
   private static final PlotThdFactory thread_factory = new PlotThdFactory();
 
   private static final class PlotThdFactory implements ThreadFactory {

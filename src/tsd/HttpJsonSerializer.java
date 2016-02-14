@@ -26,28 +26,33 @@ import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferOutputStream;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.FillPolicy;
 import net.opentsdb.core.IncomingDataPoint;
+import net.opentsdb.core.QueryException;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
+import net.opentsdb.core.TSSubQuery;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchQuery;
+import net.opentsdb.stats.QueryStats;
+import net.opentsdb.stats.QueryStats.QueryStat;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.tsd.AnnotationRpc.AnnotationBulkDelete;
 import net.opentsdb.tsd.QueryRpc.LastPointQuery;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -59,9 +64,7 @@ import net.opentsdb.utils.JSON;
  * @since 2.0
  */
 class HttpJsonSerializer extends HttpSerializer {
-  private static final Logger LOG = 
-    LoggerFactory.getLogger(HttpJsonSerializer.class);
-  
+
   /** Type reference for incoming data points */
   private static TypeReference<ArrayList<IncomingDataPoint>> TR_INCOMING =
     new TypeReference<ArrayList<IncomingDataPoint>>() {};
@@ -540,31 +543,132 @@ class HttpJsonSerializer extends HttpSerializer {
    */
   public ChannelBuffer formatQueryV1(final TSQuery data_query, 
       final List<DataPoints[]> results, final List<Annotation> globals) {
+    try {
+      return formatQueryAsyncV1(data_query, results, globals)
+          .joinUninterruptibly();
+    } catch (QueryException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Shouldn't be here", e);
+    }
+  }
+  
+  /**
+   * Format the results from a timeseries data query
+   * @param data_query The TSQuery object used to fetch the results
+   * @param results The data fetched from storage
+   * @param globals An optional list of global annotation objects
+   * @return A Deferred<ChannelBuffer> object to pass on to the caller
+   * @throws IOException if serialization failed
+   * @since 2.2
+   */
+  public Deferred<ChannelBuffer> formatQueryAsyncV1(final TSQuery data_query, 
+      final List<DataPoints[]> results, final List<Annotation> globals) 
+          throws IOException {
     
+    final long start = DateTime.currentTimeMillis();
     final boolean as_arrays = this.query.hasQueryStringParam("arrays");
     final String jsonp = this.query.getQueryStringParam("jsonp");
     
-    // todo - this should be streamed at some point since it could be HUGE
+    // buffers and an array list to stored the deferreds
     final ChannelBuffer response = ChannelBuffers.dynamicBuffer();
     final OutputStream output = new ChannelBufferOutputStream(response);
-    try {
-      // don't forget jsonp
-      if (jsonp != null && !jsonp.isEmpty()) {
-        output.write((jsonp + "(").getBytes(query.getCharset()));
-      }
-      JsonGenerator json = JSON.getFactory().createGenerator(output);
-      json.writeStartArray();
+    // too bad an inner class can't modify a primitive. This is a work around 
+    final List<Boolean> timeout_flag = new ArrayList<Boolean>(1);
+    timeout_flag.add(false);
+    
+    // start with JSONp if we're told to
+    if (jsonp != null && !jsonp.isEmpty()) {
+      output.write((jsonp + "(").getBytes(query.getCharset()));
+    }
+    
+    // start the JSON generator and write the opening array
+    final JsonGenerator json = JSON.getFactory().createGenerator(output);
+    json.writeStartArray();
+ 
+    /**
+     * Every individual data point set (the result of a query and possibly a
+     * group by) will initiate an asynchronous metric/tag UID to name resolution
+     * and then print to the buffer.
+     * NOTE that because this is asynchronous, the order of results is
+     * indeterminate.
+     */
+    class DPsResolver implements Callback<Deferred<Object>, Object> {
+      /** Has to be final to be shared with the nested classes */
+      final StringBuilder metric = new StringBuilder(256);
+      /** Resolved tags */
+      final Map<String, String> tags = new HashMap<String, String>();
+      /** Resolved aggregated tags */
+      final List<String> agg_tags = new ArrayList<String>();
+      /** A list storing the metric and tag resolve calls */
+      final List<Deferred<Object>> resolve_deferreds = 
+          new ArrayList<Deferred<Object>>();
+      /** The data points to serialize */
+      final DataPoints dps;
+      /** Starting time in nanos when we sent the UID resolution queries off */
+      long uid_start;
       
-      for (DataPoints[] separate_dps : results) {
-        for (DataPoints dps : separate_dps) {
-          json.writeStartObject();
+      public DPsResolver(final DataPoints dps) {
+        this.dps = dps;
+      }
+      
+      /** Resolves the metric UID to a name*/
+      class MetricResolver implements Callback<Object, String> {
+        public Object call(final String metric) throws Exception {
+          DPsResolver.this.metric.append(metric);
+          return null;
+        }
+      }
+      
+      /** Resolves the tag UIDs to a key/value string set */
+      class TagResolver implements Callback<Object, Map<String, String>> {
+        public Object call(final Map<String, String> tags) throws Exception {
+          DPsResolver.this.tags.putAll(tags);
+          return null;
+        }
+      }
+      
+      /** Resolves aggregated tags */
+      class AggTagResolver implements Callback<Object, List<String>> {
+        public Object call(final List<String> tags) throws Exception {
+          DPsResolver.this.agg_tags.addAll(tags);
+          return null;
+        }
+      }
+      
+      /** After the metric and tags have been resolved, this will print the
+       * results to the output buffer in the proper format.
+       */
+      class WriteToBuffer implements Callback<Object, ArrayList<Object>> {
+        final DataPoints dps;
+        
+        /**
+         * Default ctor that takes a data point set
+         * @param dps Datapoints to print
+         */
+        public WriteToBuffer(final DataPoints dps) {
+          this.dps = dps;
+        }
+        
+        /**
+         * Handles writing the data to the output buffer. The results of the
+         * deferreds don't matter as they will be stored in the class final
+         * variables.
+         */
+        public Object call(final ArrayList<Object> deferreds) throws Exception {
+          data_query.getQueryStats().addStat(dps.getQueryIndex(), 
+              QueryStat.UID_TO_STRING_TIME, (DateTime.nanoTime() - uid_start));
+          final long local_serialization_start = DateTime.nanoTime();
+          final TSSubQuery orig_query = data_query.getQueries()
+              .get(dps.getQueryIndex());
           
-          json.writeStringField("metric", dps.metricName());
+          json.writeStartObject();
+          json.writeStringField("metric", metric.toString());
           
           json.writeFieldName("tags");
           json.writeStartObject();
           if (dps.getTags() != null) {
-            for (Map.Entry<String, String> tag : dps.getTags().entrySet()) {
+            for (Map.Entry<String, String> tag : tags.entrySet()) {
               json.writeStringField(tag.getKey(), tag.getValue());
             }
           }
@@ -573,11 +677,15 @@ class HttpJsonSerializer extends HttpSerializer {
           json.writeFieldName("aggregateTags");
           json.writeStartArray();
           if (dps.getAggregatedTags() != null) {
-            for (String atag : dps.getAggregatedTags()) {
+            for (String atag : agg_tags) {
               json.writeString(atag);
             }
           }
           json.writeEndArray();
+          
+          if (data_query.getShowQuery()) {
+            json.writeObjectField("query", orig_query);
+          }
           
           if (data_query.getShowTSUIDs()) {
             json.writeFieldName("tsuids");
@@ -611,11 +719,14 @@ class HttpJsonSerializer extends HttpSerializer {
             }
           }
           
-          // now the fun stuff, dump the data
+          // now the fun stuff, dump the data and time just the iteration over
+          // the data points
+          final long dps_start = DateTime.nanoTime();
           json.writeFieldName("dps");
+          long counter = 0;
           
           // default is to write a map, otherwise write arrays
-          if (as_arrays) {
+          if (!timeout_flag.get(0) && as_arrays) {
             json.writeStartArray();
             for (final DataPoint dp : dps) {
               if (dp.timestamp() < data_query.startTime() || 
@@ -629,12 +740,20 @@ class HttpJsonSerializer extends HttpSerializer {
               if (dp.isInteger()) {
                 json.writeNumber(dp.longValue());
               } else { 
-                json.writeNumber(dp.doubleValue());
+                // Report missing intervals as null or NaN.
+                final double value = dp.doubleValue();
+                if (Double.isNaN(value) && 
+                    orig_query.fillPolicy() == FillPolicy.NULL) {
+                  json.writeNull();
+                } else {
+                  json.writeNumber(dp.doubleValue());
+                }
               }
               json.writeEndArray();
+              ++counter;
             }
             json.writeEndArray();
-          } else {
+          } else if (!timeout_flag.get(0)) {
             json.writeStartObject();
             for (final DataPoint dp : dps) {
               if (dp.timestamp() < (data_query.startTime()) || 
@@ -646,29 +765,124 @@ class HttpJsonSerializer extends HttpSerializer {
               if (dp.isInteger()) {
                 json.writeNumberField(Long.toString(timestamp), dp.longValue());
               } else {
-                json.writeNumberField(Long.toString(timestamp), dp.doubleValue());
+                // Report missing intervals as null or NaN.
+                final double value = dp.doubleValue();
+                if (Double.isNaN(value) && 
+                    orig_query.fillPolicy() == FillPolicy.NULL) {
+                  json.writeNumberField(Long.toString(timestamp), null);
+                } else {
+                  json.writeNumberField(Long.toString(timestamp), dp.doubleValue());
+                }
               }
+              ++counter;
             }
             json.writeEndObject();
+            
+          } else {
+            // skipping data points all together due to timeout
+            json.writeStartObject();
+            json.writeEndObject();
+          }
+          
+          final long agg_time = DateTime.nanoTime() - dps_start;
+          data_query.getQueryStats().addStat(dps.getQueryIndex(), 
+              QueryStat.AGGREGATION_TIME, agg_time);
+          data_query.getQueryStats().addStat(dps.getQueryIndex(), 
+              QueryStat.AGGREGATED_SIZE, counter);
+          
+          // yeah, it's a little early but we need to dump it out with the results.
+          data_query.getQueryStats().addStat(dps.getQueryIndex(), 
+              QueryStat.SERIALIZATION_TIME, 
+              DateTime.nanoTime() - local_serialization_start);
+          if (!timeout_flag.get(0) && data_query.getShowStats()) {
+            int query_index = (dps == null) ? -1 : dps.getQueryIndex();
+            QueryStats stats = data_query.getQueryStats();
+            
+            if (query_index >= 0) {
+              json.writeFieldName("stats");
+              final Map<String, Object> s = stats.getQueryStats(query_index, false);
+              if (s != null) {
+                json.writeObject(s);
+              } else {
+                json.writeStringField("ERROR", "NO STATS FOUND");
+              }
+            }
           }
 
           // close the results for this particular query
           json.writeEndObject();
+          return null;
         }
       }
-    
-      // close
-      json.writeEndArray();
-      json.close();
       
-      if (jsonp != null && !jsonp.isEmpty()) {
-        output.write(")".getBytes());
+      /**
+       * When called, initiates a resolution of metric and tag UIDs to names, 
+       * then prints to the output buffer once they are completed.
+       */
+      public Deferred<Object> call(final Object obj) throws Exception {
+        this.uid_start = DateTime.nanoTime();
+        
+        resolve_deferreds.add(dps.metricNameAsync()
+            .addCallback(new MetricResolver()));
+        resolve_deferreds.add(dps.getTagsAsync()
+            .addCallback(new TagResolver()));
+        resolve_deferreds.add(dps.getAggregatedTagsAsync()
+            .addCallback(new AggTagResolver()));
+        return Deferred.group(resolve_deferreds)
+            .addCallback(new WriteToBuffer(dps));
       }
-      return response;
-    } catch (IOException e) {
-      LOG.error("Unexpected exception", e);
-      throw new RuntimeException(e);
+
     }
+    
+    // We want the serializer to execute serially so we need to create a callback
+    // chain so that when one DPsResolver is finished, it triggers the next to
+    // start serializing.
+    final Deferred<Object> cb_chain = new Deferred<Object>();
+
+    for (DataPoints[] separate_dps : results) {
+      for (DataPoints dps : separate_dps) {
+        try {
+          cb_chain.addCallback(new DPsResolver(dps));
+        } catch (Exception e) {
+          throw new RuntimeException("Unexpected error durring resolution", e);
+        }
+      }
+    }
+  
+    /** Final callback to close out the JSON array and return our results */
+    class FinalCB implements Callback<ChannelBuffer, Object> {
+      public ChannelBuffer call(final Object obj)
+          throws Exception {
+        
+        // Call this here so we rollup sub metrics into a summary. It's not
+        // completely accurate, of course, because we still have to write the
+        // summary and close the writer. But it's close.
+        data_query.getQueryStats().markSerializationSuccessful();
+
+        // dump overall stats as an extra object in the array
+        // TODO - yeah, I've heard this sucks, we need to figure out a better way.
+        if (data_query.getShowSummary()) {
+          final QueryStats stats = data_query.getQueryStats();
+          json.writeStartObject();
+          json.writeFieldName("statsSummary");
+          json.writeObject(stats.getStats(true, true));
+          json.writeEndObject();
+        }
+        
+        // IMPORTANT Make sure the close the JSON array and the generator
+        json.writeEndArray();
+        json.close();
+        
+        if (jsonp != null && !jsonp.isEmpty()) {
+          output.write(")".getBytes());
+        }
+        return response;
+      }
+    }
+
+    // trigger the callback chain here
+    cb_chain.callback(null);
+    return cb_chain.addCallback(new FinalCB());
   }
   
   /**
@@ -824,6 +1038,50 @@ class HttpJsonSerializer extends HttpSerializer {
   }
   
   /**
+   * Format a list of thread statistics
+   * @param stats The thread statistics list to format
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws JSONException if serialization failed
+   * @since 2.2
+   */
+  public ChannelBuffer formatThreadStatsV1(final List<Map<String, Object>> stats) {
+    return serializeJSON(stats);
+  }
+  
+  /**
+   * format a list of region client statistics
+   * @param stats The list of region client stats to format
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws JSONException if serialization failed
+   * @since 2.2
+   */
+  public ChannelBuffer formatRegionStatsV1(final List<Map<String, Object>> stats) {
+    return serializeJSON(stats);
+  }
+
+  /**
+   * Format a list of JVM statistics
+   * @param stats The JVM stats map to format
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws JSONException if serialization failed
+   * @since 2.2
+   */
+  public ChannelBuffer formatJVMStatsV1(final Map<String, Map<String, Object>> stats) {
+    return serializeJSON(stats);
+  }
+  
+  /**
+   * Format the query stats
+   * @param query_stats Map of query statistics
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   * @since 2.2
+   */
+  public ChannelBuffer formatQueryStatsV1(final Map<String, Object> query_stats) {
+    return serializeJSON(query_stats);
+  }
+  
+  /**
    * Format the response from a search query
    * @param note The query (hopefully filled with results) to serialize
    * @return A ChannelBuffer object to pass on to the caller
@@ -847,6 +1105,17 @@ class HttpJsonSerializer extends HttpSerializer {
       }
     }
     return serializeJSON(map);
+  }
+  
+  /**
+   * Format the loaded filter configurations
+   * @param config The filters to serialize
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatFilterConfigV1(
+      final Map<String, Map<String, String>> config) {
+    return serializeJSON(config);
   }
   
   /**

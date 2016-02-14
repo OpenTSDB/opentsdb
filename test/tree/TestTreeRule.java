@@ -16,9 +16,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.PatternSyntaxException;
 
 import net.opentsdb.core.TSDB;
@@ -37,7 +38,6 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -50,6 +50,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
   PutRequest.class, KeyValue.class, Scanner.class, DeleteRequest.class, 
   Tree.class})
 public final class TestTreeRule {
+  private final static byte[] TREE_TABLE = "tsdb-tree".getBytes(MockBase.ASCII());
   private TSDB tsdb;
   private HBaseClient client = mock(HBaseClient.class);
   private MockBase storage;
@@ -58,9 +59,7 @@ public final class TestTreeRule {
   @Before
   public void before() throws Exception {
     final Config config = new Config(false);
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(client, config);
     
     rule = new TreeRule();
   }
@@ -243,7 +242,7 @@ public final class TestTreeRule {
     rule.setType(TreeRuleType.METRIC);
     rule.setNotes("Just some notes");
     assertTrue(rule.syncToStorage(storage.getTSDB(), false).joinUninterruptibly());
-    assertEquals(3, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(3, storage.numColumns(TREE_TABLE, new byte[] { 0, 1 }));
   }
   
   @Test
@@ -254,9 +253,9 @@ public final class TestTreeRule {
     rule.setOrder(1);
     rule.setNotes("Just some notes");
     assertTrue(rule.syncToStorage(storage.getTSDB(), false).joinUninterruptibly());
-    assertEquals(2, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(2, storage.numColumns(TREE_TABLE, new byte[] { 0, 1 }));
     final TreeRule stored = JSON.parseToObject(
-        storage.getColumn(new byte[] { 0, 1 }, 
+        storage.getColumn(TREE_TABLE, new byte[] { 0, 1 }, Tree.TREE_FAMILY(),
         "tree_rule:2:1".getBytes(MockBase.ASCII())), TreeRule.class);
     assertEquals("Host owner", stored.getDescription());
     assertEquals("Just some notes", stored.getNotes());
@@ -390,14 +389,14 @@ public final class TestTreeRule {
   public void deleteRule() throws Exception {
     setupStorage();
     assertNotNull(TreeRule.deleteRule(storage.getTSDB(), 1, 2, 1));
-    assertEquals(1, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(1, storage.numColumns(TREE_TABLE, new byte[] { 0, 1 }));
   }
   
   @Test
   public void deleteAllRules() throws Exception {
     setupStorage();
     TreeRule.deleteAllRules(storage.getTSDB(), 1);
-    assertEquals(1, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(1, storage.numColumns(TREE_TABLE, new byte[] { 0, 1 }));
   }
 
   @Test
@@ -417,7 +416,10 @@ public final class TestTreeRule {
    */
   private void setupStorage() throws Exception {
     storage = new MockBase(tsdb, client, true, true, true, true);
-
+    final List<byte[]> families = new ArrayList<byte[]>();
+    families.add(Tree.TREE_FAMILY());
+    storage.addTable(TREE_TABLE, families);
+    
     final TreeRule stored_rule = new TreeRule(1);
     stored_rule.setLevel(2);
     stored_rule.setOrder(1);
@@ -428,11 +430,11 @@ public final class TestTreeRule {
     stored_rule.setNotes("Owner of the host machine");
     
     // pretend there's a tree definition in the storage row
-    storage.addColumn(new byte[] { 0, 1 }, "tree".getBytes(MockBase.ASCII()), 
-        new byte[] { 1 });
+    storage.addColumn(TREE_TABLE, new byte[] { 0, 1 }, Tree.TREE_FAMILY(), 
+        "tree".getBytes(MockBase.ASCII()), new byte[] { 1 });
     
     // add a rule to the row
-    storage.addColumn(new byte[] { 0, 1 }, 
+    storage.addColumn(TREE_TABLE, new byte[] { 0, 1 }, Tree.TREE_FAMILY(),
         "tree_rule:2:1".getBytes(MockBase.ASCII()),
         JSON.serializeToBytes(stored_rule));
   }
