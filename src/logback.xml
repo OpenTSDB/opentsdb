@@ -8,15 +8,67 @@
       </pattern>
     </encoder>
   </appender>
+  
+  <!-- This appender is responsible for the /logs endpoint. It maintains MaxSize 
+       lines of the log file in memory. If you don't need the endpoint, disable
+       this appender (by removing the line "<appender-ref ref="CYCLIC"/>" in
+       the "root" section below) to save some cycles and memory. -->
   <appender name="CYCLIC" class="ch.qos.logback.core.read.CyclicBufferAppender">
     <MaxSize>1024</MaxSize>
   </appender>
+  
+  <!-- Appender to write OpenTSDB data to a set of rotating log files -->
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+      <file>/var/log/opentsdb/opentsdb.log</file>
+      <append>true</append>
+      <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+         <fileNamePattern>/home/y/logs/opentsdb2/opentsdb.log.%i</fileNamePattern>
+         <minIndex>1</minIndex>
+         <maxIndex>4</maxIndex>
+      </rollingPolicy>
+      <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+         <maxFileSize>512MB</maxFileSize>
+      </triggeringPolicy>
+      <!-- encoders are assigned the type
+       ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+      <encoder>
+         <pattern>%date{ISO8601} [%thread] %-5level [%logger{0}.%M] - %msg%n</pattern>
+      </encoder>
+   </appender>
+  
+  <!-- Appender for writing full and completed queries to a log file. To use it, make
+       sure to set the "level" to "INFO" in QueryLog below. -->
+  <appender name="QUERY_LOG" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>/var/log/opentsdb/queries.log</file>
+    <append>true</append>
 
-  <logger name="org.apache.zookeeper" level="info"/>
-  <logger name="org.hbase.async" level="info"/>
-  <logger name="com.stumbleupon.async" level="info"/>
-  <root level="info">
+    <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+        <fileNamePattern>/var/log/opentsdb/queries.log.%i</fileNamePattern>
+        <minIndex>1</minIndex>
+        <maxIndex>4</maxIndex>
+    </rollingPolicy>
+
+    <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+        <maxFileSize>128MB</maxFileSize>
+    </triggeringPolicy>
+    <encoder>
+        <pattern>%date{ISO8601} [%logger.%M] %msg%n</pattern>
+    </encoder>
+  </appender>
+  
+  <!-- Per class logger levels -->
+  <logger name="QueryLog" level="OFF" additivity="false">
+    <appender-ref ref="QUERY_LOG"/>
+  </logger>
+  <logger name="org.apache.zookeeper" level="INFO"/>
+  <logger name="org.hbase.async" level="INFO"/>
+  <logger name="com.stumbleupon.async" level="INFO"/>
+  
+  <!-- Fallthrough root logger and router -->
+  <root level="INFO">
     <appender-ref ref="STDOUT"/>
     <appender-ref ref="CYCLIC"/>
+    <!-- Uncomment to log to file -->
+    <!--<appender-ref ref="FILE"/>-->
   </root>
 </configuration>
