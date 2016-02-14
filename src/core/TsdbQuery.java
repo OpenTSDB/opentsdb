@@ -41,6 +41,8 @@ import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.query.QueryUtil;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.stats.Histogram;
+import net.opentsdb.stats.QueryStats;
+import net.opentsdb.stats.QueryStats.QueryStat;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
@@ -71,6 +73,9 @@ final class TsdbQuery implements Query {
 
   /** The TSDB we belong to. */
   private final TSDB tsdb;
+  
+  /** The time, in ns, when we start scanning for data **/
+  private long scan_start_time;
 
   /** Value used for timestamps that are uninitialized.  */
   private static final int UNSET = -1;
@@ -131,6 +136,9 @@ final class TsdbQuery implements Query {
   
   /** Tag value filters to apply post scan */
   private List<TagVFilter> filters;
+  
+  /** An object for storing stats in regarding the query. May be null */
+  private QueryStats query_stats;
   
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
@@ -313,6 +321,7 @@ final class TsdbQuery implements Query {
     setEndTime(query.endTime());
     setDelete(query.getDelete());
     query_index = index;
+    query_stats = query.getQueryStats();
     
     // set common options
     aggregator = sub_query.aggregator();
@@ -541,10 +550,12 @@ final class TsdbQuery implements Query {
       for (int i = 0; i < Const.SALT_BUCKETS(); i++) {
         scanners.add(getScanner(i));
       }
-      return new SaltScanner(tsdb, metric, scanners, spans, scanner_filters)
-        .scan();
+      scan_start_time = DateTime.nanoTime();
+      return new SaltScanner(tsdb, metric, scanners, spans, scanner_filters,
+          delete, query_stats, query_index).scan();
     }
     
+    scan_start_time = DateTime.nanoTime();    
     final Scanner scanner = getScanner();
     final Deferred<TreeMap<byte[], Span>> results =
       new Deferred<TreeMap<byte[], Span>>();
@@ -561,11 +572,17 @@ final class TsdbQuery implements Query {
       
       int nrows = 0;
       boolean seenAnnotation = false;
-      int hbase_time = 0; // milliseconds.
-      long starttime = System.nanoTime();
+      long scanner_start = DateTime.nanoTime();
       long timeout = tsdb.getConfig().getLong("tsd.query.timeout");
       private final Set<String> skips = new HashSet<String>();
       private final Set<String> keepers = new HashSet<String>();
+      private final int index = 0;       // only used for salted scanners
+      /** nanosecond timestamps */
+      private long fetch_start = 0;      // reset each time we send an RPC to HBase
+      private long fetch_time = 0;       // cumulation of time waiting on HBase
+      private long uid_resolve_time = 0; // cumulation of time resolving UIDs
+      private long uids_resolved = 0; 
+      private long compaction_time = 0;  // cumulation of time compacting
       
       /** Error callback that will capture an exception from AsyncHBase and store
        * it so we can bubble it up to the caller.
@@ -574,8 +591,7 @@ final class TsdbQuery implements Query {
         @Override
         public Object call(final Exception e) throws Exception {
           LOG.error("Scanner " + scanner + " threw an exception", e);
-          scanner.close();
-          results.callback(e);
+          close(e);
           return null;
         }
       }
@@ -587,7 +603,7 @@ final class TsdbQuery implements Query {
       * found
       */
        public Object scan() {
-         starttime = System.nanoTime();
+         fetch_start = DateTime.nanoTime();
          return scanner.nextRows().addCallback(this).addErrback(new ErrorCB());
        }
   
@@ -599,23 +615,18 @@ final class TsdbQuery implements Query {
        @Override
        public Object call(final ArrayList<ArrayList<KeyValue>> rows)
          throws Exception {
-         hbase_time += (System.nanoTime() - starttime) / 1000000;
+         fetch_time += DateTime.nanoTime() - fetch_start;
          try {
            if (rows == null) {
-             hbase_time += (System.nanoTime() - starttime) / 1000000;
-             scanlatency.add(hbase_time);
+             scanlatency.add((int)DateTime.msFromNano(fetch_time));
              LOG.info(TsdbQuery.this + " matched " + nrows + " rows in " +
-                 spans.size() + " spans in " + hbase_time + "ms");
-             if (nrows < 1 && !seenAnnotation) {
-               results.callback(null);
-             } else {
-               results.callback(spans);
-             }
-             scanner.close();
+                 spans.size() + " spans in " + DateTime.msFromNano(fetch_time) + "ms");
+             close(null);
              return null;
            }
            
-           if (timeout > 0 && hbase_time > timeout) {
+           if (timeout > 0 && DateTime.msFromNanoDiff(
+               DateTime.nanoTime(), scanner_start) > timeout) {
              throw new InterruptedException("Query timeout exceeded!");
            }
            
@@ -649,6 +660,8 @@ final class TsdbQuery implements Query {
                  continue;
                }
                if (!keepers.contains(tsuid)) {
+                 final long uid_start = DateTime.nanoTime();
+                 
                  /** CB to called after all of the UIDs have been resolved */
                  class MatchCB implements Callback<Object, ArrayList<Boolean>> {
                    @Override
@@ -673,6 +686,8 @@ final class TsdbQuery implements Query {
                    @Override
                    public Deferred<ArrayList<Boolean>> call(
                        final Map<String, String> tags) throws Exception {
+                     uid_resolve_time += (DateTime.nanoTime() - uid_start);
+                     uids_resolved += tags.size();
                      final List<Deferred<Boolean>> matches =
                          new ArrayList<Deferred<Boolean>>(scanner_filters.size());
 
@@ -709,8 +724,7 @@ final class TsdbQuery implements Query {
              return scan();
            }
          } catch (Exception e) {
-           scanner.close();
-           results.callback(e);
+           close(e);
            return null;
          }
        }
@@ -731,15 +745,60 @@ final class TsdbQuery implements Query {
            datapoints = new Span(tsdb);
            spans.put(key, datapoints);
          }
+         final long compaction_start = DateTime.nanoTime();
          final KeyValue compacted = 
            tsdb.compact(row, datapoints.getAnnotations());
+         compaction_time += (DateTime.nanoTime() - compaction_start);
          seenAnnotation |= !datapoints.getAnnotations().isEmpty();
          if (compacted != null) { // Can be null if we ignored all KVs.
            datapoints.addRow(compacted);
            ++nrows;
          }
        }
-     }
+     
+       void close(final Exception e) {
+         scanner.close();
+         
+         if (query_stats != null) {
+           query_stats.addScannerStat(query_index, index, 
+               QueryStat.SCANNER_TIME, DateTime.nanoTime() - scan_start_time);
+
+           // Scanner Stats
+           /* Uncomment when AsyncHBase has this feature:
+           query_stats.addScannerStat(query_index, index, 
+               QueryStat.ROWS_FROM_STORAGE, scanner.getRowsFetched());
+           query_stats.addScannerStat(query_index, index, 
+               QueryStat.COLUMNS_FROM_STORAGE, scanner.getColumnsFetched());
+           query_stats.addScannerStat(query_index, index, 
+               QueryStat.BYTES_FROM_STORAGE, scanner.getBytesFetched()); */
+           query_stats.addScannerStat(query_index, index, 
+               QueryStat.HBASE_TIME, fetch_time);
+           query_stats.addScannerStat(query_index, index, 
+               QueryStat.SUCCESSFUL_SCAN, e == null ? 1 : 0);
+           
+           // Post Scan stats
+           /* TODO - fix up/add these counters 
+           query_stats.addScannerStat(query_index, index, 
+               QueryStat.ROWS_POST_FILTER, rows_post_filter);
+           query_stats.addScannerStat(query_index, index,
+               QueryStat.DPS_POST_FILTER, dps_post_filter); */
+           query_stats.addScannerStat(query_index, index, 
+               QueryStat.SCANNER_UID_TO_STRING_TIME, uid_resolve_time);
+           query_stats.addScannerStat(query_index, index, 
+               QueryStat.UID_PAIRS_RESOLVED, uids_resolved);
+           query_stats.addScannerStat(query_index, index, 
+               QueryStat.COMPACTION_TIME, compaction_time);
+         }
+         
+         if (e != null) {
+           results.callback(e);
+         } else if (nrows < 1 && !seenAnnotation) {
+           results.callback(null);
+         } else {
+           results.callback(spans);
+         }
+       }
+    }
 
      new ScannerCB().scan();
      return results;
@@ -761,7 +820,15 @@ final class TsdbQuery implements Query {
     */
     @Override
     public DataPoints[] call(final TreeMap<byte[], Span> spans) throws Exception {
+      if (query_stats != null) {
+        query_stats.addStat(query_index, QueryStat.QUERY_SCAN_TIME, 
+                (System.nanoTime() - TsdbQuery.this.scan_start_time));
+      }
+      
       if (spans == null || spans.size() <= 0) {
+        if (query_stats != null) {
+          query_stats.addStat(query_index, QueryStat.GROUP_BY_TIME, 0);
+        }
         return NO_RESULT;
       }
       if (group_bys == null) {
@@ -775,6 +842,9 @@ final class TsdbQuery implements Query {
                                               aggregator,
                                               sample_interval_ms, downsampler,
                                               query_index, fill_policy);
+        if (query_stats != null) {
+          query_stats.addStat(query_index, QueryStat.GROUP_BY_TIME, 0);
+        }
         return new SpanGroup[] { group };
       }
   
@@ -831,6 +901,9 @@ final class TsdbQuery implements Query {
       //for (final Map.Entry<byte[], SpanGroup> entry : groups) {
       // LOG.info("group for " + Arrays.toString(entry.getKey()) + ": " + entry.getValue());
       //}
+      if (query_stats != null) {
+        query_stats.addStat(query_index, QueryStat.GROUP_BY_TIME, 0);
+      }
       return groups.values().toArray(new SpanGroup[groups.size()]);
     }
   }

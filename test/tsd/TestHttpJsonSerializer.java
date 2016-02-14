@@ -266,18 +266,15 @@ public final class TestHttpJsonSerializer {
     assertTrue(json.contains("\"metric\":\"system.cpu.user\","));
     assertTrue(json.contains("\"1356998700\":1,"));
     assertTrue(json.contains("\"1357058700\":201"));
-    
     //assert stats
     assertTrue(json.contains("\"stats\":{"));
-    assertTrue(json.contains("\"datapoints\":400"));
-    assertTrue(json.contains("\"rawDatapoints\":800"));
-    assertTrue(json.contains("\"timeSeries\":2"));
-    
+    assertTrue(json.contains("\"emittedDPs\":401"));
+    System.out.println(json);
     //assert stats summary
     assertTrue(json.contains("{\"statsSummary\":{"));
-    assertTrue(json.contains("\"serializationTime\":1500"));
-    assertTrue(json.contains("\"storageTime\":0"));
-    assertTrue(json.contains("\"timeTotal\":2500"));
+    assertTrue(json.contains("\"serializationTime\":"));
+    assertTrue(json.contains("\"processingPreWriteTime\":"));
+    assertTrue(json.contains("\"queryIdx_00\":"));
   }
   
   @Test
@@ -299,12 +296,9 @@ public final class TestHttpJsonSerializer {
     assertTrue(json.contains("\"1356998700\":1,"));
     assertTrue(json.contains("\"1357058700\":201"));
     
-    
     //assert stats
     assertTrue(json.contains("\"stats\":{"));
-    assertTrue(json.contains("\"datapoints\":400"));
-    assertTrue(json.contains("\"rawDatapoints\":800"));
-    assertTrue(json.contains("\"timeSeries\":2"));
+    assertTrue(json.contains("\"emittedDPs\":401"));
     
     //assert stats summary
     assertFalse(json.contains("{\"statsSummary\":{"));
@@ -327,15 +321,16 @@ public final class TestHttpJsonSerializer {
     assertTrue(json.contains("\"metric\":\"system.cpu.user\","));
     assertTrue(json.contains("\"1356998700\":1,"));
     assertTrue(json.contains("\"1357058700\":201"));
-
+    
     //assert stats
     assertFalse(json.contains("\"stats\":{"));
     
     //assert stats summary
     assertTrue(json.contains("{\"statsSummary\":{"));
-    assertTrue(json.contains("\"serializationTime\":1500"));
-    assertTrue(json.contains("\"storageTime\":0"));
-    assertTrue(json.contains("\"timeTotal\":2500"));
+    assertTrue(json.contains("\"serializationTime\":"));
+    assertTrue(json.contains("\"processingPreWriteTime\":"));
+    assertTrue(json.contains("\"emittedDPs\":401"));
+    assertTrue(json.contains("\"queryIdx_00\":"));
   }
   
   @Test
@@ -570,7 +565,7 @@ public final class TestHttpJsonSerializer {
    */
   private void validateTestQuery(final TSQuery data_query) {
     data_query.validateAndSetQuery();
-    data_query.setQueryStats(new QueryStats(remote, data_query));
+    data_query.setQueryStats(new QueryStats(remote, data_query, null));
   }
   
   /**
@@ -590,6 +585,15 @@ public final class TestHttpJsonSerializer {
         return ts;
       }
     });
+    
+    PowerMockito.when(DateTime.nanoTime())
+    .thenAnswer(new Answer<Long> () {
+    public Long answer(InvocationOnMock invocation) throws Throwable {
+      long ts = timestamp.get(0);
+      timestamp.set(0, ts + 500);
+      return ts * 1000000;
+    }
+  });
   }
 
 }

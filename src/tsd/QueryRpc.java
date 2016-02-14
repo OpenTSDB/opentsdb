@@ -19,7 +19,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
+import org.hbase.async.HBaseException;
+import org.hbase.async.RpcTimedOutException;
 import org.hbase.async.Bytes.ByteMap;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -44,6 +47,7 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSUIDQuery;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.stats.QueryStats;
+import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.DateTime;
@@ -61,6 +65,11 @@ import net.opentsdb.utils.DateTime;
  */
 final class QueryRpc implements HttpRpc {
   private static final Logger LOG = LoggerFactory.getLogger(QueryRpc.class);
+  
+  /** Various counters and metrics for reporting query stats */
+  static final AtomicLong query_invalid = new AtomicLong();
+  static final AtomicLong query_exceptions = new AtomicLong();
+  static final AtomicLong query_success = new AtomicLong();
   
   /**
    * Implements the /api/query endpoint to fetch data from OpenTSDB.
@@ -109,7 +118,8 @@ final class QueryRpc implements HttpRpc {
       case 1:
         data_query = query.serializer().parseQueryV1();
         break;
-      default: 
+      default:
+        query_invalid.incrementAndGet();
         throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
             "Requested API version not implemented", "Version " + 
             query.apiVersion() + " is not implemented");
@@ -135,8 +145,10 @@ final class QueryRpc implements HttpRpc {
     // if the user tried this query multiple times from the same IP and src port
     // they'll be rejected on subsequent calls
     final QueryStats query_stats = 
-        new QueryStats(query.getRemoteAddress(), data_query);
+        new QueryStats(query.getRemoteAddress(), data_query, 
+            query.getPrintableHeaders());
     data_query.setQueryStats(query_stats);
+    query.setStats(query_stats);
     
     final int nqueries = data_query.getQueries().size();
     final ArrayList<DataPoints[]> results = new ArrayList<DataPoints[]>(nqueries);
@@ -145,43 +157,56 @@ final class QueryRpc implements HttpRpc {
     /** This has to be attached to callbacks or we may never respond to clients */
     class ErrorCB implements Callback<Object, Exception> {
       public Object call(final Exception e) throws Exception {
+        Throwable ex = e;
         try {
-          if (e instanceof DeferredGroupException) {
-            Throwable ex = e.getCause();
+          LOG.error("Query exception: ", e);
+          if (ex instanceof DeferredGroupException) {
+            ex = e.getCause();
             while (ex != null && ex instanceof DeferredGroupException) {
               ex = ex.getCause();
             }
-            if (ex != null) {
-              if (ex instanceof NoSuchUniqueName) {
-                query_stats.markComplete(HttpResponseStatus.BAD_REQUEST, ex);
-                query.badRequest(new BadRequestException(
-                    HttpResponseStatus.NOT_FOUND, ex.getMessage()));
-                return null;
-              }
-              LOG.error("Query failed", ex);
-              query_stats.markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, ex);
-              query.badRequest(new BadRequestException(ex));
-            } else {
-              LOG.error("Unable to find the cause of the DGE", e);
-              query_stats.markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
-              query.badRequest(new BadRequestException(e));
+            if (ex == null) {
+              LOG.error("The deferred group exception didn't have a cause???");
             }
-          } else if (e.getClass() == QueryException.class) {
-            query_stats.markComplete(HttpResponseStatus.REQUEST_TIMEOUT, e);
-            query.badRequest(new BadRequestException((QueryException)e));
+          } 
+
+          if (ex instanceof RpcTimedOutException) {
+            query_stats.markSerialized(HttpResponseStatus.REQUEST_TIMEOUT, ex);
+            query.badRequest(new BadRequestException(
+                HttpResponseStatus.REQUEST_TIMEOUT, ex.getMessage()));
+            query_exceptions.incrementAndGet();
+          } else if (ex instanceof HBaseException) {
+            query_stats.markSerialized(HttpResponseStatus.FAILED_DEPENDENCY, ex);
+            query.badRequest(new BadRequestException(
+                HttpResponseStatus.FAILED_DEPENDENCY, ex.getMessage()));
+            query_exceptions.incrementAndGet();
+          } else if (ex instanceof QueryException) {
+            query_stats.markSerialized(((QueryException)ex).getStatus(), ex);
+            query.badRequest(new BadRequestException(
+                ((QueryException)ex).getStatus(), ex.getMessage()));
+            query_exceptions.incrementAndGet();
+          } else if (ex instanceof BadRequestException) {
+            query_stats.markSerialized(((BadRequestException)ex).getStatus(), ex);
+            query.badRequest((BadRequestException)ex);
+            query_invalid.incrementAndGet();
+          } else if (ex instanceof NoSuchUniqueName) {
+            query_stats.markSerialized(HttpResponseStatus.BAD_REQUEST, ex);
+            query.badRequest(new BadRequestException(ex));
+            query_invalid.incrementAndGet();
           } else {
-            LOG.error("Query failed", e);
-            query_stats.markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
-            query.badRequest(new BadRequestException(e));
+            query_stats.markSerialized(HttpResponseStatus.INTERNAL_SERVER_ERROR, ex);
+            query.badRequest(new BadRequestException(ex));
+            query_exceptions.incrementAndGet();
           }
-          return null;
-        } catch (RuntimeException ex) {
-          LOG.error("Exception thrown during exception handling", ex);
-          query_stats.markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+          
+        } catch (RuntimeException ex2) {
+          LOG.error("Exception thrown during exception handling", ex2);
+          query_stats.markSerialized(HttpResponseStatus.INTERNAL_SERVER_ERROR, ex2);
           query.sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
-              ex.getMessage().getBytes());
-          return null;
+              ex2.getMessage().getBytes());
+          query_exceptions.incrementAndGet();
         }
+        return null;
       }
     }
     
@@ -198,11 +223,11 @@ final class QueryRpc implements HttpRpc {
         class SendIt implements Callback<Object, ChannelBuffer> {
           public Object call(final ChannelBuffer buffer) throws Exception {
             query.sendReply(buffer);
+            query_success.incrementAndGet();
             return null;
           }
         }
 
-        query_stats.setTimeStorage(System.currentTimeMillis() - start);
         switch (query.apiVersion()) {
         case 0:
         case 1:
@@ -210,6 +235,7 @@ final class QueryRpc implements HttpRpc {
                globals).addCallback(new SendIt()).addErrback(new ErrorCB());
           break;
         default: 
+          query_invalid.incrementAndGet();
           throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
               "Requested API version not implemented", "Version " + 
               query.apiVersion() + " is not implemented");
@@ -699,6 +725,13 @@ final class QueryRpc implements HttpRpc {
     
     query.setQueries(sub_queries);
     return query;
+  }
+  
+  /** @param collector Populates the collector with statistics */
+  public static void collectStats(final StatsCollector collector) {
+    collector.record("http.query.invalid_requests", query_invalid);
+    collector.record("http.query.exceptions", query_exceptions);
+    collector.record("http.query.success", query_success);
   }
   
   public static class LastPointQuery {
