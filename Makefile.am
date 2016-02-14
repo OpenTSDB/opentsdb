@@ -356,7 +356,7 @@ printdeps:
 # This is kind of a hack, but I couldn't find a better way to adjust the paths
 # in the script before it gets installed...
 install-exec-hook:
-	script=tsdb; pkgdatadir='$(pkgdatadir)'; configdir='$(prefix)/etc/opentsdb'; \
+	script=tsdb; pkgdatadir='$(pkgdatadir)'; configdir='$(sysconfigdir)/etc/opentsdb'; \
           abs_srcdir=''; abs_builddir=''; $(edit_tsdb_script)
 	cat tsdb.tmp >"$(DESTDIR)$(bindir)/tsdb"
 	rm -f tsdb.tmp
