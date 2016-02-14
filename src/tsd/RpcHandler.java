@@ -331,6 +331,7 @@ final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
     HttpQuery.collectStats(collector);
     GraphHandler.collectStats(collector);
     PutDataPointRpc.collectStats(collector);
+    QueryRpc.collectStats(collector);
   }
 
   /**

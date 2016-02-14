@@ -720,8 +720,7 @@ public abstract class HttpSerializer {
    * @throws BadRequestException if the plugin has not implemented this method
    * @since 2.2
    */
-  public ChannelBuffer formatQueryStatsV1(
-      final Map<String, List<Map<String, Object>>> query_stats) {
+  public ChannelBuffer formatQueryStatsV1(final Map<String, Object> query_stats) {
     throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 

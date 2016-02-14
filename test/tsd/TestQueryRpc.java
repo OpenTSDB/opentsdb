@@ -442,6 +442,7 @@ public final class TestQueryRpc {
         "{\"start\":1425440315306,\"queries\":" +
           "[{\"metric\":\"somemetric\",\"aggregator\":\"sum\",\"rate\":true," +
           "\"rateOptions\":{\"counter\":false}}]}");
+    NettyMocks.mockChannelFuture(query);
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
   }
@@ -469,6 +470,7 @@ public final class TestQueryRpc {
   public void executeEmpty() throws Exception {
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/query?start=1h-ago&m=sum:sys.cpu.user");
+    NettyMocks.mockChannelFuture(query);
     rpc.execute(tsdb, query);
     final String json = 
         query.response().getContent().toString(Charset.forName("UTF-8"));
@@ -484,6 +486,7 @@ public final class TestQueryRpc {
     
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/query?start=1h-ago&m=sum:sys.cpu.user");
+    NettyMocks.mockChannelFuture(query);
     rpc.execute(tsdb, query);
     final String json = 
         query.response().getContent().toString(Charset.forName("UTF-8"));

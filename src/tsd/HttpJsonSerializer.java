@@ -45,6 +45,7 @@ import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.QueryStats;
+import net.opentsdb.stats.QueryStats.QueryStat;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
@@ -604,6 +605,8 @@ class HttpJsonSerializer extends HttpSerializer {
           new ArrayList<Deferred<Object>>();
       /** The data points to serialize */
       final DataPoints dps;
+      /** Starting time in nanos when we sent the UID resolution queries off */
+      long uid_start;
       
       public DPsResolver(final DataPoints dps) {
         this.dps = dps;
@@ -653,6 +656,9 @@ class HttpJsonSerializer extends HttpSerializer {
          * variables.
          */
         public Object call(final ArrayList<Object> deferreds) throws Exception {
+          data_query.getQueryStats().addStat(dps.getQueryIndex(), 
+              QueryStat.UID_TO_STRING_TIME, (DateTime.nanoTime() - uid_start));
+          final long local_serialization_start = DateTime.nanoTime();
           final TSSubQuery orig_query = data_query.getQueries()
               .get(dps.getQueryIndex());
           
@@ -715,8 +721,9 @@ class HttpJsonSerializer extends HttpSerializer {
           
           // now the fun stuff, dump the data and time just the iteration over
           // the data points
-          final long dps_start = DateTime.currentTimeMillis();
+          final long dps_start = DateTime.nanoTime();
           json.writeFieldName("dps");
+          long counter = 0;
           
           // default is to write a map, otherwise write arrays
           if (!timeout_flag.get(0) && as_arrays) {
@@ -743,6 +750,7 @@ class HttpJsonSerializer extends HttpSerializer {
                 }
               }
               json.writeEndArray();
+              ++counter;
             }
             json.writeEndArray();
           } else if (!timeout_flag.get(0)) {
@@ -766,28 +774,39 @@ class HttpJsonSerializer extends HttpSerializer {
                   json.writeNumberField(Long.toString(timestamp), dp.doubleValue());
                 }
               }
+              ++counter;
             }
             json.writeEndObject();
+            
           } else {
             // skipping data points all together due to timeout
             json.writeStartObject();
             json.writeEndObject();
           }
-  
-          final long agg_time = DateTime.currentTimeMillis() - dps_start;
-          data_query.getQueryStats().addTimeAggregation(agg_time);
-          data_query.getQueryStats().addAggregatedSize(dps.aggregatedSize());
-          data_query.getQueryStats().addSize(dps.size());
           
+          final long agg_time = DateTime.nanoTime() - dps_start;
+          data_query.getQueryStats().addStat(dps.getQueryIndex(), 
+              QueryStat.AGGREGATION_TIME, agg_time);
+          data_query.getQueryStats().addStat(dps.getQueryIndex(), 
+              QueryStat.AGGREGATED_SIZE, counter);
+          
+          // yeah, it's a little early but we need to dump it out with the results.
+          data_query.getQueryStats().addStat(dps.getQueryIndex(), 
+              QueryStat.SERIALIZATION_TIME, 
+              DateTime.nanoTime() - local_serialization_start);
           if (!timeout_flag.get(0) && data_query.getShowStats()) {
-            json.writeFieldName("stats");
-            json.writeStartObject();
-            json.writeNumberField("datapoints", dps.size());
-            json.writeNumberField("rawDatapoints", dps.aggregatedSize());
-            json.writeNumberField("aggregationTime", agg_time);
-            json.writeNumberField("timeSeries", dps.getTSUIDs().size());
-            // todo - timing for just this query
-            json.writeEndObject();
+            int query_index = (dps == null) ? -1 : dps.getQueryIndex();
+            QueryStats stats = data_query.getQueryStats();
+            
+            if (query_index >= 0) {
+              json.writeFieldName("stats");
+              final Map<String, Object> s = stats.getQueryStats(query_index, false);
+              if (s != null) {
+                json.writeObject(s);
+              } else {
+                json.writeStringField("ERROR", "NO STATS FOUND");
+              }
+            }
           }
 
           // close the results for this particular query
@@ -801,6 +820,8 @@ class HttpJsonSerializer extends HttpSerializer {
        * then prints to the output buffer once they are completed.
        */
       public Deferred<Object> call(final Object obj) throws Exception {
+        this.uid_start = DateTime.nanoTime();
+        
         resolve_deferreds.add(dps.metricNameAsync()
             .addCallback(new MetricResolver()));
         resolve_deferreds.add(dps.getTagsAsync()
@@ -832,23 +853,19 @@ class HttpJsonSerializer extends HttpSerializer {
     class FinalCB implements Callback<ChannelBuffer, Object> {
       public ChannelBuffer call(final Object obj)
           throws Exception {
-        data_query.getQueryStats().setTimeSerialization(
-            DateTime.currentTimeMillis() - start);
-        data_query.getQueryStats().markComplete();
+        
+        // Call this here so we rollup sub metrics into a summary. It's not
+        // completely accurate, of course, because we still have to write the
+        // summary and close the writer. But it's close.
+        data_query.getQueryStats().markSerializationSuccessful();
 
         // dump overall stats as an extra object in the array
+        // TODO - yeah, I've heard this sucks, we need to figure out a better way.
         if (data_query.getShowSummary()) {
           final QueryStats stats = data_query.getQueryStats();
           json.writeStartObject();
           json.writeFieldName("statsSummary");
-          json.writeStartObject();
-          json.writeNumberField("datapoints", stats.getSize());
-          json.writeNumberField("rawDatapoints", stats.getAggregatedSize());
-          json.writeNumberField("aggregationTime", stats.getTimeAggregation());
-          json.writeNumberField("serializationTime", stats.getTimeSerialization());
-          json.writeNumberField("storageTime", stats.getTimeStorage());
-          json.writeNumberField("timeTotal", stats.getTimeTotal());
-          json.writeEndObject();
+          json.writeObject(stats.getStats(true, true));
           json.writeEndObject();
         }
         
@@ -1060,8 +1077,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws BadRequestException if the plugin has not implemented this method
    * @since 2.2
    */
-  public ChannelBuffer formatQueryStatsV1(
-      final Map<String, List<Map<String, Object>>> query_stats) {
+  public ChannelBuffer formatQueryStatsV1(final Map<String, Object> query_stats) {
     return serializeJSON(query_stats);
   }
   
