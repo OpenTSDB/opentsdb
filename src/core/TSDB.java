@@ -429,30 +429,6 @@ public final class TSDB {
   }
   
   /**
-   * Attempts to find the UID matching a given name
-   * @param type The type of UID
-   * @param name The name to search for
-   * @throws IllegalArgumentException if the type is not valid
-   * @throws NoSuchUniqueName if the name was not found
-   * @since 2.1
-   */
-  public Deferred<byte[]> getUIDAsync(final UniqueIdType type, final String name) {
-    if (name == null || name.isEmpty()) {
-      throw new IllegalArgumentException("Missing UID name");
-    }
-    switch (type) {
-      case METRIC:
-        return metrics.getIdAsync(name);
-      case TAGK:
-        return tag_names.getIdAsync(name);
-      case TAGV:
-        return tag_values.getIdAsync(name);
-      default:
-        throw new IllegalArgumentException("Unrecognized UID type");
-    }
-  }
-  
-  /**
    * Verifies that the data and UID tables exist in HBase and optionally the
    * tree and meta data tables if the user has enabled meta tracking or tree
    * building
