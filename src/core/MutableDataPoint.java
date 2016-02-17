@@ -92,6 +92,16 @@ public final class MutableDataPoint implements DataPoint {
     return dp;
   }
 
+  /**
+   * Copy constructor
+   *
+   * @param value     A datapoint value.
+   */
+  public static MutableDataPoint fromPoint(final DataPoint value) {
+    if (value.isInteger()) return ofLongValue(value.timestamp(), value.longValue());
+    else return ofDoubleValue(value.timestamp(), value.doubleValue());
+  }
+
   @Override
   public long timestamp() {
     return timestamp;

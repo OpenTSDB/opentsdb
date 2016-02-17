@@ -15,6 +15,8 @@ package net.opentsdb.core;
 import java.util.HashMap;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.Iterator;
+import java.util.LinkedList;
 
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile.EstimationType;
@@ -552,5 +554,104 @@ public final class Aggregators {
     }
 
   }
+  public static final class MovingAverage extends Aggregator {
+    private LinkedList<SumPoint> list = new LinkedList<SumPoint>();
+    private final long numPoints;
+    private final boolean isTimeUnit;
 
+    public MovingAverage(final Interpolation method, final String name, long numPoints, boolean isTimeUnit) {
+      super(method, name);
+      this.numPoints = numPoints;
+      this.isTimeUnit = isTimeUnit;
+    }
+
+    public long runLong(final Longs values) {
+      long sum = values.nextLongValue();
+      while (values.hasNextValue()) {
+        sum += values.nextLongValue();
+      }
+
+      if (values instanceof DataPoint) {
+        long ts = ((DataPoint) values).timestamp();
+        list.addFirst(new SumPoint(ts, sum));
+      }
+
+      long result = 0;
+      int count = 0;
+
+      Iterator<SumPoint> iter = list.iterator();
+      SumPoint first = iter.next();
+      boolean conditionMet = false;
+
+      // now sum up the preceeding points
+      while (iter.hasNext()) {
+        SumPoint next = iter.next();
+        result += (Long) next.val;
+        count++;
+        if (!isTimeUnit && count >= numPoints) {
+          conditionMet = true;
+          break;
+        } else if (isTimeUnit && ((first.ts - next.ts) > numPoints)) {
+          conditionMet = true;
+          break;
+        }
+      }
+
+      if (!conditionMet || count == 0) {
+        return 0;
+      }
+
+      return result / count;
+    }
+
+    @Override
+    public double runDouble(Doubles values) {
+      double sum = values.nextDoubleValue();
+      while (values.hasNextValue()) {
+        sum += values.nextDoubleValue();
+      }
+
+      if (values instanceof DataPoint) {
+        long ts = ((DataPoint) values).timestamp();
+        list.addFirst(new SumPoint(ts, sum));
+      }
+
+      double result = 0;
+      int count = 0;
+
+      Iterator<SumPoint> iter = list.iterator();
+      SumPoint first = iter.next();
+      boolean conditionMet = false;
+
+      // now sum up the preceeding points
+      while (iter.hasNext()) {
+        SumPoint next = iter.next();
+        result += (Double) next.val;
+        count++;
+        if (!isTimeUnit && count >= numPoints) {
+          conditionMet = true;
+          break;
+        } else if (isTimeUnit && ((first.ts - next.ts) > numPoints)) {
+          conditionMet = true;
+          break;
+        }
+      }
+
+      if (!conditionMet || count == 0) {
+        return 0;
+      }
+
+      return result / count;
+    }
+
+    class SumPoint {
+      long ts;
+      Object val;
+
+      public SumPoint(long ts, Object val) {
+        this.ts = ts;
+        this.val = val;
+      }
+    }
+  }
 }

@@ -179,7 +179,7 @@ public class HighestMax implements Expression {
   /**
    * Aggregator that stores the overall maximum value for the entire series
    */
-  static class MaxCacheAggregator extends Aggregator {
+  public static class MaxCacheAggregator extends Aggregator {
     /** The total number of series in the result set, including sub queries and
      * group bys */
     private final int total_series;
