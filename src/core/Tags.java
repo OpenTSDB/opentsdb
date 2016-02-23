@@ -463,6 +463,49 @@ public final class Tags {
   }
 
   /**
+   * Returns the names mapped to tag key/value UIDs
+   * @param tsdb The TSDB instance to use for Unique ID lookups.
+   * @param tags The map of tag key to tag value pairs
+   * @return A map of tag names (keys), tag values (values). If the tags list
+   * was null or empty, the result will be an empty map
+   * @throws NoSuchUniqueId if the row key contained an invalid ID.
+   * @since 2.3
+   */
+  public static Deferred<Map<String, String>> getTagsAsync(final TSDB tsdb, 
+      final ByteMap<byte[]> tags) {
+    if (tags == null || tags.isEmpty()) {
+      return Deferred.fromResult(Collections.<String, String>emptyMap());
+    }
+    
+    final ArrayList<Deferred<String>> deferreds = 
+        new ArrayList<Deferred<String>>();
+    
+    for (final Map.Entry<byte[], byte[]> pair : tags) {
+      deferreds.add(tsdb.tag_names.getNameAsync(pair.getKey()));
+      deferreds.add(tsdb.tag_values.getNameAsync(pair.getValue()));
+    }
+    
+    class NameCB implements Callback<Map<String, String>, ArrayList<String>> {
+      public Map<String, String> call(final ArrayList<String> names) 
+        throws Exception {
+        final HashMap<String, String> result = new HashMap<String, String>();
+        String tagk = "";
+        for (String name : names) {
+          if (tagk.isEmpty()) {
+            tagk = name;
+          } else {
+            result.put(tagk, name);
+            tagk = "";
+          }
+        }
+        return result;
+      }
+    }
+    
+    return Deferred.groupInOrder(deferreds).addCallback(new NameCB());
+  }
+  
+  /**
    * Returns the tag key and value pairs as a byte map given a row key
    * @param row The row key to parse the UIDs from
    * @return A byte map with tagk and tagv pairs as raw UIDs

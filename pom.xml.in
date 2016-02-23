@@ -314,6 +314,28 @@
         </configuration>
       </plugin>
 
+      <plugin>
+        <groupId>com.helger.maven</groupId>
+        <artifactId>ph-javacc-maven-plugin</artifactId>
+        <version>2.8.0</version>
+        <executions>
+          <execution>
+            <id>jjc</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>javacc</goal>
+            </goals>
+            <configuration>
+              <jdkVersion>1.6</jdkVersion>
+              <javadocFriendlyComments>true</javadocFriendlyComments>
+              <packageName>net.opentsdb.query.expression.parser</packageName>
+              <sourceDirectory>${basedir}/src/</sourceDirectory>
+              <outputDirectory>${project.build.directory}/generated-sources/</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      
     </plugins>
   </build>
 
@@ -356,45 +378,27 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.zookeeper</groupId>
-      <artifactId>zookeeper</artifactId>
-      <version>@ZOOKEEPER_VERSION@</version>
-      <exclusions>
-        <exclusion>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>jline</groupId>
-          <artifactId>jline</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>junit</groupId>
-          <artifactId>junit</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
       <version>@SLF4J_API_VERSION@</version>
     </dependency>
 
     <dependency>
-      <groupId>org.hbase</groupId>
-      <artifactId>asynchbase</artifactId>
-      <version>@ASYNCHBASE_VERSION@</version>
-    </dependency>
-
-    <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-math3</artifactId>
       <version>@APACHE_MATH_VERSION@</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-jexl</artifactId>
+      <version>@JEXL_VERSION@</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.jgrapht</groupId>
+      <artifactId>jgrapht-core</artifactId>
+      <version>@JGRAPHT_VERSION@</version>
     </dependency>
 
     <!-- runtime dependencies -->
@@ -487,7 +491,85 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
+  
+  <profiles>
+    <profile>
+      <!-- Build for Apache HBase backend -->
+      <id>hbase</id>
+      <activation>
+        <activeByDefault>@maven_profile_hbase@</activeByDefault>
+      </activation>
 
+      <dependencies>
+        <dependency>
+          <groupId>org.hbase</groupId>
+          <artifactId>asynchbase</artifactId>
+          <version>@ASYNCHBASE_VERSION@</version>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.zookeeper</groupId>
+          <artifactId>zookeeper</artifactId>
+          <version>@ZOOKEEPER_VERSION@</version>
+          <exclusions>
+            <exclusion>
+              <groupId>log4j</groupId>
+              <artifactId>log4j</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>slf4j-log4j12</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>jline</groupId>
+              <artifactId>jline</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>junit</groupId>
+              <artifactId>junit</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <profile>
+      <!-- Build for Google Bigtable backend -->
+      <id>bigtable</id>
+      <activation>
+        <activeByDefault>@maven_profile_bigtable@</activeByDefault>
+      </activation>
+
+      <dependencies>
+        <dependency>
+          <groupId>com.pythian.opentsdb</groupId>
+          <artifactId>asyncbigtable</artifactId>
+          <version>@ASYNCBIGTABLE_VERSION@</version>
+          <classifier>jar-with-dependencies</classifier>
+        </dependency>
+      </dependencies>
+
+    </profile>
+    
+    <profile>
+      <!-- Build for Apache Cassandra backend -->
+      <id>cassandra</id>
+      <activation>
+        <activeByDefault>@maven_profile_cassandra@</activeByDefault>
+      </activation>
+
+      <dependencies>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>asynccassandra</artifactId>
+          <version>@ASYNCCASSANDRA_VERSION@</version>
+          <classifier>jar-with-dependencies</classifier>
+        </dependency>
+      </dependencies>
+
+    </profile>
+  </profiles>
+  
   <parent>
     <groupId>org.sonatype.oss</groupId>
     <artifactId>oss-parent</artifactId>

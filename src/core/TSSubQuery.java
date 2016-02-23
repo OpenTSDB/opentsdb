@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.utils.ByteSet;
 
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableMap;
@@ -69,6 +70,9 @@ public final class TSSubQuery {
   /** A list of filters for this query. For now these are pulled out of the
    * tags map. In the future we'll have special JSON objects for them. */
   private List<TagVFilter> filters;
+  
+  /** Index of the sub query */
+  private int index;
   
   /**
    * Default constructor necessary for POJO de/serialization
@@ -274,6 +278,27 @@ public final class TSSubQuery {
     return new ArrayList<TagVFilter>(filters);
   }
   
+  /** @return the unique set of tagks from the filters. May be null if no filters
+   * were set. Must make sure to resolve the string tag to UIDs in the filter first.
+   * @since 2.3
+   */
+  public ByteSet getFilterTagKs() {
+    if (filters == null || filters.isEmpty()) {
+      return null;
+    }
+    final ByteSet tagks = new ByteSet();
+    for (final TagVFilter filter : filters) {
+      tagks.add(filter.getTagkBytes());
+    }
+    return tagks;
+  }
+  
+  /** @return the index of the sub query
+   * @since 2.3 */
+  public int getIndex() {
+    return index;
+  }
+  
   /** @param aggregator the name of an aggregation function */
   public void setAggregator(String aggregator) {
     this.aggregator = aggregator;
@@ -320,6 +345,12 @@ public final class TSSubQuery {
    * @since 2.2 */
   public void setFilters(List<TagVFilter> filters) {
     this.filters = filters;
+  }
+  
+  /** @param index the index of the sub query
+   * @since 2.3 */
+  public void setIndex(final int index) {
+    this.index = index;
   }
   
 }

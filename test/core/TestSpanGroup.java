@@ -12,15 +12,16 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import net.opentsdb.utils.Config;
 
-import org.hbase.async.Bytes;
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.HBaseClient;
 import org.junit.Before;
@@ -46,6 +47,19 @@ public final class TestSpanGroup {
   }
   
   @Test
+  public void metricUID() throws Exception {
+    final Span span = mock(Span.class);
+    when(span.metricUID()).thenReturn(new byte[] { 0, 0, 1 });
+    
+    final SpanGroup group = PowerMockito.spy(new SpanGroup(tsdb, start_ts, 
+        end_ts, null, false, Aggregators.SUM, 0, null));
+    final ArrayList<Span> spans = Whitebox.getInternalState(group, "spans");
+    spans.add(span);
+    
+    assertArrayEquals(new byte[] { 0, 0, 1 }, group.metricUID());
+  }
+  
+  @Test
   public void getTagUids() throws Exception {
     final ByteMap<byte[]> uids = new ByteMap<byte[]>();
     uids.put(new byte[] { 0, 0, 1 }, new byte[] { 0, 0, 2 });
@@ -59,9 +73,9 @@ public final class TestSpanGroup {
     
     final ByteMap<byte[]> uids_read = group.getTagUids();
     assertEquals(1, uids_read.size());
-    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 1 }, uids_read.firstKey()));
-    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 2 }, 
-        uids_read.firstEntry().getValue()));
+    assertArrayEquals(new byte[] { 0, 0, 1 }, uids_read.firstKey());
+    assertArrayEquals(new byte[] { 0, 0, 2 }, 
+        uids_read.firstEntry().getValue());
   }
   
   @Test
@@ -94,4 +108,53 @@ public final class TestSpanGroup {
     final ByteMap<byte[]> uids_read = group.getTagUids();
     assertEquals(0, uids_read.size());
   }
+  
+  @Test
+  public void getAggregatedTagUidsNotAgged() throws Exception {
+    final ByteMap<byte[]> uids = new ByteMap<byte[]>();
+    uids.put(new byte[] { 0, 0, 1 }, new byte[] { 0, 0, 2 });
+    final Span span = mock(Span.class);
+    when(span.getTagUids()).thenReturn(uids);
+    
+    final SpanGroup group = PowerMockito.spy(new SpanGroup(tsdb, start_ts, 
+        end_ts, null, false, Aggregators.SUM, 0, null));
+    final ArrayList<Span> spans = Whitebox.getInternalState(group, "spans");
+    spans.add(span);
+    
+    final List<byte[]> uids_read = group.getAggregatedTagUids();
+    assertEquals(0, uids_read.size());
+  }
+  
+  @Test
+  public void getAggregatedTagUids() throws Exception {
+    final ByteMap<byte[]> uids = new ByteMap<byte[]>();
+    uids.put(new byte[] { 0, 0, 1 }, new byte[] { 0, 0, 2 });
+    final Span span = mock(Span.class);
+    when(span.getTagUids()).thenReturn(uids);
+    
+    final ByteMap<byte[]> uids2 = new ByteMap<byte[]>();
+    uids2.put(new byte[] { 0, 0, 1 }, new byte[] { 0, 0, 0, 3 });
+    final Span span2 = mock(Span.class);
+    when(span2.getTagUids()).thenReturn(uids2);
+    
+    final SpanGroup group = PowerMockito.spy(new SpanGroup(tsdb, start_ts, 
+        end_ts, null, false, Aggregators.SUM, 0, null));
+    final ArrayList<Span> spans = Whitebox.getInternalState(group, "spans");
+    spans.add(span);
+    spans.add(span2);
+    
+    final List<byte[]> uids_read = group.getAggregatedTagUids();
+    assertEquals(1, uids_read.size());
+    assertArrayEquals(new byte[] { 0, 0, 1 }, uids_read.get(0));
+  }
+  
+  @Test
+  public void getAggregatedTagUidsNoSpans() throws Exception {
+    final SpanGroup group = new SpanGroup(tsdb, start_ts, end_ts, null, 
+        false, Aggregators.SUM, 0, null);
+    
+    final List<byte[]> uids_read = group.getAggregatedTagUids();
+    assertEquals(0, uids_read.size());
+  }
+
 }

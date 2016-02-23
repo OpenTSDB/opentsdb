@@ -285,6 +285,12 @@ final class RowSeq implements DataPoints {
     return RowKey.metricNameAsync(tsdb, key);
   }
   
+  @Override
+  public byte[] metricUID() {
+    return Arrays.copyOfRange(key, Const.SALT_WIDTH(), 
+        Const.SALT_WIDTH() + TSDB.metrics_width());
+  }
+  
   public Map<String, String> getTags() {
     try {
       return getTagsAsync().joinUninterruptibly();
@@ -312,6 +318,11 @@ final class RowSeq implements DataPoints {
   public Deferred<List<String>> getAggregatedTagsAsync() {
     final List<String> empty = Collections.emptyList();
     return Deferred.fromResult(empty);
+  }
+  
+  @Override
+  public List<byte[]> getAggregatedTagUids() {
+    return Collections.emptyList();
   }
   
   public List<String> getTSUIDs() {

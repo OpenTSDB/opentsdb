@@ -21,18 +21,39 @@ THIRD_PARTY =
 include third_party/guava/include.mk
 include third_party/gwt/include.mk
 include third_party/hamcrest/include.mk
-include third_party/hbase/include.mk
 include third_party/jackson/include.mk
+include third_party/javacc/include.mk
 include third_party/javassist/include.mk
+include third_party/jexl/include.mk
+include third_party/jgrapht/include.mk
 include third_party/junit/include.mk
 include third_party/logback/include.mk
 include third_party/mockito/include.mk
 include third_party/netty/include.mk
 include third_party/objenesis/include.mk
 include third_party/powermock/include.mk
-include third_party/protobuf/include.mk
 include third_party/slf4j/include.mk
 include third_party/suasync/include.mk
 include third_party/validation-api/include.mk
-include third_party/zookeeper/include.mk
 include third_party/apache/include.mk
+
+if BIGTABLE
+include third_party/alpn-boot/include.mk
+include third_party/asyncbigtable/include.mk
+ASYNCCASSANDRA_VERSION = 0.0
+ASYNCHBASE_VERSION = 0.0
+ZOOKEEPER_VERSION = 0.0
+else
+if CASSANDRA
+include third_party/asynccassandra/include.mk
+ASYNCBIGTABLE_VERSION = 0.0
+ASYNCHBASE_VERSION = 0.0
+ZOOKEEPER_VERSION = 0.0
+else
+include third_party/hbase/include.mk
+include third_party/protobuf/include.mk
+include third_party/zookeeper/include.mk
+ASYNCBIGTABLE_VERSION = 0.0
+ASYNCCASSANDRA_VERSION = 0.0
+endif
+endif

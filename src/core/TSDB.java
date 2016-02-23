@@ -54,6 +54,7 @@ import net.opentsdb.utils.Threads;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.query.expression.ExpressionFactory;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
@@ -208,6 +209,10 @@ public final class TSDB {
       uid_cache_map.put(TAG_VALUE_QUAL.getBytes(CHARSET), tag_values);
       UniqueId.preloadUidCache(this, uid_cache_map);
     }
+    
+    // load up the functions that require the TSDB object
+    ExpressionFactory.addTSDBFunctions(this);
+    
     LOG.debug(config.dumpConfiguration());
   }
   
@@ -548,12 +553,14 @@ public final class TSDB {
     collector.record("hbase.rpcs", stats.deletes(), "type=delete");
     collector.record("hbase.rpcs", stats.gets(), "type=get");
     collector.record("hbase.rpcs", stats.puts(), "type=put");
+    collector.record("hbase.rpcs", stats.appends(), "type=append");
     collector.record("hbase.rpcs", stats.rowLocks(), "type=rowLock");
     collector.record("hbase.rpcs", stats.scannersOpened(), "type=openScanner");
     collector.record("hbase.rpcs", stats.scans(), "type=scan");
     collector.record("hbase.rpcs.batched", stats.numBatchedRpcSent());
     collector.record("hbase.flushes", stats.flushes());
     collector.record("hbase.connections.created", stats.connectionsCreated());
+    collector.record("hbase.connections.idle_closed", stats.idleConnectionsClosed());
     collector.record("hbase.nsre", stats.noSuchRegionExceptions());
     collector.record("hbase.nsre.rpcs_delayed",
                      stats.numRpcDelayedDueToNSRE());

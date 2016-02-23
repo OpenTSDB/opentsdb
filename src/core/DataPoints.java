@@ -38,6 +38,12 @@ public interface DataPoints extends Iterable<DataPoint> {
    * @since 1.2
    */
   Deferred<String> metricNameAsync();
+  
+  /**
+   * @return the metric UID
+   * @since 2.3
+   */
+  byte[] metricUID();
 
   /**
    * Returns the tags associated with these data points.
@@ -93,6 +99,13 @@ public interface DataPoints extends Iterable<DataPoint> {
    */
   Deferred<List<String>> getAggregatedTagsAsync();
 
+  /**
+   * Returns the tagk UIDs associated with some but not all of the data points. 
+   * @return a non-{@code null} list of tagk UIDs.
+   * @since 2.3
+   */
+  List<byte[]> getAggregatedTagUids();
+  
   /**
    * Returns a list of unique TSUIDs contained in the results
    * @return an empty list if there were no results, otherwise a list of TSUIDs

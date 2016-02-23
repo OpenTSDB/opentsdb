@@ -115,7 +115,7 @@ import org.slf4j.LoggerFactory;
  * to a special, really large value (too large to be a valid timestamp).
  * <p>
  */
-final class AggregationIterator implements SeekableView, DataPoint,
+public class AggregationIterator implements SeekableView, DataPoint,
                                            Aggregator.Longs, Aggregator.Doubles {
 
   private static final Logger LOG =
@@ -290,7 +290,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
    * @param rate If {@code true}, the rate of the series will be used instead
    * of the actual values.
    */
-  private AggregationIterator(final SeekableView[] iterators,
+  public AggregationIterator(final SeekableView[] iterators,
                               final long start_time,
                               final long end_time,
                               final Aggregator aggregator,
