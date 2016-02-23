@@ -288,7 +288,9 @@ public final class TSSubQuery {
     }
     final ByteSet tagks = new ByteSet();
     for (final TagVFilter filter : filters) {
-      tagks.add(filter.getTagkBytes());
+      if (filter != null && filter.getTagkBytes() != null) {
+        tagks.add(filter.getTagkBytes());
+      }
     }
     return tagks;
   }
