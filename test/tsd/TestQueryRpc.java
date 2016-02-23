@@ -549,6 +549,7 @@ public final class TestQueryRpc {
     
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/query/gexp?start=1h-ago&exp=scale(sum:sys.cpu.user,1)");
+    NettyMocks.mockChannelFuture(query);
     rpc.execute(tsdb, query);
     assertEquals(query.response().getStatus(), HttpResponseStatus.OK);
     final String json = 
