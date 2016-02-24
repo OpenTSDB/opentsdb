@@ -22,6 +22,7 @@ import java.util.NoSuchElementException;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.utils.ByteSet;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableMap;
 
@@ -42,6 +43,7 @@ import com.google.common.collect.ImmutableMap;
  * {@code agg} and {@code downsample_specifier} fields.
  * @since 2.0
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public final class TSSubQuery {
   /** User given name of an aggregation function to use */
   private String aggregator;
