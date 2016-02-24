@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.base.Objects;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -38,6 +39,7 @@ import net.opentsdb.utils.DateTime;
  * {@code start_time} and {@code end_time} fields.
  * @since 2.0
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public final class TSQuery {
 
   /** User given start date/time, could be relative or absolute */
