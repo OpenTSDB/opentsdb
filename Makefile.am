@@ -458,7 +458,7 @@ install-data-local: staticroot install-data-lib install-data-tools \
 	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
           dstdir=`dirname "$(DESTDIR)$(staticdir)/$$p"`; \
           if test -d "$$dstdir"; then :; else \
-            echo " $(mkdir_p) '$$dstdir'"; $(mkdir_p) "$$dstdir"; fi; \
+            echo " $(mkdir_p) '$$dstdir'"; ../$(mkdir_p) "$$dstdir"; fi; \
 	  echo " $(INSTALL_DATA) '$$d$$p' '$(DESTDIR)$(staticdir)/$$p'"; \
 	  $(INSTALL_DATA) "$$d$$p" "$(DESTDIR)$(staticdir)/$$p"; \
 	done
@@ -611,7 +611,7 @@ manifest: .javac-stamp .git/HEAD
           echo "Implementation-Version: $(git_version)"; \
           echo "Implementation-Vendor: $(spec_vendor)"; } >"$@"
 
-$(jar): manifest .javac-stamp $(classes)
+$(jar): manifest .javac-stamp
 	$(JAR) cfm `basename $(jar)` manifest $(classes_with_nested_classes) \
          || { rv=$$? && rm -f `basename $(jar)` && exit $$rv; }
 #                       ^^^^^^^^^^^^^^^^^^^^^^^
