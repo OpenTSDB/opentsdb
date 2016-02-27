@@ -32,6 +32,9 @@ import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 import org.hbase.async.Bytes.ByteMap;
+import org.hbase.async.FuzzyRowFilter;
+import org.hbase.async.FilterList;
+import org.hbase.async.ScanFilter;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.stumbleupon.async.Callback;
@@ -40,6 +43,7 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.query.QueryUtil;
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.filter.TagVLiteralOrFilter;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.QueryStats.QueryStat;
@@ -70,6 +74,13 @@ final class TsdbQuery implements Query {
    * We use this one because it preserves every possible byte unchanged.
    */
   private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+
+  /**
+   * UID of the tagk that can only appear at the front of a sorted list of
+   * tagk/v pairs. We know that the value is 1 since each UID is issued by an
+   * atomic increment operation.
+   */
+  private static final long FIRST_UID = 1;
 
   /** The TSDB we belong to. */
   private final TSDB tsdb;
@@ -1036,9 +1047,12 @@ final class TsdbQuery implements Query {
   }
 
   /**
-   * Sets the server-side regexp filter on the scanner.
+   * Sets the server-side regexp filter and optional fuzzy row filter on the
+   * scanner.
    * In order to find the rows with the relevant tags, we use a
    * server-side filter that matches a regular expression on the row key.
+   * When the query has filters for the first N consecutive tags,
+   * we can use fuzzy row filter to skip-scan the rows.
    * @param scanner The scanner on which to add the filter.
    */
   private void createAndSetFilter(final Scanner scanner) {
@@ -1048,6 +1062,54 @@ final class TsdbQuery implements Query {
     scanner.setKeyRegexp(regex, CHARSET);
     if (LOG.isDebugEnabled()) {
       LOG.debug("Scanner regex: " + QueryUtil.byteRegexToString(regex));
+    }
+    if (filters.isEmpty()) {
+      return;
+    }
+
+    // Start building row key pattern and fuzzy mask for fuzzy row filter
+    byte[] rowkey = scanner.getCurrentKey();
+    byte[] fuzzy_mask = new byte[rowkey.length];
+    Arrays.fill(fuzzy_mask, (byte) 1);
+
+    // Let's see if we can also extend the start key with tag literals
+    byte[] start_key = rowkey;
+    boolean append_to_start_key = true;
+
+    long tagk_uid = FIRST_UID;
+    for (TagVFilter filter : filters) {
+      if (UniqueId.uidToLong(filter.getTagkBytes(), TSDB.tagk_width()) == tagk_uid) {
+        byte[] tag_mask = new byte[TSDB.tagk_width() + TSDB.tagv_width()];
+        if (filter instanceof TagVLiteralOrFilter && filter.getTagVUids().size() == 1) {
+          rowkey = com.google.common.primitives.Bytes.concat(
+              rowkey, filter.getTagkBytes(), filter.getTagVUids().get(0));
+        } else {
+          // We can no longer append tagk/v pairs to start key of the scanner
+          append_to_start_key = false;
+          rowkey = com.google.common.primitives.Bytes.concat(rowkey, tag_mask);
+          Arrays.fill(tag_mask, (byte) 1);
+        }
+        // Update start key
+        if (append_to_start_key) {
+          start_key = rowkey;
+        }
+        fuzzy_mask = com.google.common.primitives.Bytes.concat(fuzzy_mask, tag_mask);
+        tagk_uid++;
+        continue;
+      }
+      break;
+    }
+
+    // Apply extended start key and fuzzy row filter only when fuzzy mask has fixed parts
+    if (tagk_uid > FIRST_UID && com.google.common.primitives.Bytes.indexOf(fuzzy_mask, (byte) 0) > -1) {
+      scanner.setStartKey(start_key);
+
+      List<ScanFilter> scanFilters = new ArrayList<ScanFilter>(2);
+      scanFilters.add(
+          new FuzzyRowFilter(
+              new FuzzyRowFilter.FuzzyFilterPair(rowkey, fuzzy_mask)));
+      scanFilters.add(scanner.getFilter());
+      scanner.setFilter(new FilterList(scanFilters));
     }
   }
   

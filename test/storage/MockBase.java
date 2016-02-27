@@ -1382,7 +1382,14 @@ public final class MockBase {
           return null;
         }      
       }).when(mock_scanner).setStartKey((byte[])any());
-      
+
+      doAnswer(new Answer<Object>() {
+        @Override
+        public Object answer(InvocationOnMock invocation) throws Throwable {
+          return start;
+        }
+      }).when(mock_scanner).getCurrentKey();
+
       doAnswer(new Answer<Object>() {
         @Override
         public Object answer(InvocationOnMock invocation) throws Throwable {
