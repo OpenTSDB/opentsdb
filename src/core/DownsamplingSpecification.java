@@ -71,6 +71,10 @@ public final class DownsamplingSpecification {
     if (null == fill_policy) {
       throw new IllegalArgumentException("fill policy cannot be null");
     }
+    if (function == Aggregators.NONE) {
+      throw new IllegalArgumentException("cannot use the NONE "
+          + "aggregator for downsampling");
+    }
 
     this.interval = interval;
     this.function = function;
@@ -114,6 +118,10 @@ public final class DownsamplingSpecification {
     } catch (final NoSuchElementException e) {
       throw new IllegalArgumentException("No such downsampling function: " +
         parts[1]);
+    }
+    if (function == Aggregators.NONE) {
+      throw new IllegalArgumentException("cannot use the NONE "
+          + "aggregator for downsampling");
     }
 
     // FILL POLICY.

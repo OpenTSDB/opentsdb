@@ -427,6 +427,10 @@ final class TsdbQuery implements Query {
    */
   @Override
   public void downsample(final long interval, final Aggregator downsampler) {
+    if (downsampler == Aggregators.NONE) {
+      throw new IllegalArgumentException("cannot use the NONE "
+          + "aggregator for downsampling");
+    }
     downsample(interval, downsampler, FillPolicy.NONE);
   }
 
@@ -850,6 +854,23 @@ final class TsdbQuery implements Query {
         }
         return NO_RESULT;
       }
+      
+      // The raw aggregator skips group bys and ignores downsampling
+      if (aggregator == Aggregators.NONE) {
+        final SpanGroup[] groups = new SpanGroup[spans.size()];
+        int i = 0;
+        for (final Span span : spans.values()) {
+          final SpanGroup group = new SpanGroup(tsdb, getScanStartTimeSeconds(),
+              getScanEndTimeSeconds(),
+              null, rate, rate_options, aggregator,
+              sample_interval_ms, downsampler, query_index, 
+              fill_policy);
+          group.add(span);
+          groups[i++] = group;
+        }
+        return groups;
+      }
+      
       if (group_bys == null) {
         // We haven't been asked to find groups, so let's put all the spans
         // together in the same group.

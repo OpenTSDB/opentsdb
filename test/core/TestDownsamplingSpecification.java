@@ -65,5 +65,10 @@ public class TestDownsamplingSpecification {
   public void testBadFillPolicy() {
     new DownsamplingSpecification("10m-avg-max");
   }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testNoneAgg() {
+    new DownsamplingSpecification("1m-none-lerp");
+  }
 }
 

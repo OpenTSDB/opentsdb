@@ -28,7 +28,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.powermock.reflect.Whitebox;
 
+import com.google.common.collect.Lists;
 import com.google.common.math.DoubleMath;
 
 /**
@@ -497,6 +499,43 @@ public class TestTsdbQueryDownsample extends BaseTsdbTest {
     assertEquals(150, dps[0].size());
   }
 
+  @Test (expected = IllegalArgumentException.class)
+  public void runLongSingleTSDownsampleNone() throws Exception {
+    storeLongTimeSeriesSeconds(true, false);
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.downsample(60000, Aggregators.NONE);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+  }
+  
+  @Test (expected = RuntimeException.class)
+  public void runLongSingleTSDownsampleNoneSnuckIn() throws Exception {
+    storeLongTimeSeriesSeconds(true, false);
+    final TSQuery ts_query = new TSQuery();
+    ts_query.setStart("1356998400");
+    ts_query.setEnd("1357041600");
+    
+    final HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    final TSSubQuery sub = new TSSubQuery();
+    sub.setTags(tags);
+    sub.setMetric("sys.cpu.user");
+    sub.setAggregator("sum");
+    sub.setDownsample("1m-sum");
+    
+    ts_query.setQueries(Lists.newArrayList(sub));
+    ts_query.validateAndSetQuery();
+    query.configureFromQuery(ts_query, 0);
+    Whitebox.setInternalState(query, "downsampler", Aggregators.NONE);
+    
+    final DataPoints[] dps = query.run();
+    for (DataPoint dp : dps[0]) {
+      dp.timestamp();
+    }
+  }
+  
   /**
    * A helper interface to be used by the filling-test code. 
    */ 

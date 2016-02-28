@@ -303,6 +303,41 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
   }
   
   @Test
+  public void runFloatTwoAggNoneAgg() throws Exception {
+    storeFloatTimeSeriesSeconds(true, false);
+    
+    tags.clear();
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries(METRIC_STRING, tags, Aggregators.NONE, false);
+    
+    final DataPoints[] dps = query.run();
+    assertMeta(dps, 0, false);
+    assertMeta(dps, 1, false);
+    assertEquals(2, dps.length);
+
+    double value = 1.25D;
+    long timestamp = 1356998430000L;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(value, dp.doubleValue(), 0.0001);
+      assertEquals(timestamp, dp.timestamp());
+      value += 0.25D;
+      timestamp += 30000;
+    }
+    assertEquals(300, dps[0].size());
+    
+    value = 75D;
+    timestamp = 1356998430000L;
+    for (DataPoint dp : dps[1]) {
+      assertEquals(value, dp.doubleValue(), 0.0001);
+      assertEquals(timestamp, dp.timestamp());
+      value -= 0.25d;
+      timestamp += 30000;
+    }
+    assertEquals(300, dps[1].size());
+  }
+  
+  @Test
   public void runFloatTwoAggSumMs() throws Exception {
     storeFloatTimeSeriesMs();
 

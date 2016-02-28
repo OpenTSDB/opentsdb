@@ -225,6 +225,13 @@ public final class TestTSSubQuery {
     assertEquals(300000, sub.downsampleInterval());
   }
   
+  @Test (expected = IllegalArgumentException.class)
+  public void validateWithDownsampleNone() {
+    TSSubQuery sub = getMetricForValidate();
+    sub.setDownsample("1m-none");
+    sub.validateAndSetQuery();
+  }
+  
   // NOTE: Each of the hash and equals  tests should make sure that we the code
   // doesn't change after validation.
   

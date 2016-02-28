@@ -40,6 +40,10 @@ public class Downsampler implements SeekableView, DataPoint {
               final Aggregator downsampler) {
     this.values_in_interval = new ValuesInInterval(source, interval_ms);
     this.downsampler = downsampler;
+    if (downsampler == Aggregators.NONE) {
+      throw new IllegalArgumentException("cannot use the NONE "
+          + "aggregator for downsampling");
+    }
   }
 
   // ------------------ //
