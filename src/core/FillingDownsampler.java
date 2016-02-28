@@ -26,9 +26,6 @@ public class FillingDownsampler extends Downsampler {
   /** Track when the downsampled data should end. */
   protected long end_timestamp;
 
-  /** Downsampling fill policy. */
-  protected final FillPolicy fill_policy;
-
   /** 
    * Create a new nulling downsampler.
    * @param source The iterator to access the underlying data.
@@ -40,24 +37,50 @@ public class FillingDownsampler extends Downsampler {
    * @param fill_policy Policy specifying whether to interpolate or to fill
    * missing intervals with special values.
    * @throws IllegalArgumentException if fill_policy is interpolation.
+   * @deprecated as of 2.3
    */
   FillingDownsampler(final SeekableView source, final long start_time,
       final long end_time, final long interval_ms,
       final Aggregator downsampler, final FillPolicy fill_policy) {
+    this(source, start_time, end_time, 
+        new DownsamplingSpecification(interval_ms, downsampler, fill_policy)
+        , 0, 0);
+  }
+  
+  /** 
+   * Create a new filling downsampler.
+   * @param source The iterator to access the underlying data.
+   * @param start_time The time in milliseconds at which the data begins.
+   * @param end_time The time in milliseconds at which the data ends.
+   * @param specification The downsampling spec to use
+   * @param query_start The start timestamp of the actual query for use with "all"
+   * @param query_end The end timestamp of the actual query for use with "all"
+   * @throws IllegalArgumentException if fill_policy is interpolation.
+   * @since 2.3
+   */
+  FillingDownsampler(final SeekableView source, final long start_time,
+      final long end_time, final DownsamplingSpecification specification, 
+      final long query_start, final long end_start) {
     // Lean on the superclass implementation.
-    super(source, interval_ms, downsampler);
+    super(source, specification, query_start, end_start);
 
     // Ensure we aren't given a bogus fill policy.
-    if (FillPolicy.NONE == fill_policy) {
+    if (FillPolicy.NONE == specification.getFillPolicy()) {
       throw new IllegalArgumentException("Cannot instantiate this class with" +
         " linear-interpolation fill policy");
     }
-    this.fill_policy = fill_policy;
-
+    
     // Use the values-in-interval object to align the timestamps at which we
     // expect data to arrive for the first and last intervals.
-    this.timestamp = values_in_interval.alignTimestamp(start_time);
-    this.end_timestamp = values_in_interval.alignTimestamp(end_time);
+    if (run_all) {
+      timestamp = start_time;
+      end_timestamp = end_time;
+    } else {
+      // Use the values-in-interval object to align the timestamps at which we
+      // expect data to arrive for the first and last intervals.
+      timestamp = values_in_interval.alignTimestamp(start_time);
+      end_timestamp = values_in_interval.alignTimestamp(end_time);
+    }
   }
 
   /**
@@ -72,6 +95,9 @@ public class FillingDownsampler extends Downsampler {
     // No matter the state of the values-in-interval object, if our current
     // timestamp hasn't reached the end of the requested overall interval, then
     // we still have iterating to do.
+    if (run_all) {
+      return values_in_interval.hasNextValue();
+    }
     return timestamp < end_timestamp;
   }
 
@@ -92,26 +118,27 @@ public class FillingDownsampler extends Downsampler {
 
       // Skip any leading data outside the query bounds.
       long actual = values_in_interval.getIntervalTimestamp();
-      while (values_in_interval.hasNextValue() && actual < timestamp) {
+      while (!run_all && values_in_interval.hasNextValue() 
+          && actual < timestamp) {
         // The actual timestamp precedes our expected, so there's data in the
         // values-in-interval object that we wish to ignore.
-        downsampler.runDouble(values_in_interval);
+        specification.getFunction().runDouble(values_in_interval);
         values_in_interval.moveToNextInterval();
         actual = values_in_interval.getIntervalTimestamp();
       }
 
       // Check whether the timestamp of the calculation interval matches what
       // we expect.
-      if (actual == timestamp) {
+      if (run_all || actual == timestamp) {
         // The calculated interval timestamp matches what we expect, so we can
         // do normal processing.
-        value = downsampler.runDouble(values_in_interval);
+        value = specification.getFunction().runDouble(values_in_interval);
         values_in_interval.moveToNextInterval();
       } else {
         // Our expected timestamp precedes the actual, so the interval is
         // missing. We will use a special value, based on the fill policy, to
         // represent this case.
-        switch (fill_policy) {
+        switch (specification.getFillPolicy()) {
         case NOT_A_NUMBER:
         case NULL:
           value = Double.NaN;
@@ -127,7 +154,7 @@ public class FillingDownsampler extends Downsampler {
       }
 
       // Advance the expected timestamp to the next interval.
-      timestamp += values_in_interval.interval_ms;
+      timestamp += specification.getInterval();
 
       // This object also represents the data.
       return this;
@@ -140,7 +167,10 @@ public class FillingDownsampler extends Downsampler {
 
   @Override
   public long timestamp() {
-    return timestamp - values_in_interval.interval_ms;
+    if (run_all) {
+      return query_start;
+    }
+    return timestamp - specification.getInterval();
   }
 }
 

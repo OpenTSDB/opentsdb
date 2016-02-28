@@ -37,6 +37,9 @@ public final class DownsamplingSpecification {
 
   // Parsed downsample interval.
   private final long interval;
+  
+  //The string interval, e.g. 1h, 30d, etc
+  private final String string_interval;
 
   // Parsed downsampler function.
   private final Aggregator function;
@@ -51,6 +54,7 @@ public final class DownsamplingSpecification {
     interval = NO_INTERVAL;
     function = NO_FUNCTION;
     fill_policy = DEFAULT_FILL_POLICY;
+    string_interval = null;
   }
 
   /**
@@ -59,6 +63,7 @@ public final class DownsamplingSpecification {
    * @param function The downsampling function.
    * @param fill_policy The policy specifying how to deal with missing data.
    * @throws IllegalArgumentException if any argument is invalid.
+   * @deprecated since 2.3
    */
   public DownsamplingSpecification(final long interval,
       final Aggregator function, final FillPolicy fill_policy) {
@@ -79,6 +84,7 @@ public final class DownsamplingSpecification {
     this.interval = interval;
     this.function = function;
     this.fill_policy = fill_policy;
+    string_interval = null;
   }
 
   /**
@@ -110,7 +116,13 @@ public final class DownsamplingSpecification {
 
     // INTERVAL.
     // This will throw if interval is invalid.
-    interval = DateTime.parseDuration(parts[0]);
+    if (parts[0].contains("all")) {
+      interval = NO_INTERVAL;
+      string_interval = parts[0];
+    } else {
+      interval = DateTime.parseDuration(parts[0]);
+      string_interval = parts[0];
+    }
 
     // FUNCTION.
     try {
@@ -153,6 +165,12 @@ public final class DownsamplingSpecification {
     return interval;
   }
 
+  /** @return The string interval from the user (without the 'c' if given) 
+   * @since 2.3 */
+  public String getStringInterval() {
+    return string_interval;
+  }
+  
   /**
    * Get the downsampling function.
    * @return the downsampling function.
@@ -175,6 +193,7 @@ public final class DownsamplingSpecification {
       .add("interval", getInterval())
       .add("function", getFunction())
       .add("fillPolicy", getFillPolicy())
+      .add("stringInterval", string_interval)
       .toString();
   }
 }

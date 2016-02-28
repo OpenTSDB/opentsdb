@@ -16,16 +16,14 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /** Tests {@link FillingDownsampler}. */
 public class TestFillingDownsampler {
-  private static final Aggregator SUM = Aggregators.get("sum");
-
-  private static final FillPolicy NAN = FillPolicy.fromString("nan");
-  private static final FillPolicy ZERO = FillPolicy.fromString("zero");
-
+  private static final long BASE_TIME = 1356998400000L;
+  
+  private DownsamplingSpecification specification;
+  
   /** Data with gaps: before, during, and after. */
   @Test
   public void testNaNMissingInterval() {
@@ -43,18 +41,20 @@ public class TestFillingDownsampler {
         MutableDataPoint.ofDoubleValue(baseTime + 25L * 27L, 1.),
       });
 
+    specification = new DownsamplingSpecification("100ms-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 36 * 25L, 100L, SUM, NAN);
-
-    step(downsampler, Double.NaN);
-    step(downsampler, 3.);
-    step(downsampler, Double.NaN);
-    step(downsampler, 2.);
-    step(downsampler, Double.NaN);
-    step(downsampler, Double.NaN);
-    step(downsampler, 4.);
-    step(downsampler, Double.NaN);
-    step(downsampler, Double.NaN);
+      baseTime + 36 * 25L, specification, 0, 0);
+    
+    long timestamp = baseTime;
+    step(downsampler, timestamp, Double.NaN);
+    step(downsampler, timestamp += 100, 3.);
+    step(downsampler, timestamp += 100, Double.NaN);
+    step(downsampler, timestamp += 100, 2.);
+    step(downsampler, timestamp += 100, Double.NaN);
+    step(downsampler, timestamp += 100, Double.NaN);
+    step(downsampler, timestamp += 100, 4.);
+    step(downsampler, timestamp += 100, Double.NaN);
+    step(downsampler, timestamp += 100, Double.NaN);
     assertFalse(downsampler.hasNext());
   }
 
@@ -73,19 +73,21 @@ public class TestFillingDownsampler {
         MutableDataPoint.ofDoubleValue(baseTime + 25L * 26L, 1.),
         MutableDataPoint.ofDoubleValue(baseTime + 25L * 27L, 1.),
       });
-
+    
+    specification = new DownsamplingSpecification("100ms-sum-zero");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 36 * 25L, 100L, SUM, ZERO);
-
-    step(downsampler, 0.);
-    step(downsampler, 3.);
-    step(downsampler, 0.);
-    step(downsampler, 2.);
-    step(downsampler, 0.);
-    step(downsampler, 0.);
-    step(downsampler, 4.);
-    step(downsampler, 0.);
-    step(downsampler, 0.);
+      baseTime + 36 * 25L, specification, 0, 0);
+    
+    long timestamp = baseTime;
+    step(downsampler, timestamp, 0.);
+    step(downsampler, timestamp += 100, 3.);
+    step(downsampler, timestamp += 100, 0.);
+    step(downsampler, timestamp += 100, 2.);
+    step(downsampler, timestamp += 100, 0.);
+    step(downsampler, timestamp += 100, 0.);
+    step(downsampler, timestamp += 100, 4.);
+    step(downsampler, timestamp += 100, 0.);
+    step(downsampler, timestamp += 100, 0.);
     assertFalse(downsampler.hasNext());
   }
 
@@ -109,12 +111,14 @@ public class TestFillingDownsampler {
         MutableDataPoint.ofDoubleValue(baseTime + 25L * 11L,  1.),
       });
 
+    specification = new DownsamplingSpecification("100ms-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 12L * 25L, 100L, SUM, NAN);
+      baseTime + 12L * 25L, specification, 0, 0);
 
-    step(downsampler, 42.);
-    step(downsampler, 26.);
-    step(downsampler, 10.);
+    long timestamp = baseTime;
+    step(downsampler, timestamp, 42.);
+    step(downsampler, timestamp += 100, 26.);
+    step(downsampler, timestamp += 100, 10.);
     assertFalse(downsampler.hasNext());
   }
 
@@ -139,20 +143,139 @@ public class TestFillingDownsampler {
         MutableDataPoint.ofDoubleValue(baseTime + 60000L * 2L + 30384L, 37.),
         MutableDataPoint.ofDoubleValue(baseTime + 60000L * 4L +  1530L, 86.)
       });
-
+    
+    specification = new DownsamplingSpecification("1m-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 60000L * 2L, 60000L, SUM, NAN);
+      baseTime + 60000L * 2L, specification, 0, 0);
+    
+    long timestamp = 1425335880000L;
+    step(downsampler, timestamp, 30.);
+    step(downsampler, timestamp += 60000, 9.);
+    assertFalse(downsampler.hasNext());
+  }
+  
+  @Test
+  public void testWithOutOfBoundsDataEarly() {
+    final long baseTime = 1425335895000L;
+    final SeekableView source =
+      SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofDoubleValue(baseTime - 60000L * 5L +   320L, 53.),
+        MutableDataPoint.ofDoubleValue(baseTime - 60000L * 2L +  8839L, 16.)
+      });
 
-    step(downsampler, 30.);
-    step(downsampler,  9.);
+    specification = new DownsamplingSpecification("1m-sum-nan");
+    final Downsampler downsampler = new FillingDownsampler(source, baseTime,
+      baseTime + 60000L * 2L, specification, 0, 0);
+    
+    long timestamp = 1425335880000L;
+    step(downsampler, timestamp, Double.NaN);
+    step(downsampler, timestamp += 60000, Double.NaN);
+    assertFalse(downsampler.hasNext());
+  }
+  
+  @Test
+  public void testWithOutOfBoundsDataLate() {
+    final long baseTime = 1425335895000L;
+    final SeekableView source =
+      SeekableViewsForTest.fromArray(new DataPoint[] {
+          MutableDataPoint.ofDoubleValue(baseTime + 60000L * 2L + 30384L, 37.),
+          MutableDataPoint.ofDoubleValue(baseTime + 60000L * 4L +  1530L, 86.)
+      });
+
+    specification = new DownsamplingSpecification("1m-sum-nan");
+    final Downsampler downsampler = new FillingDownsampler(source, baseTime,
+      baseTime + 60000L * 2L, specification, 0, 0);
+    
+    long timestamp = 1425335880000L;
+    step(downsampler, timestamp, Double.NaN);
+    step(downsampler, timestamp += 60000, Double.NaN);
     assertFalse(downsampler.hasNext());
   }
 
-  private void step(final Downsampler downsampler, final double expected) {
+  @Test
+  public void testDownsampler_allFullRange() {
+    final SeekableView source = SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofLongValue(BASE_TIME + 5000L, 1),
+        MutableDataPoint.ofLongValue(BASE_TIME + 15000L, 2),
+        MutableDataPoint.ofLongValue(BASE_TIME + 25000L, 4),
+        MutableDataPoint.ofLongValue(BASE_TIME + 35000L, 8),
+        MutableDataPoint.ofLongValue(BASE_TIME + 45000L, 16),
+        MutableDataPoint.ofLongValue(BASE_TIME + 55000L, 32)
+    });
+    
+    specification = new DownsamplingSpecification("0all-sum-nan");
+    final Downsampler downsampler = new FillingDownsampler(source, 
+        BASE_TIME + 5000L,BASE_TIME + 55000L, specification, 0, 
+        Long.MAX_VALUE);
+    
+    step(downsampler, 0, 63);
+    assertFalse(downsampler.hasNext());
+  }
+  
+  @Test
+  public void testDownsampler_allFilterOnQuery() {
+    final SeekableView source = SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofLongValue(BASE_TIME + 5000L, 1),
+        MutableDataPoint.ofLongValue(BASE_TIME + 15000L, 2),
+        MutableDataPoint.ofLongValue(BASE_TIME + 25000L, 4),
+        MutableDataPoint.ofLongValue(BASE_TIME + 35000L, 8),
+        MutableDataPoint.ofLongValue(BASE_TIME + 45000L, 16),
+        MutableDataPoint.ofLongValue(BASE_TIME + 55000L, 32)
+    });
+    
+    specification = new DownsamplingSpecification("0all-sum-nan");
+    final Downsampler downsampler = new FillingDownsampler(source, 
+        BASE_TIME + 5000L,BASE_TIME + 55000L, specification, 
+        BASE_TIME + 15000L, BASE_TIME + 45000L);
+    
+    step(downsampler, BASE_TIME + 15000L, 14);
+    assertFalse(downsampler.hasNext());
+  }
+  
+  @Test
+  public void testDownsampler_allFilterOnQueryOutOfRangeEarly() {
+    final SeekableView source = SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofLongValue(BASE_TIME + 5000L, 1),
+        MutableDataPoint.ofLongValue(BASE_TIME + 15000L, 2),
+        MutableDataPoint.ofLongValue(BASE_TIME + 25000L, 4),
+        MutableDataPoint.ofLongValue(BASE_TIME + 35000L, 8),
+        MutableDataPoint.ofLongValue(BASE_TIME + 45000L, 16),
+        MutableDataPoint.ofLongValue(BASE_TIME + 55000L, 32)
+    });
+    
+    specification = new DownsamplingSpecification("0all-sum-nan");
+    final Downsampler downsampler = new FillingDownsampler(source, 
+        BASE_TIME + 5000L,BASE_TIME + 55000L, specification, 
+        BASE_TIME + 65000L, BASE_TIME + 75000L);
+    
+    assertFalse(downsampler.hasNext());
+  }
+  
+  @Test
+  public void testDownsampler_allFilterOnQueryOutOfRangeLate() {
+    final SeekableView source = SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofLongValue(BASE_TIME + 5000L, 1),
+        MutableDataPoint.ofLongValue(BASE_TIME + 15000L, 2),
+        MutableDataPoint.ofLongValue(BASE_TIME + 25000L, 4),
+        MutableDataPoint.ofLongValue(BASE_TIME + 35000L, 8),
+        MutableDataPoint.ofLongValue(BASE_TIME + 45000L, 16),
+        MutableDataPoint.ofLongValue(BASE_TIME + 55000L, 32)
+    });
+    
+    specification = new DownsamplingSpecification("0all-sum-nan");
+    final Downsampler downsampler = new FillingDownsampler(source, 
+        BASE_TIME + 5000L,BASE_TIME + 55000L, specification, 
+        BASE_TIME - 15000L, BASE_TIME - 5000L);
+    
+    assertFalse(downsampler.hasNext());
+  }
+  
+  private void step(final Downsampler downsampler, final long expected_timestamp, 
+      final double expected_value) {
     assertTrue(downsampler.hasNext());
     final DataPoint point = downsampler.next();
-    assertNotNull(point);
-    assertEquals(expected, point.doubleValue(), 0.01);
+    assertEquals(expected_timestamp, point.timestamp());
+    assertEquals(expected_value, point.doubleValue(), 0.01);
   }
 }
 

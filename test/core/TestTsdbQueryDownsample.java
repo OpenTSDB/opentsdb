@@ -124,7 +124,7 @@ public class TestTsdbQueryDownsample extends BaseTsdbTest {
       TsdbQuery.ForTesting.getScanEndTimeSeconds(query));
   }
 
-  @Test (expected = NullPointerException.class)
+  @Test (expected = IllegalArgumentException.class)
   public void downsampleNullAgg() throws Exception {
     query.downsample(60, null);
   }
@@ -459,6 +459,104 @@ public class TestTsdbQueryDownsample extends BaseTsdbTest {
     // Out of 300 values, the first and the last intervals have one value each,
     // and the 149 intervals in the middle have two values for each.
     assertEquals(151, dps[0].size());
+  }
+  
+  @Test
+  public void runLongSingleTSDownsampleAll() throws Exception {
+    storeLongTimeSeriesSeconds(true, false);
+    final TSQuery ts_query = new TSQuery();
+    ts_query.setStart("1356998400");
+    ts_query.setEnd("1357041600");
+    
+    final HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    final TSSubQuery sub = new TSSubQuery();
+    sub.setTags(tags);
+    sub.setMetric("sys.cpu.user");
+    sub.setAggregator("sum");
+    sub.setDownsample("0all-sum");
+    
+    ts_query.setQueries(Lists.newArrayList(sub));
+    ts_query.validateAndSetQuery();
+    query.configureFromQuery(ts_query, 0);
+    
+    final DataPoints[] dps = query.run();
+    assertMeta(dps, 0, false);
+
+    for (DataPoint dp : dps[0]) {
+      // Downsampler outputs just doubles.
+      assertFalse(dp.isInteger());
+      assertEquals(45150, dp.doubleValue(), 0.00001);
+      assertEquals(1356998400000L, dp.timestamp());
+    }
+    // Out of 300 values, the first and the last intervals have one value each,
+    // and the 149 intervals in the middle have two values for each.
+    assertEquals(1, dps[0].size());
+  }
+  
+  @Test
+  public void runLongSingleTSDownsampleAllSubSet() throws Exception {
+    storeLongTimeSeriesSeconds(true, false);
+    final TSQuery ts_query = new TSQuery();
+    ts_query.setStart("1356998500");
+    ts_query.setEnd("1356998600");
+    
+    final HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    final TSSubQuery sub = new TSSubQuery();
+    sub.setTags(tags);
+    sub.setMetric("sys.cpu.user");
+    sub.setAggregator("sum");
+    sub.setDownsample("0all-sum");
+    
+    ts_query.setQueries(Lists.newArrayList(sub));
+    ts_query.validateAndSetQuery();
+    query.configureFromQuery(ts_query, 0);
+    
+    final DataPoints[] dps = query.run();
+    assertMeta(dps, 0, false);
+
+    for (DataPoint dp : dps[0]) {
+      // Downsampler outputs just doubles.
+      assertFalse(dp.isInteger());
+      assertEquals(15, dp.doubleValue(), 0.00001);
+      assertEquals(1356998500000L, dp.timestamp());
+    }
+    // Out of 300 values, the first and the last intervals have one value each,
+    // and the 149 intervals in the middle have two values for each.
+    assertEquals(1, dps[0].size());
+  }
+  
+  @Test
+  public void runLongSingleTSDownsampleAllNoEnd() throws Exception {
+    storeLongTimeSeriesSeconds(true, false);
+    final TSQuery ts_query = new TSQuery();
+    ts_query.setStart("1356998400");
+    
+    final HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    final TSSubQuery sub = new TSSubQuery();
+    sub.setTags(tags);
+    sub.setMetric("sys.cpu.user");
+    sub.setAggregator("sum");
+    sub.setDownsample("0all-sum");
+    
+    ts_query.setQueries(Lists.newArrayList(sub));
+    ts_query.validateAndSetQuery();
+    query.configureFromQuery(ts_query, 0);
+    
+    final DataPoints[] dps = query.run();
+    assertMeta(dps, 0, false);
+
+    for (DataPoint dp : dps[0]) {
+      // Downsampler outputs just doubles.
+      assertFalse(dp.isInteger());
+      assertEquals(45150, dp.doubleValue(), 0.00001);
+      assertEquals(1356998400000L, dp.timestamp());
+    }
+    // Out of 300 values, the first and the last intervals have one value each,
+    // and the 149 intervals in the middle have two values for each.
+    assertEquals(1, dps[0].size());
   }
   
   // this could happen.

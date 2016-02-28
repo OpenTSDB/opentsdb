@@ -485,6 +485,31 @@ final class Span implements DataPoints {
         interval_ms, downsampler, fill_policy);
     }
   }
+  
+  /**
+   * @param start_time The time in milliseconds at which the data begins.
+   * @param end_time The time in milliseconds at which the data ends.
+   * @param downsampler The downsampling specification to use
+   * @param query_start Start of the actual query
+   * @param query_end End of the actual query
+   * @return A new downsampler.
+   * @since 2.3
+   */
+  Downsampler downsampler(final long start_time,
+      final long end_time,
+      final DownsamplingSpecification downsampler,
+      final long query_start,
+      final long query_end) {
+    if (downsampler == null) {
+      return null;
+    }
+    if (FillPolicy.NONE == downsampler.getFillPolicy()) {
+      return new Downsampler(spanIterator(), downsampler, 
+          query_start, query_end);  
+    }
+    return new FillingDownsampler(spanIterator(), start_time, end_time, 
+        downsampler, query_start, query_end);
+  }
 
   public int getQueryIndex() {
     throw new UnsupportedOperationException("Not mapped to a query");
