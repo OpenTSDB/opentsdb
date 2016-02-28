@@ -1,5 +1,51 @@
 OpenTSDB - User visible changes.
 
+* Version 2.2.0 (2016-02-14)
+
+Noteworthy Changes
+  - Rework the QueryStats output to be a bit more useful and add timings from the
+    various scanners and query components.
+  - Modify the UI to allow for group by or aggregate per tag (use the new query feature)
+  - Rework the UI skin with the new TSDB logo and color scheme.
+  - Add the QueryLog config to logback.xml so users can optionally enable logging of
+    all queries along with their stats.
+
+Buf Fixes:
+  - Properly handle append data points in the FSCK utility.
+  - Fix FSCK to handle salting properly.
+  - Fix the IncomingDataPoints class for the CLI import tool to properly account for
+    salting.
+  - Fix the QueryStats maps by making sure the hash accounts for an unmodified list of
+    filters (return copies to callers so sorting won't break the hash code).
+  - Fix the case-insensitive wildcard filter to properly ignore the case.
+  - Fix the CLI dumper/scan utility to properly handle salted data.
+  - Fix a case where the compaction queue could grow unbounded when salting was enabled.
+  - Allow duplicate queries by default (as we did in the past) and users must now block
+    them explicitly.
+  - Fix the /api/stats endpoint to allow for returning a value if the max UID width is
+    set to 8 for any type. Previously it would throw an exception.
+  - Add a try catch to FSCK to debug issues where printing a problematic row would cause
+    a hangup or no output.
+
+* Version 2.2.0 RC3 (2015-11-11)
+
+Bug Fixes:
+  - Fix build issues where the static files were not copied into the proper location.
+
+* Version 2.2.0 RC2 (2015-11-09)
+
+Noteworthy Changes:
+  - Allow overriding the metric and tag UID widths via config file instead of
+    having to modify the source code.
+
+Bug Fixes:
+  - OOM handling script now handles multiple TSDs installed on the same host.
+  - Fix a bug where queries never return if an exception is thrown from the
+    storage layer.
+  - Fix random metric UID assignment in the CLI tool.
+  - Fix for meta data sync when salting is enabled.
+  - 
+
 * Version 2.2.0 RC1 (2015-09-12)
 
 Noteworthy Changes:
@@ -48,6 +94,21 @@ Bug Fixes:
   - Fix more issues with the FSCK around deleting columns that were in the list (#436)
   - Avoid OOM issues over Telnet when the sending client isn't reading errors off it's
     socket fast enough by blocking writes.
+
+* Version 2.1.3 (2015-11-11)
+
+Bug Fixes:
+
+  - Fix build issues where the static files were not copied into the proper location.
+
+* Version 2.1.2 (2015-11-09)
+
+Bug Fixes:
+  - Fix the built-in UI to handle query parameter parsing properly (found when Firefox 
+    changed their URI behavior)
+  - Fix comments about the Zookeeper quorum setting in various config files.
+  - Fix quoting in the Makefile when installing.
+  - Make sure builds write files in the proper location on FreeBSD.
 
 * Version 2.1.1 (2015-09-12)
 

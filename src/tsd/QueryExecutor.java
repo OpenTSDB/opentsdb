@@ -206,7 +206,7 @@ public class QueryExecutor {
   public void execute(final HttpQuery query) {
     http_query = query;
     final QueryStats query_stats = 
-        new QueryStats(query.getRemoteAddress(), ts_query);
+        new QueryStats(query.getRemoteAddress(), ts_query, query.getHeaders());
     ts_query.setQueryStats(query_stats);
 
     final long start = DateTime.currentTimeMillis();
@@ -241,7 +241,6 @@ public class QueryExecutor {
       public Object call(final ArrayList<DataPoints[]> query_results) 
         throws Exception {
         
-        query_stats.setTimeStorage(DateTime.currentTimeMillis() - start);
         for (int i = 0; i < query_results.size(); i++) {
           final TSSubQuery sub = ts_query.getQueries().get(i);
           
@@ -436,27 +435,27 @@ public class QueryExecutor {
           throws Exception {
         json.writeEndArray();
         
-        ts_query.getQueryStats().setTimeSerialization(
-            DateTime.currentTimeMillis() - start);
-        ts_query.getQueryStats().markComplete();
+//        ts_query.getQueryStats().setTimeSerialization(
+//            DateTime.currentTimeMillis() - start);
+        ts_query.getQueryStats().markSerializationSuccessful();
 
         // dump overall stats as an extra object in the array
-        if (true) {
-          final QueryStats stats = ts_query.getQueryStats();
-          json.writeFieldName("statsSummary");
-          json.writeStartObject();
-          //json.writeStringField("hostname", TSDB.getHostname());
-          //json.writeNumberField("runningQueries", stats.getNumRunningQueries());
-          json.writeNumberField("datapoints", stats.getAggregatedSize());
-          json.writeNumberField("rawDatapoints", stats.getSize());
-          //json.writeNumberField("rowsFetched", stats.getRowsFetched());
-          json.writeNumberField("aggregationTime", stats.getTimeAggregation());
-          json.writeNumberField("serializationTime", stats.getTimeSerialization());
-          json.writeNumberField("storageTime", stats.getTimeStorage());
-          json.writeNumberField("timeTotal", 
-              ((double)stats.getTimeTotal() / (double)1000000));
-          json.writeEndObject();
-        }
+//        if (true) {
+//          final QueryStats stats = ts_query.getQueryStats();
+//          json.writeFieldName("statsSummary");
+//          json.writeStartObject();
+//          //json.writeStringField("hostname", TSDB.getHostname());
+//          //json.writeNumberField("runningQueries", stats.getNumRunningQueries());
+//          json.writeNumberField("datapoints", stats.getAggregatedSize());
+//          json.writeNumberField("rawDatapoints", stats.getSize());
+//          //json.writeNumberField("rowsFetched", stats.getRowsFetched());
+//          json.writeNumberField("aggregationTime", stats.getTimeAggregation());
+//          json.writeNumberField("serializationTime", stats.getTimeSerialization());
+//          json.writeNumberField("storageTime", stats.getTimeStorage());
+//          json.writeNumberField("timeTotal", 
+//              ((double)stats.getTimeTotal() / (double)1000000));
+//          json.writeEndObject();
+//        }
         
         // dump the original query
         if (true) {
@@ -488,29 +487,29 @@ public class QueryExecutor {
           if (ex != null) {
             LOG.error("Unexpected exception: ", ex);
             // TODO - find a better way to determine the real error
-            QueryExecutor.this.ts_query.getQueryStats()
-              .markComplete(HttpResponseStatus.BAD_REQUEST, ex);
+//            QueryExecutor.this.ts_query.getQueryStats()
+//              .markComplete(HttpResponseStatus.BAD_REQUEST, ex);
             QueryExecutor.this.http_query.badRequest(new BadRequestException(ex));
           } else {
             LOG.error("The deferred group exception didn't have a cause???");
-            QueryExecutor.this.ts_query.getQueryStats()
-              .markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, ex);
+//            QueryExecutor.this.ts_query.getQueryStats()
+//              .markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, ex);
             QueryExecutor.this.http_query.badRequest(new BadRequestException(e));
           }
         } else if (e.getClass() == QueryException.class) {
-          QueryExecutor.this.ts_query.getQueryStats()
-            .markComplete(HttpResponseStatus.REQUEST_TIMEOUT, e);
+//          QueryExecutor.this.ts_query.getQueryStats()
+//            .markComplete(HttpResponseStatus.REQUEST_TIMEOUT, e);
           QueryExecutor.this.http_query.badRequest(new BadRequestException((QueryException)e));
         } else {
-          QueryExecutor.this.ts_query.getQueryStats()
-            .markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+//          QueryExecutor.this.ts_query.getQueryStats()
+//            .markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
           QueryExecutor.this.http_query.badRequest(new BadRequestException(e));
         }
         return null;
       } catch (RuntimeException ex) {
         LOG.error("Exception thrown during exception handling", ex);
-        QueryExecutor.this.ts_query.getQueryStats()
-          .markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, ex);
+//        QueryExecutor.this.ts_query.getQueryStats()
+//          .markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, ex);
         QueryExecutor.this.http_query.sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
             ex.getMessage().getBytes());
         return null;

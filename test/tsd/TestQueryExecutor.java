@@ -87,8 +87,9 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final QueryRpc rpc = new QueryRpc();
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
-    
+    NettyMocks.mockChannelFuture(query);
     rpc.execute(tsdb, query);
+    
     final String response = 
         query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"alias\":\"A plus B\""));
@@ -111,6 +112,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final QueryRpc rpc = new QueryRpc();
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -140,6 +142,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final QueryRpc rpc = new QueryRpc();
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -169,6 +172,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
     query.getQueryBaseRoute(); // to the correct serializer
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -200,6 +204,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final QueryRpc rpc = new QueryRpc();
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -245,6 +250,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
     query.getQueryBaseRoute(); // to the correct serializer
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -277,6 +283,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
     query.getQueryBaseRoute(); // to the correct serializer
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -305,6 +312,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final QueryRpc rpc = new QueryRpc();
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -339,6 +347,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final QueryRpc rpc = new QueryRpc();
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -379,6 +388,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final QueryRpc rpc = new QueryRpc();
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -410,6 +420,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
     query.getQueryBaseRoute(); // to the correct serializer
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -431,6 +442,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
     query.getQueryBaseRoute(); // to the correct serializer
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -453,6 +465,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
     query.getQueryBaseRoute(); // to the correct serializer
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -479,6 +492,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
     query.getQueryBaseRoute(); // to the correct serializer
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -504,6 +518,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
     query.getQueryBaseRoute(); // to the correct serializer
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -521,6 +536,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
     query.getQueryBaseRoute(); // to the correct serializer
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -553,6 +569,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
     query.getQueryBaseRoute(); // to the correct serializer
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -574,6 +591,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
     query.getQueryBaseRoute(); // to the correct serializer
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
@@ -592,6 +610,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
         "/api/query/exp", json);
     query.getQueryBaseRoute(); // to the correct serializer
+    NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
     final String response = 
