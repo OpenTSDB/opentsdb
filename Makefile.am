@@ -130,6 +130,7 @@ tsdb_SRC := \
 	src/tools/MetaPurge.java	\
 	src/tools/MetaSync.java	\
 	src/tools/Search.java	\
+  src/tools/StartupPlugin.java \
 	src/tools/TSDMain.java	\
 	src/tools/TextImporter.java	\
 	src/tools/TreeSync.java	\
