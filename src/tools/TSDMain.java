@@ -13,10 +13,17 @@
 package net.opentsdb.tools;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
@@ -34,6 +41,8 @@ import net.opentsdb.tsd.PipelineFactory;
 import net.opentsdb.tsd.RpcManager;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.FileSystem;
+import net.opentsdb.utils.Pair;
+import net.opentsdb.utils.PluginLoader;
 import net.opentsdb.utils.Threads;
 
 /**
@@ -52,6 +61,11 @@ final class TSDMain {
     }
     System.exit(retval);
   }
+
+  /** A map of configured filters for use in querying */
+  private static Map<String, Pair<Class<?>, Constructor<? extends StartupPlugin>>>
+          startupPlugin_filter_map = new HashMap<String,
+          Pair<Class<?>, Constructor<? extends StartupPlugin>>>();
 
   private static final short DEFAULT_FLUSH_INTERVAL = 1000;
   
@@ -145,9 +159,21 @@ final class TSDMain {
           Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), 
           new Threads.PrependThreadNamer());
     }
-    
+
+    StartupPlugin startup = null;
+    try {
+      startup = loadStartupPlugins(config);
+    } catch (IllegalArgumentException e) {
+      usage(argp, e.getMessage(), 3);
+    } catch (Exception e) {
+      throw new RuntimeException("Initialization failed", e);
+    }
+
     try {
       tsdb = new TSDB(config);
+      if (startup != null) {
+        tsdb.setStartup(startup);
+      }
       tsdb.initializePlugins(true);
       if (config.getBoolean("tsd.storage.hbase.prefetch_meta")) {
         tsdb.preFetchHBaseMeta();
@@ -196,6 +222,42 @@ final class TSDMain {
       throw new RuntimeException("Initialization failed", e);
     }
     // The server is now running in separate threads, we can exit main.
+  }
+
+  private static StartupPlugin loadStartupPlugins(Config config) {
+    Logger log = LoggerFactory.getLogger(TSDMain.class);
+
+    // load the startup plugin if enabled
+    StartupPlugin startup = null;
+
+    if (config.getBoolean("tsd.startup.enable")) {
+      final String plugin_path = config.getString("tsd.core.plugin_path");
+
+      try {
+        TSDB.loadPluginPath(plugin_path);
+      } catch (Exception e) {
+        log.error("Error loading plugins from plugin path: " + plugin_path, e);
+      }
+
+      startup = PluginLoader.loadSpecificPlugin(
+              config.getString("tsd.startup.plugin"), StartupPlugin.class);
+      if (startup == null) {
+        throw new IllegalArgumentException("Unable to locate startup plugin: " +
+                config.getString("tsd.startup.plugin"));
+      }
+      try {
+        startup.initialize(config);
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to initialize startup plugin", e);
+      }
+      log.info("Successfully initialized startup plugin [" +
+              startup.getClass().getCanonicalName() + "] version: "
+              + startup.version());
+    } else {
+      startup = null;
+    }
+
+    return startup;
   }
 
   private static void registerShutdownHook() {
