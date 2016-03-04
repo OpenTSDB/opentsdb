@@ -96,6 +96,7 @@ tsdb_SRC := \
 	src/query/expression/PostAggregatedDataPoints.java	\
 	src/query/expression/Scale.java	\
 	src/query/expression/SumSeries.java	\
+  src/query/expression/TimeShift.java \
 	src/query/expression/TimeSyncedIterator.java	\
 	src/query/expression/UnionIterator.java	\
 	src/query/expression/VariableIterator.java	\
