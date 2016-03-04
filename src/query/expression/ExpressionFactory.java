@@ -35,6 +35,8 @@ public final class ExpressionFactory {
     available_functions.put("movingAverage", new MovingAverage());
     available_functions.put("highestCurrent", new HighestCurrent());
     available_functions.put("highestMax", new HighestMax());
+    available_functions.put("shift", new TimeShift());
+    available_functions.put("timeShift", new TimeShift());
   }
   
   /** Don't instantiate me! */
