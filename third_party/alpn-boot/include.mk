@@ -14,6 +14,7 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 # ALPN_BOOT_VERSION := 7.1.3.v20150130
+
 ALPN_BOOT_VERSION = $(shell version= ;\
   if [[ "@JAVA@" ]]; then \
     version=$$("@JAVA@" -version 2>&1 | awk -F '"' '/version/ {print $$2}'); \
@@ -42,8 +43,12 @@ ALPN_BOOT_VERSION = $(shell version= ;\
        echo "8.1.3.v20150130"; \
     elif [[ $$sub < 60 ]]; then \
       echo "8.1.4.v20150727"; \
-    else \
+    elif [[ $$sub < 65 ]]; then \
       echo "8.1.5.v20150921"; \
+    elif [[ $$sub < 71 ]]; then \
+      echo "8.1.6.v20151105"; \
+    else \
+      echo "8.1.7.v20160121"; \
     fi \
   else \
     echo "Unsupported major Java version: $$major"; \
