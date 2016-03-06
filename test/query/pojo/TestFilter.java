@@ -41,14 +41,15 @@ public class TestFilter {
   @Test
   public void deserialize() throws Exception {
     String json = "{\"id\":\"f1\",\"tags\":[{\"tagk\":\"host\","
-        + "\"filter\":\"*\",\"type\":\"iwildcard\",\"groupBy\":false}]}";
+        + "\"filter\":\"*\",\"type\":\"iwildcard\",\"groupBy\":false}],"
+        + "\"explicitTags\":\"true\"}";
 
     TagVFilter tag = new TagVFilter.Builder().setFilter("*").setGroupBy(
         false)
         .setTagk("host").setType("iwildcard").build();
 
     Filter expectedFilter = Filter.Builder().setId("f1")
-        .setTags(Arrays.asList(tag)).build();
+        .setTags(Arrays.asList(tag)).setExplicitTags(true).build();
 
     Filter filter = JSON.parseToObject(json, Filter.class);
     filter.validate();
@@ -61,12 +62,13 @@ public class TestFilter {
         .setTagk("host").setType("iwildcard").build();
 
     Filter filter = Filter.Builder().setId("f1")
-        .setTags(Arrays.asList(tag)).build();
+        .setTags(Arrays.asList(tag)).setExplicitTags(true).build();
 
     String actual = JSON.serializeToString(filter);
     assertTrue(actual.contains("\"id\":\"f1\""));
     assertTrue(actual.contains("\"tags\":["));
     assertTrue(actual.contains("\"tagk\":\"host\""));
+    assertTrue(actual.contains("\"explicitTags\":true"));
   }
 
   @Test

@@ -170,6 +170,7 @@ public class QueryExecutor {
         sub.setFilters(filters.getTags());
         sub.setAggregator(
             mq.getAggregator() != null ? mq.getAggregator() : timespan.getAggregator());
+        sub.setExplicitTags(filters.getExplicitTags());
       }
     }
     
