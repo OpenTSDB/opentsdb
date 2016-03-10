@@ -25,18 +25,11 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import net.opentsdb.uid.NoSuchUniqueId;
+import org.hbase.async.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.hbase.async.AppendRequest;
-import org.hbase.async.Bytes;
 import org.hbase.async.Bytes.ByteMap;
-import org.hbase.async.ClientStats;
-import org.hbase.async.DeleteRequest;
-import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
-import org.hbase.async.HBaseException;
-import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
 import org.jboss.netty.util.HashedWheelTimer;
 import org.jboss.netty.util.Timeout;
 import org.jboss.netty.util.Timer;
@@ -263,12 +256,12 @@ public final class TSDB {
    * @throws IllegalArgumentException if a plugin could not be initialized
    * @since 2.0
    */
-  public void initializePlugins(final boolean init_rpcs) {
+  public void initializePlugins(final boolean init_rpcs) throws RuntimeException {
     final String plugin_path = config.getString("tsd.core.plugin_path");
     try {
       loadPluginPath(plugin_path);
-    } catch (Exception e) {
-      LOG.error("Error loading plugins from plugin path: " + plugin_path, e);
+    } catch (RuntimeException e) {
+      throw e;
     }
 
     try {
