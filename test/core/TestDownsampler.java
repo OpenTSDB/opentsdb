@@ -19,7 +19,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
+import java.util.Arrays;
+import java.util.Calendar;
 import java.util.List;
+import java.util.TimeZone;
 
 import com.google.common.collect.Lists;
 
@@ -52,7 +55,9 @@ public class TestDownsampler {
       (int)DateTime.parseDuration("10s");
   private static final Aggregator AVG = Aggregators.get("avg");
   private static final Aggregator SUM = Aggregators.get("sum");
-
+  private static final TimeZone UTC_TIME_ZONE = DateTime.timezones.get("UTC");
+  private static final TimeZone EST_TIME_ZONE = DateTime.timezones.get("EST");
+ 
   private SeekableView source;
   private Downsampler downsampler;
   private DownsamplingSpecification specification;
@@ -65,7 +70,7 @@ public class TestDownsampler {
   @Test
   public void testDownsampler() {
     specification = new DownsamplingSpecification("1000s-avg");
-    downsampler = new Downsampler(source, specification, 0, 0);
+    downsampler = new Downsampler(source, specification, 0, 0, TimeZone.getDefault(), false);
     verify(source, never()).next();
     List<Double> values = Lists.newArrayList();
     List<Long> timestamps_in_millis = Lists.newArrayList();
@@ -146,7 +151,7 @@ public class TestDownsampler {
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 10, 1024)
     }));
     specification = new DownsamplingSpecification("10s-sum");
-    downsampler = new Downsampler(source, specification, 0, 0);
+    downsampler = new Downsampler(source, specification, 0, 0, TimeZone.getDefault(), false);
     verify(source, never()).next();
     List<Double> values = Lists.newArrayList();
     List<Long> timestamps_in_millis = Lists.newArrayList();
@@ -215,7 +220,7 @@ public class TestDownsampler {
         MutableDataPoint.ofLongValue(BASE_TIME + 55000L, 32)
     }));
     specification = new DownsamplingSpecification("15s-sum");
-    downsampler = new Downsampler(source, specification, 0, 0);
+    downsampler = new Downsampler(source, specification, 0, 0, TimeZone.getDefault(), false);
     verify(source, never()).next();
     List<Double> values = Lists.newArrayList();
     List<Long> timestamps_in_millis = Lists.newArrayList();
@@ -248,8 +253,8 @@ public class TestDownsampler {
         MutableDataPoint.ofLongValue(BASE_TIME + 55000L, 32)
     }));
     specification = new DownsamplingSpecification("0all-sum");
-    downsampler = new Downsampler(source, specification, 0, Long.MAX_VALUE);
-    System.out.println(downsampler);
+    downsampler = new Downsampler(source, specification, 0, Long.MAX_VALUE, TimeZone.getDefault(), false);
+    
     verify(source, never()).next();
     List<Double> values = Lists.newArrayList();
     List<Long> timestamps_in_millis = Lists.newArrayList();
@@ -277,7 +282,7 @@ public class TestDownsampler {
     }));
     specification = new DownsamplingSpecification("0all-sum");
     downsampler = new Downsampler(source, specification, 
-        BASE_TIME + 15000L, BASE_TIME + 45000L);
+        BASE_TIME + 15000L, BASE_TIME + 45000L, TimeZone.getDefault(), false);
     verify(source, never()).next();
     List<Double> values = Lists.newArrayList();
     List<Long> timestamps_in_millis = Lists.newArrayList();
@@ -305,7 +310,7 @@ public class TestDownsampler {
     }));
     specification = new DownsamplingSpecification("0all-sum");
     downsampler = new Downsampler(source, specification, 
-        BASE_TIME + 65000L, BASE_TIME + 75000L);
+        BASE_TIME + 65000L, BASE_TIME + 75000L, TimeZone.getDefault(), false);
     verify(source, never()).next();
     List<Double> values = Lists.newArrayList();
     List<Long> timestamps_in_millis = Lists.newArrayList();
@@ -331,7 +336,7 @@ public class TestDownsampler {
     }));
     specification = new DownsamplingSpecification("0all-sum");
     downsampler = new Downsampler(source, specification, 
-        BASE_TIME - 15000L, BASE_TIME - 5000L);
+        BASE_TIME - 15000L, BASE_TIME - 5000L, TimeZone.getDefault(), false);
     verify(source, never()).next();
     List<Double> values = Lists.newArrayList();
     List<Long> timestamps_in_millis = Lists.newArrayList();
@@ -343,6 +348,465 @@ public class TestDownsampler {
     }
 
     assertEquals(0, values.size());
+  }
+  
+  @Test
+  public void testDownsampler_calendar() {
+    source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofLongValue(BASE_TIME + 5000L, 1),
+        MutableDataPoint.ofLongValue(BASE_TIME + 15000L, 2),
+        MutableDataPoint.ofLongValue(BASE_TIME + 25000L, 4),
+        MutableDataPoint.ofLongValue(BASE_TIME + 35000L, 8),
+        MutableDataPoint.ofLongValue(BASE_TIME + 45000L, 16),
+        MutableDataPoint.ofLongValue(BASE_TIME + 55000L, 32)
+    }));
+    specification = new DownsamplingSpecification("1d-sum");
+    //specification.setTimezone(DateTime.timezones.get("America/Denver"));
+    downsampler = new Downsampler(source, specification, 0, Long.MAX_VALUE, DateTime.timezones.get("America/Denver"), true);
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+
+    assertEquals(1, values.size());
+    assertEquals(63, values.get(0), 0.0000001);
+    assertEquals(1356937200000L, timestamps_in_millis.get(0).longValue());
+  }
+  
+  @Test
+  public void testDownsampler_noData() {
+    source = spy(SeekableViewsForTest.fromArray(new DataPoint[] { }));
+    specification = new DownsamplingSpecification("1d-sum");
+    downsampler = new Downsampler(source, specification, 0, Long.MAX_VALUE, TimeZone.getDefault(), false);
+    verify(source, never()).next();
+    assertFalse(downsampler.hasNext());
+  }
+  
+  @Test
+  public void testDownsampler_noDataCalendar() {
+    source = spy(SeekableViewsForTest.fromArray(new DataPoint[] { }));
+    specification = new DownsamplingSpecification("1m-sum");
+    downsampler = new Downsampler(source, specification, 0, Long.MAX_VALUE, 
+        UTC_TIME_ZONE, true);
+    verify(source, never()).next();
+    assertFalse(downsampler.hasNext());
+  }
+  
+  @Test
+  public void testDownsampler_1day() {
+    final DataPoint [] data_points = new DataPoint[4];
+    long timestamp = DateTime.toStartOfDay(BASE_TIME, UTC_TIME_ZONE);
+    for (int i = 0; i < data_points.length; i++) {
+      long value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+  
+      i += 1;
+      long startOfNextInterval = DateTime.toEndOfDay(timestamp, UTC_TIME_ZONE) + 1;
+      timestamp = timestamp + (startOfNextInterval - timestamp) / 2;
+      value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+      timestamp = startOfNextInterval;
+    }
+    
+    System.out.println(Arrays.toString(data_points));
+    
+    source = spy(SeekableViewsForTest.fromArray(data_points));
+    
+    downsampler = new Downsampler(source, Downsampler.ONE_DAY_INTERVAL, SUM);
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+    
+    assertEquals(2, values.size());
+    timestamp = DateTime.toStartOfDay(BASE_TIME, UTC_TIME_ZONE);
+    for (int i = 0, j = 0; i < values.size(); i++) {
+      assertEquals((1 << j++) + (1 << j++), values.get(i), 0.0000001);
+      assertEquals(timestamp, timestamps_in_millis.get(i).longValue());
+      timestamp = DateTime.toEndOfDay(timestamp, UTC_TIME_ZONE) + 1;
+    }
+  }
+
+  @Test
+  public void testDownsampler_1day_timezone() {
+    final DataPoint [] data_points = new DataPoint[4];
+    long timestamp = DateTime.toStartOfDay(BASE_TIME, UTC_TIME_ZONE) - EST_TIME_ZONE.getOffset(BASE_TIME);
+    for (int i = 0; i < data_points.length; i++) {
+      long value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+  
+      i += 1;
+      long startOfNextInterval = DateTime.toEndOfDay(timestamp, EST_TIME_ZONE) + 1;
+      timestamp = timestamp + (startOfNextInterval - timestamp) / 2;
+      value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+      timestamp = startOfNextInterval;
+    }
+    
+    source = spy(SeekableViewsForTest.fromArray(data_points));
+    specification = new DownsamplingSpecification("1d-sum");
+    downsampler = new Downsampler(source, specification, 0, 0, EST_TIME_ZONE, true);
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+    
+    assertEquals(2, values.size());
+    timestamp = DateTime.toStartOfDay(BASE_TIME, UTC_TIME_ZONE) - EST_TIME_ZONE.getOffset(BASE_TIME);
+    for (int i = 0, j = 0; i < values.size(); i++) {
+      assertEquals((1 << j++) + (1 << j++), values.get(i), 0.0000001);
+      assertEquals(timestamp, timestamps_in_millis.get(i).longValue());
+      timestamp = DateTime.toEndOfDay(timestamp, EST_TIME_ZONE) + 1;
+    }
+  }
+  
+  @Test
+  public void testDownsampler_1week() {
+    final DataPoint [] data_points = new DataPoint[4];
+    long timestamp = DateTime.toStartOfWeek(BASE_TIME, UTC_TIME_ZONE);
+    for (int i = 0; i < data_points.length; i++) {
+      long value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+  
+      i += 1;
+      long startOfNextInterval = DateTime.toEndOfWeek(timestamp, UTC_TIME_ZONE) + 1;
+      timestamp = timestamp + (startOfNextInterval - timestamp) / 2;
+      value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+      timestamp = startOfNextInterval;
+    }
+    
+    source = spy(SeekableViewsForTest.fromArray(data_points));
+    
+    specification = new DownsamplingSpecification("1w-sum");
+    downsampler = new Downsampler(source, specification, 0, 0, UTC_TIME_ZONE, true);
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+    
+    assertEquals(2, values.size());
+    timestamp = DateTime.toStartOfWeek(BASE_TIME, UTC_TIME_ZONE);
+    for (int i = 0, j = 0; i < values.size(); i++) {
+      assertEquals((1 << j++) + (1 << j++), values.get(i), 0.0000001);
+      assertEquals(timestamp, timestamps_in_millis.get(i).longValue());
+      timestamp = DateTime.toEndOfWeek(timestamp, UTC_TIME_ZONE) + 1;
+    }
+  }
+
+  @Test
+  public void testDownsampler_1week_timezone() {
+    final DataPoint [] data_points = new DataPoint[4];
+    long timestamp = DateTime.toStartOfWeek(BASE_TIME, UTC_TIME_ZONE) - EST_TIME_ZONE.getOffset(BASE_TIME);
+    for (int i = 0; i < data_points.length; i++) {
+      long value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+  
+      i += 1;
+      long startOfNextInterval = DateTime.toEndOfWeek(timestamp, EST_TIME_ZONE) + 1;
+      timestamp = timestamp + (startOfNextInterval - timestamp) / 2;
+      value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+      timestamp = startOfNextInterval;
+    }
+    
+    source = spy(SeekableViewsForTest.fromArray(data_points));
+    
+    specification = new DownsamplingSpecification("1w-sum");
+    downsampler = new Downsampler(source, specification, 0, 0, EST_TIME_ZONE, true);
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+    
+    assertEquals(2, values.size());
+    timestamp = DateTime.toStartOfWeek(BASE_TIME, UTC_TIME_ZONE) - EST_TIME_ZONE.getOffset(BASE_TIME);
+    for (int i = 0, j = 0; i < values.size(); i++) {
+      assertEquals((1 << j++) + (1 << j++), values.get(i), 0.0000001);
+      assertEquals(timestamp, timestamps_in_millis.get(i).longValue());
+      timestamp = DateTime.toEndOfWeek(timestamp, EST_TIME_ZONE) + 1;
+    }
+  }
+
+  @Test
+  public void testDownsampler_1month() {
+    final DataPoint [] data_points = new DataPoint[24];
+    long timestamp = DateTime.toStartOfMonth(BASE_TIME, UTC_TIME_ZONE);
+    for (int i = 0; i < data_points.length; i++) {
+      long value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+
+      i += 1;
+      long startOfNextInterval = DateTime.toEndOfMonth(timestamp, UTC_TIME_ZONE) + 1;
+      timestamp = timestamp + (startOfNextInterval - timestamp) / 2;
+      value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+      timestamp = startOfNextInterval;
+    }
+    
+    source = spy(SeekableViewsForTest.fromArray(data_points));
+    
+    specification = new DownsamplingSpecification("1n-sum");
+    downsampler = new Downsampler(source, specification, 0, 0, UTC_TIME_ZONE, true);
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+    
+    assertEquals(12, values.size());
+    timestamp = DateTime.toStartOfMonth(BASE_TIME, UTC_TIME_ZONE);
+    for (int i = 0, j = 0; i < values.size(); i++) {
+      assertEquals((1 << j++) + (1 << j++), values.get(i), 0.0000001);
+      assertEquals(timestamp, timestamps_in_millis.get(i).longValue());
+      timestamp = DateTime.toEndOfMonth(timestamp, UTC_TIME_ZONE) + 1;
+    }
+  }
+  
+  @Test
+  public void testDownsampler_1month_alt() {
+    /*
+    1380600000 -> 2013-10-01T04:00:00Z
+    1383278400 -> 2013-11-01T04:00:00Z
+    1385874000 -> 2013-12-01T05:00:00Z
+    1388552400 -> 2014-01-01T05:00:00Z
+    1391230800 -> 2014-02-01T05:00:00Z
+    1393650000 -> 2014-03-01T05:00:00Z
+    1396324800 -> 2014-04-01T04:00:00Z
+    1398916800 -> 2014-05-01T04:00:00Z
+    1401595200 -> 2014-06-01T04:00:00Z
+    1404187200 -> 2014-07-01T04:00:00Z
+    1406865600 -> 2014-08-01T04:00:00Z
+    1409544000 -> 2014-09-01T04:00:00Z
+    */
+
+    int value = 1;
+    final DataPoint [] data_points = new DataPoint[] {
+      MutableDataPoint.ofLongValue(1380600000000L, value), 
+      MutableDataPoint.ofLongValue(1383278400000L, value), 
+      MutableDataPoint.ofLongValue(1385874000000L, value), 
+      MutableDataPoint.ofLongValue(1388552400000L, value), 
+      MutableDataPoint.ofLongValue(1391230800000L, value), 
+      MutableDataPoint.ofLongValue(1393650000000L, value), 
+      MutableDataPoint.ofLongValue(1396324800000L, value), 
+      MutableDataPoint.ofLongValue(1398916800000L, value), 
+      MutableDataPoint.ofLongValue(1401595200000L, value), 
+      MutableDataPoint.ofLongValue(1404187200000L, value), 
+      MutableDataPoint.ofLongValue(1406865600000L, value), 
+      MutableDataPoint.ofLongValue(1409544000000L, value), 
+    };
+    
+    source = spy(SeekableViewsForTest.fromArray(data_points));
+    
+    specification = new DownsamplingSpecification("1d-sum");
+    downsampler = new Downsampler(source, specification, 0, 0, UTC_TIME_ZONE, true);
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+    
+    assertEquals(12, values.size());
+    long timestamp = DateTime.toStartOfMonth(data_points[0].timestamp(), UTC_TIME_ZONE);
+    for (int i = 0; i < values.size(); i++) {
+      assertEquals(1, values.get(i), 0.0000001);
+      assertEquals(timestamp, timestamps_in_millis.get(i).longValue());
+      timestamp = DateTime.toEndOfMonth(timestamp, UTC_TIME_ZONE) + 1;
+    }
+  }
+  
+  @Test
+  public void testDownsampler_2months() {
+    final DataPoint [] data_points = new DataPoint[24];
+    long timestamp = DateTime.toStartOfMonth(BASE_TIME, UTC_TIME_ZONE);
+    for (int i = 0; i < data_points.length; i++) {
+      long value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+
+      i += 1;
+      long startOfNextInterval = DateTime.toEndOfMonth(timestamp, UTC_TIME_ZONE) + 1;
+      timestamp = timestamp + (startOfNextInterval - timestamp) / 2;
+      value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+      timestamp = startOfNextInterval;
+    }
+    
+    source = spy(SeekableViewsForTest.fromArray(data_points));
+    
+    specification = new DownsamplingSpecification("2n-sum");
+    downsampler = new Downsampler(source, specification, 0, 0, UTC_TIME_ZONE, true);
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+    
+    assertEquals(6, values.size());
+    timestamp = DateTime.toStartOfMonth(BASE_TIME, UTC_TIME_ZONE);
+    for (int i = 0, j = 0; i < values.size(); i++) {
+      long value = 0;
+      for (int k = 0; k < 4; k++) {
+        value += (1 << j++);
+      }
+      assertEquals(value, values.get(i), 0.0000001);
+      assertEquals(timestamp, timestamps_in_millis.get(i).longValue());
+      timestamp = DateTime.toEndOfMonth(timestamp, UTC_TIME_ZONE) + 1;
+      timestamp = DateTime.toEndOfMonth(timestamp, UTC_TIME_ZONE) + 1;
+    }
+  }
+
+  @Test
+  public void testDownsampler_1month_timezone() {
+    final DataPoint [] data_points = new DataPoint[24];
+    long timestamp = DateTime.toStartOfMonth(BASE_TIME, UTC_TIME_ZONE) - EST_TIME_ZONE.getOffset(BASE_TIME);
+    for (int i = 0; i < data_points.length; i++) {
+      long value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+
+      i += 1;
+      long startOfNextInterval = DateTime.toEndOfMonth(timestamp, EST_TIME_ZONE) + 1;
+      timestamp = timestamp + (startOfNextInterval - timestamp) / 2;
+      value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+      timestamp = startOfNextInterval;
+    }
+    
+    source = spy(SeekableViewsForTest.fromArray(data_points));
+    
+    specification = new DownsamplingSpecification("1n-sum");
+    downsampler = new Downsampler(source, specification, 0, 0, EST_TIME_ZONE, true);
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+    
+    assertEquals(12, values.size());
+    timestamp = DateTime.toStartOfMonth(BASE_TIME, UTC_TIME_ZONE) - EST_TIME_ZONE.getOffset(BASE_TIME);
+    for (int i = 0, j = 0; i < values.size(); i++) {
+      assertEquals((1 << j++) + (1 << j++), values.get(i), 0.0000001);
+      assertEquals(timestamp, timestamps_in_millis.get(i).longValue());
+      timestamp = DateTime.toEndOfMonth(timestamp, EST_TIME_ZONE) + 1;
+    }
+  }
+
+  @Test
+  public void testDownsampler_1year() {
+    final DataPoint [] data_points = new DataPoint[4];
+    long timestamp = DateTime.toStartOfYear(BASE_TIME, UTC_TIME_ZONE);
+    for (int i = 0; i < data_points.length; i++) {
+      long value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+
+      i += 1;
+      long startOfNextInterval = DateTime.toEndOfYear(timestamp, UTC_TIME_ZONE) + 1;
+      timestamp = timestamp + (startOfNextInterval - timestamp) / 2;
+      value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+      timestamp = startOfNextInterval;
+    }
+    
+    source = spy(SeekableViewsForTest.fromArray(data_points));
+    
+    specification = new DownsamplingSpecification("1y-sum");
+    downsampler = new Downsampler(source, specification, 0, 0, UTC_TIME_ZONE, true);
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+    
+    assertEquals(2, values.size());
+    timestamp = DateTime.toStartOfYear(BASE_TIME, UTC_TIME_ZONE);
+    for (int i = 0, j = 0; i < values.size(); i++) {
+      assertEquals((1 << j++) + (1 << j++), values.get(i), 0.0000001);
+      assertEquals(timestamp, timestamps_in_millis.get(i).longValue());
+      timestamp = DateTime.toEndOfYear(timestamp, UTC_TIME_ZONE) + 1;
+    }
+  }
+
+  @Test
+  public void testDownsampler_1year_timezone() {
+    final DataPoint [] data_points = new DataPoint[4];
+    long timestamp = DateTime.toStartOfYear(BASE_TIME, UTC_TIME_ZONE) - EST_TIME_ZONE.getOffset(BASE_TIME);
+    for (int i = 0; i < data_points.length; i++) {
+      long value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+
+      i += 1;
+      long startOfNextInterval = DateTime.toEndOfYear(timestamp, EST_TIME_ZONE) + 1;
+      timestamp = timestamp + (startOfNextInterval - timestamp) / 2;
+      value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+      timestamp = startOfNextInterval;
+    }
+    
+    source = spy(SeekableViewsForTest.fromArray(data_points));
+    
+    specification = new DownsamplingSpecification("1y-sum");
+    downsampler = new Downsampler(source, specification, 0, 0, EST_TIME_ZONE, true);
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+    
+    assertEquals(2, values.size());
+    timestamp = DateTime.toStartOfYear(BASE_TIME, UTC_TIME_ZONE) - EST_TIME_ZONE.getOffset(BASE_TIME);
+    for (int i = 0, j = 0; i < values.size(); i++) {
+      assertEquals((1 << j++) + (1 << j++), values.get(i), 0.0000001);
+      assertEquals(timestamp, timestamps_in_millis.get(i).longValue());
+      timestamp = DateTime.toEndOfYear(timestamp, EST_TIME_ZONE) + 1;
+    }
   }
   
   @Test(expected = UnsupportedOperationException.class)
@@ -373,6 +837,70 @@ public class TestDownsampler {
     assertEquals(BASE_TIME + 8600000L, timestamps_in_millis.get(2).longValue());
   }
 
+  @Test
+  public void testSeek_useCalendar() {
+    final DataPoint [] data_points = new DataPoint[4];
+    long timestamp = DateTime.toStartOfYear(BASE_TIME, UTC_TIME_ZONE);
+    final Calendar c = Calendar.getInstance(UTC_TIME_ZONE);
+    c.setTimeInMillis(timestamp);
+    for (int i = 0; i < data_points.length; i++) {
+      long value = 1 << i;
+      data_points[i] = MutableDataPoint.ofLongValue(timestamp, value);
+      timestamp = DateTime.toEndOfYear(timestamp, UTC_TIME_ZONE) + 1;
+    }
+    
+    source = spy(SeekableViewsForTest.fromArray(data_points));
+    
+    c.add(Calendar.YEAR, 2);
+    specification = new DownsamplingSpecification("1y-sum");
+    downsampler = new Downsampler(source, specification, 0, Long.MAX_VALUE, 
+        UTC_TIME_ZONE, true);
+    System.out.println("SEEK: " + c.getTimeInMillis());
+    downsampler.seek(c.getTimeInMillis());
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+    
+    assertEquals(2, values.size());
+    timestamp = DateTime.toStartOfYear(c.getTimeInMillis(), UTC_TIME_ZONE);
+    for (int i = 2; i < values.size(); i++) {
+      assertEquals(1 << i, values.get(i), 0.0000001);
+      assertEquals(timestamp, timestamps_in_millis.get(i).longValue());
+      timestamp = DateTime.toEndOfYear(timestamp, UTC_TIME_ZONE) + 1;
+    }
+    
+    source = spy(SeekableViewsForTest.fromArray(data_points));
+
+    c.add(Calendar.MILLISECOND, 1);
+    specification = new DownsamplingSpecification("1y-sum");
+    downsampler = new Downsampler(source, specification, 0, 0, UTC_TIME_ZONE, true);
+    downsampler.seek(c.getTimeInMillis());
+    verify(source, never()).next();
+    values = Lists.newArrayList();
+    timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+    
+    assertEquals(1, values.size());
+    timestamp = DateTime.toStartOfYear(c.getTimeInMillis(), UTC_TIME_ZONE);
+    for (int i = 3; i < values.size(); i++) {
+      assertEquals(1 << i, values.get(i), 0.0000001);
+      assertEquals(timestamp, timestamps_in_millis.get(i).longValue());
+      timestamp = DateTime.toEndOfYear(timestamp, UTC_TIME_ZONE) + 1;
+    }
+    
+  }
+  
   @Test
   public void testSeek_skipPartialInterval() {
     downsampler = new Downsampler(source, THOUSAND_SEC_INTERVAL, AVG);

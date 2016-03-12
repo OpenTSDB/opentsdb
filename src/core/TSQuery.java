@@ -95,6 +95,9 @@ public final class TSQuery {
   /** Whether or not to delete the queried data */
   private boolean delete = false;
   
+  /** A flag denoting whether or not to align intervals based on the calendar */
+  private boolean use_calendar;
+  
   /** The query status for tracking over all performance of this query */
   private QueryStats query_stats;
   
@@ -362,6 +365,11 @@ public final class TSQuery {
     return this.delete;
   }
   
+  /** @return the flag denoting whether intervals should be aligned based on the calendar */
+  public boolean getUseCalendar() {
+    return use_calendar;
+  }
+  
   /** @return the query stats object. Ignored during JSON serialization */
   @JsonIgnore
   public QueryStats getQueryStats() {
@@ -445,6 +453,11 @@ public final class TSQuery {
   /** @param delete whether or not to delete the queried data @since 2.2 */
   public void setDelete(boolean delete) {
     this.delete = delete;
+  }
+  
+  /** @param use_calendar a flag denoting whether or not to align intervals based on the calendar */
+  public void setUseCalendar(boolean use_calendar) {
+    this.use_calendar = use_calendar;
   }
   
   /** @param query_stats the query stats object to associate with this query */

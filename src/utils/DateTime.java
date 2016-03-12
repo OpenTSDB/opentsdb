@@ -14,6 +14,7 @@ package net.opentsdb.utils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.TimeZone;
 
@@ -304,5 +305,176 @@ public class DateTime {
           + "than start (" + start + ")");
     }
     return ((double) end - (double) start) / 1000000;
+  }
+
+  /**
+   * Returns a timestamp corresponding the beginning of the year in which the specified
+   * timestamp occurs.  This operation is performed based on the specified time zone.
+   * @param timestamp the epoch time
+   * @param time_zone the time zone used to determine the beginning of the year
+   * @return the epoch time corresponding to the beginning of the year
+   */
+  public static long toStartOfYear(final long timestamp, final TimeZone time_zone) {
+    final Calendar c = getStartOfYear(timestamp, time_zone);
+    return c.getTimeInMillis();
+  }
+
+  /**
+   * Returns a timestamp corresponding the end of the year in which the specified
+   * timestamp occurs.  This operation is performed based on the specified time zone.
+   * @param timestamp the epoch time
+   * @param time_zone the time zone used to determine the end of the year
+   * @return the epoch time corresponding to the end of the year
+   */
+  public static long toEndOfYear(final long timestamp, final TimeZone time_zone) {
+    final Calendar c = getStartOfYear(timestamp, time_zone);
+    c.add(Calendar.YEAR, 1);
+    return c.getTimeInMillis() - 1;
+  }
+
+  /**
+   * Returns a timestamp corresponding the beginning of the month in which the specified
+   * timestamp occurs.  This operation is performed based on the specified time zone.
+   * @param timestamp the epoch time
+   * @param time_zone the time zone used to determine the beginning of the month
+   * @return the epoch time corresponding to the beginning of the month
+   */
+  public static long toStartOfMonth(final long timestamp, final TimeZone time_zone) {
+    final Calendar c = getStartOfMonth(timestamp, time_zone);
+    return c.getTimeInMillis();
+  }
+  
+  /**
+   * Returns a timestamp corresponding the end of the month in which the specified
+   * timestamp occurs.  This operation is performed based on the specified time zone.
+   * @param timestamp the epoch time
+   * @param time_zone the time zone used to determine the end of the month
+   * @return the epoch time corresponding to the end of the month
+   */
+  public static long toEndOfMonth(final long timestamp, final TimeZone time_zone) {
+    final Calendar c = getStartOfMonth(timestamp, time_zone);
+    c.add(Calendar.MONTH, 1);
+    return c.getTimeInMillis() - 1;
+  }
+
+  /**
+   * Returns a timestamp corresponding the beginning of the week in which the specified
+   * timestamp occurs.  This operation is performed based on the specified time zone.
+   * @param timestamp the epoch time
+   * @param time_zone the time zone used to determine the beginning of the week
+   * @return the epoch time corresponding to the beginning of the week
+   */
+  public static long toStartOfWeek(final long timestamp, final TimeZone time_zone) {
+    final Calendar c = getStartOfWeek(timestamp, time_zone);
+    return c.getTimeInMillis();
+  }
+
+  /**
+   * Returns a timestamp corresponding the end of the week in which the specified
+   * timestamp occurs.  This operation is performed based on the specified time zone.
+   * @param timestamp the epoch time
+   * @param time_zone the time zone used to determine the end of the week
+   * @return the epoch time corresponding to the end of the week
+   */
+  public static long toEndOfWeek(final long timestamp, final TimeZone time_zone) {
+    final Calendar c = getStartOfWeek(timestamp, time_zone);
+    c.add(Calendar.DATE, 7);
+    return c.getTimeInMillis() - 1;
+  }
+         
+  /**
+   * Returns a timestamp corresponding the beginning of the day in which the specified
+   * timestamp occurs.  This operation is performed based on the specified time zone.
+   * @param timestamp the epoch time
+   * @param time_zone the time zone used to determine the beginning of the day
+   * @return the epoch time corresponding to the beginning of the day
+   */
+  public static long toStartOfDay(final long timestamp, final TimeZone time_zone) {
+    final Calendar c = getStartOfDay(timestamp, time_zone);
+    return c.getTimeInMillis();
+  }
+  
+  /**
+   * Returns a timestamp corresponding the end of the day in which the specified
+   * timestamp occurs.  This operation is performed based on the specified time zone.
+   * @param timestamp the epoch time
+   * @param time_zone the time zone used to determine the end of the day
+   * @return the epoch time corresponding to the end of the day
+   */
+  public static long toEndOfDay(final long timestamp, final TimeZone time_zone) {
+    final Calendar c = getStartOfDay(timestamp, time_zone);
+    c.add(Calendar.DATE, 1);
+    return c.getTimeInMillis() - 1;
+  }
+
+  /**
+   * Returns a Calendar object corresponding the beginning of the year in which the specified
+   * timestamp occurs.  This operation is performed based on the specified time zone.
+   * @param timestamp the epoch time
+   * @param time_zone the time zone used to determine the beginning of the year
+   * @return a Calendar object corresponding to the beginning of the year
+   */
+  private static Calendar getStartOfYear(final long timestamp, final TimeZone time_zone) {
+    final Calendar c = Calendar.getInstance(time_zone);
+    c.setTimeInMillis(timestamp);
+    c.set(Calendar.DAY_OF_YEAR, 1);
+    c.set(Calendar.HOUR_OF_DAY, 0);
+    c.set(Calendar.MINUTE, 0);
+    c.set(Calendar.SECOND, 0);
+    c.set(Calendar.MILLISECOND, 0);
+    return c;
+  }
+
+  /**
+   * Returns a Calendar object corresponding the beginning of the month in which the specified
+   * timestamp occurs.  This operation is performed based on the specified time zone.
+   * @param timestamp the epoch time
+   * @param time_zone the time zone used to determine the beginning of the month
+   * @return a Calendar object corresponding to the beginning of the month
+   */
+  private static Calendar getStartOfMonth(final long timestamp, final TimeZone time_zone) {
+    final Calendar c = Calendar.getInstance(time_zone);
+    c.setTimeInMillis(timestamp);
+    c.set(Calendar.DAY_OF_MONTH, 1);
+    c.set(Calendar.HOUR_OF_DAY, 0);
+    c.set(Calendar.MINUTE, 0);
+    c.set(Calendar.SECOND, 0);
+    c.set(Calendar.MILLISECOND, 0);
+    return c;
+  }
+
+  /**
+   * Returns a Calendar object corresponding the beginning of the week in which the specified
+   * timestamp occurs.  This operation is performed based on the specified time zone.
+   * @param timestamp the epoch time
+   * @param time_zone the time zone used to determine the beginning of the week
+   * @return a Calendar object corresponding to the beginning of the week
+   */
+  private static Calendar getStartOfWeek(final long timestamp, final TimeZone time_zone) {
+    final Calendar c = Calendar.getInstance(time_zone);
+    c.setTimeInMillis(timestamp);
+    c.set(Calendar.DAY_OF_WEEK, 1); // 1-sun, 2-mon.
+    c.set(Calendar.HOUR_OF_DAY, 0);
+    c.set(Calendar.MINUTE, 0);
+    c.set(Calendar.SECOND, 0);
+    c.set(Calendar.MILLISECOND, 0);
+    return c;
+  }
+
+  /**
+   * Returns a Calendar object corresponding the beginning of the day in which the specified
+   * timestamp occurs.  This operation is performed based on the specified time zone.
+   * @param timestamp the epoch time
+   * @param time_zone the time zone used to determine the beginning of the day
+   * @return a Calendar object corresponding to the beginning of the day
+   */
+  private static Calendar getStartOfDay(final long timestamp, final TimeZone time_zone) {
+    final Calendar c = Calendar.getInstance(time_zone);
+    c.setTimeInMillis(timestamp);
+    c.set(Calendar.HOUR_OF_DAY, 0);
+    c.set(Calendar.MINUTE, 0);
+    c.set(Calendar.SECOND, 0);
+    c.set(Calendar.MILLISECOND, 0);
+    return c;
   }
 }

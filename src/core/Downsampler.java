@@ -13,12 +13,20 @@
 package net.opentsdb.core;
 
 import java.util.NoSuchElementException;
+import java.util.TimeZone;
+
+import net.opentsdb.utils.DateTime;
 
 /**
  * Iterator that downsamples data points using an {@link Aggregator}.
  */
 public class Downsampler implements SeekableView, DataPoint {
 
+  static final long ONE_WEEK_INTERVAL = 604800000L;
+  static final long ONE_MONTH_INTERVAL = 2592000000L;
+  static final long ONE_YEAR_INTERVAL = 31536000000L;
+  static final long ONE_DAY_INTERVAL = 86400000L;
+  
   /** The downsampling specification when provided */
   protected final DownsamplingSpecification specification;
   
@@ -43,6 +51,9 @@ public class Downsampler implements SeekableView, DataPoint {
   /** Whether or not to merge all DPs in the source into one vaalue */
   protected final boolean run_all;
   
+  protected final TimeZone timezone;
+  protected final boolean use_calendar;
+  
   /**
    * Ctor.
    * @param source The iterator to access the underlying data.
@@ -65,6 +76,8 @@ public class Downsampler implements SeekableView, DataPoint {
     query_start = 0;
     query_end = 0;
     run_all = false;
+    timezone = TimeZone.getDefault();
+    use_calendar = false;
   }
   
   /**
@@ -78,13 +91,17 @@ public class Downsampler implements SeekableView, DataPoint {
   Downsampler(final SeekableView source,
               final DownsamplingSpecification specification,
               final long query_start,
-              final long query_end
+              final long query_end,
+              final TimeZone timezone,
+              final boolean use_calendar
       ) {
     this.source = source;
     this.specification = specification;
     values_in_interval = new ValuesInInterval();
     this.query_start = query_start;
     this.query_end = query_end;
+    this.timezone = timezone;
+    this.use_calendar = use_calendar;
     
     final String s = specification.getStringInterval();
     if (s != null && s.toLowerCase().contains("all")) {
@@ -249,9 +266,13 @@ public class Downsampler implements SeekableView, DataPoint {
      * interval. */
     private void resetEndOfInterval() {
       if (has_next_value_from_source && !run_all) {
-        // Sets the end of the interval of the timestamp.
-        timestamp_end_interval = alignTimestamp(next_dp.timestamp()) + 
-            specification.getInterval();
+        if (use_calendar && isCalendarInterval()) {
+          timestamp_end_interval =  toEndOfInterval(next_dp.timestamp());
+        }  else {
+          // Sets the end of the interval of the timestamp.
+          timestamp_end_interval = alignTimestamp(next_dp.timestamp()) + 
+              specification.getInterval();
+        }
       }
     }
 
@@ -269,7 +290,10 @@ public class Downsampler implements SeekableView, DataPoint {
       // timestamp..
       if (run_all) {
         source.seek(timestamp);
-      } else {
+      } else if (use_calendar && isCalendarInterval()) {
+        source.seek(alignTimestamp(timestamp + toEndOfInterval(timestamp)
+            - toStartOfInterval(timestamp)));
+      }  else {
         source.seek(alignTimestamp(timestamp + specification.getInterval() - 1));
       }
       initialized = false;
@@ -282,7 +306,9 @@ public class Downsampler implements SeekableView, DataPoint {
       // provides the correct context for seek.
       if (run_all) {
         return timestamp_end_interval;
-      } else {
+      } else if (use_calendar && isCalendarInterval()) {
+        return toStartOfInterval(timestamp_end_interval);
+      }  else {
         return alignTimestamp(timestamp_end_interval - 
             specification.getInterval());
       }
@@ -290,9 +316,104 @@ public class Downsampler implements SeekableView, DataPoint {
 
     /** Returns timestamp aligned by interval. */
     protected long alignTimestamp(final long timestamp) {
-      return timestamp - (timestamp % specification.getInterval());
+      if (use_calendar && isCalendarInterval()) {
+        return toStartOfInterval(timestamp);
+      }  else {
+        return timestamp - (timestamp % specification.getInterval());
+      }
     }
 
+    /** Returns a flag denoting whether the interval can
+     *  be aligned to the calendar */
+    private boolean isCalendarInterval () {
+      if (specification.getInterval() != 0 && 
+         (specification.getInterval() % ONE_YEAR_INTERVAL == 0 ||
+          specification.getInterval() % ONE_MONTH_INTERVAL == 0 ||
+          specification.getInterval() % ONE_WEEK_INTERVAL == 0 ||
+          specification.getInterval() % ONE_DAY_INTERVAL == 0)) {
+        return true;
+      }
+      return false;
+    }
+    
+    /** Returns a timestamp corresponding to the start of the interval
+     *  in which the specified timestamp occurs, aligned to the calendar
+     *  based on the timezone. */
+    private long toStartOfInterval(long timestamp) {
+      if (specification.getInterval() % ONE_YEAR_INTERVAL == 0) {
+        final long multiplier = specification.getInterval() / ONE_YEAR_INTERVAL;
+        long result = timestamp;
+        for (long i = 0; i < multiplier; i++) {
+          result = DateTime.toStartOfYear(result, timezone) - 1;
+        }
+        return result + 1;
+      } else if (specification.getInterval() % ONE_MONTH_INTERVAL == 0) {
+        final long multiplier = specification.getInterval() / ONE_MONTH_INTERVAL;
+        long result = timestamp;
+        for (long i = 0; i < multiplier; i++) {
+          result = DateTime.toStartOfMonth(result, timezone) - 1;
+        }
+        return result + 1;
+      } else if (specification.getInterval() % ONE_WEEK_INTERVAL == 0) {
+        final long multiplier = specification.getInterval() / ONE_WEEK_INTERVAL;
+        long result = timestamp;
+        for (long i = 0; i < multiplier; i++) {
+          result = DateTime.toStartOfWeek(result, timezone) - 1;
+        }
+        return result + 1;
+      } else if (specification.getInterval() % ONE_DAY_INTERVAL == 0) {
+        final long multiplier = specification.getInterval() / ONE_DAY_INTERVAL;
+        long result = timestamp;
+        for (long i = 0; i < multiplier; i++) {
+          result = DateTime.toStartOfDay(result, timezone) - 1;
+        }
+        return result + 1;
+      } else {
+        throw new IllegalArgumentException(specification.getInterval() + 
+            " does not correspond to a " +
+         "an interval that can be aligned to the calendar.");
+      }
+    }
+
+    /** Returns a timestamp corresponding to the end of the interval
+     *  in which the specified timestamp occurs, aligned to the calendar
+     *  based on the timezone. */
+    private long toEndOfInterval(long timestamp) {
+      if (specification.getInterval() % ONE_YEAR_INTERVAL == 0) {
+        final long multiplier = specification.getInterval() / ONE_YEAR_INTERVAL;
+        long result = timestamp;
+        for (long i = 0; i < multiplier; i++) {
+          result = DateTime.toEndOfYear(result, timezone) + 1;
+        }
+        return result - 1;
+      } else if (specification.getInterval() % ONE_MONTH_INTERVAL == 0) {
+        final long multiplier = specification.getInterval() / ONE_MONTH_INTERVAL;
+        long result = timestamp;
+        for (long i = 0; i < multiplier; i++) {
+          result = DateTime.toEndOfMonth(result, timezone) + 1;
+        }
+        return result - 1;
+      } else if (specification.getInterval() % ONE_WEEK_INTERVAL == 0) {
+        final long multiplier = specification.getInterval() / ONE_WEEK_INTERVAL;
+        long result = timestamp;
+        for (long i = 0; i < multiplier; i++) {
+          result = DateTime.toEndOfWeek(result, timezone) + 1;
+        }
+        return result - 1;
+      } else if (specification.getInterval() % ONE_DAY_INTERVAL == 0) {
+        final long multiplier = specification.getInterval() / ONE_DAY_INTERVAL;
+        long result = timestamp;
+        for (long i = 0; i < multiplier; i++) {
+          result = DateTime.toEndOfDay(result, timezone) + 1;
+        }
+        return result - 1;
+      } else {
+        throw new IllegalArgumentException(specification.getInterval() + 
+            " does not correspond to a " +
+         "an interval that can be aligned to the calendar.");
+      }
+    }
+    
     // ---------------------- //
     // Doubles interface //
     // ---------------------- //

@@ -13,6 +13,7 @@
 package net.opentsdb.core;
 
 import java.util.NoSuchElementException;
+import java.util.TimeZone;
 
 /**
  * A specialized downsampler that returns special values, based on the fill
@@ -44,7 +45,7 @@ public class FillingDownsampler extends Downsampler {
       final Aggregator downsampler, final FillPolicy fill_policy) {
     this(source, start_time, end_time, 
         new DownsamplingSpecification(interval_ms, downsampler, fill_policy)
-        , 0, 0);
+        , 0, 0, TimeZone.getDefault(), false);
   }
   
   /** 
@@ -60,9 +61,11 @@ public class FillingDownsampler extends Downsampler {
    */
   FillingDownsampler(final SeekableView source, final long start_time,
       final long end_time, final DownsamplingSpecification specification, 
-      final long query_start, final long end_start) {
+      final long query_start, final long end_start,
+      final TimeZone timezone,
+      final boolean use_calendar) {
     // Lean on the superclass implementation.
-    super(source, specification, query_start, end_start);
+    super(source, specification, query_start, end_start, timezone, use_calendar);
 
     // Ensure we aren't given a bogus fill policy.
     if (FillPolicy.NONE == specification.getFillPolicy()) {

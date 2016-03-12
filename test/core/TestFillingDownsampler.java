@@ -18,6 +18,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.util.TimeZone;
+
 /** Tests {@link FillingDownsampler}. */
 public class TestFillingDownsampler {
   private static final long BASE_TIME = 1356998400000L;
@@ -43,7 +45,7 @@ public class TestFillingDownsampler {
 
     specification = new DownsamplingSpecification("100ms-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 36 * 25L, specification, 0, 0);
+      baseTime + 36 * 25L, specification, 0, 0, TimeZone.getDefault(), false);
     
     long timestamp = baseTime;
     step(downsampler, timestamp, Double.NaN);
@@ -76,7 +78,7 @@ public class TestFillingDownsampler {
     
     specification = new DownsamplingSpecification("100ms-sum-zero");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 36 * 25L, specification, 0, 0);
+      baseTime + 36 * 25L, specification, 0, 0, TimeZone.getDefault(), false);
     
     long timestamp = baseTime;
     step(downsampler, timestamp, 0.);
@@ -113,7 +115,7 @@ public class TestFillingDownsampler {
 
     specification = new DownsamplingSpecification("100ms-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 12L * 25L, specification, 0, 0);
+      baseTime + 12L * 25L, specification, 0, 0, TimeZone.getDefault(), false);
 
     long timestamp = baseTime;
     step(downsampler, timestamp, 42.);
@@ -146,7 +148,7 @@ public class TestFillingDownsampler {
     
     specification = new DownsamplingSpecification("1m-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 60000L * 2L, specification, 0, 0);
+      baseTime + 60000L * 2L, specification, 0, 0, TimeZone.getDefault(), false);
     
     long timestamp = 1425335880000L;
     step(downsampler, timestamp, 30.);
@@ -165,7 +167,7 @@ public class TestFillingDownsampler {
 
     specification = new DownsamplingSpecification("1m-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 60000L * 2L, specification, 0, 0);
+      baseTime + 60000L * 2L, specification, 0, 0, TimeZone.getDefault(), false);
     
     long timestamp = 1425335880000L;
     step(downsampler, timestamp, Double.NaN);
@@ -184,7 +186,7 @@ public class TestFillingDownsampler {
 
     specification = new DownsamplingSpecification("1m-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 60000L * 2L, specification, 0, 0);
+      baseTime + 60000L * 2L, specification, 0, 0, TimeZone.getDefault(), false);
     
     long timestamp = 1425335880000L;
     step(downsampler, timestamp, Double.NaN);
@@ -206,7 +208,7 @@ public class TestFillingDownsampler {
     specification = new DownsamplingSpecification("0all-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, 
         BASE_TIME + 5000L,BASE_TIME + 55000L, specification, 0, 
-        Long.MAX_VALUE);
+        Long.MAX_VALUE, TimeZone.getDefault(), false);
     
     step(downsampler, 0, 63);
     assertFalse(downsampler.hasNext());
@@ -226,7 +228,7 @@ public class TestFillingDownsampler {
     specification = new DownsamplingSpecification("0all-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, 
         BASE_TIME + 5000L,BASE_TIME + 55000L, specification, 
-        BASE_TIME + 15000L, BASE_TIME + 45000L);
+        BASE_TIME + 15000L, BASE_TIME + 45000L, TimeZone.getDefault(), false);
     
     step(downsampler, BASE_TIME + 15000L, 14);
     assertFalse(downsampler.hasNext());
@@ -246,7 +248,7 @@ public class TestFillingDownsampler {
     specification = new DownsamplingSpecification("0all-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, 
         BASE_TIME + 5000L,BASE_TIME + 55000L, specification, 
-        BASE_TIME + 65000L, BASE_TIME + 75000L);
+        BASE_TIME + 65000L, BASE_TIME + 75000L, TimeZone.getDefault(), false);
     
     assertFalse(downsampler.hasNext());
   }
@@ -265,7 +267,7 @@ public class TestFillingDownsampler {
     specification = new DownsamplingSpecification("0all-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, 
         BASE_TIME + 5000L,BASE_TIME + 55000L, specification, 
-        BASE_TIME - 15000L, BASE_TIME - 5000L);
+        BASE_TIME - 15000L, BASE_TIME - 5000L, TimeZone.getDefault(), false);
     
     assertFalse(downsampler.hasNext());
   }
