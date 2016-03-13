@@ -52,6 +52,7 @@ import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.PluginLoader;
 import net.opentsdb.utils.Threads;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.MetaDataCache;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.query.expression.ExpressionFactory;
@@ -120,6 +121,9 @@ public final class TSDB {
   
   /** Optional real time pulblisher plugin to use if configured */
   private RTPublisher rt_publisher = null;
+  
+  /** Optional plugin for handling meta data caching and updating */
+  private MetaDataCache meta_cache = null;
   
   /** Plugin for dealing with data points that can't be stored */
   private StorageExceptionHandler storage_exception_handler = null;
@@ -311,6 +315,26 @@ public final class TSDB {
           + rt_publisher.version());
     } else {
       rt_publisher = null;
+    }
+    
+    // load the meta cache plugin if enabled
+    if (config.getBoolean("tsd.core.meta.cache.enable")) {
+      meta_cache = PluginLoader.loadSpecificPlugin(
+          config.getString("tsd.core.meta.cache.plugin"), MetaDataCache.class);
+      if (meta_cache == null) {
+        throw new IllegalArgumentException(
+            "Unable to locate meta cache plugin: " + 
+            config.getString("tsd.core.meta.cache.plugin"));
+      }
+      try {
+        meta_cache.initialize(this);
+      } catch (Exception e) {
+        throw new RuntimeException(
+            "Failed to initialize meta cache plugin", e);
+      }
+      LOG.info("Successfully initialized meta cache plugin [" + 
+          meta_cache.getClass().getCanonicalName() + "] version: " 
+          + meta_cache.version());
     }
     
     // load the storage exception plugin if enabled
@@ -827,15 +851,20 @@ public final class TSDB {
     final byte[] tsuid = UniqueId.getTSUIDFromKey(row, METRICS_WIDTH, 
         Const.TIMESTAMP_BYTES);
     
-    // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
-    // counter field for a TSUID with the proper timestamp. If the user would
-    // rather have TSUID incrementing enabled, that will trump the PUT
-    if (config.enable_tsuid_tracking() && !config.enable_tsuid_incrementing()) {
-      final PutRequest tracking = new PutRequest(meta_table, tsuid, 
-          TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(1));
-      client.put(tracking);
-    } else if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
-      TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
+    // if the meta cache plugin is instantiated then tracking goes through it
+    if (meta_cache != null) {
+      meta_cache.increment(tsuid);
+    } else {
+      // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
+      // counter field for a TSUID with the proper timestamp. If the user would
+      // rather have TSUID incrementing enabled, that will trump the PUT
+      if (config.enable_tsuid_tracking() && !config.enable_tsuid_incrementing()) {
+        final PutRequest tracking = new PutRequest(meta_table, tsuid, 
+            TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(1));
+        client.put(tracking);
+      } else if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
+        TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
+      }
     }
     
     if (rt_publisher != null) {
@@ -973,6 +1002,11 @@ public final class TSDB {
       LOG.info("Shutting down RT plugin: " + 
           rt_publisher.getClass().getCanonicalName());
       deferreds.add(rt_publisher.shutdown());
+    }
+    if (meta_cache != null) {
+      LOG.info("Shutting down meta cache plugin: " + 
+          meta_cache.getClass().getCanonicalName());
+      deferreds.add(meta_cache.shutdown());
     }
     if (storage_exception_handler != null) {
       LOG.info("Shutting down storage exception handler plugin: " + 

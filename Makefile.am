@@ -70,6 +70,7 @@ tsdb_SRC := \
 	src/core/WritableDataPoints.java	\
 	src/graph/Plot.java	\
 	src/meta/Annotation.java	\
+	src/meta/MetaDataCache.java	\
 	src/meta/TSMeta.java	\
 	src/meta/TSUIDQuery.java	\
 	src/meta/UIDMeta.java	\

@@ -491,6 +491,7 @@ public class Config {
     default_map.put("tsd.core.meta.enable_realtime_uid", "false");
     default_map.put("tsd.core.meta.enable_tsuid_incrementing", "false");
     default_map.put("tsd.core.meta.enable_tsuid_tracking", "false");
+    default_map.put("tsd.core.meta.cache.enable", "false");
     default_map.put("tsd.core.plugin_path", "");
     default_map.put("tsd.core.socket.timeout", "0");
     default_map.put("tsd.core.tree.enable_processing", "false");
