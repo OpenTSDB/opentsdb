@@ -20,7 +20,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TimeZone;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.Bytes.ByteMap;
@@ -106,9 +105,6 @@ final class SpanGroup implements DataPoints {
   
   /** The TSDB to which we belong, used for resolution */
   private final TSDB tsdb;
-  
-  private final TimeZone timezone;
-  private final boolean use_calendar;
   
   /**
    * Ctor.
@@ -197,7 +193,7 @@ final class SpanGroup implements DataPoints {
          downsampler != null ? 
              new DownsamplingSpecification(interval, downsampler, fill_policy) : 
            null,
-         0, 0, TimeZone.getDefault(), false, query_index);
+         0, 0, query_index);
   }
   
   /**
@@ -229,8 +225,6 @@ final class SpanGroup implements DataPoints {
             final DownsamplingSpecification downsampler, 
             final long query_start,
             final long query_end,
-            final TimeZone timezone,
-            final boolean use_calendar,
             final int query_index) {
      annotations = new ArrayList<Annotation>();
      this.start_time = (start_time & Const.SECOND_MASK) == 0 ? 
@@ -250,8 +244,6 @@ final class SpanGroup implements DataPoints {
      this.query_end = query_end;
      this.query_index = query_index;
      this.tsdb = tsdb;
-     this.timezone = timezone;
-     this.use_calendar = use_calendar;
   }
   
   /**
@@ -495,7 +487,7 @@ final class SpanGroup implements DataPoints {
     return AggregationIterator.create(spans, start_time, end_time, aggregator,
                                   aggregator.interpolationMethod(),
                                   downsampler, query_start, query_end,
-                                  timezone, use_calendar, rate, rate_options);
+                                  rate, rate_options);
   }
 
   /**

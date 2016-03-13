@@ -15,7 +15,6 @@ package net.opentsdb.core;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.TimeZone;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -305,8 +304,6 @@ public class AggregationIterator implements SeekableView, DataPoint,
       final DownsamplingSpecification downsampler,
       final long query_start,
       final long query_end,
-      final TimeZone timezone,
-      final boolean use_calendar,
       final boolean rate,
       final RateOptions rate_options) {
     final int size = spans.size();
@@ -318,7 +315,7 @@ public class AggregationIterator implements SeekableView, DataPoint,
         it = spans.get(i).spanIterator();
       } else {
         it = spans.get(i).downsampler(start_time, end_time, downsampler, 
-            query_start, query_end, timezone, use_calendar);
+            query_start, query_end);
       }
       if (rate) {
         it = new RateSpan(it, rate_options);

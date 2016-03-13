@@ -18,7 +18,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.TimeZone;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.uid.UniqueId;
@@ -500,18 +499,16 @@ final class Span implements DataPoints {
       final long end_time,
       final DownsamplingSpecification downsampler,
       final long query_start,
-      final long query_end,
-      final TimeZone timezone,
-      final boolean use_calendar) {
+      final long query_end) {
     if (downsampler == null) {
       return null;
     }
     if (FillPolicy.NONE == downsampler.getFillPolicy()) {
       return new Downsampler(spanIterator(), downsampler, 
-          query_start, query_end, timezone, use_calendar);  
+          query_start, query_end);  
     }
     return new FillingDownsampler(spanIterator(), start_time, end_time, 
-        downsampler, query_start, query_end, timezone, use_calendar);
+        downsampler, query_start, query_end);
   }
 
   public int getQueryIndex() {

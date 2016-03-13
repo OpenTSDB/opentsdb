@@ -22,7 +22,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TimeZone;
 import java.util.TreeMap;
 
 import org.slf4j.Logger;
@@ -131,12 +130,6 @@ final class TsdbQuery implements Query {
   
   /** Tag value filters to apply post scan */
   private List<TagVFilter> filters;
-  
-  /** The timezone to use for aligning intervals based on the calendar */
-  private String timezone;
-  
-  /** A flag denoting whether or not to align intervals based on the calendar */
-  private boolean use_calendar;
   
   /** An object for storing stats in regarding the query. May be null */
   private QueryStats query_stats;
@@ -310,35 +303,6 @@ final class TsdbQuery implements Query {
     this.rate_options = rate_options;
   }
   
-  /** 
-   * Sets the timezone to use for aligning intervals based on the calendar.
-   * @param timezone the timezone to use
-   */
-  public void setTimezone(String timezone) {
-    this.timezone = timezone;
-  }
-  
-  /** @return the timezone to use for aligning intervals based on the calendar. */
-  @Override
-  public String getTimezone() {
-    return this.timezone;
-  }
-
-  /** 
-   * Sets a flag denoting whether or not to align intervals based on the calendar.
-   * @param use_calendar true, if the intervals should be aligned based on the calendar; false, otherwise
-   */
-  @Override
-  public void setUseCalendar(boolean use_calendar) {
-    this.use_calendar = use_calendar;
-  }
-  
-  /** @return A flag denoting whether or not to align intervals based on the calendar. */
-  @Override
-  public boolean getUseCalendar() {
-    return this.use_calendar;
-  }
-  
   /**
    * @param explicit_tags Whether or not to match only on the given tags
    * @since 2.3
@@ -361,8 +325,6 @@ final class TsdbQuery implements Query {
     setStartTime(query.startTime());
     setEndTime(query.endTime());
     setDelete(query.getDelete());
-    setTimezone(query.getTimezone());
-    setUseCalendar(query.getUseCalendar());
     query_index = index;
     query_stats = query.getQueryStats();
     
@@ -891,8 +853,6 @@ final class TsdbQuery implements Query {
               downsampler,
               getStartTime(), 
               getEndTime(),
-              timezone != null ? DateTime.timezones.get(timezone) : TimeZone.getDefault(),
-              use_calendar,
               query_index);
           group.add(span);
           groups[i++] = group;
@@ -912,8 +872,6 @@ final class TsdbQuery implements Query {
                                               downsampler,
                                               getStartTime(), 
                                               getEndTime(),
-                                              timezone != null ? DateTime.timezones.get(timezone) : TimeZone.getDefault(),
-                                                  use_calendar,
                                               query_index);
         if (query_stats != null) {
           query_stats.addStat(query_index, QueryStat.GROUP_BY_TIME, 0);
@@ -964,8 +922,6 @@ final class TsdbQuery implements Query {
                                    downsampler,
                                    getStartTime(), 
                                    getEndTime(),
-                                   timezone != null ? DateTime.timezones.get(timezone) : TimeZone.getDefault(),
-                                       use_calendar,
                                    query_index);
           // Copy the array because we're going to keep `group' and overwrite
           // its contents. So we want the collection to have an immutable copy.

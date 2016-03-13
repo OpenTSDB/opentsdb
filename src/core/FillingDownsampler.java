@@ -12,8 +12,10 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.Calendar;
 import java.util.NoSuchElementException;
-import java.util.TimeZone;
+
+import net.opentsdb.utils.DateTime;
 
 /**
  * A specialized downsampler that returns special values, based on the fill
@@ -26,6 +28,12 @@ import java.util.TimeZone;
 public class FillingDownsampler extends Downsampler {
   /** Track when the downsampled data should end. */
   protected long end_timestamp;
+  
+  /** An optional calendar set to the current timestamp for the data point */
+  private final Calendar previous_calendar;
+  
+  /** An optional calendar set to the end of the interval timestamp */
+  private final Calendar next_calendar;
 
   /** 
    * Create a new nulling downsampler.
@@ -45,7 +53,7 @@ public class FillingDownsampler extends Downsampler {
       final Aggregator downsampler, final FillPolicy fill_policy) {
     this(source, start_time, end_time, 
         new DownsamplingSpecification(interval_ms, downsampler, fill_policy)
-        , 0, 0, TimeZone.getDefault(), false);
+        , 0, 0);
   }
   
   /** 
@@ -61,11 +69,9 @@ public class FillingDownsampler extends Downsampler {
    */
   FillingDownsampler(final SeekableView source, final long start_time,
       final long end_time, final DownsamplingSpecification specification, 
-      final long query_start, final long end_start,
-      final TimeZone timezone,
-      final boolean use_calendar) {
+      final long query_start, final long end_start) {
     // Lean on the superclass implementation.
-    super(source, specification, query_start, end_start, timezone, use_calendar);
+    super(source, specification, query_start, end_start);
 
     // Ensure we aren't given a bogus fill policy.
     if (FillPolicy.NONE == specification.getFillPolicy()) {
@@ -78,11 +84,36 @@ public class FillingDownsampler extends Downsampler {
     if (run_all) {
       timestamp = start_time;
       end_timestamp = end_time;
+      previous_calendar = next_calendar = null;
+    } else if (specification.useCalendar()) {
+      previous_calendar = DateTime.previousInterval(start_time, interval, unit, 
+          specification.getTimezone());
+      if (unit == WEEK_UNIT) {
+        previous_calendar.add(DAY_UNIT, -(interval * WEEK_LENGTH));
+      } else {
+        previous_calendar.add(unit, -interval);
+      }
+      next_calendar = DateTime.previousInterval(start_time, interval, unit, 
+          specification.getTimezone());
+      
+      final Calendar end_calendar = DateTime.previousInterval(
+          end_time, interval, unit, specification.getTimezone());
+      if (end_calendar.getTimeInMillis() == next_calendar.getTimeInMillis()) {
+        // advance once
+        if (unit == WEEK_UNIT) {
+          end_calendar.add(DAY_UNIT, interval * WEEK_LENGTH);
+        } else {
+          end_calendar.add(unit, interval);
+        }
+      }
+      timestamp = next_calendar.getTimeInMillis();
+      end_timestamp = end_calendar.getTimeInMillis();
     } else {
       // Use the values-in-interval object to align the timestamps at which we
       // expect data to arrive for the first and last intervals.
       timestamp = values_in_interval.alignTimestamp(start_time);
       end_timestamp = values_in_interval.alignTimestamp(end_time);
+      previous_calendar = next_calendar = null;
     }
   }
 
@@ -120,7 +151,9 @@ public class FillingDownsampler extends Downsampler {
       values_in_interval.initializeIfNotDone();
 
       // Skip any leading data outside the query bounds.
-      long actual = values_in_interval.getIntervalTimestamp();
+      long actual = values_in_interval.hasNextValue() ? 
+          values_in_interval.getIntervalTimestamp() : Long.MAX_VALUE;
+      
       while (!run_all && values_in_interval.hasNextValue() 
           && actual < timestamp) {
         // The actual timestamp precedes our expected, so there's data in the
@@ -157,7 +190,20 @@ public class FillingDownsampler extends Downsampler {
       }
 
       // Advance the expected timestamp to the next interval.
-      timestamp += specification.getInterval();
+      if (!run_all) {
+        if (specification.useCalendar()) {
+          if (unit == WEEK_UNIT) {
+            previous_calendar.add(DAY_UNIT, interval * WEEK_LENGTH);
+            next_calendar.add(DAY_UNIT, interval * WEEK_LENGTH);
+          } else {
+            previous_calendar.add(unit, interval);
+            next_calendar.add(unit, interval);
+          }
+          timestamp = next_calendar.getTimeInMillis();
+        } else {
+          timestamp += specification.getInterval();
+        }
+      }
 
       // This object also represents the data.
       return this;
@@ -172,6 +218,8 @@ public class FillingDownsampler extends Downsampler {
   public long timestamp() {
     if (run_all) {
       return query_start;
+    } else if (specification.useCalendar()) {
+      return previous_calendar.getTimeInMillis();
     }
     return timestamp - specification.getInterval();
   }

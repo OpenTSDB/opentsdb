@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -113,7 +114,7 @@ public final class TSQuery {
     // NOTE: Do not add any non-user submitted variables to the hash. We don't
     // want the hash to change after validation.
     // We also don't care about stats or summary
-    return Objects.hashCode(start, end, timezone, options, padding, 
+    return Objects.hashCode(start, end, timezone, use_calendar, options, padding, 
         no_annotations, with_global_annotations, show_tsuids, queries, 
         ms_resolution);
   }
@@ -137,6 +138,7 @@ public final class TSQuery {
     return Objects.equal(start, query.start)
         && Objects.equal(end, query.end)
         && Objects.equal(timezone, query.timezone)
+        && Objects.equal(use_calendar,query.use_calendar)
         && Objects.equal(options, query.options)
         && Objects.equal(padding, query.padding)
         && Objects.equal(no_annotations, query.no_annotations)
@@ -182,6 +184,21 @@ public final class TSQuery {
     int i = 0;
     for (TSSubQuery sub : queries) {
       sub.validateAndSetQuery();
+      final DownsamplingSpecification ds = sub.downsamplingSpecification();
+      if (ds != null && timezone != null && !timezone.isEmpty() && 
+          ds != DownsamplingSpecification.NO_DOWNSAMPLER) {
+        final TimeZone tz = DateTime.timezones.get(timezone);
+        if (tz == null) {
+          throw new IllegalArgumentException(
+              "The timezone specification could not be found");
+        }
+        ds.setTimezone(tz);
+      }
+      if (ds != null && use_calendar && 
+          ds != DownsamplingSpecification.NO_DOWNSAMPLER) {
+        ds.setUseCalendar(true);
+      }
+      
       sub.setIndex(i++);
     }
   }
@@ -365,7 +382,9 @@ public final class TSQuery {
     return this.delete;
   }
   
-  /** @return the flag denoting whether intervals should be aligned based on the calendar */
+  /** @return the flag denoting whether intervals should be aligned based on 
+   * the calendar
+   * @since 2.3 */
   public boolean getUseCalendar() {
     return use_calendar;
   }
@@ -455,7 +474,8 @@ public final class TSQuery {
     this.delete = delete;
   }
   
-  /** @param use_calendar a flag denoting whether or not to align intervals based on the calendar */
+  /** @param use_calendar a flag denoting whether or not to align intervals 
+   * based on the calendar @since 2.3 */
   public void setUseCalendar(boolean use_calendar) {
     this.use_calendar = use_calendar;
   }

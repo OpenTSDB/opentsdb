@@ -12,8 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.Calendar;
 import java.util.NoSuchElementException;
-import java.util.TimeZone;
 
 import net.opentsdb.utils.DateTime;
 
@@ -21,11 +21,11 @@ import net.opentsdb.utils.DateTime;
  * Iterator that downsamples data points using an {@link Aggregator}.
  */
 public class Downsampler implements SeekableView, DataPoint {
-
-  static final long ONE_WEEK_INTERVAL = 604800000L;
-  static final long ONE_MONTH_INTERVAL = 2592000000L;
-  static final long ONE_YEAR_INTERVAL = 31536000000L;
-  static final long ONE_DAY_INTERVAL = 86400000L;
+  
+  /** Matches the weekly downsampler as it requires special handling. */
+  protected final static int WEEK_UNIT = DateTime.unitsToCalendarType("w");
+  protected final static int DAY_UNIT = DateTime.unitsToCalendarType("d");
+  protected final static int WEEK_LENGTH = 7;
   
   /** The downsampling specification when provided */
   protected final DownsamplingSpecification specification;
@@ -51,8 +51,11 @@ public class Downsampler implements SeekableView, DataPoint {
   /** Whether or not to merge all DPs in the source into one vaalue */
   protected final boolean run_all;
   
-  protected final TimeZone timezone;
-  protected final boolean use_calendar;
+  /** The interval to use with a calendar */
+  protected final int interval;
+  
+  /** The unit to use with a calendar as a Calendar integer */
+  protected final int unit;
   
   /**
    * Ctor.
@@ -66,18 +69,17 @@ public class Downsampler implements SeekableView, DataPoint {
               final long interval_ms,
               final Aggregator downsampler) {
     this.source = source;
-    values_in_interval = new ValuesInInterval();
     if (downsampler == Aggregators.NONE) {
       throw new IllegalArgumentException("cannot use the NONE "
           + "aggregator for downsampling");
     }
     specification = new DownsamplingSpecification(interval_ms, downsampler, 
         DownsamplingSpecification.DEFAULT_FILL_POLICY);
+    values_in_interval = new ValuesInInterval();
     query_start = 0;
     query_end = 0;
+    interval = unit = 0;
     run_all = false;
-    timezone = TimeZone.getDefault();
-    use_calendar = false;
   }
   
   /**
@@ -91,23 +93,30 @@ public class Downsampler implements SeekableView, DataPoint {
   Downsampler(final SeekableView source,
               final DownsamplingSpecification specification,
               final long query_start,
-              final long query_end,
-              final TimeZone timezone,
-              final boolean use_calendar
+              final long query_end
       ) {
     this.source = source;
     this.specification = specification;
     values_in_interval = new ValuesInInterval();
     this.query_start = query_start;
     this.query_end = query_end;
-    this.timezone = timezone;
-    this.use_calendar = use_calendar;
     
     final String s = specification.getStringInterval();
     if (s != null && s.toLowerCase().contains("all")) {
       run_all = true;
-    }  else {
+      interval = unit = 0;
+    } else if (s != null && specification.useCalendar()) {
+      if (s.toLowerCase().contains("ms")) {
+        interval = Integer.parseInt(s.substring(0, s.length() - 2));
+        unit = DateTime.unitsToCalendarType(s.substring(s.length() - 2));
+      } else {
+        interval = Integer.parseInt(s.substring(0, s.length() - 1));
+        unit = DateTime.unitsToCalendarType(s.substring(s.length() - 1));
+      }
       run_all = false;
+    } else {
+      run_all = false;
+      interval = unit = 0;
     }
   }
 
@@ -197,6 +206,12 @@ public class Downsampler implements SeekableView, DataPoint {
   /** Iterates source values for an interval. */
   protected class ValuesInInterval implements Aggregator.Doubles {
 
+    /** An optional calendar set to the current timestamp for the data point */
+    private Calendar previous_calendar;
+    
+    /** An optional calendar set to the end of the interval timestamp */
+    private Calendar next_calendar;
+    
     /** The end of the current interval. */
     private long timestamp_end_interval = Long.MIN_VALUE;
     
@@ -215,6 +230,8 @@ public class Downsampler implements SeekableView, DataPoint {
     protected ValuesInInterval() {
       if (run_all) {
         timestamp_end_interval = query_end;
+      } else if (!specification.useCalendar()) {
+        timestamp_end_interval = specification.getInterval();
       }
     }
 
@@ -225,9 +242,25 @@ public class Downsampler implements SeekableView, DataPoint {
       // performance penalty by accessing the unnecessary first data of a span.
       if (!initialized) {
         initialized = true;
-        moveToNextValue();
-        if (!run_all) {
-          resetEndOfInterval();
+        if (source.hasNext()) {
+          moveToNextValue();
+          if (!run_all) {
+            if (specification.useCalendar()) {
+              previous_calendar = DateTime.previousInterval(next_dp.timestamp(), 
+                  interval, unit, specification.getTimezone());
+              next_calendar = DateTime.previousInterval(next_dp.timestamp(), 
+                  interval, unit, specification.getTimezone());
+              if (unit == WEEK_UNIT) {
+                next_calendar.add(DAY_UNIT, interval * WEEK_LENGTH);
+              } else {
+                next_calendar.add(unit, interval);
+              }
+              timestamp_end_interval = next_calendar.getTimeInMillis();
+            } else {
+              timestamp_end_interval = alignTimestamp(next_dp.timestamp()) + 
+                  specification.getInterval();
+            }
+          }
         }
       }
     }
@@ -266,10 +299,18 @@ public class Downsampler implements SeekableView, DataPoint {
      * interval. */
     private void resetEndOfInterval() {
       if (has_next_value_from_source && !run_all) {
-        if (use_calendar && isCalendarInterval()) {
-          timestamp_end_interval =  toEndOfInterval(next_dp.timestamp());
-        }  else {
-          // Sets the end of the interval of the timestamp.
+        if (specification.useCalendar()) {
+          while (next_dp.timestamp() >= timestamp_end_interval) {
+            if (unit == WEEK_UNIT) {
+              previous_calendar.add(DAY_UNIT, interval * WEEK_LENGTH);
+              next_calendar.add(DAY_UNIT, interval * WEEK_LENGTH);
+            } else {
+              previous_calendar.add(unit, interval);
+              next_calendar.add(unit, interval);
+            }
+            timestamp_end_interval = next_calendar.getTimeInMillis();
+          }
+        } else {
           timestamp_end_interval = alignTimestamp(next_dp.timestamp()) + 
               specification.getInterval();
         }
@@ -290,10 +331,18 @@ public class Downsampler implements SeekableView, DataPoint {
       // timestamp..
       if (run_all) {
         source.seek(timestamp);
-      } else if (use_calendar && isCalendarInterval()) {
-        source.seek(alignTimestamp(timestamp + toEndOfInterval(timestamp)
-            - toStartOfInterval(timestamp)));
-      }  else {
+      } else if (specification.useCalendar()) {
+        final Calendar seek_calendar = DateTime.previousInterval(
+            timestamp, interval, unit, specification.getTimezone());
+        if (timestamp > seek_calendar.getTimeInMillis()) {
+          if (unit == WEEK_UNIT) {
+            seek_calendar.add(DAY_UNIT, interval * WEEK_LENGTH);
+          } else {
+            seek_calendar.add(unit, interval);
+          }
+        }
+        source.seek(seek_calendar.getTimeInMillis());
+      } else {
         source.seek(alignTimestamp(timestamp + specification.getInterval() - 1));
       }
       initialized = false;
@@ -306,9 +355,9 @@ public class Downsampler implements SeekableView, DataPoint {
       // provides the correct context for seek.
       if (run_all) {
         return timestamp_end_interval;
-      } else if (use_calendar && isCalendarInterval()) {
-        return toStartOfInterval(timestamp_end_interval);
-      }  else {
+      } else if (specification.useCalendar()) {
+        return previous_calendar.getTimeInMillis();
+      } else {
         return alignTimestamp(timestamp_end_interval - 
             specification.getInterval());
       }
@@ -316,102 +365,7 @@ public class Downsampler implements SeekableView, DataPoint {
 
     /** Returns timestamp aligned by interval. */
     protected long alignTimestamp(final long timestamp) {
-      if (use_calendar && isCalendarInterval()) {
-        return toStartOfInterval(timestamp);
-      }  else {
-        return timestamp - (timestamp % specification.getInterval());
-      }
-    }
-
-    /** Returns a flag denoting whether the interval can
-     *  be aligned to the calendar */
-    private boolean isCalendarInterval () {
-      if (specification.getInterval() != 0 && 
-         (specification.getInterval() % ONE_YEAR_INTERVAL == 0 ||
-          specification.getInterval() % ONE_MONTH_INTERVAL == 0 ||
-          specification.getInterval() % ONE_WEEK_INTERVAL == 0 ||
-          specification.getInterval() % ONE_DAY_INTERVAL == 0)) {
-        return true;
-      }
-      return false;
-    }
-    
-    /** Returns a timestamp corresponding to the start of the interval
-     *  in which the specified timestamp occurs, aligned to the calendar
-     *  based on the timezone. */
-    private long toStartOfInterval(long timestamp) {
-      if (specification.getInterval() % ONE_YEAR_INTERVAL == 0) {
-        final long multiplier = specification.getInterval() / ONE_YEAR_INTERVAL;
-        long result = timestamp;
-        for (long i = 0; i < multiplier; i++) {
-          result = DateTime.toStartOfYear(result, timezone) - 1;
-        }
-        return result + 1;
-      } else if (specification.getInterval() % ONE_MONTH_INTERVAL == 0) {
-        final long multiplier = specification.getInterval() / ONE_MONTH_INTERVAL;
-        long result = timestamp;
-        for (long i = 0; i < multiplier; i++) {
-          result = DateTime.toStartOfMonth(result, timezone) - 1;
-        }
-        return result + 1;
-      } else if (specification.getInterval() % ONE_WEEK_INTERVAL == 0) {
-        final long multiplier = specification.getInterval() / ONE_WEEK_INTERVAL;
-        long result = timestamp;
-        for (long i = 0; i < multiplier; i++) {
-          result = DateTime.toStartOfWeek(result, timezone) - 1;
-        }
-        return result + 1;
-      } else if (specification.getInterval() % ONE_DAY_INTERVAL == 0) {
-        final long multiplier = specification.getInterval() / ONE_DAY_INTERVAL;
-        long result = timestamp;
-        for (long i = 0; i < multiplier; i++) {
-          result = DateTime.toStartOfDay(result, timezone) - 1;
-        }
-        return result + 1;
-      } else {
-        throw new IllegalArgumentException(specification.getInterval() + 
-            " does not correspond to a " +
-         "an interval that can be aligned to the calendar.");
-      }
-    }
-
-    /** Returns a timestamp corresponding to the end of the interval
-     *  in which the specified timestamp occurs, aligned to the calendar
-     *  based on the timezone. */
-    private long toEndOfInterval(long timestamp) {
-      if (specification.getInterval() % ONE_YEAR_INTERVAL == 0) {
-        final long multiplier = specification.getInterval() / ONE_YEAR_INTERVAL;
-        long result = timestamp;
-        for (long i = 0; i < multiplier; i++) {
-          result = DateTime.toEndOfYear(result, timezone) + 1;
-        }
-        return result - 1;
-      } else if (specification.getInterval() % ONE_MONTH_INTERVAL == 0) {
-        final long multiplier = specification.getInterval() / ONE_MONTH_INTERVAL;
-        long result = timestamp;
-        for (long i = 0; i < multiplier; i++) {
-          result = DateTime.toEndOfMonth(result, timezone) + 1;
-        }
-        return result - 1;
-      } else if (specification.getInterval() % ONE_WEEK_INTERVAL == 0) {
-        final long multiplier = specification.getInterval() / ONE_WEEK_INTERVAL;
-        long result = timestamp;
-        for (long i = 0; i < multiplier; i++) {
-          result = DateTime.toEndOfWeek(result, timezone) + 1;
-        }
-        return result - 1;
-      } else if (specification.getInterval() % ONE_DAY_INTERVAL == 0) {
-        final long multiplier = specification.getInterval() / ONE_DAY_INTERVAL;
-        long result = timestamp;
-        for (long i = 0; i < multiplier; i++) {
-          result = DateTime.toEndOfDay(result, timezone) + 1;
-        }
-        return result - 1;
-      } else {
-        throw new IllegalArgumentException(specification.getInterval() + 
-            " does not correspond to a " +
-         "an interval that can be aligned to the calendar.");
-      }
+      return timestamp - (timestamp % specification.getInterval());
     }
     
     // ---------------------- //
@@ -445,7 +399,11 @@ public class Downsampler implements SeekableView, DataPoint {
       buf.append("ValuesInInterval: ")
          .append(", timestamp_end_interval=").append(timestamp_end_interval)
          .append(", has_next_value_from_source=")
-         .append(has_next_value_from_source);
+         .append(has_next_value_from_source)
+         .append(", previousCalendar=")
+         .append(previous_calendar == null ? "null" : previous_calendar)
+         .append(", nextCalendar=")
+         .append(next_calendar == null ? "null" : next_calendar);
       if (has_next_value_from_source) {
         buf.append(", nextValue=(").append(next_dp).append(')');
       }

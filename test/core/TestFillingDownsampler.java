@@ -14,16 +14,30 @@ package net.opentsdb.core;
 
 import org.junit.Test;
 
+import net.opentsdb.core.SeekableViewsForTest.MockSeekableView;
+import net.opentsdb.utils.DateTime;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.spy;
 
 import java.util.TimeZone;
 
 /** Tests {@link FillingDownsampler}. */
 public class TestFillingDownsampler {
   private static final long BASE_TIME = 1356998400000L;
-  
+  //30 minute offset
+  final static TimeZone AF = DateTime.timezones.get("Asia/Kabul");
+  // 12h offset w/o DST
+  final static TimeZone TV = DateTime.timezones.get("Pacific/Funafuti");
+  // 12h offset w DST
+  final static TimeZone FJ = DateTime.timezones.get("Pacific/Fiji");
+  // Tue, 15 Dec 2015 04:02:25.123 UTC
+  final static long DST_TS = 1450137600000L;
+ 
+  private SeekableView source;
+  private Downsampler downsampler;
   private DownsamplingSpecification specification;
   
   /** Data with gaps: before, during, and after. */
@@ -45,7 +59,7 @@ public class TestFillingDownsampler {
 
     specification = new DownsamplingSpecification("100ms-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 36 * 25L, specification, 0, 0, TimeZone.getDefault(), false);
+      baseTime + 36 * 25L, specification, 0, 0);
     
     long timestamp = baseTime;
     step(downsampler, timestamp, Double.NaN);
@@ -78,7 +92,7 @@ public class TestFillingDownsampler {
     
     specification = new DownsamplingSpecification("100ms-sum-zero");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 36 * 25L, specification, 0, 0, TimeZone.getDefault(), false);
+      baseTime + 36 * 25L, specification, 0, 0);
     
     long timestamp = baseTime;
     step(downsampler, timestamp, 0.);
@@ -115,7 +129,7 @@ public class TestFillingDownsampler {
 
     specification = new DownsamplingSpecification("100ms-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 12L * 25L, specification, 0, 0, TimeZone.getDefault(), false);
+      baseTime + 12L * 25L, specification, 0, 0);
 
     long timestamp = baseTime;
     step(downsampler, timestamp, 42.);
@@ -148,7 +162,7 @@ public class TestFillingDownsampler {
     
     specification = new DownsamplingSpecification("1m-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 60000L * 2L, specification, 0, 0, TimeZone.getDefault(), false);
+      baseTime + 60000L * 2L, specification, 0, 0);
     
     long timestamp = 1425335880000L;
     step(downsampler, timestamp, 30.);
@@ -167,7 +181,7 @@ public class TestFillingDownsampler {
 
     specification = new DownsamplingSpecification("1m-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 60000L * 2L, specification, 0, 0, TimeZone.getDefault(), false);
+      baseTime + 60000L * 2L, specification, 0, 0);
     
     long timestamp = 1425335880000L;
     step(downsampler, timestamp, Double.NaN);
@@ -186,7 +200,7 @@ public class TestFillingDownsampler {
 
     specification = new DownsamplingSpecification("1m-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 60000L * 2L, specification, 0, 0, TimeZone.getDefault(), false);
+      baseTime + 60000L * 2L, specification, 0, 0);
     
     long timestamp = 1425335880000L;
     step(downsampler, timestamp, Double.NaN);
@@ -208,7 +222,7 @@ public class TestFillingDownsampler {
     specification = new DownsamplingSpecification("0all-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, 
         BASE_TIME + 5000L,BASE_TIME + 55000L, specification, 0, 
-        Long.MAX_VALUE, TimeZone.getDefault(), false);
+        Long.MAX_VALUE);
     
     step(downsampler, 0, 63);
     assertFalse(downsampler.hasNext());
@@ -228,7 +242,7 @@ public class TestFillingDownsampler {
     specification = new DownsamplingSpecification("0all-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, 
         BASE_TIME + 5000L,BASE_TIME + 55000L, specification, 
-        BASE_TIME + 15000L, BASE_TIME + 45000L, TimeZone.getDefault(), false);
+        BASE_TIME + 15000L, BASE_TIME + 45000L);
     
     step(downsampler, BASE_TIME + 15000L, 14);
     assertFalse(downsampler.hasNext());
@@ -248,7 +262,7 @@ public class TestFillingDownsampler {
     specification = new DownsamplingSpecification("0all-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, 
         BASE_TIME + 5000L,BASE_TIME + 55000L, specification, 
-        BASE_TIME + 65000L, BASE_TIME + 75000L, TimeZone.getDefault(), false);
+        BASE_TIME + 65000L, BASE_TIME + 75000L);
     
     assertFalse(downsampler.hasNext());
   }
@@ -267,8 +281,536 @@ public class TestFillingDownsampler {
     specification = new DownsamplingSpecification("0all-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, 
         BASE_TIME + 5000L,BASE_TIME + 55000L, specification, 
-        BASE_TIME - 15000L, BASE_TIME - 5000L, TimeZone.getDefault(), false);
+        BASE_TIME - 15000L, BASE_TIME - 5000L);
     
+    assertFalse(downsampler.hasNext());
+  }
+  
+  @Test
+  public void testDownsampler_calendarHour() {
+    source = SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofLongValue(BASE_TIME, 1),
+        MutableDataPoint.ofLongValue(BASE_TIME + 1800000, 2),
+        MutableDataPoint.ofLongValue(BASE_TIME + 3599000L, 3),
+        MutableDataPoint.ofLongValue(BASE_TIME + 3600000L, 4),
+        MutableDataPoint.ofLongValue(BASE_TIME + 5400000L, 5),
+        MutableDataPoint.ofLongValue(BASE_TIME + 7199000L, 6)
+    });
+    specification = new DownsamplingSpecification("1hc-sum-nan");
+    specification.setTimezone(TV);
+    downsampler = new FillingDownsampler(source, 
+        BASE_TIME, BASE_TIME + (3600000 * 3), specification, 0, Long.MAX_VALUE);
+
+    long ts = BASE_TIME;
+    double value = 6;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      ts += 3600000;
+      if (value == 6) {
+        value = 15;
+      } else {
+        value = Double.NaN;
+      }
+    }
+
+    // hour offset by 30m
+    ((MockSeekableView)source).resetIndex();
+    specification = new DownsamplingSpecification("1hc-sum-nan");
+    specification.setTimezone(AF);
+    downsampler = new FillingDownsampler(source, 1356996600000L, 
+        1356996600000L + (3600000 * 4), specification, 0, Long.MAX_VALUE);
+
+    ts = 1356996600000L;
+    value = 1;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      ts += 3600000;
+      if (value == 1) {
+        value = 9;
+      } else if (value == 9) {
+        value = 11;
+      } else {
+        value = Double.NaN;
+      }
+    }
+    
+    // multiple hours
+    ((MockSeekableView)source).resetIndex();
+    specification = new DownsamplingSpecification("4hc-sum-nan");
+    specification.setTimezone(AF);
+    downsampler = new FillingDownsampler(source, 1356996600000L, 
+        1356996600000L + (3600000 * 8), specification, 0, Long.MAX_VALUE);
+
+    ts = 1356996600000L;
+    value = 21;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      ts = 1357011000000L;
+      value = Double.NaN;
+    }
+  }
+  
+  @Test
+  public void testDownsampler_calendarDay() {
+    source = SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofLongValue(DST_TS, 1),
+        MutableDataPoint.ofLongValue(DST_TS + 86399000, 2),
+        MutableDataPoint.ofLongValue(DST_TS + 126001000L, 3), // falls to the next in FJ
+        MutableDataPoint.ofLongValue(DST_TS + 172799000L, 4),
+        MutableDataPoint.ofLongValue(DST_TS + 172800000L, 5),
+        MutableDataPoint.ofLongValue(DST_TS + 242999000L, 6) // falls within 30m offset
+    });
+    
+    // control
+    specification = new DownsamplingSpecification("1d-sum-nan");
+    downsampler = new FillingDownsampler(source, DST_TS, 
+        DST_TS + (86400000 * 4), specification, 0, Long.MAX_VALUE);
+
+    long ts = DST_TS;
+    double value = 3;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      ts += 86400000;
+      if (value == 3) {
+        value = 7;
+      } else if (value == 7) {
+        value = 11;
+      } else {
+        value = Double.NaN;
+      }
+    }
+
+    // 12 hour offset from UTC
+    ((MockSeekableView)source).resetIndex();
+    specification = new DownsamplingSpecification("1dc-sum-nan");
+    specification.setTimezone(TV);
+    downsampler = new FillingDownsampler(source, 1450094400000L - 86400000, 
+        DST_TS + (86400000 * 5), specification, 0, Long.MAX_VALUE);
+
+    ts = 1450094400000L - 86400000; // make sure we front-fill too
+    value = Double.NaN;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      ts += 86400000;
+      if (Double.isNaN(value)) {
+        value = 1;
+      } else if (value == 1) {
+        value = 5;
+      } else if (value == 5) {
+        value = 9;
+      } else if (value == 9) {
+        value = 6;
+      } else {
+        value = Double.NaN;
+      }
+    }
+    
+    // 11 hour offset from UTC
+    ((MockSeekableView)source).resetIndex();
+    specification = new DownsamplingSpecification("1dc-sum-nan");
+    specification.setTimezone(FJ);
+    downsampler = new FillingDownsampler(source, 1450094400000L, 
+        DST_TS + (86400000 * 5), specification, 0, Long.MAX_VALUE);
+
+    ts = 1450090800000L;
+    value = 1;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      ts += 86400000;
+      if (value == 1) {
+        value = 2;
+      } else if (value == 2) {
+        value = 12;
+      } else if (value == 12) {
+        value = 6;
+      } else {
+        value = Double.NaN;
+      }
+    }
+    
+    // 30m offset
+    ((MockSeekableView)source).resetIndex();
+    specification = new DownsamplingSpecification("1dc-sum-nan");
+    specification.setTimezone(AF);
+    downsampler = new FillingDownsampler(source, 1450121400000L, 
+        DST_TS + (86400000 * 4), specification, 0, Long.MAX_VALUE);
+
+    ts = 1450121400000L;
+    value = 1;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      ts += 86400000;
+      if (value == 1) {
+        value = 5;
+      } else if (value == 5) {
+        value = 15;
+      } else {
+        value = Double.NaN;
+      }
+    }
+    
+    // multiple days
+    ((MockSeekableView)source).resetIndex();
+    specification = new DownsamplingSpecification("3dc-sum-nan");
+    specification.setTimezone(AF);
+    downsampler = new FillingDownsampler(source, 1450121400000L, 
+        DST_TS + (86400000 * 6), specification, 0, Long.MAX_VALUE);
+
+    ts = 1450121400000L;
+    value = 21;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      ts += 86400000L * 3;
+      value = Double.NaN;
+    }
+  }
+  
+  @Test
+  public void testDownsampler_calendarWeek() {
+    source = SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofLongValue(DST_TS, 1), // a Tuesday in UTC land
+        MutableDataPoint.ofLongValue(DST_TS + (86400000L * 7), 2),
+        MutableDataPoint.ofLongValue(1451129400000L, 3), // falls to the next in FJ
+        MutableDataPoint.ofLongValue(DST_TS + (86400000L * 21), 4),
+        MutableDataPoint.ofLongValue(1452367799000L, 5) // falls within 30m offset
+    });
+    // control
+    specification = new DownsamplingSpecification("1wc-sum-nan");
+    downsampler = new FillingDownsampler(source, 1449964800000L, 
+        DST_TS + (86400000L * 35), specification, 0, Long.MAX_VALUE);
+    
+    long ts = 1449964800000L;
+    double value = 1;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      ts += 86400000L * 7;
+      if (value == 1) {
+        value = 5;
+      } else if (value == 5) {
+        value = Double.NaN;
+      } else if (Double.isNaN(value)) {
+        value = 9;
+      } else {
+        value = Double.NaN;
+      }
+    }
+    
+    // 12 hour offset from UTC
+    ((MockSeekableView)source).resetIndex();
+    specification = new DownsamplingSpecification("1wc-sum-nan");
+    specification.setTimezone(TV);
+    downsampler = new FillingDownsampler(source, 1449964800000L, 
+        DST_TS + (86400000L * 35), specification, 0, Long.MAX_VALUE);
+
+    ts = 1449921600000L;
+    value = 1;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      ts += 86400000L * 7;
+      if (value == 1) {
+        value = 5;
+      } else if (value == 5) {
+        value = Double.NaN;
+      } else if (Double.isNaN(value)) {
+        value = 4;
+      } else {
+        value = 5;
+      }
+    }
+    
+    // 11 hour offset from UTC
+    ((MockSeekableView)source).resetIndex();
+    specification = new DownsamplingSpecification("1wc-sum-nan");
+    specification.setTimezone(FJ);
+    downsampler = new FillingDownsampler(source, 1449964800000L, 
+        DST_TS + (86400000L * 35), specification, 0, Long.MAX_VALUE);
+
+    ts = 1449918000000L;
+    value = 1;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      ts += 86400000L * 7;
+      value++;
+    }
+    
+    // 30m offset
+    ((MockSeekableView)source).resetIndex();
+    specification = new DownsamplingSpecification("1wc-sum-nan");
+    specification.setTimezone(AF);
+    downsampler = new FillingDownsampler(source, 1449964800000L, 
+        DST_TS + (86400000L * 35), specification, 0, Long.MAX_VALUE);
+
+    ts = 1449948600000L;
+    value = 1;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      ts += 86400000L * 7;
+      if (value == 1) {
+        value = 5;
+      } else if (value == 5) {
+        value = Double.NaN;
+      } else if (Double.isNaN(value)) {
+        value = 9;
+      } else {
+        value = Double.NaN;
+      }
+    }
+    
+    // multiple weeks
+    ((MockSeekableView)source).resetIndex();
+    specification = new DownsamplingSpecification("2wc-sum-nan");
+    specification.setTimezone(AF);
+    downsampler = new FillingDownsampler(source, 1449964800000L, 
+        DST_TS + (86400000L * 35), specification, 0, Long.MAX_VALUE);
+
+    ts = 1449948600000L;
+    value = 6;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      ts += 86400000L * 14;
+      if (value == 6) {
+        value = 9;
+      } else {
+        value = Double.NaN;
+      }
+    }
+  }
+  
+  @Test
+  public void testDownsampler_calendarMonth() {
+    final long dec_1st = 1448928000000L;
+    source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofLongValue(dec_1st, 1),
+        MutableDataPoint.ofLongValue(1451559600000L, 2), // falls to the next in FJ
+        MutableDataPoint.ofLongValue(1451606400000L, 3), // jan 1st
+        MutableDataPoint.ofLongValue(1454284800000L, 4), // feb 1st
+        MutableDataPoint.ofLongValue(1456704000000L, 5), // feb 29th (leap year)
+        MutableDataPoint.ofLongValue(1456772400000L, 6)  // falls within 30m offset AF
+    }));
+    
+    // control
+    specification = new DownsamplingSpecification("1n-sum-nan");
+    downsampler = new FillingDownsampler(source, dec_1st, 
+        dec_1st + (2592000000L * 5), specification, 0, Long.MAX_VALUE);
+
+    long ts = dec_1st;
+    double value = 1;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      ts += 2592000000L;
+      if (value == 1) {
+        value = 5;
+      } else if (value == 5) {
+        value = 4;
+      } else if (value == 4) {
+        value = 11;
+      } else {
+        value = Double.NaN;
+      }
+    }
+    
+    // 12h offset
+    ((MockSeekableView)source).resetIndex();
+    specification = new DownsamplingSpecification("1nc-sum-nan");
+    specification.setTimezone(TV);
+    downsampler = new FillingDownsampler(source, dec_1st, 
+        dec_1st + (2592000000L * 6), specification, 0, Long.MAX_VALUE);
+
+    ts = 1448884800000L;
+    value = 3;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      if (ts == 1448884800000L) {
+        ts = 1451563200000L;
+      } else if (ts == 1451563200000L) {
+        ts = 1454241600000L;
+        value = 9;
+      } else if (ts == 1454241600000L) {
+        ts = 1456747200000L;
+        value = 6;
+      } else {
+        ts = 1459425600000L;
+        value = Double.NaN;
+      }
+    }
+    
+    // 11h offset
+    ((MockSeekableView)source).resetIndex();
+    specification = new DownsamplingSpecification("1nc-sum-nan");
+    specification.setTimezone(FJ);
+    downsampler = new FillingDownsampler(source, dec_1st, 
+        dec_1st + (2592000000L * 6), specification, 0, Long.MAX_VALUE);
+
+    ts = 1448881200000L;
+    value = 1;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      if (ts == 1448881200000L) {
+        ts = 1451559600000L;
+        value = 5;
+      } else if (ts == 1451559600000L) {
+        ts = 1454241600000L;
+        value = 9;
+      } else if (ts == 1454241600000L) {
+        ts = 1456747200000L;
+        value = 6;
+      } else {
+        ts = 1459425600000L;
+        value = Double.NaN;
+      }
+    }
+    
+    // 30m offset
+    ((MockSeekableView)source).resetIndex();
+    specification = new DownsamplingSpecification("1nc-sum-nan");
+    specification.setTimezone(AF);
+    downsampler = new FillingDownsampler(source, dec_1st, 
+        dec_1st + (2592000000L * 5), specification, 0, Long.MAX_VALUE);
+
+    ts = 1448911800000L;
+    value = 3;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      if (ts == 1448911800000L) {
+        ts = 1451590200000L;
+      } else if (ts == 1451590200000L) {
+        ts = 1454268600000L;
+        value = 15;
+      } else {
+        ts = 1456774200000L;
+        value = Double.NaN;
+      }
+    }
+    
+    // multiple months
+    ((MockSeekableView)source).resetIndex();
+    specification = new DownsamplingSpecification("3nc-sum-nan");
+    specification.setTimezone(TV);
+    downsampler = new FillingDownsampler(source, dec_1st, 
+        dec_1st + (2592000000L * 9), specification, 0, Long.MAX_VALUE);
+
+    ts = 1443614400000L;
+    value = 3;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      if (ts == 1443614400000L) {
+        ts = 1451563200000L;
+        value = 18;
+      } else {
+        ts = 1459425600000L;
+        value = Double.NaN;
+      }
+    }
+  }
+  
+  @Test
+  public void testDownsampler_calendarSkipSomePoints() {
+    source = SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofLongValue(BASE_TIME, 1),
+        MutableDataPoint.ofLongValue(BASE_TIME + 1800000, 2),
+        // skip an hour
+        MutableDataPoint.ofLongValue(BASE_TIME + 7200000, 6)
+    });
+    specification = new DownsamplingSpecification("1hc-sum-nan");
+    specification.setTimezone(TV);
+    downsampler = new FillingDownsampler(source, 1356998400000L, 1357009200000L, 
+        specification, 0, Long.MAX_VALUE);
+
+    long ts = BASE_TIME;
+    double value = 3;
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      assertEquals(ts, dp.timestamp());
+      assertEquals(value, dp.doubleValue(), 0.001);
+      ts += 3600000;
+      if (value == 3) {
+        value = Double.NaN;
+      } else {
+        value = 6;
+      }
+    }
+  }
+  
+  @Test
+  public void testDownsampler_noData() {
+    final SeekableView source = 
+        SeekableViewsForTest.fromArray(new DataPoint[] { });
+    specification = new DownsamplingSpecification("1m-sum-nan");
+    final Downsampler downsampler = new FillingDownsampler(source, BASE_TIME,
+        BASE_TIME + 60000L * 2L, specification, 0, 0);
+    
+    long timestamp = 1356998400000L;
+    step(downsampler, timestamp, Double.NaN);
+    step(downsampler, timestamp += 60000, Double.NaN);
+    assertFalse(downsampler.hasNext());
+  }
+  
+  @Test
+  public void testDownsampler_noDataCalendar() {
+    final SeekableView source = 
+        SeekableViewsForTest.fromArray(new DataPoint[] { });
+    specification = new DownsamplingSpecification("1mc-sum-nan");
+    final Downsampler downsampler = new FillingDownsampler(source, BASE_TIME,
+        BASE_TIME + 60000L * 2L, specification, 0, 0);
+    
+    long timestamp = 1356998400000L;
+    step(downsampler, timestamp, Double.NaN);
+    step(downsampler, timestamp += 60000, Double.NaN);
     assertFalse(downsampler.hasNext());
   }
   

@@ -13,6 +13,7 @@
 package net.opentsdb.core;
 
 import java.util.NoSuchElementException;
+import java.util.TimeZone;
 
 import com.google.common.base.MoreObjects;
 import net.opentsdb.utils.DateTime;
@@ -40,12 +41,18 @@ public final class DownsamplingSpecification {
   
   //The string interval, e.g. 1h, 30d, etc
   private final String string_interval;
-
+  
   // Parsed downsampler function.
   private final Aggregator function;
   
   // Parsed fill policy: whether to interpolate or to fill.
   private final FillPolicy fill_policy;
+  
+  // Whether or not to use the calendar for intervals
+  private boolean use_calendar;
+ 
+  // The user provided timezone for calendar alignment (defaults to UTC)
+  private TimeZone timezone;
 
   /**
    * A specification indicating no downsampling is requested.
@@ -55,6 +62,8 @@ public final class DownsamplingSpecification {
     function = NO_FUNCTION;
     fill_policy = DEFAULT_FILL_POLICY;
     string_interval = null;
+    use_calendar = false;
+    timezone = DateTime.timezones.get(DateTime.UTC_ID);
   }
 
   /**
@@ -85,12 +94,16 @@ public final class DownsamplingSpecification {
     this.function = function;
     this.fill_policy = fill_policy;
     string_interval = null;
+    use_calendar = false;
+    timezone = DateTime.timezones.get(DateTime.UTC_ID);
   }
 
   /**
    * C-tor for string representations.
    * The argument to this c-tor should have the following format:
    * {@code interval-function[-fill_policy]}.
+   * This ctor supports the "all" flag to downsample to a single value as well
+   * as units suffixed with 'c' to use the calendar for downsample alignment.
    * @param specification String representation of a downsample specifier.
    * @throws IllegalArgumentException if the specification is null or invalid.
    */
@@ -118,9 +131,16 @@ public final class DownsamplingSpecification {
     // This will throw if interval is invalid.
     if (parts[0].contains("all")) {
       interval = NO_INTERVAL;
+      use_calendar = false;
       string_interval = parts[0];
+    } else if (parts[0].charAt(parts[0].length() - 1) == 'c') {
+      final String duration = parts[0].substring(0, parts[0].length() - 1);
+      interval = DateTime.parseDuration(duration);
+      string_interval = duration;
+      use_calendar = true;
     } else {
       interval = DateTime.parseDuration(parts[0]);
+      use_calendar = false;
       string_interval = parts[0];
     }
 
@@ -155,8 +175,25 @@ public final class DownsamplingSpecification {
       // Default to linear interpolation.
       fill_policy = FillPolicy.NONE;
     }
+    timezone = DateTime.timezones.get(DateTime.UTC_ID);
   }
 
+  /** @param use_calendar Whether or not to use the calendar when downsampling 
+   * @since 2.3 */
+  public void setUseCalendar(final boolean use_calendar) {
+    this.use_calendar = use_calendar;
+  }
+  
+  /** @param timezone The timezone to use when downsampling on calendar 
+   * boundaries.
+   * @since 2.3 */
+  public void setTimezone(final TimeZone timezone) {
+    if (timezone == null) {
+      throw new IllegalArgumentException("Timezone cannot be null");
+    }
+    this.timezone = timezone;
+  }
+  
   /**
    * Get the downsampling interval, in milliseconds.
    * @return the downsampling interval, in milliseconds.
@@ -187,6 +224,18 @@ public final class DownsamplingSpecification {
     return fill_policy;
   }
 
+  /** @return Whether or not to use the calendar when downsampling 
+   * @since 2.3 */
+  public boolean useCalendar() {
+    return use_calendar;
+  }
+  
+  /** @return The timezone to use when downsampling on calendar boundaries.
+   * @since 2.3 */
+  public TimeZone getTimezone() {
+    return timezone;
+  }
+  
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
@@ -194,6 +243,8 @@ public final class DownsamplingSpecification {
       .add("function", getFunction())
       .add("fillPolicy", getFillPolicy())
       .add("stringInterval", string_interval)
+      .add("useCalendar", useCalendar())
+      .add("timeZone", getTimezone() != null ? getTimezone().getID() : null)
       .toString();
   }
 }
