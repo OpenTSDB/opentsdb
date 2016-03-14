@@ -15,6 +15,7 @@ package net.opentsdb.tools;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.utils.Config;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
 
 /**
@@ -40,7 +41,12 @@ public abstract class StartupPlugin {
    * missing
    * @throws Exception if something else goes wrong
    */
-  public abstract void initialize(final Config config) throws IllegalArgumentException, Exception;
+  public abstract Config initialize(Config config) throws IllegalArgumentException, Exception;
+
+  /**
+   * Called when the TSD is fully initialized and ready to handle traffic.
+   */
+  public abstract void setReady(final TSDB tsdb) throws Exception;
 
   /**
    * Called to gracefully shutdown the plugin. Implementations should close

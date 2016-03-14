@@ -31,6 +31,7 @@ import org.jboss.netty.channel.socket.oio.OioServerSocketChannelFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.opentsdb.tools.BuildData;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Const;
 import net.opentsdb.tsd.PipelineFactory;
@@ -206,6 +207,9 @@ final class TSDMain {
       final InetSocketAddress addr = new InetSocketAddress(bindAddress,
           config.getInt("tsd.network.port"));
       server.bind(addr);
+      if (startup != null) {
+        startup.setReady(tsdb);
+      }
       log.info("Ready to serve on " + addr);
     } catch (Throwable e) {
       factory.releaseExternalResources();
@@ -226,17 +230,20 @@ final class TSDMain {
     // load the startup plugin if enabled
     StartupPlugin startup = null;
 
-    if (config.getBoolean("tsd.startup.enable")) {
+    if (config.getBoolean("tsd.startup.enabled")) {
+      log.debug("Startup Plugin is Enabled");
       final String plugin_path = config.getString("tsd.core.plugin_path");
+      final String plugin_class = config.getString("tsd.startup.plugin");
 
+      log.debug("Plugin Path: " + plugin_path);
       try {
         TSDB.loadPluginPath(plugin_path);
       } catch (Exception e) {
         log.error("Error loading plugins from plugin path: " + plugin_path, e);
       }
 
-      startup = PluginLoader.loadSpecificPlugin(
-              config.getString("tsd.startup.plugin"), StartupPlugin.class);
+      log.debug("Attempt to Load: " + plugin_class);
+      startup = PluginLoader.loadSpecificPlugin(plugin_class, StartupPlugin.class);
       if (startup == null) {
         throw new IllegalArgumentException("Unable to locate startup plugin: " +
                 config.getString("tsd.startup.plugin"));
