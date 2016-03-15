@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -127,9 +128,9 @@ public final class TSDB {
   
   /** Plugin for dealing with data points that can't be stored */
   private StorageExceptionHandler storage_exception_handler = null;
-  
-  /** Datapoint Counter */
-  private static final AtomicLong datapoints_received = new AtomicLong();
+
+  /** Datapoints Added */
+  private static final AtomicLong datapoints_added = new AtomicLong();
 
   /**
    * Constructor
@@ -563,6 +564,13 @@ public final class TSDB {
       collector.clearExtraTag("class");
     }
 
+    collector.addExtraTag("class", "TSDB");
+    try {
+      collector.record("datapoints.added", datapoints_added, "type=all");
+    } finally {
+      collector.clearExtraTag("class");
+    }
+
     collector.addExtraTag("class", "TsdbQuery");
     try {
       collector.record("hbase.latency", TsdbQuery.scanlatency, "method=scan");
@@ -725,8 +733,7 @@ public final class TSDB {
     } else {
       v = Bytes.fromLong(value);
     }
-    collector.record("datapoints.received", datapoints_received, "type=all");
-    datapoints_received.incrementAndGet();
+
     final short flags = (short) (v.length - 1);  // Just the length.
     return addPointInternal(metric, timestamp, v, tags, flags);
   }
@@ -832,7 +839,7 @@ public final class TSDB {
     
     Bytes.setInt(row, (int) base_time, metrics.width() + Const.SALT_WIDTH());
     RowKey.prefixKeyWithSalt(row);
-    
+
     Deferred<Object> result = null;
     if (config.enable_appends()) {
       final AppendDataPoints kv = new AppendDataPoints(qualifier, value);
@@ -844,7 +851,11 @@ public final class TSDB {
       final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
       result = client.put(point);
     }
-    
+
+    // Count all added datapoints, not just those that came in through PUT rpc
+    // Will there be others? Well, something could call addPoint programatically right?
+    datapoints_added.incrementAndGet();
+
     // TODO(tsuna): Add a callback to time the latency of HBase and store the
     // timing in a moving Histogram (once we have a class for this).
     
@@ -871,7 +882,7 @@ public final class TSDB {
         TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
       }
     }
-    
+
     if (rt_publisher != null) {
       rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags);
     }
