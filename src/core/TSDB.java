@@ -128,6 +128,9 @@ public final class TSDB {
   /** Plugin for dealing with data points that can't be stored */
   private StorageExceptionHandler storage_exception_handler = null;
   
+  /** Datapoint Counter */
+  private static final AtomicLong datapoints_received = new AtomicLong();
+
   /**
    * Constructor
    * @param client An initialized HBase client object
@@ -560,6 +563,8 @@ public final class TSDB {
       collector.clearExtraTag("class");
     }
 
+    collector.record("datapoints.received", datapoints_received, "type=all");
+
     collector.addExtraTag("class", "TsdbQuery");
     try {
       collector.record("hbase.latency", TsdbQuery.scanlatency, "method=scan");
@@ -722,6 +727,8 @@ public final class TSDB {
     } else {
       v = Bytes.fromLong(value);
     }
+
+    datapoints_received.incrementAndGet();
     final short flags = (short) (v.length - 1);  // Just the length.
     return addPointInternal(metric, timestamp, v, tags, flags);
   }
