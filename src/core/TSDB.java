@@ -42,6 +42,7 @@ import org.jboss.netty.util.HashedWheelTimer;
 import org.jboss.netty.util.Timeout;
 import org.jboss.netty.util.Timer;
 
+import net.opentsdb.auth.AuthenticationPlugin;
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.tsd.StorageExceptionHandler;
@@ -120,7 +121,10 @@ public final class TSDB {
    */
   private final CompactionQueue compactionq;
 
-  /** Search indexer to use if configure */
+  /** Authentication Plugin to use if configured */
+  private AuthenticationPlugin authentication = null;
+
+  /** Search indexer to use if configured */
   private SearchPlugin search = null;
 
   /** Optional Startup Plugin to use if configured */
@@ -306,6 +310,19 @@ public final class TSDB {
       throw new RuntimeException("Failed to instantiate filters", e);
     }
 
+    // load the authentication plugin if enabled
+    if (config.getBoolean("tsd.core.authentication.enable")) {
+      authentication = PluginLoader.loadSpecificPlugin(config.getString("tsd.core.authentication.plugin"), AuthenticationPlugin.class);
+      if (authentication == null) {
+        throw new IllegalArgumentException("Unable to locate authentication plugin: "+ config.getString("tsd.core.authentication.plugin"));
+      }
+      try {
+        authentication.initialize(this);
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to initialize authentication plugin", e);
+      }
+    }
+
     // load the search plugin if enabled
     if (config.getBoolean("tsd.search.enable")) {
       search = PluginLoader.loadSpecificPlugin(
@@ -431,7 +448,16 @@ public final class TSDB {
           + uid_filter.version());
     }
   }
-  
+
+  /**
+   * Returns the configured Authentication Plugin
+   * @return The Authentication Plugin
+   * @since 2.3
+   */
+  public final AuthenticationPlugin getAuth() {
+    return this.authentication;
+  }
+
   /** 
    * Returns the configured HBase client 
    * @return The HBase client

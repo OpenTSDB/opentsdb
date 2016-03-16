@@ -70,6 +70,8 @@ tsdb_SRC := \
 	src/core/WritableDataPoints.java	\
 	src/core/WriteableDataPointFilterPlugin.java	\
 	src/graph/Plot.java	\
+	src/auth/AuthenticationChannelHandler.java \
+	src/auth/AuthenticationPlugin.java \
 	src/meta/Annotation.java	\
 	src/meta/MetaDataCache.java	\
 	src/meta/TSMeta.java	\
