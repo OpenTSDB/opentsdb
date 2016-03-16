@@ -25,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableMap;
-
 /**
  * OpenTSDB Configuration Class
  * 
@@ -484,6 +483,10 @@ public class Config {
     default_map.put("tsd.network.tcp_no_delay", "true");
     default_map.put("tsd.network.keep_alive", "true");
     default_map.put("tsd.network.reuse_address", "true");
+    default_map.put("tsd.core.authentication.enable", "false");
+    default_map.put("tsd.core.authentication.plugin", "net.opentsdb.auth.EmbeddedAuthenticationPlugin");
+    default_map.put("tsd.core.authentication.admin_access_key", "admin");
+    default_map.put("tsd.core.authentication.admin_access_secret", "admin");
     default_map.put("tsd.core.auto_create_metrics", "false");
     default_map.put("tsd.core.auto_create_tagks", "true");
     default_map.put("tsd.core.auto_create_tagvs", "true");
