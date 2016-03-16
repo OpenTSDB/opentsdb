@@ -230,7 +230,7 @@ final class TSDMain {
     // load the startup plugin if enabled
     StartupPlugin startup = null;
 
-    if (config.getBoolean("tsd.startup.enabled")) {
+    if (config.getBoolean("tsd.startup.enable")) {
       log.debug("Startup Plugin is Enabled");
       final String plugin_path = config.getString("tsd.core.plugin_path");
       final String plugin_class = config.getString("tsd.startup.plugin");
