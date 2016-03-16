@@ -508,6 +508,8 @@ public class Config {
     default_map.put("tsd.search.enable", "false");
     default_map.put("tsd.search.plugin", "");
     default_map.put("tsd.stats.canonical", "false");
+    default_map.put("tsd.startup.enable", "false");
+    default_map.put("tsd.startup.plugin", "");
     default_map.put("tsd.storage.hbase.scanner.maxNumRows", "128");
     default_map.put("tsd.storage.fix_duplicates", "false");
     default_map.put("tsd.storage.flush_interval", "1000");
