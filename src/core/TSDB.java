@@ -624,6 +624,14 @@ public final class TSDB {
 
     compactionq.collectStats(collector);
     // Collect Stats from Plugins
+    if (startup != null) {
+      try {
+        collector.addExtraTag("plugin", "startup");
+        startup.collectStats(collector);
+      } finally {
+        collector.clearExtraTag("plugin");
+      }
+    }
     if (rt_publisher != null) {
       try {
         collector.addExtraTag("plugin", "publish");
