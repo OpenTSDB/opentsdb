@@ -129,8 +129,8 @@ public final class RpcManager {
    */
   private RpcManager(final TSDB tsdb) {
     this.tsdb = tsdb;
-    graphlatency = LatencyStats.getInstance(tsdb.getConfig(), "http_graph");
-    gnuplotlatency = LatencyStats.getInstance(tsdb.getConfig(), "http_gnuplot");
+    graphlatency = LatencyStats.getInstance(tsdb.getConfig(), "http_graph", "http.latency", "type=graph");
+    gnuplotlatency = LatencyStats.getInstance(tsdb.getConfig(), "http_gnuplot", "http.latency", "type=gnuplot");
   }
   
   /**

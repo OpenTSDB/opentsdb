@@ -101,22 +101,6 @@ public abstract class StatsCollector {
   }
 
   /**
-   * Records a number of data points from a {@link Histogram}.
-   * @param name The name of the metric.
-   * @param histo The histogram to collect data points from.
-   * @param xtratag An extra tag ({@code name=value}) to add to those
-   * data points (ignored if {@code null}).
-   * @throws IllegalArgumentException if {@code xtratag != null} and it
-   * doesn't follow the {@code name=value} format.
-   * @deprecated Call collectStats() directly on the plugin
-   */
-  public final void record(final String name,
-                           final LatencyStatsPlugin histo,
-                           final String xtratag) {
-      histo.collectStats(this, name, xtratag);
-  }
-
-  /**
    * Records a data point.
    * @param name The name of the metric.
    * @param value The current value for that metric.

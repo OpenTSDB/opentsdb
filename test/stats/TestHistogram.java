@@ -18,6 +18,8 @@ import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.io.IOException;
+
 import static junit.framework.Assert.assertNotNull;
 import static junit.framework.Assert.assertNull;
 import static org.junit.Assert.assertEquals;
@@ -174,12 +176,14 @@ public final class TestHistogram {
   }
 
   @Test
-  public void statsCollection() {
+  public void statsCollection() throws IOException {
     StatsCollector collector = mock(StatsCollector.class);
+    Config config = mock(Config.class);
     
     LatencyStatsPlugin histo = new Histogram();
+    histo.initialize(config, "tsd.somestat.latency", "type=t");
     
-    histo.collectStats(collector, "tsd.somestat.latency", "type=t");
+    histo.collectStats(collector);
     
     verify(collector).record("tsd.somestat.latency_50pct", 0, "type=t");
     verify(collector).record("tsd.somestat.latency_75pct", 0, "type=t");
@@ -202,7 +206,7 @@ public final class TestHistogram {
   @Test
   public void initialiseNoErrors() {
     LatencyStatsPlugin histo = new Histogram();
-    histo.initialize(mock(Config.class));
+    histo.initialize(mock(Config.class), "some.metric", "");
   }
   
   @Test

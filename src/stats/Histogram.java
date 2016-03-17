@@ -64,6 +64,8 @@ public final class Histogram extends LatencyStatsPlugin {
 
   /** Buckets where we actually store the values. */
   private final int[] buckets;
+  private String metricName;
+  private String xtratag;
 
 
   /**
@@ -115,8 +117,10 @@ public final class Histogram extends LatencyStatsPlugin {
   }
 
     @Override
-    public void initialize(Config config) {
-        // do nothing
+    public void initialize(Config config, String metricName, String xtratag) {
+      // save info for future writes
+      this.metricName = metricName;
+      this.xtratag = xtratag;
     }
 
     @Override
@@ -135,7 +139,7 @@ public final class Histogram extends LatencyStatsPlugin {
     }
 
     @Override
-    public void collectStats(StatsCollector collector, String metricName, String xtratag) {
+    public void collectStats(StatsCollector collector) {
         collector.record(metricName + "_50pct", percentile(50), xtratag);
         collector.record(metricName + "_75pct", percentile(75), xtratag);
         collector.record(metricName + "_90pct", percentile(90), xtratag);
