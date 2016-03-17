@@ -147,6 +147,9 @@
                 <argument>META-INF/services/net.opentsdb.search.SearchPlugin</argument>
                 <argument>-C</argument>
                 <argument>test</argument>
+                <argument>META-INF/services/net.opentsdb.stats.DummyLatencyStatsPlugin</argument>
+                <argument>-C</argument>
+                <argument>test</argument>
                 <argument>META-INF/services/net.opentsdb.tsd.HttpSerializer</argument>
                 <argument>-C</argument>
                 <argument>test</argument>
