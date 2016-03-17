@@ -34,6 +34,8 @@ import com.google.common.util.concurrent.Atomics;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.stats.LatencyStats;
+import net.opentsdb.stats.LatencyStatsPlugin;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -96,8 +98,13 @@ public final class RpcManager {
       "^/?" + PLUGIN_BASE_WEBPATH + "/?.*", 
       Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
   
-  /** Reference to our singleton instance.  Set in {@link #initialize}. */
+  /** Reference to our singleton instance.  Set in {@link #instance(net.opentsdb.core.TSDB)}. */
   private static final AtomicReference<RpcManager> INSTANCE = Atomics.newReference();
+
+  /** Keep track of the latency of graphing requests. */
+  private final LatencyStatsPlugin graphlatency;
+  /** Keep track of the latency (in ms) introduced by running Gnuplot. */
+  private final LatencyStatsPlugin gnuplotlatency;
 
   /** Commands we can serve on the simple, telnet-style RPC interface. */
   private ImmutableMap<String, TelnetRpc> telnet_commands;
@@ -111,12 +118,19 @@ public final class RpcManager {
   /** The TSDB that owns us. */
   private TSDB tsdb;
   
+  /** Generates gnuplot graphs */
+  private GraphHandler graph_handler;
+  /** Handles stats requests */
+  private StatsRpc stats;
+
   /**
    * Constructor used by singleton factory method.
    * @param tsdb the owning TSDB instance.
    */
   private RpcManager(final TSDB tsdb) {
     this.tsdb = tsdb;
+    graphlatency = LatencyStats.getInstance(tsdb.getConfig(), "http_graph");
+    gnuplotlatency = LatencyStats.getInstance(tsdb.getConfig(), "http_gnuplot");
   }
   
   /**
@@ -160,6 +174,20 @@ public final class RpcManager {
     return manager;
   }
   
+  /**
+   * @return the latency plugin we're using to record graph latency measurements
+   */
+  public LatencyStatsPlugin getGraphLatency() {
+    return graphlatency;
+  }
+
+  /**
+   * @return the latency plugin we're using to record gnuplot latency measurements
+   */
+  public LatencyStatsPlugin getGnuplotLatency() {
+    return gnuplotlatency;
+  }
+
   /**
    * @return {@code true} if the shared instance has been initialized; 
    * {@code false} otherwise.
@@ -282,7 +310,7 @@ public final class RpcManager {
       http.put("api/suggest", suggest_rpc);
 
       http.put("logs", new LogsRpc());
-      http.put("q", new GraphHandler());
+      http.put("q", new GraphHandler(graphlatency, gnuplotlatency));
       http.put("api/serializers", new Serializers());
       http.put("api/uid", new UniqueIdRpc());
       http.put("api/query", new QueryRpc());
@@ -479,6 +507,21 @@ public final class RpcManager {
         }
       }
     }
+  }
+
+  /**
+   * @return The graph handler used to service gnuplot requests
+   */
+  public GraphHandler getGraphHandler() {
+    return graph_handler;
+  }
+
+  /**
+   * Inform us of the rpc handler - will be passed on to any handlers
+   * we manage who are interested.
+   */
+  public void setRpcHandler(RpcHandler rpcHandler) {
+    this.stats.setRpcHandler(rpcHandler);
   }
   
   // ---------------------------- //

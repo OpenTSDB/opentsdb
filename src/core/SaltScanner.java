@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.stats.LatencyStatsPlugin;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.QueryStats.QueryStat;
 import net.opentsdb.uid.UniqueId;
@@ -111,23 +112,28 @@ public class SaltScanner {
    * goes pear shaped. Make sure to synchronize on this object when checking
    * for null or assigning from a scanner's callback. */
   private volatile Exception exception;
-  
+  /** We do scans so we need to contribute to scan latency stats */
+  private LatencyStatsPlugin scanlatency;
+
   /**
    * Default ctor that performs some validation. Call {@link scan} after 
    * construction to actually start fetching data.
+   *
    * @param tsdb The TSDB to which we belong
    * @param metric The metric we're expecting to fetch
    * @param scanners A list of HBase scanners, one for each bucket
    * @param spans The span map to store results in
    * @param filters A list of filters for processing
+   * @param scanlatency For recording perceived hbase latency
    * @throws IllegalArgumentException if any required data was missing or
    * we had invalid parameters.
    */
   public SaltScanner(final TSDB tsdb, final byte[] metric, 
                                       final List<Scanner> scanners, 
                                       final TreeMap<byte[], Span> spans,
-                                      final List<TagVFilter> filters) {
-    this(tsdb, metric, scanners, spans, filters, false, null, 0);
+                                      final List<TagVFilter> filters,
+                                      final LatencyStatsPlugin scanlatency) {
+    this(tsdb, metric, scanners, spans, filters, false, null, 0, scanlatency);
   }
   
   /**
@@ -150,7 +156,8 @@ public class SaltScanner {
                                       final List<TagVFilter> filters,
                                       final boolean delete,
                                       final QueryStats query_stats,
-                                      final int query_index) {
+                                      final int query_index,
+                                      LatencyStatsPlugin scanlatency) {
     if (Const.SALT_WIDTH() < 1) {
       throw new IllegalArgumentException(
           "Salting is disabled. Use the regular scanner");
@@ -189,6 +196,7 @@ public class SaltScanner {
     this.delete = delete;
     this.query_stats = query_stats;
     this.query_index = query_index;
+    this.scanlatency = scanlatency;
   }
 
   /**
@@ -214,7 +222,7 @@ public class SaltScanner {
    */
   private void mergeAndReturnResults() {
     final long hbase_time = System.currentTimeMillis();
-    TsdbQuery.scanlatency.add((int)(hbase_time - start_time));
+    scanlatency.add((int)(hbase_time - start_time));
     long rows = 0;
 
     if (exception != null) {

@@ -50,6 +50,14 @@ import com.stumbleupon.async.Deferred;
 public final class StatsRpc implements TelnetRpc, HttpRpc {
   private static final Logger LOG = LoggerFactory.getLogger(StatsRpc.class);
   
+  /** The rpc handler - we ask this for stats */
+  private RpcHandler rpc_handler;
+  
+  /** Provides the stats rpc with the rpc handler which it gets stats from */
+  public void setRpcHandler(RpcHandler rpc_handler) {
+    this.rpc_handler = rpc_handler;
+  }
+  
   /**
    * Telnet RPC responder that returns the stats in ASCII style
    * @param tsdb The TSDB to use for fetching stats
@@ -124,7 +132,7 @@ public final class StatsRpc implements TelnetRpc, HttpRpc {
     final SerializerCollector collector = new SerializerCollector("tsd", dps, 
         canonical);
     ConnectionManager.collectStats(collector);
-    RpcHandler.collectStats(collector);
+    rpc_handler.collectStats(collector);
     RpcManager.collectStats(collector);
     tsdb.collectStats(collector);
     query.sendReply(query.serializer().formatStatsV1(dps));
@@ -139,7 +147,7 @@ public final class StatsRpc implements TelnetRpc, HttpRpc {
       final boolean canonical) {
     collector.addHostTag(canonical);
     ConnectionManager.collectStats(collector);
-    RpcHandler.collectStats(collector);
+    rpc_handler.collectStats(collector);
     RpcManager.collectStats(collector);
     collectThreadStats(collector);
     tsdb.collectStats(collector);

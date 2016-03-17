@@ -19,6 +19,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
 
+import net.opentsdb.stats.Histogram;
 import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
@@ -27,7 +28,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
- * Integration testing for the various aggregators. We write data points to 
+ * Integration testing for the various aggregators. We write data points to
  * MockBase and then pull them out, following the full path for a TSDB query.
  */
 @RunWith(PowerMockRunner.class)
@@ -37,20 +38,20 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
 
   @Before
   public void beforeLocal() throws Exception {
-    query = new TsdbQuery(tsdb);
+    query = new TsdbQuery(tsdb, new Histogram());
   }
 
   @Test
   public void runZimSum() throws Exception {
     storeLongTimeSeriesSeconds(false, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.ZIMSUM, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long ts = 1356998430000L;
     for (DataPoint dp : dps[0]) {
       assertEquals(ts, dp.timestamp());
@@ -59,18 +60,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runZimSumFloat() throws Exception {
     storeFloatTimeSeriesSeconds(false, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.ZIMSUM, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long ts = 1356998430000L;
     for (DataPoint dp : dps[0]) {
       assertEquals(ts, dp.timestamp());
@@ -79,18 +80,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runZimSumOffset() throws Exception {
     storeLongTimeSeriesSeconds(false, true);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.ZIMSUM, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long v1 = 1;
     long v2 = 300;
     long ts = 1356998430000L;
@@ -98,7 +99,7 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     for (DataPoint dp : dps[0]) {
       assertEquals(ts, dp.timestamp());
       ts += 15000;
-      if (counter % 2 == 0) {        
+      if (counter % 2 == 0) {
         assertEquals(v1, dp.longValue());
         v1++;
       } else {
@@ -109,18 +110,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   @Test
   public void runZimSumFloatOffset() throws Exception {
     storeFloatTimeSeriesSeconds(false, true);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.ZIMSUM, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     double v1 = 1.25;
     double v2 = 75.0;
     long ts = 1356998430000L;
@@ -139,7 +140,7 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   @Test
   public void runZimSumWithMissingData() throws Exception {
     storeLongTimeSeriesWithMissingData();
@@ -197,18 +198,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
 
     assertEquals(250, dps[0].size());
   }
-  
+
   @Test
   public void runMin() throws Exception {
     storeLongTimeSeriesSeconds(false, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.MIN, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long v = 1;
     long ts = 1356998430000L;
     boolean decrement = false;
@@ -216,13 +217,13 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
       assertEquals(ts, dp.timestamp());
       ts += 30000;
       assertEquals(v, dp.longValue());
-      
+
       if (decrement) {
         v--;
       } else {
         v++;
       }
-      
+
       if (v == 151){
         v = 150;
         decrement = true;
@@ -230,18 +231,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runMinFloat() throws Exception {
     storeFloatTimeSeriesSeconds(false, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.MIN, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     double v = 1.25;
     long ts = 1356998430000L;
     boolean decrement = false;
@@ -249,13 +250,13 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
       assertEquals(ts, dp.timestamp());
       ts += 30000;
       assertEquals(v, dp.doubleValue(), 0.0001);
-      
+
       if (decrement) {
         v -= .25;
       } else {
         v += .25;
       }
-      
+
       if (v > 38){
         v = 38.0;
         decrement = true;
@@ -263,18 +264,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runMinOffset() throws Exception {
     storeLongTimeSeriesSeconds(false, true);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.MIN, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long v = 1;
     long ts = 1356998430000L;
     int counter = 0;
@@ -298,18 +299,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   @Test
   public void runMinFloatOffset() throws Exception {
     storeFloatTimeSeriesSeconds(false, true);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.MIN, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     double v = 1.25;
     long ts = 1356998430000L;
     boolean decrement = false;
@@ -322,7 +323,7 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
       } else {
         v += 0.125;
       }
-      
+
       if (v > 38.125){
         v = 38.125;
         decrement = true;
@@ -330,18 +331,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   @Test
   public void runMax() throws Exception {
     storeLongTimeSeriesSeconds(false, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.MAX, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long v = 300;
     long ts = 1356998430000L;
     boolean decrement = true;
@@ -363,18 +364,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runMaxFloat() throws Exception {
     storeFloatTimeSeriesSeconds(false, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.MAX, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     double v = 75.0;
     long ts = 1356998430000L;
     boolean decrement = true;
@@ -396,18 +397,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runMaxOffset() throws Exception {
     storeLongTimeSeriesSeconds(false, true);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.MAX, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long v = 1;
     long ts = 1356998430000L;
     int counter = 0;
@@ -426,8 +427,8 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
         } else {
           v++;
         }
-      } 
-      
+      }
+
       if (v == 150){
         v = 151;
         decrement = false;
@@ -437,18 +438,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   @Test
   public void runMaxFloatOffset() throws Exception {
     storeFloatTimeSeriesSeconds(false, true);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.MAX, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     double v = 1.25;
     long ts = 1356998430000L;
     boolean decrement = true;
@@ -466,7 +467,7 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
         } else {
           v += .125;
         }
-        
+
         if (v < 38.25){
           v = 38.25;
           decrement = false;
@@ -475,18 +476,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   @Test
   public void runAvg() throws Exception {
     storeLongTimeSeriesSeconds(false, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.AVG, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long ts = 1356998430000L;
     for (DataPoint dp : dps[0]) {
       assertEquals(ts, dp.timestamp());
@@ -495,18 +496,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runAvgFloat() throws Exception {
     storeFloatTimeSeriesSeconds(false, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.AVG, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long ts = 1356998430000L;
     for (DataPoint dp : dps[0]) {
       assertEquals(ts, dp.timestamp());
@@ -515,18 +516,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runAvgOffset() throws Exception {
     storeLongTimeSeriesSeconds(false, true);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.AVG, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long v = 1;
     long ts = 1356998430000L;
     for (DataPoint dp : dps[0]) {
@@ -545,18 +546,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   @Test
   public void runAvgFloatOffset() throws Exception {
     storeFloatTimeSeriesSeconds(false, true);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.AVG, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     double v = 1.25;
     long ts = 1356998430000L;
     for (DataPoint dp : dps[0]) {
@@ -571,18 +572,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   @Test
   public void runDev() throws Exception {
     storeLongTimeSeriesSeconds(false, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.DEV, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long v = 149;
     long ts = 1356998430000L;
     boolean decrement = true;
@@ -590,13 +591,13 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
       assertEquals(ts, dp.timestamp());
       ts += 30000;
       assertEquals(v, dp.longValue());
-      
+
       if (decrement) {
         v--;
       } else {
         v++;
       }
-      
+
       if (v < 0){
         v = 0;
         decrement = false;
@@ -604,18 +605,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runDevFloat() throws Exception {
     storeFloatTimeSeriesSeconds(false, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.DEV, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     double v = 36.875;
     long ts = 1356998430000L;
     boolean decrement = true;
@@ -623,13 +624,13 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
       assertEquals(ts, dp.timestamp());
       ts += 30000;
       assertEquals(v, dp.doubleValue(), 0.001);
-      
+
       if (decrement) {
         v -= 0.25;
       } else {
         v += 0.25;
       }
-      
+
       if (v < 0.125){
         v = 0.125;
         decrement = false;
@@ -637,18 +638,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runDevOffset() throws Exception {
     storeLongTimeSeriesSeconds(false, true);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.DEV, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long v = 0;
     long ts = 1356998430000L;
     int counter = 0;
@@ -677,18 +678,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   @Test
   public void runDevFloatOffset() throws Exception {
     storeFloatTimeSeriesSeconds(false, true);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.DEV, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     double v = 0;
     long ts = 1356998430000L;
     boolean decrement = true;
@@ -714,18 +715,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   @Test
   public void runMimMin() throws Exception {
     storeLongTimeSeriesSeconds(false, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.MIMMIN, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long v = 1;
     long ts = 1356998430000L;
     boolean decrement = false;
@@ -733,13 +734,13 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
       assertEquals(ts, dp.timestamp());
       ts += 30000;
       assertEquals(v, dp.longValue());
-      
+
       if (decrement) {
         v--;
       } else {
         v++;
       }
-      
+
       if (v == 151){
         v = 150;
         decrement = true;
@@ -747,18 +748,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runMimMinOffset() throws Exception {
     storeLongTimeSeriesSeconds(false, true);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.MIMMIN, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long v1 = 1;
     long v2 = 300;
     long ts = 1356998430000L;
@@ -766,8 +767,8 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     for (DataPoint dp : dps[0]) {
       assertEquals(ts, dp.timestamp());
       ts += 15000;
-      
-      if (counter % 2 == 0) {        
+
+      if (counter % 2 == 0) {
         assertEquals(v1, dp.longValue());
         v1++;
       } else {
@@ -778,18 +779,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   @Test
   public void runMimMinFloat() throws Exception {
     storeFloatTimeSeriesSeconds(false, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.MIMMIN, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     double v = 1.25;
     long ts = 1356998430000L;
     boolean decrement = false;
@@ -797,13 +798,13 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
       assertEquals(ts, dp.timestamp());
       ts += 30000;
       assertEquals(v, dp.doubleValue(), 0.0001);
-      
+
       if (decrement) {
         v -= .25;
       } else {
         v += .25;
       }
-      
+
       if (v > 38){
         v = 38.0;
         decrement = true;
@@ -811,18 +812,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runMimMinFloatOffset() throws Exception {
     storeFloatTimeSeriesSeconds(false, true);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.MIMMIN, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     double v1 = 1.25;
     double v2 = 75.0;
     long ts = 1356998430000L;
@@ -841,18 +842,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   @Test
   public void runMimMax() throws Exception {
     storeLongTimeSeriesSeconds(false, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.MIMMAX, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long v = 300;
     long ts = 1356998430000L;
     boolean decrement = true;
@@ -874,18 +875,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runMimMaxFloat() throws Exception {
     storeFloatTimeSeriesSeconds(false, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.MIMMAX, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     double v = 75.0;
     long ts = 1356998430000L;
     boolean decrement = true;
@@ -907,18 +908,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runMimMaxOffset() throws Exception {
     storeLongTimeSeriesSeconds(false, true);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.MIMMAX, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long v1 = 1;
     long v2 = 300;
     long ts = 1356998430000L;
@@ -926,8 +927,8 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     for (DataPoint dp : dps[0]) {
       assertEquals(ts, dp.timestamp());
       ts += 15000;
-      
-      if (counter % 2 == 0) {        
+
+      if (counter % 2 == 0) {
         assertEquals(v1, dp.longValue());
         v1++;
       } else {
@@ -938,18 +939,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   @Test
   public void runMimMaxFloatOffset() throws Exception {
     storeFloatTimeSeriesSeconds(false, true);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.MIMMAX, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     double v1 = 1.25;
     double v2 = 75.0;
     long ts = 1356998430000L;
@@ -994,10 +995,10 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     testPercentile(Aggregators.ep99r7, 150, 150);
     testPercentile(Aggregators.ep999r7, 150, 150);
   }
-  
+
   public void runCount() throws Exception {
     storeLongTimeSeriesSeconds(false, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
@@ -1013,18 +1014,18 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runCountFloat() throws Exception {
     storeFloatTimeSeriesSeconds(false, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.COUNT, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long ts = 1356998430000L;
     for (DataPoint dp : dps[0]) {
       assertEquals(ts, dp.timestamp());
@@ -1033,19 +1034,19 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
-  // TODO - The count agg is inaccurate until we implement NaNs. 
+
+  // TODO - The count agg is inaccurate until we implement NaNs.
   @Test
   public void runCountOffset() throws Exception {
     storeLongTimeSeriesSeconds(false, true);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.COUNT, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long ts = 1356998430000L;
     int counter = 0;
     for (DataPoint dp : dps[0]) {
@@ -1060,19 +1061,19 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
-  // TODO - The count agg is inaccurate until we implement NaNs. 
+
+  // TODO - The count agg is inaccurate until we implement NaNs.
   @Test
   public void runCountFloatOffset() throws Exception {
     storeFloatTimeSeriesSeconds(false, true);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.COUNT, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long ts = 1356998430000L;
     int counter = 0;
     for (DataPoint dp : dps[0]) {
@@ -1087,14 +1088,14 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   /**
    * Helper to test the various percentiles
    * @param agg The aggregator
    * @param value The value to expect
-   * @param delta The variance to expect 
+   * @param delta The variance to expect
    */
-  private void testPercentile(final Aggregator agg, final long value, 
+  private void testPercentile(final Aggregator agg, final long value,
       final double delta) {
     tags.clear();
     query.setStartTime(1356998400);

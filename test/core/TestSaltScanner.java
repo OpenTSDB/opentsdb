@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.TreeMap;
 
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.stats.Histogram;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.KeyValue;
@@ -49,113 +50,113 @@ import com.stumbleupon.async.Deferred;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({ TSDB.class, Scanner.class, SaltScanner.class, Span.class, 
+@PrepareForTest({ TSDB.class, Scanner.class, SaltScanner.class, Span.class,
   Const.class, UniqueId.class })
 public class TestSaltScanner extends BaseTsdbTest {
-  private final static byte[] KEY_A = { 0x00, 0x00, 0x00, 0x01, 
+  private final static byte[] KEY_A = { 0x00, 0x00, 0x00, 0x01,
     0x50, (byte) 0xE2, 0x27, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01 };
   // different tagv
-  private final static byte[] KEY_B = { 0x00, 0x00, 0x00, 0x01, 
+  private final static byte[] KEY_B = { 0x00, 0x00, 0x00, 0x01,
     0x50, (byte) 0xE2, 0x27, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x02 };
   // same as A bug different time
-  private final static byte[] KEY_C = { 0x00, 0x00, 0x00, 0x01, 
+  private final static byte[] KEY_C = { 0x00, 0x00, 0x00, 0x01,
     0x51, (byte) 0x0B, 0x13, (byte) 0x90, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01 };
   private final static byte[] FAMILY = "t".getBytes();
   private final static byte[] QUALIFIER_A = { 0x00, 0x00 };
   private final static byte[] QUALIFIER_B = { 0x00, 0x10 };
   private final static byte[] VALUE = { 0x42 };
   private final static long VALUE_LONG = 66;
-  
+
   private final static int NUM_BUCKETS = 2;
   private List<Scanner> scanners;
   private TreeMap<byte[], Span> spans;
   private List<TagVFilter> filters;
-  
+
   private List<ArrayList<ArrayList<KeyValue>>> kvs_a;
   private List<ArrayList<ArrayList<KeyValue>>> kvs_b;
-  
+
   private Scanner scanner_a;
   private Scanner scanner_b;
-  
+
   @Before
   public void beforeLocal() {
     PowerMockito.mockStatic(Const.class);
     PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
     PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(NUM_BUCKETS);
-    
+
     filters = new ArrayList<TagVFilter>();
-    
+
     spans = new TreeMap<byte[], Span>(new RowKey.SaltCmp());
     setupMockScanners(true);
   }
-  
+
   @Test
   public void ctor() {
-    assertNotNull(new SaltScanner(tsdb, METRIC_BYTES, scanners, spans, filters));
+    assertNotNull(new SaltScanner(tsdb, METRIC_BYTES, scanners, spans, filters, new Histogram()));
   }
-  
+
   @Test (expected = IllegalArgumentException.class)
   public void ctorSaltDisabled() {
     PowerMockito.when(Const.SALT_WIDTH()).thenReturn(0);
-    new SaltScanner(tsdb, METRIC_BYTES, scanners, spans, filters);
+    new SaltScanner(tsdb, METRIC_BYTES, scanners, spans, filters, new Histogram());
   }
-  
+
   @Test (expected = IllegalArgumentException.class)
   public void ctorNullTSDB() {
-    new SaltScanner(null, METRIC_BYTES, scanners, spans, filters);
+    new SaltScanner(null, METRIC_BYTES, scanners, spans, filters, new Histogram());
   }
-  
+
   @Test (expected = IllegalArgumentException.class)
   public void ctorNullMETRIC_BYTES() {
-    new SaltScanner(tsdb, null, scanners, spans, filters);
+    new SaltScanner(tsdb, null, scanners, spans, filters, new Histogram());
   }
-  
+
   @Test (expected = IllegalArgumentException.class)
   public void ctorShortMETRIC_BYTES() {
-    new SaltScanner(tsdb, new byte[] { 0, 1 }, scanners, spans, filters);
+    new SaltScanner(tsdb, new byte[] { 0, 1 }, scanners, spans, filters, new Histogram());
   }
-  
+
   @Test (expected = IllegalArgumentException.class)
   public void ctorNullScanners() {
-    new SaltScanner(tsdb, METRIC_BYTES, null, spans, filters);
+    new SaltScanner(tsdb, METRIC_BYTES, null, spans, filters, new Histogram());
   }
-  
+
   @Test (expected = IllegalArgumentException.class)
   public void ctorNotEnoughScanners() {
     scanners.remove(1);
-    new SaltScanner(tsdb, METRIC_BYTES, scanners, spans, filters);
+    new SaltScanner(tsdb, METRIC_BYTES, scanners, spans, filters, new Histogram());
   }
-  
+
   @Test (expected = IllegalArgumentException.class)
   public void ctorTooManyScanners() {
     scanners.add(mock(Scanner.class));
-    new SaltScanner(tsdb, METRIC_BYTES, scanners, spans, filters);
+    new SaltScanner(tsdb, METRIC_BYTES, scanners, spans, filters, new Histogram());
   }
-  
+
   @Test (expected = IllegalArgumentException.class)
   public void ctorNullSpans() {
-    new SaltScanner(tsdb, METRIC_BYTES, scanners, null, filters);
+    new SaltScanner(tsdb, METRIC_BYTES, scanners, null, filters, new Histogram());
   }
-  
+
   @Test (expected = IllegalArgumentException.class)
   public void ctorSpansHaveData() {
     spans.put(new byte[] { 0, 0, 0, 1 }, new Span(tsdb));
-    new SaltScanner(tsdb, METRIC_BYTES, scanners, spans, filters);
+    new SaltScanner(tsdb, METRIC_BYTES, scanners, spans, filters, new Histogram());
   }
-  
+
   @Test
   public void scanNoData() throws Exception {
-    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        spans, filters);
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners,
+        spans, filters, new Histogram());
     assertTrue(spans == scanner.scan().joinUninterruptibly());
     assertTrue(spans.isEmpty());
   }
-  
+
   @Test
   public void scan() throws Exception {
     setupMockScanners(false);
-    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        spans, filters);
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners,
+        spans, filters, new Histogram());
     assertTrue(spans == scanner.scan().joinUninterruptibly());
     assertEquals(3, spans.size());
 
@@ -172,7 +173,7 @@ public class TestSaltScanner extends BaseTsdbTest {
     assertEquals(VALUE_LONG, span.longValue(0));
     assertEquals(1356998400000L, span.timestamp(0));
     assertEquals(0, span.getAnnotations().size());
-    
+
     span = spans.get(KEY_C);
     assertEquals(2, span.size());
     assertEquals(VALUE_LONG, span.longValue(0));
@@ -180,18 +181,18 @@ public class TestSaltScanner extends BaseTsdbTest {
     assertEquals(VALUE_LONG, span.longValue(1));
     assertEquals(1359680401000L, span.timestamp(1));
     assertEquals(0, span.getAnnotations().size());
-    
+
     verify(tag_values, never()).getNameAsync(TAGV_BYTES);
     verify(tag_values, never()).getNameAsync(TAGV_B_BYTES);
   }
-  
+
   @Test
   public void scanWithFilter() throws Exception {
     setupMockScanners(false);
     filters.add(TagVFilter.Builder().setType("regexp").setFilter("web.*")
         .setTagk(TAGK_STRING).build());
-    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        spans, filters);
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners,
+        spans, filters, new Histogram());
     assertTrue(spans == scanner.scan().joinUninterruptibly());
     assertEquals(3, spans.size());
 
@@ -208,7 +209,7 @@ public class TestSaltScanner extends BaseTsdbTest {
     assertEquals(VALUE_LONG, span.longValue(0));
     assertEquals(1356998400000L, span.timestamp(0));
     assertEquals(0, span.getAnnotations().size());
-    
+
     span = spans.get(KEY_C);
     assertEquals(2, span.size());
     assertEquals(VALUE_LONG, span.longValue(0));
@@ -216,11 +217,11 @@ public class TestSaltScanner extends BaseTsdbTest {
     assertEquals(VALUE_LONG, span.longValue(1));
     assertEquals(1359680401000L, span.timestamp(1));
     assertEquals(0, span.getAnnotations().size());
-    
+
     verify(tag_values, atLeast(1)).getNameAsync(TAGV_BYTES);
     verify(tag_values, atLeast(1)).getNameAsync(TAGV_B_BYTES);
   }
-  
+
   @Test
   public void scanWithTwoFilter() throws Exception {
     setupMockScanners(false);
@@ -228,8 +229,8 @@ public class TestSaltScanner extends BaseTsdbTest {
         .setTagk(TAGK_STRING).build());
     filters.add(TagVFilter.Builder().setType("wildcard").setFilter("web*")
         .setTagk(TAGK_STRING).build());
-    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        spans, filters);
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners,
+        spans, filters, new Histogram());
     assertTrue(spans == scanner.scan().joinUninterruptibly());
     assertEquals(3, spans.size());
 
@@ -246,7 +247,7 @@ public class TestSaltScanner extends BaseTsdbTest {
     assertEquals(VALUE_LONG, span.longValue(0));
     assertEquals(1356998400000L, span.timestamp(0));
     assertEquals(0, span.getAnnotations().size());
-    
+
     span = spans.get(KEY_C);
     assertEquals(2, span.size());
     assertEquals(VALUE_LONG, span.longValue(0));
@@ -254,26 +255,26 @@ public class TestSaltScanner extends BaseTsdbTest {
     assertEquals(VALUE_LONG, span.longValue(1));
     assertEquals(1359680401000L, span.timestamp(1));
     assertEquals(0, span.getAnnotations().size());
-    
+
     verify(tag_values, atLeast(1)).getNameAsync(TAGV_BYTES);
     verify(tag_values, atLeast(1)).getNameAsync(TAGV_B_BYTES);
   }
-  
+
   @Test
   public void scanWithFilterNoMatch() throws Exception {
     setupMockScanners(false);
     filters.add(TagVFilter.Builder().setType("regexp").setFilter("db.*")
         .setTagk(TAGK_STRING).build());
-    
-    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        spans, filters);
+
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners,
+        spans, filters, new Histogram());
     assertTrue(spans == scanner.scan().joinUninterruptibly());
     assertEquals(0, spans.size());
 
     verify(tag_values, atLeast(1)).getNameAsync(TAGV_BYTES);
     verify(tag_values, atLeast(1)).getNameAsync(TAGV_B_BYTES);
   }
-  
+
   @Test
   public void scanWithTwoFiltersNoMatch() throws Exception {
     setupMockScanners(false);
@@ -281,15 +282,15 @@ public class TestSaltScanner extends BaseTsdbTest {
         .setTagk(TAGK_STRING).build());
     filters.add(TagVFilter.Builder().setType("wildcard").setFilter("db*")
         .setTagk(TAGK_STRING).build());
-    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        spans, filters);
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners,
+        spans, filters, new Histogram());
     assertTrue(spans == scanner.scan().joinUninterruptibly());
     assertEquals(0, spans.size());
 
     verify(tag_values, atLeast(1)).getNameAsync(TAGV_BYTES);
     verify(tag_values, atLeast(1)).getNameAsync(TAGV_B_BYTES);
   }
-  
+
   @Test
   public void scanHBaseScannerFromDeferredA() throws Exception {
     setupMockScanners(false);
@@ -300,8 +301,8 @@ public class TestSaltScanner extends BaseTsdbTest {
       .thenReturn(Deferred.
           <ArrayList<ArrayList<KeyValue>>>fromError(e));
 
-    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        spans, filters);
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners,
+        spans, filters, new Histogram());
     try {
       scanner.scan().joinUninterruptibly();
       fail("Expected a runtime exception here");
@@ -309,7 +310,7 @@ public class TestSaltScanner extends BaseTsdbTest {
       assertEquals(e, re);
     }
   }
-  
+
   @Test
   public void scanHBaseScannerFromDeferredB() throws Exception {
     setupMockScanners(false);
@@ -320,9 +321,9 @@ public class TestSaltScanner extends BaseTsdbTest {
       .thenReturn(Deferred.fromResult(kvs_b.get(1)))
       .thenReturn(Deferred.
           <ArrayList<ArrayList<KeyValue>>>fromError(e));
-  
-    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        spans, filters);
+
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners,
+        spans, filters, new Histogram());
     try {
       scanner.scan().joinUninterruptibly();
       fail("Expected a runtime exception here");
@@ -330,7 +331,7 @@ public class TestSaltScanner extends BaseTsdbTest {
       assertEquals(e, re);
     }
   }
-  
+
   @Test
   public void scanHBaseScannerThrownA() throws Exception {
     setupMockScanners(false);
@@ -340,8 +341,8 @@ public class TestSaltScanner extends BaseTsdbTest {
       .thenReturn(Deferred.fromResult(kvs_a.get(0)))
       .thenThrow(e);
 
-    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        spans, filters);
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners,
+        spans, filters, new Histogram());
     try {
       scanner.scan().joinUninterruptibly();
       fail("Expected a runtime exception here");
@@ -349,7 +350,7 @@ public class TestSaltScanner extends BaseTsdbTest {
       assertEquals(e, re);
     }
   }
-  
+
   @Test
   public void scanHBaseScannerThrownB() throws Exception {
     setupMockScanners(false);
@@ -359,9 +360,9 @@ public class TestSaltScanner extends BaseTsdbTest {
       .thenReturn(Deferred.fromResult(kvs_b.get(0)))
       .thenReturn(Deferred.fromResult(kvs_b.get(1)))
       .thenThrow(e);
-  
-    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        spans, filters);
+
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners,
+        spans, filters, new Histogram());
     try {
       scanner.scan().joinUninterruptibly();
       fail("Expected a runtime exception here");
@@ -369,57 +370,57 @@ public class TestSaltScanner extends BaseTsdbTest {
       assertEquals(e, re);
     }
   }
-  
+
   @Test (expected = IllegalDataException.class)
   public void scanBadRowKey() throws Exception {
     setupMockScanners(false);
 
-    final ArrayList<ArrayList<KeyValue>> rows = 
+    final ArrayList<ArrayList<KeyValue>> rows =
         new ArrayList<ArrayList<KeyValue>>(1);
     final ArrayList<KeyValue> row = new ArrayList<KeyValue>(1);
     rows.add(row);
-    final byte[] key = { 0x00, 0x00, 0x00, 0x02, 
+    final byte[] key = { 0x00, 0x00, 0x00, 0x02,
         0x51, (byte) 0x0B, 0x13, (byte) 0x90, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01 };
     row.add(new KeyValue(key, FAMILY, QUALIFIER_A, 0, VALUE));
     kvs_a.set(2, rows);
-    
+
     when(scanner_a.nextRows())
       .thenReturn(Deferred.fromResult(kvs_a.get(0)))
       .thenReturn(Deferred.fromResult(kvs_a.get(1)))
       .thenReturn(Deferred.fromResult(kvs_a.get(2)))
       .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
 
-    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        spans, filters);
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners,
+        spans, filters, new Histogram());
     scanner.scan().joinUninterruptibly();
   }
-  
+
   @SuppressWarnings("unchecked")
   @Test (expected = IllegalDataException.class)
   public void scanCompactionDataException() throws Exception {
     setupMockScanners(false);
-    
+
     doThrow(new IllegalDataException("Boo!")).when(
         tsdb).compact(any(ArrayList.class), any(List.class));
-    
-    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        spans, filters);
+
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners,
+        spans, filters, new Histogram());
     scanner.scan().joinUninterruptibly();
   }
-  
+
   @SuppressWarnings("unchecked")
   @Test (expected = RuntimeException.class)
   public void scanCompactionRuntimeException() throws Exception {
     setupMockScanners(false);
-    
+
     doThrow(new RuntimeException("Boo!")).when(
         tsdb).compact(any(ArrayList.class), any(List.class));
-    
-    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        spans, filters);
+
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners,
+        spans, filters, new Histogram());
     scanner.scan().joinUninterruptibly();
   }
-  
+
   /**
    * Sets up a pair of scanners with either a list of values or no data
    * @param no_data Whether or not to return 0 data.
@@ -439,7 +440,7 @@ public class TestSaltScanner extends BaseTsdbTest {
     scanners.add(scanner_a);
     scanners.add(scanner_b);
   }
-  
+
   /**
    * This method sets up some row keys and values to pass to the scanners.
    * The values aren't exactly what would normally be passed to a salt scanner
@@ -450,19 +451,19 @@ public class TestSaltScanner extends BaseTsdbTest {
   private void setupValues() {
     kvs_a = new ArrayList<ArrayList<ArrayList<KeyValue>>>(3);
     kvs_b = new ArrayList<ArrayList<ArrayList<KeyValue>>>(2);
-    
+
     final String note = "{\"tsuid\":\"000001000001000001\","
         + "\"startTime\":1356998490,\"endTime\":0,\"description\":"
         + "\"The Great A'Tuin!\",\"notes\":\"Millenium hand and shrimp\","
         + "\"custom\":null}";
-    
+
     for (int i = 0; i < 5; i++) {
-      final ArrayList<ArrayList<KeyValue>> rows = 
+      final ArrayList<ArrayList<KeyValue>> rows =
           new ArrayList<ArrayList<KeyValue>>(1);
       final ArrayList<KeyValue> row = new ArrayList<KeyValue>(2);
       rows.add(row);
       byte[] key = null;
-      
+
       switch (i) {
       case 0:
         row.add(new KeyValue(KEY_A, FAMILY, QUALIFIER_A, 0, VALUE));
@@ -480,7 +481,7 @@ public class TestSaltScanner extends BaseTsdbTest {
         key = Arrays.copyOf(KEY_A, KEY_A.length);
         key[0] = 1;
         row.add(new KeyValue(key, FAMILY, QUALIFIER_B, 0, VALUE));
-        row.add(new KeyValue(key, FAMILY, new byte[] { 1, 0, 0 }, 0, 
+        row.add(new KeyValue(key, FAMILY, new byte[] { 1, 0, 0 }, 0,
             note.getBytes(Charset.forName("UTF8"))));
         kvs_b.add(rows);
         break;
@@ -492,13 +493,13 @@ public class TestSaltScanner extends BaseTsdbTest {
         break;
       }
     }
-    
+
     when(scanner_a.nextRows())
       .thenReturn(Deferred.fromResult(kvs_a.get(0)))
       .thenReturn(Deferred.fromResult(kvs_a.get(1)))
       .thenReturn(Deferred.fromResult(kvs_a.get(2)))
       .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
-    
+
     when(scanner_b.nextRows())
       .thenReturn(Deferred.fromResult(kvs_b.get(0)))
       .thenReturn(Deferred.fromResult(kvs_b.get(1)))

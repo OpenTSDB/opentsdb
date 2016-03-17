@@ -12,6 +12,9 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.stats;
 
+import com.stumbleupon.async.Deferred;
+import net.opentsdb.utils.Config;
+
 import java.util.Arrays;
 
 /**
@@ -35,7 +38,7 @@ import java.util.Arrays;
  * <p>
  * This class is not synchronized.
  */
-public final class Histogram {
+public final class Histogram extends LatencyStatsPlugin {
 
   /** Interval between each bucket for the linear part of the histogram. */
   private final short interval;
@@ -62,6 +65,14 @@ public final class Histogram {
   /** Buckets where we actually store the values. */
   private final int[] buckets;
 
+
+  /**
+   * Constructor, initialises the histogram with the standard values used for time latency measurements.
+   */
+  public Histogram() {
+    this(16000, (short) 2, 100);
+  }
+
   /**
    * Constructor.
    * @param max The maximum value of the histogram.  Any value greater
@@ -77,7 +88,7 @@ public final class Histogram {
    *   0 &lt;= cutoff &lt;= max
    * </pre>
    */
-  public Histogram(final int max,
+  Histogram(final int max,
                    final short interval, final int cutoff) {
     if (interval > max) {
       throw new IllegalArgumentException("interval > max! interval="
@@ -103,7 +114,35 @@ public final class Histogram {
       + 1];
   }
 
-  /**
+    @Override
+    public void initialize(Config config) {
+        // do nothing
+    }
+
+    @Override
+    public Deferred<Object> shutdown() {
+        return Deferred.fromResult(null);
+    }
+
+    @Override
+    public void start() {
+      
+    }
+
+    @Override
+    public String version() {
+        return "2.0.0";
+    }
+
+    @Override
+    public void collectStats(StatsCollector collector, String metricName, String xtratag) {
+        collector.record(metricName + "_50pct", percentile(50), xtratag);
+        collector.record(metricName + "_75pct", percentile(75), xtratag);
+        collector.record(metricName + "_90pct", percentile(90), xtratag);
+        collector.record(metricName + "_95pct", percentile(95), xtratag);
+    }
+
+    /**
    * Computes the logarithm base 2 (rounded up) of an integer.
    * <p>
    * This is essentially equivalent to
@@ -146,7 +185,7 @@ public final class Histogram {
   }
 
   /** Returns the number of buckets in this histogram. */
-  public int buckets() {
+  int buckets() {
     return buckets.length;
   }
 
@@ -172,7 +211,7 @@ public final class Histogram {
    * @param p A strictly positive integer in the range {@code [1; 100]}
    * @throws IllegalArgumentException if {@code p} is not valid.
    */
-  public int percentile(int p) {
+  int percentile(int p) {
     if (p < 1 || p > 100) {
       throw new IllegalArgumentException("invalid percentile: " + p);
     }
@@ -202,7 +241,7 @@ public final class Histogram {
    * bucket.
    * @param out The buffer to which to write the output.
    */
-  public void printAscii(final StringBuilder out) {
+  void printAscii(final StringBuilder out) {
     for (int i = 0; i < buckets.length; i++) {
       printAsciiBucket(out, i);
     }

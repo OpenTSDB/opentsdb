@@ -20,6 +20,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
 
+import net.opentsdb.stats.Histogram;
 import net.opentsdb.utils.DateTime;
 
 import org.hbase.async.Scanner;
@@ -43,7 +44,7 @@ public class TestTsdbQueryDownsample extends BaseTsdbTest {
 
   @Before
   public void beforeLocal() throws Exception {
-    query = new TsdbQuery(tsdb);
+    query = new TsdbQuery(tsdb, new Histogram());
   }
 
   @Test
@@ -460,14 +461,14 @@ public class TestTsdbQueryDownsample extends BaseTsdbTest {
     // and the 149 intervals in the middle have two values for each.
     assertEquals(151, dps[0].size());
   }
-  
+
   @Test
   public void runLongSingleTSDownsampleAll() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
     final TSQuery ts_query = new TSQuery();
     ts_query.setStart("1356998400");
     ts_query.setEnd("1357041600");
-    
+
     final HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     final TSSubQuery sub = new TSSubQuery();
@@ -475,11 +476,11 @@ public class TestTsdbQueryDownsample extends BaseTsdbTest {
     sub.setMetric("sys.cpu.user");
     sub.setAggregator("sum");
     sub.setDownsample("0all-sum");
-    
+
     ts_query.setQueries(Lists.newArrayList(sub));
     ts_query.validateAndSetQuery();
     query.configureFromQuery(ts_query, 0);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
 
@@ -493,14 +494,14 @@ public class TestTsdbQueryDownsample extends BaseTsdbTest {
     // and the 149 intervals in the middle have two values for each.
     assertEquals(1, dps[0].size());
   }
-  
+
   @Test
   public void runLongSingleTSDownsampleAllSubSet() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
     final TSQuery ts_query = new TSQuery();
     ts_query.setStart("1356998500");
     ts_query.setEnd("1356998600");
-    
+
     final HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     final TSSubQuery sub = new TSSubQuery();
@@ -508,11 +509,11 @@ public class TestTsdbQueryDownsample extends BaseTsdbTest {
     sub.setMetric("sys.cpu.user");
     sub.setAggregator("sum");
     sub.setDownsample("0all-sum");
-    
+
     ts_query.setQueries(Lists.newArrayList(sub));
     ts_query.validateAndSetQuery();
     query.configureFromQuery(ts_query, 0);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
 
@@ -526,13 +527,13 @@ public class TestTsdbQueryDownsample extends BaseTsdbTest {
     // and the 149 intervals in the middle have two values for each.
     assertEquals(1, dps[0].size());
   }
-  
+
   @Test
   public void runLongSingleTSDownsampleAllNoEnd() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
     final TSQuery ts_query = new TSQuery();
     ts_query.setStart("1356998400");
-    
+
     final HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     final TSSubQuery sub = new TSSubQuery();
@@ -540,11 +541,11 @@ public class TestTsdbQueryDownsample extends BaseTsdbTest {
     sub.setMetric("sys.cpu.user");
     sub.setAggregator("sum");
     sub.setDownsample("0all-sum");
-    
+
     ts_query.setQueries(Lists.newArrayList(sub));
     ts_query.validateAndSetQuery();
     query.configureFromQuery(ts_query, 0);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
 
@@ -558,7 +559,7 @@ public class TestTsdbQueryDownsample extends BaseTsdbTest {
     // and the 149 intervals in the middle have two values for each.
     assertEquals(1, dps[0].size());
   }
-  
+
   // this could happen.
   @Test
   public void runFloatSingleTSDownsampleAndRateAndCount() throws Exception {
@@ -607,14 +608,14 @@ public class TestTsdbQueryDownsample extends BaseTsdbTest {
     query.downsample(60000, Aggregators.NONE);
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
   }
-  
+
   @Test (expected = RuntimeException.class)
   public void runLongSingleTSDownsampleNoneSnuckIn() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
     final TSQuery ts_query = new TSQuery();
     ts_query.setStart("1356998400");
     ts_query.setEnd("1357041600");
-    
+
     final HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     final TSSubQuery sub = new TSSubQuery();
@@ -622,21 +623,21 @@ public class TestTsdbQueryDownsample extends BaseTsdbTest {
     sub.setMetric("sys.cpu.user");
     sub.setAggregator("sum");
     sub.setDownsample("1m-sum");
-    
+
     ts_query.setQueries(Lists.newArrayList(sub));
     ts_query.validateAndSetQuery();
     query.configureFromQuery(ts_query, 0);
     Whitebox.setInternalState(query, "downsampler", Aggregators.NONE);
-    
+
     final DataPoints[] dps = query.run();
     for (DataPoint dp : dps[0]) {
       dp.timestamp();
     }
   }
-  
+
   /**
-   * A helper interface to be used by the filling-test code. 
-   */ 
+   * A helper interface to be used by the filling-test code.
+   */
   interface Validator {
     /** @return true if the argument is valid. */
     boolean isValidValue(double value);
