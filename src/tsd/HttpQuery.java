@@ -28,8 +28,7 @@ import java.util.List;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.graph.Plot;
-import net.opentsdb.stats.Histogram;
-import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.stats.LatencyStatsPlugin;
 import net.opentsdb.utils.PluginLoader;
 
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -69,8 +68,7 @@ final class HttpQuery extends AbstractHttpQuery {
   /**
    * Keep track of the latency of HTTP requests.
    */
-  private static final Histogram httplatency =
-    new Histogram(16000, (short) 2, 100);
+  private final LatencyStatsPlugin httplatency;
 
   /** Maps Content-Type to a serializer */
   private static HashMap<String, Constructor<? extends HttpSerializer>>
@@ -92,24 +90,22 @@ final class HttpQuery extends AbstractHttpQuery {
   /** Whether or not to show stack traces in the output */
   private final boolean show_stack_trace;
 
+  /** Used to respond to png requests */
+  private final GraphHandler graphhandler;
+
   /**
    * Constructor.
    * @param request The request in this HTTP query.
    * @param chan The channel on which the request was received.
+   * @param graphhandler The graph handler to process png requests
    */
-  public HttpQuery(final TSDB tsdb, final HttpRequest request, final Channel chan) {
+  public HttpQuery(final TSDB tsdb, final HttpRequest request, final Channel chan, final LatencyStatsPlugin httplatency, GraphHandler graphhandler) {
     super(tsdb, request, chan);
+    this.graphhandler = graphhandler;
     this.show_stack_trace =
       tsdb.getConfig().getBoolean("tsd.http.show_stack_trace");
     this.serializer = new HttpJsonSerializer(this);
-  }
-
-  /**
-   * Collects the stats and metrics tracked by this instance.
-   * @param collector The collector to use.
-   */
-  public static void collectStats(final StatsCollector collector) {
-    collector.record("http.latency", httplatency, "type=all");
+    this.httplatency = httplatency;
   }
 
   /**
@@ -635,7 +631,7 @@ final class HttpQuery extends AbstractHttpQuery {
       final String basepath =
         tsdb.getConfig().getDirectoryName("tsd.http.cachedir")
         + Integer.toHexString(msg.hashCode());
-      GraphHandler.runGnuplot(this, basepath, plot);
+      graphhandler.runGnuplot(this, basepath, plot);
       plot = null;
       sendFile(status, basepath + ".png", max_age);
     } catch (Exception e) {

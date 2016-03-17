@@ -20,6 +20,8 @@ import com.google.common.base.Strings;
 import com.google.common.net.HttpHeaders;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.stats.LatencyStats;
+import net.opentsdb.stats.LatencyStatsPlugin;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
@@ -65,19 +67,12 @@ final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
 
   /** The TSDB to use. */
   private final TSDB tsdb;
-  
-  /**
-   * Constructor that loads the CORS domain list and prepares for
-   * handling requests. This constructor creates its own {@link RpcManager}.
-   * @param tsdb The TSDB to use.
-   * @param manager instance of a ready-to-use {@link RpcManager}.
-   * @throws IllegalArgumentException if there was an error with the CORS domain
-   * list
-   */
-  public RpcHandler(final TSDB tsdb) {
-    this(tsdb, RpcManager.instance(tsdb));
-  }
-  
+
+  /** Keep track of the latency of HTTP requests. */
+  private final LatencyStatsPlugin httplatency;
+  /** For when we're asked for graphs. */
+  private final GraphHandler graph_handler;
+
   /**
    * Constructor that loads the CORS domain list and prepares for handling 
    * requests.
@@ -93,6 +88,9 @@ final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
     final String cors = tsdb.getConfig().getString("tsd.http.request.cors_domains");
     final String mode = tsdb.getConfig().getString("tsd.mode");
 
+    this.graph_handler = manager.getGraphHandler();
+
+
     LOG.info("TSD is in " + mode + " mode");
 
     if (cors == null || cors.isEmpty()) {
@@ -104,7 +102,7 @@ final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
       for (final String domain : domains) {
         if (domain.equals("*") && domains.length > 1) {
           throw new IllegalArgumentException(
-              "tsd.http.request.cors_domains must be a public resource (*) or " 
+              "tsd.http.request.cors_domains must be a public resource (*) or "
               + "a list of specific domains, you cannot mix both.");
         }
         cors_domains.add(domain.trim().toUpperCase());
@@ -121,6 +119,8 @@ final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
     } else {
       LOG.info("Loaded CORS headers (" + cors_headers + ")");
     }
+
+    httplatency = LatencyStats.getInstance(tsdb.getConfig(), "http_all");
   }
 
   @Override
@@ -186,7 +186,7 @@ final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
       return new HttpRpcPluginQuery(tsdb, request, chan);
     } else {
       http_rpcs_received.incrementAndGet();
-      HttpQuery builtinQuery = new HttpQuery(tsdb, request, chan);
+      HttpQuery builtinQuery = new HttpQuery(tsdb, request, chan, httplatency, graph_handler);
       return builtinQuery;
     }
   }
@@ -323,13 +323,13 @@ final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
    * Collects the stats and metrics tracked by this instance.
    * @param collector The collector to use.
    */
-  public static void collectStats(final StatsCollector collector) {
+  public void collectStats(final StatsCollector collector) {
     collector.record("rpc.received", telnet_rpcs_received, "type=telnet");
     collector.record("rpc.received", http_rpcs_received, "type=http");
     collector.record("rpc.received", http_plugin_rpcs_received, "type=http_plugin");
     collector.record("rpc.exceptions", exceptions_caught);
-    HttpQuery.collectStats(collector);
-    GraphHandler.collectStats(collector);
+    httplatency.collectStats(collector, "http.latency", "type=all");
+    graph_handler.collectStats(collector);
     PutDataPointRpc.collectStats(collector);
     QueryRpc.collectStats(collector);
   }

@@ -12,19 +12,20 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import net.opentsdb.stats.Histogram;
 import org.junit.Before;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.reflect.Whitebox;
 
 public class TestTsdbQuerySaltedAppend extends TestTsdbQueryQueries {
-  
+
   @Before
-  public void beforeLocal() { 
+  public void beforeLocal() {
     Whitebox.setInternalState(config, "enable_appends", true);
     PowerMockito.mockStatic(Const.class);
     PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
     PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(2);
     PowerMockito.when(Const.MAX_NUM_TAGS()).thenReturn((short) 8);
-    query = new TsdbQuery(tsdb);
+    query = new TsdbQuery(tsdb, new Histogram());
   }
 }

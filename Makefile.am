@@ -120,6 +120,8 @@ tsdb_SRC := \
 	src/search/SearchQuery.java	\
 	src/search/TimeSeriesLookup.java	\
 	src/stats/Histogram.java	\
+	src/stats/LatencyStats.java	\
+	src/stats/LatencyStatsPlugin.java	\
 	src/stats/StatsCollector.java	\
 	src/stats/QueryStats.java	\
 	src/tools/ArgP.java	\

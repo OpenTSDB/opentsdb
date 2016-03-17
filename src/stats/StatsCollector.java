@@ -108,14 +108,12 @@ public abstract class StatsCollector {
    * data points (ignored if {@code null}).
    * @throws IllegalArgumentException if {@code xtratag != null} and it
    * doesn't follow the {@code name=value} format.
+   * @deprecated Call collectStats() directly on the plugin
    */
   public final void record(final String name,
-                           final Histogram histo,
+                           final LatencyStatsPlugin histo,
                            final String xtratag) {
-    record(name + "_50pct", histo.percentile(50), xtratag);
-    record(name + "_75pct", histo.percentile(75), xtratag);
-    record(name + "_90pct", histo.percentile(90), xtratag);
-    record(name + "_95pct", histo.percentile(95), xtratag);
+      histo.collectStats(this, name, xtratag);
   }
 
   /**
