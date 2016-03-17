@@ -31,10 +31,12 @@ public abstract class LatencyStatsPlugin {
    * problem. Please use IllegalArgumentException for configuration issues.
    *
    * @param config The TSDB configuration
+   * @param metricName The name of the metric to emit aggregations to
+   * @param xtratag    Extra tags to use when emitting aggregations
    * @throws IllegalArgumentException if required configuration parameters are
    *                                  missing
    */
-  public abstract void initialize(final Config config);
+  public abstract void initialize(final Config config, String metricName, String xtratag);
 
   /**
    * Called when this plugin is live. Calls to {@link #add(int)} will not be made
@@ -66,10 +68,8 @@ public abstract class LatencyStatsPlugin {
    * measurements it has been collecting
    *
    * @param collector  The collector used for emitting statistics
-   * @param metricName The name of the metric to emit aggregations to (should not be used for internal plugin metrics)
-   * @param xtratag    Extra tags to use when emitting aggregations (should not be used for internal plugin metrics)
    */
-  public abstract void collectStats(final StatsCollector collector, String metricName, String xtratag);
+  public abstract void collectStats(final StatsCollector collector);
 
   /**
    * Adds a value to be measured.

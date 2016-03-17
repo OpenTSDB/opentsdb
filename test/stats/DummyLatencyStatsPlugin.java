@@ -31,9 +31,9 @@ public class DummyLatencyStatsPlugin extends LatencyStatsPlugin {
   }
 
   @Override
-  public void initialize(Config config) {
+  public void initialize(Config config, String metricName, String xtratag) {
     if (mock != null) {
-      mock.initialize(config);
+      mock.initialize(config, metricName, xtratag);
     }
   }
 
@@ -61,9 +61,9 @@ public class DummyLatencyStatsPlugin extends LatencyStatsPlugin {
   }
 
   @Override
-  public void collectStats(StatsCollector collector, String metricName, String xtratag) {
+  public void collectStats(StatsCollector collector) {
     if (mock != null) {
-      mock.collectStats(collector, metricName, xtratag);
+      mock.collectStats(collector);
     }
   }
 

@@ -46,6 +46,7 @@ import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.graph.Plot;
+import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
@@ -341,8 +342,8 @@ final class GraphHandler implements HttpRpc {
    * @param collector The collector to use.
    */
   public void collectStats(final StatsCollector collector) {
-    graphlatency.collectStats(collector, "http.latency", "type=graph");
-    gnuplotlatency.collectStats(collector, "http.latency", "type=gnuplot");
+    graphlatency.collectStats(collector);
+    gnuplotlatency.collectStats(collector);
     collector.record("http.graph.requests", graphs_diskcache_hit, "cache=disk");
     collector.record("http.graph.requests", graphs_generated, "cache=miss");
   }
@@ -358,7 +359,7 @@ final class GraphHandler implements HttpRpc {
     qs.remove("png");
     qs.remove("json");
     qs.remove("ascii");
-    return tsdb.getConfig().getDirectoryName("tsd.http.cachedir") + 
+    return tsdb.getConfig().getDirectoryName("tsd.http.cachedir") +
         Integer.toHexString(qs.hashCode());
   }
 
@@ -845,7 +846,7 @@ final class GraphHandler implements HttpRpc {
     writer.print(timestamp / 1000L);
     writer.print(' ');
   }
-  
+
   /**
    * Parses the {@code /q} query in a list of {@link Query} objects.
    * @param tsdb The TSDB to use.
@@ -859,7 +860,7 @@ final class GraphHandler implements HttpRpc {
     q.validateAndSetQuery();
     return q.buildQueries(tsdb);
   }
-  
+
   private static final PlotThdFactory thread_factory = new PlotThdFactory();
 
   private static final class PlotThdFactory implements ThreadFactory {

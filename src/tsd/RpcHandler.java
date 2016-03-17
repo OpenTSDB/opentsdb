@@ -74,7 +74,7 @@ final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
   private final GraphHandler graph_handler;
 
   /**
-   * Constructor that loads the CORS domain list and prepares for handling 
+   * Constructor that loads the CORS domain list and prepares for handling
    * requests.
    * @param tsdb The TSDB to use.
    * @param manager instance of a ready-to-use {@link RpcManager}.
@@ -120,7 +120,7 @@ final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
       LOG.info("Loaded CORS headers (" + cors_headers + ")");
     }
 
-    httplatency = LatencyStats.getInstance(tsdb.getConfig(), "http_all");
+    httplatency = LatencyStats.getInstance(tsdb.getConfig(), "http_all", "http.latency", "type=all");
   }
 
   @Override
@@ -328,7 +328,7 @@ final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
     collector.record("rpc.received", http_rpcs_received, "type=http");
     collector.record("rpc.received", http_plugin_rpcs_received, "type=http_plugin");
     collector.record("rpc.exceptions", exceptions_caught);
-    httplatency.collectStats(collector, "http.latency", "type=all");
+    httplatency.collectStats(collector);
     graph_handler.collectStats(collector);
     PutDataPointRpc.collectStats(collector);
     QueryRpc.collectStats(collector);

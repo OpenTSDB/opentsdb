@@ -38,16 +38,28 @@ public class LatencyStats {
   /**
    * Get the latency stats plugin for a given measurement point.
    * @param config The configuration for this TSDB instance
-   * @param name The named measurement point
+   * @param configName The named measurement point
+   * @param metricName The name of the metric to emit aggregations to
    */
-  public static LatencyStatsPlugin getInstance(Config config, String name) {
+  public static LatencyStatsPlugin getInstance(Config config, String configName, String metricName) {
+    return getInstance(config, configName, metricName, null);
+  }
+
+  /**
+   * Get the latency stats plugin for a given measurement point.
+   * @param config The configuration for this TSDB instance
+   * @param configName The named measurement point
+   * @param metricName The name of the metric to emit aggregations to
+   * @param xtratag    Extra tags to use when emitting aggregations
+   */
+  public static LatencyStatsPlugin getInstance(Config config, String configName, String metricName, String xtratag) {
     // simple existence check
-    if (instances.containsKey(name)) {
-      return instances.get(name);
+    if (instances.containsKey(configName)) {
+      return instances.get(configName);
     }
     
     // need to create one..
-    String specificConfigKey = "tsd.latency_stats.plugin." + name;
+    String specificConfigKey = "tsd.latency_stats.plugin." + configName;
     String defaultConfigKey = "tsd.latency_stats.plugin";
     
     String configKey = null;
@@ -70,22 +82,22 @@ public class LatencyStats {
                 "Unable to locate latency stats plugin: " + config.getString(configKey));
       }
       try {
-        ret.initialize(config);
+        ret.initialize(config, metricName, xtratag);
       } catch (Exception e) {
         throw new RuntimeException(
                 "Failed to initialize latency stats plugin", e);
       }
-      LOG.info("Successfully initialized latency stats plugin - instance for " + name + " [" +
+      LOG.info("Successfully initialized latency stats plugin - instance for " + configName + " [" +
               ret.getClass().getCanonicalName() + "] version: "
               + ret.version());
     } else {
       ret = new Histogram(16000, (short) 2, 100);
     }
     
-    if (instances.putIfAbsent(name, ret) == null) {
+    if (instances.putIfAbsent(configName, ret) == null) {
       ret.start();
     };
-    return instances.get(name);
+    return instances.get(configName);
   }
 
   public static Deferred<ArrayList<Object>> shutdownAll() {
