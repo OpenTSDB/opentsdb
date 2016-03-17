@@ -363,6 +363,7 @@ test_plugin_SRC := \
   test/plugin/DummyPluginA.java \
   test/plugin/DummyPluginB.java \
   test/search/DummySearchPlugin.java \
+  test/stats/DummyLatencyStatsPlugin.java \
   test/tsd/DummyHttpSerializer.java \
   test/tsd/DummyHttpRpcPlugin.java \
   test/tsd/DummyRpcPlugin.java \
