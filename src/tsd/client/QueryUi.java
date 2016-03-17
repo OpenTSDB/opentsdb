@@ -138,6 +138,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
   private final ValidatedTextBox yformat = new ValidatedTextBox();
   private final ValidatedTextBox y2format = new ValidatedTextBox();
   private final ValidatedTextBox wxh = new ValidatedTextBox();
+  private final CheckBox global_annotations = new CheckBox("Global annotations");
 
   private String keypos = "";  // Position of the key on the graph.
   private final CheckBox horizontalkey = new CheckBox("Horizontal layout");
@@ -286,6 +287,8 @@ public class QueryUi implements EntryPoint, HistoryListener {
     y2format.addKeyPressHandler(refreshgraph);
     wxh.addBlurHandler(refreshgraph);
     wxh.addKeyPressHandler(refreshgraph);
+    global_annotations.addBlurHandler(refreshgraph);
+    global_annotations.addKeyPressHandler(refreshgraph);
     horizontalkey.addClickHandler(refreshgraph);
     keybox.addClickHandler(refreshgraph);
     nokey.addClickHandler(refreshgraph);
@@ -379,6 +382,11 @@ public class QueryUi implements EntryPoint, HistoryListener {
       table.setWidget(0, 3, hbox);
     }
     {
+      final HorizontalPanel hbox = new HorizontalPanel();
+      hbox.add(global_annotations);
+      table.setWidget(0, 4, hbox);
+    }
+    {
       addMetricForm("metric 1", 0);
       metrics.selectTab(0);
       metrics.add(new InlineLabel("Loading..."), "+");
@@ -404,6 +412,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
     optpanel.add(makeStylePanel(), "Style");
     optpanel.selectTab(0);
     table.setWidget(1, 3, optpanel);
+    table.getFlexCellFormatter().setColSpan(1, 3, 2);
 
     final DecoratorPanel decorator = new DecoratorPanel();
     decorator.setWidget(table);
@@ -785,6 +794,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
     maybeSetTextbox(qs, "start", start_datebox.getTextBox());
     maybeSetTextbox(qs, "end", end_datebox.getTextBox());
     setTextbox(qs, "wxh", wxh);
+    global_annotations.setValue(qs.containsKey("global_annotations"));
     autoreload.setValue(qs.containsKey("autoreload"), true);
     maybeSetTextbox(qs, "autoreload", autoreoload_interval);
 
@@ -900,6 +910,9 @@ public class QueryUi implements EntryPoint, HistoryListener {
       // through JavaScript manipulations, period.  So as a workaround, we add
       // a special parameter that the server will delete from the query.
       url.append("&ignore=" + nrequests++);
+    }
+    if (global_annotations.getValue()) {
+      url.append("&global_annotations");
     }
 
     if(timezone.length() > 1)
