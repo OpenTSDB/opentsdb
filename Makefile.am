@@ -71,10 +71,10 @@ tsdb_SRC := \
 	src/graph/Plot.java	\
   src/auth/AuthenticationChannelHandler.java \
   src/auth/AuthenticationPlugin.java \
+  src/auth/AuthenticationUtil.java \
   src/auth/EmbeddedAuthenticationPlugin.java \
   src/auth/EmbeddedAccessKeyPair.java \
   src/auth/EmbeddedAccount.java \
-  src/auth/Util.java \
 	src/meta/Annotation.java	\
 	src/meta/MetaDataCache.java	\
 	src/meta/TSMeta.java	\

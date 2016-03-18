@@ -60,7 +60,6 @@ public abstract class AuthenticationPlugin {
    * @param collector The collector used for emitting statistics
    */
   public abstract void collectStats(final StatsCollector collector);
-  public abstract Boolean authenticate(String[] command);
   public abstract Boolean authenticate(String access_key, String access_secret_key);
   public abstract Boolean authenticate(String access_key, Map fields);
   public abstract Boolean authenticateAdmin(String adminAccessKey, String adminSecretKey);

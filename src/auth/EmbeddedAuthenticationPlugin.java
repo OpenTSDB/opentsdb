@@ -16,15 +16,10 @@ package net.opentsdb.auth;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.utils.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.io.UnsupportedEncodingException;
-import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,8 +28,7 @@ import java.util.Map;
  */
 public class EmbeddedAuthenticationPlugin extends AuthenticationPlugin {
   private static final Logger LOG = LoggerFactory.getLogger(EmbeddedAuthenticationPlugin.class);
-  private TSDB tsdb = null;
-  private Map authDB = new HashMap();
+  private Map<String, String> authDB = new HashMap();
   private String adminAccessKey = null;
   private String adminSecretKey = null;
 
@@ -66,7 +60,6 @@ public class EmbeddedAuthenticationPlugin extends AuthenticationPlugin {
     this.adminSecretKey = tsdb.getConfig().getString("tsd.core.authentication.admin_access_secret");
     storeCredentials(this.adminAccessKey, this.adminSecretKey);
     LOG.debug("Created keyPair:" + generateAccessToken(this.adminAccessKey, this.adminSecretKey).toString());
-    this.tsdb = tsdb;
   }
 
   @Override
@@ -85,41 +78,21 @@ public class EmbeddedAuthenticationPlugin extends AuthenticationPlugin {
   }
 
   @Override
-  public Boolean authenticate(String[] command) {
-    Boolean ret = false;
-    // Command should be 'auth basic access_key access_secret'
-    if (command.length  < 3 || command.length > 4) {
-      LOG.error("Invalid Authentication Command Length: " + Integer.toString(command.length));
-    } else if (command[0].equals("auth")) {
-      if (command[1].equals(Util.algo.trim().toLowerCase())) {
-        LOG.debug("Validating Digest");
-        Map fields = Util.createFields(command[3]);
-        ret = authenticate(command[2], fields);
-      } else if (command[1].equals("basic")) {
-        LOG.debug("Validating Credentials");
-        ret = authenticate(command[2], command[3]);
-      } else {
-        LOG.error("Command not understood: " + command[0] + " " + command[1]);
-      }
-    } else {
-      LOG.error("Command is not auth: " + command[0]);
-    }
-    return ret;
-  }
-
-  @Override
   public Boolean authenticate(String accessKey, Map fields) {
     try {
+      AuthenticationUtil.validateFields(fields);
       String providedDigest = (String) fields.get("digest");
       LOG.debug("Authenticating " + accessKey + " " + providedDigest);
-      String date = (String) fields.get("date");
-      String noonce = (String) fields.get("noonce");
-      String secretKey = (String) authDB.get(accessKey);
-      String fullSecretKey = secretKey + date + noonce;
-      String calculatedDigest = Util.hmacDigest(accessKey, fullSecretKey);
-      LOG.debug("Calc: " + calculatedDigest);
-      LOG.debug("Prov: " + providedDigest);
-      return Util.validateCredentials(accessKey, calculatedDigest, accessKey, providedDigest);
+      Long providedTimestamp = DateTime.parseDateTimeString((String) fields.get("date"), "UTC");
+      Long minimumTimestamp = DateTime.parseDateTimeString("20m-ago", "UTC");
+      if (providedTimestamp < minimumTimestamp) {
+        throw new IllegalArgumentException("Provided timestamp: " + (String) fields.get("date") + " is too old.");
+      } else {
+        String calculatedDigest = AuthenticationUtil.createDigest(new EmbeddedAccessKeyPair(accessKey, authDB.get(accessKey)), fields);
+        LOG.debug("Calc: " + calculatedDigest);
+        LOG.debug("Prov: " + providedDigest);
+        return AuthenticationUtil.validateCredentials(accessKey, calculatedDigest, accessKey, providedDigest);
+      }
     } catch (Exception e) {
       LOG.error("Exception: " + e);
       return false;
@@ -129,19 +102,19 @@ public class EmbeddedAuthenticationPlugin extends AuthenticationPlugin {
   @Override
   public Boolean authenticate(String providedAccessKey, String providedSecretKey) {
     String correctSecretKey = (String) authDB.get(providedAccessKey);
-    return Util.validateCredentials(providedAccessKey, correctSecretKey, providedAccessKey, providedSecretKey);
+    return AuthenticationUtil.validateCredentials(providedAccessKey, correctSecretKey, providedAccessKey, providedSecretKey);
   }
 
   @Override
   public Boolean authenticateAdmin(String providedAdminAccessKey, String providedAdminSecretKey) {
-    return Util.validateCredentials(this.adminAccessKey, this.adminSecretKey, providedAdminAccessKey,providedAdminSecretKey);
+    return AuthenticationUtil.validateCredentials(this.adminAccessKey, this.adminSecretKey, providedAdminAccessKey,providedAdminSecretKey);
   }
 
   @Override
   public EmbeddedAccessKeyPair generateAccessToken(String adminAccessKey, String adminSecretKey) {
     if (authenticateAdmin(adminAccessKey, adminSecretKey)) {
       try {
-        EmbeddedAccessKeyPair keyPair = Util.generateKeyPair();
+        EmbeddedAccessKeyPair keyPair = AuthenticationUtil.generateKeyPair();
         storeCredentials(keyPair);
         return keyPair;
       } catch (NoSuchAlgorithmException e) {
