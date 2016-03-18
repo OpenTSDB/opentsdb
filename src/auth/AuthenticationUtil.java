@@ -135,10 +135,10 @@ public class AuthenticationUtil {
     Boolean secretMatched = correctAccess.equals(providedAccess);
     Boolean keyMatched = correctSecret.equals(providedSecret);
     if (keyMatched && secretMatched) {
-      LOG.debug("Authentication Succeeded for: " + providedAccess);
+      LOG.info("Authentication Succeeded for: " + providedAccess);
       return true;
     } else {
-      LOG.debug("Authentication Failed for: " + providedAccess);
+      LOG.info("Authentication Failed for: " + providedAccess);
       return false;
     }
   }

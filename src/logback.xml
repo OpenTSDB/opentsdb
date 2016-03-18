@@ -63,10 +63,9 @@
   <logger name="org.apache.zookeeper" level="INFO"/>
   <logger name="org.hbase.async" level="INFO"/>
   <logger name="com.stumbleupon.async" level="INFO"/>
-  <logger name="net.opentsdb.auth.EmbeddedAuthenticationPlugin" level="TRACE"/>
 
   <!-- Fallthrough root logger and router -->
-  <root level="DEBUG">
+  <root level="INFO">
     <appender-ref ref="STDOUT"/>
     <appender-ref ref="CYCLIC"/>
     <!-- Uncomment to log to file -->

@@ -142,7 +142,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
         pipeline.addLast("encoder", ENCODER);
         pipeline.addLast("decoder", DECODER);
       }
-      
+
       if (tsdb.getAuth() != null) {
         pipeline.addLast("authentication", new AuthenticationChannelHandler(tsdb));
       }

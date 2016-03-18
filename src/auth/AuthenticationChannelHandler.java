@@ -55,13 +55,13 @@ public class AuthenticationChannelHandler extends SimpleChannelUpstreamHandler {
 
   @Override
   public void messageReceived(ChannelHandlerContext ctx, MessageEvent authEvent) {
-    String authResponse = "AUT_HFAIL\r\n";
+    String authResponse = "AUTH_FAIL\r\n";
     try {
       final Object authCommand = authEvent.getMessage();
       if (authCommand instanceof String[]) {
         LOG.debug("Passing auth command to Authentication Plugin");
         if (handleTelnetAuth((String[]) authCommand)) {
-          LOG.info("Authentication Completed");
+          LOG.debug("Authentication Completed");
           authResponse = "AUTH_SUCCESS.\r\n";
           ctx.getPipeline().remove(this);
         }
