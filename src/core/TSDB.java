@@ -829,8 +829,10 @@ public final class TSDB {
       final PutRequest tracking = new PutRequest(meta_table, tsuid, 
           TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(1));
       client.put(tracking);
-    } else if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
+    } else if (config.enable_tsuid_incrementing() && config.enable_realtime_ts()) {
       TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
+    } else if (!config.enable_tsuid_incrementing() && config.enable_realtime_ts()) {
+      TSMeta.storeIfNecessary(TSDB.this, tsuid);
     }
     
     if (rt_publisher != null) {
