@@ -124,9 +124,27 @@ public final class TestDateTime {
     DateTime.parseDateTimeString("-135596160", null);
   }
 
+  /*
+  1234567890.418 - match
+  1234567890.1235 - no match
+  1234567890.12 - matches
+  1234.56789.003 - no match
+  1234567890.3 - match
+  */
+
   @Test(expected = IllegalArgumentException.class)
   public void parseDateTimeStringMultipleDots() {
     DateTime.parseDateTimeString("1234567890.2.4", null);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void parseDateTimeStringMultipleDotsEarlyDot() {
+    DateTime.parseDateTimeString("1234.56789.123", null);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void parseDateTimeStringEarlyandExtraDots() {
+    DateTime.parseDateTimeString("1234.56789.0.3", null);
   }
   
   @Test
@@ -146,6 +164,18 @@ public final class TestDateTime {
   public void parseDateTimeStringUnixMSDot() {
     long t = DateTime.parseDateTimeString("1355961603.418", null);
     assertEquals(1355961603418L, t);
+  }
+
+  @Test
+  public void parseDateTimeStringUnixMSDotShorter() {
+    long t = DateTime.parseDateTimeString("1355961603.41", null);
+    assertEquals(135596160341L, t);
+  }
+
+  @Test
+  public void parseDateTimeStringUnixMSDotShortest() {
+    long t = DateTime.parseDateTimeString("1355961603.4", null);
+    assertEquals(13559616034L, t);
   }
   
   @Test (expected = IllegalArgumentException.class)
