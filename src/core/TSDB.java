@@ -44,6 +44,7 @@ import org.jboss.netty.util.Timer;
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.tsd.StorageExceptionHandler;
+import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -59,6 +60,7 @@ import net.opentsdb.query.expression.ExpressionFactory;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
+import net.opentsdb.tools.StartupPlugin;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.StatsCollector;
@@ -118,7 +120,10 @@ public final class TSDB {
 
   /** Search indexer to use if configure */
   private SearchPlugin search = null;
-  
+
+  /** Optional Startup Plugin to use if configured */
+  private StartupPlugin startup = null;
+
   /** Optional real time pulblisher plugin to use if configured */
   private RTPublisher rt_publisher = null;
   
@@ -233,7 +238,22 @@ public final class TSDB {
   public static byte[] FAMILY() {
     return FAMILY;
   }
-  
+
+  /**
+   * Called by initializePlugins, also used to load startup plugins.
+   * @since 2.3
+   */
+  public static void loadPluginPath(final String plugin_path) throws RuntimeException {
+    if (plugin_path != null && !plugin_path.isEmpty()) {
+      try {
+        PluginLoader.loadJARs(plugin_path);
+      } catch (Exception e) {
+        throw new RuntimeException("Error loading plugins from plugin path: " +
+                plugin_path, e);
+      }
+    }
+  }
+
   /**
    * Should be called immediately after construction to initialize plugins and
    * objects that rely on such. It also moves most of the potential exception
@@ -244,18 +264,14 @@ public final class TSDB {
    * @throws IllegalArgumentException if a plugin could not be initialized
    * @since 2.0
    */
-  public void initializePlugins(final boolean init_rpcs) {
+  public void initializePlugins(final boolean init_rpcs) throws RuntimeException {
     final String plugin_path = config.getString("tsd.core.plugin_path");
-    if (plugin_path != null && !plugin_path.isEmpty()) {
-      try {
-        PluginLoader.loadJARs(plugin_path);
-      } catch (Exception e) {
-        LOG.error("Error loading plugins from plugin path: " + plugin_path, e);
-        throw new RuntimeException("Error loading plugins from plugin path: " + 
-            plugin_path, e);
-      }
+    try {
+      loadPluginPath(plugin_path);
+    } catch (RuntimeException e) {
+      throw e;
     }
-    
+
     try {
       TagVFilter.initializeFilterMap(this);
       // @#$@%$%#$ing typed exceptions
@@ -367,8 +383,21 @@ public final class TSDB {
   public final HBaseClient getClient() {
     return this.client;
   }
-  
-  /** 
+
+  /**
+   * Sets the startup plugin so that it can be shutdown properly.
+   * @param startup
+   * @since 2.3
+   */
+  public final void setStartup(StartupPlugin startup) { this.startup = startup; }
+  /**
+   * Getter that returns the startup plugin object
+   * @return The StartupPlugin object
+   * @since 2.3
+   */
+  public final StartupPlugin getStartup() { return this.startup; }
+
+  /**
    * Getter that returns the configuration object
    * @return The configuration object
    * @since 2.0 
@@ -595,6 +624,14 @@ public final class TSDB {
 
     compactionq.collectStats(collector);
     // Collect Stats from Plugins
+    if (startup != null) {
+      try {
+        collector.addExtraTag("plugin", "startup");
+        startup.collectStats(collector);
+      } finally {
+        collector.clearExtraTag("plugin");
+      }
+    }
     if (rt_publisher != null) {
       try {
         collector.addExtraTag("plugin", "publish");
@@ -992,6 +1029,11 @@ public final class TSDB {
     if (config.enable_compactions()) {
       LOG.info("Flushing compaction queue");
       deferreds.add(compactionq.flush().addCallback(new CompactCB()));
+    }
+    if (startup != null) {
+      LOG.info("Shutting down startup plugin: " +
+              startup.getClass().getCanonicalName());
+      deferreds.add(startup.shutdown());
     }
     if (search != null) {
       LOG.info("Shutting down search plugin: " + 
