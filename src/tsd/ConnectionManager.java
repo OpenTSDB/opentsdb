@@ -37,6 +37,7 @@ final class ConnectionManager extends SimpleChannelHandler {
   private static final Logger LOG = LoggerFactory.getLogger(ConnectionManager.class);
 
   private static final AtomicLong connections_established = new AtomicLong();
+  private static final AtomicLong connections_rejected = new AtomicLong();
   private static final AtomicLong exceptions_unknown = new AtomicLong();
   private static final AtomicLong exceptions_closed = new AtomicLong();
   private static final AtomicLong exceptions_reset = new AtomicLong();
@@ -65,6 +66,8 @@ final class ConnectionManager extends SimpleChannelHandler {
    */
   public static void collectStats(final StatsCollector collector) {
     collector.record("connectionmgr.connections", channels.size(), "type=open");
+    collector.record("connectionmgr.connections", connections_rejected,
+        "type=rejected");
     collector.record("connectionmgr.connections", connections_established, 
         "type=total");
     collector.record("connectionmgr.exceptions", exceptions_closed, 
@@ -81,10 +84,11 @@ final class ConnectionManager extends SimpleChannelHandler {
   public void channelOpen(final ChannelHandlerContext ctx,
                           final ChannelStateEvent e) throws IOException {
     if (connectionsLimit > 0) {
-      int channelsSize = channels.size();
-      if (channelsSize >= connectionsLimit) {
+      int channelSize = channels.size();
+      if (channelSize >= connectionsLimit) {
         e.getChannel().close();
-        throw new IOException("now channels size " + channelsSize + " is exceed total connections limit " + connectionsLimit);
+        connections_rejected.incrementAndGet();
+        throw new IOException("Channel size (" + channelSize + ") exceeds total connection limit (" + connectionsLimit + ")");
       }
     }
     channels.add(e.getChannel());

@@ -487,6 +487,7 @@ public class Config {
     default_map.put("tsd.core.auto_create_metrics", "false");
     default_map.put("tsd.core.auto_create_tagks", "true");
     default_map.put("tsd.core.auto_create_tagvs", "true");
+    default_map.put("tsd.core.connections.limit", "0");
     default_map.put("tsd.core.meta.enable_realtime_ts", "false");
     default_map.put("tsd.core.meta.enable_realtime_uid", "false");
     default_map.put("tsd.core.meta.enable_tsuid_incrementing", "false");
@@ -536,7 +537,6 @@ public class Config {
       + "Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, "
       + "X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since");
     default_map.put("tsd.query.timeout", "0");
-    default_map.put("tsd.connections.limit", "0");
 
     for (Map.Entry<String, String> entry : default_map.entrySet()) {
       if (!properties.containsKey(entry.getKey()))

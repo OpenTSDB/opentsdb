@@ -96,6 +96,8 @@ final class TSDMain {
     argp.addOption("--backlog", "NUM",
                    "Size of connection attempt queue (default: 3072 or kernel"
                    + " somaxconn.");
+    argp.addOption("--max-connections", "NUM",
+                   "Maximum number of connections to accept");
     argp.addOption("--flush-interval", "MSEC",
                    "Maximum time for which a new data point can be buffered"
                    + " (default: " + DEFAULT_FLUSH_INTERVAL + ").");
@@ -140,7 +142,7 @@ final class TSDMain {
     final ServerSocketChannelFactory factory;
     int connectionsLimit = 0;
     try {
-      connectionsLimit = config.getInt("tsd.connections.limit");
+      connectionsLimit = config.getInt("tsd.core.connections.limit");
     } catch (NumberFormatException nfe) {
       usage(argp, "Invalid connections limit", 1);
     }

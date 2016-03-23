@@ -70,7 +70,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
    * serializers
    */
   public PipelineFactory(final TSDB tsdb) {
-    this(tsdb, RpcManager.instance(tsdb), 0);
+    this(tsdb, RpcManager.instance(tsdb), tsdb.getConfig().getInt("tsd.core.connections.limit"));
   }
 
   /**
