@@ -63,7 +63,7 @@
   <logger name="org.apache.zookeeper" level="INFO"/>
   <logger name="org.hbase.async" level="INFO"/>
   <logger name="com.stumbleupon.async" level="INFO"/>
-  
+
   <!-- Fallthrough root logger and router -->
   <root level="INFO">
     <appender-ref ref="STDOUT"/>
