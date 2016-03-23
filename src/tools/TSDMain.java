@@ -91,6 +91,8 @@ final class TSDMain {
                    "Number for async io workers (default: cpu * 2).");
     argp.addOption("--async-io", "true|false",
                    "Use async NIO (default true) or traditional blocking io");
+    argp.addOption("--read-only", "true|false",
+                   "Set tsd.mode to ro (default false)");
     argp.addOption("--backlog", "NUM",
                    "Size of connection attempt queue (default: 3072 or kernel"
                    + " somaxconn.");
