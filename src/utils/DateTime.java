@@ -121,8 +121,10 @@ public class DateTime {
     } else {
       try {
         long time;
-        if (datetime.contains(".")) {
-          if (datetime.charAt(10) != '.' || datetime.length() != 14) {
+        Boolean containsDot = datetime.contains(".");
+        Boolean containsTwoDots =  datetime.matches(".*\\..*\\..*");
+        if (containsDot) {
+          if (datetime.charAt(10) != '.' || datetime.length() != 14 || containsTwoDots) {
             throw new IllegalArgumentException("Invalid time: " + datetime  
                 + ". Millisecond timestamps must be in the format "
                 + "<seconds>.<ms> where the milliseconds are limited to 3 digits");

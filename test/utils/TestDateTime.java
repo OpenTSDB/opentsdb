@@ -123,6 +123,11 @@ public final class TestDateTime {
   public void parseDateTimeStringUnixSecondsNegative() {
     DateTime.parseDateTimeString("-135596160", null);
   }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void parseDateTimeStringMultipleDots() {
+    DateTime.parseDateTimeString("1234567890.2.4", null);
+  }
   
   @Test
   public void parseDateTimeStringUnixSecondsInvalidLong() {
