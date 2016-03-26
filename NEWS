@@ -1,5 +1,28 @@
 OpenTSDB - User visible changes.
 
+* Version 2.3.0 RC1 (2016-03-28)
+
+Noteworthy Changes:
+  - Introduced option --max-connection/tsd.core.connections.limit to set the maximum number
+    of connection a TSD will accept (#638)
+  - 'tsdb import' can now read from stdin (#580)
+  - Added datapoints counter (#369)
+  - Improved metadata storage performance (#699)
+  - added checkbox for showing global annotations in UI (#736)
+  - Added startup plugins, can be used for Service Discovery or other integration (#719)
+  - Added MetaDataCache plugin api
+  - Added timeshift() function (#175)
+  - Now align downsampling to Gregorian Calendar (#548, #657)
+  - Added support for latest Java versions
+  - Added NONE aggregator
+  - Added script to build OpenTSDB/HBase on OSX (#674)
+  - Added First/Last Downsampler
+  - Added query epxressions (alias(), scale(), absolute(), movingAverage(), highestCurrent(),
+    highestMax(), timeShift(), divide(), sum(), difference(), multiply()) (#625)
+Bug Fixes:
+  - Some improperly formatted timestamps were allowed (#724)
+  - removed stdout logging from packaged logback.xml files (#715)
+  - 
 * Version 2.2.0 (2016-02-14)
 
 Noteworthy Changes
