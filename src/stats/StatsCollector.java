@@ -15,6 +15,8 @@ package net.opentsdb.stats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.opentsdb.tools.TSDPort;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
@@ -50,6 +52,9 @@ public abstract class StatsCollector {
    */
   public StatsCollector(final String prefix) {
     this.prefix = prefix;
+    if(TSDPort.isStatsWithPort()) {
+    	addExtraTag("port", "" + TSDPort.getTSDPort());
+    }
   }
 
   /**

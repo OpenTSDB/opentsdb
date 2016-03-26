@@ -107,6 +107,10 @@ public class Config {
   /** tsd.http.request.enable_chunked */
   private boolean enable_chunked_requests = false;
   
+  /** tsd.core.stats_with_port */
+  private boolean stats_with_port = false;
+  
+  
   /** tsd.storage.fix_duplicates */
   private boolean fix_duplicates = false;
 
@@ -262,6 +266,11 @@ public class Config {
   /** @return whether or not chunked requests are supported */
   public boolean enable_chunked_requests() {
     return enable_chunked_requests;
+  }
+  
+  /** @return whether or not rpc stats should be broken out by port */
+  public boolean rpc_stats_withport() {
+    return stats_with_port;
   }
   
   /** @return max incoming chunk size in bytes */
@@ -563,6 +572,7 @@ public class Config {
     default_map.put("tsd.storage.compaction.min_flush_threshold", "100");
     default_map.put("tsd.storage.compaction.max_concurrent_flushes", "10000");
     default_map.put("tsd.storage.compaction.flush_speed", "2");
+    default_map.put("tsd.core.stats_with_port", "false");    
     default_map.put("tsd.http.show_stack_trace", "true");
     default_map.put("tsd.http.query.allow_delete", "false");
     default_map.put("tsd.http.request.enable_chunked", "false");
@@ -689,6 +699,7 @@ public class Config {
     enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
     fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
     scanner_max_num_rows = this.getInt("tsd.storage.hbase.scanner.maxNumRows");
+    stats_with_port = this.getBoolean("tsd.core.stats_with_port");
 
   }
   
