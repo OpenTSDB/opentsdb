@@ -75,6 +75,9 @@ public class DateTime {
       final String tz) {
     if (datetime == null || datetime.isEmpty())
       return -1;
+    if (datetime.toLowerCase().equals("now")) {
+      return System.currentTimeMillis();
+    }
     if (datetime.toLowerCase().endsWith("-ago")) {
       long interval = DateTime.parseDuration(
         datetime.substring(0, datetime.length() - 4));
