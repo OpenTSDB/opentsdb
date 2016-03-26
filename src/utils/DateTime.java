@@ -75,9 +75,15 @@ public class DateTime {
       final String tz) {
     if (datetime == null || datetime.isEmpty())
       return -1;
+
+    if (datetime.matches("^[0-9]+ms$")) {
+      return Tags.parseLong(datetime.replaceFirst("^([0-9]+)(ms)$", "$1"));
+    }
+
     if (datetime.toLowerCase().equals("now")) {
       return System.currentTimeMillis();
     }
+
     if (datetime.toLowerCase().endsWith("-ago")) {
       long interval = DateTime.parseDuration(
         datetime.substring(0, datetime.length() - 4));
