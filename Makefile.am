@@ -134,6 +134,7 @@ tsdb_SRC := \
 	src/tools/Search.java	\
   src/tools/StartupPlugin.java \
 	src/tools/TSDMain.java	\
+	src/tools/TSDPort.java	\
 	src/tools/TextImporter.java	\
 	src/tools/TreeSync.java	\
 	src/tools/UidManager.java	\
@@ -343,6 +344,7 @@ test_SRC := \
 	test/tsd/TestSuggestRpc.java	\
 	test/tsd/TestTreeRpc.java	\
 	test/tsd/TestUniqueIdRpc.java	\
+	test/tsd/TestStatsWithPort.java	\
 	test/uid/TestNoSuchUniqueId.java	\
 	test/uid/TestRandomUniqueId.java	\
 	test/uid/TestUniqueId.java \

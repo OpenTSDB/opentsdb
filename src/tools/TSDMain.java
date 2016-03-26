@@ -101,6 +101,7 @@ final class TSDMain {
     argp.addOption("--flush-interval", "MSEC",
                    "Maximum time for which a new data point can be buffered"
                    + " (default: " + DEFAULT_FLUSH_INTERVAL + ").");
+    argp.addOption("--statswport", "Force all stats to include the port");
     CliOptions.addAutoMetricFlag(argp);
     args = CliOptions.parse(argp, args);
     args = null; // free().
@@ -220,6 +221,7 @@ final class TSDMain {
       if (startup != null) {
         startup.setReady(tsdb);
       }
+      TSDPort.set(config);
       log.info("Ready to serve on " + addr);
     } catch (Throwable e) {
       factory.releaseExternalResources();
