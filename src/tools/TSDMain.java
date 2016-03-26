@@ -96,6 +96,8 @@ final class TSDMain {
     argp.addOption("--backlog", "NUM",
                    "Size of connection attempt queue (default: 3072 or kernel"
                    + " somaxconn.");
+    argp.addOption("--max-connections", "NUM",
+                   "Maximum number of connections to accept");
     argp.addOption("--flush-interval", "MSEC",
                    "Maximum time for which a new data point can be buffered"
                    + " (default: " + DEFAULT_FLUSH_INTERVAL + ").");
@@ -138,6 +140,12 @@ final class TSDMain {
     }
 
     final ServerSocketChannelFactory factory;
+    int connectionsLimit = 0;
+    try {
+      connectionsLimit = config.getInt("tsd.core.connections.limit");
+    } catch (NumberFormatException nfe) {
+      usage(argp, "Invalid connections limit", 1);
+    }
     if (config.getBoolean("tsd.network.async_io")) {
       int workers = Runtime.getRuntime().availableProcessors() * 2;
       if (config.hasProperty("tsd.network.worker_threads")) {
@@ -188,7 +196,7 @@ final class TSDMain {
       // here to fail fast.
       final RpcManager manager = RpcManager.instance(tsdb);
 
-      server.setPipelineFactory(new PipelineFactory(tsdb, manager));
+      server.setPipelineFactory(new PipelineFactory(tsdb, manager, connectionsLimit));
       if (config.hasProperty("tsd.network.backlog")) {
         server.setOption("backlog", config.getInt("tsd.network.backlog")); 
       }

@@ -47,7 +47,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
 
   // Those are sharable but maintain some state, so a single instance per
   // PipelineFactory is needed.
-  private final ConnectionManager connmgr = new ConnectionManager();
+  private final ConnectionManager connmgr;
   private final DetectHttpOrRpc HTTP_OR_RPC = new DetectHttpOrRpc();
   private final Timer timer;
   private final ChannelHandler timeoutHandler;
@@ -70,7 +70,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
    * serializers
    */
   public PipelineFactory(final TSDB tsdb) {
-    this(tsdb, RpcManager.instance(tsdb));
+    this(tsdb, RpcManager.instance(tsdb), tsdb.getConfig().getInt("tsd.core.connections.limit"));
   }
 
   /**
@@ -82,12 +82,13 @@ public final class PipelineFactory implements ChannelPipelineFactory {
    * @throws Exception if the HttpQuery handler is unable to load 
    * serializers
    */
-  public PipelineFactory(final TSDB tsdb, final RpcManager manager) {
+  public PipelineFactory(final TSDB tsdb, final RpcManager manager, final int connectionsLimit) {
     this.tsdb = tsdb;
     this.socketTimeout = tsdb.getConfig().getInt("tsd.core.socket.timeout");
     timer = tsdb.getTimer();
     this.timeoutHandler = new IdleStateHandler(timer, 0, 0, this.socketTimeout);
     this.rpchandler = new RpcHandler(tsdb, manager);
+    this.connmgr = new ConnectionManager(connectionsLimit);
     try {
       HttpQuery.initializeSerializerMaps(tsdb);
     } catch (RuntimeException e) {
@@ -153,4 +154,3 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   }
   
 }
- 
