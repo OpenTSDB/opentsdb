@@ -20,6 +20,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -53,6 +54,13 @@ import net.opentsdb.meta.UIDMeta;
  */
 @SuppressWarnings("deprecation")  // Dunno why even with this, compiler warns.
 public final class UniqueId implements UniqueIdInterface {
+  /** Whether or not to check new UID against configured whitelists **/
+  private Boolean useWhitelist = false;
+  /** Whitelists for various uid types **/
+  private String auto_metric_patterns = ".*";
+  private String auto_tagk_patterns = ".*";
+  private String auto_tagv_patterns = ".*";
+
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
 
   /** Enumerator for different types of UIDS @since 2.0 */
@@ -188,6 +196,14 @@ public final class UniqueId implements UniqueIdInterface {
   /** @param tsdb Whether or not to track new UIDMeta objects */
   public void setTSDB(final TSDB tsdb) {
     this.tsdb = tsdb;
+    try {
+      this.useWhitelist = tsdb.getConfig().auto_whitelist();
+      this.auto_metric_patterns = tsdb.getConfig().auto_metric_patterns();
+      this.auto_tagk_patterns =  tsdb.getConfig().auto_tagk_patterns();
+      this.auto_tagv_patterns = tsdb.getConfig().auto_tagv_patterns();
+    } catch (Exception e) {
+
+    }
   }
   
   /** The largest possible ID given the number of bytes the IDs are 
@@ -631,6 +647,10 @@ public final class UniqueId implements UniqueIdInterface {
     try {
       return getIdAsync(name).joinUninterruptibly();
     } catch (NoSuchUniqueName e) {
+      if (this.useWhitelist && !checkNameIsValid(name)) {
+        LOG.info("UID cannot be assigned, name is not acceptable because it fails to match the whitelist: " + name);
+        throw new RuntimeException("UID cannot be assigned, name is not acceptable because it fails to match the whitelist: " + name);
+      }
       Deferred<byte[]> assignment = null;
       boolean pending = false;
       synchronized (pending_assignments) {
@@ -675,6 +695,47 @@ public final class UniqueId implements UniqueIdInterface {
       return uid;
     } catch (Exception e) {
       throw new RuntimeException("Should never be here", e);
+    }
+  }
+
+  /**
+   * Checks to see if the provided string matches the acceptable
+   * patterns from the configuration.
+   * <p>
+   *
+   * @param name The name to compare to the acceptable name regexes
+   * @return
+     */
+  public Boolean checkNameIsValid(final String name) throws RuntimeException {
+    final List<Pattern> rxs = new ArrayList();
+    try {
+      String uid_patterns;
+      switch (type) {
+        case METRIC: uid_patterns = this.auto_metric_patterns;
+          break;
+        case TAGK: uid_patterns = this.auto_tagk_patterns;
+          break;
+        case TAGV: uid_patterns = this.auto_tagv_patterns;
+          break;
+        default:
+          throw new RuntimeException("Should never be here");
+      }
+      String[] patterns = uid_patterns.split(",");
+
+      for (String pattern : patterns) {
+        rxs.add(Pattern.compile(pattern));
+      }
+
+      for (Pattern rx : rxs) {
+        if (rx.matcher(name).matches()) {
+          LOG.debug("Accepted name for UID: " + name + " based on '" + rx.toString() + "'");
+          return true;
+        }
+      }
+      LOG.debug("Rejected name for UID: " + name);
+      return false;
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to check name (" + name + ") against patterns.", e);
     }
   }
 
