@@ -185,6 +185,18 @@ public final class TestDateTime {
     long t = DateTime.parseDateTimeString("1355961603418", null);
     assertEquals(1355961603418L, t);
   }
+
+  @Test
+  public void parseDateTimeStringShortExplicitMS() {
+    long t = DateTime.parseDateTimeString("123123ms", null);
+    assertEquals(123123L, t);
+  }
+
+  @Test
+  public void parseDateTimeStringExplicitMS() {
+    long t = DateTime.parseDateTimeString("1234567890123ms", null);
+    assertEquals(1234567890123L, t);
+  }
   
   @Test
   public void parseDateTimeStringUnixMSDot() {
