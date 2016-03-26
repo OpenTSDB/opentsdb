@@ -196,14 +196,10 @@ public final class UniqueId implements UniqueIdInterface {
   /** @param tsdb Whether or not to track new UIDMeta objects */
   public void setTSDB(final TSDB tsdb) {
     this.tsdb = tsdb;
-    try {
-      this.useWhitelist = tsdb.getConfig().auto_whitelist();
-      this.auto_metric_patterns = tsdb.getConfig().auto_metric_patterns();
-      this.auto_tagk_patterns =  tsdb.getConfig().auto_tagk_patterns();
-      this.auto_tagv_patterns = tsdb.getConfig().auto_tagv_patterns();
-    } catch (Exception e) {
-
-    }
+    this.useWhitelist = tsdb.getConfig().auto_whitelist();
+    this.auto_metric_patterns = tsdb.getConfig().auto_metric_patterns();
+    this.auto_tagk_patterns =  tsdb.getConfig().auto_tagk_patterns();
+    this.auto_tagv_patterns = tsdb.getConfig().auto_tagv_patterns();
   }
   
   /** The largest possible ID given the number of bytes the IDs are 
