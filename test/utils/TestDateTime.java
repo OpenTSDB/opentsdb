@@ -71,6 +71,12 @@ public final class TestDateTime {
   }
   
   @Test
+  public void parseDateTimeStringNow() {
+    long t = DateTime.parseDateTimeString("now", null);
+    assertEquals(t, 1357300800000L);
+  }
+
+  @Test
   public void parseDateTimeStringRelativeS() {
     long t = DateTime.parseDateTimeString("60s-ago", null);
     assertEquals(60000, (System.currentTimeMillis() - t));
