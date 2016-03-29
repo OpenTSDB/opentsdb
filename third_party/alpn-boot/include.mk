@@ -22,7 +22,7 @@ ALPN_BOOT_VERSION = $(shell version= ;\
     echo "Failed to parse Java version";\
     exit 1;\
   fi; \
-  if [[ $$version =~ ^([0-9]+\.[0-9]+)\.([0-9])[_Uu]([0-9]+)$$ ]]; then \
+  if [[ $$version =~ ^([0-9]+\.[0-9]+)\.([0-9])[_Uu]([0-9]+) ]]; then \
     major=$${BASH_REMATCH[1]};\
     minor=$${BASH_REMATCH[2]}; \
     sub=$${BASH_REMATCH[3]}; \
