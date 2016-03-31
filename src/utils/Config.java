@@ -73,6 +73,12 @@ public class Config {
   /** tsd.storage.enable_compaction */
   private boolean enable_compactions = true;
   
+  /** tsd.storage.hbase.use_hbase_counters */
+  private boolean use_hbase_counters = false;
+  
+  /** tsd.storage.sum_duplicates */
+  private boolean sum_duplicates = false;
+  
   /** tsd.storage.enable_appends */
   private boolean enable_appends = false;
   
@@ -175,6 +181,14 @@ public class Config {
   /** @return the auto_tagv value */
   public boolean auto_tagv() {
     return auto_tagv;
+  }
+  
+  public boolean use_hbase_counters() {
+    return use_hbase_counters;
+  }
+  
+  public boolean sum_duplicates() {
+    return sum_duplicates;
   }
   
   /** @param auto_metric whether or not to auto create metrics */
@@ -476,6 +490,8 @@ public class Config {
     default_map.put("tsd.network.tcp_no_delay", "true");
     default_map.put("tsd.network.keep_alive", "true");
     default_map.put("tsd.network.reuse_address", "true");
+    default_map.put("tsd.storage.hbase.use_hbase_counters", "false");
+    default_map.put("tsd.storage.sum_duplicates", "false");    
     default_map.put("tsd.core.auto_create_metrics", "false");
     default_map.put("tsd.core.auto_create_tagks", "true");
     default_map.put("tsd.core.auto_create_tagvs", "true");
@@ -621,6 +637,8 @@ public class Config {
     auto_tagk = this.getBoolean("tsd.core.auto_create_tagks");
     auto_tagv = this.getBoolean("tsd.core.auto_create_tagvs");
     enable_compactions = this.getBoolean("tsd.storage.enable_compaction");
+    use_hbase_counters = this.getBoolean("tsd.storage.hbase.use_hbase_counters");
+    sum_duplicates = this.getBoolean("tsd.storage.sum_duplicates");
     enable_appends = this.getBoolean("tsd.storage.enable_appends");
     repair_appends = this.getBoolean("tsd.storage.repair_appends");
     enable_chunked_requests = this.getBoolean("tsd.http.request.enable_chunked");
