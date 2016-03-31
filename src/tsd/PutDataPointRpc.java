@@ -51,7 +51,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
   private static final AtomicLong writes_blocked = new AtomicLong();
   private static final AtomicLong writes_timedout = new AtomicLong();
   
-  public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
+  public Deferred execute(final TSDB tsdb, final Channel chan,
                                   final String[] cmd) {
     requests.incrementAndGet();
     String errmsg = null;
@@ -426,7 +426,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @throws IllegalArgumentException if any other argument is invalid.
    * @throws NoSuchUniqueName if the metric isn't registered.
    */
-  private Deferred<Object> importDataPoint(final TSDB tsdb, final String[] words) {
+  private Deferred importDataPoint(final TSDB tsdb, final String[] words) {
     words[0] = null; // Ditch the "put".
     if (words.length < 5) {  // Need at least: metric timestamp value tag
       //               ^ 5 and not 4 because words[0] is "put".
