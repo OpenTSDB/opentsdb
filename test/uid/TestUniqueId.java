@@ -489,7 +489,7 @@ public final class TestUniqueId {
   @Test
   public void getOrCreateIdRandom() {
     PowerMockito.mockStatic(RandomUniqueId.class);
-    uid = new UniqueId(client, table, METRIC, 3, true);
+    uid = new UniqueId(client, table, METRIC, 3, true, false);
     final long id = 42L;
     final byte[] id_array = { 0, 0, 0x2A };
 
@@ -515,7 +515,7 @@ public final class TestUniqueId {
   @Test
   public void getOrCreateIdRandomCollision() {
     PowerMockito.mockStatic(RandomUniqueId.class);
-    uid = new UniqueId(client, table, METRIC, 3, true);
+    uid = new UniqueId(client, table, METRIC, 3, true, false);
     final long id = 42L;
     final byte[] id_array = { 0, 0, 0x2A };
 
@@ -544,7 +544,7 @@ public final class TestUniqueId {
   @Test
   public void getOrCreateIdRandomCollisionTooManyAttempts() {
     PowerMockito.mockStatic(RandomUniqueId.class);
-    uid = new UniqueId(client, table, METRIC, 3, true);
+    uid = new UniqueId(client, table, METRIC, 3, true, false);
     final long id = 42L;
 
     when(RandomUniqueId.getRandomUID()).thenReturn(24L).thenReturn(id);
@@ -583,7 +583,7 @@ public final class TestUniqueId {
   @Test
   public void getOrCreateIdRandomWithRaceCondition() {
     PowerMockito.mockStatic(RandomUniqueId.class);
-    uid = new UniqueId(client, table, METRIC, 3, true);
+    uid = new UniqueId(client, table, METRIC, 3, true, false);
     final long id = 24L;
     final byte[] id_array = { 0, 0, 0x2A };
     final byte[] byte_name = { 'f', 'o', 'o' };
@@ -610,7 +610,33 @@ public final class TestUniqueId {
     // ... so verify there was only one HBase Get.
     verify(client, times(2)).get(any(GetRequest.class));
   }
-  
+
+  @Test
+  public void getOrCreateIdWithBitReversal() {
+    uid = new UniqueId(client, table, METRIC, 3, false, true);
+    final byte[] id = { (byte) 0xA0, 0, 0 };
+    final Config config = mock(Config.class);
+    when(config.enable_realtime_uid()).thenReturn(false);
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    uid.setTSDB(tsdb);
+    when(client.get(anyGet()))
+        .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+    when(client.atomicIncrement(incrementForRow(MAXID)))
+        .thenReturn(Deferred.fromResult(5L));
+    when(client.compareAndSet(anyPut(), emptyArray()))
+        .thenReturn(Deferred.fromResult(true))
+        .thenReturn(Deferred.fromResult(true));
+
+    assertArrayEquals(id, uid.getOrCreateId("foo"));
+    assertArrayEquals(id, uid.getOrCreateId("foo"));
+    assertEquals("foo", uid.getName(id));
+
+    verify(client).get(anyGet());
+    verify(client).atomicIncrement(incrementForRow(MAXID));
+    verify(client, times(2)).compareAndSet(anyPut(), emptyArray());
+  }
+
   @Test
   public void suggestWithNoMatch() {
     uid = new UniqueId(client, table, METRIC, 3);
@@ -1174,7 +1200,47 @@ public final class TestUniqueId {
     } catch (NoSuchUniqueName e) { }
     assertEquals("sys.cpu.user", uid.getName(UID));
   }
-  
+
+  @Test
+  public void makeBitReversal() throws Exception {
+    uid = new UniqueId(client, table, METRIC, 3);
+    assertEquals(0x800000, uid.makeReversalBit(1));
+    assertEquals(0x400000, uid.makeReversalBit(2));
+    assertEquals(0xFFFFFF, uid.makeReversalBit(0xFFFFFF));
+    assertEquals(0xFF0FFF, uid.makeReversalBit(0xFFF0FF));
+    assertEquals(0xFFFFFE, uid.makeReversalBit(0x7FFFFF));
+    uid = new UniqueId(client, table, METRIC, 4);
+    assertEquals(0x80000000L, uid.makeReversalBit(1));
+    assertEquals(0x40000000L, uid.makeReversalBit(2));
+    assertEquals(0xFF000000L, uid.makeReversalBit(0xFF));
+    assertEquals(0xFFFFFFFFL, uid.makeReversalBit(0xFFFFFFFFL));
+    assertEquals(0x7FFFFFFFL, uid.makeReversalBit(0xFFFFFFFEL));
+    uid = new UniqueId(client, table, METRIC, 5);
+    assertEquals(0x8000000000L, uid.makeReversalBit(1));
+    assertEquals(0x4000000000L, uid.makeReversalBit(2));
+    assertEquals(0xFF00000000L, uid.makeReversalBit(0xFF));
+    assertEquals(0xFFFFFFFFFFL, uid.makeReversalBit(0xFFFFFFFFFFL));
+    assertEquals(0x7FFFFFFFFFL, uid.makeReversalBit(0xFFFFFFFFFEL));
+    uid = new UniqueId(client, table, METRIC, 6);
+    assertEquals(0x800000000000L, uid.makeReversalBit(1));
+    assertEquals(0x400000000000L, uid.makeReversalBit(2));
+    assertEquals(0xFF0000000000L, uid.makeReversalBit(0xFF));
+    assertEquals(0xFFFFFFFFFFFFL, uid.makeReversalBit(0xFFFFFFFFFFFFL));
+    assertEquals(0x7FFFFFFFFFFFL, uid.makeReversalBit(0xFFFFFFFFFFFEL));
+    uid = new UniqueId(client, table, METRIC, 7);
+    assertEquals(0x80000000000000L, uid.makeReversalBit(1));
+    assertEquals(0x40000000000000L, uid.makeReversalBit(2));
+    assertEquals(0xFF000000000000L, uid.makeReversalBit(0xFF));
+    assertEquals(0xFFFFFFFFFFFFFFL, uid.makeReversalBit(0xFFFFFFFFFFFFFFL));
+    assertEquals(0x7FFFFFFFFFFFFFL, uid.makeReversalBit(0xFFFFFFFFFFFFFEL));
+    uid = new UniqueId(client, table, METRIC, 8);
+    assertEquals(0x8000000000000000L, uid.makeReversalBit(1));
+    assertEquals(0x4000000000000000L, uid.makeReversalBit(2));
+    assertEquals(0xFF00000000000000L, uid.makeReversalBit(0xFF));
+    assertEquals(0xFFFFFFFFFFFFFFFFL, uid.makeReversalBit(0xFFFFFFFFFFFFFFFFL));
+    assertEquals(0x7FFFFFFFFFFFFFFFL, uid.makeReversalBit(0xFFFFFFFFFFFFFFFEL));
+  }
+
   // ----------------- //
   // Helper functions. //
   // ----------------- //
