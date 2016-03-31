@@ -27,6 +27,7 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.AppendRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.Bytes.ByteMap;
@@ -677,12 +678,14 @@ public final class TSDB {
    * @throws HBaseException (deferred) if there was a problem while persisting
    * data.
    */
-  public Deferred<Object> addPoint(final String metric,
+  public Deferred addPoint(final String metric,
                                    final long timestamp,
                                    final long value,
                                    final Map<String, String> tags) {
     final byte[] v;
-    if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
+    if (config.use_hbase_counters()) {
+    	v = Bytes.fromLong(value);
+    } else if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
       v = new byte[] { (byte) value };
     } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
       v = Bytes.fromShort((short) value);
@@ -717,7 +720,7 @@ public final class TSDB {
    * data.
    * @since 1.2
    */
-  public Deferred<Object> addPoint(final String metric,
+  public Deferred addPoint(final String metric,
                                    final long timestamp,
                                    final double value,
                                    final Map<String, String> tags) {
@@ -753,7 +756,7 @@ public final class TSDB {
    * @throws HBaseException (deferred) if there was a problem while persisting
    * data.
    */
-  public Deferred<Object> addPoint(final String metric,
+  public Deferred addPoint(final String metric,
                                    final long timestamp,
                                    final float value,
                                    final Map<String, String> tags) {
@@ -768,7 +771,7 @@ public final class TSDB {
                             tags, flags);
   }
 
-  private Deferred<Object> addPointInternal(final String metric,
+  private Deferred addPointInternal(final String metric,
                                             final long timestamp,
                                             final byte[] value,
                                             final Map<String, String> tags,
@@ -797,7 +800,7 @@ public final class TSDB {
     Bytes.setInt(row, (int) base_time, metrics.width() + Const.SALT_WIDTH());
     RowKey.prefixKeyWithSalt(row);
     
-    Deferred<Object> result = null;
+    Deferred<? extends Object> result = null;
     if (config.enable_appends()) {
       final AppendDataPoints kv = new AppendDataPoints(qualifier, value);
       final AppendRequest point = new AppendRequest(table, row, FAMILY, 
@@ -805,8 +808,14 @@ public final class TSDB {
       result = client.append(point);
     } else {
       scheduleForCompaction(row, (int) base_time);
-      final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
-      result = client.put(point);
+      boolean isLong = ((flags & Const.FLAG_FLOAT) == 0x0);
+      if (isLong && config.use_hbase_counters()) {
+    	  AtomicIncrementRequest counterRequest = new AtomicIncrementRequest(table, row, FAMILY, qualifier, Bytes.getLong(value));
+    	  result = client.atomicIncrement(counterRequest);
+    } else {
+        final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
+        result = client.put(point);
+      }
     }
     
     // TODO(tsuna): Add a callback to time the latency of HBase and store the
