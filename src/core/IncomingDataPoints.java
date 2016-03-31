@@ -260,7 +260,7 @@ final class IncomingDataPoints implements WritableDataPoints {
    *          Flags to store in the qualifier (size and type of the data point).
    * @return A deferred object that indicates the completion of the request.
    */
-  private Deferred<Object> addPointInternal(final long timestamp,
+  private Deferred addPointInternal(final long timestamp,
       final byte[] value, final short flags) {
     if (row == null) {
       throw new IllegalStateException("setSeries() never called!");
@@ -327,10 +327,15 @@ final class IncomingDataPoints implements WritableDataPoints {
       point.setDurable(!batch_import);
       return tsdb.client.append(point);/* .addBoth(cb) */
     } else {
-      final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY, 
-          qualifier, value);
-      point.setDurable(!batch_import);
-      return tsdb.client.put(point)/* .addBoth(cb) */;
+      boolean isLong = ((flags & Const.FLAG_FLOAT) == 0x0);
+      if (isLong && tsdb.config.use_hbase_counters()) {
+          AtomicIncrementRequest counterRequest = new AtomicIncrementRequest(tsdb.table, row, TSDB.FAMILY, qualifier, Bytes.getLong(value));
+          return tsdb.client.atomicIncrement(counterRequest, !batch_import);
+      } else {
+        final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY, qualifier, value);
+        point.setDurable(!batch_import);
+        return tsdb.client.put(point)/* .addBoth(cb) */;
+      }
     }
   }
 
@@ -349,9 +354,11 @@ final class IncomingDataPoints implements WritableDataPoints {
     return Bytes.getUnsignedInt(row, Const.SALT_WIDTH() + tsdb.metrics.width());
   }
 
-  public Deferred<Object> addPoint(final long timestamp, final long value) {
+  public Deferred addPoint(final long timestamp, final long value) {
     final byte[] v;
-    if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
+    if (tsdb.config.use_hbase_counters()) {
+      v = Bytes.fromLong(value);
+    } else if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
       v = new byte[] { (byte) value };
     } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
       v = Bytes.fromShort((short) value);
@@ -364,7 +371,7 @@ final class IncomingDataPoints implements WritableDataPoints {
     return addPointInternal(timestamp, v, flags);
   }
 
-  public Deferred<Object> addPoint(final long timestamp, final float value) {
+  public Deferred addPoint(final long timestamp, final float value) {
     if (Float.isNaN(value) || Float.isInfinite(value)) {
       throw new IllegalArgumentException("value is NaN or Infinite: " + value
           + " for timestamp=" + timestamp);
