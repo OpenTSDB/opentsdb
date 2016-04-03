@@ -39,6 +39,7 @@ eval "$sh"  # Sets the timestamp and date variables.
 user=`whoami`
 host=`hostname`
 repo=`pwd`
+branch=`git branch | grep -h '\*.*' | awk '{print $2}'`
 
 sh=`git rev-list --pretty=format:%h HEAD --max-count=1 \
     | sed '1s/commit /full_rev=/;2s/^/short_rev=/'`
@@ -92,6 +93,8 @@ public final class $CLASS {
   public static final String host = "$host";
   /** Path to the repository in which this package was built. */
   public static final String repo = "$repo";
+  /** Git branch */
+  public static final String branch = "$branch";
 
   /** Human readable string describing the revision of this package. */
   public static final String revisionString() {

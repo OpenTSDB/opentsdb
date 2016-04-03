@@ -36,17 +36,12 @@ import org.hbase.async.Scanner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
-
 import org.mockito.ArgumentMatcher;
 import org.mockito.InOrder;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.argThat;
@@ -271,6 +266,10 @@ public final class TestUniqueId {
     final byte[] id = { 0, 0, 5 };
     final Config config = mock(Config.class);
     when(config.enable_realtime_uid()).thenReturn(false);
+    when(config.auto_whitelist()).thenReturn(false);
+    when(config.auto_metric_patterns()).thenReturn(".*");
+    when(config.auto_tagk_patterns()).thenReturn(".*");
+    when(config.auto_tagv_patterns()).thenReturn(".*");
     final TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(config);
     uid.setTSDB(tsdb);
@@ -297,7 +296,130 @@ public final class TestUniqueId {
     // Reverse + forward mappings.
     verify(client, times(2)).compareAndSet(anyPut(), emptyArray());
   }
-  
+
+  @Test  // Test the creation of an ID with no problem.
+  public void getOrCreateIdAssignWhitelistedIdWithSuccess() {
+    uid = new UniqueId(client, table, METRIC, 3);
+    final byte[] id = { 0, 0, 5 };
+    final Config config = mock(Config.class);
+    when(config.enable_realtime_uid()).thenReturn(false);
+    when(config.auto_whitelist()).thenReturn(true);
+    when(config.auto_metric_patterns()).thenReturn(".*");
+    when(config.auto_tagk_patterns()).thenReturn(".*");
+    when(config.auto_tagv_patterns()).thenReturn(".*");
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    uid.setTSDB(tsdb);
+
+    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
+            .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+    // Watch this! ______,^   I'm writing C++ in Java!
+
+    when(client.atomicIncrement(incrementForRow(MAXID)))
+            .thenReturn(Deferred.fromResult(5L));
+
+    when(client.compareAndSet(anyPut(), emptyArray()))
+            .thenReturn(Deferred.fromResult(true))
+            .thenReturn(Deferred.fromResult(true));
+
+    assertArrayEquals(id, uid.getOrCreateId("foo"));
+    // Should be a cache hit since we created that entry.
+    assertArrayEquals(id, uid.getOrCreateId("foo"));
+    // Should be a cache hit too for the same reason.
+    assertEquals("foo", uid.getName(id));
+
+    verify(client).get(anyGet()); // Initial Get.
+    verify(client).atomicIncrement(incrementForRow(MAXID));
+    // Reverse + forward mappings.
+    verify(client, times(2)).compareAndSet(anyPut(), emptyArray());
+  }
+
+  @Test(expected=RuntimeException.class)
+  public void getOrCreateIdAssignWhitelistedIdWithFailedWhitelist() {
+    uid = new UniqueId(client, table, METRIC, 3);
+    final byte[] id = { 0, 0, 5 };
+    final Config config = mock(Config.class);
+    when(config.enable_realtime_uid()).thenReturn(false);
+    when(config.auto_whitelist()).thenReturn(true);
+    when(config.auto_metric_patterns()).thenReturn("^nomatch.*$");
+    when(config.auto_tagk_patterns()).thenReturn("^sys\\.cpu\\.*$");
+    when(config.auto_tagv_patterns()).thenReturn("^sys\\.cpu\\.*$");
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    uid.setTSDB(tsdb);
+
+    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
+            .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+    // Watch this! ______,^   I'm writing C++ in Java!
+
+    when(client.atomicIncrement(incrementForRow(MAXID)))
+            .thenReturn(Deferred.fromResult(5L));
+
+    when(client.compareAndSet(anyPut(), emptyArray()))
+            .thenReturn(Deferred.fromResult(true))
+            .thenReturn(Deferred.fromResult(true));
+
+    assertArrayEquals(id, uid.getOrCreateId("foo"));
+    // Should be a cache hit since we created that entry.
+    assertArrayEquals(id, uid.getOrCreateId("foo"));
+    // Should be a cache hit too for the same reason.
+    assertEquals("foo", uid.getName(id));
+
+    verify(client).get(anyGet()); // Initial Get.
+    verify(client).atomicIncrement(incrementForRow(MAXID));
+    // Reverse + forward mappings.
+    verify(client, times(2)).compareAndSet(anyPut(), emptyArray());
+  }
+
+  @Test  // Test the creation of an ID with no problem.
+  public void checkMetricAgainstWhitelist() {
+    setupWhitelists(METRIC);
+    assertTrue(uid.checkNameIsValid("sys.cpu.user"));
+  }
+
+  @Test  // Test the creation of an ID with no problem.
+  public void checkTagKAgainstWhitelist() {
+    setupWhitelists(TAGK);
+    assertTrue(uid.checkNameIsValid("sys.cpu.user"));
+  }
+
+  @Test  // Test the creation of an ID with no problem.
+  public void checkTagVAgainstWhitelist() {
+    setupWhitelists(TAGV);
+    assertTrue(uid.checkNameIsValid("sys.cpu.user"));
+  }
+
+  @Test
+  public void checkMetricAgainstWhitelistFails() {
+    setupWhitelists(METRIC);
+    assertFalse(uid.checkNameIsValid("foo.badmetric"));
+  }
+
+  @Test
+  public void checkTagKAgainstWhitelistFails() {
+    setupWhitelists(TAGK);
+    assertFalse(uid.checkNameIsValid("foo.badmetric"));
+  }
+
+  @Test
+  public void checkTagVAgainstWhitelistFails() {
+    setupWhitelists(TAGV);
+    assertFalse(uid.checkNameIsValid("foo.badmetric"));
+  }
+
+  private void setupWhitelists(String type) {
+    uid = new UniqueId(client, table, type, 3);
+    final Config config = mock(Config.class);
+    when(config.enable_realtime_uid()).thenReturn(false);
+    when(config.auto_whitelist()).thenReturn(true);
+    when(config.auto_metric_patterns()).thenReturn("sys.*");
+    when(config.auto_tagk_patterns()).thenReturn("sys.*");
+    when(config.auto_tagv_patterns()).thenReturn("sys.*");
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    uid.setTSDB(tsdb);
+  }
+
   @Test  // Test the creation of an ID when unable to increment MAXID
   public void getOrCreateIdUnableToIncrementMaxId() throws Exception {
     PowerMockito.mockStatic(Thread.class);
@@ -428,6 +550,10 @@ public final class TestUniqueId {
     uid = new UniqueId(client, table, METRIC, 3);
     final Config config = mock(Config.class);
     when(config.enable_realtime_uid()).thenReturn(false);
+    when(config.auto_whitelist()).thenReturn(false);
+    when(config.auto_metric_patterns()).thenReturn(".*");
+    when(config.auto_tagk_patterns()).thenReturn(".*");
+    when(config.auto_tagv_patterns()).thenReturn(".*");
     final TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(config);
     uid.setTSDB(tsdb);
@@ -460,6 +586,10 @@ public final class TestUniqueId {
     uid = new UniqueId(client, table, METRIC, 3);
     final Config config = mock(Config.class);
     when(config.enable_realtime_uid()).thenReturn(false);
+    when(config.auto_whitelist()).thenReturn(false);
+    when(config.auto_metric_patterns()).thenReturn(".*");
+    when(config.auto_tagk_patterns()).thenReturn(".*");
+    when(config.auto_tagv_patterns()).thenReturn(".*");
     final TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(config);
     uid.setTSDB(tsdb);
@@ -1180,6 +1310,12 @@ public final class TestUniqueId {
   // ----------------- //
 
   private void setupStorage() throws Exception {
+    final Config config = mock(Config.class);
+    when(config.auto_whitelist()).thenReturn(false);
+    when(config.auto_metric_patterns()).thenReturn(".*");
+    when(config.auto_tagk_patterns()).thenReturn(".*");
+    when(config.auto_tagv_patterns()).thenReturn(".*");
+    when(tsdb.getConfig()).thenReturn(config);
     when(tsdb.getClient()).thenReturn(client);
     storage = new MockBase(tsdb, client, true, true, true, true);
     

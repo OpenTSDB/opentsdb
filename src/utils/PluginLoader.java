@@ -104,7 +104,7 @@ public final class PluginLoader {
     
     while(it.hasNext()) {
       T plugin = it.next();
-      if (plugin.getClass().getName().equals(name)) {
+      if (plugin.getClass().getName().equals(name) || plugin.getClass().getSuperclass().getName().equals(name)) {
         return plugin;
       }
     }

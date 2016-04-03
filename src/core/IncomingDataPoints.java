@@ -50,8 +50,8 @@ final class IncomingDataPoints implements WritableDataPoints {
   private final TSDB tsdb;
 
   /**
-   * The row key. 3 bytes for the metric name, 4 bytes for the base timestamp, 6
-   * bytes per tag (3 for the name, 3 for the value).
+   * The row key. Optional salt + 3 bytes for the metric name, 4 bytes for 
+   * the base timestamp, 6 bytes per tag (3 for the name, 3 for the value).
    */
   private byte[] row;
 
@@ -430,6 +430,12 @@ final class IncomingDataPoints implements WritableDataPoints {
     return tsdb.metrics.getNameAsync(id);
   }
 
+  @Override
+  public byte[] metricUID() {
+    return Arrays.copyOfRange(row, Const.SALT_WIDTH(), 
+        Const.SALT_WIDTH() + TSDB.metrics_width());
+  }
+  
   public Map<String, String> getTags() {
     try {
       return getTagsAsync().joinUninterruptibly();
@@ -458,6 +464,11 @@ final class IncomingDataPoints implements WritableDataPoints {
     return Deferred.fromResult(empty);
   }
 
+  @Override
+  public List<byte[]> getAggregatedTagUids() {
+    return Collections.emptyList();
+  }
+  
   public List<String> getTSUIDs() {
     return Collections.emptyList();
   }

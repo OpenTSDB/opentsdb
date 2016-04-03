@@ -13,10 +13,14 @@
 package net.opentsdb.tools;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
@@ -34,6 +38,8 @@ import net.opentsdb.tsd.PipelineFactory;
 import net.opentsdb.tsd.RpcManager;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.FileSystem;
+import net.opentsdb.utils.Pair;
+import net.opentsdb.utils.PluginLoader;
 import net.opentsdb.utils.Threads;
 
 /**
@@ -52,6 +58,11 @@ final class TSDMain {
     }
     System.exit(retval);
   }
+
+  /** A map of configured filters for use in querying */
+  private static Map<String, Pair<Class<?>, Constructor<? extends StartupPlugin>>>
+          startupPlugin_filter_map = new HashMap<String,
+          Pair<Class<?>, Constructor<? extends StartupPlugin>>>();
 
   private static final short DEFAULT_FLUSH_INTERVAL = 1000;
   
@@ -80,12 +91,17 @@ final class TSDMain {
                    "Number for async io workers (default: cpu * 2).");
     argp.addOption("--async-io", "true|false",
                    "Use async NIO (default true) or traditional blocking io");
+    argp.addOption("--read-only", "true|false",
+                   "Set tsd.mode to ro (default false)");
     argp.addOption("--backlog", "NUM",
                    "Size of connection attempt queue (default: 3072 or kernel"
                    + " somaxconn.");
+    argp.addOption("--max-connections", "NUM",
+                   "Maximum number of connections to accept");
     argp.addOption("--flush-interval", "MSEC",
                    "Maximum time for which a new data point can be buffered"
                    + " (default: " + DEFAULT_FLUSH_INTERVAL + ").");
+    argp.addOption("--statswport", "Force all stats to include the port");
     CliOptions.addAutoMetricFlag(argp);
     args = CliOptions.parse(argp, args);
     args = null; // free().
@@ -125,6 +141,12 @@ final class TSDMain {
     }
 
     final ServerSocketChannelFactory factory;
+    int connectionsLimit = 0;
+    try {
+      connectionsLimit = config.getInt("tsd.core.connections.limit");
+    } catch (NumberFormatException nfe) {
+      usage(argp, "Invalid connections limit", 1);
+    }
     if (config.getBoolean("tsd.network.async_io")) {
       int workers = Runtime.getRuntime().availableProcessors() * 2;
       if (config.hasProperty("tsd.network.worker_threads")) {
@@ -145,9 +167,21 @@ final class TSDMain {
           Executors.newCachedThreadPool(), Executors.newCachedThreadPool(), 
           new Threads.PrependThreadNamer());
     }
-    
+
+    StartupPlugin startup = null;
+    try {
+      startup = loadStartupPlugins(config);
+    } catch (IllegalArgumentException e) {
+      usage(argp, e.getMessage(), 3);
+    } catch (Exception e) {
+      throw new RuntimeException("Initialization failed", e);
+    }
+
     try {
       tsdb = new TSDB(config);
+      if (startup != null) {
+        tsdb.setStartup(startup);
+      }
       tsdb.initializePlugins(true);
       if (config.getBoolean("tsd.storage.hbase.prefetch_meta")) {
         tsdb.preFetchHBaseMeta();
@@ -163,7 +197,7 @@ final class TSDMain {
       // here to fail fast.
       final RpcManager manager = RpcManager.instance(tsdb);
 
-      server.setPipelineFactory(new PipelineFactory(tsdb, manager));
+      server.setPipelineFactory(new PipelineFactory(tsdb, manager, connectionsLimit));
       if (config.hasProperty("tsd.network.backlog")) {
         server.setOption("backlog", config.getInt("tsd.network.backlog")); 
       }
@@ -184,6 +218,10 @@ final class TSDMain {
       final InetSocketAddress addr = new InetSocketAddress(bindAddress,
           config.getInt("tsd.network.port"));
       server.bind(addr);
+      if (startup != null) {
+        startup.setReady(tsdb);
+      }
+      TSDPort.set(config);
       log.info("Ready to serve on " + addr);
     } catch (Throwable e) {
       factory.releaseExternalResources();
@@ -196,6 +234,45 @@ final class TSDMain {
       throw new RuntimeException("Initialization failed", e);
     }
     // The server is now running in separate threads, we can exit main.
+  }
+
+  private static StartupPlugin loadStartupPlugins(Config config) {
+    Logger log = LoggerFactory.getLogger(TSDMain.class);
+
+    // load the startup plugin if enabled
+    StartupPlugin startup = null;
+
+    if (config.getBoolean("tsd.startup.enable")) {
+      log.debug("Startup Plugin is Enabled");
+      final String plugin_path = config.getString("tsd.core.plugin_path");
+      final String plugin_class = config.getString("tsd.startup.plugin");
+
+      log.debug("Plugin Path: " + plugin_path);
+      try {
+        TSDB.loadPluginPath(plugin_path);
+      } catch (Exception e) {
+        log.error("Error loading plugins from plugin path: " + plugin_path, e);
+      }
+
+      log.debug("Attempt to Load: " + plugin_class);
+      startup = PluginLoader.loadSpecificPlugin(plugin_class, StartupPlugin.class);
+      if (startup == null) {
+        throw new IllegalArgumentException("Unable to locate startup plugin: " +
+                config.getString("tsd.startup.plugin"));
+      }
+      try {
+        startup.initialize(config);
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to initialize startup plugin", e);
+      }
+      log.info("Successfully initialized startup plugin [" +
+              startup.getClass().getCanonicalName() + "] version: "
+              + startup.version());
+    } else {
+      startup = null;
+    }
+
+    return startup;
   }
 
   private static void registerShutdownHook() {

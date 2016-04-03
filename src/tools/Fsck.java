@@ -643,36 +643,40 @@ final class Fsck {
             dp_index++) {
           duplicates.getAndIncrement();
           DP dp = time_map.getValue().get(dp_index);
-          final byte flags = (byte)Internal.getFlagsFromQualifier(dp.kv.qualifier());
-          buf.append("    ")
-            .append("write time: (")
-            .append(dp.kv.timestamp())
-            .append(" - ")
-            .append(new Date(dp.kv.timestamp()))
-            .append(") ")
-            .append(" compacted: (")
-            .append(dp.compacted)
-            .append(")  qualifier: ")
-            .append(Arrays.toString(dp.kv.qualifier()))
-            .append(" value: ")
-            .append(Internal.isFloat(dp.kv.qualifier()) ?
-              Internal.extractFloatingPointValue(dp.value(), 0, flags) :
-              Internal.extractIntegerValue(dp.value(), 0, flags))
-            .append("\n");
-          unique_columns.put(dp.kv.qualifier(), dp.kv.value());
-          if (options.fix() && options.resolveDupes()) {
-            if (compact_row) {
-              // Scheduled for deletion by compaction.
-              duplicates_fixed_comp.getAndIncrement();
-            } else if (!dp.compacted) {
-              LOG.debug("Removing duplicate data point: " + dp.kv);
-              tsdb.getClient().delete(
-                new DeleteRequest(
-                  tsdb.dataTable(), dp.kv.key(), dp.kv.family(), dp.qualifier()
-                )
-              );
-              duplicates_fixed.getAndIncrement();
+          try {
+            final byte flags = (byte)Internal.getFlagsFromQualifier(dp.kv.qualifier());
+            buf.append("    ")
+              .append("write time: (")
+              .append(dp.kv.timestamp())
+              .append(" - ")
+              .append(new Date(dp.kv.timestamp()))
+              .append(") ")
+              .append(" compacted: (")
+              .append(dp.compacted)
+              .append(")  qualifier: ")
+              .append(Arrays.toString(dp.kv.qualifier()))
+              .append(" value: ")
+              .append(Internal.isFloat(dp.kv.qualifier()) ?
+                Internal.extractFloatingPointValue(dp.value(), 0, flags) :
+                Internal.extractIntegerValue(dp.value(), 0, flags))
+              .append("\n");
+            unique_columns.put(dp.kv.qualifier(), dp.kv.value());
+            if (options.fix() && options.resolveDupes()) {
+              if (compact_row) {
+                // Scheduled for deletion by compaction.
+                duplicates_fixed_comp.getAndIncrement();
+              } else if (!dp.compacted) {
+                LOG.debug("Removing duplicate data point: " + dp.kv);
+                tsdb.getClient().delete(
+                  new DeleteRequest(
+                    tsdb.dataTable(), dp.kv.key(), dp.kv.family(), dp.qualifier()
+                  )
+                );
+                duplicates_fixed.getAndIncrement();
+              }
             }
+          } catch (Exception e) {
+            LOG.error("Unexpected exception processing DP: " + dp);
           }
         }
         if (options.lastWriteWins()) {

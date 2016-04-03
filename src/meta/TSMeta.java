@@ -338,15 +338,14 @@ public final class TSMeta {
   }
   
   /**
-   * Attempts to store a new, blank timeseries meta object via a CompareAndSet
+   * Attempts to store a new, blank timeseries meta object
    * <b>Note:</b> This should not be called by user accessible methods as it will 
    * overwrite any data already in the column.
    * <b>Note:</b> This call does not guarantee that the UIDs exist before
    * storing as it should only be called *after* a data point has been recorded
    * or during a meta sync. 
    * @param tsdb The TSDB to use for storage access
-   * @return True if the CAS completed successfully (and no TSMeta existed 
-   * previously), false if something was already stored in the TSMeta column.
+   * @return True if the TSMeta created(or updated) successfully
    * @throws HBaseException if there was an issue fetching
    * @throws IllegalArgumentException if parsing failed
    * @throws JSONException if the object could not be serialized
@@ -587,10 +586,10 @@ public final class TSMeta {
             }
             
             LOG.info("Successfullly created new TSUID entry for: " + meta);
-            final Deferred<TSMeta> meta = getFromStorage(tsdb, tsuid)
-              .addCallbackDeferring(
-                new LoadUIDs(tsdb, UniqueId.uidToString(tsuid)));
-            return meta.addCallbackDeferring(new FetchNewCB());
+            return Deferred.fromResult(meta)
+                    .addCallbackDeferring(
+                            new LoadUIDs(tsdb, UniqueId.uidToString(tsuid)))
+                    .addCallbackDeferring(new FetchNewCB());
           }
           
         }
@@ -611,6 +610,68 @@ public final class TSMeta {
     }
     return tsdb.getClient().atomicIncrement(inc).addCallbackDeferring(
         new TSMetaCB());
+  }
+
+  public static void storeIfNecessary(final TSDB tsdb, final byte[] tsuid) {
+    final GetRequest get = new GetRequest(tsdb.metaTable(), tsuid);
+    get.family(FAMILY);
+    get.qualifier(META_QUALIFIER);
+
+    final class CreateNewCB implements Callback<Deferred<Boolean>, Object> {
+
+      @Override
+      public Deferred<Boolean> call(Object arg0) throws Exception {
+        final TSMeta meta = new TSMeta(tsuid, System.currentTimeMillis() / 1000);
+
+        final class FetchNewCB implements Callback<Deferred<Boolean>, TSMeta> {
+
+          @Override
+          public Deferred<Boolean> call(TSMeta stored_meta) throws Exception {
+
+            // pass to the search plugin
+            tsdb.indexTSMeta(stored_meta);
+
+            // pass through the trees
+            tsdb.processTSMetaThroughTrees(stored_meta);
+
+            return Deferred.fromResult(true);
+          }
+        }
+
+        final class StoreNewCB implements Callback<Deferred<Boolean>, Boolean> {
+
+          @Override
+          public Deferred<Boolean> call(Boolean success) throws Exception {
+            if (!success) {
+              LOG.warn("Unable to save metadata: " + meta);
+              return Deferred.fromResult(false);
+            }
+
+            LOG.info("Successfullly created new TSUID entry for: " + meta);
+            return Deferred.fromResult(meta)
+                    .addCallbackDeferring(
+                            new LoadUIDs(tsdb, UniqueId.uidToString(tsuid)))
+                    .addCallbackDeferring(new FetchNewCB());
+          }
+        }
+
+        return meta.storeNew(tsdb).addCallbackDeferring(new StoreNewCB());
+      }
+    }
+
+    final class ExistsCB implements Callback<Deferred<Boolean>, ArrayList<KeyValue>> {
+
+      @Override
+      public Deferred<Boolean> call(ArrayList<KeyValue> row) throws Exception {
+        if (row == null || row.isEmpty() || row.get(0).value() == null) {
+          return Deferred.fromResult(new Object())
+                         .addCallbackDeferring(new CreateNewCB());
+        }
+        return Deferred.fromResult(true);
+      }
+    }
+
+    tsdb.getClient().get(get).addCallbackDeferring(new ExistsCB());
   }
   
   /**

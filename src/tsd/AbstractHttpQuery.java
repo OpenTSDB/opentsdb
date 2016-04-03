@@ -14,8 +14,10 @@ package net.opentsdb.tsd;
 
 import java.nio.charset.Charset;
 import java.nio.charset.UnsupportedCharsetException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import com.google.common.base.Objects;
 import com.stumbleupon.async.Deferred;
@@ -35,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.stats.QueryStats;
 
 /**
  * Abstract base class for HTTP queries.
@@ -69,6 +72,9 @@ public abstract class AbstractHttpQuery {
 
   /** The {@code TSDB} instance we belong to */
   protected final TSDB tsdb;
+  
+  /** Used for recording query statistics */
+  protected QueryStats stats;
   
   /**
    * Set up required internal state.  For subclasses.
@@ -110,6 +116,58 @@ public abstract class AbstractHttpQuery {
   /** @return The remote address and port in the format <ip>:<port> */
   public String getRemoteAddress() {
     return chan.getRemoteAddress().toString();
+  }
+  
+  /**
+   * Copies the header list and obfuscates the "cookie" header in case it
+   * contains auth tokens, etc. Note that it flattens duplicate headers keys
+   * as comma separated lists per the RFC
+   * @return The full set of headers for this query with the cookie obfuscated
+   */
+  public Map<String, String> getPrintableHeaders() {
+    final Map<String, String> headers = new HashMap<String, String>(
+        request.getHeaders().size());
+    for (final Entry<String, String> header : request.getHeaders()) {
+      if (header.getKey().toLowerCase().equals("cookie")) {
+        // null out the cookies
+        headers.put(header.getKey(), "*******");
+      } else {
+        // http://tools.ietf.org/html/rfc2616#section-4.2
+        if (headers.containsKey(header.getKey())) {
+          headers.put(header.getKey(), 
+              headers.get(header.getKey()) + "," + header.getValue());
+        } else {
+          headers.put(header.getKey(), header.getValue());
+        }
+      }
+    }
+    return headers;
+  }
+  
+  /**
+   * Copies the header list so modifications won't affect the original set. 
+   * Note that it flattens duplicate headers keys as comma separated lists 
+   * per the RFC
+   * @return The full set of headers for this query
+   */
+  public Map<String, String> getHeaders() {
+    final Map<String, String> headers = new HashMap<String, String>(
+        request.getHeaders().size());
+    for (final Entry<String, String> header : request.getHeaders()) {
+      // http://tools.ietf.org/html/rfc2616#section-4.2
+      if (headers.containsKey(header.getKey())) {
+        headers.put(header.getKey(), 
+            headers.get(header.getKey()) + "," + header.getValue());
+      } else {
+        headers.put(header.getKey(), header.getValue());
+      }
+    }
+    return headers;
+  }
+  
+  /** @param stats The stats object to mark after writing is complete */
+  public void setStats(final QueryStats stats) {
+    this.stats = stats;
   }
   
   /** Return the time in nanoseconds that this query object was 
@@ -192,7 +250,6 @@ public abstract class AbstractHttpQuery {
   public List<String> getQueryStringParams(final String paramname) {
     return getQueryString().get(paramname);
   }
-
   
   /**
    * Returns only the path component of the URI as a string
@@ -339,6 +396,9 @@ public abstract class AbstractHttpQuery {
       HttpHeaders.setContentLength(response, 0);
     }
     final ChannelFuture future = chan.write(response);
+    if (stats != null) {
+      future.addListener(new SendSuccess());
+    }
     if (!keepalive) {
       future.addListener(ChannelFutureListener.CLOSE);
     }
@@ -369,10 +429,21 @@ public abstract class AbstractHttpQuery {
       HttpHeaders.setContentLength(response, buf.readableBytes());
     }
     final ChannelFuture future = chan.write(response);
+    if (stats != null) {
+      future.addListener(new SendSuccess());
+    }
     if (!keepalive) {
       future.addListener(ChannelFutureListener.CLOSE);
     }
     done();
+  }
+  
+  /** A simple class that marks a query as complete when the stats are set */
+  private class SendSuccess implements ChannelFutureListener {
+    @Override
+    public void operationComplete(final ChannelFuture future) throws Exception {
+      stats.markSent();
+    }
   }
   
   /** @return Information about the query */

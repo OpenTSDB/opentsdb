@@ -38,4 +38,4 @@ guava-rpm-maker/\.project
 src-main
 src-test
 plugin_test.jar
-/bin/
+bin/

@@ -19,7 +19,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
+import org.hbase.async.HBaseException;
+import org.hbase.async.RpcTimedOutException;
 import org.hbase.async.Bytes.ByteMap;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -42,11 +45,15 @@ import net.opentsdb.core.TSSubQuery;
 import net.opentsdb.core.Tags;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSUIDQuery;
+import net.opentsdb.query.expression.ExpressionTree;
+import net.opentsdb.query.expression.Expressions;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.stats.QueryStats;
+import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.JSON;
 
 /**
  * Handles queries for timeseries datapoints. Each request is parsed into a
@@ -61,6 +68,11 @@ import net.opentsdb.utils.DateTime;
  */
 final class QueryRpc implements HttpRpc {
   private static final Logger LOG = LoggerFactory.getLogger(QueryRpc.class);
+  
+  /** Various counters and metrics for reporting query stats */
+  static final AtomicLong query_invalid = new AtomicLong();
+  static final AtomicLong query_exceptions = new AtomicLong();
+  static final AtomicLong query_success = new AtomicLong();
   
   /**
    * Implements the /api/query endpoint to fetch data from OpenTSDB.
@@ -90,8 +102,13 @@ final class QueryRpc implements HttpRpc {
     
     if (endpoint.toLowerCase().equals("last")) {
       handleLastDataPointQuery(tsdb, query);
+    } else if (endpoint.toLowerCase().equals("gexp")){
+      handleQuery(tsdb, query, true);
+    } else if (endpoint.toLowerCase().equals("exp")) {
+      handleExpressionQuery(tsdb, query);
+      return;
     } else {
-      handleQuery(tsdb, query);
+      handleQuery(tsdb, query, false);
     }
   }
 
@@ -99,23 +116,30 @@ final class QueryRpc implements HttpRpc {
    * Processing for a data point query
    * @param tsdb The TSDB to which we belong
    * @param query The HTTP query to parse/respond
+   * @param allow_expressions Whether or not expressions should be parsed
+   * (based on the endpoint)
    */
-  private void handleQuery(final TSDB tsdb, final HttpQuery query) {
+  private void handleQuery(final TSDB tsdb, final HttpQuery query, 
+      final boolean allow_expressions) {
     final long start = DateTime.currentTimeMillis();
     final TSQuery data_query;
+    final List<ExpressionTree> expressions;
     if (query.method() == HttpMethod.POST) {
       switch (query.apiVersion()) {
       case 0:
       case 1:
         data_query = query.serializer().parseQueryV1();
         break;
-      default: 
+      default:
+        query_invalid.incrementAndGet();
         throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
             "Requested API version not implemented", "Version " + 
             query.apiVersion() + " is not implemented");
       }
+      expressions = null;
     } else {
-      data_query = parseQuery(tsdb, query);
+      expressions = new ArrayList<ExpressionTree>();
+      data_query = parseQuery(tsdb, query, expressions);
     }
     
     if (query.getAPIMethod() == HttpMethod.DELETE &&
@@ -135,8 +159,10 @@ final class QueryRpc implements HttpRpc {
     // if the user tried this query multiple times from the same IP and src port
     // they'll be rejected on subsequent calls
     final QueryStats query_stats = 
-        new QueryStats(query.getRemoteAddress(), data_query);
+        new QueryStats(query.getRemoteAddress(), data_query, 
+            query.getPrintableHeaders());
     data_query.setQueryStats(query_stats);
+    query.setStats(query_stats);
     
     final int nqueries = data_query.getQueries().size();
     final ArrayList<DataPoints[]> results = new ArrayList<DataPoints[]>(nqueries);
@@ -145,43 +171,56 @@ final class QueryRpc implements HttpRpc {
     /** This has to be attached to callbacks or we may never respond to clients */
     class ErrorCB implements Callback<Object, Exception> {
       public Object call(final Exception e) throws Exception {
+        Throwable ex = e;
         try {
-          if (e instanceof DeferredGroupException) {
-            Throwable ex = e.getCause();
+          LOG.error("Query exception: ", e);
+          if (ex instanceof DeferredGroupException) {
+            ex = e.getCause();
             while (ex != null && ex instanceof DeferredGroupException) {
               ex = ex.getCause();
             }
-            if (ex != null) {
-              if (ex instanceof NoSuchUniqueName) {
-                query_stats.markComplete(HttpResponseStatus.BAD_REQUEST, ex);
-                query.badRequest(new BadRequestException(
-                    HttpResponseStatus.NOT_FOUND, ex.getMessage()));
-                return null;
-              }
-              LOG.error("Query failed", ex);
-              query_stats.markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, ex);
-              query.badRequest(new BadRequestException(ex));
-            } else {
-              LOG.error("Unable to find the cause of the DGE", e);
-              query_stats.markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
-              query.badRequest(new BadRequestException(e));
+            if (ex == null) {
+              LOG.error("The deferred group exception didn't have a cause???");
             }
-          } else if (e.getClass() == QueryException.class) {
-            query_stats.markComplete(HttpResponseStatus.REQUEST_TIMEOUT, e);
-            query.badRequest(new BadRequestException((QueryException)e));
+          } 
+
+          if (ex instanceof RpcTimedOutException) {
+            query_stats.markSerialized(HttpResponseStatus.REQUEST_TIMEOUT, ex);
+            query.badRequest(new BadRequestException(
+                HttpResponseStatus.REQUEST_TIMEOUT, ex.getMessage()));
+            query_exceptions.incrementAndGet();
+          } else if (ex instanceof HBaseException) {
+            query_stats.markSerialized(HttpResponseStatus.FAILED_DEPENDENCY, ex);
+            query.badRequest(new BadRequestException(
+                HttpResponseStatus.FAILED_DEPENDENCY, ex.getMessage()));
+            query_exceptions.incrementAndGet();
+          } else if (ex instanceof QueryException) {
+            query_stats.markSerialized(((QueryException)ex).getStatus(), ex);
+            query.badRequest(new BadRequestException(
+                ((QueryException)ex).getStatus(), ex.getMessage()));
+            query_exceptions.incrementAndGet();
+          } else if (ex instanceof BadRequestException) {
+            query_stats.markSerialized(((BadRequestException)ex).getStatus(), ex);
+            query.badRequest((BadRequestException)ex);
+            query_invalid.incrementAndGet();
+          } else if (ex instanceof NoSuchUniqueName) {
+            query_stats.markSerialized(HttpResponseStatus.BAD_REQUEST, ex);
+            query.badRequest(new BadRequestException(ex));
+            query_invalid.incrementAndGet();
           } else {
-            LOG.error("Query failed", e);
-            query_stats.markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
-            query.badRequest(new BadRequestException(e));
+            query_stats.markSerialized(HttpResponseStatus.INTERNAL_SERVER_ERROR, ex);
+            query.badRequest(new BadRequestException(ex));
+            query_exceptions.incrementAndGet();
           }
-          return null;
-        } catch (RuntimeException ex) {
-          LOG.error("Exception thrown during exception handling", ex);
-          query_stats.markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+          
+        } catch (RuntimeException ex2) {
+          LOG.error("Exception thrown during exception handling", ex2);
+          query_stats.markSerialized(HttpResponseStatus.INTERNAL_SERVER_ERROR, ex2);
           query.sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
-              ex.getMessage().getBytes());
-          return null;
+              ex2.getMessage().getBytes());
+          query_exceptions.incrementAndGet();
         }
+        return null;
       }
     }
     
@@ -192,17 +231,29 @@ final class QueryRpc implements HttpRpc {
     class QueriesCB implements Callback<Object, ArrayList<DataPoints[]>> {
       public Object call(final ArrayList<DataPoints[]> query_results) 
         throws Exception {
-        results.addAll(query_results);
-
+        if (allow_expressions) {
+          // process each of the expressions into a new list, then merge it
+          // with the original. This avoids possible recursion loops.
+          final List<DataPoints[]> expression_results = 
+              new ArrayList<DataPoints[]>(expressions.size());
+          // let exceptions bubble up
+          for (final ExpressionTree expression : expressions) {
+            expression_results.add(expression.evaluate(query_results));
+          }
+          results.addAll(expression_results);
+        } else {
+          results.addAll(query_results);
+        }
+        
         /** Simply returns the buffer once serialization is complete and logs it */
         class SendIt implements Callback<Object, ChannelBuffer> {
           public Object call(final ChannelBuffer buffer) throws Exception {
             query.sendReply(buffer);
+            query_success.incrementAndGet();
             return null;
           }
         }
 
-        query_stats.setTimeStorage(System.currentTimeMillis() - start);
         switch (query.apiVersion()) {
         case 0:
         case 1:
@@ -210,6 +261,7 @@ final class QueryRpc implements HttpRpc {
                globals).addCallback(new SendIt()).addErrback(new ErrorCB());
           break;
         default: 
+          query_invalid.incrementAndGet();
           throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
               "Requested API version not implemented", "Version " + 
               query.apiVersion() + " is not implemented");
@@ -254,6 +306,20 @@ final class QueryRpc implements HttpRpc {
       data_query.buildQueriesAsync(tsdb).addCallback(new BuildCB())
         .addErrback(new ErrorCB());
     }
+  }
+  
+  /**
+   * Handles an expression query
+   * @param tsdb The TSDB to which we belong
+   * @param query The HTTP query to parse/respond
+   * @since 2.3
+   */
+  private void handleExpressionQuery(final TSDB tsdb, final HttpQuery query) {
+    final net.opentsdb.query.pojo.Query v2_query = 
+        JSON.parseToObject(query.getContent(), net.opentsdb.query.pojo.Query.class);
+    v2_query.validate();
+    final QueryExecutor executor = new QueryExecutor(tsdb, v2_query);
+    executor.execute(query);
   }
   
   /**
@@ -314,9 +380,9 @@ final class QueryRpc implements HttpRpc {
       }
     }
     
-    final class FetchCB implements Callback<Object, ArrayList<IncomingDataPoint>> {
+    final class FetchCB implements Callback<Deferred<Object>, ArrayList<IncomingDataPoint>> {
       @Override
-      public Object call(final ArrayList<IncomingDataPoint> dps) throws Exception {
+      public Deferred<Object> call(final ArrayList<IncomingDataPoint> dps) throws Exception {
         synchronized(results) {
           for (final IncomingDataPoint dp : dps) {
             if (dp != null) {
@@ -324,7 +390,7 @@ final class QueryRpc implements HttpRpc {
             }
           }
         }
-        return null;
+        return Deferred.fromResult(null);
       }
       @Override
       public String toString() {
@@ -337,8 +403,8 @@ final class QueryRpc implements HttpRpc {
      * metric and/or tags. If matches were found, it fires off a number of
      * getLastPoint requests, adding the deferreds to the calls list
      */
-    final class TSUIDQueryCB implements Callback<Object, ByteMap<Long>> {
-      public Object call(final ByteMap<Long> tsuids) throws Exception {
+    final class TSUIDQueryCB implements Callback<Deferred<Object>, ByteMap<Long>> {
+      public Deferred<Object> call(final ByteMap<Long> tsuids) throws Exception {
         if (tsuids == null || tsuids.isEmpty()) {
           return null;
         }
@@ -349,8 +415,7 @@ final class QueryRpc implements HttpRpc {
               data_query.getResolveNames(), data_query.getBackScan(), 
               entry.getValue()));
         }
-        calls.add(Deferred.group(deferreds).addCallback(new FetchCB()));
-        return null;
+        return Deferred.group(deferreds).addCallbackDeferring(new FetchCB());
       }
       @Override
       public String toString() {
@@ -397,12 +462,13 @@ final class QueryRpc implements HttpRpc {
             deferreds.add(tsuid_query.getLastPoint(data_query.getResolveNames(), 
                 data_query.getBackScan()));
           } else {
-            calls.add(tsuid_query.getLastWriteTimes().addCallback(new TSUIDQueryCB()));
+            calls.add(tsuid_query.getLastWriteTimes()
+                .addCallbackDeferring(new TSUIDQueryCB()));
           }
         }
         
         if (deferreds.size() > 0) {
-          calls.add(Deferred.group(deferreds).addCallback(new FetchCB()));
+          calls.add(Deferred.group(deferreds).addCallbackDeferring(new FetchCB()));
         }
       }
       
@@ -432,10 +498,13 @@ final class QueryRpc implements HttpRpc {
    * Parses a query string legacy style query from the URI
    * @param tsdb The TSDB we belong to
    * @param query The HTTP Query for parsing
+   * @param expressions A list of parsed expression trees filled from the URI.
+   * If this is null, it means any expressions in the URI will be skipped.
    * @return A TSQuery if parsing was successful
    * @throws BadRequestException if parsing was unsuccessful
    */
-  public static TSQuery parseQuery(final TSDB tsdb, final HttpQuery query) {
+  public static TSQuery parseQuery(final TSDB tsdb, final HttpQuery query,
+      final List<ExpressionTree> expressions) {
     final TSQuery data_query = new TSQuery();
     
     data_query.setStart(query.getRequiredQueryStringParam("start"));
@@ -488,6 +557,30 @@ final class QueryRpc implements HttpRpc {
       }
     }
     
+    // TODO - testing out the graphite style expressions here with the "exp" 
+    // param that could stand for experimental or expression ;)
+    if (expressions != null) {
+      if (query.hasQueryStringParam("exp")) {
+        final List<String> uri_expressions = query.getQueryStringParams("exp");
+        final List<String> metric_queries = new ArrayList<String>(
+            uri_expressions.size());
+        // parse the expressions into their trees. If one or more expressions 
+        // are improper then it will toss an exception up
+        expressions.addAll(Expressions.parseExpressions(
+            uri_expressions, data_query, metric_queries));
+        // iterate over each of the parsed metric queries and store it in the
+        // TSQuery list so that we fetch the data for them.
+        for (final String mq: metric_queries) {
+          parseMTypeSubQuery(mq, data_query);
+        }
+      }
+    } else {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Received a request with an expression but at the "
+            + "wrong endpoint: " + query);
+      }
+    }
+    
     if (data_query.getQueries() == null || data_query.getQueries().size() < 1) {
       throw new BadRequestException("Missing sub queries");
     }
@@ -537,6 +630,8 @@ final class QueryRpc implements HttpRpc {
         }
       } else if (Character.isDigit(parts[x].charAt(0))) {
         sub_query.setDownsample(parts[x]);
+      } else if (parts[x].toLowerCase().startsWith("explicit_tags")) {
+        sub_query.setExplicitTags(true);
       }
     }
     
@@ -699,6 +794,13 @@ final class QueryRpc implements HttpRpc {
     
     query.setQueries(sub_queries);
     return query;
+  }
+  
+  /** @param collector Populates the collector with statistics */
+  public static void collectStats(final StatsCollector collector) {
+    collector.record("http.query.invalid_requests", query_invalid);
+    collector.record("http.query.exceptions", query_exceptions);
+    collector.record("http.query.success", query_success);
   }
   
   public static class LastPointQuery {

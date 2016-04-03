@@ -86,6 +86,12 @@ final class Span implements DataPoints {
     return rows.get(0).metricNameAsync();
   }
 
+  @Override
+  public byte[] metricUID() {
+    checkNotEmpty();
+    return rows.get(0).metricUID();
+  }
+  
   /**
    * @return the list of tag pairs for the rows in this span
    * @throws IllegalStateException if the span was empty
@@ -120,6 +126,11 @@ final class Span implements DataPoints {
   public Deferred<List<String>> getAggregatedTagsAsync() {
     final List<String> empty = Collections.emptyList();
     return Deferred.fromResult(empty);
+  }
+  
+  @Override
+  public List<byte[]> getAggregatedTagUids() {
+    return Collections.emptyList();
   }
 
   /** @return the number of data points in this span, O(n)
@@ -473,6 +484,31 @@ final class Span implements DataPoints {
       return new FillingDownsampler(spanIterator(), start_time, end_time,
         interval_ms, downsampler, fill_policy);
     }
+  }
+  
+  /**
+   * @param start_time The time in milliseconds at which the data begins.
+   * @param end_time The time in milliseconds at which the data ends.
+   * @param downsampler The downsampling specification to use
+   * @param query_start Start of the actual query
+   * @param query_end End of the actual query
+   * @return A new downsampler.
+   * @since 2.3
+   */
+  Downsampler downsampler(final long start_time,
+      final long end_time,
+      final DownsamplingSpecification downsampler,
+      final long query_start,
+      final long query_end) {
+    if (downsampler == null) {
+      return null;
+    }
+    if (FillPolicy.NONE == downsampler.getFillPolicy()) {
+      return new Downsampler(spanIterator(), downsampler, 
+          query_start, query_end);  
+    }
+    return new FillingDownsampler(spanIterator(), start_time, end_time, 
+        downsampler, query_start, query_end);
   }
 
   public int getQueryIndex() {

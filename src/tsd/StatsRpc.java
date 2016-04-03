@@ -331,7 +331,7 @@ public final class StatsRpc implements TelnetRpc, HttpRpc {
     case 0:
     case 1:
       query.sendReply(query.serializer().formatQueryStatsV1(
-          QueryStats.buildStats()));
+          QueryStats.getRunningAndCompleteStats()));
       break;
     default: 
       throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 

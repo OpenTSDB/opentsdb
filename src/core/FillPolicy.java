@@ -12,6 +12,9 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 /**
  * Specification of how to deal with missing intervals when downsampling.
  * @since 2.2
@@ -20,7 +23,8 @@ public enum FillPolicy {
   NONE("none"),
   ZERO("zero"),
   NOT_A_NUMBER("nan"),
-  NULL("null");
+  NULL("null"),
+  SCALAR("scalar");
 
   // The user-friendly name of this policy.
   private final String name;
@@ -33,6 +37,7 @@ public enum FillPolicy {
    * Get this fill policy's user-friendly name.
    * @return this fill policy's user-friendly name.
    */
+  @JsonValue
   public String getName() {
     return name;
   }
@@ -42,7 +47,9 @@ public enum FillPolicy {
    * @param name The user-friendly name of a fill policy.
    * @return an instance of {@link FillPolicy}, or {@code null} if the name
    * does not match any instance.
+   * @throws IllegalArgumentException if the name doesn't match a policy
    */
+  @JsonCreator
   public static FillPolicy fromString(final String name) {
     for (final FillPolicy policy : FillPolicy.values()) {
       if (policy.name.equalsIgnoreCase(name)) {
@@ -50,7 +57,7 @@ public enum FillPolicy {
       }
     }
 
-    return null;
+    throw new IllegalArgumentException("Unrecognized fill policy: " + name);
   }
 }
 

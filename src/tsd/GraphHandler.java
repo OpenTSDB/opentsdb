@@ -851,7 +851,7 @@ final class GraphHandler implements HttpRpc {
    * @throws IllegalArgumentException if the metric or tags were malformed.
    */
   private static Query[] parseQuery(final TSDB tsdb, final HttpQuery query) {
-    final TSQuery q = QueryRpc.parseQuery(tsdb, query);
+    final TSQuery q = QueryRpc.parseQuery(tsdb, query, null);
     q.validateAndSetQuery();
     return q.buildQueries(tsdb);
   }
