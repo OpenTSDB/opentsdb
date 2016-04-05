@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #
 # This little script can be used to replace TSDs while performing prolonged
 # HBase or HDFS maintenances.  It runs a simple, low-end TCP server to accept

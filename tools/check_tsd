@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #
 # Script which queries TSDB with a given metric and alerts based on
 # supplied threshold.  Compatible with Nagios output format, so can be
