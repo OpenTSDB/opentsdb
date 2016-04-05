@@ -18,6 +18,7 @@ package net.opentsdb.stats;
 
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.PluginLoader;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -26,6 +27,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -47,9 +49,10 @@ public class TestLatencyStats {
   private Config config;
   
   @Before
-  public void before() {
+  public void before() throws Exception {
     config = mock(Config.class);
     LatencyStats.clear();
+    PluginLoader.loadJAR("plugin_test.jar");
   }
   
   @Test
