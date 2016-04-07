@@ -15,10 +15,13 @@ package net.opentsdb.uid;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
@@ -112,6 +115,9 @@ public final class UniqueId implements UniqueIdInterface {
   /** Map of pending UID assignments */
   private final HashMap<String, Deferred<byte[]>> pending_assignments =
     new HashMap<String, Deferred<byte[]>>();
+  /** Set of UID rename */
+  private final Set<String> renaming_id_names =
+    Collections.synchronizedSet(new HashSet<String>());
 
   /** Number of times we avoided reading from HBase thanks to the cache. */
   private volatile int cache_hits;
@@ -926,6 +932,7 @@ public final class UniqueId implements UniqueIdInterface {
    */
   public void rename(final String oldname, final String newname) {
     final byte[] row = getId(oldname);
+    final String row_string = fromBytes(row);
     {
       byte[] id = null;
       try {
@@ -939,6 +946,15 @@ public final class UniqueId implements UniqueIdInterface {
           + " assigned ID=" + Arrays.toString(id));
       }
     }
+
+    if (renaming_id_names.contains(row_string)
+        || renaming_id_names.contains(newname)) {
+      throw new IllegalArgumentException("Ongoing rename on the same ID(\""
+        + Arrays.toString(row) + "\") or an identical new name(\"" + newname
+        + "\")");
+    }
+    renaming_id_names.add(row_string);
+    renaming_id_names.add(newname);
 
     final byte[] newnameb = toBytes(newname);
 
@@ -955,6 +971,8 @@ public final class UniqueId implements UniqueIdInterface {
       LOG.error("When trying rename(\"" + oldname
         + "\", \"" + newname + "\") on " + this + ": Failed to update reverse"
         + " mapping for ID=" + Arrays.toString(row), e);
+      renaming_id_names.remove(row_string);
+      renaming_id_names.remove(newname);
       throw e;
     }
 
@@ -968,6 +986,8 @@ public final class UniqueId implements UniqueIdInterface {
       LOG.error("When trying rename(\"" + oldname
         + "\", \"" + newname + "\") on " + this + ": Failed to create the"
         + " new forward mapping with ID=" + Arrays.toString(row), e);
+      renaming_id_names.remove(row_string);
+      renaming_id_names.remove(newname);
       throw e;
     }
 
@@ -992,6 +1012,9 @@ public final class UniqueId implements UniqueIdInterface {
         + " old forward mapping for ID=" + Arrays.toString(row);
       LOG.error("WTF?  " + msg, e);
       throw new RuntimeException(msg, e);
+    } finally {
+      renaming_id_names.remove(row_string);
+      renaming_id_names.remove(newname);
     }
     // Success!
   }
