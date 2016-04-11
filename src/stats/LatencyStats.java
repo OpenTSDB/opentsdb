@@ -38,43 +38,31 @@ public class LatencyStats {
   /**
    * Get the latency stats plugin for a given measurement point.
    * @param config The configuration for this TSDB instance
-   * @param configName The named measurement point
+   * @param instanceName The named measurement point
    * @param metricName The name of the metric to emit aggregations to
    */
-  public static LatencyStatsPlugin getInstance(Config config, String configName, String metricName) {
-    return getInstance(config, configName, metricName, null);
+  public static LatencyStatsPlugin getInstance(Config config, String instanceName, String metricName) {
+    return getInstance(config, instanceName, metricName, null);
   }
 
   /**
    * Get the latency stats plugin for a given measurement point.
    * @param config The configuration for this TSDB instance
-   * @param configName The named measurement point
+   * @param instanceName The named measurement point
    * @param metricName The name of the metric to emit aggregations to
    * @param xtratag    Extra tags to use when emitting aggregations
    */
-  public static LatencyStatsPlugin getInstance(Config config, String configName, String metricName, String xtratag) {
+  public static LatencyStatsPlugin getInstance(Config config, String instanceName, String metricName, String xtratag) {
     // simple existence check
-    if (instances.containsKey(configName)) {
-      return instances.get(configName);
+    if (instances.containsKey(instanceName)) {
+      return instances.get(instanceName);
     }
     
     // need to create one..
-    String specificConfigKey = "tsd.latency_stats.plugin." + configName;
-    String defaultConfigKey = "tsd.latency_stats.plugin";
-    
-    String configKey = null;
-    boolean pluginConfigured = false;
-    if (config.hasProperty(specificConfigKey)) {
-      configKey = specificConfigKey;
-      pluginConfigured = true;
-    }
-    else if (config.hasProperty(defaultConfigKey)) {
-      configKey = defaultConfigKey;
-      pluginConfigured = true;
-    }
+    final String configKey = "tsd.latency_stats.plugin";
     
     LatencyStatsPlugin ret;
-    if (pluginConfigured) {
+    if (config.hasProperty(configKey)) {
       ret = PluginLoader.loadSpecificPlugin(
               config.getString(configKey), LatencyStatsPlugin.class);
       if (ret == null) {
@@ -87,25 +75,25 @@ public class LatencyStats {
         throw new RuntimeException(
                 "Failed to initialize latency stats plugin", e);
       }
-      LOG.info("Successfully initialized latency stats plugin - instance for " + configName + " [" +
+      LOG.info("Successfully initialized latency stats plugin - instance for " + instanceName + " [" +
               ret.getClass().getCanonicalName() + "] version: "
               + ret.version());
     } else {
       ret = new Histogram(16000, (short) 2, 100);
     }
     
-    if (instances.putIfAbsent(configName, ret) == null) {
+    if (instances.putIfAbsent(instanceName, ret) == null) {
       ret.start();
     };
-    return instances.get(configName);
+    return instances.get(instanceName);
   }
 
-  public static Deferred<ArrayList<Object>> shutdownAll() {
+  public static List<Deferred<Object>> shutdownAll() {
     List<Deferred<Object>> multi = new ArrayList<Deferred<Object>>(instances.size());
     for (LatencyStatsPlugin p : instances.values()) {
       multi.add(p.shutdown());
     }
-    return Deferred.group(multi);
+    return multi;
   }
 
 

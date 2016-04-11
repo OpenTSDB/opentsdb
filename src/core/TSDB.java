@@ -1088,6 +1088,8 @@ public final class TSDB {
           storage_exception_handler.getClass().getCanonicalName());
       deferreds.add(storage_exception_handler.shutdown());
     }
+    // we always have latency plugins, even if just the default impl
+    deferreds.addAll(LatencyStats.shutdownAll());
     
     // wait for plugins to shutdown before we close the client
     return deferreds.size() > 0

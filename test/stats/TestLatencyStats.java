@@ -57,7 +57,6 @@ public class TestLatencyStats {
   
   @Test
   public void defaultPlugin() throws IOException {
-    when(config.hasProperty("tsd.latency_stats.plugin.default_plugin")).thenReturn(false);
     when(config.hasProperty("tsd.latency_stats.plugin")).thenReturn(false);
     
     LatencyStatsPlugin plugin = LatencyStats.getInstance(config, "default_plugin", "some.stat", "a=b");
@@ -65,8 +64,7 @@ public class TestLatencyStats {
   }
   
   @Test
-  public void globalPlugin() {
-    when(config.hasProperty("tsd.latency_stats.plugin.global_plugin")).thenReturn(false);
+  public void pluginFound() {
     when(config.hasProperty("tsd.latency_stats.plugin")).thenReturn(true);
     when(config.getString("tsd.latency_stats.plugin")).thenReturn("net.opentsdb.stats.DummyLatencyStatsPlugin");
 
@@ -75,8 +73,7 @@ public class TestLatencyStats {
   }
   
   @Test
-  public void globalPluginNotFound() {
-    when(config.hasProperty("tsd.latency_stats.plugin.global_plugin_not_found")).thenReturn(false);
+  public void pluginNotFound() {
     when(config.hasProperty("tsd.latency_stats.plugin")).thenReturn(true);
     when(config.getString("tsd.latency_stats.plugin")).thenReturn("net.opentsdb.stats.MissingPlugin");
 
@@ -90,41 +87,15 @@ public class TestLatencyStats {
   }
   
   @Test
-  public void specificPlugin() {
-    when(config.hasProperty("tsd.latency_stats.plugin.specific_plugin")).thenReturn(true);
-    when(config.hasProperty("tsd.latency_stats.plugin")).thenReturn(false);
-    when(config.getString("tsd.latency_stats.plugin.specific_plugin")).thenReturn("net.opentsdb.stats.DummyLatencyStatsPlugin");
-
-    LatencyStatsPlugin plugin = LatencyStats.getInstance(config, "specific_plugin", "some.stat", "a=b");
-    assertTrue("Specific plugin implementation should be DummyLatencyStatsPlugin", plugin instanceof DummyLatencyStatsPlugin);
-  }
-  
-  @Test
-  public void specificPluginNotFound() {
-    when(config.hasProperty("tsd.latency_stats.plugin.specific_plugin_not_found")).thenReturn(true);
-    when(config.hasProperty("tsd.latency_stats.plugin")).thenReturn(false);
-    when(config.getString("tsd.latency_stats.plugin.specific_plugin_not_found")).thenReturn("net.opentsdb.stats.MissingPlugin");
-
-    try {
-      LatencyStats.getInstance(config, "specific_plugin_not_found", "some.stat", "a=b");
-      fail("Getting a missing plugin should have failed");
-    }
-    catch (Exception e) {
-      assertTrue("Expected message should contain the missing plugin class name", e.getMessage().contains("net.opentsdb.stats.MissingPlugin"));
-    }
-    
-  }
-  
-  @Test
   public void defaultExtraTags() {
     LatencyStatsPlugin mockPlugin = mock(LatencyStatsPlugin.class);
     DummyLatencyStatsPlugin.setMock(mockPlugin);
     try {
-      when(config.hasProperty("tsd.latency_stats.plugin.plugin_lifecycle")).thenReturn(true);
-      when(config.getString("tsd.latency_stats.plugin.plugin_lifecycle")).thenReturn("net.opentsdb.stats.DummyLatencyStatsPlugin");
+      when(config.hasProperty("tsd.latency_stats.plugin")).thenReturn(true);
+      when(config.getString("tsd.latency_stats.plugin")).thenReturn("net.opentsdb.stats.DummyLatencyStatsPlugin");
       when(mockPlugin.shutdown()).thenReturn(Deferred.fromResult(null));
 
-      LatencyStats.getInstance(config, "plugin_lifecycle", "some.stat");
+      LatencyStats.getInstance(config, "extra_tags", "some.stat");
       LatencyStats.shutdownAll();
 
       verify(mockPlugin).initialize(any(Config.class), eq("some.stat"), isNull(String.class));
@@ -139,8 +110,8 @@ public class TestLatencyStats {
     LatencyStatsPlugin mockPlugin = mock(LatencyStatsPlugin.class);
     DummyLatencyStatsPlugin.setMock(mockPlugin);
     try {
-      when(config.hasProperty("tsd.latency_stats.plugin.plugin_lifecycle")).thenReturn(true);
-      when(config.getString("tsd.latency_stats.plugin.plugin_lifecycle")).thenReturn("net.opentsdb.stats.DummyLatencyStatsPlugin");
+      when(config.hasProperty("tsd.latency_stats.plugin")).thenReturn(true);
+      when(config.getString("tsd.latency_stats.plugin")).thenReturn("net.opentsdb.stats.DummyLatencyStatsPlugin");
       when(mockPlugin.shutdown()).thenReturn(Deferred.fromResult(null));
 
       LatencyStats.getInstance(config, "plugin_lifecycle", "some.stat", "a=b");
