@@ -40,7 +40,7 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.query.QueryUtil;
 import net.opentsdb.query.filter.TagVFilter;
-import net.opentsdb.stats.Histogram;
+import net.opentsdb.stats.LatencyStatsPlugin;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.QueryStats.QueryStat;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -60,10 +60,8 @@ final class TsdbQuery implements Query {
 
   /**
    * Keep track of the latency we perceive when doing Scans on HBase.
-   * We want buckets up to 16s, with 2 ms interval between each bucket up to
-   * 100 ms after we which we switch to exponential buckets.
    */
-  static final Histogram scanlatency = new Histogram(16000, (short) 2, 100);
+  private final LatencyStatsPlugin scanlatency;
 
   /**
    * Charset to use with our server-side row-filter.
@@ -138,8 +136,9 @@ final class TsdbQuery implements Query {
   private boolean explicit_tags;
   
   /** Constructor. */
-  public TsdbQuery(final TSDB tsdb) {
+  public TsdbQuery(final TSDB tsdb, LatencyStatsPlugin scanlatency) {
     this.tsdb = tsdb;
+    this.scanlatency = scanlatency;
     enable_fuzzy_filter = tsdb.getConfig()
         .getBoolean("tsd.query.enable_fuzzy_filter");
   }
@@ -554,7 +553,7 @@ final class TsdbQuery implements Query {
       }
       scan_start_time = DateTime.nanoTime();
       return new SaltScanner(tsdb, metric, scanners, spans, scanner_filters,
-          delete, query_stats, query_index).scan();
+          delete, query_stats, query_index, scanlatency).scan();
     }
     
     scan_start_time = DateTime.nanoTime();

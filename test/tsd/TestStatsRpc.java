@@ -32,12 +32,12 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({HttpJsonSerializer.class, TSDB.class, Config.class, 
+@PrepareForTest({HttpJsonSerializer.class, TSDB.class, Config.class,
   HttpQuery.class, Thread.class, HBaseClient.class })
 public class TestStatsRpc {
   private TSDB tsdb;
   private HBaseClient client;
-  
+
   @Before
   public void before() throws Exception {
     tsdb = NettyMocks.getMockedHTTPTSDB();
@@ -51,21 +51,21 @@ public class TestStatsRpc {
     HttpQuery query = NettyMocks.getQuery(tsdb, "/api/stats/threads");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    final String json = 
+    final String json =
         query.response().getContent().toString(Charset.forName("UTF-8"));
     assertNotNull(json);
     // check for some standard JVM threads since we can't mock Thread easily
     assertTrue(json.contains("\"name\":\"Finalizer\""));
     assertTrue(json.contains("java.lang.ref.Finalizer$FinalizerThread.run"));
   }
-  
+
   @Test
   public void printJVMStats() throws Exception {
     final StatsRpc rpc = new StatsRpc();
     HttpQuery query = NettyMocks.getQuery(tsdb, "/api/stats/jvm");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    final String json = 
+    final String json =
         query.response().getContent().toString(Charset.forName("UTF-8"));
     assertNotNull(json);
     assertTrue(json.contains("\"os\":{"));

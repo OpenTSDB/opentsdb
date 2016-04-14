@@ -123,6 +123,9 @@
                 <argument>net/opentsdb/search/DummySearchPlugin.class</argument>
                 <argument>-C</argument>
                 <argument>target/test-classes</argument>
+                <argument>net/opentsdb/stats/DummyLatencyStatsPlugin.class</argument>
+                <argument>-C</argument>
+                <argument>target/test-classes</argument>
                 <argument>net/opentsdb/tsd/DummyHttpSerializer.class</argument>
                 <argument>-C</argument>
                 <argument>target/test-classes</argument>
@@ -142,6 +145,9 @@
                 <argument>-C</argument>
                 <argument>test</argument>
                 <argument>META-INF/services/net.opentsdb.search.SearchPlugin</argument>
+                <argument>-C</argument>
+                <argument>test</argument>
+                <argument>META-INF/services/net.opentsdb.stats.LatencyStatsPlugin</argument>
                 <argument>-C</argument>
                 <argument>test</argument>
                 <argument>META-INF/services/net.opentsdb.tsd.HttpSerializer</argument>

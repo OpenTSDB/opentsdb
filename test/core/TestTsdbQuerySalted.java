@@ -12,13 +12,14 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import net.opentsdb.stats.Histogram;
 import org.junit.Before;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
- * An integration test class that runs all of the tests in 
+ * An integration test class that runs all of the tests in
  * {@see TestTsdbQueryAggregators} but with salting enabled.
  */
 @RunWith(PowerMockRunner.class)
@@ -30,7 +31,7 @@ public class TestTsdbQuerySalted extends TestTsdbQueryQueries {
     PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
     PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(2);
     PowerMockito.when(Const.MAX_NUM_TAGS()).thenReturn((short) 8);
-    
-    query = new TsdbQuery(tsdb);
+
+    query = new TsdbQuery(tsdb, new Histogram());
   }
 }

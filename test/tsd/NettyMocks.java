@@ -21,6 +21,7 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.stats.Histogram;
 import net.opentsdb.utils.Config;
 
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -58,7 +59,7 @@ public final class NettyMocks {
     when(tsdb.getConfig()).thenReturn(config);
     return tsdb;
   }
-  
+
   /**
    * Returns a mocked Channel object that simply sets the name to
    * [fake channel]
@@ -69,13 +70,13 @@ public final class NettyMocks {
     when(chan.toString()).thenReturn("[fake channel]");
     when(chan.isConnected()).thenReturn(true);
     when(chan.isWritable()).thenReturn(true);
-    
+
     final SocketAddress socket = mock(SocketAddress.class);
     when(socket.toString()).thenReturn("192.168.1.1:4243");
     when(chan.getRemoteAddress()).thenReturn(socket);
     return chan;
   }
-  
+
   /**
    * Returns an HttpQuery object with the given URI and the following parameters:
    * Method = GET
@@ -88,11 +89,11 @@ public final class NettyMocks {
    */
   public static HttpQuery getQuery(final TSDB tsdb, final String uri) {
     final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
+    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1,
         HttpMethod.GET, uri);
-    return new HttpQuery(tsdb, req, channelMock);
+    return new HttpQuery(tsdb, req, channelMock, new Histogram(), new GraphHandler(new Histogram(), new Histogram()));
   }
-  
+
   /**
    * Returns an HttpQuery object with the given uri, content and type
    * Method = POST
@@ -102,11 +103,11 @@ public final class NettyMocks {
    * @param content Content to POST (UTF-8 encoding)
    * @return an HttpQuery object
    */
-  public static HttpQuery postQuery(final TSDB tsdb, final String uri, 
+  public static HttpQuery postQuery(final TSDB tsdb, final String uri,
       final String content) {
     return postQuery(tsdb, uri, content, "application/json; charset=UTF-8");
   }
-  
+
   /**
    * Returns an HttpQuery object with the given uri, content and type
    * Method = POST
@@ -117,11 +118,11 @@ public final class NettyMocks {
    * @param type Content-Type value
    * @return an HttpQuery object
    */
-  public static HttpQuery postQuery(final TSDB tsdb, final String uri, 
+  public static HttpQuery postQuery(final TSDB tsdb, final String uri,
       final String content, final String type) {
     return contentQuery(tsdb, uri, content, type, HttpMethod.POST);
   }
-  
+
   /**
    * Returns an HttpQuery object with the given uri, content and type
    * Method = PUT
@@ -131,11 +132,11 @@ public final class NettyMocks {
    * @param content Content to POST (UTF-8 encoding)
    * @return an HttpQuery object
    */
-  public static HttpQuery putQuery(final TSDB tsdb, final String uri, 
+  public static HttpQuery putQuery(final TSDB tsdb, final String uri,
       final String content) {
     return putQuery(tsdb, uri, content, "application/json; charset=UTF-8");
   }
-  
+
   /**
    * Returns an HttpQuery object with the given uri, content and type
    * Method = PUT
@@ -146,11 +147,11 @@ public final class NettyMocks {
    * @param type Content-Type value
    * @return an HttpQuery object
    */
-  public static HttpQuery putQuery(final TSDB tsdb, final String uri, 
+  public static HttpQuery putQuery(final TSDB tsdb, final String uri,
       final String content, final String type) {
     return contentQuery(tsdb, uri, content, type, HttpMethod.PUT);
   }
-  
+
   /**
    * Returns an HttpQuery object with the given uri, content and type
    * Method = DELETE
@@ -160,11 +161,11 @@ public final class NettyMocks {
    * @param content Content to POST (UTF-8 encoding)
    * @return an HttpQuery object
    */
-  public static HttpQuery deleteQuery(final TSDB tsdb, final String uri, 
+  public static HttpQuery deleteQuery(final TSDB tsdb, final String uri,
       final String content) {
     return deleteQuery(tsdb, uri, content, "application/json; charset=UTF-8");
   }
-  
+
   /**
    * Returns an HttpQuery object with the given uri, content and type
    * Method = DELETE
@@ -175,11 +176,11 @@ public final class NettyMocks {
    * @param type Content-Type value
    * @return an HttpQuery object
    */
-  public static HttpQuery deleteQuery(final TSDB tsdb, final String uri, 
+  public static HttpQuery deleteQuery(final TSDB tsdb, final String uri,
       final String content, final String type) {
     return contentQuery(tsdb, uri, content, type, HttpMethod.DELETE);
   }
-  
+
   /**
    * Returns an HttpQuery object with the given settings
    * @param tsdb The TSDB to associate with, needs to be mocked with the Config
@@ -190,28 +191,28 @@ public final class NettyMocks {
    * @param method The HTTP method to use, GET, POST, etc.
    * @return an HttpQuery object
    */
-  public static HttpQuery contentQuery(final TSDB tsdb, final String uri, 
+  public static HttpQuery contentQuery(final TSDB tsdb, final String uri,
       final String content, final String type, final HttpMethod method) {
     final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
+    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1,
         method, uri);
     if (content != null) {
-      req.setContent(ChannelBuffers.copiedBuffer(content, 
+      req.setContent(ChannelBuffers.copiedBuffer(content,
           Charset.forName("UTF-8")));
     }
     req.headers().set("Content-Type", type);
-    return new HttpQuery(tsdb, req, channelMock);
+    return new HttpQuery(tsdb, req, channelMock, new Histogram(), new GraphHandler(new Histogram(), new Histogram()));
   }
 
-  /** @param the query to mock a future callback for */
+  /** @param query the query to mock a future callback for */
   public static void mockChannelFuture(final HttpQuery query) {
     final ChannelFuture future = new DefaultChannelFuture(query.channel(), false);
     when(query.channel().write(any(ChannelBuffer.class))).thenReturn(future);
     future.setSuccess();
   }
-  
+
   /**
-   * Returns a simple pipeline with an HttpRequestDecoder and an 
+   * Returns a simple pipeline with an HttpRequestDecoder and an
    * HttpResponseEncoder. No mocking, returns an actual pipeline
    * @return The pipeline
    */

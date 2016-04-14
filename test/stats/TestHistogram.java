@@ -12,10 +12,26 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.stats;
 
-import junit.framework.TestCase;
+import net.opentsdb.utils.Config;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
-public final class TestHistogram extends TestCase {
+import java.io.IOException;
 
+import static junit.framework.Assert.assertNotNull;
+import static junit.framework.Assert.assertNull;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.verify;
+import static org.powermock.api.mockito.PowerMockito.mock;
+
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({StatsCollector.class, Config.class})
+public final class TestHistogram {
+
+  @Test
   public void test_percentile_empty_histogram() {
     final Histogram histo = new Histogram(16000, (short) 2, 100);
     assertEquals(0, histo.percentile(1));
@@ -23,6 +39,7 @@ public final class TestHistogram extends TestCase {
     assertEquals(0, histo.percentile(99));
   }
 
+  @Test
   public void test_16Max_1Interval_5Cutoff() {
     final Histogram histo = new Histogram(16, (short) 1, 5);
     assertEquals(10, histo.buckets());
@@ -63,6 +80,7 @@ public final class TestHistogram extends TestCase {
     assertBucketEquals(histo, 9, 1);
   }
 
+  @Test
   public void test_16Max_2Interval_5Cutoff() {
     final Histogram histo = new Histogram(16, (short) 2, 5);
     assertEquals(6, histo.buckets());
@@ -105,6 +123,7 @@ public final class TestHistogram extends TestCase {
     assertBucketEquals(histo, 5, 1);
   }
 
+  @Test
   public void test_160Max_20Interval_50Cutoff() {
     final Histogram histo = new Histogram(160, (short) 20, 50);
     assertEquals(6, histo.buckets());
@@ -154,6 +173,46 @@ public final class TestHistogram extends TestCase {
     assertBucketEquals(histo, 3, 2);
     assertBucketEquals(histo, 4, 4);
     assertBucketEquals(histo, 5, 2);
+  }
+
+  @Test
+  public void statsCollection() throws IOException {
+    StatsCollector collector = mock(StatsCollector.class);
+    Config config = mock(Config.class);
+    
+    LatencyStatsPlugin histo = new Histogram();
+    histo.initialize(config, "tsd.somestat.latency", "type=t");
+    
+    histo.collectStats(collector);
+    
+    verify(collector).record("tsd.somestat.latency_50pct", 0, "type=t");
+    verify(collector).record("tsd.somestat.latency_75pct", 0, "type=t");
+    verify(collector).record("tsd.somestat.latency_90pct", 0, "type=t");
+    verify(collector).record("tsd.somestat.latency_95pct", 0, "type=t");
+  }
+  
+  @Test
+  public void startNoErrors() {
+    LatencyStatsPlugin histo = new Histogram();
+    histo.start();
+  }
+  
+  @Test
+  public void shutdownNoErros() throws Exception {
+    LatencyStatsPlugin histo = new Histogram();
+    assertNull(histo.shutdown().join());
+  }
+  
+  @Test
+  public void initialiseNoErrors() {
+    LatencyStatsPlugin histo = new Histogram();
+    histo.initialize(mock(Config.class), "some.metric", "");
+  }
+  
+  @Test
+  public void version() {
+    LatencyStatsPlugin histo = new Histogram();
+    assertNotNull(histo.version());
   }
 
   static void assertBucketEquals(final Histogram histo,

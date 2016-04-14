@@ -35,6 +35,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
+import net.opentsdb.stats.LatencyStatsPlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,12 +70,10 @@ final class GraphHandler implements HttpRpc {
     = new AtomicInteger();
 
   /** Keep track of the latency of graphing requests. */
-  private static final Histogram graphlatency =
-    new Histogram(16000, (short) 2, 100);
+  private final LatencyStatsPlugin graphlatency;
 
   /** Keep track of the latency (in ms) introduced by running Gnuplot. */
-  private static final Histogram gnuplotlatency =
-    new Histogram(16000, (short) 2, 100);
+  private final LatencyStatsPlugin gnuplotlatency;
 
   /** Executor to run Gnuplot in separate bounded thread pool. */
   private final ThreadPoolExecutor gnuplot;
@@ -82,7 +81,10 @@ final class GraphHandler implements HttpRpc {
   /**
    * Constructor.
    */
-  public GraphHandler() {
+  public GraphHandler(LatencyStatsPlugin graphlatency, LatencyStatsPlugin gnuplotlatency) {
+    this.graphlatency = graphlatency;
+    this.gnuplotlatency = gnuplotlatency;
+
     // Gnuplot is mostly CPU bound and does only a little bit of IO at the
     // beginning to read the input data and at the end to write its output.
     // We want to avoid running too many Gnuplot instances concurrently as
@@ -213,7 +215,7 @@ final class GraphHandler implements HttpRpc {
     }
 
     try {
-      gnuplot.execute(new RunGnuplot(query, max_age, plot, basepath,
+      gnuplot.execute(new RunGnuplot(this, query, max_age, plot, basepath,
                                      aggregated_tags, npoints));
     } catch (RejectedExecutionException e) {
       query.internalError(new Exception("Too many requests pending,"
@@ -260,6 +262,7 @@ final class GraphHandler implements HttpRpc {
   // Runs Gnuplot in a subprocess to generate the graph.
   private static final class RunGnuplot implements Runnable {
 
+    private final GraphHandler outer;
     private final HttpQuery query;
     private final int max_age;
     private final Plot plot;
@@ -267,12 +270,14 @@ final class GraphHandler implements HttpRpc {
     private final HashSet<String>[] aggregated_tags;
     private final int npoints;
 
-    public RunGnuplot(final HttpQuery query,
+    public RunGnuplot(final GraphHandler outer,
+                      final HttpQuery query,
                       final int max_age,
                       final Plot plot,
                       final String basepath,
                       final HashSet<String>[] aggregated_tags,
                       final int npoints) {
+      this.outer = outer;
       this.query = query;
       this.max_age = max_age;
       this.plot = plot;
@@ -299,7 +304,7 @@ final class GraphHandler implements HttpRpc {
     }
 
     private void execute() throws IOException {
-      final int nplotted = runGnuplot(query, basepath, plot);
+      final int nplotted = outer.runGnuplot(query, basepath, plot);
       if (query.hasQueryStringParam("json")) {
         final HashMap<String, Object> results = new HashMap<String, Object>();
         results.put("plotted", nplotted);
@@ -321,7 +326,7 @@ final class GraphHandler implements HttpRpc {
       }
 
       // TODO(tsuna): Expire old files from the on-disk cache.
-      graphlatency.add(query.processingTimeMillis());
+      outer.graphlatency.add(query.processingTimeMillis());
       graphs_generated.incrementAndGet();
     }
 
@@ -336,9 +341,9 @@ final class GraphHandler implements HttpRpc {
    * Collects the stats and metrics tracked by this instance.
    * @param collector The collector to use.
    */
-  public static void collectStats(final StatsCollector collector) {
-    collector.record("http.latency", graphlatency, "type=graph");
-    collector.record("http.latency", gnuplotlatency, "type=gnuplot");
+  public void collectStats(final StatsCollector collector) {
+    graphlatency.collectStats(collector);
+    gnuplotlatency.collectStats(collector);
     collector.record("http.graph.requests", graphs_diskcache_hit, "cache=disk");
     collector.record("http.graph.requests", graphs_generated, "cache=miss");
   }
@@ -354,7 +359,7 @@ final class GraphHandler implements HttpRpc {
     qs.remove("png");
     qs.remove("json");
     qs.remove("ascii");
-    return tsdb.getConfig().getDirectoryName("tsd.http.cachedir") + 
+    return tsdb.getConfig().getDirectoryName("tsd.http.cachedir") +
         Integer.toHexString(qs.hashCode());
   }
 
@@ -713,7 +718,7 @@ final class GraphHandler implements HttpRpc {
    * graph from the file it produces, or if we have been interrupted.
    * @throws GnuplotException if Gnuplot returns non-zero.
    */
-  static int runGnuplot(final HttpQuery query,
+  int runGnuplot(final HttpQuery query,
                         final String basepath,
                         final Plot plot) throws IOException {
     final int nplotted = plot.dumpToFiles(basepath);
@@ -841,7 +846,7 @@ final class GraphHandler implements HttpRpc {
     writer.print(timestamp / 1000L);
     writer.print(' ');
   }
-  
+
   /**
    * Parses the {@code /q} query in a list of {@link Query} objects.
    * @param tsdb The TSDB to use.
@@ -855,7 +860,7 @@ final class GraphHandler implements HttpRpc {
     q.validateAndSetQuery();
     return q.buildQueries(tsdb);
   }
-  
+
   private static final PlotThdFactory thread_factory = new PlotThdFactory();
 
   private static final class PlotThdFactory implements ThreadFactory {

@@ -61,10 +61,11 @@ import net.opentsdb.query.expression.ExpressionFactory;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
-import net.opentsdb.tools.StartupPlugin;
-import net.opentsdb.stats.Histogram;
+import net.opentsdb.stats.LatencyStats;
+import net.opentsdb.stats.LatencyStatsPlugin;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.tools.StartupPlugin;
 
 /**
  * Thread-safe implementation of the TSDB client.
@@ -138,6 +139,16 @@ public final class TSDB {
   private static final AtomicLong datapoints_added = new AtomicLong();
 
   /**
+   * Keep track of the latency (in ms) we perceive sending edits to HBase.
+   */
+  private LatencyStatsPlugin putlatency;
+
+  /**
+   * Keep track of the latency (in ms) we perceive doing scans HBase.
+   */
+  private LatencyStatsPlugin scanlatency;
+
+    /**
    * Constructor
    * @param client An initialized HBase client object
    * @param config An initialized configuration object
@@ -226,6 +237,10 @@ public final class TSDB {
     // load up the functions that require the TSDB object
     ExpressionFactory.addTSDBFunctions(this);
     
+
+    putlatency = LatencyStats.getInstance(config, "hbase_put", "hbase.latency", "method=put");
+    scanlatency = LatencyStats.getInstance(config, "hbase_scan", "hbase.latency", "method=scan");
+
     LOG.debug(config.dumpConfiguration());
   }
   
@@ -588,7 +603,7 @@ public final class TSDB {
 
     collector.addExtraTag("class", "IncomingDataPoints");
     try {
-      collector.record("hbase.latency", IncomingDataPoints.putlatency, "method=put");
+      putlatency.collectStats(collector);
     } finally {
       collector.clearExtraTag("class");
     }
@@ -602,7 +617,7 @@ public final class TSDB {
 
     collector.addExtraTag("class", "TsdbQuery");
     try {
-      collector.record("hbase.latency", TsdbQuery.scanlatency, "method=scan");
+      scanlatency.collectStats(collector);
     } finally {
       collector.clearExtraTag("class");
     }
@@ -670,13 +685,13 @@ public final class TSDB {
   }
 
   /** Returns a latency histogram for Put RPCs used to store data points. */
-  public Histogram getPutLatencyHistogram() {
-    return IncomingDataPoints.putlatency;
+  public LatencyStatsPlugin getPutLatencyStats() {
+    return putlatency;
   }
 
-  /** Returns a latency histogram for Scan RPCs used to fetch data points.  */
-  public Histogram getScanLatencyHistogram() {
-    return TsdbQuery.scanlatency;
+  /** Returns a latency histogram for Put RPCs used to store data points. */
+  public LatencyStatsPlugin getScanLatencyStats() {
+    return putlatency;
   }
 
   /**
@@ -712,7 +727,7 @@ public final class TSDB {
    * Returns a new {@link Query} instance suitable for this TSDB.
    */
   public Query newQuery() {
-    return new TsdbQuery(this);
+    return new TsdbQuery(this, scanlatency);
   }
 
   /**
@@ -722,7 +737,7 @@ public final class TSDB {
    * instead.
    */
   public WritableDataPoints newDataPoints() {
-    return new IncomingDataPoints(this);
+    return new IncomingDataPoints(this, putlatency);
   }
 
   /**
@@ -1073,6 +1088,8 @@ public final class TSDB {
           storage_exception_handler.getClass().getCanonicalName());
       deferreds.add(storage_exception_handler.shutdown());
     }
+    // we always have latency plugins, even if just the default impl
+    deferreds.addAll(LatencyStats.shutdownAll());
     
     // wait for plugins to shutdown before we close the client
     return deferreds.size() > 0

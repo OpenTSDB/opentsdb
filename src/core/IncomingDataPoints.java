@@ -22,6 +22,7 @@ import java.util.Map;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.stats.LatencyStatsPlugin;
 import org.hbase.async.AppendRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.PutRequest;
@@ -39,17 +40,15 @@ final class IncomingDataPoints implements WritableDataPoints {
   private static final short DEFAULT_BATCH_IMPORT_BUFFER_INTERVAL = 5000;
 
   /**
-   * Keep track of the latency (in ms) we perceive sending edits to HBase. We
-   * want buckets up to 16s, with 2 ms interval between each bucket up to 100 ms
-   * after we which we switch to exponential buckets.
+   * Keep track of the latency (in ms) we perceive sending edits to HBase.
    */
-  static final Histogram putlatency = new Histogram(16000, (short) 2, 100);
+  final LatencyStatsPlugin putlatency;
 
   /** The {@code TSDB} instance we belong to. */
   private final TSDB tsdb;
 
   /**
-   * The row key. Optional salt + 3 bytes for the metric name, 4 bytes for 
+   * The row key. Optional salt + 3 bytes for the metric name, 4 bytes for
    * the base timestamp, 6 bytes per tag (3 for the name, 3 for the value).
    */
   private byte[] row;
@@ -80,9 +79,10 @@ final class IncomingDataPoints implements WritableDataPoints {
    * @param tsdb
    *          The TSDB we belong to.
    */
-  IncomingDataPoints(final TSDB tsdb) {
+  IncomingDataPoints(final TSDB tsdb, final LatencyStatsPlugin putlatency) {
     this.tsdb = tsdb;
-    // the qualifiers and values were meant for pre-compacting the rows. We
+    this.putlatency = putlatency;
+      // the qualifiers and values were meant for pre-compacting the rows. We
     // could implement this later, but for now we don't need to track the values
     // as they'll just consume space during an import
     // this.qualifiers = new short[3];

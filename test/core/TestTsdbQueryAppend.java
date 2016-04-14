@@ -12,14 +12,15 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import net.opentsdb.stats.Histogram;
 import org.junit.Before;
 import org.powermock.reflect.Whitebox;
 
 public class TestTsdbQueryAppend extends TestTsdbQueryQueries {
-  
+
   @Before
-  public void beforeLocal() { 
+  public void beforeLocal() {
     Whitebox.setInternalState(config, "enable_appends", true);
-    query = new TsdbQuery(tsdb);
+    query = new TsdbQuery(tsdb, new Histogram());
   }
 }
