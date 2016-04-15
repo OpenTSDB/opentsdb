@@ -45,10 +45,14 @@ import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.graph.Plot;
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
+
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Stateless handler of HTTP graph requests (the {@code /q} endpoint).
@@ -123,6 +127,10 @@ final class GraphHandler implements HttpRpc {
     }
   }
 
+  // TODO(HugoMFernandes): Most of this (query-related) logic is implemented in
+  // net.opentsdb.tsd.QueryRpc.java (which actually does this asynchronously),
+  // so we should refactor both classes to split the actual logic used to
+  // generate the data from the actual visualization (removing all duped code).
   private void doGraph(final TSDB tsdb, final HttpQuery query)
     throws IOException {
     final String basepath = getGnuplotBasePath(tsdb, query);
@@ -154,10 +162,15 @@ final class GraphHandler implements HttpRpc {
     if (!nocache && isDiskCacheHit(query, end_time, max_age, basepath)) {
       return;
     }
-    Query[] tsdbqueries;
-    List<String> options;
-    tsdbqueries = parseQuery(tsdb, query);
-    options = query.getQueryStringParams("o");
+
+    // Parse TSQuery from HTTP query
+    final TSQuery tsquery = QueryRpc.parseQuery(tsdb, query);
+    tsquery.validateAndSetQuery();
+
+    // Build the queries for the parsed TSQuery
+    Query[] tsdbqueries = tsquery.buildQueries(tsdb);
+
+    List<String> options = query.getQueryStringParams("o");
     if (options == null) {
       options = new ArrayList<String>(tsdbqueries.length);
       for (int i = 0; i < tsdbqueries.length; i++) {
@@ -212,9 +225,37 @@ final class GraphHandler implements HttpRpc {
       return;
     }
 
+    final RunGnuplot rungnuplot = new RunGnuplot(query, max_age, plot, basepath,
+            aggregated_tags, npoints);
+
+    class ErrorCB implements Callback<Object, Exception> {
+      public Object call(final Exception e) throws Exception {
+        LOG.info("Failed to retrieve global annotations: ", e);
+        throw e;
+      }
+    }
+
+    class GlobalCB implements Callback<Object, List<Annotation>> {
+      public Object call(final List<Annotation> globalAnnotations) throws Exception {
+        rungnuplot.plot.setGlobals(globalAnnotations);
+        execGnuplot(rungnuplot, query);
+
+        return null;
+      }
+    }
+
+    // Fetch global annotations, if needed
+    if (!tsquery.getNoAnnotations() && tsquery.getGlobalAnnotations()) {
+      Annotation.getGlobalAnnotations(tsdb, start_time, end_time)
+              .addCallback(new GlobalCB()).addErrback(new ErrorCB());
+    } else {
+      execGnuplot(rungnuplot, query);
+    }
+  }
+
+  private void execGnuplot(RunGnuplot rungnuplot, HttpQuery query) {
     try {
-      gnuplot.execute(new RunGnuplot(query, max_age, plot, basepath,
-                                     aggregated_tags, npoints));
+      gnuplot.execute(rungnuplot);
     } catch (RejectedExecutionException e) {
       query.internalError(new Exception("Too many requests pending,"
                                         + " please try again later", e));
@@ -354,7 +395,7 @@ final class GraphHandler implements HttpRpc {
     qs.remove("png");
     qs.remove("json");
     qs.remove("ascii");
-    return tsdb.getConfig().getDirectoryName("tsd.http.cachedir") + 
+    return tsdb.getConfig().getDirectoryName("tsd.http.cachedir") +
         Integer.toHexString(qs.hashCode());
   }
 
@@ -841,21 +882,7 @@ final class GraphHandler implements HttpRpc {
     writer.print(timestamp / 1000L);
     writer.print(' ');
   }
-  
-  /**
-   * Parses the {@code /q} query in a list of {@link Query} objects.
-   * @param tsdb The TSDB to use.
-   * @param query The HTTP query for {@code /q}.
-   * @return The corresponding {@link Query} objects.
-   * @throws BadRequestException if the query was malformed.
-   * @throws IllegalArgumentException if the metric or tags were malformed.
-   */
-  private static Query[] parseQuery(final TSDB tsdb, final HttpQuery query) {
-    final TSQuery q = QueryRpc.parseQuery(tsdb, query);
-    q.validateAndSetQuery();
-    return q.buildQueries(tsdb);
-  }
-  
+
   private static final PlotThdFactory thread_factory = new PlotThdFactory();
 
   private static final class PlotThdFactory implements ThreadFactory {
