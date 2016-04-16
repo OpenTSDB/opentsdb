@@ -29,6 +29,13 @@ import sys
 import time
 from optparse import OptionParser
 
+AGGREGATORS = ('avg', 'count', 'dev',
+        'ep50r3', 'ep50r7', 'ep75r3', 'ep75r7', 'ep90r3', 'ep90r7', 'ep95r3', 'ep95r7',
+        'ep99r3', 'ep99r7', 'ep999r3', 'ep999r7',
+        'mimmin', 'mimmax', 'min', 'max', 'none',
+        'p50', 'p75', 'p90', 'p95', 'p99', 'p999',
+        'sum', 'zimsum')
+
 def main(argv):
     """Pulls data out of the TSDB and do very simple alerting from Nagios."""
 
@@ -78,9 +85,9 @@ def main(argv):
     # argument validation
     if options.comparator not in ('gt', 'ge', 'lt', 'le', 'eq', 'ne'):
         parser.error("Comparator '%s' not valid." % options.comparator)
-    elif options.downsample not in ('none', 'avg', 'min', 'sum', 'max'):
+    elif options.downsample not in ('none',)+AGGREGATORS:
         parser.error("Downsample '%s' not valid." % options.downsample)
-    elif options.aggregator not in ('avg', 'min', 'sum', 'max'):
+    elif options.aggregator not in AGGREGATORS:
         parser.error("Aggregator '%s' not valid." % options.aggregator)
     elif not options.metric:
         parser.error('You must specify a metric (option -m).')
