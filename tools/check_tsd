@@ -228,13 +228,6 @@ def main(argv):
 
     bad_pct = nbad * 100.0 / npoints
 
-    if options.bad_percent is not None and rv > 0 \
-        and bad_pct < options.bad_percent:
-            if options.verbose:
-                print 'ignoring alarm, less than %.1f%% bad values (found %.1f%%)' % \
-                    (options.bad_percent, bad_pct)
-            rv = 0
-
     # in nrpe, pipe character is something special, but it's used in tag
     # searches.  Translate it to something else for the purposes of output.
     ttags = tags.replace("|",":")
