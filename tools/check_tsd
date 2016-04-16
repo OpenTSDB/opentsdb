@@ -177,8 +177,6 @@ def main(argv):
         return 2
 
     # but we won!
-    if options.verbose:
-        print (datapoints)
     datapoints = datapoints.splitlines()
 
     def no_data_point():
@@ -200,12 +198,20 @@ def main(argv):
     nbad = 0       # How many bad values have we seen?
     ncrit = 0      # How many critical values have we seen?
     nwarn = 0      # How many warning values have we seen?
-    for datapoint in datapoints:
-        datapoint = datapoint.split()
+    for datapoint_str in datapoints:
+        datapoint = datapoint_str.split()
         ts = int(datapoint[1])
         delta = now - ts
         if delta > options.duration or delta <= options.ignore_recent:
+            if options.verbose:
+                print "%s (ignored, delta %ds)" % (datapoint_str, delta)
+            if delta < 0:
+                break # Skip the rest, we got what we came for.
             continue  # Ignore data points outside of our range.
+
+        if options.verbose:
+            print datapoint_str
+
         npoints += 1
         val = datapoint[2]
         if '.' in val:
