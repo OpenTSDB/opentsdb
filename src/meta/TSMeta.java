@@ -587,9 +587,7 @@ public final class TSMeta {
             }
             
             LOG.info("Successfullly created new TSUID entry for: " + meta);
-            return Deferred.fromResult(meta)
-                    .addCallbackDeferring(
-                            new LoadUIDs(tsdb, UniqueId.uidToString(tsuid)))
+            return new LoadUIDs(tsdb, UniqueId.uidToString(tsuid)).call(meta)
                     .addCallbackDeferring(new FetchNewCB());
           }
           
@@ -613,7 +611,16 @@ public final class TSMeta {
         new TSMetaCB());
   }
 
-  public static void storeIfNecessary(final TSDB tsdb, final byte[] tsuid) {
+  /**
+   * Attempts to fetch the meta column and if null, attempts to write a new 
+   * column using {@link #storeNew}.
+   * @param tsdb The TSDB instance to use for access.
+   * @param tsuid The TSUID of the time series.
+   * @return A deferred with a true if the meta exists or was created, false
+   * if the meta did not exist and writing failed.
+   */
+  public static Deferred<Boolean> storeIfNecessary(final TSDB tsdb, 
+      final byte[] tsuid) {
     final GetRequest get = new GetRequest(tsdb.metaTable(), tsuid);
     get.family(FAMILY);
     get.qualifier(META_QUALIFIER);
@@ -649,9 +656,7 @@ public final class TSMeta {
             }
 
             LOG.info("Successfullly created new TSUID entry for: " + meta);
-            return Deferred.fromResult(meta)
-                    .addCallbackDeferring(
-                            new LoadUIDs(tsdb, UniqueId.uidToString(tsuid)))
+            return new LoadUIDs(tsdb, UniqueId.uidToString(tsuid)).call(meta)
                     .addCallbackDeferring(new FetchNewCB());
           }
         }
@@ -665,14 +670,13 @@ public final class TSMeta {
       @Override
       public Deferred<Boolean> call(ArrayList<KeyValue> row) throws Exception {
         if (row == null || row.isEmpty() || row.get(0).value() == null) {
-          return Deferred.fromResult(new Object())
-                         .addCallbackDeferring(new CreateNewCB());
+          return new CreateNewCB().call(null);
         }
         return Deferred.fromResult(true);
       }
     }
 
-    tsdb.getClient().get(get).addCallbackDeferring(new ExistsCB());
+    return tsdb.getClient().get(get).addCallbackDeferring(new ExistsCB());
   }
   
   /**
