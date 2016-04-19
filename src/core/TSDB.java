@@ -247,11 +247,12 @@ public final class TSDB {
    * Called by initializePlugins, also used to load startup plugins.
    * @since 2.3
    */
-  public static void loadPluginPath(final String plugin_path) throws RuntimeException {
+  public static void loadPluginPath(final String plugin_path) {
     if (plugin_path != null && !plugin_path.isEmpty()) {
       try {
         PluginLoader.loadJARs(plugin_path);
       } catch (Exception e) {
+        LOG.error("Error loading plugins from plugin path: " + plugin_path, e);
         throw new RuntimeException("Error loading plugins from plugin path: " +
                 plugin_path, e);
       }
@@ -268,13 +269,9 @@ public final class TSDB {
    * @throws IllegalArgumentException if a plugin could not be initialized
    * @since 2.0
    */
-  public void initializePlugins(final boolean init_rpcs) throws RuntimeException {
+  public void initializePlugins(final boolean init_rpcs) {
     final String plugin_path = config.getString("tsd.core.plugin_path");
-    try {
-      loadPluginPath(plugin_path);
-    } catch (RuntimeException e) {
-      throw e;
-    }
+    loadPluginPath(plugin_path);
 
     try {
       TagVFilter.initializeFilterMap(this);
@@ -389,17 +386,24 @@ public final class TSDB {
   }
 
   /**
-   * Sets the startup plugin so that it can be shutdown properly.
-   * @param startup
+   * Sets the startup plugin so that it can be shutdown properly. 
+   * Note that this method will not initialize or call any other methods 
+   * belonging to the plugin's implementation.
+   * @param plugin The startup plugin that was used. 
    * @since 2.3
    */
-  public final void setStartup(StartupPlugin startup) { this.startup = startup; }
+  public final void setStartupPlugin(final StartupPlugin plugin) { 
+    startup = plugin; 
+  }
+  
   /**
-   * Getter that returns the startup plugin object
-   * @return The StartupPlugin object
+   * Getter that returns the startup plugin object.
+   * @return The StartupPlugin object or null if the plugin was not set.
    * @since 2.3
    */
-  public final StartupPlugin getStartup() { return this.startup; }
+  public final StartupPlugin getStartupPlugin() { 
+    return startup; 
+  }
 
   /**
    * Getter that returns the configuration object

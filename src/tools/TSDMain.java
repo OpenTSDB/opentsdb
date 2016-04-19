@@ -180,7 +180,7 @@ final class TSDMain {
     try {
       tsdb = new TSDB(config);
       if (startup != null) {
-        tsdb.setStartup(startup);
+        tsdb.setStartupPlugin(startup);
       }
       tsdb.initializePlugins(true);
       if (config.getBoolean("tsd.storage.hbase.prefetch_meta")) {

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2016  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -37,16 +37,17 @@ public abstract class StartupPlugin {
    * up properly. The TSD will then shutdown so the operator can fix the
    * problem. Please use IllegalArgumentException for configuration issues.
    * @param tsdb The parent TSDB object
+   * @return A reference to the same configuration object passed in the parameters
+   * on success.
    * @throws IllegalArgumentException if required configuration parameters are
    * missing
-   * @throws Exception if something else goes wrong
    */
-  public abstract Config initialize(Config config) throws IllegalArgumentException, Exception;
+  public abstract Config initialize(Config config);
 
   /**
    * Called when the TSD is fully initialized and ready to handle traffic.
    */
-  public abstract void setReady(final TSDB tsdb) throws Exception;
+  public abstract void setReady(final TSDB tsdb);
 
   /**
    * Called to gracefully shutdown the plugin. Implementations should close
