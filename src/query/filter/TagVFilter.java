@@ -498,9 +498,21 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
     return tagk_bytes;
   }
   
+  /** @return a non-null list of tag value UIDs. May be empty. */
   @JsonIgnore
   public List<byte[]> getTagVUids() {
     return tagv_uids == null ? Collections.<byte[]>emptyList() : tagv_uids;
+  }
+  
+  /** @return A copy of this filter BEFORE tag resolution, as a new object. */
+  @JsonIgnore
+  public TagVFilter getCopy() {
+    return Builder()
+        .setFilter(filter)
+        .setTagk(tagk)
+        .setType(getType())
+        .setGroupBy(group_by)
+        .build();
   }
   
   /** @return whether or not to group by the results of this filter */
