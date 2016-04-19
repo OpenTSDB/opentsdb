@@ -141,9 +141,9 @@ final class TSDMain {
     }
 
     final ServerSocketChannelFactory factory;
-    int connectionsLimit = 0;
+    int connections_limit = 0;
     try {
-      connectionsLimit = config.getInt("tsd.core.connections.limit");
+      connections_limit = config.getInt("tsd.core.connections.limit");
     } catch (NumberFormatException nfe) {
       usage(argp, "Invalid connections limit", 1);
     }
@@ -197,7 +197,7 @@ final class TSDMain {
       // here to fail fast.
       final RpcManager manager = RpcManager.instance(tsdb);
 
-      server.setPipelineFactory(new PipelineFactory(tsdb, manager, connectionsLimit));
+      server.setPipelineFactory(new PipelineFactory(tsdb, manager, connections_limit));
       if (config.hasProperty("tsd.network.backlog")) {
         server.setOption("backlog", config.getInt("tsd.network.backlog")); 
       }

@@ -14,12 +14,14 @@ package net.opentsdb.tsd;
 
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelEvent;
+import org.jboss.netty.channel.ChannelException;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.ExceptionEvent;
@@ -42,10 +44,15 @@ final class ConnectionManager extends SimpleChannelHandler {
   private static final AtomicLong exceptions_closed = new AtomicLong();
   private static final AtomicLong exceptions_reset = new AtomicLong();
   private static final AtomicLong exceptions_timeout = new AtomicLong();
-  /**
-   * max connections can be serviced by tsd, if over limit, tsd will close new connection.
-   */
-  private int connectionsLimit;
+  
+  /** Max connections can be serviced by tsd, if over limit, tsd will refuse 
+   * new connections. */
+  private final int connections_limit;
+  
+  /** A counter used for determining how many channels are open. Something odd
+   * happens with the DefaultChannelGroup in that .size() doesn't return the
+   * actual number of open connections. TODO - find out why. */
+  private final AtomicInteger open_connections = new AtomicInteger();
 
   private static final DefaultChannelGroup channels =
     new DefaultChannelGroup("all-channels");
@@ -54,10 +61,21 @@ final class ConnectionManager extends SimpleChannelHandler {
     channels.close().awaitUninterruptibly();
   }
 
-  /** Constructor. */
-  public ConnectionManager(int connectionsLimit) {
-    LOG.info("totalConnections limit is set : " + connectionsLimit);
-    this.connectionsLimit = connectionsLimit;
+  /**
+   * Default Ctor with no concurrent connection limit.
+   */
+  public ConnectionManager() {
+    connections_limit = 0;
+  }
+  
+  /**
+   * CTor for setting a limit on concurrent connections.
+   * @param connections_limit The maximum number of concurrent connections allowed.
+   * @since 2.3
+   */
+  public ConnectionManager(final int connections_limit) {
+    LOG.info("TSD concurrent connection limit set to: " + connections_limit);
+    this.connections_limit = connections_limit;
   }
 
   /**
@@ -83,18 +101,24 @@ final class ConnectionManager extends SimpleChannelHandler {
   @Override
   public void channelOpen(final ChannelHandlerContext ctx,
                           final ChannelStateEvent e) throws IOException {
-    if (connectionsLimit > 0) {
-      int channelSize = channels.size();
-      if (channelSize >= connectionsLimit) {
-        e.getChannel().close();
-        connections_rejected.incrementAndGet();
-        throw new IOException("Channel size (" + channelSize + ") exceeds total connection limit (" + connectionsLimit + ")");
+    if (connections_limit > 0) {
+      final int channel_size = open_connections.incrementAndGet();
+      if (channel_size > connections_limit) {
+        throw new ConnectionRefusedException("Channel size (" + channel_size + ") exceeds total "
+            + "connection limit (" + connections_limit + ")");
+        // exceptionCaught will close the connection and increment the counter.
       }
     }
     channels.add(e.getChannel());
     connections_established.incrementAndGet();
   }
 
+  @Override
+  public void channelClosed(final ChannelHandlerContext ctx,
+                          final ChannelStateEvent e) throws IOException {
+    open_connections.decrementAndGet();
+  }
+  
   @Override
   public void handleUpstream(final ChannelHandlerContext ctx,
                              final ChannelEvent e) throws Exception {
@@ -126,6 +150,13 @@ final class ConnectionManager extends SimpleChannelHandler {
         // in Java.  Like, people have been bitching about errno for years,
         // and Java managed to do something *far* worse.  That's quite a feat.
         return;
+      } else if (cause instanceof ConnectionRefusedException) {
+        connections_rejected.incrementAndGet();
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Refusing connection from " + chan, e.getCause());
+        }
+        chan.close();
+        return;
       }
     }
     if (cause instanceof CodecEmbedderException) {
@@ -139,4 +170,17 @@ final class ConnectionManager extends SimpleChannelHandler {
     e.getChannel().close();
   }
 
+  /** Simple exception for refusing a connection. */
+  private static class ConnectionRefusedException extends ChannelException {
+    
+    /**
+     * Default ctor with a message.
+     * @param message A descriptive message for the exception.
+     */
+    public ConnectionRefusedException(final String message) {
+      super(message);
+    }
+
+    private static final long serialVersionUID = 5348377149312597939L;    
+  }
 }

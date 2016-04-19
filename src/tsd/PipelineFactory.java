@@ -14,8 +14,6 @@ package net.opentsdb.tsd;
 
 import static org.jboss.netty.channel.Channels.pipeline;
 
-import java.util.concurrent.ThreadFactory;
-
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandler;
@@ -30,7 +28,6 @@ import org.jboss.netty.handler.codec.http.HttpContentCompressor;
 import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
 import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 import org.jboss.netty.handler.timeout.IdleStateHandler;
-import org.jboss.netty.util.HashedWheelTimer;
 import org.jboss.netty.util.Timer;
 
 import net.opentsdb.core.TSDB;
@@ -38,6 +35,9 @@ import net.opentsdb.core.TSDB;
 /**
  * Creates a newly configured {@link ChannelPipeline} for a new channel.
  * This class is supposed to be a singleton.
+ * NOTE: On creation (as of 2.3) the property given in the config for 
+ * "tsd.core.connections.limit" will be used to limit the number of concurrent
+ * connections supported by the pipeline. The default is zero.
  */
 public final class PipelineFactory implements ChannelPipelineFactory {
 
@@ -70,7 +70,8 @@ public final class PipelineFactory implements ChannelPipelineFactory {
    * serializers
    */
   public PipelineFactory(final TSDB tsdb) {
-    this(tsdb, RpcManager.instance(tsdb), tsdb.getConfig().getInt("tsd.core.connections.limit"));
+    this(tsdb, RpcManager.instance(tsdb), 
+        tsdb.getConfig().getInt("tsd.core.connections.limit"));
   }
 
   /**
@@ -79,16 +80,32 @@ public final class PipelineFactory implements ChannelPipelineFactory {
    * @param tsdb The TSDB to use.
    * @param manager instance of a ready-to-use {@link RpcManager}.
    * @throws RuntimeException if there is an issue loading plugins
-   * @throws Exception if the HttpQuery handler is unable to load 
-   * serializers
+   * @throws Exception if the HttpQuery handler is unable to load serializers
    */
-  public PipelineFactory(final TSDB tsdb, final RpcManager manager, final int connectionsLimit) {
+  public PipelineFactory(final TSDB tsdb, final RpcManager manager) {
+    this(tsdb, RpcManager.instance(tsdb), 
+        tsdb.getConfig().getInt("tsd.core.connections.limit"));
+  }
+  
+  /**
+   * Constructor that initializes the RPC router and loads HTTP formatter 
+   * plugins using an already-configured {@link RpcManager}.
+   * @param tsdb The TSDB to use.
+   * @param manager instance of a ready-to-use {@link RpcManager}.
+   * @param connections_limit The maximum number of concurrent connections 
+   * supported by the TSD.
+   * @throws RuntimeException if there is an issue loading plugins
+   * @throws Exception if the HttpQuery handler is unable to load serializers
+   * @since 2.3
+   */
+  public PipelineFactory(final TSDB tsdb, final RpcManager manager, 
+      final int connections_limit) {
     this.tsdb = tsdb;
-    this.socketTimeout = tsdb.getConfig().getInt("tsd.core.socket.timeout");
+    socketTimeout = tsdb.getConfig().getInt("tsd.core.socket.timeout");
     timer = tsdb.getTimer();
-    this.timeoutHandler = new IdleStateHandler(timer, 0, 0, this.socketTimeout);
-    this.rpchandler = new RpcHandler(tsdb, manager);
-    this.connmgr = new ConnectionManager(connectionsLimit);
+    timeoutHandler = new IdleStateHandler(timer, 0, 0, socketTimeout);
+    rpchandler = new RpcHandler(tsdb, manager);
+    connmgr = new ConnectionManager(connections_limit);
     try {
       HttpQuery.initializeSerializerMaps(tsdb);
     } catch (RuntimeException e) {
