@@ -133,15 +133,14 @@ public class DateTime {
     } else {
       try {
         long time;
-        Boolean containsDot = datetime.contains(".");
+        final boolean contains_dot = datetime.contains(".");
         // [0-9]{10} ten digits
         // \\. a dot
         // [0-9]{1,3} one to three digits
-        Boolean isValidDottedMillesecond = datetime.matches("^[0-9]{10}\\.[0-9]{1,3}$");
-        // one to ten digits (0-9)
-        Boolean isValidSeconds = datetime.matches("^[0-9]{1,10}$");
-        if (containsDot) {
-          if (!isValidDottedMillesecond) {
+        final boolean valid_dotted_ms = 
+            datetime.matches("^[0-9]{10}\\.[0-9]{1,3}$");
+        if (contains_dot) {
+          if (!valid_dotted_ms) {
             throw new IllegalArgumentException("Invalid time: " + datetime  
                 + ". Millisecond timestamps must be in the format "
                 + "<seconds>.<ms> where the milliseconds are limited to 3 digits");
