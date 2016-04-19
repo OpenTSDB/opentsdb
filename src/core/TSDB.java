@@ -822,17 +822,18 @@ public final class TSDB {
     final byte[] tsuid = UniqueId.getTSUIDFromKey(row, METRICS_WIDTH, 
         Const.TIMESTAMP_BYTES);
     
-    // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
-    // counter field for a TSUID with the proper timestamp. If the user would
-    // rather have TSUID incrementing enabled, that will trump the PUT
-    if (config.enable_tsuid_tracking() && !config.enable_tsuid_incrementing()) {
-      final PutRequest tracking = new PutRequest(meta_table, tsuid, 
-          TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(1));
-      client.put(tracking);
-    } else if (config.enable_tsuid_incrementing() && config.enable_realtime_ts()) {
-      TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
-    } else if (!config.enable_tsuid_incrementing() && config.enable_realtime_ts()) {
-      TSMeta.storeIfNecessary(TSDB.this, tsuid);
+    if (config.enable_tsuid_tracking()) {
+      if (config.enable_realtime_ts()) {
+        if (config.enable_tsuid_incrementing()) {
+          TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
+        } else {
+          TSMeta.storeIfNecessary(TSDB.this, tsuid);
+        }
+      } else {
+        final PutRequest tracking = new PutRequest(meta_table, tsuid, 
+            TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(1));
+        client.put(tracking);
+      }
     }
     
     if (rt_publisher != null) {

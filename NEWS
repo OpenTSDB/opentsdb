@@ -1,5 +1,14 @@
 OpenTSDB - User visible changes.
 
+* Version 2.2.1 (2015-?-?)
+
+Noteworthy Changes
+  - Generate an incrementing TSMeta request only if both enable_tsuid_incrementing and
+    tsd.core.meta.enable_realtime_ts are enabled. Previously, increments would run
+    regardless of whether or not the real time ts setting was enabled. If tsuid 
+    incrementing is disabled then a get and optional put is executed each time without 
+    modifying the meta counter field.
+
 * Version 2.2.0 (2016-02-14)
 
 Noteworthy Changes
