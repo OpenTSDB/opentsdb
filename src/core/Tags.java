@@ -587,9 +587,9 @@ public final class Tags {
    */
   public static Deferred<ArrayList<byte[]>> resolveAllAsync(final TSDB tsdb,
       final Map<String, String> tags) {
-    return resolveAllInternalAsync(tsdb, tags, false);
-  }   
-
+    return resolveAllInternalAsync(tsdb, null, tags, false);
+  }
+  
   /**
   * Resolves (and creates, if necessary) all the tags (name=value) into the a
   * sorted byte arrays.
@@ -626,7 +626,6 @@ public final class Tags {
     return tag_ids;
   }
 
-
   /**
    * Resolves (and creates, if necessary) all the tags (name=value) into the a
    * sorted byte arrays.
@@ -638,11 +637,28 @@ public final class Tags {
    */
   static Deferred<ArrayList<byte[]>>
     resolveOrCreateAllAsync(final TSDB tsdb, final Map<String, String> tags) {
-    return resolveAllInternalAsync(tsdb, tags, true);
+    return resolveAllInternalAsync(tsdb, null, tags, true);
+  }
+  
+  /**
+   * Resolves (and creates, if necessary) all the tags (name=value) into the a
+   * sorted byte arrays.
+   * @param tsdb The TSDB to use for UniqueId lookups.
+   * @param metric The metric associated with this tag set for filtering.
+   * @param tags The tags to resolve.  If a new tag name or tag value is
+   * seen, it will be assigned an ID.
+   * @return an array of sorted tags (tag id, tag name).
+   * @since 2.3
+   */
+  static Deferred<ArrayList<byte[]>>
+    resolveOrCreateAllAsync(final TSDB tsdb, final String metric, 
+        final Map<String, String> tags) {
+    return resolveAllInternalAsync(tsdb, metric, tags, true);
   }
   
   private static Deferred<ArrayList<byte[]>>
     resolveAllInternalAsync(final TSDB tsdb,
+                            final String metric,
                             final Map<String, String> tags,
                             final boolean create) {
     final ArrayList<Deferred<byte[]>> tag_ids =
@@ -651,10 +667,10 @@ public final class Tags {
     // For each tag, start resolving the tag name and the tag value.
     for (final Map.Entry<String, String> entry : tags.entrySet()) {
       final Deferred<byte[]> name_id = create
-        ? tsdb.tag_names.getOrCreateIdAsync(entry.getKey())
+        ? tsdb.tag_names.getOrCreateIdAsync(entry.getKey(), metric, tags)
         : tsdb.tag_names.getIdAsync(entry.getKey());
       final Deferred<byte[]> value_id = create
-        ? tsdb.tag_values.getOrCreateIdAsync(entry.getValue())
+        ? tsdb.tag_values.getOrCreateIdAsync(entry.getValue(), metric, tags)
         : tsdb.tag_values.getIdAsync(entry.getValue());
 
       // Then once the tag name is resolved, get the resolved tag value.

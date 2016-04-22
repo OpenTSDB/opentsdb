@@ -68,6 +68,7 @@ tsdb_SRC := \
 	src/core/TSQuery.java	\
 	src/core/TSSubQuery.java	\
 	src/core/WritableDataPoints.java	\
+	src/core/WriteableDataPointFilterPlugin.java	\
 	src/graph/Plot.java	\
 	src/meta/Annotation.java	\
 	src/meta/MetaDataCache.java	\
@@ -179,6 +180,7 @@ tsdb_SRC := \
 	src/uid/NoSuchUniqueName.java	\
 	src/uid/RandomUniqueId.java	\
 	src/uid/UniqueId.java	\
+	src/uid/UniqueIdFilterPlugin.java \
 	src/uid/UniqueIdInterface.java \
 	src/utils/ByteArrayPair.java \
 	src/utils/ByteSet.java \
@@ -256,6 +258,7 @@ test_SRC := \
 	test/core/TestSpanGroup.java	\
 	test/core/TestTags.java	\
 	test/core/TestTSDB.java	\
+	test/core/TestTSDBAddDataPoint.java	\
 	test/core/TestTsdbQueryDownsample.java	\
 	test/core/TestTsdbQueryDownsampleSalted.java	\
 	test/core/TestTsdbQuery.java	\

@@ -22,7 +22,9 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.BaseTsdbTest.UnitTestException;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.AtomicIncrementRequest;
@@ -44,6 +46,8 @@ import org.mockito.stubbing.Answer;
 
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyMapOf;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.eq;
@@ -372,6 +376,127 @@ public final class TestUniqueId {
     verify(client, times(2)).compareAndSet(anyPut(), emptyArray());
   }
 
+  @Test
+  public void getOrCreateIdAsyncAssignFilterOK() throws Exception {
+    uid = new UniqueId(client, table, METRIC, 3);
+    final byte[] id = { 0, 0, 5 };
+    final Config config = mock(Config.class);
+    when(config.enable_realtime_uid()).thenReturn(false);
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    uid.setTSDB(tsdb);
+    final UniqueIdFilterPlugin filter = mock(UniqueIdFilterPlugin.class);
+    when(filter.fillterUIDAssignments()).thenReturn(true);
+    when(filter.allowUIDAssignment(any(UniqueIdType.class), anyString(), 
+        anyString(), anyMapOf(String.class, String.class)))
+      .thenReturn(Deferred.fromResult(true));
+    when(tsdb.getUidFilter()).thenReturn(filter);
+    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
+      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+    // Watch this! ______,^   I'm writing C++ in Java!
+
+    when(client.atomicIncrement(incrementForRow(MAXID)))
+      .thenReturn(Deferred.fromResult(5L));
+
+    when(client.compareAndSet(anyPut(), emptyArray()))
+      .thenReturn(Deferred.fromResult(true))
+      .thenReturn(Deferred.fromResult(true));
+
+    assertArrayEquals(id, uid.getOrCreateIdAsync("foo").join());
+    // Should be a cache hit since we created that entry.
+    assertArrayEquals(id, uid.getOrCreateIdAsync("foo").join());
+    // Should be a cache hit too for the same reason.
+    assertEquals("foo", uid.getName(id));
+    
+    verify(client).get(anyGet()); // Initial Get.
+    verify(client).atomicIncrement(incrementForRow(MAXID));
+    // Reverse + forward mappings.
+    verify(client, times(2)).compareAndSet(anyPut(), emptyArray());
+    verify(filter, times(1)).allowUIDAssignment(any(UniqueIdType.class), anyString(), 
+        anyString(), anyMapOf(String.class, String.class));
+  }
+  
+  @Test (expected = FailedToAssignUniqueIdException.class)
+  public void getOrCreateIdAssignFilterBlocked() throws Exception {
+    uid = new UniqueId(client, table, METRIC, 3);
+    final Config config = mock(Config.class);
+    when(config.enable_realtime_uid()).thenReturn(false);
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    uid.setTSDB(tsdb);
+    final UniqueIdFilterPlugin filter = mock(UniqueIdFilterPlugin.class);
+    when(filter.fillterUIDAssignments()).thenReturn(true);
+    when(filter.allowUIDAssignment(any(UniqueIdType.class), anyString(), 
+        anyString(), anyMapOf(String.class, String.class)))
+      .thenReturn(Deferred.fromResult(false));
+    when(tsdb.getUidFilter()).thenReturn(filter);
+    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
+      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+
+    when(client.atomicIncrement(incrementForRow(MAXID)))
+      .thenReturn(Deferred.fromResult(5L));
+
+    when(client.compareAndSet(anyPut(), emptyArray()))
+      .thenReturn(Deferred.fromResult(true))
+      .thenReturn(Deferred.fromResult(true));
+
+    uid.getOrCreateIdAsync("foo").join();
+  }
+  
+  @Test (expected = UnitTestException.class)
+  public void getOrCreateIdAssignFilterReturnException() throws Exception {
+    uid = new UniqueId(client, table, METRIC, 3);
+    final Config config = mock(Config.class);
+    when(config.enable_realtime_uid()).thenReturn(false);
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    uid.setTSDB(tsdb);
+    final UniqueIdFilterPlugin filter = mock(UniqueIdFilterPlugin.class);
+    when(filter.fillterUIDAssignments()).thenReturn(true);
+    when(filter.allowUIDAssignment(any(UniqueIdType.class), anyString(), 
+        anyString(), anyMapOf(String.class, String.class)))
+      .thenReturn(Deferred.<Boolean>fromError(new UnitTestException()));
+    when(tsdb.getUidFilter()).thenReturn(filter);
+    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
+      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+
+    when(client.atomicIncrement(incrementForRow(MAXID)))
+      .thenReturn(Deferred.fromResult(5L));
+
+    when(client.compareAndSet(anyPut(), emptyArray()))
+      .thenReturn(Deferred.fromResult(true))
+      .thenReturn(Deferred.fromResult(true));
+
+    uid.getOrCreateIdAsync("foo").join();
+  }
+  
+  @Test (expected = UnitTestException.class)
+  public void getOrCreateIdAssignFilterThrowsException() throws Exception {
+    uid = new UniqueId(client, table, METRIC, 3);
+    final Config config = mock(Config.class);
+    when(config.enable_realtime_uid()).thenReturn(false);
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    uid.setTSDB(tsdb);
+    final UniqueIdFilterPlugin filter = mock(UniqueIdFilterPlugin.class);
+    when(filter.fillterUIDAssignments()).thenReturn(true);
+    when(filter.allowUIDAssignment(any(UniqueIdType.class), anyString(), 
+        anyString(),anyMapOf(String.class, String.class)))
+      .thenThrow(new UnitTestException());
+    when(tsdb.getUidFilter()).thenReturn(filter);
+    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
+      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+
+    when(client.atomicIncrement(incrementForRow(MAXID)))
+      .thenReturn(Deferred.fromResult(5L));
+
+    when(client.compareAndSet(anyPut(), emptyArray()))
+      .thenReturn(Deferred.fromResult(true))
+      .thenReturn(Deferred.fromResult(true));
+
+    uid.getOrCreateIdAsync("foo").join();
+  }
+  
   @Test  // Test the creation of an ID with no problem.
   public void checkMetricAgainstWhitelist() {
     setupWhitelists(METRIC);
@@ -954,7 +1079,6 @@ public final class TestUniqueId {
     assertArrayEquals(new byte[] { 0, 0, 3, 0, 0, 4 }, tags.get(1));
   }
   
-  
   @Test
   public void getTagPairsFromTSUIDStringNonStandardWidth() {
     PowerMockito.mockStatic(TSDB.class);
@@ -1009,7 +1133,6 @@ public final class TestUniqueId {
     assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 2 }, tags.get(0));
     assertArrayEquals(new byte[] { 0, 0, 3, 0, 0, 4 }, tags.get(1));
   }
-  
   
   @Test
   public void getTagPairsFromTSUIDBytesNonStandardWidth() {

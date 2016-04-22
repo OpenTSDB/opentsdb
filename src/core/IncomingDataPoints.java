@@ -73,6 +73,12 @@ final class IncomingDataPoints implements WritableDataPoints {
 
   /** Are we doing a batch import? */
   private boolean batch_import;
+  
+  /** The metric for this time series */
+  private String metric;
+  
+  /** Copy of the tags given us by the caller */
+  private Map<String, String> tags;
 
   /**
    * Constructor.
@@ -163,7 +169,7 @@ final class IncomingDataPoints implements WritableDataPoints {
     // Lookup or create the metric ID.
     final Deferred<byte[]> metric_id;
     if (tsdb.config.auto_metric()) {
-      metric_id = tsdb.metrics.getOrCreateIdAsync(metric);
+      metric_id = tsdb.metrics.getOrCreateIdAsync(metric, metric, tags);
     } else {
       metric_id = tsdb.metrics.getIdAsync(metric);
     }
@@ -193,8 +199,8 @@ final class IncomingDataPoints implements WritableDataPoints {
     }
 
     // Kick off the resolution of all tags.
-    return Tags.resolveOrCreateAllAsync(tsdb, tags).addCallbackDeferring(
-        new CopyTagsInRowKeyCB());
+    return Tags.resolveOrCreateAllAsync(tsdb, metric, tags)
+        .addCallbackDeferring(new CopyTagsInRowKeyCB());
   }
 
   public void setSeries(final String metric, final Map<String, String> tags) {
@@ -207,6 +213,8 @@ final class IncomingDataPoints implements WritableDataPoints {
     } catch (Exception e) {
       throw new RuntimeException("Should never happen", e);
     }
+    this.metric = metric;
+    this.tags = tags;
     size = 0;
   }
 
@@ -281,57 +289,80 @@ final class IncomingDataPoints implements WritableDataPoints {
           + " when trying to add value=" + Arrays.toString(value) + " to "
           + this);
     }
-    last_ts = (ms_timestamp ? timestamp : timestamp * 1000);
+    
+    /** Callback executed for chaining filter calls to see if the value
+     * should be written or not. */
+    final class WriteCB implements Callback<Deferred<Object>, Boolean> {
+      @Override
+      public Deferred<Object> call(final Boolean allowed) throws Exception {
+        if (!allowed) {
+          return Deferred.fromResult(null);
+        }
+        
 
-    long base_time = baseTime();
-    long incoming_base_time;
-    if (ms_timestamp) {
-      // drop the ms timestamp to seconds to calculate the base timestamp
-      incoming_base_time = ((timestamp / 1000) - ((timestamp / 1000) % Const.MAX_TIMESPAN));
-    } else {
-      incoming_base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+        last_ts = (ms_timestamp ? timestamp : timestamp * 1000);
+
+        long base_time = baseTime();
+        long incoming_base_time;
+        if (ms_timestamp) {
+          // drop the ms timestamp to seconds to calculate the base timestamp
+          incoming_base_time = ((timestamp / 1000) - ((timestamp / 1000) % Const.MAX_TIMESPAN));
+        } else {
+          incoming_base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+        }
+
+        if (incoming_base_time - base_time >= Const.MAX_TIMESPAN) {
+          // Need to start a new row as we've exceeded Const.MAX_TIMESPAN.
+          base_time = updateBaseTime((ms_timestamp ? timestamp / 1000 : timestamp));
+        }
+
+        // Java is so stupid with its auto-promotion of int to float.
+        final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
+
+        // TODO(tsuna): The following timing is rather useless. First of all,
+        // the histogram never resets, so it tends to converge to a certain
+        // distribution and never changes. What we really want is a moving
+        // histogram so we can see how the latency distribution varies over time.
+        // The other problem is that the Histogram class isn't thread-safe and
+        // here we access it from a callback that runs in an unknown thread, so
+        // we might miss some increments. So let's comment this out until we
+        // have a proper thread-safe moving histogram.
+        // final long start_put = System.nanoTime();
+        // final Callback<Object, Object> cb = new Callback<Object, Object>() {
+        // public Object call(final Object arg) {
+        // putlatency.add((int) ((System.nanoTime() - start_put) / 1000000));
+        // return arg;
+        // }
+        // public String toString() {
+        // return "time put request";
+        // }
+        // };
+
+        // TODO(tsuna): Add an errback to handle some error cases here.
+        if (tsdb.getConfig().enable_appends()) {
+          final AppendDataPoints kv = new AppendDataPoints(qualifier, value);
+          final AppendRequest point = new AppendRequest(tsdb.table, row, TSDB.FAMILY, 
+              AppendDataPoints.APPEND_COLUMN_QUALIFIER, kv.getBytes());
+          point.setDurable(!batch_import);
+          return tsdb.client.append(point);/* .addBoth(cb) */
+        } else {
+          final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY, 
+              qualifier, value);
+          point.setDurable(!batch_import);
+          return tsdb.client.put(point)/* .addBoth(cb) */;
+        }
+      }
+      @Override
+      public String toString() {
+        return "IncomingDataPoints.addPointInternal Write Callback";
+      }
     }
-
-    if (incoming_base_time - base_time >= Const.MAX_TIMESPAN) {
-      // Need to start a new row as we've exceeded Const.MAX_TIMESPAN.
-      base_time = updateBaseTime((ms_timestamp ? timestamp / 1000 : timestamp));
+    
+    if (tsdb.getTSfilter() != null && tsdb.getTSfilter().filterDataPoints()) {
+      return tsdb.getTSfilter().allowDataPoint(metric, timestamp, value, tags, flags)
+          .addCallbackDeferring(new WriteCB());
     }
-
-    // Java is so stupid with its auto-promotion of int to float.
-    final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
-
-    // TODO(tsuna): The following timing is rather useless. First of all,
-    // the histogram never resets, so it tends to converge to a certain
-    // distribution and never changes. What we really want is a moving
-    // histogram so we can see how the latency distribution varies over time.
-    // The other problem is that the Histogram class isn't thread-safe and
-    // here we access it from a callback that runs in an unknown thread, so
-    // we might miss some increments. So let's comment this out until we
-    // have a proper thread-safe moving histogram.
-    // final long start_put = System.nanoTime();
-    // final Callback<Object, Object> cb = new Callback<Object, Object>() {
-    // public Object call(final Object arg) {
-    // putlatency.add((int) ((System.nanoTime() - start_put) / 1000000));
-    // return arg;
-    // }
-    // public String toString() {
-    // return "time put request";
-    // }
-    // };
-
-    // TODO(tsuna): Add an errback to handle some error cases here.
-    if (tsdb.getConfig().enable_appends()) {
-      final AppendDataPoints kv = new AppendDataPoints(qualifier, value);
-      final AppendRequest point = new AppendRequest(tsdb.table, row, TSDB.FAMILY, 
-          AppendDataPoints.APPEND_COLUMN_QUALIFIER, kv.getBytes());
-      point.setDurable(!batch_import);
-      return tsdb.client.append(point);/* .addBoth(cb) */
-    } else {
-      final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY, 
-          qualifier, value);
-      point.setDurable(!batch_import);
-      return tsdb.client.put(point)/* .addBoth(cb) */;
-    }
+    return Deferred.fromResult(true).addCallbackDeferring(new WriteCB());
   }
 
   private void grow() {
