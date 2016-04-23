@@ -230,14 +230,14 @@ final class GraphHandler implements HttpRpc {
 
     class ErrorCB implements Callback<Object, Exception> {
       public Object call(final Exception e) throws Exception {
-        LOG.info("Failed to retrieve global annotations: ", e);
+        LOG.warn("Failed to retrieve global annotations: ", e);
         throw e;
       }
     }
 
     class GlobalCB implements Callback<Object, List<Annotation>> {
-      public Object call(final List<Annotation> globalAnnotations) throws Exception {
-        rungnuplot.plot.setGlobals(globalAnnotations);
+      public Object call(final List<Annotation> global_annotations) throws Exception {
+        rungnuplot.plot.setGlobals(global_annotations);
         execGnuplot(rungnuplot, query);
 
         return null;
