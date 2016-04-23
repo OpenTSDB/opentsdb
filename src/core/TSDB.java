@@ -233,6 +233,9 @@ public final class TSDB {
     // load up the functions that require the TSDB object
     ExpressionFactory.addTSDBFunctions(this);
     
+    // set any extra tags from the config for stats
+    StatsCollector.setGlobalTags(config);
+    
     LOG.debug(config.dumpConfiguration());
   }
   

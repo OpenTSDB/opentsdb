@@ -13,6 +13,7 @@
 package net.opentsdb.tsd;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -21,6 +22,7 @@ import static org.mockito.Mockito.when;
 import java.nio.charset.Charset;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.HBaseClient;
@@ -45,6 +47,33 @@ public class TestStatsRpc {
     when(tsdb.getClient()).thenReturn(client);
   }
 
+  @Test
+  public void statsWithOutPort() throws Exception {
+    final StatsRpc rpc = new StatsRpc();
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/api/stats");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    final String json = 
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertFalse(json.contains("port=4242"));
+  }
+  
+  @Test
+  public void statsWithPort() throws Exception {
+    when(tsdb.getConfig().getBoolean("tsd.core.stats_with_port"))
+      .thenReturn(true);
+    when(tsdb.getConfig().getString("tsd.network.port"))
+      .thenReturn("4242");
+    StatsCollector.setGlobalTags(tsdb.getConfig());
+    final StatsRpc rpc = new StatsRpc();
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/api/stats");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    final String json = 
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("port=4242"));
+  }
+  
   @Test
   public void printThreadStats() throws Exception {
     final StatsRpc rpc = new StatsRpc();

@@ -15,12 +15,13 @@ package net.opentsdb.stats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.opentsdb.tools.TSDPort;
+import net.opentsdb.utils.Config;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * Receives various stats/metrics from the current process.
@@ -36,6 +37,9 @@ public abstract class StatsCollector {
   private static final Logger LOG =
     LoggerFactory.getLogger(StatsCollector.class);
 
+  /** Tags to add to every stat emitted by the collector */
+  private static Map<String, String> global_tags;
+  
   /** Prefix to add to every metric name, for example `tsd'. */
   protected final String prefix;
 
@@ -44,7 +48,7 @@ public abstract class StatsCollector {
 
   /** Buffer used to build lines emitted. */
   private final StringBuilder buf = new StringBuilder();
-
+  
   /**
    * Constructor.
    * @param prefix A prefix to add to every metric name, for example
@@ -52,11 +56,13 @@ public abstract class StatsCollector {
    */
   public StatsCollector(final String prefix) {
     this.prefix = prefix;
-    if(TSDPort.isStatsWithPort()) {
-    	addExtraTag("port", "" + TSDPort.getTSDPort());
+    if (global_tags != null && !global_tags.isEmpty()) {
+      for (final Entry<String, String> entry : global_tags.entrySet()) {
+        addExtraTag(entry.getKey(), entry.getValue());
+      }
     }
   }
-
+  
   /**
    * Method to override to actually emit a data point.
    * @param datapoint A data point in a format suitable for a text
@@ -245,4 +251,21 @@ public abstract class StatsCollector {
     extratags.remove(name);
   }
 
+  /**
+   * Parses the configuration to determine if any extra tags should be included
+   * with every stat emitted.
+   * @param config The config object to parse
+   * @throws IllegalArgumentException if the config is null. Other exceptions
+   * may be thrown if the config values are unparseable.
+   */
+  public static final void setGlobalTags(final Config config) {
+    if (config == null) {
+      throw new IllegalArgumentException("Configuration cannot be null.");
+    }
+    
+    if (config.getBoolean("tsd.core.stats_with_port")) {
+      global_tags = new HashMap<String, String>(1);
+      global_tags.put("port", config.getString("tsd.network.port"));
+    }
+  }
 }

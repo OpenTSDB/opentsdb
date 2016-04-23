@@ -221,7 +221,6 @@ final class TSDMain {
       if (startup != null) {
         startup.setReady(tsdb);
       }
-      TSDPort.set(config);
       log.info("Ready to serve on " + addr);
     } catch (Throwable e) {
       factory.releaseExternalResources();
