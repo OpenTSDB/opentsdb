@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Pattern;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -237,10 +236,6 @@ public final class UniqueId implements UniqueIdInterface {
   /** @param tsdb Whether or not to track new UIDMeta objects */
   public void setTSDB(final TSDB tsdb) {
     this.tsdb = tsdb;
-    this.useWhitelist = tsdb.getConfig().auto_whitelist();
-    this.auto_metric_patterns = tsdb.getConfig().auto_metric_patterns();
-    this.auto_tagk_patterns =  tsdb.getConfig().auto_tagk_patterns();
-    this.auto_tagv_patterns = tsdb.getConfig().auto_tagv_patterns();
   }
   
   /** The largest possible ID given the number of bytes the IDs are 
@@ -684,10 +679,25 @@ public final class UniqueId implements UniqueIdInterface {
     try {
       return getIdAsync(name).joinUninterruptibly();
     } catch (NoSuchUniqueName e) {
-      if (this.useWhitelist && !checkNameIsValid(name)) {
-        LOG.info("UID cannot be assigned, name is not acceptable because it fails to match the whitelist: " + name);
-        throw new RuntimeException("UID cannot be assigned, name is not acceptable because it fails to match the whitelist: " + name);
+      if (tsdb != null && tsdb.getUidFilter() != null && 
+          tsdb.getUidFilter().fillterUIDAssignments()) {
+        try {
+          if (!tsdb.getUidFilter().allowUIDAssignment(type, name, null, null)
+                .join()) {
+            rejected_assignments++;
+            throw new FailedToAssignUniqueIdException(new String(kind), name, 0, 
+                "Blocked by UID filter.");
+          }
+        } catch (FailedToAssignUniqueIdException e1) {
+          throw e1;
+        } catch (InterruptedException e1) {
+          LOG.error("Interrupted", e1);
+          Thread.currentThread().interrupt();
+        } catch (Exception e1) {
+          throw new RuntimeException("Should never be here", e1);
+        }
       }
+      
       Deferred<byte[]> assignment = null;
       boolean pending = false;
       synchronized (pending_assignments) {
@@ -734,48 +744,7 @@ public final class UniqueId implements UniqueIdInterface {
       throw new RuntimeException("Should never be here", e);
     }
   }
-
-  /**
-   * Checks to see if the provided string matches the acceptable
-   * patterns from the configuration.
-   * <p>
-   *
-   * @param name The name to compare to the acceptable name regexes
-   * @return
-     */
-  public Boolean checkNameIsValid(final String name) throws RuntimeException {
-    final List<Pattern> rxs = new ArrayList();
-    try {
-      String uid_patterns;
-      switch (type) {
-        case METRIC: uid_patterns = this.auto_metric_patterns;
-          break;
-        case TAGK: uid_patterns = this.auto_tagk_patterns;
-          break;
-        case TAGV: uid_patterns = this.auto_tagv_patterns;
-          break;
-        default:
-          throw new RuntimeException("Should never be here");
-      }
-      String[] patterns = uid_patterns.split(",");
-
-      for (String pattern : patterns) {
-        rxs.add(Pattern.compile(pattern));
-      }
-
-      for (Pattern rx : rxs) {
-        if (rx.matcher(name).matches()) {
-          LOG.debug("Accepted name for UID: " + name + " based on '" + rx.toString() + "'");
-          return true;
-        }
-      }
-      LOG.debug("Rejected name for UID: " + name);
-      return false;
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to check name (" + name + ") against patterns.", e);
-    }
-  }
-
+  
   /**
    * Finds the ID associated with a given name or creates it.
    * <p>
