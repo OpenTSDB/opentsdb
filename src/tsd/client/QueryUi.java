@@ -148,6 +148,10 @@ public class QueryUi implements EntryPoint, HistoryListener {
   private final CheckBox smooth = new CheckBox();
   private final ListBox styles = new ListBox();
   private String timezone = "";
+  
+  // Annotations handling flags.
+  private boolean hide_annotations = false;
+  private boolean show_global_annotations = false;
 
   /**
    * Handles every change to the query form and gets a new graph.
@@ -788,6 +792,9 @@ public class QueryUi implements EntryPoint, HistoryListener {
     autoreload.setValue(qs.containsKey("autoreload"), true);
     maybeSetTextbox(qs, "autoreload", autoreoload_interval);
 
+    show_global_annotations = qs.containsKey("global_annotations") ? true : false;
+    hide_annotations = qs.containsKey("no_annotations") ? true : false;
+    
     //get the tz param value
     final ArrayList<String> tzvalues = qs.get("tz");
     if (tzvalues == null)
@@ -931,6 +938,14 @@ public class QueryUi implements EntryPoint, HistoryListener {
       url.append("&smooth=csplines");
     }
     url.append("&style=").append(styles.getValue(styles.getSelectedIndex()));
+    
+    if (hide_annotations) {
+      url.append("&no_annotations=true");
+    }
+    if (show_global_annotations) {
+      url.append("&global_annotations=true");
+    }
+    
     final String unencodedUri = url.toString();
     final String uri = URL.encode(unencodedUri);
     if (uri.equals(lastgraphuri)) {
