@@ -56,13 +56,6 @@ import net.opentsdb.meta.UIDMeta;
  */
 @SuppressWarnings("deprecation")  // Dunno why even with this, compiler warns.
 public final class UniqueId implements UniqueIdInterface {
-  /** Whether or not to check new UID against configured whitelists **/
-  private Boolean useWhitelist = false;
-  /** Whitelists for various uid types **/
-  private String auto_metric_patterns = ".*";
-  private String auto_tagk_patterns = ".*";
-  private String auto_tagv_patterns = ".*";
-
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
 
   /** Enumerator for different types of UIDS @since 2.0 */
