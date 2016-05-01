@@ -181,6 +181,16 @@ public class ExpressionIterator implements ITimeSyncedIterator {
        .append(id)
        .append(", expression=\"")
        .append(expression.toString())
+       .append(", setOperator=")
+       .append(set_operator)
+       .append(", fillPolicy=")
+       .append(fill_policy)
+       .append(", intersectOnQueryTagks=")
+       .append(intersect_on_query_tagks)
+       .append(", includeAggTags=")
+       .append(include_agg_tags)
+       .append(", index=")
+       .append(index)
        .append("\", VariableIterator=")
        .append(iterator)
        .append(", dps=")
@@ -220,12 +230,13 @@ public class ExpressionIterator implements ITimeSyncedIterator {
       LOG.debug("Compiling " + this);
     }
     if (results.size() < 1) {
-      throw new IllegalArgumentException("Missing query results.");
+      throw new IllegalArgumentException("No results for any variables in "
+          + "the expression: " + this);
     }
     if (results.size() < names.size()) {
       throw new IllegalArgumentException("Not enough query results [" 
           + results.size() + "] for the expression variables [" 
-          + names.size() + "]");
+          + names.size() + "] " + this);
     }
     
     // don't care if we have extra results, but we had darned well better make
