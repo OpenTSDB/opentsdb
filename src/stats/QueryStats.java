@@ -140,6 +140,8 @@ public class QueryStats {
     SUCCESSFUL_SCAN ("successfulScan", false),
     
     // Single Scanner stats
+    DPS_PRE_FILTER ("dpsPreFilter", false),
+    ROWS_PRE_FILTER ("rowsPreFilter", false),
     DPS_POST_FILTER ("dpsPostFilter", false),
     ROWS_POST_FILTER ("rowsPostFilter", false),
     SCANNER_UID_TO_STRING_TIME ("scannerUidToStringTime", true),
@@ -535,7 +537,8 @@ public class QueryStats {
       final Pair<QueryStat, QueryStat> names = AGG_MAP.get(cumulation.getKey());
       addStat(names.getKey(),  
           (cumulation.getValue().getKey() / 
-              (scanner_stats.size() * Const.SALT_BUCKETS())));
+              (scanner_stats.size() * 
+                  Const.SALT_WIDTH() > 0 ? Const.SALT_BUCKETS() : 1)));
       addStat(names.getValue(), cumulation.getValue().getValue());
     }
     overall_cumulations.clear();
@@ -610,8 +613,8 @@ public class QueryStats {
       final QueryStat name, final long value) {
     Map<Integer, Map<QueryStat, Long>> qs = scanner_stats.get(query_index);
     if (qs == null) {
-      qs = new ConcurrentHashMap<Integer, 
-          Map<QueryStat, Long>>(Const.SALT_BUCKETS());
+      qs = new ConcurrentHashMap<Integer, Map<QueryStat, Long>>(
+              Const.SALT_WIDTH() > 0 ? Const.SALT_BUCKETS() : 1);
       scanner_stats.put(query_index, qs);
     }
     Map<QueryStat, Long> scanner_stat_map = qs.get(id);
@@ -633,7 +636,7 @@ public class QueryStats {
     Map<Integer, Set<String>> query_servers = scanner_servers.get(query_index);
     if (query_servers == null) {
       query_servers = new ConcurrentHashMap<Integer, Set<String>>(
-          Const.SALT_BUCKETS());
+          Const.SALT_WIDTH() > 0 ? Const.SALT_BUCKETS() : 1);
       scanner_servers.put(query_index, query_servers);
     }
     query_servers.put(id, servers);
