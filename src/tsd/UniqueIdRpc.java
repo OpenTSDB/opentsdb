@@ -553,8 +553,13 @@ final class UniqueIdRpc implements HttpRpc {
    * be parsed
    */
   private TSMeta parseTSMetaQS(final HttpQuery query) {
-    final String tsuid = query.getRequiredQueryStringParam("tsuid");
-    final TSMeta meta = new TSMeta(tsuid);
+    final String tsuid = query.getQueryStringParam("tsuid");
+    final TSMeta meta;
+    if (tsuid != null && !tsuid.isEmpty()) {
+      meta = new TSMeta(tsuid);
+    } else {
+      meta = new TSMeta();
+    }
     
     final String display_name = query.getQueryStringParam("display_name");
     if (display_name != null) {
