@@ -257,7 +257,7 @@ test_SRC := \
 	test/core/TestSpanGroup.java	\
 	test/core/TestTags.java	\
 	test/core/TestTSDB.java	\
-	test/core/TestTSDBAddDataPoint.java	\
+	test/core/TestTSDBAddPoint.java	\
 	test/core/TestTsdbQueryDownsample.java	\
 	test/core/TestTsdbQueryDownsampleSalted.java	\
 	test/core/TestTsdbQuery.java	\
