@@ -146,6 +146,7 @@ tsdb_SRC := \
 	src/tsd/AbstractHttpQuery.java	\
 	src/tsd/AnnotationRpc.java	\
 	src/tsd/BadRequestException.java	\
+	src/tsd/BlacklistRpc.java	\
 	src/tsd/ConnectionManager.java	\
 	src/tsd/GnuplotException.java	\
 	src/tsd/GraphHandler.java	\
@@ -181,6 +182,7 @@ tsdb_SRC := \
 	src/uid/UniqueId.java	\
 	src/uid/UniqueIdFilterPlugin.java \
 	src/uid/UniqueIdInterface.java \
+	src/utils/BlacklistManager.java \
 	src/utils/ByteArrayPair.java \
 	src/utils/ByteSet.java \
 	src/utils/Config.java \
@@ -337,6 +339,7 @@ test_SRC := \
 	test/tsd/TestQueryExecutor.java	\
 	test/tsd/TestQueryRpc.java	\
 	test/tsd/TestQueryRpcLastDataPoint.java	\
+	test/tsd/TestReactiveBlacklisting.java	\
 	test/tsd/TestRpcHandler.java	\
 	test/tsd/TestRpcPlugin.java	\
 	test/tsd/TestRpcManager.java	\
@@ -357,7 +360,7 @@ test_SRC := \
 	test/utils/TestJSON.java \
 	test/utils/TestPair.java \
 	test/utils/TestPluginLoader.java
-	
+
 test_plugin_SRC := \
   test/plugin/DummyPluginA.java \
   test/plugin/DummyPluginB.java \

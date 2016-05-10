@@ -36,6 +36,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Const;
 import net.opentsdb.tsd.PipelineFactory;
 import net.opentsdb.tsd.RpcManager;
+import net.opentsdb.utils.BlacklistManager;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.FileSystem;
 import net.opentsdb.utils.Pair;
@@ -214,6 +215,9 @@ final class TSDMain {
         bindAddress = InetAddress.getByName(config.getString("tsd.network.bind"));
       }
 
+      initReactiveBlacklisting(config);
+
+
       // we validated the network port config earlier
       final InetSocketAddress addr = new InetSocketAddress(bindAddress,
           config.getInt("tsd.network.port"));
@@ -233,6 +237,14 @@ final class TSDMain {
       throw new RuntimeException("Initialization failed", e);
     }
     // The server is now running in separate threads, we can exit main.
+  }
+
+  private static void initReactiveBlacklisting(Config config) {
+    // Initialise reactive blacklisting
+    boolean isReactiveBlacklistingEnabled = config.getBoolean("tsd.blacklist.reactive.enabled");
+    int rowCountThreshold = config.getInt("tsd.blacklist.reactive.row_count");
+    int blockTimeInSeconds = config.getInt("tsd.blacklist.reactive.block_time_seconds");
+    BlacklistManager.initBlockListConfiguration(isReactiveBlacklistingEnabled, rowCountThreshold, blockTimeInSeconds);
   }
 
   private static StartupPlugin loadStartupPlugins(Config config) {

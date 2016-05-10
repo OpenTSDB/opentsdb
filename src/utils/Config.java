@@ -540,6 +540,9 @@ public class Config {
       + "Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, "
       + "X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since");
     default_map.put("tsd.query.timeout", "0");
+    default_map.put("tsd.blacklist.reactive.enabled", "false");
+    default_map.put("tsd.blacklist.reactive.row_count", "100000");
+    default_map.put("tsd.blacklist.reactive.block_time_seconds", "600");
 
     for (Map.Entry<String, String> entry : default_map.entrySet()) {
       if (!properties.containsKey(entry.getKey()))

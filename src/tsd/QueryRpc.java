@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+import net.opentsdb.utils.BlacklistManager;
 import org.hbase.async.HBaseException;
 import org.hbase.async.RpcTimedOutException;
 import org.hbase.async.Bytes.ByteMap;
@@ -154,6 +155,14 @@ final class QueryRpc implements HttpRpc {
     } catch (Exception e) {
       throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
           e.getMessage(), data_query.toString(), e);
+    }
+
+    List<TSSubQuery> subQueries = data_query.getQueries();
+    for(TSSubQuery subQuery : subQueries) {
+      if(BlacklistManager.isBlacklisted(subQuery.getMetric(), subQuery.getTags())) {
+        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+                "Metric Blacklisted : " + subQuery.getMetric(), data_query.toString());
+      }
     }
     
     // if the user tried this query multiple times from the same IP and src port
