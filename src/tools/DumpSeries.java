@@ -182,7 +182,7 @@ final class DumpSeries {
     final byte[] value = kv.value();
     final int q_len = qualifier.length;
 
-    if (q_len != 3 && q_len % 2 != 0) {
+    if (!AppendDataPoints.isAppendDataPoints(qualifier) && q_len % 2 != 0) {
       if (!importformat) {
         // custom data object, not a data point
         if (kv.qualifier()[0] == Annotation.PREFIX()) {
