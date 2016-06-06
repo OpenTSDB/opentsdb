@@ -22,7 +22,6 @@ import java.util.Map;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
-import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.AppendRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.PutRequest;
