@@ -1426,5 +1426,82 @@ public final class TSDB {
   final Deferred<Object> delete(final byte[] key, final byte[][] qualifiers) {
     return client.delete(new DeleteRequest(table, key, FAMILY, qualifiers));
   }
-
+  
+  /**
+   * store a single long value data point in the TSDB as HBase counter.
+   * @param metric A non-empty string.
+   * @param timestamp The timestamp associated with the value.
+   * @param value The value of the data point.
+   * @param tags The tags on this series.  This map must be non-empty.
+   * @return A deferred object that indicates the completion of the request.
+   * The {@link Object} has not special meaning and can be {@code null} (think
+   * of it as {@code Deferred<Void>}). But you probably want to attach at
+   * least an errback to this {@code Deferred} to handle failures.
+   * @throws IllegalArgumentException if the timestamp is less than or equal
+   * to the previous timestamp added or 0 for the first timestamp, or if the
+   * difference with the previous timestamp is too large.
+   * @throws IllegalArgumentException if the metric name is empty or contains
+   * illegal characters.
+   * @throws IllegalArgumentException if the value is NaN or infinite.
+   * @throws IllegalArgumentException if the tags list is empty or one of the
+   * elements contains illegal characters.
+   * @throws HBaseException (deferred) if there was a problem while persisting
+   * data.
+   */
+  public Deferred<Object> addCounter(String metric, long timestamp, long valueAsLong, HashMap<String, String> tags) {
+		
+	    final byte[] value = Bytes.fromLong(valueAsLong);
+	    final short flags = (short) (value.length - 1);
+	  
+	    // we only accept positive unix epoch timestamps in seconds or milliseconds
+	    if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
+	        timestamp > 9999999999999L)) {
+	      throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
+	          + " timestamp=" + timestamp
+	          + " when trying to add value=" + Arrays.toString(value) + '/' + flags
+	          + " to metric=" + metric + ", tags=" + tags);
+	    }
+	    IncomingDataPoints.checkMetricAndTags(metric, tags);
+	    final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
+	    final long base_time;
+	    final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
+	    
+	    if ((timestamp & Const.SECOND_MASK) != 0) {
+	      // drop the ms timestamp to seconds to calculate the base timestamp
+	      base_time = ((timestamp / 1000) - 
+	          ((timestamp / 1000) % Const.MAX_TIMESPAN));
+	    } else {
+	      base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+	    }
+	    
+	    Bytes.setInt(row, (int) base_time, metrics.width());
+	    scheduleForCompaction(row, (int) base_time);
+	    
+	    AtomicIncrementRequest counterRequest = new AtomicIncrementRequest(table, row, FAMILY, qualifier, Bytes.getLong(value));	    
+	    client.atomicIncrement(counterRequest);
+	    	            
+	    if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() && 
+	        !config.enable_tsuid_tracking() && rt_publisher == null) {
+	      return null;
+	    }
+	    
+	    final byte[] tsuid = UniqueId.getTSUIDFromKey(row, METRICS_WIDTH, 
+	        Const.TIMESTAMP_BYTES);
+	    
+	    // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
+	    // counter field for a TSUID with the proper timestamp. If the user would
+	    // rather have TSUID incrementing enabled, that will trump the PUT
+	    if (config.enable_tsuid_tracking() && !config.enable_tsuid_incrementing()) {
+	      final PutRequest tracking = new PutRequest(meta_table, tsuid, 
+	          TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(1));
+	      client.put(tracking);
+	    } else if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
+	      TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
+	    }
+	    
+	    if (rt_publisher != null) {
+	      rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags);
+	    }
+	    return null;
+   }
 }
