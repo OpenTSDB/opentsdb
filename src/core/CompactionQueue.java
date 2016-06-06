@@ -417,25 +417,6 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       }
       return null;
     }
-    
-    private byte[] fromLong(long value) {
-    	final byte[] v;
-        
-        if (tsdb.config.use_hbase_counters()) {
-        	v = Bytes.fromLong(value);
-        }  
-        else if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
-          v = new byte[] { (byte) value };
-        } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
-          v = Bytes.fromShort((short) value);
-        } else if (Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE) {
-          v = Bytes.fromInt((int) value);
-        } else {
-          v = Bytes.fromLong(value);
-        }
-        
-        return v;
-    }
 
     /**
      * Build a heap of columns containing datapoints.  Assumes that non-datapoint columns are
@@ -549,7 +530,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     		  current_flags = 0;
     		  
     		  if (is_current_long) {
-    			  new_val = fromLong((long) current_val);
+    			  new_val = Bytes.fromLong((long) current_val);
     			  current_flags = (short) (new_val.length - 1);
     		  } else {
     			  new_val = Bytes.fromLong(Double.doubleToRawLongBits(current_val));
