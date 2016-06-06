@@ -14,6 +14,7 @@ package net.opentsdb.tsd;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -107,9 +108,10 @@ public final class TestUniqueIdRpc {
         "/api/uid/assign?metric=sys.cpu.0,sys.cpu.2");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals(
-        "{\"metric\":{\"sys.cpu.0\":\"000001\",\"sys.cpu.2\":\"000003\"}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"sys.cpu.0\":\"000001\""));
+    assertTrue(json.contains("\"sys.cpu.2\":\"000003\""));
   }
   
   @Test
@@ -119,9 +121,10 @@ public final class TestUniqueIdRpc {
         "/api/uid/assign?metric=sys.cpu.1");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"metric_errors\":{\"sys.cpu.1\":\"Name already exists with " 
-        + "UID: 000002\"},\"metric\":{}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("{\"sys.cpu.1\":\"Name already exists with " 
+        + "UID: 000002\"}"));
   }
   
   @Test
@@ -131,10 +134,12 @@ public final class TestUniqueIdRpc {
         "/api/uid/assign?metric=sys.cpu.0,sys.cpu.1,sys.cpu.2");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"metric_errors\":{\"sys.cpu.1\":\"Name already exists with "
-        + "UID: 000002\"},\"metric\":{\"sys.cpu.0\":\"000001\",\"sys.cpu.2\":"
-        + "\"000003\"}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("{\"sys.cpu.1\":\"Name already exists with "
+        + "UID: 000002\"}"));
+    assertTrue(json.contains("{\"sys.cpu.0\":\"000001\",\"sys.cpu.2\":"
+        + "\"000003\"}"));
   }
   
   @Test
@@ -155,9 +160,10 @@ public final class TestUniqueIdRpc {
         "/api/uid/assign?tagk=host,fqdn");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals(
-        "{\"tagk\":{\"fqdn\":\"000003\",\"host\":\"000001\"}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"fqdn\":\"000003\""));
+    assertTrue(json.contains("\"host\":\"000001\""));
   }
   
   @Test
@@ -167,9 +173,10 @@ public final class TestUniqueIdRpc {
         "/api/uid/assign?tagk=datacenter");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"tagk_errors\":{\"datacenter\":\"Name already exists with " 
-        + "UID: 000002\"},\"tagk\":{}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"tagk_errors\":{\"datacenter\":"
+        + "\"Name already exists with UID: 000002\"}"));
   }
   
   @Test
@@ -179,9 +186,12 @@ public final class TestUniqueIdRpc {
         "/api/uid/assign?tagk=host,datacenter,fqdn");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"tagk_errors\":{\"datacenter\":\"Name already exists with "
-        + "UID: 000002\"},\"tagk\":{\"fqdn\":\"000003\",\"host\":\"000001\"}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("{\"datacenter\":\"Name already exists with "
+        + "UID: 000002\"}"));
+    assertTrue(json.contains("\"fqdn\":\"000003\""));
+    assertTrue(json.contains("\"host\":\"000001\""));
   }
     
   @Test
@@ -202,9 +212,10 @@ public final class TestUniqueIdRpc {
         "/api/uid/assign?tagv=localhost,foo");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals(
-        "{\"tagv\":{\"foo\":\"000003\",\"localhost\":\"000001\"}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"foo\":\"000003\""));
+    assertTrue(json.contains("\"localhost\":\"000001\""));
   }
   
   @Test
@@ -214,9 +225,10 @@ public final class TestUniqueIdRpc {
         "/api/uid/assign?tagv=myserver");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"tagv\":{},\"tagv_errors\":{\"myserver\":\"Name already "
-        + "exists with UID: 000002\"}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"tagv_errors\":{\"myserver\":\"Name already "
+        + "exists with UID: 000002\"}"));
   }
   
   @Test
@@ -226,10 +238,12 @@ public final class TestUniqueIdRpc {
         "/api/uid/assign?tagv=localhost,myserver,foo");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"tagv\":{\"foo\":\"000003\",\"localhost\":\"000001\"},"
-        + "\"tagv_errors\":{\"myserver\":\"Name already exists with "
-        + "UID: 000002\"}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"foo\":\"000003\""));
+    assertTrue(json.contains("\"localhost\":\"000001\""));
+    assertTrue(json.contains("{\"myserver\":\"Name already exists with "
+        + "UID: 000002\"}"));
   }
   
   @Test
@@ -297,9 +311,10 @@ public final class TestUniqueIdRpc {
     "{\"metric\":[\"sys.cpu.0\",\"sys.cpu.2\"]}");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals(
-        "{\"metric\":{\"sys.cpu.0\":\"000001\",\"sys.cpu.2\":\"000003\"}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"sys.cpu.0\":\"000001\""));
+    assertTrue(json.contains("\"sys.cpu.2\":\"000003\""));
   }
   
   public void assignPostMetricSingleBad() throws Exception {
@@ -308,9 +323,10 @@ public final class TestUniqueIdRpc {
     "{\"metric\":[\"sys.cpu.2\"]}");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"metric_errors\":{\"sys.cpu.1\":\"Name already exists with " 
-        + "UID: 000002\"},\"metric\":{}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("{\"sys.cpu.1\":\"Name already exists with " 
+        + "UID: 000002\"}"));
   }
   
   public void assignPostMetric2Good1Bad() throws Exception {
@@ -319,10 +335,12 @@ public final class TestUniqueIdRpc {
     "{\"metric\":[\"sys.cpu.0\",\"sys.cpu.1\",\"sys.cpu.2\"]}");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"metric_errors\":{\"sys.cpu.1\":\"Name already exists with "
-        + "UID: 000002\"},\"metric\":{\"sys.cpu.0\":\"000001\",\"sys.cpu.2\":"
-        + "\"000003\"}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("{\"sys.cpu.1\":\"Name already exists with "
+        + "UID: 000002\"}"));
+    assertTrue(json.contains("\"sys.cpu.0\":\"000001\""));
+    assertTrue(json.contains("\"sys.cpu.2\":\"000003\""));
   }
 
   @Test
@@ -342,9 +360,10 @@ public final class TestUniqueIdRpc {
     "{\"tagk\":[\"host\",\"fqdn\"]}");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals(
-        "{\"tagk\":{\"fqdn\":\"000003\",\"host\":\"000001\"}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"fqdn\":\"000003\""));
+    assertTrue(json.contains("\"host\":\"000001\""));
   }
   
   public void assignPostTagkSingleBad() throws Exception {
@@ -353,9 +372,10 @@ public final class TestUniqueIdRpc {
     "{\"tagk\":[\"datacenter\"]}");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"tagk_errors\":{\"datacenter\":\"Name already exists with " 
-        + "UID: 000002\"},\"tagk\":{}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"datacenter\":\"Name already exists with " 
+        + "UID: 000002\""));
   }
   
   public void assignPostTagk2Good1Bad() throws Exception {
@@ -364,9 +384,12 @@ public final class TestUniqueIdRpc {
     "{\"tagk\":[\"host\",\"datacenter\",\"fqdn\"]}");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"tagk_errors\":{\"datacenter\":\"Name already exists with "
-        + "UID: 000002\"},\"tagk\":{\"fqdn\":\"000003\",\"host\":\"000001\"}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("{\"datacenter\":\"Name already exists with "
+        + "UID: 000002\"}"));
+    assertTrue(json.contains("\"fqdn\":\"000003\""));
+    assertTrue(json.contains("\"host\":\"000001\""));
   }
 
   @Test
@@ -386,9 +409,10 @@ public final class TestUniqueIdRpc {
     "{\"tagv\":[\"localhost\",\"foo\"]}");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals(
-        "{\"tagv\":{\"foo\":\"000003\",\"localhost\":\"000001\"}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"foo\":\"000003\""));
+    assertTrue(json.contains("\"localhost\":\"000001\""));
   }
   
   public void assignPostTagvSingleBad() throws Exception {
@@ -397,9 +421,10 @@ public final class TestUniqueIdRpc {
     "{\"tagv\":[\"myserver\"]}");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"tagv\":{},\"tagv_errors\":{\"myserver\":\"Name already "
-        + "exists with UID: 000002\"}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"tagv_errors\":{\"myserver\":\"Name already "
+        + "exists with UID: 000002\"}"));
   }
   
   public void assignPostTagv2Good1Bad() throws Exception {
@@ -408,10 +433,12 @@ public final class TestUniqueIdRpc {
     "{\"tagv\":[\"localhost\",\"myserver\",\"foo\"]}");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"tagv\":{\"foo\":\"000003\",\"localhost\":\"000001\"},"
-        + "\"tagv_errors\":{\"myserver\":\"Name already exists with "
-        + "UID: 000002\"}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"foo\":\"000003\""));
+    assertTrue(json.contains("\"localhost\":\"000001\""));
+    assertTrue(json.contains("\"tagv_errors\":{\"myserver\":\"Name already exists with "
+        + "UID: 000002\"}"));
   }
 
   @Test
@@ -503,6 +530,157 @@ public final class TestUniqueIdRpc {
   @Test (expected = IllegalArgumentException.class)
   public void stringToUniqueIdTypeInvalid() throws Exception {setupAssign();
     UniqueId.stringToUniqueIdType("Not a type");
+  }
+
+  // Test /api/uid/rename ----------------------
+
+  @Test (expected = BadRequestException.class)
+  public void renameBadMethod() throws Exception {
+    HttpQuery query = NettyMocks.putQuery(tsdb, "/api/uid/rename", "");
+    rpc.execute(tsdb, query);
+  }
+
+  @Test
+  public void renamePostMetric() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/rename",
+        "{\"metric\":\"sys.cpu.1\",\"name\":\"sys.cpu.2\"}");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    assertEquals("{\"result\":\"true\"}",
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+
+  @Test
+  public void renamePostTagk() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/rename",
+        "{\"tagk\":\"datacenter\",\"name\":\"datacluster\"}");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    assertEquals("{\"result\":\"true\"}",
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+
+  @Test
+  public void renamePostTagv() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/rename",
+        "{\"tagv\":\"localhost\",\"name\":\"127.0.0.1\"}");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    assertEquals("{\"result\":\"true\"}",
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void renamePostNoName() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/rename",
+        "{\"tagk\":\"localhost\",\"not_name\":\"127.0.0.1\"}");
+    rpc.execute(tsdb, query);
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void renamePostNoType() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/rename",
+        "{\"name\":\"127.0.0.1\"}");
+    rpc.execute(tsdb, query);
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void renamePostNotJSON() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/rename", "Not JSON");
+    rpc.execute(tsdb, query);
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void renamePostZeroLengthContent() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/rename", "");
+    rpc.execute(tsdb, query);
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void renamePostEmptyJSON() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/rename", "{}");
+    rpc.execute(tsdb, query);
+  }
+
+  @Test
+  public void renameQsMetric() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb,
+        "/api/uid/rename?metric=sys.cpu.1&name=sys.cpu.2");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    assertEquals("{\"result\":\"true\"}",
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+
+  @Test
+  public void renameQsTagk() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb,
+        "/api/uid/rename?tagk=datacenter&name=datacluster");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    assertEquals("{\"result\":\"true\"}",
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+
+  @Test
+  public void renameQsTagv() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb,
+        "/api/uid/rename?tagv=localhost&name=127.0.0.1");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    assertEquals("{\"result\":\"true\"}",
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+
+  @Test
+  public void renameQsSkipUnsupportedParam() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb,
+        "/api/uid/rename?tagv=localhost&name=127.0.0.1&drop=db");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    assertEquals("{\"result\":\"true\"}",
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void renameQsMissingType() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb,
+        "/api/uid/rename?name=127.0.0.1");
+    rpc.execute(tsdb, query);
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void renameQsMissingName() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb,
+        "/api/uid/rename?metric=sys.cpu.1");
+    rpc.execute(tsdb, query);
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void renameQsNoParamValue() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb,
+        "/api/uid/rename?metric=&name=sys.cpu.2");
+    rpc.execute(tsdb, query);
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void renameQsNoParam() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb,
+        "/api/uid/rename?");
+    rpc.execute(tsdb, query);
+  }
+
+  @Test
+  public void renameRenameException() throws Exception {
+    final String message = "New name already exists";
+    doThrow(new IllegalArgumentException(message)).when(tsdb).renameUid("tagv",
+        "localhost", "localhost");
+    HttpQuery query = NettyMocks.getQuery(tsdb,
+        "/api/uid/rename?tagv=localhost&name=localhost");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
+    assertEquals("{\"error\":\"" + message + "\",\"result\":\"false\"}",
+        query.response().getContent().toString(Charset.forName("UTF-8")));
   }
 
   // Teset /api/uid/uidmeta --------------------

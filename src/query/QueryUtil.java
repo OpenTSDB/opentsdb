@@ -200,7 +200,8 @@ public class QueryUtil {
       final int end_time) {
     
     // no-op
-    if (group_bys.isEmpty() && row_key_literals.isEmpty()) {
+    if ((group_bys == null || group_bys.isEmpty()) 
+        && (row_key_literals == null || row_key_literals.isEmpty())) {
       return;
     }
     

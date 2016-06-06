@@ -68,6 +68,7 @@ tsdb_SRC := \
 	src/core/TSQuery.java	\
 	src/core/TSSubQuery.java	\
 	src/core/WritableDataPoints.java	\
+	src/core/WriteableDataPointFilterPlugin.java	\
 	src/graph/Plot.java	\
 	src/meta/Annotation.java	\
 	src/meta/MetaDataCache.java	\
@@ -132,9 +133,8 @@ tsdb_SRC := \
 	src/tools/MetaPurge.java	\
 	src/tools/MetaSync.java	\
 	src/tools/Search.java	\
-  src/tools/StartupPlugin.java \
+	src/tools/StartupPlugin.java \
 	src/tools/TSDMain.java	\
-	src/tools/TSDPort.java	\
 	src/tools/TextImporter.java	\
 	src/tools/TreeSync.java	\
 	src/tools/UidManager.java	\
@@ -179,6 +179,7 @@ tsdb_SRC := \
 	src/uid/NoSuchUniqueName.java	\
 	src/uid/RandomUniqueId.java	\
 	src/uid/UniqueId.java	\
+	src/uid/UniqueIdFilterPlugin.java \
 	src/uid/UniqueIdInterface.java \
 	src/utils/ByteArrayPair.java \
 	src/utils/ByteSet.java \
@@ -256,6 +257,7 @@ test_SRC := \
 	test/core/TestSpanGroup.java	\
 	test/core/TestTags.java	\
 	test/core/TestTSDB.java	\
+	test/core/TestTSDBAddPoint.java	\
 	test/core/TestTsdbQueryDownsample.java	\
 	test/core/TestTsdbQueryDownsampleSalted.java	\
 	test/core/TestTsdbQuery.java	\
@@ -344,7 +346,6 @@ test_SRC := \
 	test/tsd/TestSuggestRpc.java	\
 	test/tsd/TestTreeRpc.java	\
 	test/tsd/TestUniqueIdRpc.java	\
-	test/tsd/TestStatsWithPort.java	\
 	test/uid/TestNoSuchUniqueId.java	\
 	test/uid/TestRandomUniqueId.java	\
 	test/uid/TestUniqueId.java \

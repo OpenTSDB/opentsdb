@@ -316,6 +316,8 @@ public class SaltScanner {
     private long uid_resolve_time = 0; // cumulation of time resolving UIDs
     private long uids_resolved = 0; 
     private long compaction_time = 0;  // cumulation of time compacting
+    private long dps_pre_filter = 0;
+    private long rows_pre_filter = 0;
     private long dps_post_filter = 0;
     private long rows_post_filter = 0;
     
@@ -381,7 +383,8 @@ public class SaltScanner {
         final List<Deferred<Object>> lookups = 
             filters != null && !filters.isEmpty() ? 
                 new ArrayList<Deferred<Object>>(rows.size()) : null;
-                
+        
+        rows_pre_filter += rows.size();
         for (final ArrayList<KeyValue> row : rows) {
           final byte[] key = row.get(0).key();
           if (RowKey.rowKeyContainsMetric(metric, key) != 0) {
@@ -393,6 +396,36 @@ public class SaltScanner {
             return null;
           }
 
+          // calculate estimated data point count. We don't want to deserialize
+          // the byte arrays so we'll just get a rough estimate of compacted
+          // columns.
+          for (final KeyValue kv : row) {
+            if (kv.qualifier().length % 2 == 0) {
+              if (kv.qualifier().length == 2 || kv.qualifier().length == 4) {
+                ++dps_pre_filter;
+              } else {
+                // for now we'll assume that all compacted columns are of the 
+                // same precision. This is likely incorrect.
+                if (Internal.inMilliseconds(kv.qualifier())) {
+                  dps_pre_filter += (kv.qualifier().length / 4);
+                } else {
+                  dps_pre_filter += (kv.qualifier().length / 2);
+                }
+              }
+            } else if (kv.qualifier()[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
+              // with appends we don't have a good rough estimate as the length
+              // can vary widely with the value length variability. Therefore we
+              // have to iterate.
+              int idx = 0;
+              int qlength = 0;
+              while (idx < kv.value().length) {
+                qlength = Internal.getQualifierLength(kv.value(), idx);
+                idx += qlength + Internal.getValueLengthFromQualifier(kv.value(), idx);
+                ++dps_pre_filter;
+              }
+            }
+          }
+          
           // If any filters have made it this far then we need to resolve
           // the row key UIDs to their names for string comparison. We'll
           // try to avoid the resolution with some sets but we may dupe
@@ -486,6 +519,7 @@ public class SaltScanner {
      * @param row The row to add
      */
     void processRow(final byte[] key, final ArrayList<KeyValue> row) {
+      ++rows_post_filter;
       if (delete) {
         final DeleteRequest del = new DeleteRequest(tsdb.dataTable(), key);
         tsdb.getClient().delete(del);
@@ -495,6 +529,36 @@ public class SaltScanner {
       if (notes == null) {
         notes = new ArrayList<Annotation>();
         annotations.put(key, notes);
+      }
+      
+      // calculate estimated data point count. We don't want to deserialize
+      // the byte arrays so we'll just get a rough estimate of compacted
+      // columns.
+      for (final KeyValue kv : row) {
+        if (kv.qualifier().length % 2 == 0) {
+          if (kv.qualifier().length == 2 || kv.qualifier().length == 4) {
+            ++dps_post_filter;
+          } else {
+            // for now we'll assume that all compacted columns are of the 
+            // same precision. This is likely incorrect.
+            if (Internal.inMilliseconds(kv.qualifier())) {
+              dps_post_filter += (kv.qualifier().length / 4);
+            } else {
+              dps_post_filter += (kv.qualifier().length / 2);
+            }
+          }
+        } else if (kv.qualifier()[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
+          // with appends we don't have a good rough estimate as the length
+          // can vary widely with the value length variability. Therefore we
+          // have to iterate.
+          int idx = 0;
+          int qlength = 0;
+          while (idx < kv.value().length) {
+            qlength = Internal.getQualifierLength(kv.value(), idx);
+            idx += qlength + Internal.getValueLengthFromQualifier(kv.value(), idx);
+            ++dps_post_filter;
+          }
+        }
       }
 
       final KeyValue compacted;
@@ -542,11 +606,14 @@ public class SaltScanner {
             QueryStat.SUCCESSFUL_SCAN, ok ? 1 : 0);
         
         // Post Scan stats
-        /* TODO - fix up/add these counters 
+        query_stats.addScannerStat(query_index, index, 
+            QueryStat.ROWS_PRE_FILTER, rows_pre_filter);
+        query_stats.addScannerStat(query_index, index,
+            QueryStat.DPS_PRE_FILTER, dps_pre_filter);
         query_stats.addScannerStat(query_index, index, 
             QueryStat.ROWS_POST_FILTER, rows_post_filter);
         query_stats.addScannerStat(query_index, index,
-            QueryStat.DPS_POST_FILTER, dps_post_filter); */
+            QueryStat.DPS_POST_FILTER, dps_post_filter);
         query_stats.addScannerStat(query_index, index, 
             QueryStat.SCANNER_UID_TO_STRING_TIME, uid_resolve_time);
         query_stats.addScannerStat(query_index, index, 

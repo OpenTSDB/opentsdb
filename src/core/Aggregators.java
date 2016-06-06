@@ -81,7 +81,7 @@ public final class Aggregators {
    * if timestamps don't line up instead of interpolating. */
   public static final Aggregator MIMMAX = new Max(
       Interpolation.MIN, "mimmax");
-  
+
   /** Aggregator that returns the number of data points.
    * WARNING: This currently interpolates with zero-if-missing. In this case 
    * counts will be off when counting multiple time series. Only use this when
@@ -89,6 +89,12 @@ public final class Aggregators {
    * @since 2.2 */
   public static final Aggregator COUNT = new Count(Interpolation.ZIM, "count");
 
+  /** Aggregator that returns the first data point. */
+  public static final Aggregator FIRST = new First(Interpolation.ZIM, "first");
+
+  /** Aggregator that returns the first data point. */
+  public static final Aggregator LAST = new Last(Interpolation.ZIM, "last");
+  
   /** Maps an aggregator name to its instance. */
   private static final HashMap<String, Aggregator> aggregators;
 
@@ -156,6 +162,8 @@ public final class Aggregators {
     aggregators.put("zimsum", ZIMSUM);
     aggregators.put("mimmin", MIMMIN);
     aggregators.put("mimmax", MIMMAX);
+    aggregators.put("first", FIRST);
+    aggregators.put("last", LAST);
 
     PercentileAgg[] percentiles = {
        p999, p99, p95, p90, p75, p50, 
@@ -643,7 +651,7 @@ public final class Aggregators {
 
       return result / count;
     }
-
+  
     class SumPoint {
       long ts;
       Object val;
@@ -652,6 +660,50 @@ public final class Aggregators {
         this.ts = ts;
         this.val = val;
       }
+    }
+  }
+  
+  private static final class First extends Aggregator {
+    public First(final Interpolation method, final String name) {
+      super(method, name);
+    }
+    
+    public long runLong(final Longs values) {
+      long val = values.nextLongValue();
+      while (values.hasNextValue()) {
+    	  values.nextLongValue();
+      }
+      return val;
+    }
+
+    public double runDouble(final Doubles values) {
+      double val = values.nextDoubleValue();
+      while (values.hasNextValue()) {
+    	  values.nextDoubleValue();
+      }
+      return val;
+    }
+  }
+  
+  private static final class Last extends Aggregator {
+    public Last(final Interpolation method, final String name) {
+      super(method, name);
+    }
+    
+    public long runLong(final Longs values) {
+      long val = values.nextLongValue();
+      while (values.hasNextValue()) {
+        val = values.nextLongValue();
+      }
+      return val;
+    }
+
+    public double runDouble(final Doubles values) {
+      double val = values.nextDoubleValue();
+      while (values.hasNextValue()) {
+        val = values.nextDoubleValue();
+      }
+      return val;
     }
   }
 }

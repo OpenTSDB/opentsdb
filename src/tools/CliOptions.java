@@ -77,7 +77,7 @@ final class CliOptions {
       args = argp.parse(args);
     } catch (IllegalArgumentException e) {
       System.err.println("Invalid usage.  " + e.getMessage());
-      return null;
+      System.exit(2);
     }
     honorVerboseFlag(argp);
     return args;
@@ -120,17 +120,6 @@ final class CliOptions {
       // map the overrides
       if (entry.getKey().toLowerCase().equals("--auto-metric")) {
         config.overrideConfig("tsd.core.auto_create_metrics", "true");
-      } else if (entry.getKey().toLowerCase().equals("--auto-metric-whitelist")) {
-        config.overrideConfig("tsd.core.auto_create_whitelist", "true");
-      } else if (entry.getKey().toLowerCase().equals("--auto-metric-pattern")) {
-        config.overrideConfig("tsd.core.auto_create_metrics_patterns",
-                entry.getValue());
-      } else if (entry.getKey().toLowerCase().equals("--auto-tagk-pattern")) {
-        config.overrideConfig("tsd.core.auto_create_tagk_patterns",
-                entry.getValue());
-      } else if (entry.getKey().toLowerCase().equals("--auto-tagv-pattern")) {
-        config.overrideConfig("tsd.core.auto_create_tagv_patterns",
-                entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--table")) {
         config.overrideConfig("tsd.storage.hbase.data_table", entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--uidtable")) {
@@ -159,11 +148,7 @@ final class CliOptions {
         config.overrideConfig("tsd.network.async_io", entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--worker-threads")) {
         config.overrideConfig("tsd.network.worker_threads", entry.getValue());
-      } else if (entry.getKey().toLowerCase().equals("--max-connections")) {
-        config.overrideConfig("tsd.core.connections.limit", entry.getValue());
-      } else if (entry.getKey().toLowerCase().equals("--statswport")) {
-          config.overrideConfig("tsd.core.stats_with_port", "true");
-      }     	  
+      } 	  
     }
   }
   

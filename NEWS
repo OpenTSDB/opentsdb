@@ -1,6 +1,6 @@
 OpenTSDB - User visible changes.
 
-* Version 2.3.0 RC1 (2016-03-28)
+* Version 2.3.0 RC1 (2016-05-02)
 
 Noteworthy Changes:
   - Introduced option --max-connection/tsd.core.connections.limit to set the maximum number
@@ -13,15 +13,24 @@ Noteworthy Changes:
   - Added MetaDataCache plugin api
   - Added timeshift() function (#175)
   - Now align downsampling to Gregorian Calendar (#548, #657)
-  - Added support for latest Java versions
-  - Added NONE aggregator
+  - Added None aggregator to fetch raw data along with first and last aggregators to 
+    fetch only the first or last data points when downsampling.
   - Added script to build OpenTSDB/HBase on OSX (#674)
-  - Added First/Last Downsampler
+  - Add cross-series expressions with mathematical operators using Jexl
   - Added query epxressions (alias(), scale(), absolute(), movingAverage(), highestCurrent(),
     highestMax(), timeShift(), divide(), sum(), difference(), multiply()) (#625)
+  - Add a Unique ID assignment filter API for enforcing UID assignment naming conventions.
+  - Add a whitelist regular expression based UID assignment filter
+  - Add a time series storage filter plugin API that allows processing time series data
+    and determining if it should be stored or not.
+  - Allow using OpenTSDB with Google's Bigtable cloud platform or with Apache Cassandra
+    
 Bug Fixes:
   - Some improperly formatted timestamps were allowed (#724)
-  - removed stdout logging from packaged logback.xml files (#715)
+  - Removed stdout logging from packaged logback.xml files (#715)
+  - Restore the ability to create TSMeta objects via URI
+  - Restore raw data points (along with post-filtered data points) in query stats
+  - Built in UI will now properly display global annotations when the query string is passed
   - 
 * Version 2.2.0 (2016-02-14)
 

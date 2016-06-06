@@ -49,6 +49,7 @@ import net.opentsdb.query.expression.ExpressionIterator;
 import net.opentsdb.query.expression.NumericFillPolicy;
 import net.opentsdb.query.expression.TimeSyncedIterator;
 import net.opentsdb.query.expression.VariableIterator.SetOperator;
+import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Expression;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
@@ -156,21 +157,30 @@ public class QueryExecutor {
 
       // filters
       if (mq.getFilter() != null && !mq.getFilter().isEmpty()) {
-        Filter filters = null;
+        List<TagVFilter> filters = null;
+        boolean explicit_tags = false;
         if (query.getFilters() == null || query.getFilters().isEmpty()) {
           throw new IllegalArgumentException("No filter defined: " + mq.getFilter());
         }
         for (final Filter filter : query.getFilters()) {
           if (filter.getId().equals(mq.getFilter())) {
-            filters = filter;
+            // TODO - it'd be more efficient if we could share the filters but
+            // for now, this is the only way to avoid concurrent modifications.
+            filters = new ArrayList<TagVFilter>(filter.getTags().size());
+            for (final TagVFilter f : filter.getTags()) {
+              filters.add(f.getCopy());
+            }
+            explicit_tags = filter.getExplicitTags();
             break;
           }
         }
         sub.setRate(timespan.isRate());
-        sub.setFilters(filters.getTags());
         sub.setAggregator(
             mq.getAggregator() != null ? mq.getAggregator() : timespan.getAggregator());
-        sub.setExplicitTags(filters.getExplicitTags());
+        if (filters != null) {
+          sub.setFilters(filters);
+          sub.setExplicitTags(explicit_tags);
+        }
       }
     }
     

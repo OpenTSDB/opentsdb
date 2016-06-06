@@ -203,6 +203,17 @@ public class ExpressionDataPoint implements DataPoint {
     this.dp.reset(dp);
   }
 
+  @Override
+  public String toString() {
+    final StringBuffer buf = new StringBuffer();
+    buf.append("ExpressionDataPoint(metricUIDs=")
+       .append(metric_uids)
+       .append(", tsuids=")
+       .append(tsuids)
+       .append(")");
+    return buf.toString();
+  }
+  
   // DataPoint implementations
   
   @Override

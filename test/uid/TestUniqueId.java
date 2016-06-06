@@ -22,11 +22,14 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.BaseTsdbTest.UnitTestException;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
+import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
@@ -43,6 +46,8 @@ import org.mockito.stubbing.Answer;
 
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyMapOf;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.eq;
@@ -261,18 +266,20 @@ public final class TestUniqueId {
   }
 
   @Test  // Test the creation of an ID with no problem.
-  public void getOrCreateIdAssignIdWithSuccess() {
+  public void getOrCreateIdAssignFilterOK() {
     uid = new UniqueId(client, table, METRIC, 3);
     final byte[] id = { 0, 0, 5 };
     final Config config = mock(Config.class);
     when(config.enable_realtime_uid()).thenReturn(false);
-    when(config.auto_whitelist()).thenReturn(false);
-    when(config.auto_metric_patterns()).thenReturn(".*");
-    when(config.auto_tagk_patterns()).thenReturn(".*");
-    when(config.auto_tagv_patterns()).thenReturn(".*");
     final TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(config);
     uid.setTSDB(tsdb);
+    final UniqueIdFilterPlugin filter = mock(UniqueIdFilterPlugin.class);
+    when(filter.fillterUIDAssignments()).thenReturn(true);
+    when(filter.allowUIDAssignment(any(UniqueIdType.class), anyString(), 
+        anyString(), anyMapOf(String.class, String.class)))
+      .thenReturn(Deferred.fromResult(true));
+    when(tsdb.getUidFilter()).thenReturn(filter);
     
     when(client.get(anyGet()))      // null  =>  ID doesn't exist.
       .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
@@ -295,21 +302,53 @@ public final class TestUniqueId {
     verify(client).atomicIncrement(incrementForRow(MAXID));
     // Reverse + forward mappings.
     verify(client, times(2)).compareAndSet(anyPut(), emptyArray());
+    verify(filter, times(1)).allowUIDAssignment(any(UniqueIdType.class), anyString(), 
+        anyString(), anyMapOf(String.class, String.class));
   }
 
-  @Test  // Test the creation of an ID with no problem.
-  public void getOrCreateIdAssignWhitelistedIdWithSuccess() {
+  @Test (expected = FailedToAssignUniqueIdException.class)
+  public void getOrCreateIdAssignFilterBlocked() {
     uid = new UniqueId(client, table, METRIC, 3);
-    final byte[] id = { 0, 0, 5 };
     final Config config = mock(Config.class);
     when(config.enable_realtime_uid()).thenReturn(false);
-    when(config.auto_whitelist()).thenReturn(true);
-    when(config.auto_metric_patterns()).thenReturn(".*");
-    when(config.auto_tagk_patterns()).thenReturn(".*");
-    when(config.auto_tagv_patterns()).thenReturn(".*");
     final TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(config);
     uid.setTSDB(tsdb);
+    final UniqueIdFilterPlugin filter = mock(UniqueIdFilterPlugin.class);
+    when(filter.fillterUIDAssignments()).thenReturn(true);
+    when(filter.allowUIDAssignment(any(UniqueIdType.class), anyString(), 
+        anyString(), anyMapOf(String.class, String.class)))
+      .thenReturn(Deferred.fromResult(false));
+    when(tsdb.getUidFilter()).thenReturn(filter);
+    
+    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
+            .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+    // Watch this! ______,^   I'm writing C++ in Java!
+
+    when(client.atomicIncrement(incrementForRow(MAXID)))
+            .thenReturn(Deferred.fromResult(5L));
+
+    when(client.compareAndSet(anyPut(), emptyArray()))
+            .thenReturn(Deferred.fromResult(true))
+            .thenReturn(Deferred.fromResult(true));
+
+    uid.getOrCreateId("foo");
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void getOrCreateIdAssignFilterReturnException() {
+    uid = new UniqueId(client, table, METRIC, 3);
+    final Config config = mock(Config.class);
+    when(config.enable_realtime_uid()).thenReturn(false);
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    uid.setTSDB(tsdb);
+    final UniqueIdFilterPlugin filter = mock(UniqueIdFilterPlugin.class);
+    when(filter.fillterUIDAssignments()).thenReturn(true);
+    when(filter.allowUIDAssignment(any(UniqueIdType.class), anyString(), 
+        anyString(), anyMapOf(String.class, String.class)))
+      .thenReturn(Deferred.<Boolean>fromError(new UnitTestException()));
+    when(tsdb.getUidFilter()).thenReturn(filter);
 
     when(client.get(anyGet()))      // null  =>  ID doesn't exist.
             .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
@@ -322,31 +361,23 @@ public final class TestUniqueId {
             .thenReturn(Deferred.fromResult(true))
             .thenReturn(Deferred.fromResult(true));
 
-    assertArrayEquals(id, uid.getOrCreateId("foo"));
-    // Should be a cache hit since we created that entry.
-    assertArrayEquals(id, uid.getOrCreateId("foo"));
-    // Should be a cache hit too for the same reason.
-    assertEquals("foo", uid.getName(id));
-
-    verify(client).get(anyGet()); // Initial Get.
-    verify(client).atomicIncrement(incrementForRow(MAXID));
-    // Reverse + forward mappings.
-    verify(client, times(2)).compareAndSet(anyPut(), emptyArray());
+    uid.getOrCreateId("foo");
   }
-
-  @Test(expected=RuntimeException.class)
-  public void getOrCreateIdAssignWhitelistedIdWithFailedWhitelist() {
+  
+  @Test(expected = RuntimeException.class)
+  public void getOrCreateIdAssignFilterThrowsException() {
     uid = new UniqueId(client, table, METRIC, 3);
-    final byte[] id = { 0, 0, 5 };
     final Config config = mock(Config.class);
     when(config.enable_realtime_uid()).thenReturn(false);
-    when(config.auto_whitelist()).thenReturn(true);
-    when(config.auto_metric_patterns()).thenReturn("^nomatch.*$");
-    when(config.auto_tagk_patterns()).thenReturn("^sys\\.cpu\\.*$");
-    when(config.auto_tagv_patterns()).thenReturn("^sys\\.cpu\\.*$");
     final TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(config);
     uid.setTSDB(tsdb);
+    final UniqueIdFilterPlugin filter = mock(UniqueIdFilterPlugin.class);
+    when(filter.fillterUIDAssignments()).thenReturn(true);
+    when(filter.allowUIDAssignment(any(UniqueIdType.class), anyString(), 
+        anyString(), anyMapOf(String.class, String.class)))
+      .thenThrow(new UnitTestException());
+    when(tsdb.getUidFilter()).thenReturn(filter);
 
     when(client.get(anyGet()))      // null  =>  ID doesn't exist.
             .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
@@ -359,67 +390,130 @@ public final class TestUniqueId {
             .thenReturn(Deferred.fromResult(true))
             .thenReturn(Deferred.fromResult(true));
 
-    assertArrayEquals(id, uid.getOrCreateId("foo"));
+    uid.getOrCreateId("foo");
+  }
+
+  @Test
+  public void getOrCreateIdAsyncAssignFilterOK() throws Exception {
+    uid = new UniqueId(client, table, METRIC, 3);
+    final byte[] id = { 0, 0, 5 };
+    final Config config = mock(Config.class);
+    when(config.enable_realtime_uid()).thenReturn(false);
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    uid.setTSDB(tsdb);
+    final UniqueIdFilterPlugin filter = mock(UniqueIdFilterPlugin.class);
+    when(filter.fillterUIDAssignments()).thenReturn(true);
+    when(filter.allowUIDAssignment(any(UniqueIdType.class), anyString(), 
+        anyString(), anyMapOf(String.class, String.class)))
+      .thenReturn(Deferred.fromResult(true));
+    when(tsdb.getUidFilter()).thenReturn(filter);
+    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
+      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+    // Watch this! ______,^   I'm writing C++ in Java!
+
+    when(client.atomicIncrement(incrementForRow(MAXID)))
+      .thenReturn(Deferred.fromResult(5L));
+
+    when(client.compareAndSet(anyPut(), emptyArray()))
+      .thenReturn(Deferred.fromResult(true))
+      .thenReturn(Deferred.fromResult(true));
+
+    assertArrayEquals(id, uid.getOrCreateIdAsync("foo").join());
     // Should be a cache hit since we created that entry.
-    assertArrayEquals(id, uid.getOrCreateId("foo"));
+    assertArrayEquals(id, uid.getOrCreateIdAsync("foo").join());
     // Should be a cache hit too for the same reason.
     assertEquals("foo", uid.getName(id));
-
+    
     verify(client).get(anyGet()); // Initial Get.
     verify(client).atomicIncrement(incrementForRow(MAXID));
     // Reverse + forward mappings.
     verify(client, times(2)).compareAndSet(anyPut(), emptyArray());
+    verify(filter, times(1)).allowUIDAssignment(any(UniqueIdType.class), anyString(), 
+        anyString(), anyMapOf(String.class, String.class));
   }
-
-  @Test  // Test the creation of an ID with no problem.
-  public void checkMetricAgainstWhitelist() {
-    setupWhitelists(METRIC);
-    assertTrue(uid.checkNameIsValid("sys.cpu.user"));
-  }
-
-  @Test  // Test the creation of an ID with no problem.
-  public void checkTagKAgainstWhitelist() {
-    setupWhitelists(TAGK);
-    assertTrue(uid.checkNameIsValid("sys.cpu.user"));
-  }
-
-  @Test  // Test the creation of an ID with no problem.
-  public void checkTagVAgainstWhitelist() {
-    setupWhitelists(TAGV);
-    assertTrue(uid.checkNameIsValid("sys.cpu.user"));
-  }
-
-  @Test
-  public void checkMetricAgainstWhitelistFails() {
-    setupWhitelists(METRIC);
-    assertFalse(uid.checkNameIsValid("foo.badmetric"));
-  }
-
-  @Test
-  public void checkTagKAgainstWhitelistFails() {
-    setupWhitelists(TAGK);
-    assertFalse(uid.checkNameIsValid("foo.badmetric"));
-  }
-
-  @Test
-  public void checkTagVAgainstWhitelistFails() {
-    setupWhitelists(TAGV);
-    assertFalse(uid.checkNameIsValid("foo.badmetric"));
-  }
-
-  private void setupWhitelists(String type) {
-    uid = new UniqueId(client, table, type, 3);
+  
+  @Test (expected = FailedToAssignUniqueIdException.class)
+  public void getOrCreateIdAsyncAssignFilterBlocked() throws Exception {
+    uid = new UniqueId(client, table, METRIC, 3);
     final Config config = mock(Config.class);
     when(config.enable_realtime_uid()).thenReturn(false);
-    when(config.auto_whitelist()).thenReturn(true);
-    when(config.auto_metric_patterns()).thenReturn("sys.*");
-    when(config.auto_tagk_patterns()).thenReturn("sys.*");
-    when(config.auto_tagv_patterns()).thenReturn("sys.*");
     final TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(config);
     uid.setTSDB(tsdb);
-  }
+    final UniqueIdFilterPlugin filter = mock(UniqueIdFilterPlugin.class);
+    when(filter.fillterUIDAssignments()).thenReturn(true);
+    when(filter.allowUIDAssignment(any(UniqueIdType.class), anyString(), 
+        anyString(), anyMapOf(String.class, String.class)))
+      .thenReturn(Deferred.fromResult(false));
+    when(tsdb.getUidFilter()).thenReturn(filter);
+    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
+      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
 
+    when(client.atomicIncrement(incrementForRow(MAXID)))
+      .thenReturn(Deferred.fromResult(5L));
+
+    when(client.compareAndSet(anyPut(), emptyArray()))
+      .thenReturn(Deferred.fromResult(true))
+      .thenReturn(Deferred.fromResult(true));
+
+    uid.getOrCreateIdAsync("foo").join();
+  }
+  
+  @Test (expected = UnitTestException.class)
+  public void getOrCreateIdAsyncAssignFilterReturnException() throws Exception {
+    uid = new UniqueId(client, table, METRIC, 3);
+    final Config config = mock(Config.class);
+    when(config.enable_realtime_uid()).thenReturn(false);
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    uid.setTSDB(tsdb);
+    final UniqueIdFilterPlugin filter = mock(UniqueIdFilterPlugin.class);
+    when(filter.fillterUIDAssignments()).thenReturn(true);
+    when(filter.allowUIDAssignment(any(UniqueIdType.class), anyString(), 
+        anyString(), anyMapOf(String.class, String.class)))
+      .thenReturn(Deferred.<Boolean>fromError(new UnitTestException()));
+    when(tsdb.getUidFilter()).thenReturn(filter);
+    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
+      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+
+    when(client.atomicIncrement(incrementForRow(MAXID)))
+      .thenReturn(Deferred.fromResult(5L));
+
+    when(client.compareAndSet(anyPut(), emptyArray()))
+      .thenReturn(Deferred.fromResult(true))
+      .thenReturn(Deferred.fromResult(true));
+
+    uid.getOrCreateIdAsync("foo").join();
+  }
+  
+  @Test (expected = UnitTestException.class)
+  public void getOrCreateIdAsyncAssignFilterThrowsException() throws Exception {
+    uid = new UniqueId(client, table, METRIC, 3);
+    final Config config = mock(Config.class);
+    when(config.enable_realtime_uid()).thenReturn(false);
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    uid.setTSDB(tsdb);
+    final UniqueIdFilterPlugin filter = mock(UniqueIdFilterPlugin.class);
+    when(filter.fillterUIDAssignments()).thenReturn(true);
+    when(filter.allowUIDAssignment(any(UniqueIdType.class), anyString(), 
+        anyString(),anyMapOf(String.class, String.class)))
+      .thenThrow(new UnitTestException());
+    when(tsdb.getUidFilter()).thenReturn(filter);
+    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
+      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+
+    when(client.atomicIncrement(incrementForRow(MAXID)))
+      .thenReturn(Deferred.fromResult(5L));
+
+    when(client.compareAndSet(anyPut(), emptyArray()))
+      .thenReturn(Deferred.fromResult(true))
+      .thenReturn(Deferred.fromResult(true));
+
+    uid.getOrCreateIdAsync("foo").join();
+  }
+  
   @Test  // Test the creation of an ID when unable to increment MAXID
   public void getOrCreateIdUnableToIncrementMaxId() throws Exception {
     PowerMockito.mockStatic(Thread.class);
@@ -550,10 +644,6 @@ public final class TestUniqueId {
     uid = new UniqueId(client, table, METRIC, 3);
     final Config config = mock(Config.class);
     when(config.enable_realtime_uid()).thenReturn(false);
-    when(config.auto_whitelist()).thenReturn(false);
-    when(config.auto_metric_patterns()).thenReturn(".*");
-    when(config.auto_tagk_patterns()).thenReturn(".*");
-    when(config.auto_tagv_patterns()).thenReturn(".*");
     final TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(config);
     uid.setTSDB(tsdb);
@@ -586,10 +676,6 @@ public final class TestUniqueId {
     uid = new UniqueId(client, table, METRIC, 3);
     final Config config = mock(Config.class);
     when(config.enable_realtime_uid()).thenReturn(false);
-    when(config.auto_whitelist()).thenReturn(false);
-    when(config.auto_metric_patterns()).thenReturn(".*");
-    when(config.auto_tagk_patterns()).thenReturn(".*");
-    when(config.auto_tagv_patterns()).thenReturn(".*");
     final TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(config);
     uid.setTSDB(tsdb);
@@ -953,7 +1039,6 @@ public final class TestUniqueId {
     assertArrayEquals(new byte[] { 0, 0, 3, 0, 0, 4 }, tags.get(1));
   }
   
-  
   @Test
   public void getTagPairsFromTSUIDStringNonStandardWidth() {
     PowerMockito.mockStatic(TSDB.class);
@@ -1008,7 +1093,6 @@ public final class TestUniqueId {
     assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 2 }, tags.get(0));
     assertArrayEquals(new byte[] { 0, 0, 3, 0, 0, 4 }, tags.get(1));
   }
-  
   
   @Test
   public void getTagPairsFromTSUIDBytesNonStandardWidth() {
@@ -1193,6 +1277,82 @@ public final class TestUniqueId {
   }
 
   @Test
+  public void rename() throws Exception {
+    uid = new UniqueId(client, table, METRIC, 3);
+    final byte[] foo_id = { 0, 'a', 0x42 };
+    final byte[] foo_name = { 'f', 'o', 'o' };
+
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(foo_name, ID, METRIC_ARRAY, foo_id));
+    when(client.get(anyGet()))
+        .thenReturn(Deferred.fromResult(kvs))
+        .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+    when(client.put(anyPut())).thenAnswer(answerTrue());
+    when(client.delete(anyDelete())).thenAnswer(answerTrue());
+
+    uid.rename("foo", "bar");
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void renameNewNameExists() throws Exception {
+    uid = new UniqueId(client, table, METRIC, 3);
+    final byte[] foo_id = { 0, 'a', 0x42 };
+    final byte[] foo_name = { 'f', 'o', 'o' };
+    final byte[] bar_id = { 1, 'b', 0x43 };
+    final byte[] bar_name = { 'b', 'a', 'r' };
+
+    ArrayList<KeyValue> foo_kvs = new ArrayList<KeyValue>(1);
+    ArrayList<KeyValue> bar_kvs = new ArrayList<KeyValue>(1);
+    foo_kvs.add(new KeyValue(foo_name, ID, METRIC_ARRAY, foo_id));
+    bar_kvs.add(new KeyValue(bar_name, ID, METRIC_ARRAY, bar_id));
+    when(client.get(anyGet()))
+        .thenReturn(Deferred.fromResult(foo_kvs))
+        .thenReturn(Deferred.fromResult(bar_kvs));
+    when(client.put(anyPut())).thenAnswer(answerTrue());
+    when(client.delete(anyDelete())).thenAnswer(answerTrue());
+
+    uid.rename("foo", "bar");
+  }
+
+  @Test (expected = IllegalStateException.class)
+  public void renameRaceCondition() throws Exception {
+    // Simulate a race between client A(default) and client B.
+    // A and B rename same UID to different name.
+    // B waits till A start to invoke PutRequest to start.
+
+    uid = new UniqueId(client, table, METRIC, 3);
+    HBaseClient client_b = mock(HBaseClient.class);
+    final UniqueId uid_b = new UniqueId(client_b, table, METRIC, 3);
+
+    final byte[] foo_id = { 0, 'a', 0x42 };
+    final byte[] foo_name = { 'f', 'o', 'o' };
+
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(foo_name, ID, METRIC_ARRAY, foo_id));
+
+    when(client_b.get(anyGet()))
+        .thenReturn(Deferred.fromResult(kvs))
+        .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+    when(client_b.put(anyPut())).thenAnswer(answerTrue());
+    when(client_b.delete(anyDelete())).thenAnswer(answerTrue());
+
+    final Answer<Deferred<Boolean>> the_race = new Answer<Deferred<Boolean>>() {
+      public Deferred<Boolean> answer(final InvocationOnMock inv) throws Exception {
+        uid_b.rename("foo", "xyz");
+        return Deferred.fromResult(true);
+      }
+    };
+
+    when(client.get(anyGet()))
+        .thenReturn(Deferred.fromResult(kvs))
+        .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+    when(client.put(anyPut())).thenAnswer(the_race);
+    when(client.delete(anyDelete())).thenAnswer(answerTrue());
+
+    uid.rename("foo", "bar");
+  }
+
+  @Test
   public void deleteCached() throws Exception {
     setupStorage();
     uid = new UniqueId(client, table, METRIC, 3);
@@ -1311,10 +1471,6 @@ public final class TestUniqueId {
 
   private void setupStorage() throws Exception {
     final Config config = mock(Config.class);
-    when(config.auto_whitelist()).thenReturn(false);
-    when(config.auto_metric_patterns()).thenReturn(".*");
-    when(config.auto_tagk_patterns()).thenReturn(".*");
-    when(config.auto_tagv_patterns()).thenReturn(".*");
     when(tsdb.getConfig()).thenReturn(config);
     when(tsdb.getClient()).thenReturn(client);
     storage = new MockBase(tsdb, client, true, true, true, true);
@@ -1356,6 +1512,18 @@ public final class TestUniqueId {
     return any(PutRequest.class);
   }
   
+  private static DeleteRequest anyDelete() {
+    return any(DeleteRequest.class);
+  }
+
+  private static Answer<Deferred<Boolean>> answerTrue() {
+    return new Answer<Deferred<Boolean>>() {
+      public Deferred<Boolean> answer(final InvocationOnMock inv) {
+        return Deferred.fromResult(true);
+      }
+    };
+  }
+
   @SuppressWarnings("unchecked")
   private static Callback<byte[], ArrayList<KeyValue>> anyByteCB() {
     return any(Callback.class);

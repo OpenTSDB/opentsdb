@@ -674,4 +674,16 @@ public class BaseTsdbTest {
       }
     }
   }
+
+  /**
+   * A little class used to throw a very specific type of exception for matching
+   * in Unit Tests.
+   */
+  public static class UnitTestException extends RuntimeException {
+    public UnitTestException() { }
+    public UnitTestException(final String msg) {
+      super(msg);
+    }
+    private static final long serialVersionUID = -4404095849459619922L;
+  }
 }
