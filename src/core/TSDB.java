@@ -1624,7 +1624,7 @@ public final class TSDB {
    * @throws HBaseException (deferred) if there was a problem while persisting
    * data.
    */
-  public Deferred<Object> addCounter(String metric, long timestamp, long valueAsLong, HashMap<String, String> tags) {
+  public Deferred<Object> addCounter(String metric, long timestamp, long valueAsLong, Map<String, String> tags) {
 		
 	    final byte[] value = Bytes.fromLong(valueAsLong);
 	    final short flags = (short) (value.length - 1);
