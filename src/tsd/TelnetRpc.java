@@ -28,6 +28,6 @@ interface TelnetRpc {
    * @param command The command received, split.
    * @return A deferred result.
    */
-  Deferred execute(TSDB tsdb, Channel chan, String[] command);
+  Deferred<Object> execute(TSDB tsdb, Channel chan, String[] command);
 
 }
