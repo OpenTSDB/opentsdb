@@ -256,9 +256,9 @@ public final class RpcManager {
       telnet.put("put", put);
       http.put("api/put", put);
 
-	  final PutDataPointCounterRpc putctr = new PutDataPointCounterRpc();
-      telnet_commands.put("putctr", putctr);
-      http_commands.put("api/putctr", putctr);
+      final PutDataPointCounterRpc putctr = new PutDataPointCounterRpc();
+      telnet.put("putctr", putctr);
+      http.put("api/putctr", putctr);
     }
     
     if (mode.equals("rw") || mode.equals("ro")) {
