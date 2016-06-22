@@ -12,7 +12,7 @@ systems, applications) at a large scale, and make this data easily accessible
 and graphable.
 
 Thanks to HBase's scalability, OpenTSDB allows you to collect thousands of
-metrics from tens of thousands of hosts and applications,  at a high rate
+metrics from tens of thousands of hosts and applications, at a high rate
 (every few seconds). OpenTSDB will never delete or downsample data and can
 easily store hundreds of billions of data points.
 
