@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.LinkedHashSet;
 import java.util.TreeMap;
 
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -267,7 +268,12 @@ class HttpJsonSerializer extends HttpSerializer {
           "Supply valid JSON formatted data in the body of your request");
     }
     try {
-      return JSON.parseToObject(json, TSQuery.class);
+      TSQuery data_query =  JSON.parseToObject(json, TSQuery.class);
+      // Filter out duplicate queries
+      Set<TSSubQuery> query_set = new LinkedHashSet<TSSubQuery>(data_query.getQueries());
+      data_query.getQueries().clear();
+      data_query.getQueries().addAll(query_set);
+      return data_query;
     } catch (IllegalArgumentException iae) {
       throw new BadRequestException("Unable to parse the given JSON", iae);
     }
