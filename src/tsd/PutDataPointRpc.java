@@ -109,16 +109,13 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @since 2.0
    */
   public void execute(final TSDB tsdb, final HttpQuery query) 
-    throws IOException {
+    throws BadRequestException, IOException {
     requests.incrementAndGet();
-    
+
+
     // only accept POST
-    if (query.method() != HttpMethod.POST) {
-      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-          "Method not allowed", "The HTTP method [" + query.method().getName() +
-          "] is not permitted for this endpoint");
-    }
-    
+    RpcUtil.allowedMethods(query.method(), HttpMethod.POST.getName());
+
     final List<IncomingDataPoint> dps = query.serializer().parsePutV1();
     if (dps.size() < 1) {
       throw new BadRequestException("No datapoints found in content");

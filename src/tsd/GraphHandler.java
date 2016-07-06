@@ -35,6 +35,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
+import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,6 +107,10 @@ final class GraphHandler implements HttpRpc {
   }
 
   public void execute(final TSDB tsdb, final HttpQuery query) {
+
+    // only accept GET/POST
+    RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
+
     if (!query.hasQueryStringParam("json")
         && !query.hasQueryStringParam("png")
         && !query.hasQueryStringParam("ascii")) {

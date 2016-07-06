@@ -422,7 +422,9 @@ final class HttpQuery extends AbstractHttpQuery {
       buf.append("\"}");
       sendReply(HttpResponseStatus.BAD_REQUEST, buf);
     } else if (hasQueryStringParam("png")) {
-      sendAsPNG(HttpResponseStatus.BAD_REQUEST, exception.getMessage(), 3600);
+      final StringBuilder buf = new StringBuilder(10 +
+              exception.getDetails().length());
+      sendReply(HttpResponseStatus.BAD_REQUEST, buf);
     } else {
       sendReply(HttpResponseStatus.BAD_REQUEST,
                 makePage("Bad Request", "Looks like it's your fault this time",

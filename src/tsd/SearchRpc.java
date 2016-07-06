@@ -55,12 +55,9 @@ final class SearchRpc implements HttpRpc {
    */
   @Override
   public void execute(TSDB tsdb, HttpQuery query) {
-  
     final HttpMethod method = query.getAPIMethod();
-    if (method != HttpMethod.GET && method != HttpMethod.POST) {
-      throw new BadRequestException("Unsupported method: " + method.getName());
-    }
-    
+    RpcUtil.allowedMethods(method, HttpMethod.GET.getName(), HttpMethod.POST.getName());
+
     // the uri will be /api/vX/search/<type> or /api/search/<type>
     final String[] uri = query.explodeAPIPath();
     final String endpoint = uri.length > 1 ? uri[1] : "";

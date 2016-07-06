@@ -81,16 +81,12 @@ final class QueryRpc implements HttpRpc {
    */
   @Override
   public void execute(final TSDB tsdb, final HttpQuery query) 
-    throws IOException {
-    
+    throws BadRequestException, IOException {
+
     // only accept GET/POST/DELETE
-    if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST &&
-        query.method() != HttpMethod.DELETE) {
-      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-          "Method not allowed", "The HTTP method [" + query.method().getName() +
-          "] is not permitted for this endpoint");
-    }
-    if (query.method() == HttpMethod.DELETE && 
+    RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.DELETE.getName(), HttpMethod.POST.getName());
+
+    if (query.method() == HttpMethod.DELETE &&
         !tsdb.getConfig().getBoolean("tsd.http.query.allow_delete")) {
       throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
                "Bad request",
