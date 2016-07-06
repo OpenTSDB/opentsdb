@@ -133,7 +133,7 @@ public final class RpcManager {
     }
 
     final RpcManager manager = new RpcManager(tsdb);
-    
+
     // Load any plugins that are enabled via Config.  Fail if any plugin cannot be loaded.
 
     final ImmutableList.Builder<RpcPlugin> rpcBuilder = ImmutableList.builder();
@@ -242,8 +242,6 @@ public final class RpcManager {
   /**
    * Load and init instances of {@link TelnetRpc}s and {@link HttpRpc}s.
    * These are not generally configurable via TSDB config.
-   * @param mode is this TSD in read/write ("rw") or read-only ("ro")
-   * mode?
    * @param telnet a map of telnet command names to {@link TelnetRpc}
    * instances.
    * @param http a map of API endpoints to {@link HttpRpc} instances.
@@ -351,8 +349,6 @@ public final class RpcManager {
         http.put("api/uid", new UniqueIdRpc(mode));
       }
     }
-    
-    
 
     if (enableDieDieDie) {
       final DieDieDie diediedie = new DieDieDie();
@@ -378,6 +374,9 @@ public final class RpcManager {
   protected void initializeHttpRpcPlugins(final OperationMode mode,
         final String[] pluginClassNames,
         final ImmutableMap.Builder<String, HttpRpcPlugin> http) {
+
+    final String mode = Strings.nullToEmpty(tsdb.getConfig().getString("tsd.mode"));
+
     for (final String plugin : pluginClassNames) {
       final HttpRpcPlugin rpc = createAndInitialize(plugin, HttpRpcPlugin.class);
       validateHttpRpcPluginPath(rpc.getPath());
@@ -628,8 +627,8 @@ public final class RpcManager {
     public void execute(final TSDB tsdb, final HttpQuery query)
       throws IOException {
 
-      // only accept GET / POST
-      RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
+      // only accept GET
+      RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName());
 
       if (query.apiVersion() > 0) {
         query.sendReply(
@@ -654,8 +653,8 @@ public final class RpcManager {
     public void execute(final TSDB tsdb, final HttpQuery query) throws
       IOException {
 
-      // only accept GET / POST
-      RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
+      // only accept GET
+      RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName());
 
       final HashMap<String, String> version = new HashMap<String, String>();
       version.put("version", BuildData.version);

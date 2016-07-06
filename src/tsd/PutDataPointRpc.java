@@ -274,11 +274,7 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
     http_requests.incrementAndGet();
     
     // only accept POST
-    if (query.method() != HttpMethod.POST) {
-      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-          "Method not allowed", "The HTTP method [" + query.method().getName() +
-          "] is not permitted for this endpoint");
-    }
+    RpcUtil.allowedMethods(query.method(), HttpMethod.POST.getName());
 
     final List<IncomingDataPoint> dps;
     //noinspection TryWithIdenticalCatches
