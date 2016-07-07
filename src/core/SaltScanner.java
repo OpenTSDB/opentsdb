@@ -15,7 +15,6 @@ package net.opentsdb.core;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -306,8 +305,8 @@ public class SaltScanner {
     private final List<KeyValue> kvs = new ArrayList<KeyValue>();
     private final ByteMap<List<Annotation>> annotations = 
             new ByteMap<List<Annotation>>();
-    private final Set<String> skips = new HashSet<String>();
-    private final Set<String> keepers = new HashSet<String>();
+    private final Set<String> skips = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+    private final Set<String> keepers = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
     
     private long scanner_start = -1;
     /** nanosecond timestamps */
