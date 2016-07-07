@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -277,72 +278,115 @@ public class QueryExecutor {
             }
           }
         }
-        
+
         // handle nested expressions
-        DirectedAcyclicGraph<String, DefaultEdge> graph = null;
+        DirectedAcyclicGraph<String, DefaultEdge> graph = new DirectedAcyclicGraph<String, DefaultEdge>(DefaultEdge.class);
+
         for (final Entry<String, ExpressionIterator> eii : expressions.entrySet()) {
+          LOG.debug(String.format("Expression entry key is %s, value is %s", eii.getKey(), eii.getValue().toString()));
+          LOG.debug(String.format("Time to loop through the variable names for %s", eii.getKey()));
+
+          if (!graph.containsVertex(eii.getKey())) {
+            LOG.debug("Adding vertex " + eii.getKey());
+            graph.addVertex(eii.getKey());
+          }
+
           for (final String var : eii.getValue().getVariableNames()) {
+            LOG.debug(String.format("var is %s", var));
+
             final ExpressionIterator ei = expressions.get(var);
+
             if (ei != null) {
+              LOG.debug(String.format("The expression iterator for %s is %s", var, ei.toString()));
+
               // TODO - really ought to calculate this earlier
               if (eii.getKey().equals(var)) {
                 throw new IllegalArgumentException(
                     "Self referencing expression found: " + eii.getKey());
               }
+
               LOG.debug("Nested expression detected. " + eii.getKey() + 
                   " depends on " + var);
 
-              if (graph == null) {
-                graph = new DirectedAcyclicGraph<String, DefaultEdge>(DefaultEdge.class);
-              }
               if (!graph.containsVertex(eii.getKey())) {
+                LOG.debug("Added vertex " + eii.getKey());
                 graph.addVertex(eii.getKey());
+              } else {
+                LOG.debug("Already contains vertex " + eii.getKey());
               }
+
               if (!graph.containsVertex(var)) {
+                LOG.debug("Added vertex " + var);
                 graph.addVertex(var);
+              } else {
+                LOG.debug("Already contains vertex " + var);
               }
+
               try {
+                LOG.debug("Added Edge " + eii.getKey() + " - " + var);
                 graph.addDagEdge(eii.getKey(), var);
               } catch (CycleFoundException cfe) {
                 throw new IllegalArgumentException("Circular reference found: " + 
                     eii.getKey(), cfe);
               }
+            } else {
+              LOG.debug(String.format("The expression iterator for %s is null", var));
             }
           }
         }
 
         // compile all of the expressions
         final long intersect_start = DateTime.currentTimeMillis();
-        if (graph != null) {
-          final ExpressionIterator[] compile_stack = 
-              new ExpressionIterator[expressions.size()];
-          final TopologicalOrderIterator<String, DefaultEdge> it = 
-              new TopologicalOrderIterator<String, DefaultEdge>(graph);
-          int i = 0;
-          while (it.hasNext()) {
-            compile_stack[i++] = expressions.get(it.next());
-          }
-          for (int x = compile_stack.length - 1; x >= 0; x--) {
-            // look for and add expressions
-            for (final String var : compile_stack[x].getVariableNames()) {
-              ExpressionIterator source = expressions.get(var);
-              if (source != null) {
-                compile_stack[x].addResults(var, source.getCopy());
-                LOG.debug("Adding expression " + source.getId() + " to " + 
-                    compile_stack[x].getId());
-              }
-            }
-            
-            compile_stack[x].compile();
-            LOG.debug("Successfully compiled " + compile_stack[x]);
-          }
-        } else {
-          for (final ExpressionIterator ei : expressions.values()) {
-            ei.compile();
-            LOG.debug("Successfully compiled " + ei);
-          }
+
+        if (graph == null) {
+          throw new IOException("Internal Error: graph cannot be null");
         }
-        LOG.debug("Finished compilations in " + 
+
+        final Integer expressionLength = expressions.size();
+        final ExpressionIterator[] compile_stack = new ExpressionIterator[expressionLength];
+        final TopologicalOrderIterator<String, DefaultEdge> it = new TopologicalOrderIterator<String, DefaultEdge>(graph);
+
+        LOG.debug(String.format("Expressions Size is %d", expressionLength));
+        LOG.debug(String.format("Topology Iterator %s", it.toString()));
+
+        int i = 0;
+        while (it.hasNext()) {
+          String next = it.next();
+          LOG.debug(String.format("Expression: %s", next));
+          ExpressionIterator ei = expressions.get(next);
+          LOG.debug(String.format("Expression Iterator: %s", ei.toString()));
+          if (ei == null) {
+            LOG.error(String.format("The expression iterator for %s is null", next));
+          }
+          compile_stack[i] = ei;
+          LOG.debug(String.format("Added expression %s to compile_stack[%d]", next, i));
+          i++;
+        }
+
+        if (i != expressionLength) {
+          throw new IOException(String.format(" Internal Error: Less expressions where added to the compile stack than expressions.size (%d instead of %d)", i, expressionLength));
+        }
+
+        LOG.debug(String.format("compile stack length: %d", compile_stack.length));
+
+        for (int x = compile_stack.length - 1; x >= 0; x--) {
+          if (compile_stack[x] == null) {
+            throw new NullPointerException(String.format("Item %d in compile_stack[] is null", x));
+          }
+          // look for and add expressions
+          for (final String var : compile_stack[x].getVariableNames()) {
+            LOG.debug(String.format("Looking for variable %s for %s", var, compile_stack[x].getId()));
+            ExpressionIterator source = expressions.get(var);
+            if (source != null) {
+              compile_stack[x].addResults(var, source.getCopy());
+              LOG.debug(String.format("Adding expression %s to %s", source.getId(), compile_stack[x].getId()));
+            }
+          }
+          compile_stack[x].compile();
+          LOG.debug(String.format("Successfully compiled %s", compile_stack[x].getId()));
+        }
+
+        LOG.debug("Finished compilations in " +
             (DateTime.currentTimeMillis() - intersect_start) + " ms");
         
         return serialize().addCallback(new CompleteCB()).addErrback(new ErrorCB());
@@ -498,30 +542,22 @@ public class QueryExecutor {
           if (ex != null) {
             LOG.error("Unexpected exception: ", ex);
             // TODO - find a better way to determine the real error
-//            QueryExecutor.this.ts_query.getQueryStats()
-//              .markComplete(HttpResponseStatus.BAD_REQUEST, ex);
             QueryExecutor.this.http_query.badRequest(new BadRequestException(ex));
           } else {
             LOG.error("The deferred group exception didn't have a cause???");
-//            QueryExecutor.this.ts_query.getQueryStats()
-//              .markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, ex);
             QueryExecutor.this.http_query.badRequest(new BadRequestException(e));
           }
         } else if (e.getClass() == QueryException.class) {
-//          QueryExecutor.this.ts_query.getQueryStats()
-//            .markComplete(HttpResponseStatus.REQUEST_TIMEOUT, e);
-          QueryExecutor.this.http_query.badRequest(new BadRequestException((QueryException)e));
+          QueryExecutor.this.http_query.badRequest(new BadRequestException((QueryException) e));
+        } else if ((e instanceof IOException) || (e instanceof NullPointerException) || (e instanceof RuntimeException)) {
+          QueryExecutor.this.http_query.internalError(e);
         } else {
-//          QueryExecutor.this.ts_query.getQueryStats()
-//            .markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
           QueryExecutor.this.http_query.badRequest(new BadRequestException(e));
         }
         return null;
       } catch (RuntimeException ex) {
         LOG.error("Exception thrown during exception handling", ex);
-//        QueryExecutor.this.ts_query.getQueryStats()
-//          .markComplete(HttpResponseStatus.INTERNAL_SERVER_ERROR, ex);
-        QueryExecutor.this.http_query.sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+        QueryExecutor.this.http_query.sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR,
             ex.getMessage().getBytes());
         return null;
       }
