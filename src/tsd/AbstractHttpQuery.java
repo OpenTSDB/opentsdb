@@ -467,21 +467,37 @@ public abstract class AbstractHttpQuery {
     return LOG;
   }
 
+  protected final String logChannel() {
+    if (request.containsHeader("X-Forwarded-For")) {
+        String inetAddress;
+        String proxyChain = request.getHeader("X-Forwarded-For");
+        int firstComma = proxyChain.indexOf(',');
+        if (firstComma != -1) {
+          inetAddress = proxyChain.substring(0, proxyChain.indexOf(','));
+        } else {
+          inetAddress = proxyChain;
+        }
+        return "[id: 0x" + Integer.toHexString(chan.hashCode()) + ", /" + inetAddress + " => " + chan.getLocalAddress() + ']';
+    } else {
+        return chan.toString();
+    }
+  }
+
   protected final void logInfo(final String msg) {
     if (logger().isInfoEnabled()) {
-      logger().info(chan.toString() + ' ' + msg);
+      logger().info(logChannel() + ' ' + msg);
     }
   }
 
   protected final void logWarn(final String msg) {
     if (logger().isWarnEnabled()) {
-      logger().warn(chan.toString() + ' ' + msg);
+      logger().warn(logChannel() + ' ' + msg);
     }
   }
 
   protected final void logError(final String msg, final Exception e) {
     if (logger().isErrorEnabled()) {
-      logger().error(chan.toString() + ' ' + msg, e);
+      logger().error(logChannel() + ' ' + msg, e);
     }
   }
 
