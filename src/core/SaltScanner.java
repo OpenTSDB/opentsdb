@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,6 +28,7 @@ import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.QueryStats.QueryStat;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.utils.ConcurrentByteMap;
 import net.opentsdb.utils.DateTime;
 
 import org.hbase.async.Bytes.ByteMap;
@@ -70,10 +72,8 @@ public class SaltScanner {
   private final Map<Integer, List<KeyValue>> kv_map = 
           new ConcurrentHashMap<Integer, List<KeyValue>>();
   
-  /** Stores annotations from each scanner as it completes */
-  private final Map<byte[], List<Annotation>> annotation_map = 
-          Collections.synchronizedMap(
-              new TreeMap<byte[], List<Annotation>>(new RowKey.SaltCmp()));
+  private final ConcurrentByteMap<List<Annotation>> annotation_map =
+      new ConcurrentByteMap<List<Annotation>>();
   
   /** A deferred to call with the spans on completion */
   private final Deferred<TreeMap<byte[], Span>> results = 
@@ -635,18 +635,17 @@ public class SaltScanner {
    * @param annotations The annotations fetched by the scanners
    */
   private void validateAndTriggerCallback(final List<KeyValue> kvs, 
-          final Map<byte[], List<Annotation>> annotations) {
+          final ByteMap<List<Annotation>> annotations) {
 
     final int tasks = completed_tasks.incrementAndGet();
     if (kvs.size() > 0) {
       kv_map.put(tasks, kvs);
     }
     
-    for (final byte[] key : annotations.keySet()) {
-      final List<Annotation> notes = annotations.get(key);
-      if (notes.size() > 0) {
+    for (final Entry<byte[], List<Annotation>> entry : annotations.entrySet()) {
+      if (entry.getValue().size() > 0) {
         // Optimistic write, expecting unique row keys
-        annotation_map.put(key, notes);
+        annotation_map.put(entry.getKey(), entry.getValue());
       }
     }
     
