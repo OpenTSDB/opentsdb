@@ -142,6 +142,7 @@ tsdb_SRC := \
 	src/uid/UniqueId.java	\
 	src/uid/UniqueIdInterface.java \
 	src/utils/ByteArrayPair.java \
+	src/utils/ConcurrentByteMap.java \
 	src/utils/Config.java \
 	src/utils/DateTime.java \
 	src/utils/Exceptions.java \
