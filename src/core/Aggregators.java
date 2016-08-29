@@ -172,6 +172,7 @@ public final class Aggregators {
     aggregators.put("mimmax", MIMMAX);
     aggregators.put("first", FIRST);
     aggregators.put("last", LAST);
+    aggregators.put("pfsum", PFSUM);
 
     PercentileAgg[] percentiles = {
        p999, p99, p95, p90, p75, p50, 
