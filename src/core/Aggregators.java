@@ -35,12 +35,20 @@ public final class Aggregators {
     ZIM,    /* Returns 0 when a data point is missing */
     MAX,    /* Returns the <type>.MaxValue when a data point is missing */
     MIN     /* Returns the <type>.MinValue when a data point is missing */
+	PREV    /* Returns the previous value stored, when a data point is missing */
   }
   
   /** Aggregator that sums up all the data points. */
   public static final Aggregator SUM = new Sum(
       Interpolation.LERP, "sum");
 
+  /**
+   * Aggregator that sums up all the data points,and uses interpolation where
+   * previous value is used for data point missing.
+   */
+  public static final Aggregator PFSUM= new Sum(
+      Interpolation.PREV, "pfsum");
+	  
   /** Aggregator that returns the minimum data point. */
   public static final Aggregator MIN = new Min(
       Interpolation.LERP, "min");
