@@ -36,7 +36,7 @@ public final class Aggregators {
     LERP,   /* Regular linear interpolation */
     ZIM,    /* Returns 0 when a data point is missing */
     MAX,    /* Returns the <type>.MaxValue when a data point is missing */
-    MIN     /* Returns the <type>.MinValue when a data point is missing */
+    MIN,    /* Returns the <type>.MinValue when a data point is missing */
 	PREV    /* Returns the previous value stored, when a data point is missing */
   }
   
