@@ -252,4 +252,9 @@ public class AppendDataPoints {
   public Deferred<Object> repairedDeferred() {
     return repaired_deferred;
   }
+ 
+  /** @return whether or not a qualifier of AppendDataPoints */
+  public static boolean isAppendDataPoints(byte[] qualifier) {
+    return qualifier != null && qualifier.length == 3 && qualifier[0] == APPEND_COLUMN_PREFIX;
+  }
 }
