@@ -653,7 +653,7 @@ public class AggregationIterator implements SeekableView, DataPoint,
         case MIN:
           r = Long.MIN_VALUE;
           break;
-		case PREV:
+        case PREV:
           r = y0;
           break;
         default:
@@ -721,7 +721,7 @@ public class AggregationIterator implements SeekableView, DataPoint,
       case MIN:
         r = Double.MIN_VALUE;
         break;
-	  case PREV:
+      case PREV:
         r = y0;
         break;
       default:

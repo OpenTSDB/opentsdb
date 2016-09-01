@@ -37,7 +37,7 @@ public final class Aggregators {
     ZIM,    /* Returns 0 when a data point is missing */
     MAX,    /* Returns the <type>.MaxValue when a data point is missing */
     MIN,    /* Returns the <type>.MinValue when a data point is missing */
-	PREV    /* Returns the previous value stored, when a data point is missing */
+    PREV    /* Returns the previous value stored, when a data point is missing */
   }
   
   /** Aggregator that sums up all the data points. */
@@ -50,7 +50,7 @@ public final class Aggregators {
    */
   public static final Aggregator PFSUM= new Sum(
       Interpolation.PREV, "pfsum");
-	  
+
   /** Aggregator that returns the minimum data point. */
   public static final Aggregator MIN = new Min(
       Interpolation.LERP, "min");
@@ -680,7 +680,7 @@ public final class Aggregators {
     public long runLong(final Longs values) {
       long val = values.nextLongValue();
       while (values.hasNextValue()) {
-    	  values.nextLongValue();
+        values.nextLongValue();
       }
       return val;
     }
@@ -688,7 +688,7 @@ public final class Aggregators {
     public double runDouble(final Doubles values) {
       double val = values.nextDoubleValue();
       while (values.hasNextValue()) {
-    	  values.nextDoubleValue();
+        values.nextDoubleValue();
       }
       return val;
     }
