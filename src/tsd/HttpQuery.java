@@ -1025,7 +1025,7 @@ final class HttpQuery extends AbstractHttpQuery {
     + "<body text=#000000 bgcolor=#ffffff>"
     + "<table border=0 cellpadding=2 cellspacing=0 width=100%>"
     + "<tr><td rowspan=3 width=1% nowrap>"
-    + "<img src=/s/opentsdb_header.jpg>"
+    + "<img src=s/opentsdb_header.jpg>"
     + "<td>&nbsp;</td></tr>"
     + "<tr><td><font color=#507e9b><b>";
 
