@@ -71,6 +71,9 @@ def main(argv):
     parser.add_option('-P', '--percent-over', dest='percent_over', default=0,
             metavar='PERCENT', type='float', help='Only alarm if PERCENT of the data'
             ' points violate the threshold.')
+    parser.add_option('-B', '--bad_percent', dest='bad_percent', default=None,
+            metavar='PERCENT', type='float', help='Ignore alarm if PERCENT of the data'
+            ' points is bad')
     parser.add_option('-S', '--ssl', default=False, action='store_true',
             help='Make queries to OpenTSDB via SSL (https)')
     (options, args) = parser.parse_args(args=argv[1:])
