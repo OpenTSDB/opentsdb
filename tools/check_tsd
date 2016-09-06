@@ -81,6 +81,9 @@ def main(argv):
     parser.add_option('-N', '--now', type='int', default=None,
             metavar='UTC',
             help='Set unix timestamp for "now", for testing')
+    parser.add_option('-B', '--bad_percent', dest='bad_percent', default=None,
+            metavar='PERCENT', type='float', help='Ignore alarm if PERCENT of the data'
+            ' points is bad')
     parser.add_option('-S', '--ssl', default=False, action='store_true',
             help='Make queries to OpenTSDB via SSL (https)')
     (options, args) = parser.parse_args(args=argv[1:])
