@@ -47,6 +47,7 @@ import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.BlacklistManager;
 
 /**
  * Non-synchronized implementation of {@link Query}.
@@ -136,7 +137,11 @@ final class TsdbQuery implements Query {
   
   /** Whether or not to match series with ONLY the given tags */
   private boolean explicit_tags;
-  
+
+  private String metricName;
+
+  private Map<String, String> allTags;
+
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
     this.tsdb = tsdb;
@@ -260,6 +265,8 @@ final class TsdbQuery implements Query {
     
     findGroupBys();
     this.metric = tsdb.metrics.getId(metric);
+    this.metricName = metric;
+    this.allTags = tags;
     aggregator = function;
     this.rate = rate;
     this.rate_options = rate_options;
@@ -638,6 +645,8 @@ final class TsdbQuery implements Query {
                DateTime.nanoTime(), scanner_start) > timeout) {
              throw new InterruptedException("Query timeout exceeded!");
            }
+
+           BlacklistManager.checkAndAddToBlacklist(metricName, allTags, nrows);
            
            rows_pre_filter += rows.size();
            

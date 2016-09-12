@@ -294,7 +294,8 @@ public final class RpcManager {
       }
       http.put("api/search", new SearchRpc());
       http.put("api/config", new ShowConfig());
-      
+      http.put("api/blacklist", new BlacklistRpc());
+
       if (tsdb.getConfig().getString("tsd.no_diediedie").equals("false")) {
         final DieDieDie diediedie = new DieDieDie();
         telnet.put("diediedie", diediedie);
