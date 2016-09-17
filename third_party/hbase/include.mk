@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-ASYNCHBASE_VERSION := 1.7.1
+ASYNCHBASE_VERSION := 1.7.2
 ASYNCHBASE := third_party/hbase/asynchbase-$(ASYNCHBASE_VERSION).jar
 ASYNCHBASE_BASE_URL := http://central.maven.org/maven2/org/hbase/asynchbase/$(ASYNCHBASE_VERSION)
 
