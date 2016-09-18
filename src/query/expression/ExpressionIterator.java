@@ -39,7 +39,7 @@ import com.google.common.collect.ImmutableSet;
  * - Instantiate with a valid expression
  * - Call {@link #getVariableNames()} and iterate over a set of TSSubQueries and
  *   their results. For each query that matches a variable name, call
- *   {@link #addResults()} with the result set.
+ *   {@link #addResults(String, ITimeSyncedIterator)} with the result set.
  * - Call {@link #compile()} to setup the meta data, fills and compute the
  *   intersection of the series.
  * - Call {@link #values()} and store the reference. Results for each
@@ -67,7 +67,7 @@ public class ExpressionIterator implements ITimeSyncedIterator {
    * as not thread safe, so I assume it's ok to instantiate one of these guys
    * and keep creating scripts from it.
    */
-  private final static JexlEngine JEXL_ENGINE = new JexlEngine();
+  public final static JexlEngine JEXL_ENGINE = new JexlEngine();
   
   /** Whether or not to intersect on the query tagks instead of the result set
    * tagks */
@@ -114,6 +114,7 @@ public class ExpressionIterator implements ITimeSyncedIterator {
   // no tagk filters then we shouldn't set the II's intersect_on_query_tagks
   /**
    * Default Ctor that compiles the expression for use with this iterator.
+   * @param id The id of this iterator.
    * @param expression The expression to compile and use
    * @param set_operator The type of set operator to use
    * @param intersect_on_query_tagks Whether or not to include only the query 
@@ -204,7 +205,8 @@ public class ExpressionIterator implements ITimeSyncedIterator {
   /**
    * Adds a sub query result object to the iterator.
    * TODO - accept a proper object, not a map
-   * @param results The results to store.
+   * @param id The ID of source iterator.
+   * @param iterator The source iterator. 
    * @throws IllegalArgumentException if the object is missing required data
    */
   public void addResults(final String id, final ITimeSyncedIterator iterator) {
@@ -235,8 +237,8 @@ public class ExpressionIterator implements ITimeSyncedIterator {
     }
     if (results.size() < names.size()) {
       throw new IllegalArgumentException("Not enough query results [" 
-          + results.size() + "] for the expression variables [" 
-          + names.size() + "] " + this);
+          + results.size() + " total results found] for the expression variables [" 
+          + names.size() + " expected] " + this);
     }
     
     // don't care if we have extra results, but we had darned well better make

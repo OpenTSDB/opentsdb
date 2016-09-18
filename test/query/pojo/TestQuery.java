@@ -70,7 +70,7 @@ public class TestQuery {
       + "  \"expressions\":["
       + "    {"
       + "      \"id\":\"e1\","
-      + "      \"expr\":\"a + b + c\""
+      + "      \"expr\":\"m1 * 1024\""
       + "    }"
       + "  ],"
       + "  \"outputs\":["
@@ -96,7 +96,7 @@ public class TestQuery {
         .setId("m1").setFilter("f1").setTimeOffset("0")
         .setAggregator("sum").build();
     expression = Expression.Builder().setId("e1")
-        .setExpression("a + b + c").setJoin(
+        .setExpression("m1 * 1024").setJoin(
             Join.Builder().setOperator(SetOperator.UNION).build()).build();
     output = Output.Builder().setId("m1").setAlias("CPU Idle EAST DC")
         .build();

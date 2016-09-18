@@ -12,9 +12,17 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.pojo;
 
+import net.opentsdb.query.expression.ExpressionIterator;
 import net.opentsdb.query.expression.NumericFillPolicy;
 import net.opentsdb.query.expression.VariableIterator.SetOperator;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.apache.commons.jexl2.Script;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -39,6 +47,12 @@ public class Expression extends Validatable {
   
   /** The fill policy to use for ? */
   private NumericFillPolicy fill_policy;
+  
+  /** Set of unique variables used by this expression. */
+  private Set<String> variables;
+  
+  /** The parsed expression via JEXL. */
+  private Script parsed_expression;
   
   /**
    * Default ctor 
@@ -90,10 +104,35 @@ public class Expression extends Validatable {
       throw new IllegalArgumentException("missing or empty expr");
     }
     
+    // parse it just to make sure we're happy and extract the variable names. 
+    // Will throw JexlException
+    parsed_expression = ExpressionIterator.JEXL_ENGINE.createScript(expr);
+    variables = new HashSet<String>();
+    for (final List<String> exp_list : 
+      ExpressionIterator.JEXL_ENGINE.getVariables(parsed_expression)) {
+      for (final String variable : exp_list) {
+        variables.add(variable);
+      }
+    }
+    
     // others are optional
     if (join == null) {
       join = Join.Builder().setOperator(SetOperator.UNION).build();
     }
+  }
+
+  /** @return The parsed expression. May be null if {@link validate} has not 
+   * been called yet. */
+  @JsonIgnore
+  public Script getParsedExpression() {
+    return parsed_expression;
+  }
+  
+  /** @return A set of unique variables for the expression. May be null if 
+   * {@link validate} has not been called yet. */
+  @JsonIgnore
+  public Set<String> getVariables() {
+    return variables;
   }
   
   @Override
