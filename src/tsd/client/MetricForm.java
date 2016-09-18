@@ -14,7 +14,9 @@ package tsd.client;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+
 import com.google.gwt.event.dom.client.BlurEvent;
 import com.google.gwt.event.dom.client.BlurHandler;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -159,6 +161,9 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       f.is_groupby = true;
       filters.add(f);
       i++;
+    }
+    if (!filters.isEmpty()) {
+      Collections.sort(filters);
     }
     
     i = 0;
@@ -418,53 +423,32 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       }
     }
     url.append(':').append(metric);
-    boolean non_groupbys = false;
-    int groupby_tags = 0;
-    {
-      final int ntags = getNumTags();
+    List<Filter> filters = getFilters(true);
+    if (!filters.isEmpty()) {
       url.append('{');
-      for (int tag = 0; tag < ntags; tag++) {
-        final String tagname = getTagName(tag);
-        final String tagvalue = getTagValue(tag);
-        if (tagname.isEmpty() || tagvalue.isEmpty() || !isTagGroupby(tag)) {
-          if (!isTagGroupby(tag)) {
-            non_groupbys = true;
-          }
-          continue;
+      for (int i = 0; i < filters.size(); i++) {
+        if (i > 0) {
+          url.append(",");
         }
-        url.append(tagname).append('=').append(tagvalue)
-          .append(',');
-        ++groupby_tags;
+        url.append(filters.get(i).tagk)
+           .append("=")
+           .append(filters.get(i).tagv);
       }
-      final int last = url.length() - 1;
-      if (url.charAt(last) == '{') {  // There was no tag.
-        url.setLength(last);          // So remove the `{'.
-      } else {  // Need to replace the last `,' with a `}'.
-        url.setCharAt(url.length() - 1, '}');
-      }
+      url.append('}');
     }
-    if (non_groupbys) {
-      if (groupby_tags == 0) {
-        // need this to shift group by to non-group by
-        url.append("{}");
-      }
-      final int ntags = getNumTags();
+    // now the non-group bys
+    filters = getFilters(false);
+    if (!filters.isEmpty()) {
       url.append('{');
-      for (int tag = 0; tag < ntags; tag++) {
-        final String tagname = getTagName(tag);
-        final String tagvalue = getTagValue(tag);
-        if (tagname.isEmpty() || tagvalue.isEmpty() || isTagGroupby(tag)) {
-          continue;
+      for (int i = 0; i < filters.size(); i++) {
+        if (i > 0) {
+          url.append(",");
         }
-        url.append(tagname).append('=').append(tagvalue)
-          .append(',');
+        url.append(filters.get(i).tagk)
+           .append("=")
+           .append(filters.get(i).tagv);
       }
-      final int last = url.length() - 1;
-      if (url.charAt(last) == '{') {  // There was no tag.
-        url.setLength(last);          // So remove the `{'.
-      } else {  // Need to replace the last `,' with a `}'.
-        url.setCharAt(url.length() - 1, '}');
-      }
+      url.append('}');
     }
     url.append("&o=");
     if (x1y2.getValue()) {
@@ -472,7 +456,34 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
     return true;
   }
-
+  
+  /**
+   * Helper method to extract the tags from the row set and sort them before
+   * sending to the API so that we avoid a bug wherein the sort order changes
+   * on reload.
+   * @param group_by Whether or not to fetch group by or non-group by filters.
+   * @return A non-null list of filters. May be empty.
+   */
+  private List<Filter> getFilters(final boolean group_by) {
+    final int ntags = getNumTags();
+    final List<Filter> filters = new ArrayList<Filter>(ntags);
+    for (int tag = 0; tag < ntags; tag++) {
+      final Filter filter = new Filter();
+      filter.tagk = getTagName(tag);
+      filter.tagv = getTagValue(tag);
+      filter.is_groupby = isTagGroupby(tag);
+      if (filter.tagk.isEmpty() || filter.tagv.isEmpty()) {
+        continue;
+      }
+      if (filter.is_groupby = group_by) {
+        filters.add(filter);
+      }
+    }
+    // sort on the tagk
+    Collections.sort(filters);
+    return filters;
+  }
+  
   private int getNumTags() {
     return tagtable.getRowCount() - 1;
   }
@@ -527,7 +538,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
                       final String default_value,
                       final boolean is_groupby) {
     final int row = tagtable.getRowCount();
-
+    
     final ValidatedTextBox tagname = new ValidatedTextBox();
     final SuggestBox suggesttagk = RemoteOracle.newSuggestBox("tagk", tagname);
     final ValidatedTextBox tagvalue = new ValidatedTextBox();
@@ -731,10 +742,19 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
   }
   
-  private static class Filter {
+  private static class Filter implements Comparable<Filter> {
     String tagk;
     String tagv;
     boolean is_groupby;
+    
+    @Override
+    public int compareTo(final Filter filter) {
+      if (filter == this) {
+        return 0;
+      }
+      return tagk.compareTo(filter.tagk) +
+          tagv.compareTo(filter.tagv);
+    }
   }
   
   // ------------------- //
