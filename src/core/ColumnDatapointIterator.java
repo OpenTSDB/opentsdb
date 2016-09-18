@@ -115,6 +115,19 @@ final class ColumnDatapointIterator implements Comparable<ColumnDatapointIterato
     compQualifier.add(qualifier, qualifier_offset, current_qual_length);
     compValue.add(value, value_offset, current_val_length);
   }
+  
+  /**
+   * Write a new qualifier and its associated value to the compacted qualifier buffer and compacted values buffer respectively.
+   *
+   * @param newQualifier - the new qualifier
+   * @param newVal - the new value
+   * @param compactedQual - the qualifiers buffer
+   * @param compactedVal - the values buffer
+   */
+  public void writeToBuffers(byte[] newQualifier, byte[] newVal, ByteBufferList compactedQual, ByteBufferList compactedVal) {
+	  compactedQual.add(newQualifier, 0, newQualifier.length);
+	  compactedVal.add(newVal, 0, newVal.length);  	
+  }
 
   /**
    * @return the length of the qualifier for the current datapoint.
@@ -160,6 +173,20 @@ final class ColumnDatapointIterator implements Comparable<ColumnDatapointIterato
     current_timestamp_offset = Internal.getOffsetFromQualifier(qualifier, qualifier_offset);
     current_val_length = Internal.getValueLengthFromQualifier(qualifier, qualifier_offset);
     return true;
+  }
+  
+  /**
+   * @return the flags mask from the qualifier
+   */
+  public short getFlagsFromQualifier() {
+	  return Internal.getFlagsFromQualifier(qualifier, qualifier_offset);
+  }
+  
+  /**
+   * @return the column timestamp
+   */
+  public long getColumnTimestamp() {
+	  return column_timestamp;
   }
 
   // order in ascending order by timestamp, descending order by row timestamp (so we find the

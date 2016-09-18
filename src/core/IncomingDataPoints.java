@@ -382,6 +382,7 @@ final class IncomingDataPoints implements WritableDataPoints {
 
   public Deferred<Object> addPoint(final long timestamp, final long value) {
     final byte[] v;
+    
     if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
       v = new byte[] { (byte) value };
     } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
