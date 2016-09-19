@@ -76,7 +76,7 @@ import net.opentsdb.utils.PluginLoader;
  */
 public final class RpcManager {
   private static final Logger LOG = LoggerFactory.getLogger(RpcManager.class);
-  
+
   /** This is base path where {@link HttpRpcPlugin}s are rooted.  It's used
    * to match incoming requests. */
   @VisibleForTesting
@@ -132,8 +132,6 @@ public final class RpcManager {
     }
 
     final RpcManager manager = new RpcManager(tsdb);
-    final String mode = Strings.nullToEmpty(tsdb.getConfig().getString("tsd.mode"));
-    
     // Load any plugins that are enabled via Config.  Fail if any plugin cannot be loaded.
   
     final ImmutableList.Builder<RpcPlugin> rpcBuilder = ImmutableList.builder();
@@ -145,14 +143,14 @@ public final class RpcManager {
 
     final ImmutableMap.Builder<String, TelnetRpc> telnetBuilder = ImmutableMap.builder();
     final ImmutableMap.Builder<String, HttpRpc> httpBuilder = ImmutableMap.builder();
-    manager.initializeBuiltinRpcs(mode, telnetBuilder, httpBuilder);
+    manager.initializeBuiltinRpcs(telnetBuilder, httpBuilder);
     manager.telnet_commands = telnetBuilder.build();
     manager.http_commands = httpBuilder.build();
 
     final ImmutableMap.Builder<String, HttpRpcPlugin> httpPluginsBuilder = ImmutableMap.builder();
     if (tsdb.getConfig().hasProperty("tsd.http.rpc.plugins")) {
       final String[] plugins = tsdb.getConfig().getString("tsd.http.rpc.plugins").split(",");
-      manager.initializeHttpRpcPlugins(mode, plugins, httpPluginsBuilder);
+      manager.initializeHttpRpcPlugins(plugins, httpPluginsBuilder);
     }
     manager.http_plugin_commands = httpPluginsBuilder.build();
     
@@ -242,81 +240,84 @@ public final class RpcManager {
   /**
    * Load and init instances of {@link TelnetRpc}s and {@link HttpRpc}s.
    * These are not generally configurable via TSDB config.
-   * @param mode is this TSD in read/write ("rw") or read-only ("ro")
-   * mode?
    * @param telnet a map of telnet command names to {@link TelnetRpc}
    * instances.
    * @param http a map of API endpoints to {@link HttpRpc} instances.
    */
-  private void initializeBuiltinRpcs(final String mode, 
-        final ImmutableMap.Builder<String, TelnetRpc> telnet,
+  private void initializeBuiltinRpcs(final ImmutableMap.Builder<String, TelnetRpc> telnet,
         final ImmutableMap.Builder<String, HttpRpc> http) {
+
+    final String mode = Strings.nullToEmpty(tsdb.getConfig().getString("tsd.mode"));
+    final Boolean enableApi = tsdb.getConfig().getString("tsd.core.enable_api").equals("true");
+    final Boolean enableUi = tsdb.getConfig().getString("tsd.core.enable_ui").equals("true");
+    final Boolean enableDieDieDie = tsdb.getConfig().getString("tsd.no_diediedie").equals("false");
+
     if (mode.equals("rw") || mode.equals("wo")) {
       final PutDataPointRpc put = new PutDataPointRpc();
       telnet.put("put", put);
-      http.put("api/put", put);
+      if (enableApi) {
+        http.put("api/put", put);
+      }
     }
     
     if (mode.equals("rw") || mode.equals("ro")) {
-      http.put("", new HomePage());
       final StaticFileRpc staticfile = new StaticFileRpc();
-      http.put("favicon.ico", staticfile);
-      http.put("s", staticfile);
-
       final StatsRpc stats = new StatsRpc();
-      telnet.put("stats", stats);
-      http.put("stats", stats);
-      http.put("api/stats", stats);
-
-      final DropCaches dropcaches = new DropCaches();
-      telnet.put("dropcaches", dropcaches);
-      http.put("dropcaches", dropcaches);
-      http.put("api/dropcaches", dropcaches);
-
+      final DropCachesRpc dropcaches = new DropCachesRpc();
       final ListAggregators aggregators = new ListAggregators();
-      http.put("aggregators", aggregators);
-      http.put("api/aggregators", aggregators);
-
       final SuggestRpc suggest_rpc = new SuggestRpc();
-      http.put("suggest", suggest_rpc);
-      http.put("api/suggest", suggest_rpc);
+      final AnnotationRpc annotation_rpc = new AnnotationRpc();
+      final Version version = new Version();
 
-      http.put("logs", new LogsRpc());
-      http.put("q", new GraphHandler());
-      http.put("api/serializers", new Serializers());
-      http.put("api/uid", new UniqueIdRpc());
-      http.put("api/query", new QueryRpc());
-      http.put("api/tree", new TreeRpc());
-      {
-        final AnnotationRpc annotation_rpc = new AnnotationRpc();
-        http.put("api/annotation", annotation_rpc);
-        http.put("api/annotations", annotation_rpc);
-      }
-      http.put("api/search", new SearchRpc());
-      http.put("api/config", new ShowConfig());
-      
-      if (tsdb.getConfig().getString("tsd.no_diediedie").equals("false")) {
-        final DieDieDie diediedie = new DieDieDie();
-        telnet.put("diediedie", diediedie);
-        http.put("diediedie", diediedie);
-      }
-      {
-        final Version version = new Version();
-        telnet.put("version", version);
-        http.put("version", version);
-        http.put("api/version", version);
-      }
-
+      telnet.put("stats", stats);
+      telnet.put("dropcaches", dropcaches);
+      telnet.put("version", version);
       telnet.put("exit", new Exit());
       telnet.put("help", new Help());
+
+      if (enableUi) {
+        http.put("", new HomePage());
+        http.put("aggregators", aggregators);
+        http.put("dropcaches", dropcaches);
+        http.put("favicon.ico", staticfile);
+        http.put("logs", new LogsRpc());
+        http.put("q", new GraphHandler());
+        http.put("s", staticfile);
+        http.put("stats", stats);
+        http.put("suggest", suggest_rpc);
+        http.put("version", version);
+      }
+
+      if (enableApi) {
+        http.put("api/aggregators", aggregators);
+        http.put("api/annotation", annotation_rpc);
+        http.put("api/annotations", annotation_rpc);
+        http.put("api/config", new ShowConfig());
+        http.put("api/dropcaches", dropcaches);
+        http.put("api/query", new QueryRpc());
+        http.put("api/search", new SearchRpc());
+        http.put("api/serializers", new Serializers());
+        http.put("api/stats", stats);
+        http.put("api/suggest", suggest_rpc);
+        http.put("api/tree", new TreeRpc());
+        http.put("api/uid", new UniqueIdRpc());
+        http.put("api/version", version);
+      }
+    }
+
+    if (enableDieDieDie) {
+      final DieDieDie diediedie = new DieDieDie();
+      telnet.put("diediedie", diediedie);
+      if (enableUi) {
+        http.put("diediedie", diediedie);
+      }
     }
   }
 
   /**
    * Load and init the {@link HttpRpcPlugin}s provided as an array of
    * {@code pluginClassNames}.
-   * @param mode is this TSD in read/write ("rw") or read-only ("ro")
-   * mode?
+
    * @param pluginClassNames fully-qualified class names that are 
    * instances of {@link HttpRpcPlugin}s
    * @param http a map of canonicalized paths 
@@ -324,9 +325,11 @@ public final class RpcManager {
    * to {@link HttpRpcPlugin} instance.
    */
   @VisibleForTesting
-  protected void initializeHttpRpcPlugins(final String mode,
-        final String[] pluginClassNames,
+  protected void initializeHttpRpcPlugins(final String[] pluginClassNames,
         final ImmutableMap.Builder<String, HttpRpcPlugin> http) {
+
+    final String mode = Strings.nullToEmpty(tsdb.getConfig().getString("tsd.mode"));
+
     for (final String plugin : pluginClassNames) {
       final HttpRpcPlugin rpc = createAndInitialize(plugin, HttpRpcPlugin.class);
       validateHttpRpcPluginPath(rpc.getPath());
@@ -577,12 +580,8 @@ public final class RpcManager {
     public void execute(final TSDB tsdb, final HttpQuery query) 
       throws IOException {
       
-      // only accept GET/POST
-      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
-        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-            "Method not allowed", "The HTTP method [" + query.method().getName() +
-            "] is not permitted for this endpoint");
-      }
+      // only accept GET / POST
+      RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
       
       if (query.apiVersion() > 0) {
         query.sendReply(
@@ -607,12 +606,8 @@ public final class RpcManager {
     public void execute(final TSDB tsdb, final HttpQuery query) throws 
       IOException {
       
-      // only accept GET/POST
-      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
-        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-            "Method not allowed", "The HTTP method [" + query.method().getName() +
-            "] is not permitted for this endpoint");
-      }
+      // only accept GET / POST
+      RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
       
       final HashMap<String, String> version = new HashMap<String, String>();
       version.put("version", BuildData.version);
@@ -643,64 +638,23 @@ public final class RpcManager {
       }
     }
   }
-  
-  /** The "dropcaches" command. */
-  private static final class DropCaches implements TelnetRpc, HttpRpc {
-    public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
-                                    final String[] cmd) {
-      dropCaches(tsdb, chan);
-      chan.write("Caches dropped.\n");
-      return Deferred.fromResult(null);
-    }
 
-    public void execute(final TSDB tsdb, final HttpQuery query) 
-      throws IOException {
-      dropCaches(tsdb, query.channel());
-      
-      // only accept GET/POST
-      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
-        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-            "Method not allowed", "The HTTP method [" + query.method().getName() +
-            "] is not permitted for this endpoint");
-      }
-      
-      if (query.apiVersion() > 0) {
-        final HashMap<String, String> response = new HashMap<String, String>();
-        response.put("status", "200");
-        response.put("message", "Caches dropped");
-        query.sendReply(query.serializer().formatDropCachesV1(response));
-      } else { // deprecated API
-        query.sendReply("Caches dropped.\n");
-      }
-    }
-
-    /** Drops in memory caches.  */
-    private void dropCaches(final TSDB tsdb, final Channel chan) {
-      LOG.warn(chan + " Dropping all in-memory caches.");
-      tsdb.dropCaches();
-    }
-  }
-
-  /** The /api/formatters endpoint 
+  /** The /api/formatters endpoint
    * @since 2.0 */
   private static final class Serializers implements HttpRpc {
-    public void execute(final TSDB tsdb, final HttpQuery query) 
+    public void execute(final TSDB tsdb, final HttpQuery query)
       throws IOException {
-      // only accept GET/POST
-      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
-        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-            "Method not allowed", "The HTTP method [" + query.method().getName() +
-            "] is not permitted for this endpoint");
-      }
-      
+      // only accept GET / POST
+      RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
+
       switch (query.apiVersion()) {
         case 0:
         case 1:
           query.sendReply(query.serializer().formatSerializersV1());
           break;
-        default: 
-          throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
-              "Requested API version not implemented", "Version " + 
+        default:
+          throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED,
+              "Requested API version not implemented", "Version " +
               query.apiVersion() + " is not implemented");
       }
     }
@@ -710,12 +664,8 @@ public final class RpcManager {
     @Override
     public void execute(TSDB tsdb, HttpQuery query) throws IOException {
       // only accept GET/POST
-      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
-        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-            "Method not allowed", "The HTTP method [" + query.method().getName() +
-            "] is not permitted for this endpoint");
-      }
-      
+      RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
+
       final String[] uri = query.explodeAPIPath();
       final String endpoint = uri.length > 1 ? uri[1].toLowerCase() : "";
       

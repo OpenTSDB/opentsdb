@@ -98,7 +98,7 @@ tsdb_SRC := \
 	src/query/expression/PostAggregatedDataPoints.java	\
 	src/query/expression/Scale.java	\
 	src/query/expression/SumSeries.java	\
-  src/query/expression/TimeShift.java \
+	src/query/expression/TimeShift.java \
 	src/query/expression/TimeSyncedIterator.java	\
 	src/query/expression/UnionIterator.java	\
 	src/query/expression/VariableIterator.java	\
@@ -147,6 +147,7 @@ tsdb_SRC := \
 	src/tsd/AnnotationRpc.java	\
 	src/tsd/BadRequestException.java	\
 	src/tsd/ConnectionManager.java	\
+	src/tsd/DropCachesRpc.java \
 	src/tsd/GnuplotException.java	\
 	src/tsd/GraphHandler.java	\
 	src/tsd/HttpJsonSerializer.java	\
@@ -164,6 +165,7 @@ tsdb_SRC := \
 	src/tsd/RpcHandler.java	\
 	src/tsd/RpcPlugin.java	\
 	src/tsd/RpcManager.java	\
+	src/tsd/RpcUtil.java \
 	src/tsd/RTPublisher.java	\
 	src/tsd/SearchRpc.java	\
 	src/tsd/StaticFileRpc.java	\
