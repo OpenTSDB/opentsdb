@@ -372,8 +372,6 @@ final class HttpQuery extends AbstractHttpQuery {
       HttpQuery.escapeJson(pretty_exc, buf);
       buf.append("\"}");
       sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR, buf);
-    } else if (hasQueryStringParam("png")) {
-      sendAsPNG(HttpResponseStatus.INTERNAL_SERVER_ERROR, pretty_exc, 30);
     } else {
       sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR,
                 makePage("Internal Server Error", "Houston, we have a problem",
@@ -421,8 +419,6 @@ final class HttpQuery extends AbstractHttpQuery {
       HttpQuery.escapeJson(exception.getMessage(), buf);
       buf.append("\"}");
       sendReply(HttpResponseStatus.BAD_REQUEST, buf);
-    } else if (hasQueryStringParam("png")) {
-      sendAsPNG(HttpResponseStatus.BAD_REQUEST, exception.getMessage(), 3600);
     } else {
       sendReply(HttpResponseStatus.BAD_REQUEST,
                 makePage("Bad Request", "Looks like it's your fault this time",
@@ -456,8 +452,6 @@ final class HttpQuery extends AbstractHttpQuery {
     if (hasQueryStringParam("json")) {
       sendReply(HttpResponseStatus.NOT_FOUND,
                 new StringBuilder("{\"err\":\"Page Not Found\"}"));
-    } else if (hasQueryStringParam("png")) {
-      sendAsPNG(HttpResponseStatus.NOT_FOUND, "Page Not Found", 3600);
     } else {
       sendReply(HttpResponseStatus.NOT_FOUND, PAGE_NOT_FOUND);
     }
@@ -602,49 +596,6 @@ final class HttpQuery extends AbstractHttpQuery {
   public void sendReply(final HttpResponseStatus status,
       final ChannelBuffer buf) {
     sendBuffer(status, buf);
-  }
-
-  /**
-   * Sends the given message as a PNG image.
-   * <strong>This method will block</strong> while image is being generated.
-   * It's only recommended for cases where we want to report an error back to
-   * the user and the user's browser expects a PNG image.  Don't abuse it.
-   * @param status The status of the request (e.g. 200 OK or 404 Not Found).
-   * @param msg The message to send as an image.
-   * @param max_age The expiration time of this entity, in seconds.  This is
-   * not a timestamp, it's how old the resource is allowed to be in the client
-   * cache.  See RFC 2616 section 14.9 for more information.  Use 0 to disable
-   * caching.
-   */
-  public void sendAsPNG(final HttpResponseStatus status,
-                        final String msg,
-                        final int max_age) {
-    try {
-      final long now = System.currentTimeMillis() / 1000;
-      Plot plot = new Plot(now - 1, now);
-      HashMap<String, String> params = new HashMap<String, String>(1);
-      StringBuilder buf = new StringBuilder(1 + msg.length() + 18);
-
-      buf.append('"');
-      escapeJson(msg, buf);
-      buf.append("\" at graph 0.02,0.97");
-      params.put("label", buf.toString());
-      buf = null;
-      plot.setParams(params);
-      params = null;
-      final String basepath =
-        tsdb.getConfig().getDirectoryName("tsd.http.cachedir")
-        + Integer.toHexString(msg.hashCode());
-      GraphHandler.runGnuplot(this, basepath, plot);
-      plot = null;
-      sendFile(status, basepath + ".png", max_age);
-    } catch (Exception e) {
-      getQueryString().remove("png");  // Avoid recursion.
-      this.sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR,
-          serializer.formatErrorV1(new RuntimeException(
-              "Failed to generate a PNG with the"
-              + " following message: " + msg, e)));
-    }
   }
 
   /**
