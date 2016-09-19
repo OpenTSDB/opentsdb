@@ -26,6 +26,6 @@ interface HttpRpc {
    * @param tsdb The TSDB to use.
    * @param query The HTTP query to execute.
    */
-  void execute(TSDB tsdb, HttpQuery query) throws IOException;
+  void execute(TSDB tsdb, HttpQuery query) throws BadRequestException, IOException;
 
 }

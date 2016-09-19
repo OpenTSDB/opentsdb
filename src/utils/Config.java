@@ -488,6 +488,8 @@ public class Config {
     default_map.put("tsd.core.auto_create_tagks", "true");
     default_map.put("tsd.core.auto_create_tagvs", "true");
     default_map.put("tsd.core.connections.limit", "0");
+    default_map.put("tsd.core.enable_api", "true");
+    default_map.put("tsd.core.enable_ui", "true");
     default_map.put("tsd.core.meta.enable_realtime_ts", "false");
     default_map.put("tsd.core.meta.enable_realtime_uid", "false");
     default_map.put("tsd.core.meta.enable_tsuid_incrementing", "false");

@@ -249,6 +249,14 @@ final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
    * @param req The parsed HTTP request.
    */
   private void handleHttpQuery(final TSDB tsdb, final Channel chan, final HttpRequest req) {
+    // quick bail if not GET/POST/OPTIONS/PUT/DELETE, no other methods are allowed anywhere
+    try {
+      RpcUtil.allowedMethods(req.getMethod(), HttpMethod.GET.getName(), HttpMethod.POST.getName(),
+              HttpMethod.OPTIONS.getName(), HttpMethod.PUT.getName(), HttpMethod.DELETE.getName());
+    } catch (BadRequestException bre) {
+      sendStatusAndClose(chan, HttpResponseStatus.METHOD_NOT_ALLOWED);
+    }
+
     AbstractHttpQuery abstractQuery = null;
     try {
       abstractQuery = createQueryInstance(tsdb, req, chan);
