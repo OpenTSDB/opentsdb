@@ -39,3 +39,9 @@ src-main
 src-test
 plugin_test.jar
 bin/
+
+#Docker
+tools/docker/libs
+tools/docker/*.jar
+tools/docker/logback.xml
+tools/docker/opentsdb.conf
