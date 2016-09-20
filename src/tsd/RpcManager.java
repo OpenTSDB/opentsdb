@@ -132,6 +132,8 @@ public final class RpcManager {
     }
 
     final RpcManager manager = new RpcManager(tsdb);
+    final String mode = Strings.nullToEmpty(tsdb.getConfig().getString("tsd.mode"));
+
     // Load any plugins that are enabled via Config.  Fail if any plugin cannot be loaded.
   
     final ImmutableList.Builder<RpcPlugin> rpcBuilder = ImmutableList.builder();
@@ -143,14 +145,14 @@ public final class RpcManager {
 
     final ImmutableMap.Builder<String, TelnetRpc> telnetBuilder = ImmutableMap.builder();
     final ImmutableMap.Builder<String, HttpRpc> httpBuilder = ImmutableMap.builder();
-    manager.initializeBuiltinRpcs(telnetBuilder, httpBuilder);
+    manager.initializeBuiltinRpcs(mode, telnetBuilder, httpBuilder);
     manager.telnet_commands = telnetBuilder.build();
     manager.http_commands = httpBuilder.build();
 
     final ImmutableMap.Builder<String, HttpRpcPlugin> httpPluginsBuilder = ImmutableMap.builder();
     if (tsdb.getConfig().hasProperty("tsd.http.rpc.plugins")) {
       final String[] plugins = tsdb.getConfig().getString("tsd.http.rpc.plugins").split(",");
-      manager.initializeHttpRpcPlugins(plugins, httpPluginsBuilder);
+      manager.initializeHttpRpcPlugins(mode, plugins, httpPluginsBuilder);
     }
     manager.http_plugin_commands = httpPluginsBuilder.build();
     
@@ -240,14 +242,16 @@ public final class RpcManager {
   /**
    * Load and init instances of {@link TelnetRpc}s and {@link HttpRpc}s.
    * These are not generally configurable via TSDB config.
+   * @param mode is this TSD in read/write ("rw") or read-only ("ro")
+   * mode?
    * @param telnet a map of telnet command names to {@link TelnetRpc}
    * instances.
    * @param http a map of API endpoints to {@link HttpRpc} instances.
    */
-  private void initializeBuiltinRpcs(final ImmutableMap.Builder<String, TelnetRpc> telnet,
+  private void initializeBuiltinRpcs(final String mode,
+        final ImmutableMap.Builder<String, TelnetRpc> telnet,
         final ImmutableMap.Builder<String, HttpRpc> http) {
 
-    final String mode = Strings.nullToEmpty(tsdb.getConfig().getString("tsd.mode"));
     final Boolean enableApi = tsdb.getConfig().getString("tsd.core.enable_api").equals("true");
     final Boolean enableUi = tsdb.getConfig().getString("tsd.core.enable_ui").equals("true");
     final Boolean enableDieDieDie = tsdb.getConfig().getString("tsd.no_diediedie").equals("false");
@@ -317,7 +321,8 @@ public final class RpcManager {
   /**
    * Load and init the {@link HttpRpcPlugin}s provided as an array of
    * {@code pluginClassNames}.
-
+   * @param mode is this TSD in read/write ("rw") or read-only ("ro")
+   * mode?
    * @param pluginClassNames fully-qualified class names that are 
    * instances of {@link HttpRpcPlugin}s
    * @param http a map of canonicalized paths 
@@ -325,11 +330,9 @@ public final class RpcManager {
    * to {@link HttpRpcPlugin} instance.
    */
   @VisibleForTesting
-  protected void initializeHttpRpcPlugins(final String[] pluginClassNames,
+  protected void initializeHttpRpcPlugins(final String mode,
+        final String[] pluginClassNames,
         final ImmutableMap.Builder<String, HttpRpcPlugin> http) {
-
-    final String mode = Strings.nullToEmpty(tsdb.getConfig().getString("tsd.mode"));
-
     for (final String plugin : pluginClassNames) {
       final HttpRpcPlugin rpc = createAndInitialize(plugin, HttpRpcPlugin.class);
       validateHttpRpcPluginPath(rpc.getPath());
