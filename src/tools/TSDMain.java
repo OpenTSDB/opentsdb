@@ -93,6 +93,10 @@ final class TSDMain {
                    "Use async NIO (default true) or traditional blocking io");
     argp.addOption("--read-only", "true|false",
                    "Set tsd.mode to ro (default false)");
+    argp.addOption("--disable-ui", "true|false",
+                   "Set tsd.core.enable_ui to false (default true)");
+    argp.addOption("--disable-api", "true|false",
+                   "Set tsd.core.enable_api to false (default true)");
     argp.addOption("--backlog", "NUM",
                    "Size of connection attempt queue (default: 3072 or kernel"
                    + " somaxconn.");
