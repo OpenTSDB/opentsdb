@@ -97,6 +97,8 @@ final class TSDMain {
                    "Set tsd.core.enable_ui to false (default true)");
     argp.addOption("--disable-api", "true|false",
                    "Set tsd.core.enable_api to false (default true)");
+    argp.addOption("--disable-annotations", "true|false",
+            "Set tsd.core.enable_annotations to false (default true)");
     argp.addOption("--backlog", "NUM",
                    "Size of connection attempt queue (default: 3072 or kernel"
                    + " somaxconn.");

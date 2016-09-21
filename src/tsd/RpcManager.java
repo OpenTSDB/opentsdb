@@ -254,6 +254,7 @@ public final class RpcManager {
 
     final Boolean enableApi = tsdb.getConfig().getString("tsd.core.enable_api").equals("true");
     final Boolean enableUi = tsdb.getConfig().getString("tsd.core.enable_ui").equals("true");
+    final Boolean enableAnnotations = tsdb.getConfig().getString("tsd.core.enable_annotations").equals("true");
     final Boolean enableDieDieDie = tsdb.getConfig().getString("tsd.no_diediedie").equals("false");
 
     LOG.info("Mode: {}, HTTP UI Enabled: {}, HTTP API Enabled: {}", mode, enableUi, enableApi);
@@ -272,7 +273,9 @@ public final class RpcManager {
       final DropCachesRpc dropcaches = new DropCachesRpc();
       final ListAggregators aggregators = new ListAggregators();
       final SuggestRpc suggest_rpc = new SuggestRpc();
-      final AnnotationRpc annotation_rpc = new AnnotationRpc();
+      if (enableAnnotations) {
+        final AnnotationRpc annotation_rpc = new AnnotationRpc();
+      }
       final Version version = new Version();
 
       telnet.put("stats", stats);
@@ -296,8 +299,10 @@ public final class RpcManager {
 
       if (enableApi) {
         http.put("api/aggregators", aggregators);
-        http.put("api/annotation", annotation_rpc);
-        http.put("api/annotations", annotation_rpc);
+        if (enableAnnotations) {
+          http.put("api/annotation", annotation_rpc);
+          http.put("api/annotations", annotation_rpc);
+        }
         http.put("api/config", new ShowConfig());
         http.put("api/dropcaches", dropcaches);
         http.put("api/query", new QueryRpc());
