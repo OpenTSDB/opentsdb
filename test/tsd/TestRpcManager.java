@@ -50,6 +50,8 @@ public class TestRpcManager {
       .thenReturn("true");
     when(config.getString("tsd.core.enable_ui"))
       .thenReturn("true");
+    when(config.getString("tsd.core.enable_annotations"))
+      .thenReturn("true");
     when(config.getString("tsd.no_diediedie"))
       .thenReturn("false");
     TSDB tsdb = mock(TSDB.class);
@@ -75,8 +77,10 @@ public class TestRpcManager {
       .thenReturn("true");
     when(config.getString("tsd.core.enable_ui"))
       .thenReturn("true");
+    when(config.getString("tsd.core.enable_annotations"))
+      .thenReturn("true");
     when(config.getString("tsd.no_diediedie"))
-     .thenReturn("false");
+      .thenReturn("false");
 
     TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(config);
@@ -104,6 +108,8 @@ public class TestRpcManager {
     when(config.getString("tsd.core.enable_api"))
       .thenReturn("true");
     when(config.getString("tsd.core.enable_ui"))
+      .thenReturn("true");
+    when(config.getString("tsd.core.enable_annotations"))
       .thenReturn("true");
     when(config.getString("tsd.no_diediedie"))
       .thenReturn("false");

@@ -273,9 +273,7 @@ public final class RpcManager {
       final DropCachesRpc dropcaches = new DropCachesRpc();
       final ListAggregators aggregators = new ListAggregators();
       final SuggestRpc suggest_rpc = new SuggestRpc();
-      if (enableAnnotations) {
-        final AnnotationRpc annotation_rpc = new AnnotationRpc();
-      }
+      final AnnotationRpc annotation_rpc = new AnnotationRpc();
       final Version version = new Version();
 
       telnet.put("stats", stats);
