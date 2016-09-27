@@ -231,7 +231,7 @@ public class QueryUtil {
           byteRegexToString(regex));
     }
     
-    if (!explicit_tags || !enable_fuzzy_filter) {
+    if (!(explicit_tags && enable_fuzzy_filter)) {
       scanner.setFilter(regex_filter);
       return;
     }
