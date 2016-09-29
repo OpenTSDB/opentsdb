@@ -15,8 +15,6 @@ package net.opentsdb.core;
 import java.util.HashMap;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.Iterator;
-import java.util.LinkedList;
 
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile.EstimationType;
@@ -36,21 +34,21 @@ public final class Aggregators {
     LERP,   /* Regular linear interpolation */
     ZIM,    /* Returns 0 when a data point is missing */
     MAX,    /* Returns the <type>.MaxValue when a data point is missing */
-    MIN,     /* Returns the <type>.MinValue when a data point is missing */
+    MIN,    /* Returns the <type>.MinValue when a data point is missing */
 	PREV    /* Returns the previous value stored, when a data point is missing */
   }
   
   /** Aggregator that sums up all the data points. */
   public static final Aggregator SUM = new Sum(
       Interpolation.LERP, "sum");
-	  
+
   /**
    * Aggregator that sums up all the data points,and uses interpolation where
    * previous value is used for data point missing.
    */
   public static final Aggregator PFSUM= new Sum(
       Interpolation.PREV, "pfsum");
-
+	  
   /** Aggregator that returns the minimum data point. */
   public static final Aggregator MIN = new Min(
       Interpolation.LERP, "min");
@@ -63,14 +61,6 @@ public final class Aggregators {
   public static final Aggregator AVG = new Avg(
       Interpolation.LERP, "avg");
 
-  /** Aggregator that skips aggregation/interpolation and/or downsampling. */
-  public static final Aggregator NONE = new None(Interpolation.ZIM, "raw");
-  
-  /** Return the product of two time series 
-   * @since 2.3 */
-  public static final Aggregator MULTIPLY = new Multiply(
-      Interpolation.LERP, "multiply");
-  
   /** Aggregator that returns the Standard Deviation of the data points. */
   public static final Aggregator DEV = new StdDev(
       Interpolation.LERP, "dev");
@@ -89,7 +79,7 @@ public final class Aggregators {
    * if timestamps don't line up instead of interpolating. */
   public static final Aggregator MIMMAX = new Max(
       Interpolation.MIN, "mimmax");
-
+  
   /** Aggregator that returns the number of data points.
    * WARNING: This currently interpolates with zero-if-missing. In this case 
    * counts will be off when counting multiple time series. Only use this when
@@ -97,12 +87,6 @@ public final class Aggregators {
    * @since 2.2 */
   public static final Aggregator COUNT = new Count(Interpolation.ZIM, "count");
 
-  /** Aggregator that returns the first data point. */
-  public static final Aggregator FIRST = new First(Interpolation.ZIM, "first");
-
-  /** Aggregator that returns the first data point. */
-  public static final Aggregator LAST = new Last(Interpolation.ZIM, "last");
-  
   /** Maps an aggregator name to its instance. */
   private static final HashMap<String, Aggregator> aggregators;
 
@@ -163,15 +147,11 @@ public final class Aggregators {
     aggregators.put("min", MIN);
     aggregators.put("max", MAX);
     aggregators.put("avg", AVG);
-    aggregators.put("none", NONE);
-    aggregators.put("mult", MULTIPLY);
     aggregators.put("dev", DEV);
     aggregators.put("count", COUNT);
     aggregators.put("zimsum", ZIMSUM);
     aggregators.put("mimmin", MIMMIN);
     aggregators.put("mimmax", MIMMAX);
-    aggregators.put("first", FIRST);
-    aggregators.put("last", LAST);
 	aggregators.put("pfsum", PFSUM);
 
     PercentileAgg[] percentiles = {
@@ -342,62 +322,6 @@ public final class Aggregators {
    
   }
 
-  /**
-   * An aggregator that isn't meant for aggregation. Paradoxical!!
-   * Really it's used as a flag to indicate that, during sorting and iteration,
-   * that the pipeline should not perform any aggregation and should emit 
-   * raw time series.
-   */
-  private static final class None extends Aggregator {
-    public None(final Interpolation method, final String name) {
-      super(method, name);
-    }
-    
-    @Override
-    public long runLong(final Longs values) {
-      final long v = values.nextLongValue();
-      if (values.hasNextValue()) {
-        throw new IllegalDataException("More than one value in aggregator " + values);
-      }
-      return v;
-    }
-    
-    @Override
-    public double runDouble(final Doubles values) {
-      final double v = values.nextDoubleValue();
-      if (values.hasNextValue()) {
-        throw new IllegalDataException("More than one value in aggregator " + values);
-      }
-      return v;
-    }
-  }
-  
-  private static final class Multiply extends Aggregator {
-    
-    public Multiply(final Interpolation method, final String name) {
-      super(method, name);
-    }
-
-    @Override
-    public long runLong(Longs values) {
-      long result = values.nextLongValue();
-      while (values.hasNextValue()) {
-        result *= values.nextLongValue();
-      }
-      return result;
-    }
-
-    @Override
-    public double runDouble(Doubles values) {
-      double result = values.nextDoubleValue();
-      while (values.hasNextValue()) {
-        result *= values.nextDoubleValue();
-      }
-      return result;
-    }
-    
-  }
-  
   /**
    * Standard Deviation aggregator.
    * Can compute without storing all of the data points in memory at the same
@@ -570,149 +494,5 @@ public final class Aggregators {
       }
     }
 
-  }
-  public static final class MovingAverage extends Aggregator {
-    private LinkedList<SumPoint> list = new LinkedList<SumPoint>();
-    private final long numPoints;
-    private final boolean isTimeUnit;
-
-    public MovingAverage(final Interpolation method, final String name, long numPoints, boolean isTimeUnit) {
-      super(method, name);
-      this.numPoints = numPoints;
-      this.isTimeUnit = isTimeUnit;
-    }
-
-    public long runLong(final Longs values) {
-      long sum = values.nextLongValue();
-      while (values.hasNextValue()) {
-        sum += values.nextLongValue();
-      }
-
-      if (values instanceof DataPoint) {
-        long ts = ((DataPoint) values).timestamp();
-        list.addFirst(new SumPoint(ts, sum));
-      }
-
-      long result = 0;
-      int count = 0;
-
-      Iterator<SumPoint> iter = list.iterator();
-      SumPoint first = iter.next();
-      boolean conditionMet = false;
-
-      // now sum up the preceeding points
-      while (iter.hasNext()) {
-        SumPoint next = iter.next();
-        result += (Long) next.val;
-        count++;
-        if (!isTimeUnit && count >= numPoints) {
-          conditionMet = true;
-          break;
-        } else if (isTimeUnit && ((first.ts - next.ts) > numPoints)) {
-          conditionMet = true;
-          break;
-        }
-      }
-
-      if (!conditionMet || count == 0) {
-        return 0;
-      }
-
-      return result / count;
-    }
-
-    @Override
-    public double runDouble(Doubles values) {
-      double sum = values.nextDoubleValue();
-      while (values.hasNextValue()) {
-        sum += values.nextDoubleValue();
-      }
-
-      if (values instanceof DataPoint) {
-        long ts = ((DataPoint) values).timestamp();
-        list.addFirst(new SumPoint(ts, sum));
-      }
-
-      double result = 0;
-      int count = 0;
-
-      Iterator<SumPoint> iter = list.iterator();
-      SumPoint first = iter.next();
-      boolean conditionMet = false;
-
-      // now sum up the preceeding points
-      while (iter.hasNext()) {
-        SumPoint next = iter.next();
-        result += (Double) next.val;
-        count++;
-        if (!isTimeUnit && count >= numPoints) {
-          conditionMet = true;
-          break;
-        } else if (isTimeUnit && ((first.ts - next.ts) > numPoints)) {
-          conditionMet = true;
-          break;
-        }
-      }
-
-      if (!conditionMet || count == 0) {
-        return 0;
-      }
-
-      return result / count;
-    }
-  
-    class SumPoint {
-      long ts;
-      Object val;
-
-      public SumPoint(long ts, Object val) {
-        this.ts = ts;
-        this.val = val;
-      }
-    }
-  }
-  
-  private static final class First extends Aggregator {
-    public First(final Interpolation method, final String name) {
-      super(method, name);
-    }
-    
-    public long runLong(final Longs values) {
-      long val = values.nextLongValue();
-      while (values.hasNextValue()) {
-    	  values.nextLongValue();
-      }
-      return val;
-    }
-
-    public double runDouble(final Doubles values) {
-      double val = values.nextDoubleValue();
-      while (values.hasNextValue()) {
-    	  values.nextDoubleValue();
-      }
-      return val;
-    }
-  }
-  
-  private static final class Last extends Aggregator {
-    public Last(final Interpolation method, final String name) {
-      super(method, name);
-    }
-    
-    public long runLong(final Longs values) {
-      long val = values.nextLongValue();
-      while (values.hasNextValue()) {
-        val = values.nextLongValue();
-      }
-      return val;
-    }
-
-    public double runDouble(final Doubles values) {
-      double val = values.nextDoubleValue();
-      while (values.hasNextValue()) {
-        val = values.nextDoubleValue();
-      }
-      return val;
-    }
   }
 }
