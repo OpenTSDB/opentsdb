@@ -1,5 +1,26 @@
 OpenTSDB - User visible changes.
 
+* Version 2.3.0 RC2 (2016-10-08)
+
+Noteworthy Changes:
+  - Added a docker file and tool to build TSD docker containers (#871).
+  - Log X-Forwarded-For addresses when handling HTTP requests.
+  - Expand aggregator options in the Nagios check script.
+  - Allow enabling or disabling the HTTP API or UI.
+  - TSD will now exit when an unrecognized CLI param is passed.
+  
+Bug Fixes:
+  - Improved ALPN version detection when using Google Bigtable.
+  - Fix the DumpSeries class to support appended data point types.
+  - Fix queries where groupby is set to false on all filters.
+  - Fix a missing attribute in the Nagios check script (#728).
+  - Fix a major security bug where requesting a PNG with certain URI params could execute code
+    on the host (#793, #781).
+  - Return a proper error code when dropping caches with the DELETE HTTP verb (#830).
+  - Fix backwards compatibility with HBase 0.94 when using explicit tags by removing the
+    fuzzy filter (#837).
+  - Fix an RPM build issue when creating the GWT directory.
+
 * Version 2.3.0 RC1 (2016-05-02)
 
 Noteworthy Changes:
@@ -31,7 +52,27 @@ Bug Fixes:
   - Restore the ability to create TSMeta objects via URI
   - Restore raw data points (along with post-filtered data points) in query stats
   - Built in UI will now properly display global annotations when the query string is passed
-  - 
+
+Noteworthy Changes:
+  - Improve metadata storage performance by removing an extra getFromStorage() call.
+  - Add global Annotations to the gnuplot graphs (#773)
+  - Allow creation of a TSMeta object without a TSUID (#778)
+  - Move to AsyncHBase 1.7.2
+
+Bug Fixes:
+  - Fix Python scripts to use the environment directory.
+  - Fix config name for "tsd.network.keep_alive" in included config files.
+  - Fix an issue with the filter metric and tag resolution chain during queries.
+  - Fix an issue with malformed, double dotted timestamps (#724).
+  - Fix an issue with tag filters where we need a copy before modifying the list.
+  - Fix comments in the config file around TCP no delay settings.
+  - Fix some query stats calculations around averaging and estimating the number
+    of data points (#784).
+  - Clean out old .SWO files (#821)
+  - Fix a live-lock situation when performing regular expression or wildcard queries (#823).
+  - Change the static file path for the HTTP API to be relative (#857).
+  - Fix an issue where the GUI could flicker when two or more tag filters were set (#708).
+
 * Version 2.2.0 (2016-02-14)
 
 Noteworthy Changes
