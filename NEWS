@@ -1,6 +1,6 @@
 OpenTSDB - User visible changes.
 
-* Version 2.2.1 (2015-?-?)
+* Version 2.2.1 (2016-10-08)
 
 Noteworthy Changes
   - Generate an incrementing TSMeta request only if both enable_tsuid_incrementing and
@@ -8,6 +8,24 @@ Noteworthy Changes
     regardless of whether or not the real time ts setting was enabled. If tsuid 
     incrementing is disabled then a get and optional put is executed each time without 
     modifying the meta counter field.
+  - Improve metadata storage performance by removing an extra getFromStorage() call.
+  - Add global Annotations to the gnuplot graphs (#773)
+  - Allow creation of a TSMeta object without a TSUID (#778)
+  - Move to AsyncHBase 1.7.2
+
+Bug Fixes:
+  - Fix Python scripts to use the environment directory.
+  - Fix config name for "tsd.network.keep_alive" in included config files.
+  - Fix an issue with the filter metric and tag resolution chain during queries.
+  - Fix an issue with malformed, double dotted timestamps (#724).
+  - Fix an issue with tag filters where we need a copy before modifying the list.
+  - Fix comments in the config file around TCP no delay settings.
+  - Fix some query stats calculations around averaging and estimating the number
+    of data points (#784).
+  - Clean out old .SWO files (#821)
+  - Fix a live-lock situation when performing regular expression or wildcard queries (#823).
+  - Change the static file path for the HTTP API to be relative (#857).
+  - Fix an issue where the GUI could flicker when two or more tag filters were set (#708).
 
 * Version 2.2.0 (2016-02-14)
 
