@@ -66,7 +66,7 @@ public interface Query {
    * @return A strictly positive integer.
    */
   long getEndTime();
-
+  
   /**
    * Sets whether or not the data queried will be deleted.
    * @param delete True if data should be deleted, false otherwise.

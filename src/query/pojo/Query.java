@@ -18,6 +18,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
 
+import net.opentsdb.utils.JSON;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -109,14 +111,13 @@ public class Query extends Validatable {
       throw new IllegalArgumentException("missing or empty metrics");
     }
 
-    final Set<String> metric_ids = new HashSet<String>();
-
+    final Set<String> variable_ids = new HashSet<String>();
     for (Metric metric : metrics) {
-      if (metric_ids.contains(metric.getId())) {
+      if (variable_ids.contains(metric.getId())) {
         throw new IllegalArgumentException("duplicated metric id: "
             + metric.getId());
       }
-      metric_ids.add(metric.getId());
+      variable_ids.add(metric.getId());
     }
 
     final Set<String> filter_ids = new HashSet<String>();
@@ -128,15 +129,13 @@ public class Query extends Validatable {
       }
       filter_ids.add(filter.getId());
     }
-
-    final Set<String> expression_ids = new HashSet<String>();
-
+    
     for (Expression expression : expressions) {
-      if (expression_ids.contains(expression.getId())) {
-        throw new IllegalArgumentException("duplicated expression id: "
+      if (variable_ids.contains(expression.getId())) {
+        throw new IllegalArgumentException("Duplicated variable or expression id: "
             + expression.getId());
       }
-      expression_ids.add(expression.getId());
+      variable_ids.add(expression.getId());
     }
 
     validateCollection(metrics, "metric");
@@ -150,19 +149,38 @@ public class Query extends Validatable {
     }
 
     validateFilters();
+    
+    if (expressions != null) {
+      validateCollection(expressions, "expression");
+      for (final Expression exp : expressions) {
+        if (exp.getVariables() == null) {
+          throw new IllegalArgumentException("No variables found for an "
+              + "expression?! " + JSON.serializeToString(exp));
+        }
+        
+        for (final String var : exp.getVariables()) {
+          if (!variable_ids.contains(var)) {
+            throw new IllegalArgumentException("Expression [" + exp.getExpr() 
+              + "] was missing input " + var);
+          }
+        }
+      }
+    }
   }
 
   /** Validates the filters, making sure each metric has a filter
    * @throws IllegalArgumentException if one or more parameters were invalid
    */
   private void validateFilters() {
-    final Set<String> ids = new HashSet<String>();
+    Set<String> ids = new HashSet<String>();
     for (Filter filter : filters) {
       ids.add(filter.getId());
     }
 
-    for (Metric metric : metrics) {
-      if (!ids.contains(metric.getFilter())) {
+    for(Metric metric : metrics) {
+      if (metric.getFilter() != null && 
+          !metric.getFilter().isEmpty() && 
+          !ids.contains(metric.getFilter())) {
         throw new IllegalArgumentException(
             String.format("unrecognized filter id %s in metric %s",
                 metric.getFilter(), metric.getId()));

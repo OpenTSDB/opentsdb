@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #
 # Script which queries TSDB with a given metric and alerts based on
 # supplied threshold.  Compatible with Nagios output format, so can be
@@ -28,6 +28,13 @@ import socket
 import sys
 import time
 from optparse import OptionParser
+
+AGGREGATORS = ('avg', 'count', 'dev',
+        'ep50r3', 'ep50r7', 'ep75r3', 'ep75r7', 'ep90r3', 'ep90r7', 'ep95r3', 'ep95r7',
+        'ep99r3', 'ep99r7', 'ep999r3', 'ep999r7',
+        'mimmin', 'mimmax', 'min', 'max', 'none',
+        'p50', 'p75', 'p90', 'p95', 'p99', 'p999',
+        'sum', 'zimsum')
 
 def main(argv):
     """Pulls data out of the TSDB and do very simple alerting from Nagios."""
@@ -71,6 +78,12 @@ def main(argv):
     parser.add_option('-P', '--percent-over', dest='percent_over', default=0,
             metavar='PERCENT', type='float', help='Only alarm if PERCENT of the data'
             ' points violate the threshold.')
+    parser.add_option('-N', '--now', type='int', default=None,
+            metavar='UTC',
+            help='Set unix timestamp for "now", for testing')
+    parser.add_option('-B', '--bad_percent', dest='bad_percent', default=None,
+            metavar='PERCENT', type='float', help='Ignore alarm if PERCENT of the data'
+            ' points is bad')
     parser.add_option('-S', '--ssl', default=False, action='store_true',
             help='Make queries to OpenTSDB via SSL (https)')
     (options, args) = parser.parse_args(args=argv[1:])
@@ -78,9 +91,9 @@ def main(argv):
     # argument validation
     if options.comparator not in ('gt', 'ge', 'lt', 'le', 'eq', 'ne'):
         parser.error("Comparator '%s' not valid." % options.comparator)
-    elif options.downsample not in ('none', 'avg', 'min', 'sum', 'max'):
+    elif options.downsample not in ('none',)+AGGREGATORS:
         parser.error("Downsample '%s' not valid." % options.downsample)
-    elif options.aggregator not in ('avg', 'min', 'sum', 'max'):
+    elif options.aggregator not in AGGREGATORS:
         parser.error("Aggregator '%s' not valid." % options.aggregator)
     elif not options.metric:
         parser.error('You must specify a metric (option -m).')
@@ -118,8 +131,16 @@ def main(argv):
         rate = 'rate:'
     else:
         rate = ''
-    url = ('/q?start=%ss-ago&m=%s:%s%s%s%s&ascii&nagios'
-           % (options.duration, options.aggregator, downsampling, rate,
+
+    if options.now:
+        now = options.now
+        start = '%s' % (now - int(options.duration))
+    else:
+        now = int(time.time())
+        start = '%ss-ago' % options.duration
+
+    url = ('/q?start=%s&m=%s:%s%s%s%s&ascii&nagios'
+           % (start, options.aggregator, downsampling, rate,
               options.metric, tags))
     tsd = '%s:%d' % (options.host, options.port)
     if options.ssl:  # Pick the class to instantiate first.
@@ -139,7 +160,7 @@ def main(argv):
         peer = conn.sock.getpeername()
         print ('Connected to %s:%d' % (peer[0], peer[1]))
         conn.set_debuglevel(1)
-    now = int(time.time())
+
     try:
       conn.request('GET', url)
       res = conn.getresponse()
@@ -159,8 +180,6 @@ def main(argv):
         return 2
 
     # but we won!
-    if options.verbose:
-        print (datapoints)
     datapoints = datapoints.splitlines()
 
     def no_data_point():
@@ -182,12 +201,20 @@ def main(argv):
     nbad = 0       # How many bad values have we seen?
     ncrit = 0      # How many critical values have we seen?
     nwarn = 0      # How many warning values have we seen?
-    for datapoint in datapoints:
-        datapoint = datapoint.split()
+    for datapoint_str in datapoints:
+        datapoint = datapoint_str.split()
         ts = int(datapoint[1])
         delta = now - ts
         if delta > options.duration or delta <= options.ignore_recent:
+            if options.verbose:
+                print "%s (ignored, delta %ds)" % (datapoint_str, delta)
+            if delta < 0:
+                break # Skip the rest, we got what we came for.
             continue  # Ignore data points outside of our range.
+
+        if options.verbose:
+            print datapoint_str
+
         npoints += 1
         val = datapoint[2]
         if '.' in val:
@@ -227,13 +254,6 @@ def main(argv):
         badts = time.asctime(time.localtime(badts))
 
     bad_pct = nbad * 100.0 / npoints
-
-    if options.bad_percent is not None and rv > 0 \
-        and bad_pct < options.bad_percent:
-            if options.verbose:
-                print 'ignoring alarm, less than %.1f%% bad values (found %.1f%%)' % \
-                    (options.bad_percent, bad_pct)
-            rv = 0
 
     # in nrpe, pipe character is something special, but it's used in tag
     # searches.  Translate it to something else for the purposes of output.

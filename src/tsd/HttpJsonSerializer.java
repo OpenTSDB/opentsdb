@@ -194,6 +194,26 @@ class HttpJsonSerializer extends HttpSerializer {
   }
   
   /**
+   * Parses metric, tagk or tagv, and name to rename UID
+   * @return as hash map of type and name
+   * @throws JSONException if parsing failed
+   * @throws BadRequestException if the content was missing or parsing failed
+   */
+  public HashMap<String, String> parseUidRenameV1() {
+    final String json = query.getContent();
+    if (json == null || json.isEmpty()) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          "Missing message content",
+          "Supply valid JSON formatted data in the body of your request");
+    }
+    try {
+      return JSON.parseToObject(json, TR_HASH_MAP);
+    } catch (IllegalArgumentException iae) {
+      throw new BadRequestException("Unable to parse the given JSON", iae);
+    }
+  }
+
+  /**
    * Parses a timeseries data query
    * @return A TSQuery with data ready to validate
    * @throws JSONException if parsing failed
@@ -534,6 +554,15 @@ class HttpJsonSerializer extends HttpSerializer {
     return this.serializeJSON(response);
   }
   
+  /**
+   * Format a response from the Uid Rename RPC
+   * @param response A map of result and error of the rename
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatUidRenameV1(final Map<String, String> response) {
+    return this.serializeJSON(response);
+  }
   /**
    * Format the results from a timeseries data query
    * @param data_query The TSQuery object used to fetch the results

@@ -52,36 +52,36 @@ import net.opentsdb.utils.PluginLoader;
 /**
  * Manager for the lifecycle of <code>HttpRpc</code>s, <code>TelnetRpc</code>s,
  * <code>RpcPlugin</code>s, and <code>HttpRpcPlugin</code>.  This is a
- * singleton.  Its lifecycle must be managed by the "container".  If you are 
- * launching via {@code TSDMain} then shutdown (and non-lazy initialization) 
+ * singleton.  Its lifecycle must be managed by the "container".  If you are
+ * launching via {@code TSDMain} then shutdown (and non-lazy initialization)
  * is taken care of. Outside of the use of {@code TSDMain}, you are responsible
  * for shutdown, at least.
- * 
+ *
  * <p> Here's an example of how to correctly handle shutdown manually:
- * 
+ *
  * <pre>
  * // Startup our TSDB instance...
  * TSDB tsdb_instance = ...;
- * 
+ *
  * // ... later, during shtudown ..
- * 
+ *
  * if (RpcManager.isInitialized()) {
  *   // Check that its actually been initialized.  We don't want to
  *   // create a new instance only to shutdown!
  *   RpcManager.instance(tsdb_instance).shutdown().join();
  * }
  * </pre>
- * 
+ *
  * @since 2.2
  */
 public final class RpcManager {
   private static final Logger LOG = LoggerFactory.getLogger(RpcManager.class);
-  
+
   /** This is base path where {@link HttpRpcPlugin}s are rooted.  It's used
    * to match incoming requests. */
   @VisibleForTesting
   protected static final String PLUGIN_BASE_WEBPATH = "plugin";
-  
+
   /** Splitter for web paths.  Removes empty strings to handle trailing or
    * leading slashes.  For instance, all of <code>/plugin/mytest</code>,
    * <code>plugin/mytest/</code>, and <code>plugin/mytest</code> will be
@@ -89,13 +89,13 @@ public final class RpcManager {
   private static final Splitter WEBPATH_SPLITTER = Splitter.on('/')
       .trimResults()
       .omitEmptyStrings();
-  
+
   /** Matches paths declared by {@link HttpRpcPlugin}s that are rooted in
    * the system's plugins path. */
   private static final Pattern HAS_PLUGIN_BASE_WEBPATH = Pattern.compile(
-      "^/?" + PLUGIN_BASE_WEBPATH + "/?.*", 
+      "^/?" + PLUGIN_BASE_WEBPATH + "/?.*",
       Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-  
+
   /** Reference to our singleton instance.  Set in {@link #initialize}. */
   private static final AtomicReference<RpcManager> INSTANCE = Atomics.newReference();
 
@@ -107,10 +107,10 @@ public final class RpcManager {
   private ImmutableMap<String, HttpRpcPlugin> http_plugin_commands;
   /** List of activated RPC plugins */
   private ImmutableList<RpcPlugin> rpc_plugins;
-  
+
   /** The TSDB that owns us. */
   private TSDB tsdb;
-  
+
   /**
    * Constructor used by singleton factory method.
    * @param tsdb the owning TSDB instance.
@@ -118,7 +118,7 @@ public final class RpcManager {
   private RpcManager(final TSDB tsdb) {
     this.tsdb = tsdb;
   }
-  
+
   /**
    * Get or create the singleton instance of the manager, loading all the
    * plugins enabled in the given TSDB's {@link Config}.
@@ -133,9 +133,9 @@ public final class RpcManager {
 
     final RpcManager manager = new RpcManager(tsdb);
     final String mode = Strings.nullToEmpty(tsdb.getConfig().getString("tsd.mode"));
-    
+
     // Load any plugins that are enabled via Config.  Fail if any plugin cannot be loaded.
-  
+
     final ImmutableList.Builder<RpcPlugin> rpcBuilder = ImmutableList.builder();
     if (tsdb.getConfig().hasProperty("tsd.rpc.plugins")) {
       final String[] plugins = tsdb.getConfig().getString("tsd.rpc.plugins").split(",");
@@ -155,13 +155,13 @@ public final class RpcManager {
       manager.initializeHttpRpcPlugins(mode, plugins, httpPluginsBuilder);
     }
     manager.http_plugin_commands = httpPluginsBuilder.build();
-    
+
     INSTANCE.set(manager);
     return manager;
   }
-  
+
   /**
-   * @return {@code true} if the shared instance has been initialized; 
+   * @return {@code true} if the shared instance has been initialized;
    * {@code false} otherwise.
    */
   public static synchronized boolean isInitialized() {
@@ -169,17 +169,17 @@ public final class RpcManager {
   }
 
   /**
-   * @return list of loaded {@link RpcPlugin}s.  Possibly empty but 
+   * @return list of loaded {@link RpcPlugin}s.  Possibly empty but
    * never {@code null}.
    */
   @VisibleForTesting
   protected ImmutableList<RpcPlugin> getRpcPlugins() {
     return rpc_plugins;
   }
-  
+
   /**
    * Lookup a {@link TelnetRpc} based on given command name.  Note that this
-   * lookup is case sensitive in that the {@code command} passed in must 
+   * lookup is case sensitive in that the {@code command} passed in must
    * match a registered RPC command exactly.
    * @param command a telnet API command name.
    * @return the {@link TelnetRpc} for the given {@code command} or {@code null}
@@ -188,36 +188,36 @@ public final class RpcManager {
   TelnetRpc lookupTelnetRpc(final String command) {
     return telnet_commands.get(command);
   }
-  
+
   /**
    * Lookup a built-in {@link HttpRpc} based on the given {@code queryBaseRoute}.
    * The lookup is based on exact match of the input parameter and the registered
    * {@link HttpRpc}s.
-   * @param queryBaseRoute the HTTP query's base route, with no trailing or 
+   * @param queryBaseRoute the HTTP query's base route, with no trailing or
    * leading slashes.  For example: {@code api/query}
-   * @return the {@link HttpRpc} for the given {@code queryBaseRoute} or 
+   * @return the {@link HttpRpc} for the given {@code queryBaseRoute} or
    * {@code null} if not found.
    */
   HttpRpc lookupHttpRpc(final String queryBaseRoute) {
     return http_commands.get(queryBaseRoute);
   }
-  
+
   /**
-   * Lookup a user-supplied {@link HttpRpcPlugin} for the given 
-   * {@code queryBaseRoute}. The lookup is based on exact match of the input 
+   * Lookup a user-supplied {@link HttpRpcPlugin} for the given
+   * {@code queryBaseRoute}. The lookup is based on exact match of the input
    * parameter and the registered {@link HttpRpcPlugin}s.
    * @param queryBaseRoute the value of {@link HttpRpcPlugin#getPath()} with no
    * trailing or leading slashes.
-   * @return the {@link HttpRpcPlugin} for the given {@code queryBaseRoute} or 
+   * @return the {@link HttpRpcPlugin} for the given {@code queryBaseRoute} or
    * {@code null} if not found.
    */
   HttpRpcPlugin lookupHttpRpcPlugin(final String queryBaseRoute) {
     return http_plugin_commands.get(queryBaseRoute);
   }
-  
+
   /**
    * @param uri HTTP request URI, with or without query parameters.
-   * @return {@code true} if the URI represents a request for a 
+   * @return {@code true} if the URI represents a request for a
    * {@link HttpRpcPlugin}; {@code false} otherwise.  Note that this
    * method returning true <strong>says nothing</strong> about
    * whether or not there is a {@link HttpRpcPlugin} registered
@@ -233,12 +233,12 @@ public final class RpcManager {
       if (qmark != -1) {
         path = uri.substring(0, qmark);
       }
-      
+
       final List<String> parts = WEBPATH_SPLITTER.splitToList(path);
       return (parts.size() > 1 && parts.get(0).equals(PLUGIN_BASE_WEBPATH));
     }
   }
-  
+
   /**
    * Load and init instances of {@link TelnetRpc}s and {@link HttpRpc}s.
    * These are not generally configurable via TSDB config.
@@ -248,67 +248,75 @@ public final class RpcManager {
    * instances.
    * @param http a map of API endpoints to {@link HttpRpc} instances.
    */
-  private void initializeBuiltinRpcs(final String mode, 
+  private void initializeBuiltinRpcs(final String mode,
         final ImmutableMap.Builder<String, TelnetRpc> telnet,
         final ImmutableMap.Builder<String, HttpRpc> http) {
+
+    final Boolean enableApi = tsdb.getConfig().getString("tsd.core.enable_api").equals("true");
+    final Boolean enableUi = tsdb.getConfig().getString("tsd.core.enable_ui").equals("true");
+    final Boolean enableDieDieDie = tsdb.getConfig().getString("tsd.no_diediedie").equals("false");
+
+    LOG.info("Mode: {}, HTTP UI Enabled: {}, HTTP API Enabled: {}", mode, enableUi, enableApi);
+
     if (mode.equals("rw") || mode.equals("wo")) {
       final PutDataPointRpc put = new PutDataPointRpc();
       telnet.put("put", put);
-      http.put("api/put", put);
+      if (enableApi) {
+        http.put("api/put", put);
+      }
     }
-    
+
     if (mode.equals("rw") || mode.equals("ro")) {
-      http.put("", new HomePage());
       final StaticFileRpc staticfile = new StaticFileRpc();
-      http.put("favicon.ico", staticfile);
-      http.put("s", staticfile);
-
       final StatsRpc stats = new StatsRpc();
-      telnet.put("stats", stats);
-      http.put("stats", stats);
-      http.put("api/stats", stats);
-
-      final DropCaches dropcaches = new DropCaches();
-      telnet.put("dropcaches", dropcaches);
-      http.put("dropcaches", dropcaches);
-      http.put("api/dropcaches", dropcaches);
-
+      final DropCachesRpc dropcaches = new DropCachesRpc();
       final ListAggregators aggregators = new ListAggregators();
-      http.put("aggregators", aggregators);
-      http.put("api/aggregators", aggregators);
-
       final SuggestRpc suggest_rpc = new SuggestRpc();
-      http.put("suggest", suggest_rpc);
-      http.put("api/suggest", suggest_rpc);
+      final AnnotationRpc annotation_rpc = new AnnotationRpc();
+      final Version version = new Version();
 
-      http.put("logs", new LogsRpc());
-      http.put("q", new GraphHandler());
-      http.put("api/serializers", new Serializers());
-      http.put("api/uid", new UniqueIdRpc());
-      http.put("api/query", new QueryRpc());
-      http.put("api/tree", new TreeRpc());
-      {
-        final AnnotationRpc annotation_rpc = new AnnotationRpc();
-        http.put("api/annotation", annotation_rpc);
-        http.put("api/annotations", annotation_rpc);
-      }
-      http.put("api/search", new SearchRpc());
-      http.put("api/config", new ShowConfig());
-      
-      if (tsdb.getConfig().getString("tsd.no_diediedie").equals("false")) {
-        final DieDieDie diediedie = new DieDieDie();
-        telnet.put("diediedie", diediedie);
-        http.put("diediedie", diediedie);
-      }
-      {
-        final Version version = new Version();
-        telnet.put("version", version);
-        http.put("version", version);
-        http.put("api/version", version);
-      }
-
+      telnet.put("stats", stats);
+      telnet.put("dropcaches", dropcaches);
+      telnet.put("version", version);
       telnet.put("exit", new Exit());
       telnet.put("help", new Help());
+
+      if (enableUi) {
+        http.put("", new HomePage());
+        http.put("aggregators", aggregators);
+        http.put("dropcaches", dropcaches);
+        http.put("favicon.ico", staticfile);
+        http.put("logs", new LogsRpc());
+        http.put("q", new GraphHandler());
+        http.put("s", staticfile);
+        http.put("stats", stats);
+        http.put("suggest", suggest_rpc);
+        http.put("version", version);
+      }
+
+      if (enableApi) {
+        http.put("api/aggregators", aggregators);
+        http.put("api/annotation", annotation_rpc);
+        http.put("api/annotations", annotation_rpc);
+        http.put("api/config", new ShowConfig());
+        http.put("api/dropcaches", dropcaches);
+        http.put("api/query", new QueryRpc());
+        http.put("api/search", new SearchRpc());
+        http.put("api/serializers", new Serializers());
+        http.put("api/stats", stats);
+        http.put("api/suggest", suggest_rpc);
+        http.put("api/tree", new TreeRpc());
+        http.put("api/uid", new UniqueIdRpc());
+        http.put("api/version", version);
+      }
+    }
+
+    if (enableDieDieDie) {
+      final DieDieDie diediedie = new DieDieDie();
+      telnet.put("diediedie", diediedie);
+      if (enableUi) {
+        http.put("diediedie", diediedie);
+      }
     }
   }
 
@@ -317,10 +325,10 @@ public final class RpcManager {
    * {@code pluginClassNames}.
    * @param mode is this TSD in read/write ("rw") or read-only ("ro")
    * mode?
-   * @param pluginClassNames fully-qualified class names that are 
+   * @param pluginClassNames fully-qualified class names that are
    * instances of {@link HttpRpcPlugin}s
-   * @param http a map of canonicalized paths 
-   * (obtained via {@link #canonicalizePluginPath(String)}) 
+   * @param http a map of canonicalized paths
+   * (obtained via {@link #canonicalizePluginPath(String)})
    * to {@link HttpRpcPlugin} instance.
    */
   @VisibleForTesting
@@ -338,7 +346,7 @@ public final class RpcManager {
   }
 
   /**
-   * Ensure that the given path for an {@link HttpRpcPlugin} is valid.  This 
+   * Ensure that the given path for an {@link HttpRpcPlugin} is valid.  This
    * method simply returns for valid inputs; throws and exception otherwise.
    * @param path a request path, no query parameters, etc.
    * @throws IllegalArgumentException on invalid paths.
@@ -349,9 +357,9 @@ public final class RpcManager {
         "Invalid HttpRpcPlugin path. Path is null or empty.");
     final String testPath = path.trim();
     Preconditions.checkArgument(!HAS_PLUGIN_BASE_WEBPATH.matcher(path).matches(),
-        "Invalid HttpRpcPlugin path %s. Path contains system's plugin base path.", 
+        "Invalid HttpRpcPlugin path %s. Path contains system's plugin base path.",
         testPath);
-    
+
     URI uri = URI.create(testPath);
     Preconditions.checkArgument(!Strings.isNullOrEmpty(uri.getPath()),
         "Invalid HttpRpcPlugin path %s. Parsed path is null or empty.", testPath);
@@ -384,18 +392,18 @@ public final class RpcManager {
   /**
    * Load and init the {@link RpcPlugin}s provided as an array of
    * {@code pluginClassNames}.
-   * @param pluginClassNames fully-qualified class names that are 
+   * @param pluginClassNames fully-qualified class names that are
    * instances of {@link RpcPlugin}s
    * @param rpcs a list of loaded and initialized plugins
    */
-  private void initializeRpcPlugins(final String[] pluginClassNames, 
+  private void initializeRpcPlugins(final String[] pluginClassNames,
         final ImmutableList.Builder<RpcPlugin> rpcs) {
     for (final String plugin : pluginClassNames) {
       final RpcPlugin rpc = createAndInitialize(plugin, RpcPlugin.class);
       rpcs.add(rpc);
     }
   }
-  
+
   /**
    * Helper method to load and initialize a given plugin class. This uses reflection
    * because plugins share no common interfaces. (They could though!)
@@ -406,7 +414,7 @@ public final class RpcManager {
   @VisibleForTesting
   protected <T> T createAndInitialize(final String pluginClassName, final Class<T> pluginClass) {
     final T instance = PluginLoader.loadSpecificPlugin(pluginClassName, pluginClass);
-    Preconditions.checkState(instance != null, 
+    Preconditions.checkState(instance != null,
         "Unable to locate %s using name '%s", pluginClass, pluginClassName);
     try {
       final Method initMeth = instance.getClass().getMethod("initialize", TSDB.class);
@@ -421,9 +429,9 @@ public final class RpcManager {
       throw new RuntimeException("Failed to initialize " + instance.getClass(), e);
     }
   }
-  
+
   /**
-   * Called to gracefully shutdown the plugin. Implementations should close 
+   * Called to gracefully shutdown the plugin. Implementations should close
    * any IO they have open
    * @return A deferred object that indicates the completion of the request.
    * The {@link Object} has not special meaning and can be {@code null}
@@ -434,22 +442,22 @@ public final class RpcManager {
     INSTANCE.set(null);
 
     final Collection<Deferred<Object>> deferreds = Lists.newArrayList();
-    
+
     if (http_plugin_commands != null) {
       for (final Map.Entry<String, HttpRpcPlugin> entry : http_plugin_commands.entrySet()) {
         deferreds.add(entry.getValue().shutdown());
       }
     }
-    
+
     if (rpc_plugins != null) {
       for (final RpcPlugin rpc : rpc_plugins) {
         deferreds.add(rpc.shutdown());
       }
     }
-    
+
     return Deferred.groupInOrder(deferreds);
   }
-  
+
   /**
    * Collect stats on the shared instance of {@link RpcManager}.
    */
@@ -470,7 +478,7 @@ public final class RpcManager {
       if (manager.http_plugin_commands != null) {
         try {
           collector.addExtraTag("plugin", "httprpc");
-          for (final Map.Entry<String, HttpRpcPlugin> entry 
+          for (final Map.Entry<String, HttpRpcPlugin> entry
               : manager.http_plugin_commands.entrySet()) {
             entry.getValue().collectStats(collector);
           }
@@ -480,7 +488,7 @@ public final class RpcManager {
       }
     }
   }
-  
+
   // ---------------------------- //
   // Individual command handlers. //
   // ---------------------------- //
@@ -557,7 +565,7 @@ public final class RpcManager {
 
   /** The home page ("GET /"). */
   private static final class HomePage implements HttpRpc {
-    public void execute(final TSDB tsdb, final HttpQuery query) 
+    public void execute(final TSDB tsdb, final HttpQuery query)
       throws IOException {
       final StringBuilder buf = new StringBuilder(2048);
       buf.append("<div id=queryuimain></div>"
@@ -571,19 +579,15 @@ public final class RpcManager {
         "OpenTSDB", "", buf.toString()));
     }
   }
-  
+
   /** The "/aggregators" endpoint. */
   private static final class ListAggregators implements HttpRpc {
-    public void execute(final TSDB tsdb, final HttpQuery query) 
+    public void execute(final TSDB tsdb, final HttpQuery query)
       throws IOException {
-      
-      // only accept GET/POST
-      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
-        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-            "Method not allowed", "The HTTP method [" + query.method().getName() +
-            "] is not permitted for this endpoint");
-      }
-      
+
+      // only accept GET / POST
+      RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
+
       if (query.apiVersion() > 0) {
         query.sendReply(
             query.serializer().formatAggregatorsV1(Aggregators.set()));
@@ -604,16 +608,12 @@ public final class RpcManager {
       return Deferred.fromResult(null);
     }
 
-    public void execute(final TSDB tsdb, final HttpQuery query) throws 
+    public void execute(final TSDB tsdb, final HttpQuery query) throws
       IOException {
-      
-      // only accept GET/POST
-      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
-        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-            "Method not allowed", "The HTTP method [" + query.method().getName() +
-            "] is not permitted for this endpoint");
-      }
-      
+
+      // only accept GET / POST
+      RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
+
       final HashMap<String, String> version = new HashMap<String, String>();
       version.put("version", BuildData.version);
       version.put("short_revision", BuildData.short_revision);
@@ -628,7 +628,7 @@ public final class RpcManager {
       if (query.apiVersion() > 0) {
         query.sendReply(query.serializer().formatVersionV1(version));
       } else {
-        final boolean json = query.request().getUri().endsWith("json");      
+        final boolean json = query.request().getUri().endsWith("json");
         if (json) {
           query.sendReply(JSON.serializeToBytes(version));
         } else {
@@ -643,82 +643,37 @@ public final class RpcManager {
       }
     }
   }
-  
-  /** The "dropcaches" command. */
-  private static final class DropCaches implements TelnetRpc, HttpRpc {
-    public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
-                                    final String[] cmd) {
-      dropCaches(tsdb, chan);
-      chan.write("Caches dropped.\n");
-      return Deferred.fromResult(null);
-    }
 
-    public void execute(final TSDB tsdb, final HttpQuery query) 
-      throws IOException {
-      dropCaches(tsdb, query.channel());
-      
-      // only accept GET/POST
-      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
-        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-            "Method not allowed", "The HTTP method [" + query.method().getName() +
-            "] is not permitted for this endpoint");
-      }
-      
-      if (query.apiVersion() > 0) {
-        final HashMap<String, String> response = new HashMap<String, String>();
-        response.put("status", "200");
-        response.put("message", "Caches dropped");
-        query.sendReply(query.serializer().formatDropCachesV1(response));
-      } else { // deprecated API
-        query.sendReply("Caches dropped.\n");
-      }
-    }
-
-    /** Drops in memory caches.  */
-    private void dropCaches(final TSDB tsdb, final Channel chan) {
-      LOG.warn(chan + " Dropping all in-memory caches.");
-      tsdb.dropCaches();
-    }
-  }
-
-  /** The /api/formatters endpoint 
+  /** The /api/formatters endpoint
    * @since 2.0 */
   private static final class Serializers implements HttpRpc {
-    public void execute(final TSDB tsdb, final HttpQuery query) 
+    public void execute(final TSDB tsdb, final HttpQuery query)
       throws IOException {
-      // only accept GET/POST
-      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
-        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-            "Method not allowed", "The HTTP method [" + query.method().getName() +
-            "] is not permitted for this endpoint");
-      }
-      
+      // only accept GET / POST
+      RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
+
       switch (query.apiVersion()) {
         case 0:
         case 1:
           query.sendReply(query.serializer().formatSerializersV1());
           break;
-        default: 
-          throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
-              "Requested API version not implemented", "Version " + 
+        default:
+          throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED,
+              "Requested API version not implemented", "Version " +
               query.apiVersion() + " is not implemented");
       }
     }
   }
-  
+
   private static final class ShowConfig implements HttpRpc {
     @Override
     public void execute(TSDB tsdb, HttpQuery query) throws IOException {
       // only accept GET/POST
-      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
-        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-            "Method not allowed", "The HTTP method [" + query.method().getName() +
-            "] is not permitted for this endpoint");
-      }
-      
+      RpcUtil.allowedMethods(query.method(), HttpMethod.GET.getName(), HttpMethod.POST.getName());
+
       final String[] uri = query.explodeAPIPath();
       final String endpoint = uri.length > 1 ? uri[1].toLowerCase() : "";
-      
+
       if (endpoint.equals("filters")) {
         switch (query.apiVersion()) {
         case 0:
@@ -726,9 +681,9 @@ public final class RpcManager {
           query.sendReply(query.serializer().formatFilterConfigV1(
               TagVFilter.loadedFilters()));
           break;
-        default: 
-          throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
-              "Requested API version not implemented", "Version " + 
+        default:
+          throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED,
+              "Requested API version not implemented", "Version " +
               query.apiVersion() + " is not implemented");
         }
       } else {
@@ -737,9 +692,9 @@ public final class RpcManager {
           case 1:
             query.sendReply(query.serializer().formatConfigV1(tsdb.getConfig()));
             break;
-          default: 
-            throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
-                "Requested API version not implemented", "Version " + 
+          default:
+            throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED,
+                "Requested API version not implemented", "Version " +
                 query.apiVersion() + " is not implemented");
         }
       }

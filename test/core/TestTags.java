@@ -24,6 +24,7 @@ import net.opentsdb.query.filter.TagVLiteralOrFilter.TagVILiteralOrFilter;
 import net.opentsdb.query.filter.TagVRegexFilter;
 import net.opentsdb.query.filter.TagVWildcardFilter;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.uid.FailedToAssignUniqueIdException;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
@@ -45,6 +46,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -52,6 +54,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.anyMapOf;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -756,6 +761,32 @@ public final class TestTags {
     Tags.resolveOrCreateAll(tsdb, tags);
   }
   
+  @Test
+  public void resolveOrCreateAllAsync() throws Exception {
+    setupStorage();
+    setupResolveAll();
+    
+    final Map<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "nohost");
+    final List<byte[]> uids = Tags.resolveOrCreateAllAsync(tsdb, "metric", tags).join();
+    assertEquals(1, uids.size());
+    assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 3}, uids.get(0));
+  }
+  
+  @Test (expected = DeferredGroupException.class)
+  public void resolveOrCreateAllAsyncFilterBlocked() throws Exception {
+    setupStorage();
+    setupResolveAll();
+    when(tag_names.getOrCreateIdAsync(eq("host"), anyString(), 
+        anyMapOf(String.class, String.class)))
+      .thenReturn(Deferred.<byte[]>fromError(new FailedToAssignUniqueIdException(
+          "tagk", "host", 0, "Blocked by UID filter.")));
+    
+    final Map<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "nohost");
+    Tags.resolveOrCreateAllAsync(tsdb, "metric", tags).join();
+  }
+  
   // PRIVATE helpers to setup unit tests
   
   private void setupStorage() throws Exception {
@@ -799,16 +830,30 @@ public final class TestTags {
   }
   
   private void setupResolveAll() throws Exception {
-    when(tag_names.getOrCreateId("host")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_names.getOrCreateId("doesnotexist"))
+    when(tag_names.getOrCreateId(eq("host")))
+      .thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_names.getOrCreateIdAsync(eq("host"), anyString(), 
+        anyMapOf(String.class, String.class)))
+      .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
+    when(tag_names.getOrCreateId(eq("doesnotexist")))
       .thenReturn(new byte[] { 0, 0, 3 });
+    when(tag_names.getOrCreateIdAsync(eq("doesnotexist"), anyString(), 
+        anyMapOf(String.class, String.class)))
+      .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 3 }));
     when(tag_names.getId("pop")).thenReturn(new byte[] { 0, 0, 2 });
     when(tag_names.getId("nonesuch"))
       .thenThrow(new NoSuchUniqueName("tagv", "nonesuch"));
     
-    when(tag_values.getOrCreateId("web01")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_values.getOrCreateId("nohost"))
-      .thenReturn(new byte[] { 0, 0, 3 });
+    when(tag_values.getOrCreateId(eq("web01")))
+      .thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_values.getOrCreateIdAsync(eq("web01"), anyString(), 
+        anyMapOf(String.class, String.class)))
+      .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
+    when(tag_values.getOrCreateId(eq("nohost")))
+    .thenReturn(new byte[] { 0, 0, 3 });
+    when(tag_values.getOrCreateIdAsync(eq("nohost"), anyString(), 
+        anyMapOf(String.class, String.class)))
+      .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 3 }));
     when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
     when(tag_values.getId("invalidhost"))
       .thenThrow(new NoSuchUniqueName("tagk", "invalidhost"));
@@ -896,5 +941,21 @@ public final class TestTags {
   public void getTagUidsEmptyRow() throws Exception {
     final ByteMap<byte[]> uids = Tags.getTagUids(new byte[] {});
     assertEquals(0, uids.size());
+  }
+
+  @Test
+  public void setAllowSpecialChars() throws Exception {
+    assertFalse(Tags.isAllowSpecialChars('!'));
+
+    Tags.setAllowSpecialChars(null);
+    assertFalse(Tags.isAllowSpecialChars('!'));
+
+    Tags.setAllowSpecialChars("");
+    assertFalse(Tags.isAllowSpecialChars('!'));
+
+    Tags.setAllowSpecialChars("!)(%");
+    assertTrue(Tags.isAllowSpecialChars('!'));
+    assertTrue(Tags.isAllowSpecialChars('('));
+    assertTrue(Tags.isAllowSpecialChars('%'));
   }
 }

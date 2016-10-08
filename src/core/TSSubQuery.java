@@ -211,14 +211,22 @@ public final class TSSubQuery {
     return this.agg;
   }
   
-  /** @return the parsed downsampler aggregation function */
+  /** @return the parsed downsampler aggregation function
+   * @deprecated use {@link #downsamplingSpecification()} instead */
   public Aggregator downsampler() {
     return downsample_specifier.getFunction();
   }
   
-  /** @return the parsed downsample interval in seconds */
+  /** @return the parsed downsample interval in seconds
+   * @deprecated use {@link #downsamplingSpecification()} instead */
   public long downsampleInterval() {
     return downsample_specifier.getInterval();
+  }
+  
+  /** @return The downsampling specification for more options 
+   * @since 2.3 */
+  public DownsamplingSpecification downsamplingSpecification() {
+    return downsample_specifier;
   }
   
   /**

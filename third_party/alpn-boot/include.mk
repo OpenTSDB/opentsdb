@@ -14,6 +14,7 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 # ALPN_BOOT_VERSION := 7.1.3.v20150130
+
 ALPN_BOOT_VERSION = $(shell version= ;\
   if [[ "@JAVA@" ]]; then \
     version=$$("@JAVA@" -version 2>&1 | awk -F '"' '/version/ {print $$2}'); \
@@ -21,29 +22,33 @@ ALPN_BOOT_VERSION = $(shell version= ;\
     echo "Failed to parse Java version";\
     exit 1;\
   fi; \
-  if [[ $$version =~ ^([0-9]+\.[0-9]+)\.([0-9])[_Uu]([0-9]+)$$ ]]; then \
+  if [[ $$version =~ ^([0-9]+\.[0-9]+)\.([0-9])[_Uu]([0-9]+) ]]; then \
     major=$${BASH_REMATCH[1]};\
     minor=$${BASH_REMATCH[2]}; \
     sub=$${BASH_REMATCH[3]}; \
   if [[ $$major = "1.7" ]]; then \
-    if [[ $$sub < 71 ]]; then \
+    if [[ $$sub -lt 71 ]]; then \
       echo "7.1.0.v20141016"; \
-    elif [[ $$sub < 75 ]]; then \
+    elif [[ $$sub -lt 75 ]]; then \
       echo "7.1.2.v20141202"; \
     else \
        echo "7.1.3.v20150130"; \
     fi \
   elif [[ $$major = "1.8" ]]; then \
-    if [[ $$sub < 25 ]]; then \
+    if [[ $$sub -lt 25 ]]; then \
       echo "8.1.0.v20141016"; \
-    elif [[ $$sub < 31 ]]; then \
+    elif [[ $$sub -lt 31 ]]; then \
       echo "8.1.2.v20141202"; \
-    elif [[ $$sub < 51 ]]; then \
+    elif [[ $$sub -lt 51 ]]; then \
        echo "8.1.3.v20150130"; \
-    elif [[ $$sub < 60 ]]; then \
+    elif [[ $$sub -lt 60 ]]; then \
       echo "8.1.4.v20150727"; \
-    else \
+    elif [[ $$sub -lt 65 ]]; then \
       echo "8.1.5.v20150921"; \
+    elif [[ $$sub -lt 71 ]]; then \
+      echo "8.1.6.v20151105"; \
+    else \
+      echo "8.1.7.v20160121"; \
     fi \
   else \
     echo "Unsupported major Java version: $$major"; \

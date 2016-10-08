@@ -62,6 +62,7 @@ public final class TestTSMeta {
   private final static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private final static byte[] META_TABLE = "tsdb-meta".getBytes(MockBase.ASCII());
   private final static byte[] UID_TABLE = "tsdb-uid".getBytes(MockBase.ASCII());
+  private final static byte[] TSUID = new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 };
   private TSDB tsdb;
   private Config config;
   private HBaseClient client = mock(HBaseClient.class);
@@ -120,7 +121,7 @@ public final class TestTSMeta {
         "1328140801,\"displayName\":\"Web server 1\"}")
         .getBytes(MockBase.ASCII()));
 
-    storage.addColumn(META_TABLE, new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
+    storage.addColumn(META_TABLE, TSUID,
         NAME_FAMILY,
         "ts_meta".getBytes(MockBase.ASCII()),
         ("{\"tsuid\":\"000001000001000001\",\"" +
@@ -128,7 +129,7 @@ public final class TestTSMeta {
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
         .getBytes(MockBase.ASCII()));
-    storage.addColumn(META_TABLE, new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
+    storage.addColumn(META_TABLE, TSUID,
         TSMeta.FAMILY,
         "ts_ctr".getBytes(MockBase.ASCII()),
         Bytes.fromLong(1L));
@@ -260,7 +261,7 @@ public final class TestTSMeta {
   
   @Test
   public void syncToStorage() throws Exception {
-    meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
+    meta = new TSMeta(TSUID, 1357300800000L);
     meta.setDisplayName("New DN");
     meta.syncToStorage(tsdb, false).joinUninterruptibly();
     assertEquals("New DN", meta.getDisplayName());
@@ -269,7 +270,7 @@ public final class TestTSMeta {
   
   @Test
   public void syncToStorageOverwrite() throws Exception {
-    meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
+    meta = new TSMeta(TSUID, 1357300800000L);
     meta.setDisplayName("New DN");
     meta.syncToStorage(tsdb, true).joinUninterruptibly();
     assertEquals("New DN", meta.getDisplayName());
@@ -290,14 +291,14 @@ public final class TestTSMeta {
 
   @Test (expected = IllegalArgumentException.class)
   public void syncToStorageDoesNotExist() throws Exception {
-    storage.flushRow(META_TABLE, new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });
-    meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
+    storage.flushRow(META_TABLE, TSUID);
+    meta = new TSMeta(TSUID, 1357300800000L);
     meta.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test
   public void storeNew() throws Exception {
-    meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
+    meta = new TSMeta(TSUID, 1357300800000L);
     meta.setDisplayName("New DN");
     meta.storeNew(tsdb);
     assertEquals("New DN", meta.getDisplayName());
@@ -323,7 +324,7 @@ public final class TestTSMeta {
   
   @Test
   public void metaExistsInStorageNot() throws Exception {
-    storage.flushRow(META_TABLE, new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });
+    storage.flushRow(META_TABLE, TSUID);
     assertFalse(TSMeta.metaExistsInStorage(tsdb, "000001000001000001")
         .joinUninterruptibly());
   }
@@ -331,14 +332,14 @@ public final class TestTSMeta {
   @Test
   public void counterExistsInStorage() throws Exception {
     assertTrue(TSMeta.counterExistsInStorage(tsdb, 
-        new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }).joinUninterruptibly());
+        TSUID).joinUninterruptibly());
   }
   
   @Test
   public void counterExistsInStorageNot() throws Exception {
-    storage.flushRow(META_TABLE, new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });
+    storage.flushRow(META_TABLE, TSUID);
     assertFalse(TSMeta.counterExistsInStorage(tsdb, 
-        new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }).joinUninterruptibly());
+        TSUID).joinUninterruptibly());
   }
 
   @Test
@@ -379,11 +380,26 @@ public final class TestTSMeta {
   }
 
   @Test
+  public void storeIfNecessaryExists() throws Exception {
+    assertTrue(TSMeta.storeIfNecessary(tsdb, TSUID).join());
+  }
+  
+  @Test
+  public void storeIfNecessaryMissing() throws Exception {
+    storage.flushRow(META_TABLE, TSUID);
+    assertNull(storage.getColumn(META_TABLE, TSUID, NAME_FAMILY, 
+        TSMeta.META_QUALIFIER()));
+    assertTrue(TSMeta.storeIfNecessary(tsdb, TSUID).join());
+    assertNotNull(storage.getColumn(META_TABLE, TSUID, NAME_FAMILY,
+        TSMeta.META_QUALIFIER()));
+  }
+  
+  @Test
   public void parseFromColumn() throws Exception {
     final KeyValue column = mock(KeyValue.class);
-    when(column.key()).thenReturn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });
+    when(column.key()).thenReturn(TSUID);
     when(column.value()).thenReturn(storage.getColumn(META_TABLE, 
-        new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 
+        TSUID, 
             NAME_FAMILY,
             "ts_meta".getBytes(MockBase.ASCII())));
     final TSMeta meta = TSMeta.parseFromColumn(tsdb, column, false)
@@ -396,9 +412,9 @@ public final class TestTSMeta {
   @Test
   public void parseFromColumnWithUIDMeta() throws Exception {
     final KeyValue column = mock(KeyValue.class);
-    when(column.key()).thenReturn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });
+    when(column.key()).thenReturn(TSUID);
     when(column.value()).thenReturn(storage.getColumn(META_TABLE, 
-        new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 
+        TSUID, 
             NAME_FAMILY,
             "ts_meta".getBytes(MockBase.ASCII())));
     final TSMeta meta = TSMeta.parseFromColumn(tsdb, column, true)

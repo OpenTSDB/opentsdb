@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
+// Copyright (C) 2010-2016  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -19,11 +19,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import net.opentsdb.core.FillPolicy;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
+import net.opentsdb.query.expression.NumericFillPolicy;
 import net.opentsdb.query.expression.BaseTimeSyncedIteratorTest;
 import net.opentsdb.query.expression.VariableIterator.SetOperator;
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Expression;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Join;
@@ -186,6 +189,101 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     assertTrue(response.contains("\"metrics\":[\"A\",\"B\"]"));
     assertTrue(response.contains("\"index\":2"));
     assertTrue(response.contains("\"index\":3"));
+  }
+  
+  @Test
+  public void oneExpressionDownsamplingMissingTimestampNoFill() throws Exception {
+    threeSameEGaps();
+    final Downsampler downsampler = Downsampler.Builder()
+        .setAggregator("sum")
+        .setInterval("1m")
+        .build();
+    time = Timespan.Builder().setStart("1431561600")
+        .setAggregator("sum")
+        .setDownsampler(downsampler).build();
+    String json = JSON.serializeToString(getDefaultQueryBuilder());
+    final QueryRpc rpc = new QueryRpc();
+    final HttpQuery query = NettyMocks.postQuery(tsdb, 
+        "/api/query/exp", json);
+    query.getQueryBaseRoute(); // to the correct serializer
+    NettyMocks.mockChannelFuture(query);
+    
+    rpc.execute(tsdb, query);
+    final String response = 
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"alias\":\"A plus B\""));
+    assertTrue(response.contains("\"dps\":[[1431561600000,1.0,4.0,0.0]"));
+    assertTrue(response.contains("[1431561660000,0.0,20.0,8.0]"));
+    assertTrue(response.contains("[1431561720000,16.0,0.0,28.0]"));
+    assertTrue(response.contains("\"firstTimestamp\":1431561600000"));
+    assertTrue(response.contains("\"index\":1"));
+    assertTrue(response.contains("\"metrics\":[\"A\",\"B\"]"));
+    assertTrue(response.contains("\"index\":2"));
+    assertTrue(response.contains("\"index\":3"));
+  }
+  
+//  @Test
+//  public void oneExpressionDownsamplingMissingTimestampZeroFill() throws Exception {
+//    threeSameEGaps();
+//    final Downsampler downsampler = Downsampler.Builder()
+//        .setAggregator("sum")
+//        .setInterval("1m")
+//        .setFillPolicy(new NumericFillPolicy(FillPolicy.ZERO))
+//        .build();
+//    time = Timespan.Builder().setStart("1431561540")
+//        .setEnd("1431561780")
+//        .setAggregator("sum")
+//        .setDownsampler(downsampler).build();
+//    String json = JSON.serializeToString(getDefaultQueryBuilder());
+//    final QueryRpc rpc = new QueryRpc();
+//    final HttpQuery query = NettyMocks.postQuery(tsdb, 
+//        "/api/query/exp", json);
+//    query.getQueryBaseRoute(); // to the correct serializer
+//    NettyMocks.mockChannelFuture(query);
+//    
+//    rpc.execute(tsdb, query);
+//    final String response = 
+//        query.response().getContent().toString(Charset.forName("UTF-8"));
+//    assertTrue(response.contains("\"alias\":\"A plus B\""));
+//    assertTrue(response.contains("\"dps\":[[1431561540000,0.0,0.0,0.0]"));
+//    assertTrue(response.contains("[1431561600000,1.0,4.0,0.0]"));
+//    assertTrue(response.contains("[1431561660000,0.0,20.0,8.0]"));
+//    assertTrue(response.contains("[1431561720000,16.0,0.0,28.0]"));
+//    assertTrue(response.contains("[1431561780000,0.0,0.0,0.0]"));
+//    assertTrue(response.contains("\"firstTimestamp\":1431561540000"));
+//    assertTrue(response.contains("\"index\":1"));
+//    assertTrue(response.contains("\"metrics\":[\"A\",\"B\"]"));
+//    assertTrue(response.contains("\"index\":2"));
+//    assertTrue(response.contains("\"index\":3"));
+//  }
+  
+  @Test
+  public void oneExpressionNoFilter() throws Exception {
+    oneExtraSameE();
+    final Metric metric1 = Metric.Builder().setMetric("A").setId("a")
+        .build();
+    final Metric metric2 = Metric.Builder().setMetric("B").setId("b")
+        .build();
+    metrics = Arrays.asList(metric1, metric2);
+    
+    final String json = JSON.serializeToString(getDefaultQueryBuilder().build());
+    final QueryRpc rpc = new QueryRpc();
+    final HttpQuery query = NettyMocks.postQuery(tsdb, 
+        "/api/query/exp", json);
+    NettyMocks.mockChannelFuture(query);
+    
+    rpc.execute(tsdb, query);
+    final String response = 
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+System.out.println(response);
+    assertTrue(response.contains("\"alias\":\"A plus B\""));
+    assertTrue(response.contains("\"dps\":[[1431561600000,47.0]"));
+    assertTrue(response.contains("[1431561660000,52.0]"));
+    assertTrue(response.contains("[1431561720000,57.0]"));
+    assertTrue(response.contains("\"firstTimestamp\":1431561600000"));
+    assertTrue(response.contains("\"index\":1"));
+    assertTrue(response.contains("\"metrics\":[\"A\",\"B\"]"));
+    assertTrue(response.contains("\"index\":1"));
   }
   
   @Test
@@ -600,7 +698,7 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     assertTrue(response.contains("\"message\":\"No intersections found"));
   }
   
-  @Test
+  @Test (expected = IllegalArgumentException.class)
   public void notEnoughMetrics() throws Exception {
     oneExtraSameE();
     expressions = Arrays.asList(
@@ -613,10 +711,6 @@ public class TestQueryExecutor extends BaseTimeSyncedIteratorTest {
     NettyMocks.mockChannelFuture(query);
     
     rpc.execute(tsdb, query);
-    final String response = 
-        query.response().getContent().toString(Charset.forName("UTF-8"));
-    assertTrue(response.contains("\"code\":400"));
-    assertTrue(response.contains("\"message\":\"Not enough query results"));
   }
 
   protected Query.Builder getDefaultQueryBuilder() {

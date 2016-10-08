@@ -34,6 +34,10 @@ public class Filter extends Validatable {
   /** The list of filters in the filter set */
   private List<TagVFilter> tags;
   
+  /** Whether or not to only fetch series with exactly the same tag keys as 
+   * in the filter list. */
+  private boolean explicit_tags;
+  
   /**
    * Default ctor
    * @param builder The builder to pull values from
@@ -41,6 +45,7 @@ public class Filter extends Validatable {
   private Filter(Builder builder) {
     this.id = builder.id;
     this.tags = builder.tags;
+    this.explicit_tags = builder.explicitTags;
   }
 
   /** @return the id of the filter set to use in a metric query */
@@ -53,6 +58,12 @@ public class Filter extends Validatable {
     return tags;
   }
 
+  /** @return Whether or not to only fetch series with exactly the same tag keys as 
+   * in the filter list. */
+  public boolean getExplicitTags() {
+    return explicit_tags;
+  }
+  
   /** @return A new builder for the filter */
   public static Builder Builder() {
     return new Builder();
@@ -78,12 +89,13 @@ public class Filter extends Validatable {
     final Filter filter = (Filter) o;
 
     return Objects.equal(id, filter.id)
-        && Objects.equal(tags, filter.tags);
+        && Objects.equal(tags, filter.tags)
+        && Objects.equal(explicit_tags, filter.explicit_tags);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(id, tags);
+    return Objects.hashCode(id, tags, explicit_tags);
   }
 
   /**
@@ -96,7 +108,9 @@ public class Filter extends Validatable {
     private String id;
     @JsonProperty
     private List<TagVFilter> tags;
-
+    @JsonProperty
+    private boolean explicitTags;
+    
     public Builder setId(String id) {
       Query.validateId(id);
       this.id = id;
@@ -108,6 +122,11 @@ public class Filter extends Validatable {
       return this;
     }
 
+    public Builder setExplicitTags(boolean explicit_tags) {
+      this.explicitTags = explicit_tags;
+      return this;
+    }
+    
     public Filter build() {
       return new Filter(this);
     }

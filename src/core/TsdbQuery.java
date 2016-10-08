@@ -119,17 +119,8 @@ final class TsdbQuery implements Query {
   /** Aggregator function to use. */
   private Aggregator aggregator;
 
-  /**
-   * Downsampling function to use, if any (can be {@code null}).
-   * If this is non-null, {@code sample_interval_ms} must be strictly positive.
-   */
-  private Aggregator downsampler;
-
-  /** Minimum time interval (in milliseconds) wanted between each data point. */
-  private long sample_interval_ms;
-  
-  /** Downsampling fill policy. */
-  private FillPolicy fill_policy;
+  /** Downsampling specification to use, if any (can be {@code null}). */
+  private DownsamplingSpecification downsampler;
 
   /** Optional list of TSUIDs to fetch and aggregate instead of a metric */
   private List<String> tsuids;
@@ -151,8 +142,6 @@ final class TsdbQuery implements Query {
     this.tsdb = tsdb;
     enable_fuzzy_filter = tsdb.getConfig()
         .getBoolean("tsd.query.enable_fuzzy_filter");
-    // By default, we should interpolate.
-    fill_policy = DownsamplingSpecification.DEFAULT_FILL_POLICY;
   }
 
   /**
@@ -322,6 +311,7 @@ final class TsdbQuery implements Query {
     this.explicit_tags = explicit_tags;
   }
   
+  @Override
   public Deferred<Object> configureFromQuery(final TSQuery query, 
       final int index) {
     if (query.getQueries() == null || query.getQueries().isEmpty()) {
@@ -345,9 +335,7 @@ final class TsdbQuery implements Query {
     if (rate_options == null) {
       rate_options = new RateOptions();
     }
-    downsampler = sub_query.downsampler();
-    sample_interval_ms = sub_query.downsampleInterval();
-    fill_policy = sub_query.fillPolicy();
+    downsampler = sub_query.downsamplingSpecification();
     filters = sub_query.getFilters();
     explicit_tags = sub_query.getExplicitTags();
     
@@ -377,14 +365,14 @@ final class TsdbQuery implements Query {
         @Override
         public Object call(final ArrayList<byte[]> results) throws Exception {
           findGroupBys();
-          return Deferred.fromResult(null);
+          return null;
         }
       }
 
       /** Resolve and group by tags after resolving the metric */
-      class MetricCB implements Callback<Object, byte[]> {
+      class MetricCB implements Callback<Deferred<Object>, byte[]> {
         @Override
-        public Object call(final byte[] uid) throws Exception {
+        public Deferred<Object> call(final byte[] uid) throws Exception {
           metric = uid;
           if (filters != null) {
             final List<Deferred<byte[]>> deferreds = 
@@ -401,21 +389,15 @@ final class TsdbQuery implements Query {
       
       // fire off the callback chain by resolving the metric first
       return tsdb.metrics.getIdAsync(sub_query.getMetric())
-          .addCallback(new MetricCB());
+          .addCallbackDeferring(new MetricCB());
     }
   }
   
   @Override
   public void downsample(final long interval, final Aggregator downsampler,
       final FillPolicy fill_policy) {
-    if (downsampler == null) {
-      throw new NullPointerException("downsampler");
-    } else if (interval <= 0) {
-      throw new IllegalArgumentException("interval not > 0: " + interval);
-    }
-    this.downsampler = downsampler;
-    this.sample_interval_ms = interval;
-    this.fill_policy = fill_policy;
+    this.downsampler = new DownsamplingSpecification(
+        interval, downsampler,fill_policy);
   }
 
   /**
@@ -427,6 +409,10 @@ final class TsdbQuery implements Query {
    */
   @Override
   public void downsample(final long interval, final Aggregator downsampler) {
+    if (downsampler == Aggregators.NONE) {
+      throw new IllegalArgumentException("cannot use the NONE "
+          + "aggregator for downsampling");
+    }
     downsample(interval, downsampler, FillPolicy.NONE);
   }
 
@@ -602,6 +588,10 @@ final class TsdbQuery implements Query {
       private long uid_resolve_time = 0; // cumulation of time resolving UIDs
       private long uids_resolved = 0; 
       private long compaction_time = 0;  // cumulation of time compacting
+      private long dps_pre_filter = 0;
+      private long rows_pre_filter = 0;
+      private long dps_post_filter = 0;
+      private long rows_post_filter = 0;
       
       /** Error callback that will capture an exception from AsyncHBase and store
        * it so we can bubble it up to the caller.
@@ -649,6 +639,8 @@ final class TsdbQuery implements Query {
              throw new InterruptedException("Query timeout exceeded!");
            }
            
+           rows_pre_filter += rows.size();
+           
            // used for UID resolution if a filter is involved
            final List<Deferred<Object>> lookups = 
                filters != null && !filters.isEmpty() ? 
@@ -662,6 +654,36 @@ final class TsdbQuery implements Query {
                    "HBase returned a row that doesn't match"
                    + " our scanner (" + scanner + ")! " + row + " does not start"
                    + " with " + Arrays.toString(metric));
+             }
+             
+             // calculate estimated data point count. We don't want to deserialize
+             // the byte arrays so we'll just get a rough estimate of compacted
+             // columns.
+             for (final KeyValue kv : row) {
+               if (kv.qualifier().length % 2 == 0) {
+                 if (kv.qualifier().length == 2 || kv.qualifier().length == 4) {
+                   ++dps_pre_filter;
+                 } else {
+                   // for now we'll assume that all compacted columns are of the 
+                   // same precision. This is likely incorrect.
+                   if (Internal.inMilliseconds(kv.qualifier())) {
+                     dps_pre_filter += (kv.qualifier().length / 4);
+                   } else {
+                     dps_pre_filter += (kv.qualifier().length / 2);
+                   }
+                 }
+               } else if (kv.qualifier()[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
+                 // with appends we don't have a good rough estimate as the length
+                 // can vary widely with the value length variability. Therefore we
+                 // have to iterate.
+                 int idx = 0;
+                 int qlength = 0;
+                 while (idx < kv.value().length) {
+                   qlength = Internal.getQualifierLength(kv.value(), idx);
+                   idx += qlength + Internal.getValueLengthFromQualifier(kv.value(), idx);
+                   ++dps_pre_filter;
+                 }
+               }
              }
              
              // If any filters have made it this far then we need to resolve
@@ -754,9 +776,40 @@ final class TsdbQuery implements Query {
         * @param row The row to add
         */
        void processRow(final byte[] key, final ArrayList<KeyValue> row) {
+         ++rows_post_filter;
          if (delete) {
            final DeleteRequest del = new DeleteRequest(tsdb.dataTable(), key);
            tsdb.getClient().delete(del);
+         }
+         
+         // calculate estimated data point count. We don't want to deserialize
+         // the byte arrays so we'll just get a rough estimate of compacted
+         // columns.
+         for (final KeyValue kv : row) {
+           if (kv.qualifier().length % 2 == 0) {
+             if (kv.qualifier().length == 2 || kv.qualifier().length == 4) {
+               ++dps_post_filter;
+             } else {
+               // for now we'll assume that all compacted columns are of the 
+               // same precision. This is likely incorrect.
+               if (Internal.inMilliseconds(kv.qualifier())) {
+                 dps_post_filter += (kv.qualifier().length / 4);
+               } else {
+                 dps_post_filter += (kv.qualifier().length / 2);
+               }
+             }
+           } else if (kv.qualifier()[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
+             // with appends we don't have a good rough estimate as the length
+             // can vary widely with the value length variability. Therefore we
+             // have to iterate.
+             int idx = 0;
+             int qlength = 0;
+             while (idx < kv.value().length) {
+               qlength = Internal.getQualifierLength(kv.value(), idx);
+               idx += qlength + Internal.getValueLengthFromQualifier(kv.value(), idx);
+               ++dps_post_filter;
+             }
+           }
          }
          
          Span datapoints = spans.get(key);
@@ -796,11 +849,14 @@ final class TsdbQuery implements Query {
                QueryStat.SUCCESSFUL_SCAN, e == null ? 1 : 0);
            
            // Post Scan stats
-           /* TODO - fix up/add these counters 
+           query_stats.addScannerStat(query_index, index, 
+               QueryStat.ROWS_PRE_FILTER, rows_pre_filter);
+           query_stats.addScannerStat(query_index, index,
+               QueryStat.DPS_PRE_FILTER, dps_pre_filter);
            query_stats.addScannerStat(query_index, index, 
                QueryStat.ROWS_POST_FILTER, rows_post_filter);
            query_stats.addScannerStat(query_index, index,
-               QueryStat.DPS_POST_FILTER, dps_post_filter); */
+               QueryStat.DPS_POST_FILTER, dps_post_filter);
            query_stats.addScannerStat(query_index, index, 
                QueryStat.SCANNER_UID_TO_STRING_TIME, uid_resolve_time);
            query_stats.addScannerStat(query_index, index, 
@@ -850,6 +906,30 @@ final class TsdbQuery implements Query {
         }
         return NO_RESULT;
       }
+      
+      // The raw aggregator skips group bys and ignores downsampling
+      if (aggregator == Aggregators.NONE) {
+        final SpanGroup[] groups = new SpanGroup[spans.size()];
+        int i = 0;
+        for (final Span span : spans.values()) {
+          final SpanGroup group = new SpanGroup(
+              tsdb, 
+              getScanStartTimeSeconds(),
+              getScanEndTimeSeconds(),
+              null, 
+              rate, 
+              rate_options,
+              aggregator,
+              downsampler,
+              getStartTime(), 
+              getEndTime(),
+              query_index);
+          group.add(span);
+          groups[i++] = group;
+        }
+        return groups;
+      }
+      
       if (group_bys == null) {
         // We haven't been asked to find groups, so let's put all the spans
         // together in the same group.
@@ -859,8 +939,10 @@ final class TsdbQuery implements Query {
                                               spans.values(),
                                               rate, rate_options,
                                               aggregator,
-                                              sample_interval_ms, downsampler,
-                                              query_index, fill_policy);
+                                              downsampler,
+                                              getStartTime(), 
+                                              getEndTime(),
+                                              query_index);
         if (query_stats != null) {
           query_stats.addStat(query_index, QueryStat.GROUP_BY_TIME, 0);
         }
@@ -907,8 +989,10 @@ final class TsdbQuery implements Query {
           thegroup = new SpanGroup(tsdb, getScanStartTimeSeconds(),
                                    getScanEndTimeSeconds(),
                                    null, rate, rate_options, aggregator,
-                                   sample_interval_ms, downsampler, query_index, 
-                                   fill_policy);
+                                   downsampler,
+                                   getStartTime(), 
+                                   getEndTime(),
+                                   query_index);
           // Copy the array because we're going to keep `group' and overwrite
           // its contents. So we want the collection to have an immutable copy.
           final byte[] group_copy = new byte[group.length];
@@ -989,9 +1073,10 @@ final class TsdbQuery implements Query {
     // First, we align the start timestamp to its representative value for the
     // interval in which it appears, if downsampling.
     long interval_aligned_ts = start;
-    if (0L != sample_interval_ms) {
+    if (downsampler != null && downsampler.getInterval() > 0) {
       // Downsampling enabled.
-      final long interval_offset = (1000L * start) % sample_interval_ms;
+      // TODO - calendar interval
+      final long interval_offset = (1000L * start) % downsampler.getInterval();
       interval_aligned_ts -= interval_offset / 1000L;
     }
 
@@ -1015,7 +1100,7 @@ final class TsdbQuery implements Query {
     }
 
     // The calculation depends on whether we're downsampling.
-    if (0L != sample_interval_ms) {
+    if (downsampler != null && downsampler.getInterval() > 0) {
       // Downsampling enabled.
       //
       // First, we align the end timestamp to its representative value for the
@@ -1028,9 +1113,9 @@ final class TsdbQuery implements Query {
       // skip forward an entire extra interval.
       //
       // This can be accomplished by simply not testing for zero offset.
-      final long interval_offset = (1000L * end) % sample_interval_ms;
+      final long interval_offset = (1000L * end) % downsampler.getInterval();
       final long interval_aligned_ts = end +
-        (sample_interval_ms - interval_offset) / 1000L;
+        (downsampler.getInterval() - interval_offset) / 1000L;
 
       // Then, if we're now aligned on a timespan boundary, then we need no
       // further adjustment: we are guaranteed to have always moved the end time
@@ -1196,7 +1281,7 @@ final class TsdbQuery implements Query {
 
     /** @return the downsampling interval for unit tests. */
     static long getDownsampleIntervalMs(final TsdbQuery query) {
-      return query.sample_interval_ms;
+      return query.downsampler.getInterval();
     }
   
     static byte[] getMetric(final TsdbQuery query) {

@@ -200,7 +200,8 @@ public class QueryUtil {
       final int end_time) {
     
     // no-op
-    if (group_bys.isEmpty() && row_key_literals.isEmpty()) {
+    if ((group_bys == null || group_bys.isEmpty()) 
+        && (row_key_literals == null || row_key_literals.isEmpty())) {
       return;
     }
     
@@ -230,7 +231,7 @@ public class QueryUtil {
           byteRegexToString(regex));
     }
     
-    if (!explicit_tags || !enable_fuzzy_filter) {
+    if (!(explicit_tags && enable_fuzzy_filter)) {
       scanner.setFilter(regex_filter);
       return;
     }

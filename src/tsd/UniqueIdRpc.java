@@ -63,6 +63,9 @@ final class UniqueIdRpc implements HttpRpc {
     } else if (endpoint.toLowerCase().equals("tsmeta")) {
       this.handleTSMeta(tsdb, query);
       return;
+    } else if (endpoint.toLowerCase().equals("rename")) {
+      this.handleRename(tsdb, query);
+      return;
     } else {
       throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
           "Other UID endpoints have not been implemented yet");
@@ -479,6 +482,70 @@ final class UniqueIdRpc implements HttpRpc {
   }
   
   /**
+   * Rename UID to a new name of the given metric, tagk or tagv names
+   * <p>
+   * This handler supports GET and POST whereby the GET command can parse query
+   * strings with the {@code type} and {@code name} as their parameters.
+   * <p>
+   * @param tsdb The TSDB from the RPC router
+   * @param query The query for this request
+   */
+  private void handleRename(final TSDB tsdb, final HttpQuery query) {
+    // only accept GET and POST
+    if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
+      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED,
+          "Method not allowed", "The HTTP method[" + query.method().getName() +
+          "] is not permitted for this endpoint");
+    }
+
+    final HashMap<String, String> source;
+    if (query.method() == HttpMethod.POST) {
+      source = query.serializer().parseUidRenameV1();
+    } else {
+      source = new HashMap<String, String>(3);
+      final String[] types = {"metric", "tagk", "tagv", "name"};
+      for (int i = 0; i < types.length; i++) {
+        final String value = query.getQueryStringParam(types[i]);
+        if (value!= null && !value.isEmpty()) {
+          source.put(types[i], value);
+        }
+      }
+    }
+    String type = null;
+    String oldname = null;
+    String newname = null;
+    for (Map.Entry<String, String> entry : source.entrySet()) {
+      if (entry.getKey().equals("name")) {
+        newname = entry.getValue();
+      } else {
+        type = entry.getKey();
+        oldname = entry.getValue();
+      }
+    }
+
+    // we need a type/value and new name
+    if (type == null || oldname == null || newname == null) {
+      throw new BadRequestException("Missing necessary values to rename UID");
+    }
+
+    HashMap<String, String> response = new HashMap<String, String>(2);
+    try {
+      tsdb.renameUid(type, oldname, newname);
+      response.put("result", "true");
+    } catch (IllegalArgumentException e) {
+      response.put("result", "false");
+      response.put("error", e.getMessage());
+    }
+
+    if (!response.containsKey("error")) {
+      query.sendReply(query.serializer().formatUidRenameV1(response));
+    } else {
+      query.sendReply(HttpResponseStatus.BAD_REQUEST,
+          query.serializer().formatUidRenameV1(response));
+    }
+  }
+
+  /**
    * Used with verb overrides to parse out values from a query string
    * @param query The query to parse
    * @return An TSMeta object with configured values
@@ -486,8 +553,13 @@ final class UniqueIdRpc implements HttpRpc {
    * be parsed
    */
   private TSMeta parseTSMetaQS(final HttpQuery query) {
-    final String tsuid = query.getRequiredQueryStringParam("tsuid");
-    final TSMeta meta = new TSMeta(tsuid);
+    final String tsuid = query.getQueryStringParam("tsuid");
+    final TSMeta meta;
+    if (tsuid != null && !tsuid.isEmpty()) {
+      meta = new TSMeta(tsuid);
+    } else {
+      meta = new TSMeta();
+    }
     
     final String display_name = query.getQueryStringParam("display_name");
     if (display_name != null) {

@@ -15,6 +15,7 @@ package net.opentsdb.query.filter;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -398,6 +399,22 @@ public class TestTagVFilter extends BaseTsdbTest {
     assertFalse(filters.get(0).isGroupBy());
     TagVFilter.tagsToFilters(tags, filters);
     assertEquals(2, filters.size());
+  }
+  
+  @Test
+  public void getCopy() {
+    final TagVFilter filter = TagVFilter.Builder()
+        .setFilter("*")
+        .setTagk(TAGK_STRING)
+        .setType("wildcard")
+        .setGroupBy(true)
+        .build();
+    final TagVFilter copy = filter.getCopy();
+    assertNotSame(filter, copy);
+    assertEquals(filter.filter, copy.filter);
+    assertEquals(filter.tagk, copy.tagk);
+    assertEquals(filter.getType(), copy.getType());
+    assertEquals(filter.group_by, copy.group_by);
   }
   
   // TODO - test the plugin loader similar to the other plugins

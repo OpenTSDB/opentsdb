@@ -15,10 +15,12 @@ package net.opentsdb.tools;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.core.AppendDataPoints;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
@@ -180,7 +182,7 @@ final class DumpSeries {
     final byte[] value = kv.value();
     final int q_len = qualifier.length;
 
-    if (q_len % 2 != 0) {
+    if (!AppendDataPoints.isAppendDataPoints(qualifier) && q_len % 2 != 0) {
       if (!importformat) {
         // custom data object, not a data point
         if (kv.qualifier()[0] == Annotation.PREFIX()) {
@@ -203,8 +205,16 @@ final class DumpSeries {
         appendImportCell(buf, cell, base_time, tags);
       }
     } else {
-      // compacted column
-      final ArrayList<Cell> cells = Internal.extractDataPoints(kv);
+      final Collection<Cell> cells;
+      if (q_len == 3) {
+        // append data points
+        final AppendDataPoints adps = new AppendDataPoints();
+        cells = adps.parseKeyValue(tsdb, kv);
+      } else {
+        // compacted column
+        cells = Internal.extractDataPoints(kv);
+      }
+
       if (!importformat) {
         buf.append(Arrays.toString(kv.qualifier()))
            .append('\t')

@@ -15,6 +15,7 @@ package net.opentsdb.core;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
@@ -51,6 +52,51 @@ public final class TestTSQuery {
     assertEquals(Aggregators.SUM, q.getQueries().get(0).aggregator());
     assertEquals(Aggregators.AVG, q.getQueries().get(0).downsampler());
     assertEquals(300000, q.getQueries().get(0).downsampleInterval());
+    assertNull(q.getTimezone());
+    assertEquals("UTC", q.getQueries().get(0).downsamplingSpecification()
+        .getTimezone().getID());
+    assertFalse(q.getQueries().get(0).downsamplingSpecification().useCalendar());
+  }
+  
+  @Test
+  public void validateWithTimezone() {
+    TSQuery q = this.getMetricForValidate();
+    q.setUseCalendar(true);
+    q.setTimezone("Pacific/Funafuti");
+    q.validateAndSetQuery();
+    assertEquals(1356998400000L, q.startTime());
+    assertEquals(1356998460000L, q.endTime());
+    assertEquals("sys.cpu.0", q.getQueries().get(0).getMetric());
+    assertEquals("wildcard(*)", q.getQueries().get(0).getTags().get("host"));
+    assertEquals("literal_or(lga)", q.getQueries().get(0).getTags().get("dc"));
+    assertEquals(Aggregators.SUM, q.getQueries().get(0).aggregator());
+    assertEquals(Aggregators.AVG, q.getQueries().get(0).downsampler());
+    assertEquals(300000, q.getQueries().get(0).downsampleInterval());
+    assertEquals("Pacific/Funafuti", q.getTimezone());
+    assertEquals("Pacific/Funafuti", q.getQueries().get(0).downsamplingSpecification()
+        .getTimezone().getID());
+    assertTrue(q.getQueries().get(0).downsamplingSpecification().useCalendar());
+  }
+  
+  @Test
+  public void validateVerifyNoDSOverrideWithCalendar() {
+    TSQuery q = this.getMetricForValidate();
+    q.setUseCalendar(true);
+    q.setTimezone("Pacific/Funafuti");
+    q.getQueries().get(0).setDownsample(null);
+    q.validateAndSetQuery();
+    assertEquals(1356998400000L, q.startTime());
+    assertEquals(1356998460000L, q.endTime());
+    assertEquals("sys.cpu.0", q.getQueries().get(0).getMetric());
+    assertEquals("wildcard(*)", q.getQueries().get(0).getTags().get("host"));
+    assertEquals("literal_or(lga)", q.getQueries().get(0).getTags().get("dc"));
+    assertEquals(Aggregators.SUM, q.getQueries().get(0).aggregator());
+    assertNull(q.getQueries().get(0).downsampler());
+    assertEquals(0, q.getQueries().get(0).downsampleInterval());
+    assertEquals("Pacific/Funafuti", q.getTimezone());
+    assertEquals("UTC", q.getQueries().get(0).downsamplingSpecification()
+        .getTimezone().getID());
+    assertFalse(q.getQueries().get(0).downsamplingSpecification().useCalendar());
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -235,6 +281,25 @@ public final class TestTSQuery {
     
     TSQuery sub2 = getMetricForValidate();
     sub2.setTimezone("Not a timezone");
+    
+    assertEquals(hash_b, sub2.hashCode());
+    assertEquals(sub1, sub2);
+    assertFalse(sub1 == sub2);
+  }
+  
+  @Test
+  public void testHashCodeandEqualsUseCalendar() {
+    TSQuery sub1 = getMetricForValidate();
+    
+    final int hash_a = sub1.hashCode();
+    sub1.setUseCalendar(true);
+    final int hash_b = sub1.hashCode();
+    assertTrue(hash_a != hash_b);
+    sub1.validateAndSetQuery();
+    assertEquals(hash_b, sub1.hashCode());
+    
+    TSQuery sub2 = getMetricForValidate();
+    sub2.setUseCalendar(true);
     
     assertEquals(hash_b, sub2.hashCode());
     assertEquals(sub1, sub2);

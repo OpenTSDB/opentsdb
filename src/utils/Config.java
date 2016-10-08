@@ -487,10 +487,14 @@ public class Config {
     default_map.put("tsd.core.auto_create_metrics", "false");
     default_map.put("tsd.core.auto_create_tagks", "true");
     default_map.put("tsd.core.auto_create_tagvs", "true");
+    default_map.put("tsd.core.connections.limit", "0");
+    default_map.put("tsd.core.enable_api", "true");
+    default_map.put("tsd.core.enable_ui", "true");
     default_map.put("tsd.core.meta.enable_realtime_ts", "false");
     default_map.put("tsd.core.meta.enable_realtime_uid", "false");
     default_map.put("tsd.core.meta.enable_tsuid_incrementing", "false");
     default_map.put("tsd.core.meta.enable_tsuid_tracking", "false");
+    default_map.put("tsd.core.meta.cache.enable", "false");
     default_map.put("tsd.core.plugin_path", "");
     default_map.put("tsd.core.socket.timeout", "0");
     default_map.put("tsd.core.tree.enable_processing", "false");
@@ -507,6 +511,8 @@ public class Config {
     default_map.put("tsd.search.enable", "false");
     default_map.put("tsd.search.plugin", "");
     default_map.put("tsd.stats.canonical", "false");
+    default_map.put("tsd.startup.enable", "false");
+    default_map.put("tsd.startup.plugin", "");
     default_map.put("tsd.storage.hbase.scanner.maxNumRows", "128");
     default_map.put("tsd.storage.fix_duplicates", "false");
     default_map.put("tsd.storage.flush_interval", "1000");
@@ -524,6 +530,9 @@ public class Config {
     default_map.put("tsd.storage.compaction.min_flush_threshold", "100");
     default_map.put("tsd.storage.compaction.max_concurrent_flushes", "10000");
     default_map.put("tsd.storage.compaction.flush_speed", "2");
+    default_map.put("tsd.timeseriesfilter.enable", "false");
+    default_map.put("tsd.uidfilter.enable", "false");
+    default_map.put("tsd.core.stats_with_port", "false");    
     default_map.put("tsd.http.show_stack_trace", "true");
     default_map.put("tsd.http.query.allow_delete", "false");
     default_map.put("tsd.http.request.enable_chunked", "false");
@@ -646,7 +655,6 @@ public class Config {
     enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
     fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
     scanner_max_num_rows = this.getInt("tsd.storage.hbase.scanner.maxNumRows");
-
   }
   
   /**

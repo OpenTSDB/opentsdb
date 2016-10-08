@@ -498,10 +498,23 @@ final class QueryRpc implements HttpRpc {
    * Parses a query string legacy style query from the URI
    * @param tsdb The TSDB we belong to
    * @param query The HTTP Query for parsing
+   * @return A TSQuery if parsing was successful
+   * @throws BadRequestException if parsing was unsuccessful
+   * @since 2.3
+   */
+  public static TSQuery parseQuery(final TSDB tsdb, final HttpQuery query) {
+    return parseQuery(tsdb, query, null);
+  }
+  
+  /**
+   * Parses a query string legacy style query from the URI
+   * @param tsdb The TSDB we belong to
+   * @param query The HTTP Query for parsing
    * @param expressions A list of parsed expression trees filled from the URI.
    * If this is null, it means any expressions in the URI will be skipped.
    * @return A TSQuery if parsing was successful
    * @throws BadRequestException if parsing was unsuccessful
+   * @since 2.3
    */
   public static TSQuery parseQuery(final TSDB tsdb, final HttpQuery query,
       final List<ExpressionTree> expressions) {

@@ -68,8 +68,10 @@ tsdb_SRC := \
 	src/core/TSQuery.java	\
 	src/core/TSSubQuery.java	\
 	src/core/WritableDataPoints.java	\
+	src/core/WriteableDataPointFilterPlugin.java	\
 	src/graph/Plot.java	\
 	src/meta/Annotation.java	\
+	src/meta/MetaDataCache.java	\
 	src/meta/TSMeta.java	\
 	src/meta/TSUIDQuery.java	\
 	src/meta/UIDMeta.java	\
@@ -96,6 +98,7 @@ tsdb_SRC := \
 	src/query/expression/PostAggregatedDataPoints.java	\
 	src/query/expression/Scale.java	\
 	src/query/expression/SumSeries.java	\
+	src/query/expression/TimeShift.java \
 	src/query/expression/TimeSyncedIterator.java	\
 	src/query/expression/UnionIterator.java	\
 	src/query/expression/VariableIterator.java	\
@@ -130,6 +133,7 @@ tsdb_SRC := \
 	src/tools/MetaPurge.java	\
 	src/tools/MetaSync.java	\
 	src/tools/Search.java	\
+	src/tools/StartupPlugin.java \
 	src/tools/TSDMain.java	\
 	src/tools/TextImporter.java	\
 	src/tools/TreeSync.java	\
@@ -143,6 +147,7 @@ tsdb_SRC := \
 	src/tsd/AnnotationRpc.java	\
 	src/tsd/BadRequestException.java	\
 	src/tsd/ConnectionManager.java	\
+	src/tsd/DropCachesRpc.java \
 	src/tsd/GnuplotException.java	\
 	src/tsd/GraphHandler.java	\
 	src/tsd/HttpJsonSerializer.java	\
@@ -160,6 +165,7 @@ tsdb_SRC := \
 	src/tsd/RpcHandler.java	\
 	src/tsd/RpcPlugin.java	\
 	src/tsd/RpcManager.java	\
+	src/tsd/RpcUtil.java \
 	src/tsd/RTPublisher.java	\
 	src/tsd/SearchRpc.java	\
 	src/tsd/StaticFileRpc.java	\
@@ -175,6 +181,7 @@ tsdb_SRC := \
 	src/uid/NoSuchUniqueName.java	\
 	src/uid/RandomUniqueId.java	\
 	src/uid/UniqueId.java	\
+	src/uid/UniqueIdFilterPlugin.java \
 	src/uid/UniqueIdInterface.java \
 	src/utils/ByteArrayPair.java \
 	src/utils/ByteSet.java \
@@ -252,6 +259,7 @@ test_SRC := \
 	test/core/TestSpanGroup.java	\
 	test/core/TestTags.java	\
 	test/core/TestTSDB.java	\
+	test/core/TestTSDBAddPoint.java	\
 	test/core/TestTsdbQueryDownsample.java	\
 	test/core/TestTsdbQueryDownsampleSalted.java	\
 	test/core/TestTsdbQuery.java	\
@@ -713,7 +721,7 @@ manifest: .javac-stamp .git/HEAD
           echo "Implementation-Version: $(git_version)"; \
           echo "Implementation-Vendor: $(spec_vendor)"; } >"$@"
 
-$(jar): manifest .javac-stamp $(classes)
+$(jar): manifest .javac-stamp
 	$(JAR) cfm `basename $(jar)` manifest $(classes_with_nested_classes) $(get_expr_classes) \
          || { rv=$$? && rm -f `basename $(jar)` && exit $$rv; }
 #                       ^^^^^^^^^^^^^^^^^^^^^^^
@@ -853,7 +861,7 @@ debian: dist staticroot
 	cp -r gwt/queryui/* $(distdir)/debian/usr/share/opentsdb/static
 	`for dep_jar in $(tsdb_DEPS); do cp $$dep_jar \
 	     $(distdir)/debian/usr/share/opentsdb/lib; done;`
-	cp $(top_srcdir)/tools/* $(distdir)/debian/usr/share/opentsdb/tools
+	cp -r $(top_srcdir)/tools/* $(distdir)/debian/usr/share/opentsdb/tools
 	dpkg -b $(distdir)/debian $(distdir)/opentsdb-$(PACKAGE_VERSION)_all.deb
 
 .PHONY: jar doc check gwtc gwtdev printdeps staticroot gwttsd rpm

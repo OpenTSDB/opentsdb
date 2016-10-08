@@ -91,20 +91,17 @@ final class SpanGroup implements DataPoints {
   /** Aggregator to use to aggregate data points from different Spans. */
   private final Aggregator aggregator;
 
-  /**
-   * Downsampling function to use, if any (can be {@code null}).
-   * If this is non-null, {@code sample_interval} must be strictly positive.
-   */
-  private final Aggregator downsampler;
-
-  /** Minimum time interval (in seconds) wanted between each data point. */
-  private final long sample_interval;
+  /** Downsampling specification to use, if any (can be {@code null}). */
+  private DownsamplingSpecification downsampler;
+  
+  /** Start timestamp of the query for filtering */  
+  private final long query_start;
+  
+  /** End timestamp of the query for filtering */
+  private final long query_end;  
 
   /** Index of the query in the TSQuery class */
   private final int query_index;
-  
-  /** Downsampling fill policy. */
-  private final FillPolicy fill_policy;
   
   /** The TSDB to which we belong, used for resolution */
   private final TSDB tsdb;
@@ -192,6 +189,43 @@ final class SpanGroup implements DataPoints {
             final Aggregator aggregator,
             final long interval, final Aggregator downsampler, final int query_index,
             final FillPolicy fill_policy) {
+     this(tsdb, start_time, end_time, spans, rate, rate_options, aggregator,
+         downsampler != null ? 
+             new DownsamplingSpecification(interval, downsampler, fill_policy) : 
+           null,
+         0, 0, query_index);
+  }
+  
+  /**
+   * Ctor.
+   * @param tsdb The TSDB we belong to.
+   * @param start_time Any data point strictly before this timestamp will be
+   * ignored.
+   * @param end_time Any data point strictly after this timestamp will be
+   * ignored.
+   * @param spans A sequence of initial {@link Spans} to add to this group.
+   * Ignored if {@code null}. Additional spans can be added with {@link #add}.
+   * @param rate If {@code true}, the rate of the series will be used instead
+   * of the actual values.
+   * @param rate_options Specifies the optional additional rate calculation options.
+   * @param aggregator The aggregation function to use.
+   * @param downsampler The specification to use for downsampling, may be null.
+   * @param query_start Start of the actual query
+   * @param query_end End of the actual query
+   * @param query_index index of the original query
+   * @since 2.3
+   */
+  SpanGroup(final TSDB tsdb,
+            final long start_time, 
+            final long end_time,
+            final Iterable<Span> spans,
+            final boolean rate, 
+            final RateOptions rate_options,
+            final Aggregator aggregator,
+            final DownsamplingSpecification downsampler, 
+            final long query_start,
+            final long query_end,
+            final int query_index) {
      annotations = new ArrayList<Annotation>();
      this.start_time = (start_time & Const.SECOND_MASK) == 0 ? 
          start_time * 1000 : start_time;
@@ -206,9 +240,9 @@ final class SpanGroup implements DataPoints {
      this.rate_options = rate_options;
      this.aggregator = aggregator;
      this.downsampler = downsampler;
-     this.sample_interval = interval;
+     this.query_start = query_start;
+     this.query_end = query_end;
      this.query_index = query_index;
-     this.fill_policy = fill_policy;
      this.tsdb = tsdb;
   }
   
@@ -452,8 +486,8 @@ final class SpanGroup implements DataPoints {
   public SeekableView iterator() {
     return AggregationIterator.create(spans, start_time, end_time, aggregator,
                                   aggregator.interpolationMethod(),
-                                  downsampler, sample_interval,
-                                  rate, rate_options, fill_policy);
+                                  downsampler, query_start, query_end,
+                                  rate, rate_options);
   }
 
   /**
@@ -509,7 +543,8 @@ final class SpanGroup implements DataPoints {
       + ", rate=" + rate
       + ", aggregator=" + aggregator
       + ", downsampler=" + downsampler
-      + ", sample_interval=" + sample_interval
+      + ", query_start=" + query_start
+      + ", query_end" + query_end
       + ')';
   }
 

@@ -93,7 +93,7 @@ public class SeekableViewsForTest {
   }
 
   /** Iterates an array of data points. */
-  private static class MockSeekableView implements SeekableView {
+  public static class MockSeekableView implements SeekableView {
 
     private final DataPoint[] data_points;
     private int index = 0;
@@ -127,6 +127,10 @@ public class SeekableViewsForTest {
           break;
         }
       }
+    }
+  
+    public void resetIndex() {
+      index = 0;
     }
   }
 
