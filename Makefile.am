@@ -861,7 +861,7 @@ debian: dist staticroot
 	cp -r gwt/queryui/* $(distdir)/debian/usr/share/opentsdb/static
 	`for dep_jar in $(tsdb_DEPS); do cp $$dep_jar \
 	     $(distdir)/debian/usr/share/opentsdb/lib; done;`
-	cp $(top_srcdir)/tools/* $(distdir)/debian/usr/share/opentsdb/tools
+	cp -r $(top_srcdir)/tools/* $(distdir)/debian/usr/share/opentsdb/tools
 	dpkg -b $(distdir)/debian $(distdir)/opentsdb-$(PACKAGE_VERSION)_all.deb
 
 .PHONY: jar doc check gwtc gwtdev printdeps staticroot gwttsd rpm
