@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
+// Copyright (C) 2010-2016  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -12,17 +12,20 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile.EstimationType;
 import org.apache.commons.math3.util.ResizableDoubleArray;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 /**
  * Utility class that provides common, generally useful aggregators.
@@ -55,6 +58,10 @@ public final class Aggregators {
   public static final Aggregator AVG = new Avg(
       Interpolation.LERP, "avg");
 
+  /** Aggregator that returns the emedian of the data points. */
+  public static final Aggregator MEDIAN = new Median(Interpolation.LERP, 
+      "median");
+  
   /** Aggregator that skips aggregation/interpolation and/or downsampling. */
   public static final Aggregator NONE = new None(Interpolation.ZIM, "raw");
   
@@ -156,6 +163,7 @@ public final class Aggregators {
     aggregators.put("max", MAX);
     aggregators.put("avg", AVG);
     aggregators.put("none", NONE);
+    aggregators.put("median", MEDIAN);
     aggregators.put("mult", MULTIPLY);
     aggregators.put("dev", DEV);
     aggregators.put("count", COUNT);
@@ -333,6 +341,42 @@ public final class Aggregators {
    
   }
 
+  private static final class Median extends Aggregator {
+    public Median(final Interpolation method, final String name) {
+      super(method, name);
+    }
+
+    @Override
+    public long runLong(final Longs values) {
+      final List<Long> collection = Lists.newArrayList();
+      while (values.hasNextValue()) {
+        collection.add(values.nextLongValue());
+      }
+      if (collection.isEmpty()) {
+        throw new IllegalStateException("Shouldn't be here without any data");
+      }
+      Collections.sort(collection);
+      return collection.get(collection.size() / 2);
+    }
+
+    @Override
+    public double runDouble(final Doubles values) {
+      final List<Double> collection = Lists.newArrayList();
+      while (values.hasNextValue()) {
+        final double val = values.nextDoubleValue();
+        if (!Double.isNaN(val)) {
+          collection.add(val);
+        }
+      }
+      if (collection.isEmpty()) {
+        // in this case we may have had lots of NaNs so just drop em.
+        return Double.NaN;
+      }
+      Collections.sort(collection);
+      return collection.get(collection.size() / 2);
+    }
+  }
+  
   /**
    * An aggregator that isn't meant for aggregation. Paradoxical!!
    * Really it's used as a flag to indicate that, during sorting and iteration,
