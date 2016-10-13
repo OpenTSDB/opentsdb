@@ -5,6 +5,17 @@
       \___/| .__/ \___|_| |_|_| |____/|____/|____/
            |_|    The modern time series database.
 
+-----------
+| WARNING |
+-----------
+Version 3 of OpenTSDB is currently in a development state. APIs and data
+structures are expected to change before moving to the "put" branch where
+development should stabalize. But please take a look, contribute and let
+us know what you think.
+-----------
+| WARNING |
+-----------
+
 OpenTSDB is a distributed, scalable Time Series Database (TSDB) written on
 top of HBase.  OpenTSDB was written to address a common need: store, index
 and serve metrics collected from computer systems (network gear, operating
