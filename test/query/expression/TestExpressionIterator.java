@@ -1078,6 +1078,80 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
     
   }
   
+  @Test
+  public void aGreaterThanb() throws Exception {
+    oneExtraSameE();
+    queryAB_Dstar();
+    remapResults();
+    
+    ExpressionIterator exp = new ExpressionIterator("ei", "a > b", 
+        SetOperator.INTERSECTION, false, false);
+    exp.addResults("a", iterators.get("a"));
+    exp.addResults("b", iterators.get("b"));
+    
+    exp.compile();
+    final ExpressionDataPoint[] dps = exp.values();
+    assertEquals(2, dps.length);
+    validateMeta(dps, true);
+    
+    long ts = 1431561600000L;
+    double[] values = new double[] { 0, 0 };
+    long its = exp.nextTimestamp();
+    while (exp.hasNext()) {
+      exp.next(its);
+      
+      assertEquals(ts, dps[0].timestamp());
+      assertEquals(ts, dps[1].timestamp());
+      assertEquals(values[0], dps[0].toDouble(), 0.0001);
+      assertEquals(values[1], dps[1].toDouble(), 0.0001);
+      
+      ts += 60000;
+      its = exp.nextTimestamp();
+    }
+    
+    for (int i = 0; i < dps.length; i++) {
+      assertEquals(2, dps[i].tags().size());
+      assertTrue(dps[i].aggregatedTags().isEmpty());
+    }
+  }
+  
+  @Test
+  public void aLessThanb() throws Exception {
+    oneExtraSameE();
+    queryAB_Dstar();
+    remapResults();
+    
+    ExpressionIterator exp = new ExpressionIterator("ei", "a < b", 
+        SetOperator.INTERSECTION, false, false);
+    exp.addResults("a", iterators.get("a"));
+    exp.addResults("b", iterators.get("b"));
+    
+    exp.compile();
+    final ExpressionDataPoint[] dps = exp.values();
+    assertEquals(2, dps.length);
+    validateMeta(dps, true);
+    
+    long ts = 1431561600000L;
+    double[] values = new double[] { 1, 1 };
+    long its = exp.nextTimestamp();
+    while (exp.hasNext()) {
+      exp.next(its);
+      
+      assertEquals(ts, dps[0].timestamp());
+      assertEquals(ts, dps[1].timestamp());
+      assertEquals(values[0], dps[0].toDouble(), 0.0001);
+      assertEquals(values[1], dps[1].toDouble(), 0.0001);
+      
+      ts += 60000;
+      its = exp.nextTimestamp();
+    }
+    
+    for (int i = 0; i < dps.length; i++) {
+      assertEquals(2, dps[i].tags().size());
+      assertTrue(dps[i].aggregatedTags().isEmpty());
+    }
+  }
+  
   /**
    * Makes sure the series contain both metrics
    * @param dps The results to validate

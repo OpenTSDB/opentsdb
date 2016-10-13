@@ -336,7 +336,15 @@ public class ExpressionIterator implements ITimeSyncedIterator {
           }
         }
       }
-      result = (Double)expression.execute(context);
+      final Object output = expression.execute(context);
+      if (output instanceof Double) {
+        result = (Double) expression.execute(context);
+      } else if (output instanceof Boolean) {
+        result = (((Boolean) expression.execute(context)) ? 1 : 0);
+      } else {
+        throw new IllegalStateException("Expression returned a result of type: " 
+            + output.getClass().getName() + " for " + this);
+      }
       dps[i].reset(timestamp, result);
     }
     return dps;
