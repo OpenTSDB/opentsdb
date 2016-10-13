@@ -6,5 +6,6 @@ addons:
 jdk:
   - oraclejdk7
   - openjdk6
+  - oraclejdk8
 notifications:
     email: false

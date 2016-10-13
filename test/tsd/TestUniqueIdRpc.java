@@ -679,8 +679,10 @@ public final class TestUniqueIdRpc {
         "/api/uid/rename?tagv=localhost&name=localhost");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"error\":\"" + message + "\",\"result\":\"false\"}",
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String json = query.response().getContent()
+        .toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"error\":\"" + message + "\""));
+    assertTrue(json.contains("\"result\":\"false\""));
   }
 
   // Teset /api/uid/uidmeta --------------------
