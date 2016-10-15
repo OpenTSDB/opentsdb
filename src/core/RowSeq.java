@@ -36,7 +36,7 @@ import com.stumbleupon.async.Deferred;
  * are stored in two byte arrays: one for the time offsets/flags and another
  * for the values. Access is granted via pointers.
  */
-final class RowSeq implements DataPoints {
+public final class RowSeq implements iRowSeq {
 
   /** The {@link TSDB} instance we belong to. */
   private final TSDB tsdb;
@@ -64,13 +64,9 @@ final class RowSeq implements DataPoints {
   RowSeq(final TSDB tsdb) {
     this.tsdb = tsdb;
   }
-
-  /**
-   * Sets the row this instance holds in RAM using a row from a scanner.
-   * @param row The compacted HBase row to set.
-   * @throws IllegalStateException if this method was already called.
-   */
-  void setRow(final KeyValue row) {
+  
+  @Override
+  public void setRow(final KeyValue row) {
     if (this.key != null) {
       throw new IllegalStateException("setRow was already called on " + this);
     }
@@ -91,7 +87,8 @@ final class RowSeq implements DataPoints {
    * @throws IllegalArgumentException if the data points in the argument
    * do not belong to the same row as this RowSeq
    */
-  void addRow(final KeyValue row) {
+  @Override
+  public void addRow(final KeyValue row) {
     if (this.key == null) {
       throw new IllegalStateException("setRow was never called on " + this);
     }
@@ -366,16 +363,21 @@ final class RowSeq implements DataPoints {
   public SeekableView iterator() {
     return internalIterator();
   }
-
-  /** Package private iterator method to access it as a {@link Iterator}. */
-  Iterator internalIterator() {
+  
+  @Override
+  public Iterator internalIterator() {
     // XXX this is now grossly inefficient, need to walk the arrays once.
     return new Iterator();
   }
 
-  /** Extracts the base timestamp from the row key. */
-  long baseTime() {
+  @Override
+  public long baseTime() {
     return Bytes.getUnsignedInt(key, Const.SALT_WIDTH() + tsdb.metrics.width());
+  }
+  
+  @Override
+  public byte[] key() {
+    return key;
   }
 
   /** @throws IndexOutOfBoundsException if {@code i} is out of bounds. */
@@ -522,7 +524,7 @@ final class RowSeq implements DataPoints {
   }
   
   /** Iterator for {@link RowSeq}s.  */
-  final class Iterator implements SeekableView, DataPoint {
+  final class Iterator implements iRowSeq.Iterator {
 
     /** Current qualifier.  */
     private int qualifier;
@@ -673,6 +675,11 @@ final class RowSeq implements DataPoints {
 
     public String toString() {
       return toStringSummary() + ", seq=" + RowSeq.this + ')';
+    }
+
+    @Override
+    public long valueCount() {
+      return 1;
     }
 
   }

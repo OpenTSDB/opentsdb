@@ -411,4 +411,10 @@ public class Downsampler implements SeekableView, DataPoint {
       return buf.toString();
     }
   }
+
+  
+  @Override
+  public long valueCount() {
+    throw new UnsupportedOperationException();
+  }
 }

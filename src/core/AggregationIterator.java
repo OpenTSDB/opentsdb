@@ -767,4 +767,10 @@ public class AggregationIterator implements SeekableView, DataPoint,
     return new AggregationIterator(iterators, start_time, end_time,
                                    aggregator, method, rate);
   }
+
+  @Override
+  public long valueCount() {
+    // TODO don't know if this is right
+    return values.length;
+  }
 }

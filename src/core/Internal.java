@@ -124,6 +124,16 @@ public final class Internal {
   }
   
   /**
+   * Extracts the timestamp from a row key.
+   * @param row The row to parse the timestamp from.
+   * @return The timestamp in Unix Epoch seconds.
+   * @since 2.4
+   */
+  public static long baseTime(final byte[] row) {
+    return Bytes.getUnsignedInt(row, Const.SALT_WIDTH() + TSDB.metrics_width());
+  }
+  
+  /**
    * Sets the time in a raw data table row key
    * @param row The row to modify
    * @param base_time The base time to store
@@ -916,6 +926,24 @@ public final class Internal {
       return ((long) 1 << width * Byte.SIZE) - 1;
     } else {
       return Long.MAX_VALUE;
+    }
+  }
+
+  /**
+   * Encodes a long on 1, 2, 4 or 8 bytes
+   * @param value The value to encode
+   * @return A byte array containing the encoded value
+   * @since 2.4
+   */
+  public static byte[] vleEncodeLong(final long value) {
+    if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
+      return new byte[] { (byte) value };
+    } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
+      return Bytes.fromShort((short) value);
+    } else if (Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE) {
+      return Bytes.fromInt((int) value);
+    } else {
+      return Bytes.fromLong(value);
     }
   }
 }

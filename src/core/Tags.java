@@ -419,7 +419,7 @@ public final class Tags {
    * @throws NoSuchUniqueId if the row key contained an invalid ID (unlikely).
    * @since 1.2
    */
-  static Deferred<Map<String, String>> getTagsAsync(final TSDB tsdb,
+  public static Deferred<Map<String, String>> getTagsAsync(final TSDB tsdb,
                                      final byte[] row) throws NoSuchUniqueId {
     final short name_width = tsdb.tag_names.width();
     final short value_width = tsdb.tag_values.width();

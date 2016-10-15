@@ -53,4 +53,12 @@ public interface DataPoint {
    */
   double toDouble();
 
+  /**
+   * Represents the number of real values behind this data point when referring
+   * to a pre-aggregated and/or rolled up value.
+   * @return The number of real values represented in this data point. Usually
+   * just 1 for raw values.
+   */
+  long valueCount();
+
 }
