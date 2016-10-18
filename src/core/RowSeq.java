@@ -514,8 +514,8 @@ public final class RowSeq implements iRowSeq {
    * on the {@code RowSeq#baseTime()}
    * @since 2.0
    */
-  public static final class RowSeqComparator implements Comparator<RowSeq> {
-    public int compare(final RowSeq a, final RowSeq b) {
+  public static final class RowSeqComparator implements Comparator<iRowSeq> {
+    public int compare(final iRowSeq a, final iRowSeq b) {
       if (a.baseTime() == b.baseTime()) {
         return 0;
       }
