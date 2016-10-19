@@ -15,11 +15,17 @@ package net.opentsdb.core;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.List;
 
+import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -36,10 +42,13 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.powermock.reflect.Whitebox;
 
+import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 
 @RunWith(PowerMockRunner.class)
@@ -65,6 +74,51 @@ public final class TestTSDB extends BaseTsdbTest {
   @Test (expected = NullPointerException.class)
   public void ctorNullConfig() throws Exception {
     new TSDB(client, null);
+  }
+  
+  @Test
+  public void ctorRollups() throws Exception {
+    
+    TSDB tsdb = new TSDB(client, config);
+    assertNull(Whitebox.getInternalState(tsdb, "rollup_config"));
+    assertNull(Whitebox.getInternalState(tsdb, "default_interval"));
+    
+    List<RollupInterval> intervals = Lists.newArrayList(
+        new RollupInterval("tsdb", "tsdb-agg", "1m", "1h", true));
+    RollupConfig rollups = new RollupConfig(intervals);
+    PowerMockito.whenNew(RollupConfig.class).withAnyArguments()
+      .thenReturn(rollups);
+    
+    config.overrideConfig("tsd.rollups.enable", "true");
+    tsdb = new TSDB(client, config);
+    assertSame(rollups, Whitebox.getInternalState(tsdb, "rollup_config"));
+    assertSame(intervals.get(0), Whitebox.getInternalState(tsdb, 
+        "default_interval"));
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void ctorRollupsNoDefault() throws Exception {
+    // no default
+    List<RollupInterval> intervals = Lists.newArrayList(
+        new RollupInterval("tsdb", "tsdb-agg", "1m", "1h"));
+    RollupConfig rollups = new RollupConfig(intervals);
+    PowerMockito.whenNew(RollupConfig.class).withAnyArguments()
+      .thenReturn(rollups);
+    
+    config.overrideConfig("tsd.rollups.enable", "true");
+    new TSDB(client, config);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void ctorRollupsEmpty() throws Exception {
+    // no default
+    List<RollupInterval> intervals = Lists.newArrayList();
+    RollupConfig rollups = new RollupConfig(intervals);
+    PowerMockito.whenNew(RollupConfig.class).withAnyArguments()
+      .thenReturn(rollups);
+    
+    config.overrideConfig("tsd.rollups.enable", "true");
+    new TSDB(client, config);
   }
   
   @Test

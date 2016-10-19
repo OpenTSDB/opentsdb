@@ -223,4 +223,11 @@ public interface Query {
    * @since 1.2
    */
   public Deferred<DataPoints[]> runAsync() throws HBaseException;
+
+  /**
+   * Returns an index for this sub-query in the original set of queries.
+   * @return A zero based index.
+   * @since 2.4 
+   */
+  public int getQueryIdx();
 }

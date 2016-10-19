@@ -484,6 +484,7 @@ public class Config {
     default_map.put("tsd.network.tcp_no_delay", "true");
     default_map.put("tsd.network.keep_alive", "true");
     default_map.put("tsd.network.reuse_address", "true");
+    default_map.put("tsd.core.agg_tag", "_aggregate");
     default_map.put("tsd.core.auto_create_metrics", "false");
     default_map.put("tsd.core.auto_create_tagks", "true");
     default_map.put("tsd.core.auto_create_tagvs", "true");
@@ -507,6 +508,7 @@ public class Config {
     default_map.put("tsd.query.skip_unresolved_tagvs", "false");
     default_map.put("tsd.query.allow_simultaneous_duplicates", "true");
     default_map.put("tsd.query.enable_fuzzy_filter", "true");
+    default_map.put("tsd.rollups.enable", "false");
     default_map.put("tsd.rtpublisher.enable", "false");
     default_map.put("tsd.rtpublisher.plugin", "");
     default_map.put("tsd.search.enable", "false");

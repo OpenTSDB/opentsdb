@@ -1166,6 +1166,11 @@ final class TsdbQuery implements Query {
     }
     scanner.setKeyRegexp(regex, CHARSET);
   }
+
+  @Override
+  public int getQueryIdx() {
+    return query_index;
+  }
   
   @Override
   public String toString() {
