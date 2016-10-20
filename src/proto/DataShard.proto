@@ -1,0 +1,69 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2016  The OpenTSDB Authors.
+//
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or (at your
+// option) any later version.  This program is distributed in the hope that it
+// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+// General Public License for more details.  You should have received a copy
+// of the GNU Lesser General Public License along with this program.  If not,
+// see <http://www.gnu.org/licenses/>.
+
+syntax = "proto3";
+
+option java_package = "net.opentsdb.data.pbuf";
+option java_outer_classname = "DataShardPB";
+
+import "TimeSeriesId.proto";
+import "DataPoints.proto";
+import "Annotations.proto";
+
+enum DataType {
+  DATAPOINT = 0;
+  ANNOTATION = 1;
+  // ....
+  APPEND = 5;
+  HISTOGRAM = 6;
+}
+
+enum TimeUnits {
+  NANOSECONDS = 0;
+  MICROSECONDS = 1;
+  MILLISECONDS = 2;
+  SECONDS = 3;
+  MINUTES = 4;
+  HOURS = 5;
+  DAYS = 6;
+}
+
+message DataShard {
+  TimeSeriesId id = 1;
+  
+  bytes shard_id = 2;
+  
+  int64 base_time = 200;
+  TimeUnits base_time_units = 201;
+  int32 interval = 202;
+  int32 intervals = 203;
+  TimeUnits interval_unit = 204;
+  bool cached = 205;
+  
+  DataPoints data_points = 500;
+  Annotations annotations = 501;
+  
+}
+
+message DataShards {
+  repeated DataShard data = 1;
+  bytes id = 2;
+  
+  int64 base_time = 16;
+  TimeUnits base_time_units = 17;
+  int32 interval = 18;
+  int32 intervals = 19;
+  TimeUnits interval_units = 20;
+  bool cached = 21;
+  uint32 order = 22;
+}

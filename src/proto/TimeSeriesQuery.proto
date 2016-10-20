@@ -1,0 +1,124 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2016  The OpenTSDB Authors.
+//
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or (at your
+// option) any later version.  This program is distributed in the hope that it
+// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+// General Public License for more details.  You should have received a copy
+// of the GNU Lesser General Public License along with this program.  If not,
+// see <http://www.gnu.org/licenses/>.
+
+syntax = "proto3";
+
+option java_package = "net.opentsdb.query.pbuf";
+option java_outer_classname = "TimeSeriesQueryPB";
+
+import "DataShard.proto";
+
+enum JoinType {
+  UNION = 0;
+  INTERSECTION = 1;
+}
+
+message FillPolicy {
+  string name = 1;
+  string value = 2;
+}
+
+message Downsampler {
+  string interval = 1;
+  string function = 2;
+  FillPolicy fill_policy = 3;
+  bool use_calendar = 4;
+}
+
+message Rate {
+  string interval = 1;
+  bool is_counter = 2;
+  int64 counter_max = 3;
+  int64 reset_value = 4;
+}
+
+message Time {
+  string start = 1;
+  int64 start_time_ms = 7;
+  string end = 2;
+  int64 end_time_ms = 8;
+  string aggregator = 3;
+  Downsampler downsampler = 4;
+  Rate rate = 5;
+  string timezone = 6;
+}
+
+message Join {
+  JoinType type = 1;
+  bool use_query_tags = 2;
+  bool include_agg_tags = 3;
+}
+
+message FilterSet {
+  message Filter {
+    string id = 1;
+    string type = 2;
+    string filter = 3;
+    string field_name = 4;
+    string field_value = 5;
+    bool group_by = 6;
+  }
+  string id = 1;
+  repeated Filter filters = 2;
+  string filter_expression = 3;
+  bool explicit_tags = 4;
+}
+
+message Metric {
+  string id = 1;
+  string metric = 2;
+  string filter_id = 3;
+  string aggregator = 4;
+  FillPolicy fill_policy = 5;
+  string time_offset = 6;
+  repeated DataType types = 7;
+  Downsampler downsampler = 8;
+  Rate rate = 9;
+}
+
+message Expression {
+  string id = 1;
+  string expr = 2;
+  Join join = 3;
+  FillPolicy fill_policy = 4;
+  repeated DataType types = 5;
+}
+
+message Outputs {
+  message Output {
+    string id = 1;
+    string alias = 2;
+  }
+  repeated Output outputs = 1;
+}
+
+// The master Query object
+message TimeSeriesQuery {
+  Time time = 1;
+  repeated FilterSet filter_sets = 2;
+  repeated Metric metrics = 3;
+  repeated Expression expressions = 4;
+  Outputs outputs = 5;
+  repeated DataType types = 6;
+  repeated TimeSeriesQuery children = 7;
+  
+  bool use_cache = 16;
+  bytes internal_id = 17;
+  bool trace = 18;
+  TimeSeriesQuery parent = 19;
+  uint32 depth = 20;
+  bool planned = 21;
+  bool reverse = 22;
+  bool streaming = 23;
+  uint32 order = 24;
+}

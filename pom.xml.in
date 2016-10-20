@@ -63,7 +63,90 @@
     <sourceDirectory>src-main</sourceDirectory>
     <testSourceDirectory>src-test</testSourceDirectory>
 
+    <extensions>
+      <!-- provides os.detected.classifier (i.e. linux-x86_64, osx-x86_64) property -->
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>1.4.1.Final</version>
+      </extension>
+    
+      <extension>
+        <groupId>org.apache.maven.wagon</groupId>
+        <artifactId>wagon-ssh-external</artifactId>
+        <version>2.8</version>
+      </extension>
+    </extensions>
+        
     <plugins>
+      <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-dependency-plugin</artifactId>
+          <version>2.10</version>
+          <executions>
+              <execution>
+                  <id>copy-protoc</id>
+                  <phase>initialize</phase>
+                  <goals>
+                      <goal>copy</goal>
+                  </goals>
+                  <configuration>
+                      <artifactItems>
+                          <artifactItem>
+                              <groupId>com.google.protobuf</groupId>
+                              <artifactId>protoc</artifactId>
+                              <version>${protobuf.version}</version>
+                              <classifier>${os.detected.classifier}</classifier>
+                              <type>exe</type>
+                              <overWrite>true</overWrite>
+                              <outputDirectory>${project.build.directory}</outputDirectory>
+                          </artifactItem>
+                      </artifactItems>
+                      <useJvmChmod>true</useJvmChmod>
+                  </configuration>
+              </execution>
+          </executions>
+      </plugin>
+
+      <plugin>
+          <groupId>org.xolstice.maven.plugins</groupId>
+          <artifactId>protobuf-maven-plugin</artifactId>
+          <version>0.5.0</version>
+          <configuration>
+              <protocExecutable>${project.build.directory}/protoc-${protobuf.version}-${os.detected.classifier}.exe</protocExecutable>
+              <protoSourceRoot>${basedir}/src/proto</protoSourceRoot>
+              <outputDirectory>${project.build.directory}/generated-sources</outputDirectory>
+              <!--
+    The version of protoc must match protobuf-java. If you don't depend on
+    protobuf-java directly, you will be transitively depending on the
+    protobuf-java version that grpc depends on.
+  -->
+  <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
+  <pluginId>grpc-java</pluginId>
+  <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
+          </configuration>
+          <executions>
+              <execution>
+                  <id>pbufclasses</id>
+                  <phase>generate-sources</phase>
+                  <goals>
+                      <goal>compile</goal>
+                  </goals>
+              </execution>
+              
+              <execution>
+                  <id>grpcclasses</id>
+                  <phase>generate-sources</phase>
+                  <goals>
+                      <goal>compile-custom</goal>
+                  </goals>
+                  <configuration>
+                    <!-- If we leave this as the default, then GRPC will flush the pbuf classes! -->
+                    <clearOutputDirectory>false</clearOutputDirectory>
+                  </configuration>
+              </execution>
+          </executions>
+      </plugin>
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -191,6 +274,20 @@
         <artifactId>maven-antrun-plugin</artifactId>
         <version>1.7</version>
         <executions>
+        <execution>
+             <id>protoc-perm</id>
+             <phase>initialize</phase>
+              <goals>
+                  <goal>run</goal>
+              </goals>
+              <configuration>
+                 <target>
+                    <!-- Dependency plugin discards file permissions so we need to set them back manually -->
+                    <chmod file="${project.build.directory}/protoc-${protobuf.version}-${os.detected.classifier}.exe" perm="ugo+rx" />
+                 </target>
+              </configuration>
+          </execution>
+          
           <execution>
             <phase>process-resources</phase>
             <configuration>
@@ -340,6 +437,36 @@
   </build>
 
   <dependencies>
+    <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-core</artifactId>
+        <version>${grpc.version}</version>
+    </dependency>
+    <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-stub</artifactId>
+        <version>${grpc.version}</version>
+    </dependency>
+    <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-netty</artifactId>
+        <version>${grpc.version}</version>
+    </dependency>
+    <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-protobuf</artifactId>
+        <version>${grpc.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <version>${protobuf.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java-util</artifactId>
+      <version>${protobuf.version}</version>
+    </dependency>
 
     <dependency>
       <groupId>com.google.guava</groupId>
@@ -490,6 +617,9 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <protobuf.version>3.0.0-beta-2</protobuf.version>
+    <grpc.version>0.14.0</grpc.version>
+    <buildtype>release</buildtype>
   </properties>
   
   <profiles>
@@ -569,7 +699,7 @@
 
     </profile>
   </profiles>
-  
+
   <parent>
     <groupId>org.sonatype.oss</groupId>
     <artifactId>oss-parent</artifactId>
