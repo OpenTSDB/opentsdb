@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
+// Copyright (C) 2010-2015  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -24,6 +25,8 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
 
+import org.hbase.async.HBaseException;
+import org.hbase.async.PleaseThrottleException;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -35,65 +38,194 @@ import org.slf4j.LoggerFactory;
 import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
+import net.opentsdb.rollup.NoSuchRollupForIntervalException;
+import net.opentsdb.rollup.RollUpDataPoint;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.NoSuchUniqueName;
+import net.opentsdb.utils.Config;
 
-/** Implements the "put" telnet-style command. */
-final class PutDataPointRpc implements TelnetRpc, HttpRpc {
-  private static final Logger LOG = LoggerFactory.getLogger(PutDataPointRpc.class);
-  private static final ArrayList<Boolean> EMPTY_DEFERREDS = 
+/**
+ * This class handles the parsing and writing of data points over any of the
+ * implemented RPCs. Each put method should track the deferred of the 
+ * {@code tsdb.addPoint()} method so that we know whether or not the write was
+ * actually successful. Note that if HBase is backed up, then the arguments
+ * will hang around until the deferred is called back. This could take many
+ * seconds, during which time the heap will keep growing. 
+ * <p>
+ * Each execute method also checks the tsd's {@code StorageExceptionHandler} 
+ * object on failure so that we can do something else with the data point such
+ * as spool it to disk or send it back to an external queue. We do that in the
+ * error callback here instead of in the TSDB {@code addPoint()} because we 
+ * want to avoid adding yet another callback and chewing up more heap 
+ * unnecessarily.  
+ * <p>
+ * Note that this class can be subclassed to handle different types of 
+ * data points such as Rollups or Pre-Aggregates
+ */
+class PutDataPointRpc implements TelnetRpc, HttpRpc {
+  protected static final Logger LOG = LoggerFactory.getLogger(PutDataPointRpc.class);
+  protected static final ArrayList<Boolean> EMPTY_DEFERREDS = 
       new ArrayList<Boolean>(0);
-  private static final AtomicLong requests = new AtomicLong();
-  private static final AtomicLong hbase_errors = new AtomicLong();
-  private static final AtomicLong invalid_values = new AtomicLong();
-  private static final AtomicLong illegal_arguments = new AtomicLong();
-  private static final AtomicLong unknown_metrics = new AtomicLong();
-  private static final AtomicLong writes_blocked = new AtomicLong();
-  private static final AtomicLong writes_timedout = new AtomicLong();
+  protected static final AtomicLong telnet_requests = new AtomicLong();
+  protected static final AtomicLong http_requests = new AtomicLong();
+  protected static final AtomicLong raw_dps = new AtomicLong();
+  protected static final AtomicLong rollup_dps = new AtomicLong();
+  protected static final AtomicLong raw_stored = new AtomicLong();
+  protected static final AtomicLong rollup_stored = new AtomicLong();
+  protected static final AtomicLong hbase_errors = new AtomicLong();
+  protected static final AtomicLong unknown_errors = new AtomicLong();
+  protected static final AtomicLong invalid_values = new AtomicLong();
+  protected static final AtomicLong illegal_arguments = new AtomicLong();
+  protected static final AtomicLong unknown_metrics = new AtomicLong();
+  protected static final AtomicLong inflight_exceeded = new AtomicLong();
+  protected static final AtomicLong writes_blocked = new AtomicLong();
+  protected static final AtomicLong writes_timedout = new AtomicLong();
+  protected static final AtomicLong requests_timedout = new AtomicLong();
   
+  /** Whether or not to send error messages back over telnet */
+  private final boolean send_telnet_errors;
+  
+  /** The type of data point we're writing.
+   * @since 2.4 */
+  public enum DataPointType {
+    PUT("put"),
+    ROLLUP("rollup");
+    
+    private final String name;
+    DataPointType(final String name) {
+      this.name = name;
+    }
+    
+    @Override
+    public String toString() {
+      return name;
+    }
+  }
+  
+  /**
+   * Default Ctor
+   * @param config The TSDB config to pull from
+   */
+  public PutDataPointRpc(final Config config) {
+    send_telnet_errors = config.getBoolean("tsd.rpc.telnet.return_errors");
+  }
+  
+  @Override
   public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                   final String[] cmd) {
-    requests.incrementAndGet();
+    telnet_requests.incrementAndGet();
+    final DataPointType type;
+    final String command = cmd[0].toLowerCase();
+    if (command.equals("put")) {
+      type = DataPointType.PUT;
+      raw_dps.incrementAndGet();
+    } else if (command.equals("rollup")) {
+      type = DataPointType.ROLLUP;
+      rollup_dps.incrementAndGet();
+    } else {
+      throw new IllegalArgumentException("Unrecognized command: " + cmd[0]);
+    }
+
     String errmsg = null;
     try {
-      final class PutErrback implements Callback<Exception, Exception> {
-        public Exception call(final Exception arg) {
+      
+      /**
+       * Error callback that handles passing a data point to the storage 
+       * exception handler as well as responding to the client when HBase
+       * is unable to write the data.
+       */
+      final class PutErrback implements Callback<Object, Exception> {
+        @Override
+        public Object call(final Exception arg) {
+          String errmsg = null;
+          if (arg instanceof PleaseThrottleException) {
+            if (send_telnet_errors) {
+              errmsg = type + ": Please throttle writes: " + arg.getMessage() + '\n';
+            }
+            inflight_exceeded.incrementAndGet();
+          } else {
+            if (send_telnet_errors) {
+              errmsg = type + ": HBase error: " + arg.getMessage()+ '\n';
+            }
+            if (arg instanceof HBaseException) {
+              hbase_errors.incrementAndGet();
+            }
+          }
+          
           // we handle the storage exceptions here so as to avoid creating yet
           // another callback object on every data point.
           handleStorageException(tsdb, getDataPointFromString(cmd), arg);
-          if (chan.isConnected()) {
-            if (chan.isWritable()) {
-              chan.write("put: HBase error: " + arg.getMessage() + '\n');
-            } else {
-              writes_blocked.incrementAndGet();
+          
+          if (send_telnet_errors) {
+            if (chan.isConnected()) {
+              if (chan.isWritable()) {
+                chan.write(errmsg);
+              } else {
+                writes_blocked.incrementAndGet();
+              }
             }
           }
-          hbase_errors.incrementAndGet();
+          
           return null;
         }
         public String toString() {
           return "report error to channel";
         }
       }
-      return importDataPoint(tsdb, cmd).addErrback(new PutErrback());
+      
+      /**
+       * Simply called to increment the success counter and log hearbeats
+       */
+      final class SuccessCB implements Callback<Object, Object> {
+        @Override
+        public Object call(final Object obj) {
+          if (type == DataPointType.PUT) {
+            raw_stored.incrementAndGet();
+          } else {
+            rollup_stored.incrementAndGet();
+          }
+          return true;
+        }
+      }
+      
+      // Rollups override this method in their implementation so that it will
+      // route properly.
+      return importDataPoint(tsdb, cmd)
+          .addCallback(new SuccessCB())
+          .addErrback(new PutErrback());
     } catch (NumberFormatException x) {
-      errmsg = "put: invalid value: " + x.getMessage() + '\n';
+      errmsg = type + ": invalid value: " + x.getMessage() + '\n';
       invalid_values.incrementAndGet();
+    } catch (NoSuchRollupForIntervalException x) {
+      errmsg = type + ": No such rollup: " + x.getMessage() + '\n';
+      illegal_arguments.incrementAndGet();
     } catch (IllegalArgumentException x) {
-      errmsg = "put: illegal argument: " + x.getMessage() + '\n';
+      errmsg = type + ": illegal argument: " + x.getMessage() + '\n';
       illegal_arguments.incrementAndGet();
     } catch (NoSuchUniqueName x) {
-      errmsg = "put: unknown metric: " + x.getMessage() + '\n';
+      errmsg = type + ": unknown metric: " + x.getMessage() + '\n';
       unknown_metrics.incrementAndGet();
+    /*} catch (NoSuchUniqueNameInCache x) {
+      errmsg = "put: waiting for cache: " + x.getMessage() + '\n';
+      handleStorageException(tsdb, getDataPointFromString(cmd), x); */
+    } catch (PleaseThrottleException x) {
+      errmsg = type + ": Throttling exception: " + x.getMessage() + '\n';
+      inflight_exceeded.incrementAndGet();
+      handleStorageException(tsdb, getDataPointFromString(cmd), x);
+    } catch (TimeoutException tex) {
+      errmsg = type + ": Request timed out: " + tex.getMessage() + '\n';
+      handleStorageException(tsdb, getDataPointFromString(cmd), tex);
     }
-    if (errmsg != null) {
-      LOG.debug(errmsg);
-      if (chan.isConnected()) {
-        if (chan.isWritable()) {
-          chan.write(errmsg);
-        } else {
-          writes_blocked.incrementAndGet();
-        }
+    catch (RuntimeException rex) {
+      errmsg = type + ": Unexpected runtime exception: " + rex.getMessage() + '\n';
+      throw rex;
+    }
+    
+    if (errmsg != null && chan.isConnected()) {
+      if (chan.isWritable()) {
+        chan.write(errmsg);
+      } else {
+        writes_blocked.incrementAndGet();
       }
     }
     return Deferred.fromResult(null);
@@ -108,9 +240,10 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @throws BadRequestException if the user supplied bad data
    * @since 2.0
    */
+  @Override
   public void execute(final TSDB tsdb, final HttpQuery query) 
     throws IOException {
-    requests.incrementAndGet();
+    http_requests.incrementAndGet();
     
     // only accept POST
     if (query.method() != HttpMethod.POST) {
@@ -118,12 +251,33 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
           "Method not allowed", "The HTTP method [" + query.method().getName() +
           "] is not permitted for this endpoint");
     }
-    
-    final List<IncomingDataPoint> dps = query.serializer().parsePutV1();
+    final List<IncomingDataPoint> dps;
+    try {
+      dps = query.serializer()
+          .parsePutV1(IncomingDataPoint.class, HttpJsonSerializer.TR_INCOMING);
+    } catch (BadRequestException e) {
+      illegal_arguments.incrementAndGet();
+      throw e;
+    }
+    processDataPoint(tsdb, query, dps);
+  }
+  
+  /**
+   * Handles one or more incoming data point types for the HTTP endpoint
+   * to put raw, rolled up or aggregated data points
+   * @param <T> An {@link IncomingDataPoint} class.
+   * @param tsdb The TSDB to which we belong
+   * @param query The query to respond to
+   * @param dps The de-serialized data points
+   * @throws BadRequestException if the data is invalid in some way
+   * @since 2.4
+   */
+  public <T extends IncomingDataPoint> void processDataPoint(final TSDB tsdb, 
+      final HttpQuery query, final List<T> dps) {
     if (dps.size() < 1) {
       throw new BadRequestException("No datapoints found in content");
     }
-    
+
     final boolean show_details = query.hasQueryStringParam("details");
     final boolean show_summary = query.hasQueryStringParam("summary");
     final boolean synchronous = query.hasQueryStringParam("sync");
@@ -132,111 +286,153 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     // this is used to coordinate timeouts
     final AtomicBoolean sending_response = new AtomicBoolean();
     sending_response.set(false);
-        
-    final ArrayList<HashMap<String, Object>> details = show_details
-      ? new ArrayList<HashMap<String, Object>>() : null;
+    
+    final List<Map<String, Object>> details = show_details
+        ? new ArrayList<Map<String, Object>>() : null;
     int queued = 0;
     final List<Deferred<Boolean>> deferreds = synchronous ? 
         new ArrayList<Deferred<Boolean>>(dps.size()) : null;
+    
     for (final IncomingDataPoint dp : dps) {
+      final DataPointType type;
+      if (dp instanceof RollUpDataPoint) {
+        type = DataPointType.ROLLUP;
+        rollup_dps.incrementAndGet();
+      } else {
+        type = DataPointType.PUT;
+        raw_dps.incrementAndGet();
+      }
 
-      /** Handles passing a data point to the storage exception handler if 
-       * we were unable to store it for any reason */
+      /**
+       * Error back callback to handle storage failures
+       */
       final class PutErrback implements Callback<Boolean, Exception> {
         public Boolean call(final Exception arg) {
-          handleStorageException(tsdb, dp, arg);
-          hbase_errors.incrementAndGet();
+          if (arg instanceof PleaseThrottleException) {
+            inflight_exceeded.incrementAndGet();
+          } else {
+            hbase_errors.incrementAndGet();
+          }
           
           if (show_details) {
             details.add(getHttpDetails("Storage exception: " 
                 + arg.getMessage(), dp));
           }
+          
+          // we handle the storage exceptions here so as to avoid creating yet
+          // another callback object on every data point.
+          handleStorageException(tsdb, dp, arg);
           return false;
         }
         public String toString() {
-          return "HTTP Put Exception CB";
+          return "HTTP Put exception";
         }
       }
-      
-      /** Simply marks the put as successful */
+
       final class SuccessCB implements Callback<Boolean, Object> {
         @Override
         public Boolean call(final Object obj) {
+          switch (type) {
+          case PUT:
+            raw_stored.incrementAndGet();
+            break;
+          case ROLLUP:
+            rollup_stored.incrementAndGet();
+            break;
+          default:
+            // don't care
+          }
           return true;
-        }
-        public String toString() {
-          return "HTTP Put success CB";
         }
       }
       
       try {
-        if (dp.getMetric() == null || dp.getMetric().isEmpty()) {
-          if (show_details) {
-            details.add(this.getHttpDetails("Metric name was empty", dp));
-          }
-          LOG.warn("Metric name was empty: " + dp);
+        if (!dp.validate(details)) {
           illegal_arguments.incrementAndGet();
           continue;
         }
-        if (dp.getTimestamp() <= 0) {
-          if (show_details) {
-            details.add(this.getHttpDetails("Invalid timestamp", dp));
-          }
-          LOG.warn("Invalid timestamp: " + dp);
-          illegal_arguments.incrementAndGet();
-          continue;
-        }
-        if (dp.getValue() == null || dp.getValue().isEmpty()) {
-          if (show_details) {
-            details.add(this.getHttpDetails("Empty value", dp));
-          }
-          LOG.warn("Empty value: " + dp);
-          invalid_values.incrementAndGet();
-          continue;
-        }
-        if (dp.getTags() == null || dp.getTags().size() < 1) {
-          if (show_details) {
-            details.add(this.getHttpDetails("Missing tags", dp));
-          }
-          LOG.warn("Missing tags: " + dp);
-          illegal_arguments.incrementAndGet();
-          continue;
-        }
-        final Deferred<Object> deferred;
+        // TODO - refactor the add calls someday or move some of this into the 
+        // actual data point class.
+        final Deferred<Boolean> deferred;
         if (Tags.looksLikeInteger(dp.getValue())) {
-          deferred = tsdb.addPoint(dp.getMetric(), dp.getTimestamp(), 
-              Tags.parseLong(dp.getValue()), dp.getTags());
+          if (dp instanceof RollUpDataPoint) {
+            final RollUpDataPoint rdp = (RollUpDataPoint)dp;
+            deferred = tsdb.addAggregatePoint(rdp.getMetric(), rdp.getTimestamp(), 
+                Tags.parseLong(rdp.getValue()), dp.getTags(), false, 
+                rdp.getInterval(), rdp.getAggregator())
+                .addCallback(new SuccessCB())
+                .addErrback(new PutErrback());
+          } else {
+            deferred = tsdb.addPoint(dp.getMetric(), dp.getTimestamp(),
+                Tags.parseLong(dp.getValue()), dp.getTags())
+                .addCallback(new SuccessCB())
+                .addErrback(new PutErrback());
+          }
         } else {
-          deferred = tsdb.addPoint(dp.getMetric(), dp.getTimestamp(), 
-              Float.parseFloat(dp.getValue()), dp.getTags());
+          if (dp instanceof RollUpDataPoint) {
+            final RollUpDataPoint rdp = (RollUpDataPoint)dp;
+            deferred = tsdb.addAggregatePoint(rdp.getMetric(), rdp.getTimestamp(), 
+                Float.parseFloat(rdp.getValue()), dp.getTags(), false, 
+                rdp.getInterval(), rdp.getAggregator())
+                .addCallback(new SuccessCB())
+                .addErrback(new PutErrback());
+          } else {
+            deferred = tsdb.addPoint(dp.getMetric(), dp.getTimestamp(),
+                Float.parseFloat(dp.getValue()), dp.getTags())
+                .addCallback(new SuccessCB())
+                .addErrback(new PutErrback());
+          }
         }
-        if (synchronous) {
-          deferreds.add(deferred.addCallback(new SuccessCB()));
-        }
-        deferred.addErrback(new PutErrback());
         ++queued;
+        if (synchronous) {
+          deferreds.add(deferred);
+        }
+        
       } catch (NumberFormatException x) {
         if (show_details) {
-          details.add(this.getHttpDetails("Unable to parse value to a number", 
+          details.add(getHttpDetails("Unable to parse value to a number",
               dp));
         }
         LOG.warn("Unable to parse value to a number: " + dp);
         invalid_values.incrementAndGet();
       } catch (IllegalArgumentException iae) {
         if (show_details) {
-          details.add(this.getHttpDetails(iae.getMessage(), dp));
+          details.add(getHttpDetails(iae.getMessage(), dp));
         }
         LOG.warn(iae.getMessage() + ": " + dp);
         illegal_arguments.incrementAndGet();
       } catch (NoSuchUniqueName nsu) {
         if (show_details) {
-          details.add(this.getHttpDetails("Unknown metric", dp));
+          details.add(getHttpDetails("Unknown metric", dp));
         }
         LOG.warn("Unknown metric: " + dp);
         unknown_metrics.incrementAndGet();
+      } catch (PleaseThrottleException x) {
+        handleStorageException(tsdb, dp, x);
+        if (show_details) {
+          details.add(getHttpDetails("Please throttle", dp));
+        }
+        inflight_exceeded.incrementAndGet();
+      } catch (TimeoutException tex) {
+        handleStorageException(tsdb, dp, tex);
+        if (show_details) {
+          details.add(getHttpDetails("Timeout exception", dp));
+        }
+        requests_timedout.incrementAndGet();
+      /*} catch (NoSuchUniqueNameInCache x) {
+        handleStorageException(tsdb, dp, x);
+        if (show_details) {
+          details.add(getHttpDetails("Not cached yet", dp));
+        } */
+      } catch (RuntimeException e) {
+        if (show_details) {
+          details.add(getHttpDetails("Unexpected exception", dp));
+        }
+        LOG.warn("Unexpected exception: " + dp);
+        unknown_errors.incrementAndGet();
       }
     }
-    
+
     /** A timer task that will respond to the user with the number of timeouts
      * for synchronous writes. */
     class PutTimeout implements TimerTask {
@@ -377,7 +573,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
       public Object call(final Exception e) throws Exception {
         if (sending_response.get()) {
           if (LOG.isDebugEnabled()) {
-            LOG.debug("Put data point call " + query + " was marked as timedout");
+            LOG.debug("ERROR point call " + query + " was marked as timedout", e);
           }
           return null;
         } else {
@@ -396,7 +592,8 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     }
     
     if (synchronous) {
-      Deferred.groupInOrder(deferreds).addCallback(new GroupCB(queued))
+      Deferred.groupInOrder(deferreds)
+        .addCallback(new GroupCB(queued))
         .addErrback(new ErrCB());
     } else {
       new GroupCB(queued).call(EMPTY_DEFERREDS);
@@ -408,7 +605,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @param collector The collector to use.
    */
   public static void collectStats(final StatsCollector collector) {
-    collector.record("rpc.received", requests, "type=put");
+    collector.record("rpc.received", http_requests, "type=put");
     collector.record("rpc.errors", hbase_errors, "type=hbase_errors");
     collector.record("rpc.errors", invalid_values, "type=invalid_values");
     collector.record("rpc.errors", illegal_arguments, "type=illegal_arguments");
@@ -426,12 +623,14 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @throws IllegalArgumentException if any other argument is invalid.
    * @throws NoSuchUniqueName if the metric isn't registered.
    */
-  private Deferred<Object> importDataPoint(final TSDB tsdb, final String[] words) {
+  protected Deferred<Object> importDataPoint(final TSDB tsdb, 
+      final String[] words) {
     words[0] = null; // Ditch the "put".
     if (words.length < 5) {  // Need at least: metric timestamp value tag
       //               ^ 5 and not 4 because words[0] is "put".
       throw new IllegalArgumentException("not enough arguments"
-                                         + " (need least 4, got " + (words.length - 1) + ')');
+                                         + " (need least 4, got " 
+                                         + (words.length - 1) + ')');
     }
     final String metric = words[1];
     if (metric.length() <= 0) {
@@ -462,8 +661,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
       return tsdb.addPoint(metric, timestamp, Float.parseFloat(value), tags);
     }
   }
-
-
+  
   /**
    * Converts the string array to an IncomingDataPoint. WARNING: This method
    * does not perform validation. It should only be used by the Telnet style
@@ -472,7 +670,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @param words The array of strings representing a data point
    * @return An incoming data point object.
    */
-  final private IncomingDataPoint getDataPointFromString(final String[] words) {
+  protected IncomingDataPoint getDataPointFromString(final String[] words) {
     final IncomingDataPoint dp = new IncomingDataPoint();
     dp.setMetric(words[1]);
     

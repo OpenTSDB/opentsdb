@@ -43,6 +43,7 @@ import net.opentsdb.core.TSSubQuery;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.rollup.RollUpDataPoint;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.QueryStats.QueryStat;
@@ -66,8 +67,12 @@ import net.opentsdb.utils.JSON;
 class HttpJsonSerializer extends HttpSerializer {
 
   /** Type reference for incoming data points */
-  private static TypeReference<ArrayList<IncomingDataPoint>> TR_INCOMING =
+  static TypeReference<ArrayList<IncomingDataPoint>> TR_INCOMING =
     new TypeReference<ArrayList<IncomingDataPoint>>() {};
+  
+  /** Type reference for rollup data points */
+  public static TypeReference<ArrayList<RollUpDataPoint>> TR_ROLLUP =
+          new TypeReference<ArrayList<RollUpDataPoint>>() {};
   
   /** Type reference for uid assignments */
   private static TypeReference<HashMap<String, List<String>>> UID_ASSIGN =
@@ -145,6 +150,41 @@ class HttpJsonSerializer extends HttpSerializer {
         return dps;
       } else {
         return JSON.parseToObject(content, TR_INCOMING);
+      }
+    } catch (IllegalArgumentException iae) {
+      throw new BadRequestException("Unable to parse the given JSON", iae);
+    }
+  }
+  
+  /**
+   * Parses one or more data points for storage
+   * @return an array of data points to process for storage
+   * @throws JSONException if parsing failed
+   * @throws BadRequestException if the content was missing or parsing failed
+   * @since 2.4
+   */
+  @Override
+  public <T extends IncomingDataPoint> List<T> parsePutV1(
+      final Class<T> type, final TypeReference<ArrayList<T>> typeReference) {
+    if (!query.hasContent()) {
+      throw new BadRequestException("Missing request content");
+    }
+
+    // convert to a string so we can handle character encoding properly
+    final String content = query.getContent().trim();
+    final int firstbyte = content.charAt(0);
+    try {
+      if (firstbyte == '{') {
+        final T dp =
+          JSON.parseToObject(content, type);
+        final ArrayList<T> dps =
+          new ArrayList<T>(1);
+        dps.add(dp);
+        return dps;
+      } else if (firstbyte == '[') {
+        return JSON.parseToObject(content, typeReference);
+      } else {
+        throw new BadRequestException("The JSON must start as an object or an array");
       }
     } catch (IllegalArgumentException iae) {
       throw new BadRequestException("Unable to parse the given JSON", iae);

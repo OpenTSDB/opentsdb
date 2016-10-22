@@ -100,7 +100,7 @@ public class BaseTsdbTest {
     }
   }
   
-  protected HashedWheelTimer timer;
+  protected FakeTaskTimer timer;
   protected Config config;
   protected TSDB tsdb;
   protected HBaseClient client = mock(HBaseClient.class);
@@ -113,7 +113,7 @@ public class BaseTsdbTest {
   @Before
   public void before() throws Exception {
     PowerMockito.mockStatic(Threads.class);
-    timer = mock(HashedWheelTimer.class);
+    timer = new FakeTaskTimer();
     PowerMockito.when(Threads.newTimer(anyString())).thenReturn(timer);
     PowerMockito.when(Threads.newTimer(anyInt(), anyString())).thenReturn(timer);
     

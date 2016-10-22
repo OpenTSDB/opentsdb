@@ -13,6 +13,7 @@
 package net.opentsdb.tsd;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import ch.qos.logback.classic.spi.ThrowableProxy;
 import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.DataPoints;
@@ -172,6 +174,23 @@ public abstract class HttpSerializer {
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
         " has not implemented parsePutV1");
+  }
+  
+  /**
+   * Parses one or more data points for storage
+   * @param <T> The type of incoming data points to parse.
+   * @param type The type of the class to parse.
+   * @param typeReference The reference to use for parsing.
+   * @return an array of data points to process for storage
+   * @throws BadRequestException if the plugin has not implemented this method
+   * @since 2.4
+   */
+  public <T extends IncomingDataPoint> List<T> parsePutV1(final Class<T> type,
+      final TypeReference<ArrayList<T>> typeReference) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED,
+        "The requested API endpoint has not been implemented",
+        this.getClass().getCanonicalName() +
+            " has not implemented parsePutV1");
   }
   
   /**
