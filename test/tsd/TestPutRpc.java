@@ -412,6 +412,32 @@ public final class TestPutRpc extends BaseTestPutRpc {
   }
   
   @Test
+  public void putDoublePrecisionFloatingPoint() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
+        "{\"metric\":\"" + METRIC_STRING + "\",\"timestamp\":1365465600,\"value\""
+        + ":123456.123456789,\"tags\":{\"" + TAGK_STRING + "\":\"" 
+        + TAGV_STRING + "\"}}");
+    PutDataPointRpc put = new PutDataPointRpc(tsdb.getConfig());
+    put.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
+    validateCounters(0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    validateSEH(false);
+  }
+
+  @Test
+  public void putNegativeDoublePrecisionFloatingPoint() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
+        "{\"metric\":\"" + METRIC_STRING + "\",\"timestamp\":1365465600,\"value\""
+        + ":-123456.123456789,\"tags\":{\"" + TAGK_STRING + "\":\"" 
+        + TAGV_STRING + "\"}}");
+    PutDataPointRpc put = new PutDataPointRpc(tsdb.getConfig());
+    put.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
+    validateCounters(0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    validateSEH(false);
+  }
+  
+  @Test
   public void putNegativeFloat() throws Exception {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
         "{\"metric\":\"" + METRIC_STRING + "\",\"timestamp\":1365465600,\"value\""

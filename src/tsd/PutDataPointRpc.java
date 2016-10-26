@@ -378,7 +378,10 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
                 .addErrback(new PutErrback());
           } else {
             deferred = tsdb.addPoint(dp.getMetric(), dp.getTimestamp(),
-                Float.parseFloat(dp.getValue()), dp.getTags())
+                (Tags.fitsInFloat(dp.getValue()) ? 
+                    Float.parseFloat(dp.getValue()) :
+                      Double.parseDouble(dp.getValue())), 
+                  dp.getTags())
                 .addCallback(new SuccessCB())
                 .addErrback(new PutErrback());
           }
@@ -657,8 +660,10 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
     }
     if (Tags.looksLikeInteger(value)) {
       return tsdb.addPoint(metric, timestamp, Tags.parseLong(value), tags);
-    } else {  // floating point value
+    } else if (Tags.fitsInFloat(value)) {  // floating point value
       return tsdb.addPoint(metric, timestamp, Float.parseFloat(value), tags);
+    } else {
+      return tsdb.addPoint(metric, timestamp, Double.parseDouble(value), tags);
     }
   }
   
