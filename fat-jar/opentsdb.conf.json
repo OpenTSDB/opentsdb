@@ -1,0 +1,439 @@
+{
+  "config-items": [
+    {
+      "key": "tsd.core.auto_create_metrics",
+      "cl-option": "--auto-metric",
+      "defaultValue": "false",
+      "description": "Whether or not a data point with a new metric will assign a UID to the metric. When false, a data point with a metric that is not in the database will be rejected and an exception will be thrown",
+      "help": "default",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.core.auto_create_tagks",
+      "cl-option": "--auto-tagk",
+      "defaultValue": "true",
+      "description": "Whether or not a data point with a new tag name will assign a UID to the tagk. When false, a data point with a tag name that is not in the database will be rejected and an exception will be thrown",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.core.auto_create_tagvs",
+      "cl-option": "--auto-tagv",
+      "defaultValue": "true",
+      "description": "Whether or not a data point with a new tag value will assign a UID to the tagv. When false, a data point with a tag value that is not in the database will be rejected and an exception will be thrown",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.core.meta.enable_realtime_ts",
+      "cl-option": "--realtime-ts",
+      "defaultValue": "false",
+      "description": "Whether or not to enable real-time TSMeta object creation",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.core.meta.enable_realtime_uid",
+      "cl-option": "--realtime-uid",
+      "defaultValue": "false",
+      "description": "Whether or not to enable real-time UIDMeta object creation",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.core.meta.enable_tsuid_incrementing",
+      "cl-option": "--tsuid-incr",
+      "defaultValue": "false",
+      "description": "Whether or not to enable tracking of TSUIDs by incrementing a counter every time a data point is recorded. (Overrides tsd.core.meta.enable_tsuid_tracking)",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.core.meta.enable_tsuid_tracking",
+      "cl-option": "--tsuid-tracking",
+      "defaultValue": "false",
+      "description": "Whether or not to enable tracking of TSUIDs by storing a 1 with the current timestamp every time a data point is recorded",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.core.plugin_path",
+      "cl-option": "--plugin-path",
+      "description": "A path to search for plugins when the TSD starts. If the path is invalid, the TSD will fail to start. Plugins can still be enabled if they are in the class path",
+      "help": "extended",
+      "meta": "CLASSPATH"
+    },
+    {
+      "key": "tsd.core.preload_uid_cache",
+      "cl-option": "--tsd-preloaduids",
+      "defaultValue": "false",
+      "description": "Enables pre-population of the UID caches when starting a TSD",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.core.preload_uid_cache.max_entries",
+      "cl-option": "--tsd-maxuids",
+      "defaultValue": 300000,
+      "description": "The number of rows to scan for UID pre-loading",
+      "help": "extended",
+      "meta": "POSINT"
+    },
+    {
+      "key": "tsd.core.timezone",
+      "cl-option": "--tsd-timezone",
+      "defaultValue": "${user.timezone}",
+      "description": "A localized timezone identification string used to override the local system timezone used when converting absolute times to UTC when executing a query. This does not affect incoming data timestamps. E.g. America/Los_Angeles",
+      "help": "extended",
+      "meta": "TIMEZONE"
+    },
+    {
+      "key": "tsd.core.tree.enable_processing",
+      "cl-option": "--enable-tree",
+      "defaultValue": "false",
+      "description": "Whether or not to enable processing new/edited TSMeta through tree rule sets",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.http.cachedir",
+      "cl-option": "--cachedir",
+      "defaultValue": "${java.io.tmpdir}/.tsdb/http-cache/",
+      "description": "The full path to a location where temporary files can be written. e.g. /tmp/opentsdb",
+      "help": "default",
+      "meta": "DIR"
+    },
+    {
+      "key": "tsd.http.request.cors_domains",
+      "cl-option": "--cors-domains",
+      "description": "A comma separated list of domain names to allow access to OpenTSDB when the Origin header is specified by the client. If empty, CORS requests are passed through without validation. The list may not contain the public wildcard * and specific domains at the same time",
+      "help": "extended",
+      "meta": "LIST"
+    },
+    {
+      "key": "tsd.http.request.cors_headers",
+      "cl-option": "--cors-headers",
+      "defaultValue": "Authorization, Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since",
+      "description": "A comma separated list of headers sent to clients when executing a CORs request. The literal value of this option will be passed to clients",
+      "help": "extended",
+      "meta": "LIST"
+    },
+    {
+      "key": "tsd.http.request.enable_chunked",
+      "cl-option": "--enable-chunked",
+      "defaultValue": "false",
+      "description": "Whether or not to enable incoming chunk support for the HTTP RPC",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.http.request.max_chunk",
+      "cl-option": "--max-chunk",
+      "defaultValue": "4096",
+      "description": "The maximum request body size to support for incoming HTTP requests when chunking is enabled",
+      "help": "extended",
+      "meta": "GTZEROINT"
+    },
+    {
+      "key": "tsd.http.show_stack_trace",
+      "cl-option": "--show-stack",
+      "defaultValue": "true",
+      "description": "Whether or not to return the stack trace with an API query response when an exception occurs",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.http.staticroot",
+      "cl-option": "--staticroot",
+      "defaultValue": "${java.io.tmpdir}/.tsdb/static-content",
+      "description": "Location of a directory where static files, such as JavaScript files for the web interface, are located. e.g. /opt/opentsdb/staticroot",
+      "help": "default",
+      "meta": "DIR"
+    },
+    {
+      "key": "tsd.mode",
+      "cl-option": "--tsd-mode",
+      "defaultValue": "rw",
+      "description": "Whether or not the TSD will allow writing data points. Must be either rw to allow writing data or ro to block writes",
+      "help": "extended",
+      "meta": "RWMODE"
+    },
+    {
+      "key": "tsd.network.async_io",
+      "cl-option": "--async-io",
+      "defaultValue": "true",
+      "description": "Whether or not to use NIO or tradditional blocking IO",
+      "help": "default",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.network.backlog",
+      "cl-option": "--backlog",
+      "defaultValue": "3072",
+      "description": "The connection queue depth for completed or incomplete connection requests depending on OS. The default may be limited by the 'somaxconn' kernel setting or set by Netty to 3072",
+      "help": "default",
+      "meta": "GTZEROINT"
+    },
+    {
+      "key": "tsd.network.bind",
+      "cl-option": "--bind",
+      "defaultValue": "0.0.0.0",
+      "description": "An IPv4 address to bind to for incoming requests. The default is to listen on all interfaces. e.g. 127.0.0.1",
+      "help": "default",
+      "meta": "ADDR"
+    },
+    {
+      "key": "tsd.network.keep_alive",
+      "cl-option": "--keep-alive",
+      "defaultValue": "true",
+      "description": "Whether or not to allow keep-alive connections",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.network.port",
+      "cl-option": "--port",
+      "defaultValue": "4242",
+      "description": "The TCP port to use for accepting connections",
+      "help": "default",
+      "meta": "POSINT"
+    },
+    {
+      "key": "tsd.network.reuse_address",
+      "cl-option": "--reuse-address",
+      "defaultValue": "true",
+      "description": "Whether or not to allow reuse of the bound port within Netty",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.network.tcp_no_delay",
+      "cl-option": "--tcp-no-delay",
+      "defaultValue": "true",
+      "description": "Whether or not to disable TCP buffering before sending data",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.network.worker_threads",
+      "cl-option": "--worker-threads",
+      "defaultValue": "$[new Integer(cores * 2)]",
+      "description": "The number of asynchronous IO worker threads for Netty",
+      "help": "default",
+      "meta": "GTZEROINT"
+    },
+    {
+      "key": "tsd.core.socket.timeout",
+      "cl-option": "--socket-timeout",
+      "defaultValue": 0,
+      "description": "The idle time timeout for allocated sockets (seconds)",
+      "help": "extended",
+      "meta": "POSINT"
+    },
+    {
+      "key": "tsd.no_diediedie",
+      "cl-option": "--tsd-nodie",
+      "defaultValue": "false",
+      "description": "Enable or disable the diediedie HTML and ASCII commands to shutdown a TSD",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.rpc.plugins",
+      "cl-option": "--rpc-plugins",
+      "description": "A comma delimited list of RPC plugins to load when starting a TSD. Must contain the entire class name",
+      "help": "extended",
+      "meta": "LIST"
+    },
+    {
+      "key": "tsd.rtpublisher.enable",
+      "cl-option": "--rtplublisher",
+      "defaultValue": "false",
+      "description": "Whether or not to enable a real time publishing plugin. If true, you must supply a valid tsd.rtpublisher.plugin class name",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.rtpublisher.plugin",
+      "cl-option": "--rtplublisher-plugin",
+      "description": "The class name of a real time publishing plugin to instantiate. If tsd.rtpublisher.enable is set to false, this value is ignored. e.g. net.opentsdb.tsd.RabbitMQPublisher",
+      "help": "extended",
+      "meta": "CLASS"
+    },
+    {
+      "key": "tsd.search.enable",
+      "cl-option": "--search",
+      "defaultValue": "false",
+      "description": "Whether or not to enable search functionality. If true, you must supply a valid tsd.search.plugin class name",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.search.plugin",
+      "cl-option": "--search-plugin",
+      "description": "The class name of a search plugin to instantiate. If tsd.search.enable is set to false, this value is ignored. e.g. net.opentsdb.search.ElasticSearch",
+      "help": "extended",
+      "meta": "CLASS"
+    },
+    {
+      "key": "tsd.stats.canonical",
+      "cl-option": "--stats-canonical",
+      "defaultValue": "false",
+      "description": "Whether or not the FQDN should be returned with statistics requests. The default stats are returned with host=<hostname> which is not guaranteed to perform a lookup and return the FQDN. Setting this to true will perform a name lookup and return the FQDN if found, otherwise it may return the IP. The stats output should be fqdn=<hostname>",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.storage.enable_compaction",
+      "cl-option": "--compaction",
+      "defaultValue": "true",
+      "description": "Whether or not to enable compactions",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.storage.fix_duplicates",
+      "cl-option": "--fixdups",
+      "defaultValue": "false",
+      "description": "Whether or not to accept the last written value when parsing data points with duplicate timestamps. When enabled in conjunction with compactions, a compacted column will be written with the latest data points",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.storage.flush_interval",
+      "cl-option": "--flush-interval",
+      "defaultValue": 1000,
+      "description": "How often, in milliseconds, to flush the data point storage write buffer",
+      "help": "default",
+      "meta": "GTZEROINT"
+    },
+    {
+      "key": "tsd.storage.hbase.data_table",
+      "cl-option": "--table",
+      "defaultValue": "tsdb",
+      "description": "Name of the HBase table where data points are stored",
+      "help": "default",
+      "meta": "TABLE"
+    },
+    {
+      "key": "tsd.storage.hbase.meta_table",
+      "cl-option": "--metatable",
+      "defaultValue": "tsdb-meta",
+      "description": "Name of the HBase table where meta data are stored",
+      "help": "extended",
+      "meta": "TABLE"
+    },
+    {
+      "key": "tsd.storage.hbase.tree_table",
+      "cl-option": "--treetable",
+      "defaultValue": "tsdb-tree",
+      "description": "Name of the HBase table where tree data are stored",
+      "help": "extended",
+      "meta": "TABLE"
+    },
+    {
+      "key": "tsd.storage.hbase.uid_table",
+      "cl-option": "--uidtable",
+      "defaultValue": "tsdb-uid",
+      "description": "Name of the HBase table where UID information is stored",
+      "help": "extended",
+      "meta": "TABLE"
+    },
+    {
+      "key": "tsd.storage.hbase.zk_basedir",
+      "cl-option": "--zkbasedir",
+      "defaultValue": "/hbase",
+      "description": "Path under which is the znode for the -ROOT- region (default: /hbase)",
+      "help": "default",
+      "meta": "ZPATH"
+    },
+    {
+      "key": "tsd.storage.hbase.zk_quorum",
+      "cl-option": "--zkquorum",
+      "defaultValue": "localhost",
+      "description": "A comma-separated list of ZooKeeper hosts to connect to, with or without port specifiers. e.g. 192.168.1.1:2181,192.168.1.2:2181 (default: localhost)",
+      "help": "default",
+      "meta": "SPEC"
+    },
+    {
+      "key": "tsd.logback.file",
+      "cl-option": "--logback",
+      "description": "The file name that the tsd will log to using logback",
+      "help": "default",
+      "meta": "EDIRFILE"
+    },
+    {
+      "key": "tsd.logback.rollpattern",
+      "cl-option": "--logback-roll",
+      "description": "The pattern specifying the rolling file pattern, inserted between the file name base and extension",
+      "defaultValue" : "_%d{yyyy-MM-dd}.%i", 
+      "help": "default"
+    },
+    {
+      "key": "tsd.logback.console",
+      "cl-option": "--logback-console",
+      "description": "If specified, logback will log to the configured file and keep logging to the console",
+      "defaultValue": "false",      
+      "help": "default",
+      "meta": "BOOL"     
+    },    
+    {
+      "key": "tsd.logback.config",
+      "cl-option": "--logback-config",
+      "description": "The file name of an external logback configuration",
+      "help": "default",
+      "meta": "EFILE"
+    },    
+        
+    {
+      "key": "tsd.process.pid.file",
+      "cl-option": "--pid-file",
+      "defaultValue": "${java.io.tmpdir}/.tsdb/opentsdb.pid",
+      "description": "The file to write the process PID to. Defaults to [${user.home}.tsdb/opentsdb.pid]",
+      "help": "default",
+      "meta": "FILE"
+    },
+    {
+      "key": "help",
+      "cl-option": "--help",
+      "defaultValue": "",
+      "description": "Prints the default command line usage options, or the extended if 'extended' is passed as an arg",
+      "help": "default"
+    },
+    {
+      "key": "tsd.core.config",
+      "cl-option": "--config",
+      "description": "The core config file overlayed on this default",
+      "help": "default",
+      "meta": "URLORFILE"
+    },
+    {
+      "key": "tsd.ui.noexport",
+      "cl-option": "--no-uiexport",
+      "defaultValue": "false",
+      "description": "Skips the boot time export of static UI content to tsd.http.staticroot",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.process.pid.ignore.existing",
+      "cl-option": "--ignore-existing-pid",
+      "defaultValue": "false",
+      "description": "If true, ignores and overwrites an existing pid file on startup",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.core.config.include",
+      "cl-option": "--include",
+      "description": "An additional config overlay useful when the --config file is fairly static",
+      "help": "extended",
+      "meta": "URLORFILE"
+    }
+  ],
+  "bindings": [
+    "//importPackage(Packages.java.lang);",
+    "var processors = java.lang.Runtime.getRuntime().availableProcessors();",
+    "var maxbytes = java.lang.Runtime.getRuntime().maxMemory();"
+  ]
+}

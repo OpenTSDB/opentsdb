@@ -160,6 +160,13 @@ public class Config {
     setDefaults();
   }
 
+  /**
+   * Creates a new empty Config
+   */
+  public Config() {
+    
+  }
+  
   /** @return The file that generated this config. May be null */
   public String configLocation() {
     return config_location;
@@ -639,7 +646,7 @@ public class Config {
    * Loads the static class variables for values that are called often. This
    * should be called any time the configuration changes.
    */
-  protected void loadStaticVariables() {
+  public void loadStaticVariables() {
     auto_metric = this.getBoolean("tsd.core.auto_create_metrics");
     auto_tagk = this.getBoolean("tsd.core.auto_create_tagks");
     auto_tagv = this.getBoolean("tsd.core.auto_create_tagvs");
