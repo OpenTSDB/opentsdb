@@ -26,20 +26,31 @@ import java.util.TreeMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.hbase.async.BinaryPrefixComparator;
 import org.hbase.async.Bytes;
+import org.hbase.async.CompareFilter;
 import org.hbase.async.DeleteRequest;
+import org.hbase.async.FilterList;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
+import org.hbase.async.QualifierFilter;
+import org.hbase.async.ScanFilter;
 import org.hbase.async.Scanner;
 import org.hbase.async.Bytes.ByteMap;
+import org.hbase.async.FilterList.Operator;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import net.opentsdb.core.TsdbQuery.ROLLUP_USAGE;
 import net.opentsdb.query.QueryUtil;
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.rollup.NoSuchRollupForIntervalException;
+import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.RollupQuery;
+import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.QueryStats.QueryStat;
@@ -122,6 +133,20 @@ final class TsdbQuery implements Query {
   /** Downsampling specification to use, if any (can be {@code null}). */
   private DownsamplingSpecification downsampler;
 
+  /** Rollup interval and aggregator, null if not applicable. */
+  private RollupQuery rollup_query;
+  
+  /** Map of RollupInterval objects in the order of next best match
+   * like 1d, 1h, 10m, 1m, for rollup of 1d. */
+  private List<RollupInterval> best_match_rollups;
+  
+  /** How to use the rollup data */
+  private ROLLUP_USAGE rollup_usage = ROLLUP_USAGE.ROLLUP_NOFALLBACK;
+  
+  /** Search the query on pre-aggregated table directly instead of post fetch 
+   * aggregation. */
+  private boolean pre_aggregate;
+  
   /** Optional list of TSUIDs to fetch and aggregate instead of a metric */
   private List<String> tsuids;
   
@@ -137,6 +162,46 @@ final class TsdbQuery implements Query {
   /** Whether or not to match series with ONLY the given tags */
   private boolean explicit_tags;
   
+  /**
+   * Enum for rollup fallback control.
+   * @since 2.4
+   */
+  public static enum ROLLUP_USAGE {
+    ROLLUP_RAW, //Don't use rollup data, instead use raw data
+    ROLLUP_NOFALLBACK, //Use rollup data, and don't fallback on no data
+    ROLLUP_FALLBACK, //Use rollup data and fallback to next best match on data
+    ROLLUP_FALLBACK_RAW; //Use rollup data and fallback to raw on no data
+    
+    /**
+     * Parse and transform a string to ROLLUP_USAGE object
+     * @param str String to be parsed
+     * @return enum param tells how to use the rollup data
+     */
+    public static ROLLUP_USAGE parse(String str) {
+      ROLLUP_USAGE def = ROLLUP_NOFALLBACK;
+      
+      if (str != null) {
+        try {
+          def = ROLLUP_USAGE.valueOf(str.toUpperCase());
+        }
+        catch(IllegalArgumentException ex) {
+          LOG.warn("Unknown rollup usage, " + str + ", use default usage - which"
+                  + "uses raw data but don't fallback on no data");
+        }
+      }
+      
+      return def;
+    }
+    
+    /**
+     * Whether to fallback to next best match or raw
+     * @return true means fall back else false
+     */
+    public boolean fallback() {
+      return this == ROLLUP_FALLBACK || this == ROLLUP_FALLBACK_RAW;
+    }
+  }
+  
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
     this.tsdb = tsdb;
@@ -144,6 +209,25 @@ final class TsdbQuery implements Query {
         .getBoolean("tsd.query.enable_fuzzy_filter");
   }
 
+  /** Which rollup table it scanned to get the final result.
+   * @since 2.4 */
+  public String getRollupTable() {
+    if (RollupQuery.isValidQuery(rollup_query)) {
+      return rollup_query.getRollupInterval().getStringInterval();
+    }
+    else {
+      return "raw";
+    }
+  }
+  
+  /** Search the query on pre-aggregated table directly instead of post fetch 
+   * aggregation. 
+   * @since 2.4 
+   */
+  public boolean isPreAggregate() {
+      return this.pre_aggregate;
+  }
+  
   /**
    * Sets the start time for the query
    * @param timestamp Unix epoch timestamp in seconds or milliseconds
@@ -339,6 +423,11 @@ final class TsdbQuery implements Query {
     filters = sub_query.getFilters();
     explicit_tags = sub_query.getExplicitTags();
     
+    if (rollup_usage != ROLLUP_USAGE.ROLLUP_RAW) {
+      //Check whether the down sampler is set and rollup is enabled
+      transformDownSamplerToRollupQuery(sub_query.getDownsample());
+    }
+    
     // if we have tsuids set, that takes precedence
     if (sub_query.getTsuids() != null && !sub_query.getTsuids().isEmpty()) {
       tsuids = new ArrayList<String>(sub_query.getTsuids());
@@ -512,7 +601,14 @@ final class TsdbQuery implements Query {
   
   @Override
   public Deferred<DataPoints[]> runAsync() throws HBaseException {
-    return findSpans().addCallback(new GroupByAndAggregateCB());
+    Deferred<DataPoints[]> result = 
+        findSpans().addCallback(new GroupByAndAggregateCB());
+
+    if (rollup_usage != null && rollup_usage.fallback()) {
+      result.addCallback(new FallbackRollupOnEmptyResult());
+    }
+    
+    return result;
   }
 
   /**
@@ -880,9 +976,9 @@ final class TsdbQuery implements Query {
   }
 
   /**
-  * Callback that should be attached the the output of
-  * {@link TsdbQuery#findSpans} to group and sort the results.
-  */
+   * Callback that should be attached the the output of
+   * {@link TsdbQuery#findSpans} to group and sort the results.
+   */
   private class GroupByAndAggregateCB implements 
     Callback<DataPoints[], TreeMap<byte[], Span>>{
     
@@ -1012,6 +1108,71 @@ final class TsdbQuery implements Query {
   }
 
   /**
+   * Scan the tables again with the next best rollup match, on empty result set
+   */
+  private class FallbackRollupOnEmptyResult implements 
+     Callback<Deferred<DataPoints[]>, DataPoints[]>{
+
+     /**
+     * Creates the {@link SpanGroup}s to form the final results of this query.
+     * @param spans The {@link Span}s found for this query ({@link #findSpans}).
+     * Can be {@code null}, in which case the array returned will be empty.
+     * @return A possibly empty array of {@link SpanGroup}s built according to
+     * any 'GROUP BY' formulated in this query.
+     */
+     public Deferred<DataPoints[]> call(final DataPoints[] datapoints) throws Exception {
+      //TODO review this logic during spatial aggregation implementation
+       
+      if (datapoints == NO_RESULT && RollupQuery.isValidQuery(rollup_query)) {
+        //There are no datapoints for this query and it is a rollup query
+        //but not the default interval (default interval means raw).
+        //This will prevent redundant scan on raw data on the presense of
+        //default rollup interval
+        
+        //If the rollup usage is to fallback directly to raw data
+        //then nullyfy the rollup query, so that the recursive scan will use
+        //raw data and this will not called again because of isValida check
+        //If the rollup usage is to fallback to next best match then pupup
+        //next best match and attach that to the rollup query
+        if (rollup_usage == ROLLUP_USAGE.ROLLUP_FALLBACK_RAW) {
+          transformRollupQueryToDownSampler();
+          return runAsync();
+        }
+        else if (best_match_rollups != null && best_match_rollups.size() > 0) {
+          RollupInterval interval = best_match_rollups.remove(0);
+          
+          if (interval.isDefaultRollupInterval()) {
+            transformRollupQueryToDownSampler();
+          }
+          else {
+            rollup_query = new RollupQuery(interval, 
+                  rollup_query.getRollupAgg(),
+                  rollup_query.getSampleIntervalInMS());
+            //Here the requested sampling rate will be higher than
+            //resulted result. So downsample it
+            if (!rollup_query.isLowerSamplingRate()) {
+//               sample_interval_ms = rollup_query.getSampleIntervalInMS();
+//               downsampler = rollup_query.getRollupAgg();
+              // TODO - default fill
+              downsampler = new DownsamplingSpecification(
+                  rollup_query.getSampleIntervalInMS(), 
+                  rollup_query.getRollupAgg(),
+                  (downsampler != null ? downsampler.getFillPolicy() : 
+                    FillPolicy.ZERO));
+            }
+          }
+          
+          return runAsync();
+        }
+        return Deferred.fromResult(NO_RESULT);
+      }
+      else {
+        return Deferred.fromResult(datapoints);
+      }
+    }
+  }
+  
+  /**
    * Returns a scanner set for the given metric (from {@link #metric} or from
    * the first TSUID in the {@link #tsuids}s list. If one or more tags are 
    * provided, it calls into {@link #createAndSetFilter} to setup a row key 
@@ -1056,10 +1217,74 @@ final class TsdbQuery implements Query {
       createAndSetTSUIDFilter(scanner);
     } else if (filters.size() > 0) {
       createAndSetFilter(scanner);
+    } 
+
+    if (RollupQuery.isValidQuery(rollup_query)) {
+      ScanFilter existing = scanner.getFilter();
+      // TODO - need some UTs around this!
+      // Set the Scanners column qualifier pattern with rollup aggregator
+      // HBase allows only a single filter so if we have a row key filter, keep
+      // it. If not, then we can do this
+      if (!rollup_query.getRollupAgg().toString().equals("avg")) {
+        if (existing != null) {
+          final List<ScanFilter> filters = new ArrayList<ScanFilter>(2);
+          filters.add(existing);
+          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+              new BinaryPrefixComparator(rollup_query.getRollupAgg().toString()
+                      .getBytes(Const.ASCII_CHARSET))));
+          scanner.setFilter(new FilterList(filters, Operator.MUST_PASS_ALL));
+        } else {
+          scanner.setFilter(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+                new BinaryPrefixComparator(rollup_query.getRollupAgg().toString()
+                        .getBytes(Const.ASCII_CHARSET))));
+        }
+      } else {
+        final List<ScanFilter> filters = new ArrayList<ScanFilter>(2);
+        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+            new BinaryPrefixComparator("sum".getBytes())));
+        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+            new BinaryPrefixComparator("count".getBytes())));
+        
+        if (existing != null) {
+          final List<ScanFilter> combined = new ArrayList<ScanFilter>(2);
+          combined.add(existing);
+          combined.add(new FilterList(combined, Operator.MUST_PASS_ONE));
+          scanner.setFilter(new FilterList(filters, Operator.MUST_PASS_ALL));
+        } else {
+          scanner.setFilter(new FilterList(filters, Operator.MUST_PASS_ONE));
+        }
+      }
     }
     return scanner;
   }
 
+  /**
+   * Identify the table to be scanned based on the roll up and pre-aggregate 
+   * query parameters
+   * @return table name as byte array
+   * @since 2.4
+   */
+  private byte[] tableToBeScanned() {
+    final byte[] tableName;
+    
+    if (RollupQuery.isValidQuery(rollup_query)) {
+      if (pre_aggregate) {
+        tableName= rollup_query.getRollupInterval().getGroupbyTable();
+      }
+      else {
+        tableName= rollup_query.getRollupInterval().getTemporalTable();
+      }
+    }
+    else if (pre_aggregate) {
+      tableName = tsdb.getDefaultInterval().getGroupbyTable();
+    }
+    else {
+      tableName = tsdb.dataTable();
+    }
+    
+    return tableName;
+  }
+  
   /** Returns the UNIX timestamp from which we must start scanning.  */
   private long getScanStartTimeSeconds() {
     // Begin with the raw query start time.
@@ -1068,6 +1293,19 @@ final class TsdbQuery implements Query {
     // Convert to seconds if we have a query in ms.
     if ((start & Const.SECOND_MASK) != 0L) {
       start /= 1000L;
+    }
+    
+    // if we have a rollup query, we have different row key start times so find
+    // the base time from which we need to search
+    if (rollup_query != null) {
+      long base_time = RollupUtils.getRollupBasetime(start, 
+          rollup_query.getRollupInterval());
+      if (rate) {
+        // scan one row back so we can get the first rate value.
+        base_time = RollupUtils.getRollupBasetime(base_time - 1, 
+            rollup_query.getRollupInterval());
+      }
+      return base_time;
     }
 
     // First, we align the start timestamp to its representative value for the
@@ -1166,10 +1404,82 @@ final class TsdbQuery implements Query {
     }
     scanner.setKeyRegexp(regex, CHARSET);
   }
-
+  
+  /**
+   * Return the query index that maps this datapoints to the original subquery 
+   * @return index of the query in the TSQuery class
+   * @since 2.4
+   */
   @Override
   public int getQueryIdx() {
     return query_index;
+  }
+  
+  /**
+   * set the index that link this query to the original index.
+   * @param idx query index idx
+   * @since 2.4
+   */
+  public void setQueryIdx(int idx) {
+    query_index = idx;
+  }
+  
+  /**
+   * Transform downsampler properties to rollup properties, if the rollup
+   * is enabled at configuration level and down sampler is set.
+   * It falls back to raw data and down sampling if there is no 
+   * RollupInterval is configured against this down sample interval 
+   * @param str_interval String representation of the  interval, for logging
+   * @since 2.4
+   */
+  public void transformDownSamplerToRollupQuery(final String str_interval)  {
+
+    if (downsampler != null && downsampler.getInterval() > 0) {
+      if (tsdb.getRollupConfig() != null) {
+        try {
+          best_match_rollups = tsdb.getRollupConfig().
+              getRollupInterval(downsampler.getInterval() / 1000, str_interval);
+          //It is thread safe as eatch thread will be working on unique 
+          // TsdbQuery object
+          //RollupConfig.getRollupInterval guarantees that, 
+          //  it always return a non-empty list
+          // TODO
+          rollup_query = new RollupQuery(best_match_rollups.remove(0), 
+                  downsampler.getFunction(), downsampler.getInterval());
+        }
+        catch (NoSuchRollupForIntervalException nre) {
+          LOG.error("There is no such rollup for the downsample interval "
+            + str_interval + ". So fall back to the  default tsdb down"
+            + " sampling approach and it requires raw data scan." );
+          //nullify the rollup_query if this api is called explicitly
+          rollup_query = null;
+          return;
+        }
+        
+        if (rollup_query.getRollupInterval().isDefaultRollupInterval()) {
+          //Anyways it is a scan on raw data
+          rollup_query = null;
+        }
+      }       
+    }
+  }
+  
+  /**
+   * Transform rollup query to downsampler
+   * It is mainly useful when it scan on raw data on fallback.
+   * @since 2.4
+   */
+  private void transformRollupQueryToDownSampler()  {
+    
+    if (rollup_query != null) {
+      // TODO - clean up and handle fill
+      downsampler = new DownsamplingSpecification(
+          rollup_query.getRollupInterval().getInterval() * 1000, 
+          rollup_query.getRollupAgg(),
+          (downsampler != null ? downsampler.getFillPolicy() : 
+            FillPolicy.ZERO));
+      rollup_query = null;
+    }
   }
   
   @Override
@@ -1231,7 +1541,10 @@ final class TsdbQuery implements Query {
         }
       }
     }
-    buf.append("))");
+    buf.append(")")
+     .append(", rollup=")
+     .append(RollupQuery.isValidQuery(rollup_query))
+     .append("))");
     return buf.toString();
   }
 

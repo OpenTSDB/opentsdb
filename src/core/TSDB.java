@@ -1740,6 +1740,18 @@ public final class TSDB {
     }
   }
   
+  /** @return the rollup config object. May be null 
+   * @since 2.4 */
+  public RollupConfig getRollupConfig() {
+    return rollup_config;
+  }
+  
+  /** @return The default rollup interval config. May be null.
+   * @since 2.4 */
+  public RollupInterval getDefaultInterval() {
+    return default_interval;
+  }
+  
   /**
    * Blocks while pre-fetching meta data from the data and uid tables
    * so that performance improves, particularly with a large number of 
