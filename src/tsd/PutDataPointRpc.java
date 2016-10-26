@@ -372,7 +372,10 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
           if (dp instanceof RollUpDataPoint) {
             final RollUpDataPoint rdp = (RollUpDataPoint)dp;
             deferred = tsdb.addAggregatePoint(rdp.getMetric(), rdp.getTimestamp(), 
-                Float.parseFloat(rdp.getValue()), dp.getTags(), false, 
+                (Tags.fitsInFloat(dp.getValue()) ? 
+                    Float.parseFloat(dp.getValue()) :
+                      Double.parseDouble(dp.getValue())), 
+                  dp.getTags(), false, 
                 rdp.getInterval(), rdp.getAggregator())
                 .addCallback(new SuccessCB())
                 .addErrback(new PutErrback());

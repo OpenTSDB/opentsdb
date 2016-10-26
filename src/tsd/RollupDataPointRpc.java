@@ -160,8 +160,11 @@ class RollupDataPointRpc extends PutDataPointRpc
     if (Tags.looksLikeInteger(value)) {
       return tsdb.addAggregatePoint(metric, timestamp, Tags.parseLong(value),
           tags, spatial_agg != null ? true : false, interval, temporal_agg);
-    } else {  // floating point value
+    } else if (Tags.fitsInFloat(value)) {  // floating point value
       return tsdb.addAggregatePoint(metric, timestamp, Float.parseFloat(value),
+          tags, spatial_agg != null ? true : false, interval, temporal_agg);
+    } else {
+      return tsdb.addAggregatePoint(metric, timestamp, Double.parseDouble(value),
           tags, spatial_agg != null ? true : false, interval, temporal_agg);
     }
   }

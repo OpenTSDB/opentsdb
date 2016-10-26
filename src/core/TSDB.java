@@ -1171,6 +1171,53 @@ public final class TSDB {
             val, tags, flags, is_groupby, interval, aggregator);
   }
   
+  /**
+   * Adds a rolled up and/or groupby/pre-agged data point to the proper table.
+   * If {@code interval} is null then the value will be directed to the 
+   * pre-agg table.
+   * If the {@code is_groupby} flag is set, then the aggregate tag, defined in
+   * "tsd.core.agg_tag", will be added or overwritten with the {@code aggregator}
+   * value in uppercase as the value. 
+   * @param metric A non-empty string.
+   * @param timestamp The timestamp associated with the value.
+   * @param value The value of the data point.
+   * @param tags The tags on this series.  This map must be non-empty.
+   * @param is_groupby Whether or not the value is a pre-aggregate
+   * @param interval The interval the data reflects (may be null)
+   * @param aggregator The aggregator used to generate the data
+   * @return A deferred to optionally wait on to be sure the value was stored 
+   * @throws IllegalArgumentException if the timestamp is less than or equal
+   * to the previous timestamp added or 0 for the first timestamp, or if the
+   * difference with the previous timestamp is too large.
+   * @throws IllegalArgumentException if the metric name is empty or contains
+   * illegal characters.
+   * @throws IllegalArgumentException if the tags list is empty or one of the
+   * elements contains illegal characters.
+   * @throws HBaseException (deferred) if there was a problem while persisting
+   * data.
+   * @since 2.4
+   */
+  public Deferred<Object> addAggregatePoint(final String metric,
+                                   final long timestamp,
+                                   final double value,
+                                   final Map<String, String> tags,
+                                   final boolean is_groupby,
+                                   final String interval,
+                                   final String aggregator) {
+    if (Double.isNaN(value) || Double.isInfinite(value)) {
+      throw new IllegalArgumentException("value is NaN or Infinite: " + value
+              + " for metric=" + metric
+              + " timestamp=" + timestamp);
+    }
+
+    final short flags = Const.FLAG_FLOAT | 0x7;  // A float stored on 4 bytes.
+
+    final byte[] val = Bytes.fromLong(Double.doubleToRawLongBits(value));
+
+    return addAggregatePointInternal(metric, timestamp,
+            val, tags, flags, is_groupby, interval, aggregator);
+  }
+  
   Deferred<Object> addAggregatePointInternal(final String metric,
       final long timestamp,
       final byte[] value,

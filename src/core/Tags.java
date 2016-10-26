@@ -831,13 +831,12 @@ public final class Tags {
    * @param value The String holding the float value.
    * @return true if the value can fit into a float, false otherwise.
    * @throws NumberFormatException if the value is not numeric.
-   * @since 2.0.2
+   * @since 2.4
    */
   public static boolean fitsInFloat(final String value) {
-    final float f = Float.parseFloat(value);
-    final String converted = Float.toString(f);
-    
-    // this will be false if there was a loss of precision.
-    return value.equals(converted);
+    // TODO - probably still a better way to do this and we could save a lot
+    // of space by dropping useless precision, but for now this should help. 
+    final double d = Double.parseDouble(value);
+    return ((float) d) == d;
   }
 }
