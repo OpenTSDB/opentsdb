@@ -48,6 +48,9 @@ public class Downsampler implements SeekableView, DataPoint {
   /** Last value as a double */
   protected double value;
   
+  /** Whether or not the downsampling is on rolled up data */
+  protected boolean is_rollup;
+  
   /** Whether or not to merge all DPs in the source into one vaalue */
   protected final boolean run_all;
   
@@ -95,6 +98,24 @@ public class Downsampler implements SeekableView, DataPoint {
               final long query_start,
               final long query_end
       ) {
+    this(source, specification, query_start, query_end, false);
+  }
+
+  /**
+   * Ctor.
+   * @param source The iterator to access the underlying data.
+   * @param specification The downsampling spec to use
+   * @param query_start The start timestamp of the actual query for use with "all"
+   * @param query_end The end timestamp of the actual query for use with "all"
+   * @param is_rollup Whether or not this query is handling rollup data.
+   * @since 2.4
+   */
+  Downsampler(final SeekableView source,
+              final DownsamplingSpecification specification,
+              final long query_start,
+              final long query_end,
+              final boolean is_rollup
+      ) {
     this.source = source;
     this.specification = specification;
     values_in_interval = new ValuesInInterval();
@@ -119,7 +140,7 @@ public class Downsampler implements SeekableView, DataPoint {
       interval = unit = 0;
     }
   }
-
+  
   // ------------------ //
   // Iterator interface //
   // ------------------ //
@@ -135,7 +156,38 @@ public class Downsampler implements SeekableView, DataPoint {
   @Override
   public DataPoint next() {
     if (hasNext()) {
-      value = specification.getFunction().runDouble(values_in_interval);
+      if (is_rollup && (specification.getFunction() == Aggregators.AVG || 
+          specification.getFunction() == Aggregators.DEV)) {
+        double sum = 0;
+        long count = 0;
+        while (values_in_interval.hasNextValue()) {
+          count += values_in_interval.nextValueCount();
+          sum += values_in_interval.nextDoubleValue();
+        }
+        
+        if (specification.getFunction() == Aggregators.AVG) {
+          if (count == 0) { // avoid # / 0
+            value = 0;
+          } else {
+            value = sum / (double)count;
+          }
+        } else {
+          throw new UnsupportedOperationException(
+              "Standard deviation over rolled up data is not supported");
+        }
+      } else if (is_rollup && specification.getFunction() == Aggregators.COUNT) {
+        double count = 0;
+        while (values_in_interval.hasNextValue()) {
+          count += values_in_interval.nextValueCount();
+          // WARNING: consume and move next or we'll be stuck in an infinite
+          // loop here.
+          values_in_interval.nextDoubleValue(); 
+        }
+        value = count;
+      } else {
+        value = specification.getFunction().runDouble(values_in_interval);
+      }
+      
       timestamp = values_in_interval.getIntervalTimestamp();
       values_in_interval.moveToNextInterval();
       return this;
@@ -194,6 +246,7 @@ public class Downsampler implements SeekableView, DataPoint {
     final StringBuilder buf = new StringBuilder();
     buf.append("Downsampler: ")
        .append(", downsampler=").append(specification)
+       .append(", is_rollup=").append(is_rollup)
        .append(", queryStart=").append(query_start)
        .append(", queryEnd=").append(query_end)
        .append(", runAll=").append(run_all)
@@ -393,6 +446,17 @@ public class Downsampler implements SeekableView, DataPoint {
           + timestamp_end_interval);
     }
 
+    // call me BEFORE you call nextDoubleValue
+    public long nextValueCount() {
+      if (hasNextValue()) {
+        if (next_dp != null) {
+          return next_dp.valueCount();
+        }
+      }
+      throw new NoSuchElementException("no more values in interval of "
+          + timestamp_end_interval);
+    }
+    
     @Override
     public String toString() {
       final StringBuilder buf = new StringBuilder();
@@ -411,7 +475,6 @@ public class Downsampler implements SeekableView, DataPoint {
       return buf.toString();
     }
   }
-
   
   @Override
   public long valueCount() {

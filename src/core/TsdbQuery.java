@@ -44,7 +44,6 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
-import net.opentsdb.core.TsdbQuery.ROLLUP_USAGE;
 import net.opentsdb.query.QueryUtil;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.rollup.NoSuchRollupForIntervalException;
@@ -420,6 +419,8 @@ final class TsdbQuery implements Query {
       rate_options = new RateOptions();
     }
     downsampler = sub_query.downsamplingSpecification();
+    pre_aggregate = sub_query.isPreAggregate();
+    rollup_usage = sub_query.getRollupUsage();
     filters = sub_query.getFilters();
     explicit_tags = sub_query.getExplicitTags();
     
@@ -650,7 +651,7 @@ final class TsdbQuery implements Query {
       }
       scan_start_time = DateTime.nanoTime();
       return new SaltScanner(tsdb, metric, scanners, spans, scanner_filters,
-          delete, query_stats, query_index).scan();
+          delete, rollup_query, query_stats, query_index).scan();
     }
     
     scan_start_time = DateTime.nanoTime();
@@ -1019,7 +1020,8 @@ final class TsdbQuery implements Query {
               downsampler,
               getStartTime(), 
               getEndTime(),
-              query_index);
+              query_index,
+              RollupQuery.isValidQuery(rollup_query));
           group.add(span);
           groups[i++] = group;
         }

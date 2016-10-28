@@ -643,6 +643,10 @@ final class QueryRpc implements HttpRpc {
         }
       } else if (Character.isDigit(parts[x].charAt(0))) {
         sub_query.setDownsample(parts[x]);
+      } else if (parts[x].equalsIgnoreCase("pre-agg")) {
+        sub_query.setPreAggregate(true);
+      } else if (parts[x].toLowerCase().startsWith("rollup_")) {
+        sub_query.setRollupUsage(parts[x]);
       } else if (parts[x].toLowerCase().startsWith("explicit_tags")) {
         sub_query.setExplicitTags(true);
       }

@@ -24,12 +24,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.rollup.RollupQuery;
+import net.opentsdb.rollup.RollupSpan;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.QueryStats.QueryStat;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.JSON;
 
 import org.hbase.async.Bytes.ByteMap;
+import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -103,6 +107,9 @@ public class SaltScanner {
   /** Whether or not to delete the queried data */
   private final boolean delete;
   
+  /** A rollup query configuration if scanning for rolled up data. */
+  private final RollupQuery rollup_query;
+  
   /** A list of filters to iterate over when processing rows */
   private final List<TagVFilter> filters;
   
@@ -126,7 +133,7 @@ public class SaltScanner {
                                       final List<Scanner> scanners, 
                                       final TreeMap<byte[], Span> spans,
                                       final List<TagVFilter> filters) {
-    this(tsdb, metric, scanners, spans, filters, false, null, 0);
+    this(tsdb, metric, scanners, spans, filters, false, null, null, 0);
   }
   
   /**
@@ -137,6 +144,7 @@ public class SaltScanner {
    * @param scanners A list of HBase scanners, one for each bucket
    * @param spans The span map to store results in
    * @param delete Whether or not to delete the queried data
+   * @param rollup_query An optional rollup query config. May be null.
    * @param filters A list of filters for processing
    * @param query_stats A stats object for tracking timing
    * @param query_index The index of the sub query in the main query list
@@ -148,6 +156,7 @@ public class SaltScanner {
                                       final TreeMap<byte[], Span> spans,
                                       final List<TagVFilter> filters,
                                       final boolean delete,
+                                      final RollupQuery rollup_query,
                                       final QueryStats query_stats,
                                       final int query_index) {
     if (Const.SALT_WIDTH() < 1) {
@@ -186,6 +195,7 @@ public class SaltScanner {
     this.tsdb = tsdb;
     this.filters = filters;
     this.delete = delete;
+    this.rollup_query = rollup_query;
     this.query_stats = query_stats;
     this.query_index = query_index;
   }
@@ -243,7 +253,8 @@ public class SaltScanner {
 
         Span datapoints = spans.get(kv.key());
         if (datapoints == null) {
-          datapoints = new Span(tsdb);
+          datapoints = RollupQuery.isValidQuery(rollup_query) ?
+              new RollupSpan(tsdb, this.rollup_query) : new Span(tsdb);
           spans.put(kv.key(), datapoints);
         }
 
@@ -530,51 +541,88 @@ public class SaltScanner {
         annotations.put(key, notes);
       }
       
-      // calculate estimated data point count. We don't want to deserialize
-      // the byte arrays so we'll just get a rough estimate of compacted
-      // columns.
-      for (final KeyValue kv : row) {
-        if (kv.qualifier().length % 2 == 0) {
-          if (kv.qualifier().length == 2 || kv.qualifier().length == 4) {
-            ++dps_post_filter;
-          } else {
-            // for now we'll assume that all compacted columns are of the 
-            // same precision. This is likely incorrect.
-            if (Internal.inMilliseconds(kv.qualifier())) {
-              dps_post_filter += (kv.qualifier().length / 4);
+      //TODO rollup doesn't use the column qualifier prefix right now
+      //Please move this logic to @CompactionQueue.compact API, if the 
+      //qualifier prefix is set for rollup. Right now there is no way to
+      //identify whether a cell belong to rollup or default data table
+      //from the KeyValue/Hbase cell object
+      if (RollupQuery.isValidQuery(rollup_query)) {
+        //It is the rollup search result and rollup cells will not be 
+        //compacted, so don't need to worry about complex or trivial 
+        //compactions. It just need to consider the cells are different key 
+        //values
+        for (KeyValue kv:row) {
+          final byte[] qual = kv.qualifier();
+          
+          if (qual.length > 0) {
+            // Todo: Bug! Here we shouldn't use the first byte to check the type of this row
+            // Instead should parse the byte array to find the suffix and determine the actual type
+            if (qual[0] == Annotation.PREFIX()) {
+              // This could be a row with only an annotation in it
+              final Annotation note = JSON.parseToObject(kv.value(),
+                      Annotation.class);
+              notes.add(note);
             } else {
-              dps_post_filter += (kv.qualifier().length / 2);
+              if (rollup_query.getRollupAgg() == Aggregators.AVG || 
+                  rollup_query.getRollupAgg() == Aggregators.DEV) {
+                if (Bytes.memcmp(RollupQuery.SUM, qual, 0, RollupQuery.SUM.length) == 0 ||
+                    Bytes.memcmp(RollupQuery.COUNT, qual, 0, RollupQuery.COUNT.length) == 0) {
+                  kvs.add(kv);
+                }
+              } else if (Bytes.memcmp(rollup_query.getRollupAggPrefix(), 
+                  qual, 0, rollup_query.getRollupAggPrefix().length) == 0) {
+                kvs.add(kv);
+              }
             }
           }
-        } else if (kv.qualifier()[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
-          // with appends we don't have a good rough estimate as the length
-          // can vary widely with the value length variability. Therefore we
-          // have to iterate.
-          int idx = 0;
-          int qlength = 0;
-          while (idx < kv.value().length) {
-            qlength = Internal.getQualifierLength(kv.value(), idx);
-            idx += qlength + Internal.getValueLengthFromQualifier(kv.value(), idx);
-            ++dps_post_filter;
+        } // end for
+      } else {
+        // calculate estimated data point count. We don't want to deserialize
+        // the byte arrays so we'll just get a rough estimate of compacted
+        // columns.
+        for (final KeyValue kv : row) {
+          if (kv.qualifier().length % 2 == 0) {
+            if (kv.qualifier().length == 2 || kv.qualifier().length == 4) {
+              ++dps_post_filter;
+            } else {
+              // for now we'll assume that all compacted columns are of the 
+              // same precision. This is likely incorrect.
+              if (Internal.inMilliseconds(kv.qualifier())) {
+                dps_post_filter += (kv.qualifier().length / 4);
+              } else {
+                dps_post_filter += (kv.qualifier().length / 2);
+              }
+            }
+          } else if (kv.qualifier()[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
+            // with appends we don't have a good rough estimate as the length
+            // can vary widely with the value length variability. Therefore we
+            // have to iterate.
+            int idx = 0;
+            int qlength = 0;
+            while (idx < kv.value().length) {
+              qlength = Internal.getQualifierLength(kv.value(), idx);
+              idx += qlength + Internal.getValueLengthFromQualifier(kv.value(), idx);
+              ++dps_post_filter;
+            }
           }
         }
-      }
-
-      final KeyValue compacted;
-      // let IllegalDataExceptions bubble up so the handler above can close
-      // the scanner
-      final long compaction_start = DateTime.nanoTime();
-      try {
-        compacted = tsdb.compact(row, notes);
-      } catch (IllegalDataException idex) {
+        
+        final KeyValue compacted;
+        // let IllegalDataExceptions bubble up so the handler above can close
+        // the scanner
+        final long compaction_start = DateTime.nanoTime();
+        try {
+          compacted = tsdb.compact(row, notes);
+        } catch (IllegalDataException idex) {
+          compaction_time += (DateTime.nanoTime() - compaction_start);
+          close(false);
+          handleException(idex);
+          return;
+        }
         compaction_time += (DateTime.nanoTime() - compaction_start);
-        close(false);
-        handleException(idex);
-        return;
-      }
-      compaction_time += (DateTime.nanoTime() - compaction_start);
-      if (compacted != null) { // Can be null if we ignored all KVs.
-        kvs.add(compacted);
+        if (compacted != null) { // Can be null if we ignored all KVs.
+          kvs.add(compacted);
+        }
       }
     }
   

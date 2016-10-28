@@ -70,8 +70,27 @@ public class FillingDownsampler extends Downsampler {
   FillingDownsampler(final SeekableView source, final long start_time,
       final long end_time, final DownsamplingSpecification specification, 
       final long query_start, final long end_start) {
+    this(source, start_time, end_time, specification, query_start, end_start,
+        false);
+  }
+  
+  /** 
+   * Create a new filling downsampler.
+   * @param source The iterator to access the underlying data.
+   * @param start_time The time in milliseconds at which the data begins.
+   * @param end_time The time in milliseconds at which the data ends.
+   * @param specification The downsampling spec to use
+   * @param query_start The start timestamp of the actual query for use with "all"
+   * @param query_end The end timestamp of the actual query for use with "all"
+   * @param is_rollup Whether or not this query is handling rollup data.
+   * @throws IllegalArgumentException if fill_policy is interpolation.
+   * @since 2.4
+   */
+  FillingDownsampler(final SeekableView source, final long start_time,
+      final long end_time, final DownsamplingSpecification specification, 
+      final long query_start, final long end_start, final boolean is_rollup) {
     // Lean on the superclass implementation.
-    super(source, specification, query_start, end_start);
+    super(source, specification, query_start, end_start, is_rollup);
 
     // Ensure we aren't given a bogus fill policy.
     if (FillPolicy.NONE == specification.getFillPolicy()) {

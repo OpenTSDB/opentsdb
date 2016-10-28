@@ -510,6 +510,33 @@ public class Span implements DataPoints {
     return new FillingDownsampler(spanIterator(), start_time, end_time, 
         downsampler, query_start, query_end);
   }
+  
+  /**
+   * @param start_time The time in milliseconds at which the data begins.
+   * @param end_time The time in milliseconds at which the data ends.
+   * @param downsampler The downsampling specification to use
+   * @param query_start Start of the actual query
+   * @param query_end End of the actual query
+   * @param is_rollup Whether or not the downsampler is handling rolled up data.
+   * @return A new downsampler.
+   * @since 2.4
+   */
+  Downsampler downsampler(final long start_time,
+      final long end_time,
+      final DownsamplingSpecification downsampler,
+      final long query_start,
+      final long query_end,
+      final boolean is_rollup) {
+    if (downsampler == null) {
+      return null;
+    }
+    if (FillPolicy.NONE == downsampler.getFillPolicy()) {
+      return new Downsampler(spanIterator(), downsampler, 
+          query_start, query_end, is_rollup);  
+    }
+    return new FillingDownsampler(spanIterator(), start_time, end_time, 
+        downsampler, query_start, query_end, is_rollup);
+  }
 
   /**
    * RowSeq abstract factory API implementation
