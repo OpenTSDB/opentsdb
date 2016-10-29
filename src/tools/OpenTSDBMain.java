@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -42,12 +43,15 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.tools.ConfigArgP.ConfigurationItem;
 import net.opentsdb.tsd.PipelineFactory;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.Threads;
 
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
+import org.jboss.netty.channel.socket.nio.NioServerBossPool;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
+import org.jboss.netty.channel.socket.nio.NioWorkerPool;
 import org.jboss.netty.channel.socket.oio.OioServerSocketChannelFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,11 +67,11 @@ import ch.qos.logback.core.status.StatusListener;
  * <p>Description: OpenTSDB fat-jar main entry point</p> 
  */
 
-public class Main {
+public class OpenTSDBMain {
   /** The platform EOL string */
   public static final String EOL = System.getProperty("line.separator", "\n");
   /** Static class logger */
-  private static final Logger log = LoggerFactory.getLogger(Main.class);
+  private static final Logger log = LoggerFactory.getLogger(OpenTSDBMain.class);
   /** The content prefix  */
   public static final String CONTENT_PREFIX = "queryui";
 
@@ -88,7 +92,7 @@ public class Main {
     tmp.put("import", TextImporter.class);
     tmp.put("mkmetric", UidManager.class); // -> shift --> set uid assign metrics "$@"
     tmp.put("query", CliQuery.class);
-    tmp.put("tsd", Main.class);
+    tmp.put("tsd", OpenTSDBMain.class);
     tmp.put("scan", DumpSeries.class);
     tmp.put("uid", UidManager.class);
     tmp.put("exportui", UIContentExporter.class);
@@ -116,7 +120,7 @@ public class Main {
   
   /**
    * The OpenTSDB fat-jar main entry point
-   * @param args See usage banner {@link Main#mainUsage(PrintStream)}
+   * @param args See usage banner {@link OpenTSDBMain#mainUsage(PrintStream)}
    */
   public static void main(String[] args) {
       log.info("Starting.");
@@ -377,9 +381,12 @@ public class Main {
             usage(argp, "Invalid worker thread count", 1);
           }
         }
-        factory = new NioServerSocketChannelFactory(
-            Executors.newCachedThreadPool(), Executors.newCachedThreadPool(),
-            workers);
+        final Executor executor = Executors.newCachedThreadPool();
+        final NioServerBossPool boss_pool = 
+            new NioServerBossPool(executor, 1, new Threads.BossThreadNamer());
+        final NioWorkerPool worker_pool = new NioWorkerPool(executor, 
+            workers, new Threads.WorkerThreadNamer());
+        factory = new NioServerSocketChannelFactory(boss_pool, worker_pool);
       } else {
         factory = new OioServerSocketChannelFactory(
             Executors.newCachedThreadPool(), Executors.newCachedThreadPool());
@@ -490,7 +497,7 @@ public class Main {
       log.info("Status Listener: {}", listener);
     }
     try {
-      final URL url = Main.class.getClassLoader().getResource("file-logback.xml");
+      final URL url = OpenTSDBMain.class.getClassLoader().getResource("file-logback.xml");
       final LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
       try {
         final JoranConfigurator configurator = new JoranConfigurator();
