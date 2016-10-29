@@ -28,6 +28,8 @@ import org.apache.commons.jexl2.JexlContext;
 import org.apache.commons.jexl2.JexlEngine;
 import org.apache.commons.jexl2.MapContext;
 import org.apache.commons.jexl2.Script;
+import org.apache.commons.jexl2.scripting.JexlScriptEngineFactory;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +64,9 @@ import com.google.common.collect.ImmutableSet;
  */
 public class ExpressionIterator implements ITimeSyncedIterator {
   private static final Logger LOG = LoggerFactory.getLogger(ExpressionIterator.class);
+  
+  /** This is only here to to force the shade plugin to include the class in the fat-jar */
+  private static final JexlScriptEngineFactory JEXL_FACTORY = null;
   
   /** Docs don't say whether this is thread safe or not. SOME methods are marked
    * as not thread safe, so I assume it's ok to instantiate one of these guys

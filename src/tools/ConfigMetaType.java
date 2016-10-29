@@ -91,15 +91,16 @@ public enum ConfigMetaType implements ArgValueValidator {
   /**
    * Decodes the passed name with trim and upper
    * @param name The name to decode
+   * @param key The key of the item (for error reporting)
    * @return the decoded value
    */
-  public static ConfigMetaType byName(CharSequence name) {
+  public static ConfigMetaType byName(CharSequence name, String key) {
     if(name==null) throw new IllegalArgumentException("Null ConfigMetaType");
     String cname = name.toString().toUpperCase().trim();
     try {
       return ConfigMetaType.valueOf(cname);
     } catch (Exception ex) {
-      throw new IllegalArgumentException("Invalid ConfigMetaType [" + name + "]");
+      throw new IllegalArgumentException("Invalid ConfigMetaType [" + cname + "]. Key: [" + key + "]");
     }
   }
     

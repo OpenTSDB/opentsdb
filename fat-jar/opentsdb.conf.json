@@ -25,6 +25,14 @@
       "meta": "BOOL"
     },
     {
+      "key": "tsd.core.connections.limit",
+      "cl-option": "--max-connection",
+      "defaultValue": 0,
+      "description": "Sets the maximum number of connections a TSD will handle, additional connections are immediately closed",
+      "help": "default",
+      "meta": "POSINT"
+    },        
+    {
       "key": "tsd.core.meta.enable_realtime_ts",
       "cl-option": "--realtime-ts",
       "defaultValue": "false",
@@ -78,6 +86,21 @@
       "description": "The number of rows to scan for UID pre-loading",
       "help": "extended",
       "meta": "POSINT"
+    },
+    {
+      "key": "tsd.core.storage_exception_handler.enable",
+      "cl-option": "--enable-exhandler",
+      "defaultValue": "false",
+      "description": "Whether or not to enable the configured storage exception handler plugin",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.core.storage_exception_handler.plugin ",
+      "cl-option": "--exhandler-plugin",
+      "description": "The full class name of the storage exception handler plugin you wish to use",
+      "help": "extended",
+      "meta": "CLASS"
     },
     {
       "key": "tsd.core.timezone",
@@ -239,6 +262,38 @@
       "meta": "BOOL"
     },
     {
+      "key": "tsd.query.allow_simultaneous_duplicates",
+      "cl-option": "--tsd-allowsimdups",
+      "defaultValue": "false",
+      "description": "Whether or not to allow simultaneous duplicate queries from the same host. If disabled, a second query that comes in matching one already running will receive an exception",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.query.filter.expansion_limit",
+      "cl-option": "--tsd-expansionlimit",
+      "defaultValue": "4096",
+      "description": "The maximum number of tag values to include in the regular expression sent to storage during scanning for data. A larger value means more computation on the HBase region servers",
+      "help": "extended",
+      "meta": "POSINT"
+    },
+    {
+      "key": "tsd.query.skip_unresolved_tagvs",
+      "cl-option": "--tsd-skip-unresolved",
+      "defaultValue": "false",
+      "description": "Whether or not to continue querying when the query includes a tag value that hasn't been assigned a UID yet and may not exist",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.query.timeout",
+      "cl-option": "--tsd-query-timeout",
+      "defaultValue": "0",
+      "description": "How long, in milliseconds, before canceling a running query. A value of 0 means queries will not timeout",
+      "help": "extended",
+      "meta": "POSINT"
+    },
+    {
       "key": "tsd.rpc.plugins",
       "cl-option": "--rpc-plugins",
       "description": "A comma delimited list of RPC plugins to load when starting a TSD. Must contain the entire class name",
@@ -284,6 +339,46 @@
       "meta": "BOOL"
     },
     {
+      "key": "tsd.storage.compaction.flush_interval",
+      "cl-option": "--tsd-comp-flush-interval",
+      "defaultValue": "10",
+      "description": "How long, in seconds, to wait in between compaction queue flush calls",
+      "help": "extended",
+      "meta": "POSINT"
+    },
+    {
+      "key": "tsd.storage.compaction.flush_speed",
+      "cl-option": "--tsd-comp-flush-speed",
+      "defaultValue": "2",
+      "description": "A multiplier used to determine how quickly to attempt flushing the compaction queue. E.g. a value of 2 means it will try to flush the entire queue within 30 minutes. A value of 1 would take an hour",
+      "help": "extended",
+      "meta": "POSINT"
+    },
+    {
+      "key": "tsd.storage.compaction.max_concurrent_flushes",
+      "cl-option": "--tsd-comp-flush-maxconc",
+      "defaultValue": "10000",
+      "description": "The maximum number of compaction calls inflight to HBase at any given time",
+      "help": "extended",
+      "meta": "POSINT"
+    },
+    {
+      "key": "tsd.storage.compaction.min_flush_threshold",
+      "cl-option": "--tsd-comp-flush-minflush",
+      "defaultValue": "100",
+      "description": "Size of the compaction queue that must be exceeded before flushing is triggered",
+      "help": "extended",
+      "meta": "POSINT"
+    },
+    {
+      "key": "tsd.storage.enable_appends",
+      "cl-option": "--tsd-enable-appends",
+      "defaultValue": "false",
+      "description": "Whether or not to append data to columns when writing data points instead of creating new columns for each value. Avoids the need for compactions after each hour but can use more resources on HBase",
+      "help": "extended",
+      "meta": "BOOL"
+    },    
+    {
       "key": "tsd.storage.enable_compaction",
       "cl-option": "--compaction",
       "defaultValue": "true",
@@ -324,6 +419,14 @@
       "meta": "TABLE"
     },
     {
+      "key": "tsd.storage.hbase.prefetch_meta",
+      "cl-option": "--tsd-prefetch-meta",
+      "defaultValue": "false",
+      "description": "Whether or not to prefetch the regions for the TSDB tables before starting the network interface. This can improve performance",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
       "key": "tsd.storage.hbase.tree_table",
       "cl-option": "--treetable",
       "defaultValue": "tsdb-tree",
@@ -354,6 +457,60 @@
       "description": "A comma-separated list of ZooKeeper hosts to connect to, with or without port specifiers. e.g. 192.168.1.1:2181,192.168.1.2:2181 (default: localhost)",
       "help": "default",
       "meta": "SPEC"
+    },
+    {
+      "key": "tsd.storage.repair_appends",
+      "cl-option": "--tsd-repair-appends",
+      "defaultValue": "false",
+      "description": "Whether or not to re-write appended data point columns at query time when the columns contain duplicate or out of order data",
+      "help": "extended",
+      "meta": "BOOL"
+    },
+    {
+      "key": "tsd.storage.max_tags",
+      "cl-option": "--tsd-maxtags",
+      "defaultValue": "8",
+      "description": "The maximum number of tags allowed per data point. NOTE Please be aware of the performance tradeoffs of overusing tags",
+      "help": "extended",
+      "meta": "POSINT"
+    },
+    {
+      "key": "tsd.storage.salt.buckets",
+      "cl-option": "--tsd-salt-buckets",
+      "description": "The number of salt buckets used to distribute load across regions. NOTE Changing this value after writing data may cause TSUID based queries to fail",
+      "help": "extended",
+      "meta": "GTZEROINT"
+    },
+    {
+      "key": "tsd.storage.salt.width",
+      "cl-option": "--tsd-salt-width",
+      "description": "The width, in bytes, of the salt prefix used to indicate which bucket a time series belongs in. A value of 0 means salting is disabled. WARNING Do not change after writing data to HBase or you will corrupt your tables and not be able to query any more",
+      "help": "extended",
+      "meta": "GTZEROINT"
+    },
+    {
+      "key": "tsd.storage.uid.width.metric",
+      "cl-option": "--tsd-width-metric",
+      "defaultValue": "3",
+      "description": "The width, in bytes, of metric UIDs. WARNING Do not change after writing data to HBase or you will corrupt your tables and not be able to query any more",
+      "help": "extended",
+      "meta": "GTZEROINT"
+    },
+    {
+      "key": "tsd.storage.uid.width.tagk",
+      "cl-option": "--tsd-width-tagk",
+      "defaultValue": "3",
+      "description": "The width, in bytes, of tag key UIDs. WARNING Do not change after writing data to HBase or you will corrupt your tables and not be able to query any more",
+      "help": "extended",
+      "meta": "GTZEROINT"
+    },
+    {
+      "key": "tsd.storage.uid.width.tagv",
+      "cl-option": "--tsd-width-tagv",
+      "defaultValue": "3",
+      "description": "The width, in bytes, of tag value UIDs. WARNING Do not change after writing data to HBase or you will corrupt your tables and not be able to query any more",
+      "help": "extended",
+      "meta": "GTZEROINT"
     },
     {
       "key": "tsd.logback.file",
