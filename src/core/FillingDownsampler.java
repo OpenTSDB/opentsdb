@@ -164,7 +164,7 @@ public class FillingDownsampler extends Downsampler {
    */
   @Override
   public DataPoint next() {
-    // Don't proceed if we've already completed iteration.
+ // Don't proceed if we've already completed iteration.
     if (hasNext()) {
       // Ensure that the timestamp we request is valid.
       values_in_interval.initializeIfNotDone();
@@ -181,13 +181,44 @@ public class FillingDownsampler extends Downsampler {
         values_in_interval.moveToNextInterval();
         actual = values_in_interval.getIntervalTimestamp();
       }
-
+      
       // Check whether the timestamp of the calculation interval matches what
       // we expect.
       if (run_all || actual == timestamp) {
         // The calculated interval timestamp matches what we expect, so we can
         // do normal processing.
-        value = specification.getFunction().runDouble(values_in_interval);
+        if (is_rollup && (specification.getFunction() == Aggregators.AVG || 
+            specification.getFunction() == Aggregators.DEV)) {
+          double sum = 0;
+          long count = 0;
+          while (values_in_interval.hasNextValue()) {
+            count += values_in_interval.nextValueCount();
+            sum += values_in_interval.nextDoubleValue();
+          }
+          
+          if (specification.getFunction() == Aggregators.AVG) {
+            if (count == 0) { // avoid # / 0
+              value = 0;
+            } else {
+              value = sum / (double)count;
+            }
+          } else {
+            throw new UnsupportedOperationException(
+                "Standard deviation over rolled up data is not supported");
+          }
+        } else if (is_rollup && 
+            specification.getFunction() == Aggregators.COUNT) {
+          double count = 0;
+          while (values_in_interval.hasNextValue()) {
+            count += values_in_interval.nextValueCount();
+            // WARNING: consume and move next or we'll be stuck in an infinite
+            // loop here.
+            values_in_interval.nextDoubleValue(); 
+          }
+          value = count;
+        } else {
+          value = specification.getFunction().runDouble(values_in_interval);
+        }
         values_in_interval.moveToNextInterval();
       } else {
         // Our expected timestamp precedes the actual, so the interval is
@@ -202,6 +233,8 @@ public class FillingDownsampler extends Downsampler {
         case ZERO:
           value = 0.0;
           break;
+          
+          // TODO - scalar
 
         default:
           throw new RuntimeException("unhandled fill policy");

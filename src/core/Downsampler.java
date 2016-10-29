@@ -121,6 +121,7 @@ public class Downsampler implements SeekableView, DataPoint {
     values_in_interval = new ValuesInInterval();
     this.query_start = query_start;
     this.query_end = query_end;
+    this.is_rollup = is_rollup;
     
     final String s = specification.getStringInterval();
     if (s != null && s.toLowerCase().contains("all")) {
