@@ -120,8 +120,11 @@ public class ConfigArgP {
       JsonNode configRoot = root.get("config-items");
       scriptEngine.eval("var config = " + configRoot.toString() + ";");
       processBindings(jsonMapper, root);
+      // Contains all the defaults
       final ConfigurationItem[] loadedItems = jsonMapper.reader(ConfigurationItem[].class).readValue(configRoot);
+      // Contains all the defaults
       final TreeSet<ConfigurationItem> items = new TreeSet<ConfigurationItem>(Arrays.asList(loadedItems));
+      
       Map<String, ConfigurationItem> tmpItems = new HashMap<String, ConfigurationItem>(items.size());
       for(Iterator<ConfigurationItem> iter = items.iterator(); iter.hasNext();) {
         ConfigurationItem item = iter.next();
@@ -557,7 +560,6 @@ public class ConfigArgP {
     public ConfigurationItem(String key, String clOption,
         String defaultValue, String description, String help,
         String meta) {
-      super();
       this.key = key;
       this.clOption = clOption;
       this.defaultValue = defaultValue;
@@ -571,7 +573,7 @@ public class ConfigArgP {
      */
     public void validate() {
       if(meta!=null && value!=null) {
-        ConfigMetaType.byName(meta).validate(this); 
+        ConfigMetaType.byName(meta, key).validate(this); 
       }
     }
     
@@ -584,6 +586,7 @@ public class ConfigArgP {
     public String getName() {
       return String.format("cl: %s, key: %s", clOption, key);
     }
+    
     
 
     /**
@@ -728,8 +731,9 @@ public class ConfigArgP {
       if(meta==null || meta.isEmpty()) {
         return -1;
       }
-      final ConfigMetaType otherType = ConfigMetaType.byName(other.meta); 
-      final ConfigMetaType thisType = ConfigMetaType.byName(meta);
+      
+      final ConfigMetaType otherType = ConfigMetaType.byName(other.meta, other.key); 
+      final ConfigMetaType thisType = ConfigMetaType.byName(meta, key);
       int c = thisType.compareTo(otherType);
       if(c==0) {
         c = this.key.compareTo(other.key);

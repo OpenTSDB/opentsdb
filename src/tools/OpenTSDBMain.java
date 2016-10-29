@@ -63,11 +63,11 @@ import ch.qos.logback.core.status.StatusListener;
  * <p>Description: OpenTSDB fat-jar main entry point</p> 
  */
 
-public class Main {
+public class OpenTSDBMain {
   /** The platform EOL string */
   public static final String EOL = System.getProperty("line.separator", "\n");
   /** Static class logger */
-  private static final Logger log = LoggerFactory.getLogger(Main.class);
+  private static final Logger log = LoggerFactory.getLogger(OpenTSDBMain.class);
   /** The content prefix  */
   public static final String CONTENT_PREFIX = "queryui";
 
@@ -88,7 +88,7 @@ public class Main {
     tmp.put("import", TextImporter.class);
     tmp.put("mkmetric", UidManager.class); // -> shift --> set uid assign metrics "$@"
     tmp.put("query", CliQuery.class);
-    tmp.put("tsd", Main.class);
+    tmp.put("tsd", OpenTSDBMain.class);
     tmp.put("scan", DumpSeries.class);
     tmp.put("uid", UidManager.class);
     tmp.put("exportui", UIContentExporter.class);
@@ -116,7 +116,7 @@ public class Main {
   
   /**
    * The OpenTSDB fat-jar main entry point
-   * @param args See usage banner {@link Main#mainUsage(PrintStream)}
+   * @param args See usage banner {@link OpenTSDBMain#mainUsage(PrintStream)}
    */
   public static void main(String[] args) {
       log.info("Starting.");
@@ -490,7 +490,7 @@ public class Main {
       log.info("Status Listener: {}", listener);
     }
     try {
-      final URL url = Main.class.getClassLoader().getResource("file-logback.xml");
+      final URL url = OpenTSDBMain.class.getClassLoader().getResource("file-logback.xml");
       final LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
       try {
         final JoranConfigurator configurator = new JoranConfigurator();

@@ -45,3 +45,8 @@ tools/docker/libs
 tools/docker/*.jar
 tools/docker/logback.xml
 tools/docker/opentsdb.conf
+
+# FatJar
+fat-jar-pom.xml
+src-resources/
+test-resources/

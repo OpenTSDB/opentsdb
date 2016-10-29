@@ -82,8 +82,12 @@
       <mockito.version>@MOCKITO_VERSION@</mockito.version>
       <objenesis.version>@OBJENESIS_VERSION@</objenesis.version>
       <powermock.version>@POWERMOCK_MOCKITO_VERSION@</powermock.version>
+      <apache-math.version>@APACHE_MATH_VERSION@</apache-math.version>
+      <jexl.version>@JEXL_VERSION@</jexl.version>
+      <jgrapht.version>@JGRAPHT_VERSION@</jgrapht.version>      
     <!--  Plugins  -->
       <gwt.version>@GWT_VERSION@</gwt.version>  
+      <gwt-theme.version>@GWT_THEME_VERSION@</gwt-theme.version>
       <source-plugin.version>2.1.2</source-plugin.version>
       <compiler-plugin.version>2.5.1</compiler-plugin.version>
       <shade.version>2.1</shade.version>
@@ -157,8 +161,8 @@
               <executable>build-aux/gen_build_data.sh</executable>
               <!-- optional -->
               <arguments>
-                <argument>target/generated-sources/net/opentsdb/BuildData.java</argument>
-                <argument>net.opentsdb</argument>
+                <argument>target/generated-sources/net/opentsdb/tools/BuildData.java</argument>
+                <argument>net.opentsdb.tools</argument>
                 <argument>BuildData</argument>
               </arguments>
             </configuration>
@@ -263,6 +267,7 @@
                 <configuration>
                   <target>
                     <copy file="${basedir}/src/tsd/static/favicon.ico" todir="${project.build.directory}/${project.build.finalName}/queryui"/>
+                    <copy file="${basedir}/src/tsd/static/opentsdb_header.jpg" todir="${project.build.directory}/${project.build.finalName}/queryui"/>
                     <jar destfile="${project.build.directory}/${project.build.finalName}.jar" update="true">
                       <zipfileset dir="${project.build.directory}/${project.build.finalName}" excludes="WEB-INF/**"/>
                     </jar>                    
@@ -298,8 +303,11 @@
           <archive>         
             <manifest>
               <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-              <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+              <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>              
             </manifest>
+            <manifestEntries>
+              <mainClass>net.opentsdb.tools.OpenTSDBMain</mainClass>
+            </manifestEntries>
           </archive>        
           <excludes>
             <exclude>WEB-INF/deploy/**</exclude>
@@ -404,7 +412,7 @@
               </artifactSet>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>net.opentsdb.tools.Main</mainClass>
+                  <mainClass>net.opentsdb.tools.OpenTSDBMain</mainClass>
                 </transformer>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
               </transformers>
@@ -497,6 +505,25 @@
       <version>${asynchbase.version}</version>
     </dependency>       
 
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-math3</artifactId>
+      <version>${apache-math.version}</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-jexl</artifactId>
+      <version>${jexl.version}</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.jgrapht</groupId>
+      <artifactId>jgrapht-core</artifactId>
+      <version>${jgrapht.version}</version>
+    </dependency>
+
+
     <!-- runtime dependencies -->
 
 
@@ -586,6 +613,13 @@
       <version>${gwt.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>net.opentsdb</groupId>
+      <artifactId>opentsdb_gwt_theme</artifactId>
+      <version>${gwt-theme.version}</version>
+    </dependency>
+
+
   </dependencies>
 
   <profiles>
@@ -622,6 +656,27 @@
               </execution>
             </executions>
           </plugin>
+          <plugin>
+            <groupId>com.helger.maven</groupId>
+            <artifactId>ph-javacc-maven-plugin</artifactId>
+            <version>2.8.0</version>
+            <executions>
+              <execution>
+                <id>jjc</id>
+                <phase>generate-sources</phase>
+                <goals>
+                  <goal>javacc</goal>
+                </goals>
+                <configuration>
+                  <jdkVersion>1.6</jdkVersion>
+                  <javadocFriendlyComments>true</javadocFriendlyComments>
+                  <packageName>net.opentsdb.query.expression.parser</packageName>
+                  <sourceDirectory>${basedir}/src/</sourceDirectory>
+                  <outputDirectory>${project.build.directory}/generated-sources/</outputDirectory>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>          
         </plugins>
       </build>
     </profile>
@@ -657,6 +712,27 @@
                     <argument>net.opentsdb</argument>
                     <argument>BuildData</argument>
                   </arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>com.helger.maven</groupId>
+            <artifactId>ph-javacc-maven-plugin</artifactId>
+            <version>2.8.0</version>
+            <executions>
+              <execution>
+                <id>jjc</id>
+                <phase>generate-sources</phase>
+                <goals>
+                  <goal>javacc</goal>
+                </goals>
+                <configuration>
+                  <jdkVersion>1.6</jdkVersion>
+                  <javadocFriendlyComments>true</javadocFriendlyComments>
+                  <packageName>net.opentsdb.query.expression.parser</packageName>
+                  <sourceDirectory>${basedir}/src/</sourceDirectory>
+                  <outputDirectory>${project.build.directory}/generated-sources/</outputDirectory>
                 </configuration>
               </execution>
             </executions>
