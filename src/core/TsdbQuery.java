@@ -44,11 +44,13 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.query.QueryUtil;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.rollup.NoSuchRollupForIntervalException;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupQuery;
+import net.opentsdb.rollup.RollupSpan;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.QueryStats;
@@ -57,6 +59,7 @@ import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.JSON;
 
 /**
  * Non-synchronized implementation of {@link Query}.
@@ -428,6 +431,7 @@ final class TsdbQuery implements Query {
       //Check whether the down sampler is set and rollup is enabled
       transformDownSamplerToRollupQuery(sub_query.getDownsample());
     }
+    sub_query.setTsdbQuery(this);
     
     // if we have tsuids set, that takes precedence
     if (sub_query.getTsuids() != null && !sub_query.getTsuids().isEmpty()) {
@@ -879,49 +883,94 @@ final class TsdbQuery implements Query {
            tsdb.getClient().delete(del);
          }
          
-         // calculate estimated data point count. We don't want to deserialize
-         // the byte arrays so we'll just get a rough estimate of compacted
-         // columns.
-         for (final KeyValue kv : row) {
-           if (kv.qualifier().length % 2 == 0) {
-             if (kv.qualifier().length == 2 || kv.qualifier().length == 4) {
-               ++dps_post_filter;
-             } else {
-               // for now we'll assume that all compacted columns are of the 
-               // same precision. This is likely incorrect.
-               if (Internal.inMilliseconds(kv.qualifier())) {
-                 dps_post_filter += (kv.qualifier().length / 4);
+         //Please move this logic to @CompactionQueue.compact API, if the 
+         //qualifier prefix is set for rollup. Right now there is no way to
+         //identify whether a cell belong to rollup or default data table
+         //from the KeyValue/Hbase cell object
+         if (RollupQuery.isValidQuery(rollup_query)) {
+           //It is the rollup search result and rollup cells will not be 
+           //compacted, so don't need to worry about complex or trivial 
+           //compactions. It just need to consider the cells are different key 
+           //values
+           
+           Span datapoints = spans.get(key);
+           if (datapoints == null) {
+             datapoints = new RollupSpan(tsdb, rollup_query);
+             spans.put(key, datapoints);
+           }
+           
+           for (KeyValue kv:row) {
+             final byte[] qual = kv.qualifier();
+             
+             if (qual.length > 0) {
+               // Todo: Bug! Here we shouldn't use the first byte to check the type of this row
+               // Instead should parse the byte array to find the suffix and determine the actual type
+               if (qual[0] == Annotation.PREFIX()) {
+                 // This could be a row with only an annotation in it
+                 final Annotation note = JSON.parseToObject(kv.value(),
+                         Annotation.class);
+                 datapoints.getAnnotations().add(note);
                } else {
-                 dps_post_filter += (kv.qualifier().length / 2);
+                 if (rollup_query.getRollupAgg() == Aggregators.AVG || 
+                     rollup_query.getRollupAgg() == Aggregators.DEV) {
+                   if (Bytes.memcmp(RollupQuery.SUM, qual, 0, RollupQuery.SUM.length) == 0 ||
+                       Bytes.memcmp(RollupQuery.COUNT, qual, 0, RollupQuery.COUNT.length) == 0) {
+                     datapoints.addRow(kv);
+                   }
+                 } else if (Bytes.memcmp(rollup_query.getRollupAggPrefix(), 
+                     qual, 0, rollup_query.getRollupAggPrefix().length) == 0) {
+                   datapoints.addRow(kv);
+                 }
                }
              }
-           } else if (kv.qualifier()[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
-             // with appends we don't have a good rough estimate as the length
-             // can vary widely with the value length variability. Therefore we
-             // have to iterate.
-             int idx = 0;
-             int qlength = 0;
-             while (idx < kv.value().length) {
-               qlength = Internal.getQualifierLength(kv.value(), idx);
-               idx += qlength + Internal.getValueLengthFromQualifier(kv.value(), idx);
-               ++dps_post_filter;
+           } // end for
+           ++nrows;
+           seenAnnotation |= !datapoints.getAnnotations().isEmpty();
+         } else {
+           // calculate estimated data point count. We don't want to deserialize
+           // the byte arrays so we'll just get a rough estimate of compacted
+           // columns.
+           for (final KeyValue kv : row) {
+             if (kv.qualifier().length % 2 == 0) {
+               if (kv.qualifier().length == 2 || kv.qualifier().length == 4) {
+                 ++dps_post_filter;
+               } else {
+                 // for now we'll assume that all compacted columns are of the 
+                 // same precision. This is likely incorrect.
+                 if (Internal.inMilliseconds(kv.qualifier())) {
+                   dps_post_filter += (kv.qualifier().length / 4);
+                 } else {
+                   dps_post_filter += (kv.qualifier().length / 2);
+                 }
+               }
+             } else if (kv.qualifier()[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
+               // with appends we don't have a good rough estimate as the length
+               // can vary widely with the value length variability. Therefore we
+               // have to iterate.
+               int idx = 0;
+               int qlength = 0;
+               while (idx < kv.value().length) {
+                 qlength = Internal.getQualifierLength(kv.value(), idx);
+                 idx += qlength + Internal.getValueLengthFromQualifier(kv.value(), idx);
+                 ++dps_post_filter;
+               }
              }
            }
-         }
-         
-         Span datapoints = spans.get(key);
-         if (datapoints == null) {
-           datapoints = new Span(tsdb);
-           spans.put(key, datapoints);
-         }
-         final long compaction_start = DateTime.nanoTime();
-         final KeyValue compacted = 
-           tsdb.compact(row, datapoints.getAnnotations());
-         compaction_time += (DateTime.nanoTime() - compaction_start);
-         seenAnnotation |= !datapoints.getAnnotations().isEmpty();
-         if (compacted != null) { // Can be null if we ignored all KVs.
-           datapoints.addRow(compacted);
-           ++nrows;
+           
+           Span datapoints = spans.get(key);
+           if (datapoints == null) {
+             datapoints = new Span(tsdb);
+             spans.put(key, datapoints);
+           }
+           final long compaction_start = DateTime.nanoTime();
+           final KeyValue compacted = 
+             tsdb.compact(row, datapoints.getAnnotations());
+           compaction_time += (DateTime.nanoTime() - compaction_start);
+           seenAnnotation |= !datapoints.getAnnotations().isEmpty();
+           if (compacted != null) { // Can be null if we ignored all KVs.
+             datapoints.addRow(compacted);
+             ++nrows;
+           }
          }
        }
      
@@ -1040,7 +1089,8 @@ final class TsdbQuery implements Query {
                                               downsampler,
                                               getStartTime(), 
                                               getEndTime(),
-                                              query_index);
+                                              query_index,
+                                              RollupQuery.isValidQuery(rollup_query));
         if (query_stats != null) {
           query_stats.addStat(query_index, QueryStat.GROUP_BY_TIME, 0);
         }
@@ -1090,7 +1140,8 @@ final class TsdbQuery implements Query {
                                    downsampler,
                                    getStartTime(), 
                                    getEndTime(),
-                                   query_index);
+                                   query_index,
+                                   RollupQuery.isValidQuery(rollup_query));
           // Copy the array because we're going to keep `group' and overwrite
           // its contents. So we want the collection to have an immutable copy.
           final byte[] group_copy = new byte[group.length];
@@ -1205,6 +1256,8 @@ final class TsdbQuery implements Query {
       metric = UniqueId.stringToUid(metric_uid);
     }
     
+    final boolean is_rollup = RollupQuery.isValidQuery(rollup_query);
+    
     // We search at least one row before and one row after the start & end
     // time we've been given as it's quite likely that the exact timestamp
     // we're looking for is in the middle of a row.  Plus, a number of things
@@ -1214,14 +1267,16 @@ final class TsdbQuery implements Query {
     final Scanner scanner = QueryUtil.getMetricScanner(tsdb, salt_bucket, metric, 
         (int) getScanStartTimeSeconds(), end_time == UNSET
         ? -1  // Will scan until the end (0xFFF...).
-        : (int) getScanEndTimeSeconds(), tsdb.table, TSDB.FAMILY());
+        : (int) getScanEndTimeSeconds(), 
+        is_rollup ? rollup_query.getRollupInterval().getTemporalTable() : tsdb.table, 
+        TSDB.FAMILY());
     if (tsuids != null && !tsuids.isEmpty()) {
       createAndSetTSUIDFilter(scanner);
     } else if (filters.size() > 0) {
       createAndSetFilter(scanner);
     } 
 
-    if (RollupQuery.isValidQuery(rollup_query)) {
+    if (is_rollup) {
       ScanFilter existing = scanner.getFilter();
       // TODO - need some UTs around this!
       // Set the Scanners column qualifier pattern with rollup aggregator
@@ -1250,8 +1305,8 @@ final class TsdbQuery implements Query {
         if (existing != null) {
           final List<ScanFilter> combined = new ArrayList<ScanFilter>(2);
           combined.add(existing);
-          combined.add(new FilterList(combined, Operator.MUST_PASS_ONE));
-          scanner.setFilter(new FilterList(filters, Operator.MUST_PASS_ALL));
+          combined.add(new FilterList(filters, Operator.MUST_PASS_ONE));
+          scanner.setFilter(new FilterList(combined, Operator.MUST_PASS_ALL));
         } else {
           scanner.setFilter(new FilterList(filters, Operator.MUST_PASS_ONE));
         }

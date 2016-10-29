@@ -236,7 +236,7 @@ public final class TestRollupSeq {
     }
   }
   
-  @Test (expected = IllegalArgumentException.class)
+  @Test (expected = IllegalDataException.class)
   public void addRowMergeEarlier() throws Exception {
     // this happens if the same row key is used for the addRow call
     final byte[] qual1 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 };
@@ -253,7 +253,7 @@ public final class TestRollupSeq {
     rs.addRow(TestRowSeq.makekv( qual3, val3));
   }
   
-  @Test (expected = IllegalArgumentException.class)
+  @Test (expected = IllegalDataException.class)
   public void addRowMergeMiddle() throws Exception {
     // this happens if the same row key is used for the addRow call
     final byte[] qual1 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 };
@@ -278,7 +278,7 @@ public final class TestRollupSeq {
     rs.addRow(TestRowSeq.makekv( qual5, val5));
   }
   
-  @Test (expected = IllegalArgumentException.class)
+  @Test (expected = IllegalDataException.class)
   public void addRowMergeDuplicateLater() throws Exception {
     // this happens if the same row key is used for the addRow call
     final byte[] qual1 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 };
@@ -340,7 +340,7 @@ public final class TestRollupSeq {
     }
   }
   
-  @Test (expected = IllegalArgumentException.class)
+  @Test (expected = IllegalDataException.class)
   public void addRowMergeDuplicateEarlier() throws Exception {
     // this happens if the same row key is used for the addRow call
     final byte[] qual4 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x17 };

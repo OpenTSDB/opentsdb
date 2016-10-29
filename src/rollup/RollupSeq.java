@@ -258,7 +258,7 @@ public final class RollupSeq implements iRowSeq {
             }
           }
         } else {
-          throw new IllegalArgumentException("The offset for " + column 
+          throw new IllegalDataException("The offset for " + column 
               + " of " + offset + " is <= the last offset " + last_offset
               + " for " + this);
         }

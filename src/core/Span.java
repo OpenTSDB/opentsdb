@@ -362,7 +362,9 @@ public class Span implements DataPoints {
     for (int i = 0; i < nrows; i++) {
       row = rows.get(i);
       final int sz = row.size();
-      if (row.timestamp(sz - 1) < timestamp) {
+      if (sz < 1) {
+        row_index++;
+      } else if (row.timestamp(sz - 1) < timestamp) {
         row_index++;  // The last DP in this row is before 'timestamp'.
       } else {
         break;
@@ -414,18 +416,34 @@ public class Span implements DataPoints {
     
     @Override
     public boolean hasNext() {
-      return (current_row.hasNext()             // more points in this row
-              || row_index < rows.size() - 1);  // or more rows
+      if (current_row.hasNext()) {
+        return true;
+      }
+      // handle situations where a row in the middle may be empty due to some
+      // kind of logic kicking out data points
+      while (row_index < rows.size() - 1) {
+        row_index++;
+        current_row = rows.get(row_index).internalIterator();
+        if (current_row.hasNext()) {
+          return true;
+        }
+      }
+      return false;
     }
 
     @Override
     public DataPoint next() {
       if (current_row.hasNext()) {
         return current_row.next();
-      } else if (row_index < rows.size() - 1) {
+      }
+      // handle situations where a row in the middle may be empty due to some
+      // kind of logic kicking out data points
+      while (row_index < rows.size() - 1) {
         row_index++;
         current_row = rows.get(row_index).internalIterator();
-        return current_row.next();
+        if (current_row.hasNext()) {
+          return current_row.next();
+        }
       }
       throw new NoSuchElementException("no more elements");
     }

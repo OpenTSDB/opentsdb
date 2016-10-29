@@ -38,16 +38,20 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Pair;
 
 import org.hbase.async.AtomicIncrementRequest;
+import org.hbase.async.BinaryPrefixComparator;
 import org.hbase.async.Bytes;
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.AppendRequest;
 import org.hbase.async.DeleteRequest;
+import org.hbase.async.FilterComparator;
 import org.hbase.async.FilterList;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyRegexpFilter;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
+import org.hbase.async.QualifierFilter;
+import org.hbase.async.RegexStringComparator;
 import org.hbase.async.ScanFilter;
 import org.hbase.async.Scanner;
 import org.junit.Ignore;
@@ -55,6 +59,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.reflect.Whitebox;
 
+import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 
 /**
@@ -1356,7 +1361,6 @@ public final class MockBase {
       cursors;
     private ByteMap<Entry<byte[], ByteMap<TreeMap<Long, byte[]>>>> cf_rows;
     private byte[] last_row;
-    private String rex; // TEMP
     
     /**
      * Default ctor
@@ -1373,7 +1377,6 @@ public final class MockBase {
         public Object answer(InvocationOnMock invocation) throws Throwable {
           final Object[] args = invocation.getArguments();
           filter = new KeyRegexpFilter((String)args[0], Const.ASCII_CHARSET);
-          rex = (String)args[0];
           return null;
         }
       }).when(mock_scanner).setKeyRegexp(anyString());
@@ -1383,20 +1386,10 @@ public final class MockBase {
         public Object answer(InvocationOnMock invocation) throws Throwable {
           final Object[] args = invocation.getArguments();
           filter = new KeyRegexpFilter((String)args[0], (Charset)args[1]);
-          rex = (String)args[0];
           return null;
         }
       }).when(mock_scanner).setKeyRegexp(anyString(), (Charset)any());
       
-      doAnswer(new Answer<Object>() {
-        @Override
-        public Object answer(InvocationOnMock invocation) throws Throwable {
-          final Object[] args = invocation.getArguments();
-          filter = (ScanFilter)args[0];
-          return null;
-        }
-      }).when(mock_scanner).setFilter(any(ScanFilter.class));
-
       doAnswer(new Answer<Object>() {
         @Override
         public Object answer(InvocationOnMock invocation) throws Throwable {
@@ -1447,6 +1440,15 @@ public final class MockBase {
         }      
       }).when(mock_scanner).setQualifiers((byte[][])any());
       
+      doAnswer(new Answer<Object>() {
+        @Override
+        public Object answer(InvocationOnMock invocation) throws Throwable {
+          final Object[] args = invocation.getArguments();
+          filter = (ScanFilter)args[0];
+          return null;
+        }
+      }).when(mock_scanner).setFilter(any(ScanFilter.class));
+      
       doAnswer(new Answer<byte[]>() {
         @Override
         public byte[] answer(InvocationOnMock invocation) throws Throwable {
@@ -1456,12 +1458,40 @@ public final class MockBase {
       
       when(mock_scanner.nextRows()).thenAnswer(this);
       
+      doAnswer(new Answer<ScanFilter>() {
+        @Override
+        public ScanFilter answer(InvocationOnMock invocation) throws Throwable {
+          return filter;
+        }
+      }).when(mock_scanner).getFilter();
+      
+      doAnswer(new Answer<String>() {
+        @Override
+        public String answer(final InvocationOnMock ignored) throws Throwable {
+          return MockScanner.this.toString();
+        }
+      }).when(mock_scanner).toString();
+    }
+    
+    @Override
+    public String toString() {
+      final StringBuilder buf = new StringBuilder();
+      buf.append("table=")
+         .append(Bytes.pretty(table))
+         .append(", start=")
+         .append(Bytes.pretty(start))
+         .append(", stop=")
+         .append(Bytes.pretty(stop))
+         .append(", family=")
+         .append(Bytes.pretty(family))
+         .append(", filter=")
+         .append(filter);
+      return buf.toString();
     }
     
     @Override
     public Deferred<ArrayList<ArrayList<KeyValue>>> answer(
         final InvocationOnMock invocation) throws Throwable {
-      
       if (cursors == null) {
         final ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>> map = 
             storage.get(table);
@@ -1501,21 +1531,15 @@ public final class MockBase {
       }
       
       // TODO - fuzzy filter support
-      // TODO - fix the regex comparator 
       Pattern pattern = null;
-      if (rex != null) {
-        if (!rex.isEmpty()) {
-          pattern = Pattern.compile(rex);
-        }
-      } else if (filter != null) {
+      Charset regex_charset = null;
+      if (filter != null) {
         KeyRegexpFilter regex_filter = null;
         
         if (filter instanceof KeyRegexpFilter) {
           regex_filter = (KeyRegexpFilter)filter;
         } else if (filter instanceof FilterList) {
-          final List<ScanFilter> filters = 
-              Whitebox.getInternalState(filter, "filters");
-          for (final ScanFilter f : filters) {
+          for (final ScanFilter f : ((FilterList)filter).filters()) {
             if (f instanceof KeyRegexpFilter) {
               regex_filter = (KeyRegexpFilter)f;
             }
@@ -1524,13 +1548,10 @@ public final class MockBase {
         
         if (regex_filter != null) {
           try {
-            final String regexp = new String(
-                (byte[])Whitebox.getInternalState(regex_filter, "regexp"), 
-                Charset.forName(new String(
-                    (byte[])Whitebox.getInternalState(regex_filter, "charset"))));
-            if (!regexp.isEmpty()) {
-              pattern = Pattern.compile(regexp);
-            }
+            // key regex filter uses Bytes.UTF8(<string>)
+            pattern = Pattern.compile(new String(regex_filter.getRegexp(), 
+                Charset.forName("UTF-8")));
+            regex_charset = regex_filter.getCharset();
           } catch (PatternSyntaxException e) {
             e.printStackTrace();
             return Deferred.fromError(e);
@@ -1561,7 +1582,7 @@ public final class MockBase {
           continue;
         }
         if (pattern != null) {
-          final String from_bytes = new String(last_row, MockBase.ASCII);
+          final String from_bytes = new String(last_row, regex_charset);
           if (!pattern.matcher(from_bytes).find()) {
             continue;
           }
@@ -1594,6 +1615,55 @@ public final class MockBase {
             if (scnr_qualifiers != null && 
                 !scnr_qualifiers.contains(bytesToString(column.getKey()))) {
               continue;
+            }
+            
+            // handle qualifier filters. Just regexp for now
+            if (filter != null) {
+              List<QualifierFilter> qfs = Lists.newArrayList();
+              if (filter instanceof FilterList) {
+                for (final ScanFilter f : ((FilterList) filter).filters()) {
+                  if (f instanceof QualifierFilter) {
+                    qfs.add((QualifierFilter) f);
+                  } else if (f instanceof FilterList) { // nested
+                    for (final ScanFilter nf : ((FilterList) f).filters()) {
+                      if (nf instanceof QualifierFilter) {
+                        qfs.add((QualifierFilter) nf);
+                      }
+                    }
+                  }
+                }
+              } else if (filter instanceof QualifierFilter) {
+                qfs.add((QualifierFilter) filter);
+              }
+              
+              if (!qfs.isEmpty()) {
+                boolean matched = false;
+                for (final QualifierFilter qf : qfs) {
+                  final FilterComparator fc = Whitebox
+                      .getInternalState(qf, "comparator");
+                  if (fc instanceof BinaryPrefixComparator) {
+                    final byte[] comparator = Whitebox
+                        .getInternalState(fc, "value");
+                    if (Bytes.memcmp(comparator, column.getKey(), 0, 
+                        comparator.length) == 0) {
+                      matched = true;
+                    }
+                  } else if (fc instanceof RegexStringComparator) {
+                    // not using this yet but.... *shrug*
+                   final Pattern p = Pattern.compile((String) Whitebox
+                       .getInternalState(fc, "expr"));
+                   
+                   final String qualifier = new String(column.getKey(), 
+                       (Charset) Whitebox.getInternalState(fc, "charset"));
+                   if (p.matcher(qualifier).matches()) {
+                     matched = true;
+                   }
+                  }
+                }
+                if (!matched) {
+                  continue;
+                }
+              }
             }
             
             kvs.add(new KeyValue(row.getValue().getKey(), row.getKey(), 
@@ -1683,7 +1753,7 @@ public final class MockBase {
         }
       }
     }
-    
+  
     /** @return The scanner for this mock */
     public Scanner getScanner() {
       return mock_scanner;
