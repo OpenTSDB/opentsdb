@@ -25,7 +25,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 
 import net.opentsdb.rollup.NoSuchRollupForIntervalException;
@@ -34,7 +33,6 @@ import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueId.UniqueIdType;
 
 import org.hbase.async.Bytes;
 import org.junit.Before;
@@ -44,16 +42,16 @@ import org.powermock.reflect.Whitebox;
 import com.stumbleupon.async.Deferred;
 
 public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
-  private final static byte[] TSDB_TABLE = "tsdb".getBytes(MockBase.ASCII());
-  private final static byte[] AGG_TABLE = "tsdb-agg".getBytes(MockBase.ASCII());
-  private final static byte[] FAMILY = "t".getBytes(MockBase.ASCII());
-  private HashMap<String, String> tags;
-  private RollupConfig rollup_config;
+  protected final static byte[] TSDB_TABLE = "tsdb".getBytes(MockBase.ASCII());
+  protected final static byte[] AGG_TABLE = "tsdb-agg".getBytes(MockBase.ASCII());
+  protected final static byte[] FAMILY = "t".getBytes(MockBase.ASCII());
+  protected RollupConfig rollup_config;
+  protected String agg_tag_key;
+  protected byte[] row;
   
   @Before
-  public void beforeLocal() {
-    tags = new HashMap<String, String>(1);
-    tags.put(TAGK_STRING, TAGV_STRING);
+  public void beforeLocal() throws Exception {
+    agg_tag_key = config.getString("tsd.rollups.agg_tag_key");
     
     storage = new MockBase(tsdb, client, true, true, true, true);
     final List<byte[]> families = new ArrayList<byte[]>();
@@ -80,25 +78,22 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
     rollup_config = new RollupConfig(rollups);
     Whitebox.setInternalState(tsdb, "rollup_config", rollup_config);
     Whitebox.setInternalState(tsdb, "default_interval", rollups.get(0));
+    Whitebox.setInternalState(tsdb, "rollups_block_derived", true);
+    Whitebox.setInternalState(tsdb, "agg_tag_key", 
+        config.getString("tsd.rollups.agg_tag_key"));
+    Whitebox.setInternalState(tsdb, "raw_agg_tag_value", 
+        config.getString("tsd.rollups.raw_agg_tag_value"));
+    setupGroupByTagValues();
     
-    mockUID(UniqueIdType.TAGK, "_aggregate", new byte[] { 0, 0, 42 });
-    mockUID(UniqueIdType.TAGV, "SUM", new byte[] { 0, 0, 42 });
-    mockUID(UniqueIdType.TAGV, "MAX", new byte[] { 0, 0, 43 });
-    mockUID(UniqueIdType.TAGV, "MIN", new byte[] { 0, 0, 44 });
-    mockUID(UniqueIdType.TAGV, "COUNT", new byte[] { 0, 0, 45 });
-    mockUID(UniqueIdType.TAGV, "AVG", new byte[] { 0, 0, 46 });
-    mockUID(UniqueIdType.TAGV, "NOSUCHAGG", new byte[] { 0, 0, 47 });
+    row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING);
   }
   
   @Test
   public void addAggregatePointLong1Byte() throws Exception {
-    final byte[] row = new byte[] {  0, 0, 1, 
-        0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, 42, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -109,13 +104,10 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePointLong1ByteNegative() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1, 
-        0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, -42, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -126,13 +118,10 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePointLong2Bytes() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 1};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, 257, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -143,13 +132,10 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePointLong2BytesNegative() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 1};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, -257, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -160,13 +146,10 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePointLong4Bytes() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 3};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, 65537, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -177,13 +160,10 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePointLong4BytesNegative() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 3};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, -65537, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -195,13 +175,10 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePointLong8Bytes() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 7};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, 4294967296L, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -212,13 +189,11 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePointLong8BytesNegative() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1};
     RowKey.prefixKeyWithSalt(row);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 7};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, -4294967296L, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -230,13 +205,11 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePointFloat4Bytes() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1};
     RowKey.prefixKeyWithSalt(row);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0x0B};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, 42.5F, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -248,13 +221,11 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePointFloat4BytesNegative() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1};
     RowKey.prefixKeyWithSalt(row);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0x0B};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, -42.5F, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -266,13 +237,11 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePointFloat4BytesPrecision() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1};
     RowKey.prefixKeyWithSalt(row);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0x0B};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, 42.5123459999F, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -284,13 +253,11 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePointFloat4BytesPrecisionNegative() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1};
     RowKey.prefixKeyWithSalt(row);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0x0B};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, -42.5123459999F, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -304,24 +271,22 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   @Test (expected = IllegalArgumentException.class)
   public void addAggregatePointMilliseconds() throws Exception {
     tsdb.addAggregatePoint(METRIC_STRING, 1419992400000L, 42, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
   }
  
   @Test (expected = NoSuchRollupForIntervalException.class)
   public void addAggregatePointNoSuchRollup() throws Exception {
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, 42, tags, false,
-        "11m", "sum").joinUninterruptibly();
+        "11m", "sum", null).joinUninterruptibly();
   }
 
   @Test
   public void addAggregatePoint10mInDayTop() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x51, (byte) 0xAF, (byte) 0xD1, 0, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
+    row = getRowKey(METRIC_STRING, 1370476800, TAGK_STRING, TAGV_STRING);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1370476800, 42, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -332,13 +297,11 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePoint10mInDayMid() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x51, (byte) 0xAF, (byte) 0xD1, 0, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
+    row = getRowKey(METRIC_STRING, 1370476800, TAGK_STRING, TAGV_STRING);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 5, (byte) 0xD0};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1370532925L, 42, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -349,13 +312,11 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePoint10mInDayEnd() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x51, (byte) 0xAF, (byte) 0xD1, 0, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
+    row = getRowKey(METRIC_STRING, 1370476800, TAGK_STRING, TAGV_STRING);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 5, (byte) 0xF0};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1370534399L, 42, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -366,13 +327,11 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePoint10mInDayOver() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x51, (byte) 0xB1, (byte) 0x22, (byte) 0x80, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
+    row = getRowKey(METRIC_STRING, 1370563200, TAGK_STRING, TAGV_STRING);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1370563200L, 42, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -383,13 +342,12 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePoint1hInMonthTop() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x51, (byte) 0xA9, (byte) 0x39, (byte) 0x80, 0, 0, 1, 0, 0, 1};
+    row = getRowKey(METRIC_STRING, 1370044800, TAGK_STRING, TAGV_STRING);
     RowKey.prefixKeyWithSalt(row);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1370044800L, 42, tags, false,
-        "1h", "sum").joinUninterruptibly();
+        "1h", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("1h").getTemporalTable(), 
@@ -400,13 +358,11 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePoint1hInMonthMid() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x51, (byte) 0xA9, (byte) 0x39, (byte) 0x80, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
+    row = getRowKey(METRIC_STRING, 1370044800, TAGK_STRING, TAGV_STRING);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0x2C, (byte) 0xF0};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1372636799L, 42, tags, false,
-        "1h", "sum").joinUninterruptibly();
+        "1h", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("1h").getTemporalTable(), 
@@ -417,13 +373,11 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePoint1hInMonthOver() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x51, (byte) 0xD0, (byte) 0xC6, (byte) 0x80, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
+    row = getRowKey(METRIC_STRING, 1372636800, TAGK_STRING, TAGV_STRING);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1372636800L, 42, tags, false,
-        "1h", "sum").joinUninterruptibly();
+        "1h", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("1h").getTemporalTable(), 
@@ -434,13 +388,11 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePoint1dInYearTop() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x50, (byte) 0xE2, (byte) 0x27, (byte) 0x00, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
+    row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, 42, tags, false,
-        "1d", "sum").joinUninterruptibly();
+        "1d", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("1d").getTemporalTable(), 
@@ -451,13 +403,11 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePoint1dInYearMid() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x50, (byte) 0xE2, (byte) 0x27, (byte) 0x00, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
+    row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 9, (byte) 0xC0};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1370532925L, 42, tags, false,
-        "1d", "sum").joinUninterruptibly();
+        "1d", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("1d").getTemporalTable(), 
@@ -468,13 +418,11 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePoint1dInYearEnd() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x50, (byte) 0xE2, (byte) 0x27, (byte) 0x00, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
+    row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0x16, (byte) 0xC0};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1388534399L, 42, tags, false,
-        "1d", "sum").joinUninterruptibly();
+        "1d", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("1d").getTemporalTable(), 
@@ -485,13 +433,11 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePoint1dInYearOver() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1,
-        0x52, (byte) 0xC3, (byte) 0x5A, (byte) 0x80, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
+    row = getRowKey(METRIC_STRING, 1388534400, TAGK_STRING, TAGV_STRING);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
 
     tsdb.addAggregatePoint(METRIC_STRING, 1388534400L, 42, tags, false,
-        "1d", "sum").joinUninterruptibly();
+        "1d", "sum", null).joinUninterruptibly();
 
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("1d").getTemporalTable(), 
@@ -503,7 +449,7 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   @Test (expected = NoSuchUniqueName.class)
   public void addAggregatePointNSUNMetric() throws Exception {
     tsdb.addAggregatePoint(NSUN_METRIC, 1388534400L, 42, tags, false,
-        "1d", "sum").joinUninterruptibly();
+        "1d", "sum", null).joinUninterruptibly();
   }
   
   @Test (expected = NoSuchUniqueName.class)
@@ -511,26 +457,23 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
     tags.clear();
     tags.put(NSUN_TAGK, TAGV_STRING);
     tsdb.addAggregatePoint(METRIC_STRING, 1388534400L, 42, tags, false,
-        "1d", "sum").joinUninterruptibly();
+        "1d", "sum", null).joinUninterruptibly();
   }
   
   @Test (expected = NoSuchUniqueName.class)
   public void addAggregatePointNSUNTagV() throws Exception {
     tags.put(TAGK_STRING, NSUN_TAGV);
     tsdb.addAggregatePoint(METRIC_STRING, 1388534400L, 42, tags, false,
-        "1d", "sum").joinUninterruptibly();
+        "1d", "sum", null).joinUninterruptibly();
   }
   
   // This is allowed, we don't check the aggregation function in this method.
   // It's up to the RPC level to check
   @Test
   public void addAggregatePointRollupNoSuchAgg() throws Exception {
-
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, "10m", 
-        "nosuchagg").joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1 };
-    RowKey.prefixKeyWithSalt(row);
+        "nosuchagg", null).joinUninterruptibly();
+    
     final RollupInterval interval = rollup_config.getRollupInterval("10m");
     assertEquals(42, storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, 
@@ -541,69 +484,64 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   public void addAggregatePointRollupsNotConfigured() throws Exception {
     Whitebox.setInternalState(tsdb, "rollup_config", (RollupConfig)null);
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, "10m", 
-        "nosuchagg").joinUninterruptibly();
+        "nosuchagg", null).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void addAggregatePointNegativeTimestamp() throws Exception {
     tsdb.addAggregatePoint(METRIC_STRING, -1356998400, 42, tags, false, "10m", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void addAggregatePointEmptyTags() throws Exception {
     tags.put(TAGK_STRING, "");
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, "10m", 
-        "nosuchagg").joinUninterruptibly();
+        "nosuchagg", null).joinUninterruptibly();
   }
   
   // not allowed at this time
   @Test (expected = IllegalArgumentException.class)
   public void addAggregatePointMS() throws Exception {
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400000L, 42, tags, false, "10m", 
-        "nosuchagg").joinUninterruptibly();
+        "nosuchagg", null).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void addAggregatePointNullInterval() throws Exception {
-
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, null, 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void addAggregatePointEmptyInterval() throws Exception {
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, "", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
   }
   
   @Test (expected = NoSuchRollupForIntervalException.class)
   public void addAggregatePointIntervalNotConfigured() throws Exception {
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, "6h", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void addAggregatePointNullAggregator() throws Exception {
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, "10m", 
-        null).joinUninterruptibly();
+        null, null).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void addAggregatePointEmptyAggregator() throws Exception {
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, "10m", 
-        "").joinUninterruptibly();
+        "", null).joinUninterruptibly();
   }
   
   @Test
   public void addAggregatePointRollupRouting() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1 };
-    RowKey.prefixKeyWithSalt(row);
-    
     RollupInterval interval = rollup_config.getRollupInterval("10m");
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, "10m", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
     
     assertEquals(42, storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "sum", 
@@ -617,7 +555,7 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
     
     interval = rollup_config.getRollupInterval("1h");
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, "1h", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
     
     assertEquals(42, storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "sum", 
@@ -634,7 +572,7 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
     
     interval = rollup_config.getRollupInterval("1d");
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, "1d", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
     
     assertEquals(42, storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "sum", 
@@ -651,91 +589,92 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
     // other aggs
     interval = rollup_config.getRollupInterval("1h");
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, "1h", 
-        "max").joinUninterruptibly();
+        "max", null).joinUninterruptibly();
     assertEquals(42, storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "max", 
             interval))[0]);
     
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, "1h", 
-        "min").joinUninterruptibly();
+        "min", null).joinUninterruptibly();
     assertEquals(42, storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "min", 
             interval))[0]);
     
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, "1h", 
-        "count").joinUninterruptibly();
+        "count", null).joinUninterruptibly();
     assertEquals(42, storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "count", 
             interval))[0]);
     
-    tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, "1h", 
-        "avg").joinUninterruptibly();
-    assertEquals(42, storage.getColumn(interval.getTemporalTable(), 
+    // derived not allowed by default
+    try {
+      tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, "1h", 
+          "avg", null).joinUninterruptibly();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    assertNull(storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "avg", 
-            interval))[0]);
+            interval)));
   }
   
   @Test
   public void addAggregatePointLongs() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1 };
-    RowKey.prefixKeyWithSalt(row);
     final RollupInterval interval = rollup_config.getRollupInterval("10m");
     
     // 1 byte
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 0, tags, false, "10m", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
     assertEquals(0, storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "sum", 
             interval))[0]);
     
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, false, "10m", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
     assertEquals(42, storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "sum", 
             interval))[0]);
     
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, -42, tags, false, "10m", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
     assertEquals(-42, storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "sum", 
             interval))[0]);
     
     // 2 bytes
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 257, tags, false, "10m", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
     assertEquals(257, Bytes.getShort(storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)1, "sum", 
             interval))));
     
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, -257, tags, false, "10m", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
     assertEquals(-257, Bytes.getShort(storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)1, "sum", 
             interval))));
     
     // 4 bytes
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 65537, tags, false, "10m", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
     assertEquals(65537, Bytes.getInt(storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)3, "sum", 
             interval))));
     
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, -65537, tags, false, "10m", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
     assertEquals(-65537, Bytes.getInt(storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)3, "sum", 
             interval))));
     
     // 8 bytes
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 4294967296L, tags, false, "10m", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
     assertEquals(4294967296L, Bytes.getLong(storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)7, "sum", 
             interval))));
     
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, -4294967296L, tags, false, "10m", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
     assertEquals(-4294967296L, Bytes.getLong(storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)7, "sum", 
             interval))));
@@ -743,34 +682,31 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   
   @Test
   public void addAggregatePointFloats() throws Exception {
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1 };
-    RowKey.prefixKeyWithSalt(row);
     final RollupInterval interval = rollup_config.getRollupInterval("10m");
     
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 0.0F, tags, false, "10m", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
     assertEquals(0.0, Float.intBitsToFloat(Bytes.getInt(
         storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)11, "sum", 
             interval)))), 0.0001);
     
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42.5F, tags, false, "10m", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
     assertEquals(42.5, Float.intBitsToFloat(Bytes.getInt(
         storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)11, "sum", 
             interval)))), 0.0001);
     
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, -42.5F, tags, false, "10m", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
     assertEquals(-42.5, Float.intBitsToFloat(Bytes.getInt(
         storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)11, "sum", 
             interval)))), 0.0001);
     
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42.5123459999F, tags, false, "10m", 
-        "sum").joinUninterruptibly();
+        "sum", null).joinUninterruptibly();
     assertEquals(42.5123459999F, Float.intBitsToFloat(Bytes.getInt(
         storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)11, "sum", 
@@ -778,15 +714,112 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
   }
   
   @Test
-  public void addAggregatePointGroupByRollupRouting() throws Exception {
-    byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1, 0, 0, 0x2A, 0, 0, 0x2A };
-    RowKey.prefixKeyWithSalt(row);
+  public void addAggregatePointGroupByOnlyRouting() throws Exception {
+    row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING, 
+        agg_tag_key, "SUM");
     
+    assertNull(tags.get(agg_tag_key));
+    RollupInterval interval = rollup_config.getRollupInterval("1m");
+    tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, null, 
+        null, "sum").joinUninterruptibly();
+    
+    assertEquals(42, storage.getColumn(interval.getGroupbyTable(), 
+        row, FAMILY, new byte[] { 0, 0 })[0]);
+    // make sure it didn't get into the tsdb table OR rollup table
+    assertNull(storage.getColumn(TSDB_TABLE, 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "sum", 
+            interval)));
+    assertNull(storage.getColumn(interval.getTemporalTable(), 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "sum", 
+            interval)));
+    assertEquals("SUM", tags.get(agg_tag_key));
+    
+    storage.flushStorage();
+    tags.remove(agg_tag_key);
+    
+    // other aggs
+    row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING, 
+        agg_tag_key, "MAX");
+    
+    tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, null, 
+        null, "max").joinUninterruptibly();
+    assertEquals(42, storage.getColumn(interval.getGroupbyTable(), 
+        row, FAMILY, new byte[] { 0, 0 })[0]);
+    assertNull(storage.getColumn(TSDB_TABLE, 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "max", 
+            interval)));
+    assertNull(storage.getColumn(interval.getTemporalTable(), 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "max", 
+            interval)));
+    assertEquals("MAX", tags.get(agg_tag_key));
+    
+    storage.flushStorage();
+    tags.remove(agg_tag_key);
+    
+    row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING, 
+        agg_tag_key, "MIN");
+    tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, null, 
+        null, "min").joinUninterruptibly();
+    assertEquals(42, storage.getColumn(interval.getGroupbyTable(), 
+        row, FAMILY, new byte[] { 0, 0 })[0]);
+    assertNull(storage.getColumn(TSDB_TABLE, 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "min", 
+            interval)));
+    assertNull(storage.getColumn(interval.getTemporalTable(), 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "min", 
+            interval)));
+    assertEquals("MIN", tags.get(agg_tag_key));
+    
+    storage.flushStorage();
+    tags.remove(agg_tag_key);
+    
+    row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING, 
+        agg_tag_key, "COUNT");
+    tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, null, 
+        null, "count").joinUninterruptibly();
+    assertEquals(42, storage.getColumn(interval.getGroupbyTable(), 
+        row, FAMILY, new byte[] { 0, 0 })[0]);
+    assertNull(storage.getColumn(TSDB_TABLE, 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "count", 
+            interval)));
+    assertNull(storage.getColumn(interval.getTemporalTable(), 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "count", 
+            interval)));
+    assertEquals("COUNT", tags.get(agg_tag_key));
+    
+    storage.flushStorage();
+    tags.remove(agg_tag_key);
+    
+    // derived metrics blocked by default
+    row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING, 
+        agg_tag_key, "AVG");
+    try {
+      tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, null, 
+          null, "avg").joinUninterruptibly();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    assertNull(storage.getColumn(interval.getGroupbyTable(), 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "avg", 
+            interval)));
+    assertNull(storage.getColumn(TSDB_TABLE, 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "avg", 
+            interval)));
+    assertNull(storage.getColumn(interval.getTemporalTable(), 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "avg", 
+            interval)));
+    assertEquals("AVG", tags.get(agg_tag_key));
+  }
+  
+  @Test
+  public void addAggregatePointGroupByRollupRouting() throws Exception {
+    row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING, 
+        agg_tag_key, "SUM");
+    
+    assertNull(tags.get(agg_tag_key));
     RollupInterval interval = rollup_config.getRollupInterval("10m");
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, "10m", 
-        "sum").joinUninterruptibly();
-
+        "sum", "sum").joinUninterruptibly();
+    
     assertEquals(42, storage.getColumn(interval.getGroupbyTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "sum", 
             interval))[0]);
@@ -797,12 +830,14 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
     assertNull(storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "sum", 
             interval)));
+    assertEquals("SUM", tags.get(agg_tag_key));
     
     storage.flushStorage();
+    tags.remove(agg_tag_key);
     
     interval = rollup_config.getRollupInterval("1h");
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, "1h", 
-        "sum").joinUninterruptibly();
+        "sum", "sum").joinUninterruptibly();
     
     assertEquals(42, storage.getColumn(interval.getGroupbyTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "sum", 
@@ -813,12 +848,14 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
     assertNull(storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "sum", 
             interval)));
+    assertEquals("SUM", tags.get(agg_tag_key));
     
     storage.flushStorage();
+    tags.remove(agg_tag_key);
     
     interval = rollup_config.getRollupInterval("1d");
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, "1d", 
-        "sum").joinUninterruptibly();
+        "sum", "sum").joinUninterruptibly();
     
     assertEquals(42, storage.getColumn(interval.getGroupbyTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "sum", 
@@ -829,104 +866,120 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
     assertNull(storage.getColumn(interval.getTemporalTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "sum", 
             interval)));
+    assertEquals("SUM", tags.get(agg_tag_key));
     
     storage.flushStorage();
+    tags.remove(agg_tag_key);
+    
     // other aggs
-    row[row.length-1] = 0x2B;
-    RowKey.prefixKeyWithSalt(row);
+    row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING, 
+        agg_tag_key, "MAX");
     interval = rollup_config.getRollupInterval("1h");
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, "1h", 
-        "max").joinUninterruptibly();
+        "max", "max").joinUninterruptibly();
     assertEquals(42, storage.getColumn(interval.getGroupbyTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "max", 
             interval))[0]);
+    assertNull(storage.getColumn(TSDB_TABLE, 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "max", 
+            interval)));
+    assertNull(storage.getColumn(interval.getTemporalTable(), 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "max", 
+            interval)));
+    assertEquals("MAX", tags.get(agg_tag_key));
     
-    row[row.length-1] = 0x2C;
-    RowKey.prefixKeyWithSalt(row);
+    storage.flushStorage();
+    tags.remove(agg_tag_key);
+    
+    row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING, 
+        agg_tag_key, "MIN");
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, "1h", 
-        "min").joinUninterruptibly();
+        "min", "min").joinUninterruptibly();
     assertEquals(42, storage.getColumn(interval.getGroupbyTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "min", 
             interval))[0]);
+    assertNull(storage.getColumn(TSDB_TABLE, 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "min", 
+            interval)));
+    assertNull(storage.getColumn(interval.getTemporalTable(), 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "min", 
+            interval)));
+    assertEquals("MIN", tags.get(agg_tag_key));
     
-    row[row.length-1] = 0x2D;
-    RowKey.prefixKeyWithSalt(row);
+    storage.flushStorage();
+    tags.remove(agg_tag_key);
+    
+    row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING, 
+        agg_tag_key, "COUNT");
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, "1h", 
-        "count").joinUninterruptibly();
+        "count", "count").joinUninterruptibly();
     assertEquals(42, storage.getColumn(interval.getGroupbyTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "count", 
             interval))[0]);
+    assertNull(storage.getColumn(TSDB_TABLE, 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "count", 
+            interval)));
+    assertNull(storage.getColumn(interval.getTemporalTable(), 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "count", 
+            interval)));
+    assertEquals("COUNT", tags.get(agg_tag_key));
     
-    row[row.length-1] = 0x2E;
-    RowKey.prefixKeyWithSalt(row);
-    tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, "1h", 
-        "avg").joinUninterruptibly();
-    assertEquals(42, storage.getColumn(interval.getGroupbyTable(), 
+    storage.flushStorage();
+    tags.remove(agg_tag_key);
+    
+    // derivced metrics blocked by default
+    row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING, 
+        agg_tag_key, "AVG");
+    try {
+      tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, "1h", 
+          "avg", "avg").joinUninterruptibly();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    assertNull(storage.getColumn(interval.getGroupbyTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "avg", 
-            interval))[0]);
+            interval)));
+    assertNull(storage.getColumn(TSDB_TABLE, 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "avg", 
+            interval)));
+    assertNull(storage.getColumn(interval.getTemporalTable(), 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "avg", 
+            interval)));
+    assertEquals("AVG", tags.get(agg_tag_key));
   }
   
   //This is allowed, we don't check the aggregation function in this method.
   // It's up to the RPC level to check
   @Test
   public void addAggregatePointGroupByRollupNoSuchAgg() throws Exception {
-    tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, "10m", 
-        "nosuchagg").joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1, 0, 0, 0x2A, 0, 0, 0x2F };
-    RowKey.prefixKeyWithSalt(row);
+    row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING, 
+        agg_tag_key, "SUM");
     final RollupInterval interval = rollup_config.getRollupInterval("10m");
+    
+    tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, "10m", 
+        "nosuchagg", "sum").joinUninterruptibly();
+    
     assertEquals(42, storage.getColumn(interval.getGroupbyTable(), 
         row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, 
             "nosuchagg", interval))[0]);
-  }
- 
-  //This is allowed, we don't check the aggregation function in this method.
-  // It's up to the RPC level to check
-  @Test
-  public void addAggregatePointGroupByNoSuchAgg() throws Exception {
-    tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, null, 
-        "nosuchagg").joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1, 0, 0, 0x2A, 0, 0, 0x2F  };
-    RowKey.prefixKeyWithSalt(row);
-    assertEquals(42, storage.getColumn(AGG_TABLE, row, FAMILY, 
-        new byte[] { 0, 0 })[0]);
+    assertNull(storage.getColumn(TSDB_TABLE, 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "sum", 
+            interval)));
+    assertNull(storage.getColumn(interval.getTemporalTable(), 
+        row, FAMILY, RollupUtils.buildRollupQualifier(1356998400, (short)0, "sum", 
+            interval)));
   }
   
-  @Test
-  public void addAggregatePointGroupBy() throws Exception {
+  @Test (expected = IllegalArgumentException.class)
+  public void addAggregatePointGroupByNoSuchAgg() throws Exception {
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, null, 
-        "sum").joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1, 0, 0, 0x2A, 0, 0, 0x2A };
-    RowKey.prefixKeyWithSalt(row);
-    assertEquals(42, storage.getColumn(AGG_TABLE, row, FAMILY, 
-        new byte[] { 0, 0 })[0]);
-    assertNull(storage.getColumn(TSDB_TABLE, row, FAMILY, 
-        new byte[] { 0, 0 }));
-    assertNull(storage.getColumn(
-        rollup_config.getRollupInterval("10m").getGroupbyTable(), row, FAMILY, 
-        new byte[] { 0, 0 }));
-    
-    tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 24, tags, true, null, 
-        "count").joinUninterruptibly();
-    row[row.length-1] = 0x2D;
-    RowKey.prefixKeyWithSalt(row);
-    assertEquals(24, storage.getColumn(AGG_TABLE, row, FAMILY, 
-        new byte[] { 0, 0 })[0]);
-    assertNull(storage.getColumn(TSDB_TABLE, row, FAMILY, 
-        new byte[] { 0, 0 }));
-    assertNull(storage.getColumn(
-        rollup_config.getRollupInterval("10m").getGroupbyTable(), row, FAMILY, 
-        new byte[] { 0, 0 }));
+        "sum", "nosuchagg").joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void addAggregatePointGroupByRollupsDisabled() throws Exception {
     Whitebox.setInternalState(tsdb, "rollup_config", (Object) null);
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, 42, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
   }
   
   @Test
@@ -940,11 +993,8 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
     Whitebox.setInternalState(tsdb, "ts_filter", filter);
     
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, 42, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
     
-    final byte[] row = new byte[] { 0, 0, 1, 
-        0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -964,11 +1014,8 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
     Whitebox.setInternalState(tsdb, "ts_filter", filter);
     
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, 42, tags, false,
-        "10m", "sum").joinUninterruptibly();
+        "10m", "sum", null).joinUninterruptibly();
     
-    final byte[] row = new byte[] { 0, 0, 1, 
-        0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -987,15 +1034,13 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
     Whitebox.setInternalState(tsdb, "ts_filter", filter);
     
     final Deferred<Object> deferred = tsdb.addAggregatePoint(METRIC_STRING, 
-        1356998400L, 42, tags, false, "10m", "sum");
+        1356998400L, 42, tags, false, "10m", "sum", null);
     
     try {
       deferred.join();
       fail("Expected an UnitTestException");
     } catch (UnitTestException e) { };
-    final byte[] row = new byte[] { 0, 0, 1, 
-        0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
+    
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 
@@ -1015,12 +1060,10 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
     
     try {
       tsdb.addAggregatePoint(METRIC_STRING, 
-          1356998400L, 42, tags, false, "10m", "sum");
+          1356998400L, 42, tags, false, "10m", "sum", null);
       fail("Expected an UnitTestException");
     } catch (UnitTestException e) { };
-    final byte[] row = new byte[] { 0, 0, 1, 
-        0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1};
-    RowKey.prefixKeyWithSalt(row);
+    
     final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("10m").getTemporalTable(), 

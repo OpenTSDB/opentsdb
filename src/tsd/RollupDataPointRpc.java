@@ -96,7 +96,7 @@ class RollupDataPointRpc extends PutDataPointRpc
   @Override
   protected Deferred<Object> importDataPoint(final TSDB tsdb, 
       final String[] words) {
-    words[TelnetIndex.COMMAND.ordinal()] = null; // Ditch the "rollup string".
+    words[TelnetIndex.COMMAND.ordinal()] = null; // Ditch the "rollup" string.
     if (words.length < TelnetIndex.TAGS.ordinal() + 1) {
       throw new IllegalArgumentException("not enough arguments"
               + " (need least 7, got " + (words.length - 1) + ')');
@@ -159,13 +159,16 @@ class RollupDataPointRpc extends PutDataPointRpc
     
     if (Tags.looksLikeInteger(value)) {
       return tsdb.addAggregatePoint(metric, timestamp, Tags.parseLong(value),
-          tags, spatial_agg != null ? true : false, interval, temporal_agg);
+          tags, spatial_agg != null ? true : false, interval, temporal_agg,
+              spatial_agg);
     } else if (Tags.fitsInFloat(value)) {  // floating point value
       return tsdb.addAggregatePoint(metric, timestamp, Float.parseFloat(value),
-          tags, spatial_agg != null ? true : false, interval, temporal_agg);
+          tags, spatial_agg != null ? true : false, interval, temporal_agg,
+              spatial_agg);
     } else {
       return tsdb.addAggregatePoint(metric, timestamp, Double.parseDouble(value),
-          tags, spatial_agg != null ? true : false, interval, temporal_agg);
+          tags, spatial_agg != null ? true : false, interval, temporal_agg,
+              spatial_agg);
     }
   }
   

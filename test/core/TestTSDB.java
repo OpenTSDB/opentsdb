@@ -17,7 +17,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
@@ -59,7 +58,6 @@ import com.stumbleupon.async.Deferred;
   CompactionQueue.class, GetRequest.class, PutRequest.class, KeyValue.class, 
   Scanner.class, AtomicIncrementRequest.class, Const.class})
 public final class TestTSDB extends BaseTsdbTest {
-  private MockBase storage;
   
   @Before
   public void beforeLocal() throws Exception {
@@ -78,7 +76,6 @@ public final class TestTSDB extends BaseTsdbTest {
   
   @Test
   public void ctorRollups() throws Exception {
-    
     TSDB tsdb = new TSDB(client, config);
     assertNull(Whitebox.getInternalState(tsdb, "rollup_config"));
     assertNull(Whitebox.getInternalState(tsdb, "default_interval"));

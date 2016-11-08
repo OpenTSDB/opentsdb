@@ -516,7 +516,12 @@ public class Config {
     default_map.put("tsd.query.allow_simultaneous_duplicates", "true");
     default_map.put("tsd.query.enable_fuzzy_filter", "true");
     default_map.put("tsd.rpc.telnet.return_errors", "true");
+    // Rollup related settings
     default_map.put("tsd.rollups.enable", "false");
+    default_map.put("tsd.rollups.tag_raw", "false");
+    default_map.put("tsd.rollups.agg_tag_key", "_aggregate");
+    default_map.put("tsd.rollups.raw_agg_tag_value", "RAW");
+    default_map.put("tsd.rollups.block_derived", "true");
     default_map.put("tsd.rtpublisher.enable", "false");
     default_map.put("tsd.rtpublisher.plugin", "");
     default_map.put("tsd.search.enable", "false");

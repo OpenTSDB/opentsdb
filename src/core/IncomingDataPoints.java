@@ -113,8 +113,10 @@ final class IncomingDataPoints implements WritableDataPoints {
 
     Tags.validateString("metric name", metric);
     for (final Map.Entry<String, String> tag : tags.entrySet()) {
-      Tags.validateString("tag name", tag.getKey());
-      Tags.validateString("tag value", tag.getValue());
+      Tags.validateString("tag name with value [" + tag.getValue() + "]", 
+          tag.getKey());
+      Tags.validateString("tag value with key [" + tag.getKey() + "]", 
+          tag.getValue());
     }
   }
 

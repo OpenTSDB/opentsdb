@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2016  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -37,6 +37,7 @@ import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.Threads;
 
+import org.hbase.async.Bytes;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.Scanner;
 import org.jboss.netty.util.HashedWheelTimer;
@@ -52,6 +53,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
+import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
 
 /**
@@ -109,9 +111,11 @@ public class BaseTsdbTest {
   protected UniqueId tag_values = mock(UniqueId.class);
   protected Map<String, String> tags;
   protected MockBase storage;
+  protected Map<String, byte[]> uid_map;
   
   @Before
   public void before() throws Exception {
+    uid_map = Maps.newHashMap();
     PowerMockito.mockStatic(Threads.class);
     timer = new FakeTaskTimer();
     PowerMockito.when(Threads.newTimer(anyString())).thenReturn(timer);
@@ -135,6 +139,21 @@ public class BaseTsdbTest {
     setupMetricMaps();
     setupTagkMaps();
     setupTagvMaps();
+    
+    // add metrics and tags to the UIDs list for other functions to share
+    uid_map.put(METRIC_STRING, METRIC_BYTES);
+    uid_map.put(METRIC_B_STRING, METRIC_B_BYTES);
+    uid_map.put(NSUN_METRIC, NSUI_METRIC);
+    
+    uid_map.put(TAGK_STRING, TAGK_BYTES);
+    uid_map.put(TAGK_B_STRING, TAGK_B_BYTES);
+    uid_map.put(NSUN_TAGK, NSUI_TAGK);
+    
+    uid_map.put(TAGV_STRING, TAGV_BYTES);
+    uid_map.put(TAGV_B_STRING, TAGV_B_BYTES);
+    uid_map.put(NSUN_TAGV, NSUI_TAGV);
+    
+    uid_map.putAll(UIDS);
     
     when(metrics.width()).thenReturn((short)3);
     when(tag_names.width()).thenReturn((short)3);
@@ -209,6 +228,32 @@ public class BaseTsdbTest {
     }
   }
 
+  /**
+   * Helper method that sets up UIDs for rollup and pre-agg testing.
+   */
+  protected void setupGroupByTagValues() {
+    // set the aggregate tag and value
+    mockUID(UniqueIdType.TAGK, config.getString("tsd.rollups.agg_tag_key"),
+        new byte[] { 0, 0, 42 });
+    uid_map.put(config.getString("tsd.rollups.agg_tag_key"), new byte[] { 0, 0, 42 });
+    mockUID(UniqueIdType.TAGV, config.getString("tsd.rollups.raw_agg_tag_value"),
+        new byte[] { 0, 0, 42 });
+    uid_map.put(config.getString("tsd.rollups.raw_agg_tag_value"), 
+        new byte[] { 0, 0, 42 });
+    mockUID(UniqueIdType.TAGV, "SUM", new byte[] { 0, 0, 43 });
+    uid_map.put("SUM", new byte[] { 0, 0, 43 });
+    mockUID(UniqueIdType.TAGV, "MAX", new byte[] { 0, 0, 44 });
+    uid_map.put("MAX", new byte[] { 0, 0, 44 });
+    mockUID(UniqueIdType.TAGV, "MIN", new byte[] { 0, 0, 45 });
+    uid_map.put("MIN", new byte[] { 0, 0, 45 });
+    mockUID(UniqueIdType.TAGV, "COUNT", new byte[] {  0, 0, 46 });
+    uid_map.put("COUNT", new byte[] { 0, 0, 46 });
+    mockUID(UniqueIdType.TAGV, "AVG", new byte[] { 0, 0, 47 });
+    uid_map.put("AVG", new byte[] { 0, 0, 47 });
+    mockUID(UniqueIdType.TAGV, "NOSUCHAGG", new byte[] { 0, 0, 0, 48 });
+    uid_map.put("NOSUCHAGG", new byte[] { 0, 0, 48 });
+  }
+  
   // ----------------- //
   // Helper functions. //
   // ----------------- //
@@ -316,6 +361,89 @@ public class BaseTsdbTest {
   /** @return a row key template with the default metric and tags */
   protected byte[] getRowKeyTemplate() {
     return IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags);
+  }
+  
+  /**
+   * Generates a proper key storage row key based on the metric, base time 
+   * and tags. Adds salting when mocked properly.
+   * @param metric A non-null byte array representing the metric.
+   * @param base_time The base time for the row.
+   * @param tags A non-null list of tag key/value pairs as UIDs.
+   * @return A row key to check mock storage for.
+   */
+  protected byte[] getRowKey(final byte[] metric, final int base_time, 
+      final byte[] tags) {
+    final byte[] key = new byte[Const.SALT_WIDTH() + metric.length + 
+                                Const.TIMESTAMP_BYTES + tags.length];
+    
+    System.arraycopy(metric, 0, key, Const.SALT_WIDTH(), metric.length);
+    System.arraycopy(Bytes.fromInt(base_time), 0, key, 
+        Const.SALT_WIDTH() + metric.length, Const.TIMESTAMP_BYTES);
+    System.arraycopy(tags, 0, key, Const.SALT_WIDTH() + metric.length + 
+        Const.TIMESTAMP_BYTES, tags.length);
+    RowKey.prefixKeyWithSalt(key);
+    return key;
+  }
+  
+  /**
+   * Generates a proper key storage row key based on the metric, base time 
+   * and tags. Adds salting when mocked properly.
+   * @param metric
+   * @param base_time
+   * @param tags
+   * @return
+   */
+  protected byte[] getRowKey(final String metric, final int base_time, 
+      final String... tags) {
+    final int m = TSDB.metrics_width();
+    final int tk = TSDB.tagk_width();
+    final int tv = TSDB.tagv_width();
+    
+    final byte[] key = new byte[Const.SALT_WIDTH() + m + 4 
+       + (tags.length / 2) * tk + (tags.length / 2) * tv];
+    byte[] uid = uid_map.get(metric);
+    
+    // metrics first
+    if (uid != null) {
+      System.arraycopy(uid, 0, key, Const.SALT_WIDTH(), m);
+    } else {
+      throw new IllegalArgumentException("No METRIC UID was mocked for: " + metric);
+    }
+    
+    // timestamp
+    System.arraycopy(Bytes.fromInt(base_time), 0, key, Const.SALT_WIDTH() + m, 
+        Const.TIMESTAMP_BYTES);
+    
+    // shortcut for offsets
+    final int pl = Const.SALT_WIDTH() + m + Const.TIMESTAMP_BYTES;
+    int ctr = 0;
+    int offset = 0;
+    for (final String tag : tags) {
+      uid = uid_map.get(tag);
+      
+      if (ctr % 2 == 0) {
+        // TAGK
+        if (uid != null) {
+          System.arraycopy(uid, 0, key, pl + offset, tk);
+        } else {
+          throw new IllegalArgumentException("No TAGK UID was mocked for: " + tag);
+        }
+        offset += tk;
+      } else {
+        // TAGV
+        if (uid != null) {
+          System.arraycopy(uid, 0, key, pl + offset, tv);
+        } else {
+          throw new IllegalArgumentException("No TAGK UID was mocked for: " + tag);
+        }
+        offset += tv;
+      }
+      
+      ctr++;
+    }
+    
+    RowKey.prefixKeyWithSalt(key);
+    return key;
   }
   
   protected void setDataPointStorage() throws Exception {

@@ -357,11 +357,16 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
         if (Tags.looksLikeInteger(dp.getValue())) {
           if (dp instanceof RollUpDataPoint) {
             final RollUpDataPoint rdp = (RollUpDataPoint)dp;
-            deferred = tsdb.addAggregatePoint(rdp.getMetric(), rdp.getTimestamp(), 
-                Tags.parseLong(rdp.getValue()), dp.getTags(), false, 
-                rdp.getInterval(), rdp.getAggregator())
-                .addCallback(new SuccessCB())
-                .addErrback(new PutErrback());
+            deferred = tsdb.addAggregatePoint(rdp.getMetric(), 
+                rdp.getTimestamp(), 
+                Tags.parseLong(rdp.getValue()), 
+                dp.getTags(), 
+                rdp.getGroupByAggregator() != null, 
+                rdp.getInterval(), 
+                rdp.getAggregator(),
+                rdp.getGroupByAggregator())
+                  .addCallback(new SuccessCB())
+                  .addErrback(new PutErrback());
           } else {
             deferred = tsdb.addPoint(dp.getMetric(), dp.getTimestamp(),
                 Tags.parseLong(dp.getValue()), dp.getTags())
@@ -371,14 +376,18 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
         } else {
           if (dp instanceof RollUpDataPoint) {
             final RollUpDataPoint rdp = (RollUpDataPoint)dp;
-            deferred = tsdb.addAggregatePoint(rdp.getMetric(), rdp.getTimestamp(), 
+            deferred = tsdb.addAggregatePoint(rdp.getMetric(), 
+                rdp.getTimestamp(), 
                 (Tags.fitsInFloat(dp.getValue()) ? 
                     Float.parseFloat(dp.getValue()) :
                       Double.parseDouble(dp.getValue())), 
-                  dp.getTags(), false, 
-                rdp.getInterval(), rdp.getAggregator())
-                .addCallback(new SuccessCB())
-                .addErrback(new PutErrback());
+                  dp.getTags(), 
+                rdp.getGroupByAggregator() != null, 
+                rdp.getInterval(), 
+                rdp.getAggregator(),
+                rdp.getGroupByAggregator())
+                  .addCallback(new SuccessCB())
+                  .addErrback(new PutErrback());
           } else {
             deferred = tsdb.addPoint(dp.getMetric(), dp.getTimestamp(),
                 (Tags.fitsInFloat(dp.getValue()) ? 

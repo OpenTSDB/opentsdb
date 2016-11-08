@@ -17,9 +17,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.IncomingDataPoint;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.List;
 import java.util.Map;
 
@@ -30,14 +27,16 @@ import java.util.Map;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class RollUpDataPoint extends IncomingDataPoint {
-  private static final Logger LOG = LoggerFactory.getLogger(RollUpDataPoint.class);
   
   /** The interval in the format <#><units> such as 1m or 2h */
   private String interval;
   
   /** The name of the aggregator that created this data point */
   private String aggregator;
-
+  
+  /** Optional aggregation function if this was a pre-aggregated data point. */
+  protected String groupby_aggregator;
+  
   /**
    * Default Ctor necessary for de/serialization
    */
@@ -55,7 +54,9 @@ public class RollUpDataPoint extends IncomingDataPoint {
         buf.append(entry.getKey()).append("=").append(entry.getValue());
       }
     }
-    buf.append(" interval=").append(interval)
+    buf.append(" groupByAggregator=")
+       .append(groupby_aggregator)
+       .append(" interval=").append(interval)
        .append(" aggregator=").append(aggregator);
     return buf.toString();
   }
@@ -80,33 +81,51 @@ public class RollUpDataPoint extends IncomingDataPoint {
     this.aggregator = aggregator;
   }
 
+  /** @return If pre-aggregated, the function used. May be null. */
+  public final String getGroupByAggregator() {
+    return groupby_aggregator;
+  }
+
+  /** @param an optional aggregation function if the data point was 
+   * pre-aggregated */
+  public final void setGroupByAggregator(final String groupby_aggregator) {
+    this.groupby_aggregator = groupby_aggregator;
+  }
+  
   @Override
   public boolean validate(final List<Map<String, Object>> details) {
     if (!super.validate(details))
       return false;
-
-    if (this.getInterval() == null || this.getInterval().isEmpty()) {
-      if (details != null) {
-        details.add(getHttpDetails("Missing interval"));
+    
+    boolean is_groupby = false;
+    if (groupby_aggregator != null && !groupby_aggregator.isEmpty()) {
+      // Don't need to perform this check here as the addAggregatePoint()
+      // will handle that validation for us.
+      //Aggregators.get(groupby_aggregator.toLowerCase());
+      is_groupby = true;
+    }
+    
+    // interval is only required if the the group by is NOT set
+    if (interval == null || interval.isEmpty()) {
+      if (!is_groupby) {
+        if (details != null) {
+          details.add(getHttpDetails("Missing interval"));
+        }
+        return false;
       }
-      LOG.warn("Missing interval: " + this);
-      return false;
     }
 
-    if (this.getAggregator() == null || this.getAggregator().isEmpty()) {
-      if (details != null) {
-        details.add(getHttpDetails("Missing aggregator"));
+    if (aggregator == null || aggregator.isEmpty()) {
+      if (!is_groupby) {
+        // only error out if the groupby is false.
+        if (details != null) {
+          details.add(getHttpDetails("Missing aggregator"));
+        }
+        return false;
       }
-      LOG.warn("Missing aggregator: " + this);
-      return false;
-    }
-
-    if (!Aggregators.set().contains(this.getAggregator().toLowerCase())) {
-      if (details != null) {
-        details.add(getHttpDetails("Invalid aggregator"));
-      }
-      LOG.warn("Invalid aggregator: " + this);
-      return false;
+      // Don't need to perform this check here as the addAggregatePoint()
+      // will handle that validation for us.
+      //Aggregators.get(aggregator);
     }
 
     return true;
