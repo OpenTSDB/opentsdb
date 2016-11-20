@@ -21,11 +21,8 @@ import net.opentsdb.rollup.RollUpDataPoint;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.Config;
 
-import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -38,7 +35,6 @@ import java.util.List;
  */
 class RollupDataPointRpc extends PutDataPointRpc 
   implements TelnetRpc, HttpRpc {
-  private static final Logger LOG = LoggerFactory.getLogger(RollupDataPointRpc.class);
   
   private enum TelnetIndex {
     COMMAND,
@@ -204,7 +200,7 @@ class RollupDataPointRpc extends PutDataPointRpc
     }
     dp.setInterval(interval);
     dp.setAggregator(temporal_agg);
-    // TODO - spatial agg
+    dp.setGroupByAggregator(spatial_agg);
     
     dp.setMetric(words[TelnetIndex.METRIC.ordinal()]);
     
