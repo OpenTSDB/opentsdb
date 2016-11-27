@@ -46,6 +46,7 @@ import org.hbase.async.DeleteRequest;
 import org.hbase.async.FilterComparator;
 import org.hbase.async.FilterList;
 import org.hbase.async.GetRequest;
+import org.hbase.async.GetResultOrException;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyRegexpFilter;
 import org.hbase.async.KeyValue;
@@ -135,6 +136,7 @@ public final class MockBase {
    * @param default_delete Enable the default .delete() mock
    * @param default_scan Enable the Scanner mock implementation
    */
+  @SuppressWarnings("unchecked")
   public MockBase(
       final TSDB tsdb, final HBaseClient client,
       final boolean default_get, 
@@ -154,6 +156,8 @@ public final class MockBase {
     if (default_get) {
       when(client.get((GetRequest)any())).thenAnswer(new MockGet());
     }
+    
+    when(client.get(any(List.class))).thenAnswer(new MockMultiGet(client));
     
     // Default put answer will store the given values in the proper location.
     if (default_put) {
@@ -982,6 +986,36 @@ public final class MockBase {
         return Deferred.fromResult(null);
       }
       return Deferred.fromResult(kvs);
+    }
+  }
+  
+  /**
+   * Handles a multi-get call by routing individual requests to the MockGet
+   */
+  private class MockMultiGet implements 
+      Answer<Deferred<List<GetResultOrException>>> {
+    final HBaseClient client;
+    public MockMultiGet(final HBaseClient client) {
+      this.client = client;
+    }
+    
+    @Override
+    public Deferred<List<GetResultOrException>> answer(
+        final InvocationOnMock invocation) throws Throwable {
+      final Object[] args = invocation.getArguments();
+      @SuppressWarnings("unchecked")
+      final List<GetRequest> gets = (List<GetRequest>) args[0];
+      
+      final List<GetResultOrException> results = Lists.newArrayList();
+      for (final GetRequest get : gets) {
+        try {
+          // just reuse the logic above.
+          results.add(new GetResultOrException(client.get(get).join()));
+        } catch (Exception e) {
+          results.add(new GetResultOrException(e));
+        }
+      }
+      return Deferred.fromResult(results);
     }
   }
   

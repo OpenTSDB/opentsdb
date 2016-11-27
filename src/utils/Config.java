@@ -106,6 +106,10 @@ public class Config {
   /** tsd.storage.hbase.scanner.maxNumRows */
   private int scanner_max_num_rows = 128;
   
+  private int mul_get_batch_size = 1024;
+  
+  private int mul_get_cocurrency_number = 16;
+  
   /**
    * The list of properties configured to their defaults or modified by users
    */
@@ -260,6 +264,14 @@ public class Config {
     return enable_tree_processing;
   }
   
+  public int mul_get_batch_size() {
+    return mul_get_batch_size;
+  }
+  
+  public int mul_get_concurrency_number() {
+    return mul_get_cocurrency_number;
+  }
+    
   /**
    * Allows for modifying properties after creation or loading.
    * 
@@ -557,6 +569,8 @@ public class Config {
       + "Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, "
       + "X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since");
     default_map.put("tsd.query.timeout", "0");
+    default_map.put("tsd.core.mul_get_batch_size", "1024");
+    default_map.put("tsd.core.mul_get_cocurrency_number", "20");
 
     for (Map.Entry<String, String> entry : default_map.entrySet()) {
       if (!properties.containsKey(entry.getKey()))
@@ -670,6 +684,8 @@ public class Config {
     enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
     fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
     scanner_max_num_rows = this.getInt("tsd.storage.hbase.scanner.maxNumRows");
+    mul_get_batch_size = this.getInt("tsd.core.mul_get_batch_size");
+    mul_get_cocurrency_number = this.getInt("tsd.core.mul_get_cocurrency_number");
   }
   
   /**

@@ -164,6 +164,8 @@ final class TsdbQuery implements Query {
   /** Whether or not to match series with ONLY the given tags */
   private boolean explicit_tags;
   
+  private boolean has_filter_cannot_use_get = false;
+  
   /**
    * Enum for rollup fallback control.
    * @since 2.4
@@ -570,6 +572,7 @@ final class TsdbQuery implements Query {
             tsdb.getConfig().getInt("tsd.query.filter.expansion_limit")) {
           LOG.debug("Skipping literals for " + current.getTagk() + 
               " as it exceedes the limit");
+          has_filter_cannot_use_get = true;
         } else {
           final byte[][] values = new byte[literals.size()][];
           literals.keySet().toArray(values);
@@ -582,6 +585,7 @@ final class TsdbQuery implements Query {
         }
       } else {
         row_key_literals.put(current.getTagkBytes(), null);
+        has_filter_cannot_use_get = true;
       }
     }
   }
@@ -606,8 +610,12 @@ final class TsdbQuery implements Query {
   
   @Override
   public Deferred<DataPoints[]> runAsync() throws HBaseException {
-    Deferred<DataPoints[]> result = 
-        findSpans().addCallback(new GroupByAndAggregateCB());
+    Deferred<DataPoints[]> result = null;
+    if (!this.has_filter_cannot_use_get && this.explicit_tags) {
+      result = this.findSpansWithMultiGetter().addCallback(new GroupByAndAggregateCB());
+    } else {
+      result = findSpans().addCallback(new GroupByAndAggregateCB());
+    }
 
     if (rollup_usage != null && rollup_usage.fallback()) {
       result.addCallback(new FallbackRollupOnEmptyResult());
@@ -1024,7 +1032,18 @@ final class TsdbQuery implements Query {
      new ScannerCB().scan();
      return results;
   }
+  
+  private Deferred<TreeMap<byte[], Span>> findSpansWithMultiGetter() throws HBaseException {
+    final short metric_width = tsdb.metrics.width();
+    final TreeMap<byte[], Span> spans = // The key is a row key from HBase.
+    new TreeMap<byte[], Span>(new SpanCmp(metric_width));
 
+    scan_start_time = System.nanoTime();
+    return new SaltMultiGetter(tsdb, metric, row_key_literals, getScanStartTimeSeconds(), getScanEndTimeSeconds(),
+        tableToBeScanned(), spans, 0, rollup_query, query_stats, query_index, 0,
+        false).fetch();
+  }
+  
   /**
    * Callback that should be attached the the output of
    * {@link TsdbQuery#findSpans} to group and sort the results.

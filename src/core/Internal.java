@@ -946,4 +946,44 @@ public final class Internal {
       return Bytes.fromLong(value);
     }
   }
+
+  /**
+   * Returns true if the given TSUID matches the row key (accounting for salt and
+   * timestamp).
+   * @param tsuid A non-null TSUID array
+   * @param row_key A non-null row key array
+   * @return True if the TSUID matches the row key, false if not.
+   * @throws IllegalArgumentException if the arguments are invalid.
+   */
+  public static boolean rowKeyMatchsTSUID(final byte[] tsuid, 
+      final byte[] row_key) {
+    if (tsuid == null || row_key == null) {
+      throw new IllegalArgumentException("Neither tsuid or row key can be null");
+    }
+    if (row_key.length <= tsuid.length) {
+      throw new IllegalArgumentException("Row key cannot be the same or "
+          + "shorter than tsuid");
+    }
+    // check on the metric part
+    int index_tsuid = 0;
+    int index_row_key = 0;
+    for (index_tsuid = 0, index_row_key = Const.SALT_WIDTH(); index_tsuid < TSDB
+        .metrics_width(); ++index_tsuid, ++index_row_key) {
+      if (tsuid[index_tsuid] != row_key[index_row_key]) {
+        return false;
+      }
+    }
+
+    // check on the tagk tagv part
+    for (index_tsuid = TSDB.metrics_width(), index_row_key = Const.SALT_WIDTH() 
+        + TSDB.metrics_width() + Const.TIMESTAMP_BYTES; 
+        index_tsuid < tsuid.length; ++index_tsuid, 
+        ++index_row_key) {
+      if (tsuid[index_tsuid] != row_key[index_row_key]) {
+        return false;
+      }
+    } // end for
+
+    return true;
+  }
 }
