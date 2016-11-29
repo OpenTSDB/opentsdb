@@ -1,8 +1,3 @@
-This project forks from OpenTSDB, mainly add some features:
-    - add aggregator Last(), see src/core/Aggregators.java
-
-==========================================================================
-
        ___                 _____ ____  ____  ____
       / _ \ _ __   ___ _ _|_   _/ ___||  _ \| __ )
      | | | | '_ \ / _ \ '_ \| | \___ \| | | |  _ \
