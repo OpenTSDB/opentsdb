@@ -285,4 +285,35 @@ public class TestAggregationIterator {
   public void testAggregate250000Spans() {
     testMeasureAggregationLatency(250000, 10.0);
   }
+
+  @Test
+  public void pfsum() {
+    // TODO - More UTs around this one.
+    iterators = new SeekableView[] {
+        SeekableViewsForTest.fromArray(new DataPoint[] {
+            MutableDataPoint.ofLongValue(BASE_TIME, 40),
+            //MutableDataPoint.ofLongValue(BASE_TIME + 10000, 50), // skip one
+            MutableDataPoint.ofLongValue(BASE_TIME + 30000, 70)
+          }),
+        SeekableViewsForTest.fromArray(DATA_POINTS_2),
+    };
+    AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
+        start_time_ms, end_time_ms, SUM, Interpolation.PREV, rate);
+    // Checks if all the distinct timestamps of both spans appear and missing
+    // data point of one span for a timestamp of one span was interpolated.
+    DataPoint[] expected_data_points = new DataPoint[] {
+        MutableDataPoint.ofLongValue(BASE_TIME, 40),
+        MutableDataPoint.ofLongValue(BASE_TIME + 10000, 37 + 40),
+        // 60 is the interpolated value.
+        MutableDataPoint.ofLongValue(BASE_TIME + 20000, 48 + 40),
+        MutableDataPoint.ofLongValue(BASE_TIME + 30000, 70)
+      };
+    for (DataPoint expected: expected_data_points) {
+      assertTrue(sgai.hasNext());
+      DataPoint dp = sgai.next();
+      assertEquals(expected.timestamp(), dp.timestamp());
+      assertEquals(expected.longValue(), dp.longValue());
+    }
+    assertFalse(sgai.hasNext());
+  }
 }
