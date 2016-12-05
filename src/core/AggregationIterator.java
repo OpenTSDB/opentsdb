@@ -704,6 +704,9 @@ public class AggregationIterator implements SeekableView, DataPoint,
         case MIN:
           r = Long.MIN_VALUE;
           break;
+        case PREV:
+          r = y0;
+          break;
         default:
           throw new IllegalDataException("Invalid interpolation somehow??");
       }
@@ -768,6 +771,9 @@ public class AggregationIterator implements SeekableView, DataPoint,
         break;
       case MIN:
         r = Double.MIN_VALUE;
+        break;
+      case PREV:
+        r = y0;
         break;
       default:
         throw new IllegalDataException("Invalid interploation somehow??");

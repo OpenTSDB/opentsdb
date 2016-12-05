@@ -39,13 +39,21 @@ public final class Aggregators {
     LERP,   /* Regular linear interpolation */
     ZIM,    /* Returns 0 when a data point is missing */
     MAX,    /* Returns the <type>.MaxValue when a data point is missing */
-    MIN     /* Returns the <type>.MinValue when a data point is missing */
+    MIN,     /* Returns the <type>.MinValue when a data point is missing */
+    PREV    /* Returns the previous value stored, when a data point is missing */
   }
   
   /** Aggregator that sums up all the data points. */
   public static final Aggregator SUM = new Sum(
       Interpolation.LERP, "sum");
 
+  /**
+   * Aggregator that sums up all the data points,and uses interpolation where
+   * previous value is used for data point missing.
+   */
+  public static final Aggregator PFSUM= new Sum(
+      Interpolation.PREV, "pfsum");
+  
   /** Aggregator that returns the minimum data point. */
   public static final Aggregator MIN = new Min(
       Interpolation.LERP, "min");
@@ -172,6 +180,7 @@ public final class Aggregators {
     aggregators.put("mimmax", MIMMAX);
     aggregators.put("first", FIRST);
     aggregators.put("last", LAST);
+    aggregators.put("pfsum", PFSUM);
 
     PercentileAgg[] percentiles = {
        p999, p99, p95, p90, p75, p50, 
