@@ -246,8 +246,9 @@ public final class TestHttpJsonSerializer {
     map.put("error", "known");
     ChannelBuffer cb = serdes.formatUidRenameV1(map);
     assertNotNull(cb);
-    assertEquals("{\"error\":\"known\",\"result\":\"false\"}",
-        cb.toString(Charset.forName("UTF-8")));
+    final String json = cb.toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"error\":\"known\""));
+    assertTrue(json.contains("\"result\":\"false\""));
   }
 
   @Test (expected = IllegalArgumentException.class)
@@ -262,9 +263,15 @@ public final class TestHttpJsonSerializer {
     HttpQuery.initializeSerializerMaps(tsdb);
     HttpQuery query = NettyMocks.getQuery(tsdb, "");
     HttpJsonSerializer serdes = new HttpJsonSerializer(query);
-    assertEquals("[{\"formatters\":",
-        serdes.formatSerializersV1().toString(Charset.forName("UTF-8"))
-        .substring(0, 15));
+    
+    String json = serdes.formatSerializersV1().toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"request_content_type\":\"application/json\""));
+    assertTrue(json.contains("\"formatters\":["));
+    assertTrue(json.contains("\"response_content_type\":\"application/json; "
+        + "charset=UTF-8\""));
+    assertTrue(json.contains("\"parsers\":["));
+    assertTrue(json.contains("\"serializer\":\"json\""));
+    assertTrue(json.contains("\"class\":\"net.opentsdb.tsd.HttpJsonSerializer\""));
   }
 
   @Test

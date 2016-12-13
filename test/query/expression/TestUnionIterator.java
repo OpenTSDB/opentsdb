@@ -1026,10 +1026,11 @@ public class TestUnionIterator extends BaseTimeSyncedIteratorTest  {
     assertArrayEquals(UID3, flat);
   }
 
-  @Test (expected = NullPointerException.class)
+  @Test
   public void flattenTagsNullTags() throws Exception {
     final ExpressionDataPoint dp = getMockDB(null, agg_tags);
-    UnionIterator.flattenTags(false, false, dp, sub);
+    final byte[] flat = UnionIterator.flattenTags(true, false, dp, sub);
+    assertArrayEquals(HBaseClient.EMPTY_ARRAY, flat);
   }
   
   @Test

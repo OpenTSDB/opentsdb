@@ -13,10 +13,6 @@
 package net.opentsdb.tsd;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyChar;
-import static org.mockito.Matchers.anyList;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.junit.Assert.assertEquals;
@@ -45,9 +41,7 @@ import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
-import net.opentsdb.utils.Pair;
 
-import org.hbase.async.Bytes;
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -105,7 +99,8 @@ public final class TestSearchRpc extends BaseTsdbTest {
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     final String result = query.response().getContent().toString(UTF);
-    assertTrue(result.contains("\"results\":[{\"tags\""));
+    assertTrue(result.contains("\"host\":\"web01\""));
+    assertTrue(result.contains("\"metric\":\"sys.cpu.0\""));
     assertEquals(1, search_query.getResults().size());
   }
   
