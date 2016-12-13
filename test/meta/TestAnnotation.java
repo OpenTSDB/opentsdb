@@ -15,8 +15,10 @@ package net.opentsdb.meta;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.List;
+import java.util.Map;
 
 import net.opentsdb.core.BaseTsdbTest;
 import net.opentsdb.core.Const;
@@ -33,6 +35,8 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
+import com.google.common.collect.Maps;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
@@ -332,6 +336,21 @@ public final class TestAnnotation extends BaseTsdbTest {
     note.setTSUID(TSUID);
     note.setStartTime(1388450562L);
     note.syncToStorage(tsdb, false).joinUninterruptibly();
+  }
+  
+  @Test
+  public void getStorageJSONTags() throws Exception {
+    Map<String, String> custom = Maps.newHashMap();
+    custom.put("C", "C");
+    custom.put("P", "P");
+    custom.put("E", "E");
+    System.out.println(custom);
+    
+    note.setTSUID(TSUID);
+    note.setStartTime(1388450562L);
+    note.setCustom(custom);
+    final String json = new String(note.getStorageJSON());
+    assertTrue(json.contains("{\"C\":\"C\",\"E\":\"E\",\"P\":\"P\"}"));
   }
   
   @Test

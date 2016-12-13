@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
@@ -44,6 +45,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.google.common.annotations.VisibleForTesting;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -512,7 +514,8 @@ public final class Annotation implements Comparable<Annotation> {
    * successful CAS calls
    * @return The serialized object as a byte array
    */
-  private byte[] getStorageJSON() {
+  @VisibleForTesting
+  byte[] getStorageJSON() {
     // TODO - precalculate size
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     try {
@@ -528,11 +531,9 @@ public final class Annotation implements Comparable<Annotation> {
       if (custom == null) {
         json.writeNullField("custom");
       } else {
-        json.writeObjectFieldStart("custom");
-        for (Map.Entry<String, String> entry : custom.entrySet()) {
-          json.writeStringField(entry.getKey(), entry.getValue());
-        }
-        json.writeEndObject();
+        final TreeMap<String, String> sorted_custom = 
+            new TreeMap<String, String>(custom);
+        json.writeObjectField("custom", sorted_custom);
       }
       
       json.writeEndObject(); 
