@@ -1097,6 +1097,11 @@ final class TsdbQuery implements Query {
     // Convert to seconds if we have a query in ms.
     if ((end & Const.SECOND_MASK) != 0L) {
       end /= 1000L;
+      if (end - (end * 1000) < 1) {
+        // handle an edge case where a user may request a ms time between
+        // 0 and 1 seconds. Just bump it a second.
+        end++;
+      }
     }
 
     // The calculation depends on whether we're downsampling.
