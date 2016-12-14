@@ -64,15 +64,15 @@ public class TestFsck {
   protected byte[] ROW2 = MockBase.stringToBytes("00000150E23510000001000001");
   protected byte[] ROW3 = MockBase.stringToBytes("00000150E24320000001000001");
   protected byte[] BAD_KEY = { 0x00, 0x00, 0x01 };
-  private Config config;
-  private TSDB tsdb = null;
-  private HBaseClient client = mock(HBaseClient.class);
-  private UniqueId metrics = mock(UniqueId.class);
-  private UniqueId tag_names = mock(UniqueId.class);
-  private UniqueId tag_values = mock(UniqueId.class);
-  private MockBase storage;
-  private FsckOptions options = mock(FsckOptions.class);
-  private final static List<byte[]> tags = new ArrayList<byte[]>(1);
+  protected Config config;
+  protected TSDB tsdb = null;
+  protected HBaseClient client = mock(HBaseClient.class);
+  protected UniqueId metrics = mock(UniqueId.class);
+  protected UniqueId tag_names = mock(UniqueId.class);
+  protected UniqueId tag_values = mock(UniqueId.class);
+  protected MockBase storage;
+  protected FsckOptions options = mock(FsckOptions.class);
+  protected final static List<byte[]> tags = new ArrayList<byte[]>(1);
   static {
     tags.add(new byte[] { 0, 0, 1, 0, 0, 1});
   }
