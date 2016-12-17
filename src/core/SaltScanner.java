@@ -36,6 +36,7 @@ import org.hbase.async.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -305,8 +306,10 @@ public class SaltScanner {
     private final List<KeyValue> kvs = new ArrayList<KeyValue>();
     private final ByteMap<List<Annotation>> annotations = 
             new ByteMap<List<Annotation>>();
-    private final Set<String> skips = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
-    private final Set<String> keepers = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+    private final Set<String> skips = Collections.newSetFromMap(
+        new ConcurrentHashMap<String, Boolean>());
+    private final Set<String> keepers = Collections.newSetFromMap(
+        new ConcurrentHashMap<String, Boolean>());
     
     private long scanner_start = -1;
     /** nanosecond timestamps */
@@ -524,12 +527,6 @@ public class SaltScanner {
         tsdb.getClient().delete(del);
       }
       
-      List<Annotation> notes = annotations.get(key);
-      if (notes == null) {
-        notes = new ArrayList<Annotation>();
-        annotations.put(key, notes);
-      }
-      
       // calculate estimated data point count. We don't want to deserialize
       // the byte arrays so we'll just get a rough estimate of compacted
       // columns.
@@ -565,7 +562,18 @@ public class SaltScanner {
       // the scanner
       final long compaction_start = DateTime.nanoTime();
       try {
+        final List<Annotation> notes = Lists.newArrayList();
         compacted = tsdb.compact(row, notes);
+        if (!notes.isEmpty()) {
+          synchronized (annotations) {
+            List<Annotation> map_notes = annotations.get(key);
+            if (map_notes == null) {
+              annotations.put(key, notes);
+            } else {
+              map_notes.addAll(notes);
+            }
+          }
+        }
       } catch (IllegalDataException idex) {
         compaction_time += (DateTime.nanoTime() - compaction_start);
         close(false);
