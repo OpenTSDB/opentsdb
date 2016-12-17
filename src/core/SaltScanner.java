@@ -558,7 +558,14 @@ public class SaltScanner {
               // This could be a row with only an annotation in it
               final Annotation note = JSON.parseToObject(kv.value(),
                       Annotation.class);
-              notes.add(note);
+              synchronized (annotations) {
+                List<Annotation> map_notes = annotations.get(key);
+                if (map_notes == null) {
+                  map_notes = new ArrayList<Annotation>();
+                  annotations.put(key, map_notes);
+                }
+                map_notes.add(note);
+              }
             } else {
               if (rollup_query.getRollupAgg() == Aggregators.AVG || 
                   rollup_query.getRollupAgg() == Aggregators.DEV) {
@@ -609,18 +616,18 @@ public class SaltScanner {
         // the scanner
         final long compaction_start = DateTime.nanoTime();
         try {
-        final List<Annotation> notes = Lists.newArrayList();
+          final List<Annotation> notes = Lists.newArrayList();
           compacted = tsdb.compact(row, notes);
-        if (!notes.isEmpty()) {
-          synchronized (annotations) {
-            List<Annotation> map_notes = annotations.get(key);
-            if (map_notes == null) {
-              annotations.put(key, notes);
-            } else {
-              map_notes.addAll(notes);
+          if (!notes.isEmpty()) {
+            synchronized (annotations) {
+              List<Annotation> map_notes = annotations.get(key);
+              if (map_notes == null) {
+                annotations.put(key, notes);
+              } else {
+                map_notes.addAll(notes);
+              }
             }
           }
-        }
         } catch (IllegalDataException idex) {
           compaction_time += (DateTime.nanoTime() - compaction_start);
           close(false);
