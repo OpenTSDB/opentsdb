@@ -361,12 +361,13 @@ final class UidManager {
                             final byte[] table,
                             final short idwidth,
                             final String[] args) {
-    boolean randomize = false;
+    boolean randomize = false, reversal = false;
     if (UniqueId.stringToUniqueIdType(args[1]) == UniqueIdType.METRIC) {
       randomize = tsdb.getConfig().getBoolean("tsd.core.uid.random_metrics");
+      reversal = tsdb.getConfig().getBoolean("tsd.core.uid.reversal_metrics");
     }
     final UniqueId uid = new UniqueId(tsdb.getClient(), table, args[1], 
-        (int) idwidth, randomize);
+        (int) idwidth, randomize, reversal);
     for (int i = 2; i < args.length; i++) {
       try {
         uid.getOrCreateId(args[i]);

@@ -93,6 +93,8 @@ public final class UniqueId implements UniqueIdInterface {
   private final short id_width;
   /** Whether or not to randomize new IDs */
   private final boolean randomize_id;
+  /** Whether or not to make bit reversal IDs */
+  private final boolean reversal_id;
 
   /** Cache for forward mappings (name to ID). */
   private final ConcurrentHashMap<String, byte[]> name_cache =
@@ -127,7 +129,7 @@ public final class UniqueId implements UniqueIdInterface {
    */
   public UniqueId(final HBaseClient client, final byte[] table, final String kind,
                   final int width) {
-    this(client, table, kind, width, false);
+    this(client, table, kind, width, false, false);
   }
   
   /**
@@ -136,13 +138,14 @@ public final class UniqueId implements UniqueIdInterface {
    * @param table The name of the HBase table to use.
    * @param kind The kind of Unique ID this instance will deal with.
    * @param width The number of bytes on which Unique IDs should be encoded.
-   * @param Whether or not to randomize new UIDs
+   * @param randomize_id Whether or not to randomize new UIDs
+   * @param reversal_id Whether or not to bit rebersal new UIDs
    * @throws IllegalArgumentException if width is negative or too small/large
    * or if kind is an empty string.
    * @since 2.2
    */
   public UniqueId(final HBaseClient client, final byte[] table, final String kind,
-                  final int width, final boolean randomize_id) {
+                  final int width, final boolean randomize_id, final boolean reversal_id) {
     this.client = client;
     this.table = table;
     if (kind.isEmpty()) {
@@ -155,6 +158,7 @@ public final class UniqueId implements UniqueIdInterface {
     }
     this.id_width = (short) width;
     this.randomize_id = randomize_id;
+    this.reversal_id = reversal_id;
   }
 
   /** The number of times we avoided reading from HBase thanks to the cache. */
@@ -353,6 +357,15 @@ public final class UniqueId implements UniqueIdInterface {
   }
 
   /**
+   * Generates UID through bit reversal way due to more evenly distributed metric UIDs.
+   * @param uid the original UID value
+   * @return
+   */
+  public long makeReversalBit(long uid) {
+    return Long.reverse(uid) >>> (Long.SIZE - id_width * 8);
+  }
+
+  /**
    * Implements the process to allocate a new UID.
    * This callback is re-used multiple times in a four step process:
    *   1. Allocate a new UID via atomic increment.
@@ -468,8 +481,17 @@ public final class UniqueId implements UniqueIdInterface {
       if (randomize_id) {
         return Deferred.fromResult(RandomUniqueId.getRandomUID());
       } else {
-        return client.atomicIncrement(new AtomicIncrementRequest(table, 
-                                      MAXID_ROW, ID_FAMILY, kind));
+        Deferred<Long> res = client.atomicIncrement(new AtomicIncrementRequest(table, 
+            MAXID_ROW, ID_FAMILY, kind));
+        if (reversal_id) {
+          return res.addCallback(new Callback<Long, Long>() {
+            @Override
+            public Long call(Long uid) throws Exception {
+              return makeReversalBit(uid);
+            }
+          });
+        }
+        return res;
       }
     }
 

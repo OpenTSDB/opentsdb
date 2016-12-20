@@ -179,12 +179,16 @@ public final class TSDB {
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
     meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
 
-    if (config.getBoolean("tsd.core.uid.random_metrics")) {
-      metrics = new UniqueId(this.client, uidtable, METRICS_QUAL, METRICS_WIDTH, 
-          true);
-    } else {
-      metrics = new UniqueId(this.client, uidtable, METRICS_QUAL, METRICS_WIDTH);
+    boolean random_metrics = config.getBoolean("tsd.core.uid.random_metrics");
+    boolean reversal_metrics = config.getBoolean("tsd.core.uid.reversal_metrics");
+    if (random_metrics && reversal_metrics) {
+      reversal_metrics = false;
+      LOG.warn("The tsd.core.uid.reversal_metrics flag cannot be used with" +
+          " the tsd.core.uid.random_metrics. The tsd.core.uid.reversal_metrics" +
+          " will be ignored.");
     }
+    metrics = new UniqueId(this.client, uidtable, METRICS_QUAL, METRICS_WIDTH,
+        random_metrics, reversal_metrics);
     tag_names = new UniqueId(this.client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
     tag_values = new UniqueId(this.client, uidtable, TAG_VALUE_QUAL, TAG_VALUE_WIDTH);
     compactionq = new CompactionQueue(this);
