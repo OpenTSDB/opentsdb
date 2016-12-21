@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
+// Copyright (C) 2015  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -14,7 +14,7 @@ package net.opentsdb.examples;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.stumbleupon.async.Callback;
@@ -27,32 +27,41 @@ import net.opentsdb.core.SeekableView;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.TSSubQuery;
+import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.DateTime;
 
 /**
  * One example on how to query.
- * Taken from <a href="https://groups.google.com/forum/#!searchin/opentsdb/java$20api/opentsdb/6MKs-FkSLoA/gifHF327CIAJ">this thread</a>
+ * Taken from 
+ * <a href="https://groups.google.com/forum/#!searchin/opentsdb/java$20api/opentsdb/6MKs-FkSLoA/gifHF327CIAJ">
+ * this thread</a>
  * The metric and key query arguments assume that you've input data from the Quick Start tutorial
  * <a href="http://opentsdb.net/docs/build/html/user_guide/quickstart.html">here.</a>
  */
 public class QueryExample {
 
-  public static void main(String[] args) throws IOException {
+  public static void main(final String[] args) throws IOException {
     
     // Set these as arguments so you don't have to keep path information in
     // source files 
-    String pathToConfigFile = args[0]; // e.g. "/User/thisUser/opentsdb/src/opentsdb.conf"
-    String hostValue = args[1]; // e.g. "myComputerName" 
+    String pathToConfigFile = (args != null && args.length > 0 ? args[0] : null);
     
     // Create a config object with a path to the file for parsing. Or manually
     // override settings.
     // e.g. config.overrideConfig("tsd.storage.hbase.zk_quorum", "localhost");
-    Config config;
-    config = new Config(pathToConfigFile);
+    final Config config;
+    if (pathToConfigFile != null && !pathToConfigFile.isEmpty()) {
+      config = new Config(pathToConfigFile);
+    } else {
+      // Search for a default config from /etc/opentsdb/opentsdb.conf, etc.
+      config = new Config(true);
+    }
     final TSDB tsdb = new TSDB(config);
     
     // main query
     final TSQuery query = new TSQuery();
+    
     // use any string format from
     // http://opentsdb.net/docs/build/html/user_guide/query/dates.html
     query.setStart("1h-ago");
@@ -61,13 +70,18 @@ public class QueryExample {
     // at least one sub query required. This is where you specify the metric and
     // tags
     final TSSubQuery subQuery = new TSSubQuery();
-    subQuery.setMetric("proc.loadavg.1m");
+    subQuery.setMetric("my.tsdb.test.metric");
 
-    // tags are optional but you can create and populate a map
-    final HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", hostValue);
-    subQuery.setTags(tags);
-
+    // filters are optional but useful.
+    final List<TagVFilter> filters = new ArrayList<TagVFilter>(1);
+    filters.add(new TagVFilter.Builder()
+        .setType("literal_or")
+        .setFilter("example1")
+        .setTagk("script")
+        .setGroupBy(true)
+        .build());
+    subQuery.setFilters(filters);
+    
     // you do have to set an aggregator. Just provide the name as a string
     subQuery.setAggregator("sum");
 
@@ -88,8 +102,8 @@ public class QueryExample {
     final int nqueries = tsdbqueries.length;
     final ArrayList<DataPoints[]> results = new ArrayList<DataPoints[]>(
         nqueries);
-    final ArrayList<Deferred<DataPoints[]>> deferreds = new ArrayList<Deferred<DataPoints[]>>(
-        nqueries);
+    final ArrayList<Deferred<DataPoints[]>> deferreds = 
+        new ArrayList<Deferred<DataPoints[]>>(nqueries);
 
     // this executes each of the sub queries asynchronously and puts the
     // deferred in an array so we can wait for them to complete.
@@ -98,7 +112,7 @@ public class QueryExample {
     }
 
     // Start timer
-    long startTime = System.nanoTime();
+    long startTime = DateTime.nanoTime();
     
     // This is a required callback class to store the results after each
     // query has finished
@@ -109,18 +123,30 @@ public class QueryExample {
         return null;
       }
     }
+    
+    // Make sure to handle any errors that might crop up
+    class QueriesEB implements Callback<Object, Exception> {
+      @Override
+      public Object call(final Exception e) throws Exception {
+        System.err.println("Queries failed");
+        e.printStackTrace();
+        return null;
+      }
+    }
 
     // this will cause the calling thread to wait until ALL of the queries
     // have completed.
     try {
-      Deferred.groupInOrder(deferreds).addCallback(new QueriesCB())
-          .joinUninterruptibly();
+      Deferred.groupInOrder(deferreds)
+          .addCallback(new QueriesCB())
+          .addErrback(new QueriesEB())
+          .join();
     } catch (Exception e) {
       e.printStackTrace();
     }
 
     // End timer.
-    long elapsedTime = (System.nanoTime() - startTime) / (1000*1000);
+    double elapsedTime = DateTime.msFromNanoDiff(DateTime.nanoTime(), startTime);
     System.out.println("Query returned in: " + elapsedTime + " milliseconds.");
     
     // now all of the results are in so we just iterate over each set of
@@ -156,10 +182,16 @@ public class QueryExample {
               + (dp.isInteger() ? dp.longValue() : dp.doubleValue()));
         }
         System.out.println("");
-        
-        // Gracefully shutdown connection to TSDB
-        tsdb.shutdown();
       }
+    }
+    
+    // Gracefully shutdown connection to TSDB
+    try {
+      tsdb.shutdown().join();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    } catch (Exception e) {
+      e.printStackTrace();
     }
   }
 
