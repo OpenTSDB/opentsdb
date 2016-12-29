@@ -1,5 +1,16 @@
 OpenTSDB - User visible changes.
 
+* Version 2.2.2 (2016-12-29)
+
+Bug Fixes:
+  - Fix an issue with writing metadata where using custom tags could cause the compare-
+    and-set to fail due to variable ordering in Java's heap. Now tags are sorted so the
+    custom tag ordering will be consistent.
+  - Fix millisecond queries that would miss data the top of the final hour if the end
+    time was set to 1 second or less than the top of that final hour.
+  - Fix a concurrent modification issue where salt scanners were not synchronized on the
+    annotation map and could cause spinning threads.
+
 * Version 2.2.1 (2016-10-08)
 
 Noteworthy Changes
