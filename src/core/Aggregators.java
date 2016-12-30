@@ -21,7 +21,6 @@ import org.apache.commons.math3.stat.descriptive.rank.Percentile.EstimationType;
 import org.apache.commons.math3.util.ResizableDoubleArray;
 
 import com.google.common.base.Preconditions;
-
 /**
  * Utility class that provides common, generally useful aggregators.
  */
@@ -34,7 +33,7 @@ public final class Aggregators {
     LERP,   /* Regular linear interpolation */
     ZIM,    /* Returns 0 when a data point is missing */
     MAX,    /* Returns the <type>.MaxValue when a data point is missing */
-    MIN     /* Returns the <type>.MinValue when a data point is missing */
+    MIN,    /* Returns the <type>.MinValue when a data point is missing */
   }
   
   /** Aggregator that sums up all the data points. */
@@ -78,6 +77,11 @@ public final class Aggregators {
    * downsampling until we support NaNs.
    * @since 2.2 */
   public static final Aggregator COUNT = new Count(Interpolation.ZIM, "count");
+
+  /**
+   * Returns the last(latest) one data point
+   */
+  public static final Aggregator LAST = new Last(Interpolation.LERP, "last");
 
   /** Maps an aggregator name to its instance. */
   private static final HashMap<String, Aggregator> aggregators;
@@ -144,6 +148,7 @@ public final class Aggregators {
     aggregators.put("zimsum", ZIMSUM);
     aggregators.put("mimmin", MIMMIN);
     aggregators.put("mimmax", MIMMAX);
+    aggregators.put("last", LAST);
 
     PercentileAgg[] percentiles = {
        p999, p99, p95, p90, p75, p50, 
@@ -486,4 +491,41 @@ public final class Aggregators {
     }
 
   }
+
+  /**
+   * Get latest data on a timestamp
+   */
+  private static final class Last extends Aggregator {
+    public Last(final Interpolation method, final String name) {
+      super(method, name);
+    }
+
+    @Override
+    public long runLong(final Longs values) {
+      long result = values.nextLongValue();
+      while (values.hasNextValue()) {
+        result = values.nextLongValue();
+      }
+      return result;
+    }
+
+    @Override
+    public double runDouble(final Doubles values) {
+      double result = 0.;
+      long n = 0L;
+
+      while (values.hasNextValue()) {
+        final double val = values.nextDoubleValue();
+        if (!Double.isNaN(val)) {
+          result = val;
+          ++n;
+        }
+      }
+
+      return (0L == n) ? Double.NaN : result;
+    }
+
+  }
+
+
 }
