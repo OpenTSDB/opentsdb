@@ -59,6 +59,25 @@ import com.stumbleupon.async.Deferred;
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   HashedWheelTimer.class, Scanner.class, Const.class })
 public class BaseTsdbTest {
+  /** A list of UIDs from A to Z for unit testing UIDs values */
+  public static final Map<String, byte[]> METRIC_UIDS = 
+      new HashMap<String, byte[]>(26);
+  public static final Map<String, byte[]> TAGK_UIDS = 
+      new HashMap<String, byte[]>(26);
+  public static final Map<String, byte[]> TAGV_UIDS = 
+      new HashMap<String, byte[]>(26);
+  static {
+    char letter = 'A';
+    int uid = 10;
+    for (int i = 0; i < 26; i++) {
+      METRIC_UIDS.put(Character.toString(letter), 
+          UniqueId.longToUID(uid, TSDB.metrics_width()));
+      TAGK_UIDS.put(Character.toString(letter), 
+          UniqueId.longToUID(uid, TSDB.tagk_width()));
+      TAGV_UIDS.put(Character.toString(letter++), 
+          UniqueId.longToUID(uid++, TSDB.tagv_width()));
+    }
+  }
   
   public static final String METRIC_STRING = "sys.cpu.user";
   public static final byte[] METRIC_BYTES = new byte[] { 0, 0, 1 };
@@ -124,6 +143,7 @@ public class BaseTsdbTest {
     tags.put(TAGK_STRING, TAGV_STRING);
   }
   
+  /** Adds the static UIDs to the metrics UID mock object */
   void setupMetricMaps() {
     when(metrics.getId(METRIC_STRING)).thenReturn(METRIC_BYTES);
     when(metrics.getIdAsync(METRIC_STRING))
@@ -174,8 +194,32 @@ public class BaseTsdbTest {
     when(metrics.getIdAsync(NSUN_METRIC))
       .thenReturn(Deferred.<byte[]>fromError(nsun));
     when(metrics.getOrCreateId(NSUN_METRIC)).thenThrow(nsun);
+    
+    // Iterate over the metric UIDs and handle both forward and reverse
+    for (final Map.Entry<String, byte[]> uid : METRIC_UIDS.entrySet()) {
+      when(metrics.getId(uid.getKey())).thenReturn(uid.getValue());
+      when(metrics.getIdAsync(uid.getKey()))
+        .thenAnswer(new Answer<Deferred<byte[]>>() {
+            @Override
+            public Deferred<byte[]> answer(InvocationOnMock invocation)
+                throws Throwable {
+              return Deferred.fromResult(uid.getValue());
+            }
+        });
+      when(metrics.getOrCreateId(uid.getKey()))
+        .thenReturn(uid.getValue());
+      when(metrics.getNameAsync(uid.getValue()))
+        .thenAnswer(new Answer<Deferred<String>>() {
+            @Override
+            public Deferred<String> answer(InvocationOnMock invocation)
+                throws Throwable {
+              return Deferred.fromResult(uid.getKey());
+            }
+        });
+    }
   }
   
+  /** Adds the static UIDs to the tag keys UID mock object */
   void setupTagkMaps() {
     when(tag_names.getId(TAGK_STRING)).thenReturn(TAGK_BYTES);
     when(tag_names.getOrCreateId(TAGK_STRING)).thenReturn(TAGK_BYTES);
@@ -228,8 +272,32 @@ public class BaseTsdbTest {
       .thenThrow(nsun);
     when(tag_names.getIdAsync(NSUN_TAGK))
       .thenReturn(Deferred.<byte[]>fromError(nsun));
+    
+    // Iterate over the tagk UIDs and handle both forward and reverse
+    for (final Map.Entry<String, byte[]> uid : TAGK_UIDS.entrySet()) {
+      when(tag_names.getId(uid.getKey())).thenReturn(uid.getValue());
+      when(tag_names.getIdAsync(uid.getKey()))
+        .thenAnswer(new Answer<Deferred<byte[]>>() {
+            @Override
+            public Deferred<byte[]> answer(InvocationOnMock invocation)
+                throws Throwable {
+              return Deferred.fromResult(uid.getValue());
+            }
+        });
+      when(tag_names.getOrCreateId(uid.getKey()))
+        .thenReturn(uid.getValue());
+      when(tag_names.getNameAsync(uid.getValue()))
+        .thenAnswer(new Answer<Deferred<String>>() {
+            @Override
+            public Deferred<String> answer(InvocationOnMock invocation)
+                throws Throwable {
+              return Deferred.fromResult(uid.getKey());
+            }
+        });
+    }
   }
   
+  /** Adds the static UIDs to the tag values UID mock object */
   void setupTagvMaps() {
     when(tag_values.getId(TAGV_STRING)).thenReturn(TAGV_BYTES);
     when(tag_values.getOrCreateId(TAGV_STRING)).thenReturn(TAGV_BYTES);
@@ -269,6 +337,29 @@ public class BaseTsdbTest {
     when(tag_values.getId(NSUN_TAGV)).thenThrow(nsun);
     when(tag_values.getIdAsync(NSUN_TAGV))
       .thenReturn(Deferred.<byte[]>fromError(nsun));
+    
+    // Iterate over the tagv UIDs and handle both forward and reverse
+    for (final Map.Entry<String, byte[]> uid : TAGV_UIDS.entrySet()) {
+      when(tag_values.getId(uid.getKey())).thenReturn(uid.getValue());
+      when(tag_values.getIdAsync(uid.getKey()))
+        .thenAnswer(new Answer<Deferred<byte[]>>() {
+            @Override
+            public Deferred<byte[]> answer(InvocationOnMock invocation)
+                throws Throwable {
+              return Deferred.fromResult(uid.getValue());
+            }
+        });
+      when(tag_values.getOrCreateId(uid.getKey()))
+        .thenReturn(uid.getValue());
+      when(tag_values.getNameAsync(uid.getValue()))
+        .thenAnswer(new Answer<Deferred<String>>() {
+            @Override
+            public Deferred<String> answer(InvocationOnMock invocation)
+                throws Throwable {
+              return Deferred.fromResult(uid.getKey());
+            }
+        });
+    }
   }
 
   // ----------------- //
@@ -582,5 +673,17 @@ public class BaseTsdbTest {
         throw new RuntimeException("Timer task failed: " + pausedTask, e);
       }
     }
+  }
+
+  /**
+   * A little class used to throw a very specific type of exception for matching
+   * in Unit Tests.
+   */
+  public static class UnitTestException extends RuntimeException {
+    public UnitTestException() { }
+    public UnitTestException(final String msg) {
+      super(msg);
+    }
+    private static final long serialVersionUID = -4404095849459619922L;
   }
 }

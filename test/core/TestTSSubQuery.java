@@ -225,6 +225,13 @@ public final class TestTSSubQuery {
     assertEquals(300000, sub.downsampleInterval());
   }
   
+  @Test (expected = IllegalArgumentException.class)
+  public void validateWithDownsampleNone() {
+    TSSubQuery sub = getMetricForValidate();
+    sub.setDownsample("1m-none");
+    sub.validateAndSetQuery();
+  }
+  
   // NOTE: Each of the hash and equals  tests should make sure that we the code
   // doesn't change after validation.
   
@@ -553,6 +560,25 @@ public final class TestTSSubQuery {
     assertFalse(sub1 == sub2);
   }
 
+  @Test
+  public void testHashCodeandEqualsExplicitTags() {
+    final TSSubQuery sub1 = getBaseQuery();
+    final int hash_a = sub1.hashCode();
+
+    sub1.setExplicitTags(true);
+    final int hash_b = sub1.hashCode();
+    assertFalse(hash_a == sub1.hashCode());
+    sub1.validateAndSetQuery();
+    assertEquals(hash_b, sub1.hashCode());
+    
+    TSSubQuery sub2 = getBaseQuery();
+    sub2.setExplicitTags(true);
+    
+    assertEquals(hash_b, sub2.hashCode());
+    assertEquals(sub1, sub2);
+    assertFalse(sub1 == sub2);
+  }
+  
   @Test
   public void testEqualsNull() {
     final TSSubQuery sub1 = getBaseQuery();

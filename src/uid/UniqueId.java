@@ -15,10 +15,13 @@ package net.opentsdb.uid;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.xml.bind.DatatypeConverter;
@@ -104,6 +107,9 @@ public final class UniqueId implements UniqueIdInterface {
   /** Map of pending UID assignments */
   private final HashMap<String, Deferred<byte[]>> pending_assignments =
     new HashMap<String, Deferred<byte[]>>();
+  /** Set of UID rename */
+  private final Set<String> renaming_id_names =
+    Collections.synchronizedSet(new HashSet<String>());
 
   /** Number of times we avoided reading from HBase thanks to the cache. */
   private volatile int cache_hits;
@@ -112,8 +118,10 @@ public final class UniqueId implements UniqueIdInterface {
   /** How many times we collided with an existing ID when attempting to 
    * generate a new UID */
   private volatile int random_id_collisions;
-
-  /** Whether or not to generate new UIDMetas */
+  /** How many times assignments have been rejected by the UID filter */
+  private volatile int rejected_assignments;
+  
+  /** TSDB object used for filtering and/or meta generation. */
   private TSDB tsdb;
   
   /**
@@ -156,6 +164,34 @@ public final class UniqueId implements UniqueIdInterface {
     this.id_width = (short) width;
     this.randomize_id = randomize_id;
   }
+  
+  /**
+   * Constructor.
+   * @param tsdb The TSDB this UID object belongs to
+   * @param table The name of the HBase table to use.
+   * @param kind The kind of Unique ID this instance will deal with.
+   * @param width The number of bytes on which Unique IDs should be encoded.
+   * @param Whether or not to randomize new UIDs
+   * @throws IllegalArgumentException if width is negative or too small/large
+   * or if kind is an empty string.
+   * @since 2.3
+   */
+  public UniqueId(final TSDB tsdb, final byte[] table, final String kind,
+                  final int width, final boolean randomize_id) {
+    this.client = tsdb.getClient();
+    this.tsdb = tsdb;
+    this.table = table;
+    if (kind.isEmpty()) {
+      throw new IllegalArgumentException("Empty string as 'kind' argument!");
+    }
+    this.kind = toBytes(kind);
+    type = stringToUniqueIdType(kind);
+    if (width < 1 || width > 8) {
+      throw new IllegalArgumentException("Invalid width: " + width);
+    }
+    this.id_width = (short) width;
+    this.randomize_id = randomize_id;
+  }
 
   /** The number of times we avoided reading from HBase thanks to the cache. */
   public int cacheHits() {
@@ -175,6 +211,11 @@ public final class UniqueId implements UniqueIdInterface {
   /** Returns the number of random UID collisions */
   public int randomIdCollisions() {
     return random_id_collisions;
+  }
+  
+  /** Returns the number of UID assignments rejected by the filter */
+  public int rejectedAssignments() {
+    return rejected_assignments;
   }
   
   public String kind() {
@@ -631,6 +672,25 @@ public final class UniqueId implements UniqueIdInterface {
     try {
       return getIdAsync(name).joinUninterruptibly();
     } catch (NoSuchUniqueName e) {
+      if (tsdb != null && tsdb.getUidFilter() != null && 
+          tsdb.getUidFilter().fillterUIDAssignments()) {
+        try {
+          if (!tsdb.getUidFilter().allowUIDAssignment(type, name, null, null)
+                .join()) {
+            rejected_assignments++;
+            throw new FailedToAssignUniqueIdException(new String(kind), name, 0, 
+                "Blocked by UID filter.");
+          }
+        } catch (FailedToAssignUniqueIdException e1) {
+          throw e1;
+        } catch (InterruptedException e1) {
+          LOG.error("Interrupted", e1);
+          Thread.currentThread().interrupt();
+        } catch (Exception e1) {
+          throw new RuntimeException("Should never be here", e1);
+        }
+      }
+      
       Deferred<byte[]> assignment = null;
       boolean pending = false;
       synchronized (pending_assignments) {
@@ -677,7 +737,7 @@ public final class UniqueId implements UniqueIdInterface {
       throw new RuntimeException("Should never be here", e);
     }
   }
-
+  
   /**
    * Finds the ID associated with a given name or creates it.
    * <p>
@@ -691,6 +751,25 @@ public final class UniqueId implements UniqueIdInterface {
    * @since 1.2
    */
   public Deferred<byte[]> getOrCreateIdAsync(final String name) {
+    return getOrCreateIdAsync(name, null, null);
+  }
+  
+  /**
+   * Finds the ID associated with a given name or creates it.
+   * <p>
+   * The length of the byte array is fixed in advance by the implementation.
+   *
+   * @param name The name to lookup in the table or to assign an ID to.
+   * @param metric Name of the metric associated with the UID for filtering.
+   * @param tags Tag set associated with the UID for filtering.
+   * @throws HBaseException if there is a problem communicating with HBase.
+   * @throws IllegalStateException if all possible IDs are already assigned.
+   * @throws IllegalStateException if the ID found in HBase is encoded on the
+   * wrong number of bytes.
+   * @since 2.3
+   */
+  public Deferred<byte[]> getOrCreateIdAsync(final String name, 
+      final String metric, final Map<String, String> tags) {
     // Look in the cache first.
     final byte[] id = getIdFromCache(name);
     if (id != null) {
@@ -699,29 +778,62 @@ public final class UniqueId implements UniqueIdInterface {
     }
     // Not found in our cache, so look in HBase instead.
 
+    /** Triggers the assignment if allowed through the filter */
+    class AssignmentAllowedCB implements  Callback<Deferred<byte[]>, Boolean> {
+      @Override
+      public Deferred<byte[]> call(final Boolean allowed) throws Exception {
+        if (!allowed) {
+          rejected_assignments++;
+          return Deferred.fromError(new FailedToAssignUniqueIdException(
+              new String(kind), name, 0, "Blocked by UID filter."));
+        }
+        
+        Deferred<byte[]> assignment = null;
+        synchronized (pending_assignments) {
+          assignment = pending_assignments.get(name);
+          if (assignment == null) {
+            // to prevent UID leaks that can be caused when multiple time
+            // series for the same metric or tags arrive, we need to write a 
+            // deferred to the pending map as quickly as possible. Then we can 
+            // start the assignment process after we've stashed the deferred 
+            // and released the lock
+            assignment = new Deferred<byte[]>();
+            pending_assignments.put(name, assignment);
+          } else {
+            LOG.info("Already waiting for UID assignment: " + name);
+            return assignment;
+          }
+        }
+        
+        // start the assignment dance after stashing the deferred
+        if (metric != null && LOG.isDebugEnabled()) {
+          LOG.debug("Assigning UID for '" + name + "' of type '" + type + 
+              "' for series '" + metric + ", " + tags + "'");
+        }
+        
+        // start the assignment dance after stashing the deferred
+        return new UniqueIdAllocator(name, assignment).tryAllocate();
+      }
+      @Override
+      public String toString() {
+        return "AssignmentAllowedCB";
+      }
+    }
+    
+    /** Triggers an assignment (possibly through the filter) if the exception 
+     * returned was a NoSuchUniqueName. */
     class HandleNoSuchUniqueNameCB implements Callback<Object, Exception> {
       public Object call(final Exception e) {
         if (e instanceof NoSuchUniqueName) {
-          
-          Deferred<byte[]> assignment = null;
-          synchronized (pending_assignments) {
-            assignment = pending_assignments.get(name);
-            if (assignment == null) {
-              // to prevent UID leaks that can be caused when multiple time
-              // series for the same metric or tags arrive, we need to write a 
-              // deferred to the pending map as quickly as possible. Then we can 
-              // start the assignment process after we've stashed the deferred 
-              // and released the lock
-              assignment = new Deferred<byte[]>();
-              pending_assignments.put(name, assignment);
-            } else {
-              LOG.info("Already waiting for UID assignment: " + name);
-              return assignment;
-            }
+          if (tsdb != null && tsdb.getUidFilter() != null && 
+              tsdb.getUidFilter().fillterUIDAssignments()) {
+            return tsdb.getUidFilter()
+                .allowUIDAssignment(type, name, metric, tags)
+                .addCallbackDeferring(new AssignmentAllowedCB());
+          } else {
+            return Deferred.fromResult(true)
+                .addCallbackDeferring(new AssignmentAllowedCB());
           }
-          
-          // start the assignment dance after stashing the deferred
-          return new UniqueIdAllocator(name, assignment).tryAllocate();
         }
         return e;  // Other unexpected exception, let it bubble up.
       }
@@ -869,6 +981,7 @@ public final class UniqueId implements UniqueIdInterface {
    */
   public void rename(final String oldname, final String newname) {
     final byte[] row = getId(oldname);
+    final String row_string = fromBytes(row);
     {
       byte[] id = null;
       try {
@@ -882,6 +995,15 @@ public final class UniqueId implements UniqueIdInterface {
           + " assigned ID=" + Arrays.toString(id));
       }
     }
+
+    if (renaming_id_names.contains(row_string)
+        || renaming_id_names.contains(newname)) {
+      throw new IllegalArgumentException("Ongoing rename on the same ID(\""
+        + Arrays.toString(row) + "\") or an identical new name(\"" + newname
+        + "\")");
+    }
+    renaming_id_names.add(row_string);
+    renaming_id_names.add(newname);
 
     final byte[] newnameb = toBytes(newname);
 
@@ -898,6 +1020,8 @@ public final class UniqueId implements UniqueIdInterface {
       LOG.error("When trying rename(\"" + oldname
         + "\", \"" + newname + "\") on " + this + ": Failed to update reverse"
         + " mapping for ID=" + Arrays.toString(row), e);
+      renaming_id_names.remove(row_string);
+      renaming_id_names.remove(newname);
       throw e;
     }
 
@@ -911,6 +1035,8 @@ public final class UniqueId implements UniqueIdInterface {
       LOG.error("When trying rename(\"" + oldname
         + "\", \"" + newname + "\") on " + this + ": Failed to create the"
         + " new forward mapping with ID=" + Arrays.toString(row), e);
+      renaming_id_names.remove(row_string);
+      renaming_id_names.remove(newname);
       throw e;
     }
 
@@ -935,6 +1061,9 @@ public final class UniqueId implements UniqueIdInterface {
         + " old forward mapping for ID=" + Arrays.toString(row);
       LOG.error("WTF?  " + msg, e);
       throw new RuntimeException(msg, e);
+    } finally {
+      renaming_id_names.remove(row_string);
+      renaming_id_names.remove(newname);
     }
     // Success!
   }

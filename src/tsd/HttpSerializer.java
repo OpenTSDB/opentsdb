@@ -199,6 +199,18 @@ public abstract class HttpSerializer {
   }
   
   /**
+   * Parses metrics, tagk or tagvs type and name to rename UID
+   * @return as hash map of type and name
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public HashMap<String, String> parseUidRenameV1() {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED,
+        "The requested API endpoint has not been implemented",
+        this.getClass().getCanonicalName() +
+        " has not implemented parseUidRenameV1");
+  }
+
+  /**
    * Parses a SearchQuery request
    * @return The parsed search query
    * @throws BadRequestException if the plugin has not implemented this method
@@ -443,6 +455,19 @@ public abstract class HttpSerializer {
         " has not implemented formatUidAssignV1");
   }
   
+  /**
+   * Format a response from the Uid Rename RPC
+   * @param response A map of result and reason for error of the rename
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatUidRenameV1(final Map<String, String> response) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED,
+        "The requested API endpoint has not been implemented",
+        this.getClass().getCanonicalName() +
+        " has not implemented formatUidRenameV1");
+  }
+
   /**
    * Format the results from a timeseries data query
    * @param query The TSQuery object used to fetch the results

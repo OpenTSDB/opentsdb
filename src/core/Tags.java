@@ -37,6 +37,7 @@ import net.opentsdb.utils.Pair;
 public final class Tags {
 
   private static final Logger LOG = LoggerFactory.getLogger(Tags.class);
+  private static String allowSpecialChars = "";
 
   private Tags() {
     // Can't create instances of this utility class.
@@ -463,6 +464,49 @@ public final class Tags {
   }
 
   /**
+   * Returns the names mapped to tag key/value UIDs
+   * @param tsdb The TSDB instance to use for Unique ID lookups.
+   * @param tags The map of tag key to tag value pairs
+   * @return A map of tag names (keys), tag values (values). If the tags list
+   * was null or empty, the result will be an empty map
+   * @throws NoSuchUniqueId if the row key contained an invalid ID.
+   * @since 2.3
+   */
+  public static Deferred<Map<String, String>> getTagsAsync(final TSDB tsdb, 
+      final ByteMap<byte[]> tags) {
+    if (tags == null || tags.isEmpty()) {
+      return Deferred.fromResult(Collections.<String, String>emptyMap());
+    }
+    
+    final ArrayList<Deferred<String>> deferreds = 
+        new ArrayList<Deferred<String>>();
+    
+    for (final Map.Entry<byte[], byte[]> pair : tags) {
+      deferreds.add(tsdb.tag_names.getNameAsync(pair.getKey()));
+      deferreds.add(tsdb.tag_values.getNameAsync(pair.getValue()));
+    }
+    
+    class NameCB implements Callback<Map<String, String>, ArrayList<String>> {
+      public Map<String, String> call(final ArrayList<String> names) 
+        throws Exception {
+        final HashMap<String, String> result = new HashMap<String, String>();
+        String tagk = "";
+        for (String name : names) {
+          if (tagk.isEmpty()) {
+            tagk = name;
+          } else {
+            result.put(tagk, name);
+            tagk = "";
+          }
+        }
+        return result;
+      }
+    }
+    
+    return Deferred.groupInOrder(deferreds).addCallback(new NameCB());
+  }
+  
+  /**
    * Returns the tag key and value pairs as a byte map given a row key
    * @param row The row key to parse the UIDs from
    * @return A byte map with tagk and tagv pairs as raw UIDs
@@ -504,7 +548,7 @@ public final class Tags {
       final char c = s.charAt(i);
       if (!(('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') 
           || ('0' <= c && c <= '9') || c == '-' || c == '_' || c == '.' 
-          || c == '/' || Character.isLetter(c))) {
+          || c == '/' || Character.isLetter(c) || isAllowSpecialChars(c))) {
         throw new IllegalArgumentException("Invalid " + what
             + " (\"" + s + "\"): illegal character: " + c);
       }
@@ -544,9 +588,9 @@ public final class Tags {
    */
   public static Deferred<ArrayList<byte[]>> resolveAllAsync(final TSDB tsdb,
       final Map<String, String> tags) {
-    return resolveAllInternalAsync(tsdb, tags, false);
-  }   
-
+    return resolveAllInternalAsync(tsdb, null, tags, false);
+  }
+  
   /**
   * Resolves (and creates, if necessary) all the tags (name=value) into the a
   * sorted byte arrays.
@@ -583,7 +627,6 @@ public final class Tags {
     return tag_ids;
   }
 
-
   /**
    * Resolves (and creates, if necessary) all the tags (name=value) into the a
    * sorted byte arrays.
@@ -595,11 +638,28 @@ public final class Tags {
    */
   static Deferred<ArrayList<byte[]>>
     resolveOrCreateAllAsync(final TSDB tsdb, final Map<String, String> tags) {
-    return resolveAllInternalAsync(tsdb, tags, true);
+    return resolveAllInternalAsync(tsdb, null, tags, true);
+  }
+  
+  /**
+   * Resolves (and creates, if necessary) all the tags (name=value) into the a
+   * sorted byte arrays.
+   * @param tsdb The TSDB to use for UniqueId lookups.
+   * @param metric The metric associated with this tag set for filtering.
+   * @param tags The tags to resolve.  If a new tag name or tag value is
+   * seen, it will be assigned an ID.
+   * @return an array of sorted tags (tag id, tag name).
+   * @since 2.3
+   */
+  static Deferred<ArrayList<byte[]>>
+    resolveOrCreateAllAsync(final TSDB tsdb, final String metric, 
+        final Map<String, String> tags) {
+    return resolveAllInternalAsync(tsdb, metric, tags, true);
   }
   
   private static Deferred<ArrayList<byte[]>>
     resolveAllInternalAsync(final TSDB tsdb,
+                            final String metric,
                             final Map<String, String> tags,
                             final boolean create) {
     final ArrayList<Deferred<byte[]>> tag_ids =
@@ -608,10 +668,10 @@ public final class Tags {
     // For each tag, start resolving the tag name and the tag value.
     for (final Map.Entry<String, String> entry : tags.entrySet()) {
       final Deferred<byte[]> name_id = create
-        ? tsdb.tag_names.getOrCreateIdAsync(entry.getKey())
+        ? tsdb.tag_names.getOrCreateIdAsync(entry.getKey(), metric, tags)
         : tsdb.tag_names.getIdAsync(entry.getKey());
       final Deferred<byte[]> value_id = create
-        ? tsdb.tag_values.getOrCreateIdAsync(entry.getValue())
+        ? tsdb.tag_values.getOrCreateIdAsync(entry.getValue(), metric, tags)
         : tsdb.tag_values.getIdAsync(entry.getValue());
 
       // Then once the tag name is resolved, get the resolved tag value.
@@ -749,4 +809,20 @@ public final class Tags {
     return true;
   }
 
+  /**
+   * Set the special characters due to allowing for a key or a value of the tag.
+   * @param characters character sequences as a string
+   */
+  public static void setAllowSpecialChars(String characters) {
+    allowSpecialChars = characters == null ? "" : characters;
+  }
+
+  /**
+   * Returns true if the character can be used a tag name or a tag value.
+   * @param character
+   * @return
+   */
+  static boolean isAllowSpecialChars(char character) {
+    return allowSpecialChars.indexOf(character) != -1;
+  }
 }

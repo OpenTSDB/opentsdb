@@ -1,5 +1,17 @@
 OpenTSDB - User visible changes.
 
+
+* Version 2.3.0 (2016-12-31)
+
+Noteworthy Changes:
+  - Release of 2.3.0.
+  - Add example classes for using the Java API.
+
+Bug Fixes:
+  - Same fixes as in 2.2.2
+  - Fix a null UID check on decoding metric names from row keys.
+  - Fix unit tests for JDK 8 and later.
+
 * Version 2.2.2 (2016-12-29)
 
 Bug Fixes:
@@ -10,6 +22,27 @@ Bug Fixes:
     time was set to 1 second or less than the top of that final hour.
   - Fix a concurrent modification issue where salt scanners were not synchronized on the
     annotation map and could cause spinning threads.
+
+* Version 2.3.0 RC2 (2016-10-08)
+
+Noteworthy Changes:
+  - Added a docker file and tool to build TSD docker containers (#871).
+  - Log X-Forwarded-For addresses when handling HTTP requests.
+  - Expand aggregator options in the Nagios check script.
+  - Allow enabling or disabling the HTTP API or UI.
+  - TSD will now exit when an unrecognized CLI param is passed.
+  
+Bug Fixes:
+  - Improved ALPN version detection when using Google Bigtable.
+  - Fix the DumpSeries class to support appended data point types.
+  - Fix queries where groupby is set to false on all filters.
+  - Fix a missing attribute in the Nagios check script (#728).
+  - Fix a major security bug where requesting a PNG with certain URI params could execute code
+    on the host (#793, #781).
+  - Return a proper error code when dropping caches with the DELETE HTTP verb (#830).
+  - Fix backwards compatibility with HBase 0.94 when using explicit tags by removing the
+    fuzzy filter (#837).
+  - Fix an RPM build issue when creating the GWT directory.s
 
 * Version 2.2.1 (2016-10-08)
 
@@ -37,6 +70,38 @@ Bug Fixes:
   - Fix a live-lock situation when performing regular expression or wildcard queries (#823).
   - Change the static file path for the HTTP API to be relative (#857).
   - Fix an issue where the GUI could flicker when two or more tag filters were set (#708).
+
+* Version 2.3.0 RC1 (2016-05-02)
+
+Noteworthy Changes:
+  - Introduced option --max-connection/tsd.core.connections.limit to set the maximum number
+    of connection a TSD will accept (#638)
+  - 'tsdb import' can now read from stdin (#580)
+  - Added datapoints counter (#369)
+  - Improved metadata storage performance (#699)
+  - added checkbox for showing global annotations in UI (#736)
+  - Added startup plugins, can be used for Service Discovery or other integration (#719)
+  - Added MetaDataCache plugin api
+  - Added timeshift() function (#175)
+  - Now align downsampling to Gregorian Calendar (#548, #657)
+  - Added None aggregator to fetch raw data along with first and last aggregators to 
+    fetch only the first or last data points when downsampling.
+  - Added script to build OpenTSDB/HBase on OSX (#674)
+  - Add cross-series expressions with mathematical operators using Jexl
+  - Added query epxressions (alias(), scale(), absolute(), movingAverage(), highestCurrent(),
+    highestMax(), timeShift(), divide(), sum(), difference(), multiply()) (#625)
+  - Add a Unique ID assignment filter API for enforcing UID assignment naming conventions.
+  - Add a whitelist regular expression based UID assignment filter
+  - Add a time series storage filter plugin API that allows processing time series data
+    and determining if it should be stored or not.
+  - Allow using OpenTSDB with Google's Bigtable cloud platform or with Apache Cassandra
+    
+Bug Fixes:
+  - Some improperly formatted timestamps were allowed (#724)
+  - Removed stdout logging from packaged logback.xml files (#715)
+  - Restore the ability to create TSMeta objects via URI
+  - Restore raw data points (along with post-filtered data points) in query stats
+  - Built in UI will now properly display global annotations when the query string is passed
 
 * Version 2.2.0 (2016-02-14)
 

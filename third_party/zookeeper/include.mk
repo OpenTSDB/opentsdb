@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-ZOOKEEPER_VERSION := 3.4.5
+ZOOKEEPER_VERSION := 3.4.6
 ZOOKEEPER := third_party/zookeeper/zookeeper-$(ZOOKEEPER_VERSION).jar
 ZOOKEEPER_BASE_URL := http://central.maven.org/maven2/org/apache/zookeeper/zookeeper/$(ZOOKEEPER_VERSION)
 

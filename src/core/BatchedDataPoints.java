@@ -39,8 +39,8 @@ final class BatchedDataPoints implements WritableDataPoints {
   private final TSDB tsdb;
 
   /**
-   * The row key. 3 bytes for the metric name, 4 bytes for the base timestamp, 
-   * 6 bytes per tag (3 for the name, 3 for the value).
+   * The row key. Optional salt + 3 bytes for the metric name, 4 bytes for the 
+   * base timestamp, 6 bytes per tag (3 for the name, 3 for the value).
    */
   private byte[] row_key;
 
@@ -310,6 +310,12 @@ final class BatchedDataPoints implements WritableDataPoints {
   }
 
   @Override
+  public byte[] metricUID() {
+    return Arrays.copyOfRange(row_key, Const.SALT_WIDTH(), 
+        Const.SALT_WIDTH() + TSDB.metrics_width());
+  }
+  
+  @Override
   public Map<String, String> getTags() {
     try {
       return getTagsAsync().joinUninterruptibly();
@@ -343,6 +349,11 @@ final class BatchedDataPoints implements WritableDataPoints {
     return Deferred.fromResult(empty);
   }
 
+  @Override
+  public List<byte[]> getAggregatedTagUids() {
+    return Collections.emptyList();
+  }
+  
   @Override
   public List<String> getTSUIDs() {
     return Collections.emptyList();

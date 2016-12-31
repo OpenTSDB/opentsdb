@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -27,6 +28,7 @@ import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
+import org.hbase.async.Bytes.ByteMap;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -814,8 +816,118 @@ public final class TestRowSeq {
     it.next();
   }
   
+  @Test
+  public void metricUID() throws Exception {
+    final byte[] qual1 = { 0x00, 0x07 };
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = { 0x00, 0x27 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
+    final KeyValue kv = makekv(qual12, 
+        MockBase.concatByteArrays(val1, val2, ZERO));
+    
+    final RowSeq rs = new RowSeq(tsdb);
+    rs.setRow(kv);
+    
+    assertArrayEquals(new byte[] { 0, 0, 1 }, rs.metricUID());
+  }
+  
+  @Test
+  public void metricUIDSalted() throws Exception {
+    setupSalt();
+    final byte[] qual1 = { 0x00, 0x07 };
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = { 0x00, 0x27 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
+    final KeyValue kv = makekv(qual12, 
+        MockBase.concatByteArrays(val1, val2, ZERO));
+    
+    final RowSeq rs = new RowSeq(tsdb);
+    rs.setRow(kv);
+    
+    assertArrayEquals(new byte[] { 0, 0, 1 }, rs.metricUID());
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void metricUIDKeyNotSet() throws Exception {
+    final RowSeq rs = new RowSeq(tsdb);
+    rs.metricUID();
+  }
+  
+  @Test
+  public void getTagUids() throws Exception {
+    final byte[] qual1 = { 0x00, 0x07 };
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = { 0x00, 0x27 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
+    final KeyValue kv = makekv(qual12, 
+        MockBase.concatByteArrays(val1, val2, ZERO));
+    
+    final RowSeq rs = new RowSeq(tsdb);
+    rs.setRow(kv);
+    
+    final ByteMap<byte[]> uids = rs.getTagUids();
+    assertEquals(1, uids.size());
+    assertArrayEquals(new byte[] { 0, 0, 1 }, uids.firstKey());
+    assertArrayEquals(new byte[] { 0, 0, 2 }, 
+        uids.firstEntry().getValue());
+  }
+  
+  @Test
+  public void getTagUidsSalted() throws Exception {
+    setupSalt();
+    final byte[] qual1 = { 0x00, 0x07 };
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = { 0x00, 0x27 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
+    final KeyValue kv = makekv(qual12, 
+        MockBase.concatByteArrays(val1, val2, ZERO));
+    
+    final RowSeq rs = new RowSeq(tsdb);
+    rs.setRow(kv);
+    
+    final ByteMap<byte[]> uids = rs.getTagUids();
+    assertEquals(1, uids.size());
+    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 1 }, uids.firstKey()));
+    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 2 }, 
+        uids.firstEntry().getValue()));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void getTagUidsNotSet() throws Exception {
+    final RowSeq rs = new RowSeq(tsdb);
+    rs.getTagUids();
+  }
+  
+  @Test
+  public void getAggregatedTagUids() throws Exception {
+    final byte[] qual1 = { 0x00, 0x07 };
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = { 0x00, 0x27 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
+    final KeyValue kv = makekv(qual12, 
+        MockBase.concatByteArrays(val1, val2, ZERO));
+    
+    final RowSeq rs = new RowSeq(tsdb);
+    rs.setRow(kv);
+    
+    assertEquals(0, rs.getAggregatedTagUids().size());
+  }
+  
   /** Shorthand to create a {@link KeyValue}.  */
-  private static KeyValue makekv(final byte[] key, final byte[] qualifier, 
+  public static KeyValue makekv(final byte[] qualifier, final byte[] value) {
+    if (Const.SALT_WIDTH() > 0) {
+      return new KeyValue(SALTED_KEY, FAMILY, qualifier, value);
+    }
+    return new KeyValue(KEY, FAMILY, qualifier, value);
+  }
+  
+  /** Shorthand to create a {@link KeyValue}.  */
+  public static KeyValue makekv(final byte[] key, final byte[] qualifier, 
       final byte[] value) {
     return new KeyValue(key, FAMILY, qualifier, value);
   }

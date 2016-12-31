@@ -77,7 +77,7 @@ final class CliOptions {
       args = argp.parse(args);
     } catch (IllegalArgumentException e) {
       System.err.println("Invalid usage.  " + e.getMessage());
-      return null;
+      System.exit(2);
     }
     honorVerboseFlag(argp);
     return args;
@@ -120,6 +120,10 @@ final class CliOptions {
       // map the overrides
       if (entry.getKey().toLowerCase().equals("--auto-metric")) {
         config.overrideConfig("tsd.core.auto_create_metrics", "true");
+      } else if (entry.getKey().toLowerCase().equals("--disable-ui")) {
+        config.overrideConfig("tsd.core.enable_ui", "false");
+      } else if (entry.getKey().toLowerCase().equals("--disable-api")) {
+        config.overrideConfig("tsd.core.enable_api", "false");
       } else if (entry.getKey().toLowerCase().equals("--table")) {
         config.overrideConfig("tsd.storage.hbase.data_table", entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--uidtable")) {
@@ -140,13 +144,15 @@ final class CliOptions {
         config.overrideConfig("tsd.core.flushinterval", entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--backlog")) {
         config.overrideConfig("tsd.network.backlog", entry.getValue());
+      } else if (entry.getKey().toLowerCase().equals("--read-only")) {
+        config.overrideConfig("tsd.mode", "ro");
       } else if (entry.getKey().toLowerCase().equals("--bind")) {
         config.overrideConfig("tsd.network.bind", entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--async-io")) {
         config.overrideConfig("tsd.network.async_io", entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--worker-threads")) {
         config.overrideConfig("tsd.network.worker_threads", entry.getValue());
-      }
+      } 	  
     }
   }
   

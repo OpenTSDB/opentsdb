@@ -123,6 +123,17 @@ public final class Internal {
     }
   }
   
+  /**
+   * Sets the time in a raw data table row key
+   * @param row The row to modify
+   * @param base_time The base time to store
+   * @since 2.3
+   */
+  public static void setBaseTime(final byte[] row, int base_time) {
+    Bytes.setInt(row, base_time, Const.SALT_WIDTH() + 
+        TSDB.metrics_width());
+  }
+  
   /** @see Tags#getTags */
   public static Map<String, String> getTags(final TSDB tsdb, final byte[] row) {
     return Tags.getTags(tsdb, row);

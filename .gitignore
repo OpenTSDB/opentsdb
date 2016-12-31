@@ -38,4 +38,10 @@ guava-rpm-maker/\.project
 src-main
 src-test
 plugin_test.jar
-/bin/
+bin/
+
+#Docker
+tools/docker/libs
+tools/docker/*.jar
+tools/docker/logback.xml
+tools/docker/opentsdb.conf

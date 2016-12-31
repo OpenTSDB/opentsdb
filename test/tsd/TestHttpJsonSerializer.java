@@ -164,6 +164,37 @@ public final class TestHttpJsonSerializer {
   }
   
   @Test
+  public void parseUidRenameV1() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "",
+        "{\"metric\":\"sys.cpu.1\",\"name\":\"sys.cpu.2\"}", "");
+    HttpJsonSerializer serdes = new HttpJsonSerializer(query);
+    HashMap<String, String> map = serdes.parseUidRenameV1();
+    assertNotNull(map);
+    assertEquals("sys.cpu.1", map.get("metric"));
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void parseUidRenameV1NoContent() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "", null, "");
+    HttpJsonSerializer serdes = new HttpJsonSerializer(query);
+    serdes.parseUidRenameV1();
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void parseUidRenameV1EmptyContent() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "", "", "");
+    HttpJsonSerializer serdes = new HttpJsonSerializer(query);
+    serdes.parseUidRenameV1();
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void parseUidRenameV1NotJSON() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "", "NOT JSON", "");
+    HttpJsonSerializer serdes = new HttpJsonSerializer(query);
+    serdes.parseUidRenameV1();
+  }
+
+  @Test
   public void formatSuggestV1() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, "");
     HttpJsonSerializer serdes = new HttpJsonSerializer(query);
@@ -195,13 +226,52 @@ public final class TestHttpJsonSerializer {
   }
   
   @Test
+  public void formatUidRenameV1Success() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "");
+    HttpJsonSerializer serdes = new HttpJsonSerializer(query);
+    final HashMap<String, String> map = new HashMap<String, String>(2);
+    map.put("result", "true");
+    ChannelBuffer cb = serdes.formatUidRenameV1(map);
+    assertNotNull(cb);
+    assertEquals("{\"result\":\"true\"}",
+        cb.toString(Charset.forName("UTF-8")));
+  }
+
+  @Test
+  public void formatUidRenameV1Failed() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "");
+    HttpJsonSerializer serdes = new HttpJsonSerializer(query);
+    final HashMap<String, String> map = new HashMap<String, String>(2);
+    map.put("result", "false");
+    map.put("error", "known");
+    ChannelBuffer cb = serdes.formatUidRenameV1(map);
+    assertNotNull(cb);
+    final String json = cb.toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"error\":\"known\""));
+    assertTrue(json.contains("\"result\":\"false\""));
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void formatUidRenameV1Null() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "");
+    HttpJsonSerializer serdes = new HttpJsonSerializer(query);
+    serdes.formatUidRenameV1(null);
+  }
+
+  @Test
   public void formatSerializersV1() throws Exception {
     HttpQuery.initializeSerializerMaps(tsdb);
     HttpQuery query = NettyMocks.getQuery(tsdb, "");
     HttpJsonSerializer serdes = new HttpJsonSerializer(query);
-    assertEquals("[{\"formatters\":",
-        serdes.formatSerializersV1().toString(Charset.forName("UTF-8"))
-        .substring(0, 15));
+    
+    String json = serdes.formatSerializersV1().toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"request_content_type\":\"application/json\""));
+    assertTrue(json.contains("\"formatters\":["));
+    assertTrue(json.contains("\"response_content_type\":\"application/json; "
+        + "charset=UTF-8\""));
+    assertTrue(json.contains("\"parsers\":["));
+    assertTrue(json.contains("\"serializer\":\"json\""));
+    assertTrue(json.contains("\"class\":\"net.opentsdb.tsd.HttpJsonSerializer\""));
   }
 
   @Test

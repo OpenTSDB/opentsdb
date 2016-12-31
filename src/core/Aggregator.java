@@ -92,14 +92,14 @@ public abstract class Aggregator {
    * @param values The sequence to aggregate.
    * @return The aggregated value.
    */
-  abstract long runLong(Longs values);
+  public abstract long runLong(Longs values);
 
   /**
    * Aggregates a sequence of {@code double}s.
    * @param values The sequence to aggregate.
    * @return The aggregated value.
    */
-  abstract double runDouble(Doubles values);
+  public abstract double runDouble(Doubles values);
 
   /** 
    * Returns the interpolation method to use when working with data points

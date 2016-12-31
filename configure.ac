@@ -1,4 +1,4 @@
-# Copyright (C) 2011-2012  The OpenTSDB Authors.
+# Copyright (C) 2011-2016  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -14,7 +14,7 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 # Semantic Versioning (see http://semver.org/).
-AC_INIT([opentsdb], [2.2.2], [opentsdb@googlegroups.com])
+AC_INIT([opentsdb], [2.3.0], [opentsdb@googlegroups.com])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([foreign])
 
@@ -23,6 +23,26 @@ AC_CONFIG_FILES([
 ])
 AC_CONFIG_FILES([opentsdb.spec])
 AC_CONFIG_FILES([build-aux/fetchdep.sh], [chmod +x build-aux/fetchdep.sh])
+
+AC_ARG_WITH([bigtable],
+            [AS_HELP_STRING([--with-bigtable], [Enable Google's Bigtable backend])],
+            [with_bigtable=yes],
+            [with_bigtable=no])
+
+AS_IF([test "x$with_bigtable" = "xyes"],
+  [AM_CONDITIONAL(BIGTABLE, true)],
+  [AM_CONDITIONAL(BIGTABLE, false)]
+)
+
+AC_ARG_WITH([cassandra],
+            [AS_HELP_STRING([--with-cassandra], [Enable Cassandra backend])],
+            [with_cassandra=yes],
+            [with_cassandra=no])
+
+AS_IF([test "x$with_cassandra" = "xyes"],
+  [AM_CONDITIONAL(CASSANDRA, true)],
+  [AM_CONDITIONAL(CASSANDRA, false)]
+)
 
 TSDB_FIND_PROG([md5], [md5sum md5 gmd5sum digest])
 if test x`basename "$MD5"` = x'digest'; then
