@@ -484,6 +484,8 @@ public class Config {
     default_map.put("tsd.network.tcp_no_delay", "true");
     default_map.put("tsd.network.keep_alive", "true");
     default_map.put("tsd.network.reuse_address", "true");
+    default_map.put("tsd.core.authentication.enable", "false");
+    default_map.put("tsd.core.authentication.plugin", "");
     default_map.put("tsd.core.auto_create_metrics", "false");
     default_map.put("tsd.core.auto_create_tagks", "true");
     default_map.put("tsd.core.auto_create_tagvs", "true");

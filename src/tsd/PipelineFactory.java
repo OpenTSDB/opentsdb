@@ -14,6 +14,8 @@ package net.opentsdb.tsd;
 
 import static org.jboss.netty.channel.Channels.pipeline;
 
+import java.util.concurrent.ThreadFactory;
+import net.opentsdb.auth.AuthenticationChannelHandler;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandler;
@@ -158,6 +160,10 @@ public final class PipelineFactory implements ChannelPipelineFactory {
         pipeline.addLast("framer", new LineBasedFrameDecoder(1024));
         pipeline.addLast("encoder", ENCODER);
         pipeline.addLast("decoder", DECODER);
+      }
+
+      if (tsdb.getAuth() != null) {
+        pipeline.addLast("authentication", new AuthenticationChannelHandler(tsdb));
       }
 
       pipeline.addLast("timeout", timeoutHandler);
