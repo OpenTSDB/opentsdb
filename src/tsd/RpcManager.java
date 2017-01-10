@@ -260,9 +260,12 @@ public final class RpcManager {
 
     if (mode.equals("rw") || mode.equals("wo")) {
       final PutDataPointRpc put = new PutDataPointRpc(tsdb.getConfig());
+      final RollupDataPointRpc rollups = new RollupDataPointRpc(tsdb.getConfig());
       telnet.put("put", put);
+      telnet.put("rollup", rollups);
       if (enableApi) {
         http.put("api/put", put);
+        http.put("api/rollup", rollups);
       }
     }
 
