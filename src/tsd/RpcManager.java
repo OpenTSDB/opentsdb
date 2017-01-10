@@ -259,7 +259,7 @@ public final class RpcManager {
     LOG.info("Mode: {}, HTTP UI Enabled: {}, HTTP API Enabled: {}", mode, enableUi, enableApi);
 
     if (mode.equals("rw") || mode.equals("wo")) {
-      final PutDataPointRpc put = new PutDataPointRpc();
+      final PutDataPointRpc put = new PutDataPointRpc(tsdb.getConfig());
       telnet.put("put", put);
       if (enableApi) {
         http.put("api/put", put);

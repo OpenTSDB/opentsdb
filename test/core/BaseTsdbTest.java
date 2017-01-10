@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2016  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -16,9 +16,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -29,8 +33,11 @@ import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.Threads;
 
+import org.hbase.async.Bytes;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.Scanner;
 import org.jboss.netty.util.HashedWheelTimer;
@@ -46,6 +53,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
+import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
 
 /**
@@ -57,27 +65,8 @@ import com.stumbleupon.async.Deferred;
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
-  HashedWheelTimer.class, Scanner.class, Const.class })
+  HashedWheelTimer.class, Scanner.class, Const.class, Threads.class })
 public class BaseTsdbTest {
-  /** A list of UIDs from A to Z for unit testing UIDs values */
-  public static final Map<String, byte[]> METRIC_UIDS = 
-      new HashMap<String, byte[]>(26);
-  public static final Map<String, byte[]> TAGK_UIDS = 
-      new HashMap<String, byte[]>(26);
-  public static final Map<String, byte[]> TAGV_UIDS = 
-      new HashMap<String, byte[]>(26);
-  static {
-    char letter = 'A';
-    int uid = 10;
-    for (int i = 0; i < 26; i++) {
-      METRIC_UIDS.put(Character.toString(letter), 
-          UniqueId.longToUID(uid, TSDB.metrics_width()));
-      TAGK_UIDS.put(Character.toString(letter), 
-          UniqueId.longToUID(uid, TSDB.tagk_width()));
-      TAGV_UIDS.put(Character.toString(letter++), 
-          UniqueId.longToUID(uid++, TSDB.tagv_width()));
-    }
-  }
   
   public static final String METRIC_STRING = "sys.cpu.user";
   public static final byte[] METRIC_BYTES = new byte[] { 0, 0, 1 };
@@ -103,20 +92,35 @@ public class BaseTsdbTest {
   static final String NOTE_DESCRIPTION = "Hello DiscWorld!";
   static final String NOTE_NOTES = "Millenium hand and shrimp";
   
-  protected HashedWheelTimer timer;
+  public static final Map<String, byte[]> UIDS = new HashMap<String, byte[]>(26);
+  static {
+    char letter = 'A';
+    byte[] uid = new byte[] { 0, 0, 10 };
+    for (int i = 0; i < 26; i++) {
+      UIDS.put(Character.toString(letter++), Arrays.copyOf(uid, uid.length));
+      uid[2]++;
+    }
+  }
+  
+  protected FakeTaskTimer timer;
   protected Config config;
   protected TSDB tsdb;
   protected HBaseClient client = mock(HBaseClient.class);
   protected UniqueId metrics = mock(UniqueId.class);
   protected UniqueId tag_names = mock(UniqueId.class);
   protected UniqueId tag_values = mock(UniqueId.class);
-  protected Map<String, String> tags = new HashMap<String, String>(1);
+  protected Map<String, String> tags;
   protected MockBase storage;
+  protected Map<String, byte[]> uid_map;
   
   @Before
   public void before() throws Exception {
-    timer = mock(HashedWheelTimer.class);
-
+    uid_map = Maps.newHashMap();
+    PowerMockito.mockStatic(Threads.class);
+    timer = new FakeTaskTimer();
+    PowerMockito.when(Threads.newTimer(anyString())).thenReturn(timer);
+    PowerMockito.when(Threads.newTimer(anyInt(), anyString())).thenReturn(timer);
+    
     PowerMockito.whenNew(HashedWheelTimer.class).withNoArguments()
       .thenReturn(timer);
     PowerMockito.whenNew(HBaseClient.class).withAnyArguments()
@@ -136,239 +140,310 @@ public class BaseTsdbTest {
     setupTagkMaps();
     setupTagvMaps();
     
+    // add metrics and tags to the UIDs list for other functions to share
+    uid_map.put(METRIC_STRING, METRIC_BYTES);
+    uid_map.put(METRIC_B_STRING, METRIC_B_BYTES);
+    uid_map.put(NSUN_METRIC, NSUI_METRIC);
+    
+    uid_map.put(TAGK_STRING, TAGK_BYTES);
+    uid_map.put(TAGK_B_STRING, TAGK_B_BYTES);
+    uid_map.put(NSUN_TAGK, NSUI_TAGK);
+    
+    uid_map.put(TAGV_STRING, TAGV_BYTES);
+    uid_map.put(TAGV_B_STRING, TAGV_B_BYTES);
+    uid_map.put(NSUN_TAGV, NSUI_TAGV);
+    
+    uid_map.putAll(UIDS);
+    
     when(metrics.width()).thenReturn((short)3);
     when(tag_names.width()).thenReturn((short)3);
     when(tag_values.width()).thenReturn((short)3);
     
+    tags = new HashMap<String, String>(1);
     tags.put(TAGK_STRING, TAGV_STRING);
   }
   
   /** Adds the static UIDs to the metrics UID mock object */
   void setupMetricMaps() {
-    when(metrics.getId(METRIC_STRING)).thenReturn(METRIC_BYTES);
-    when(metrics.getIdAsync(METRIC_STRING))
-      .thenAnswer(new Answer<Deferred<byte[]>>() {
-          @Override
-          public Deferred<byte[]> answer(InvocationOnMock invocation)
-              throws Throwable {
-            return Deferred.fromResult(METRIC_BYTES);
-          }
-      });
-    when(metrics.getOrCreateId(METRIC_STRING))
-      .thenReturn(METRIC_BYTES);
-    
-    when(metrics.getId(METRIC_B_STRING)).thenReturn(METRIC_B_BYTES);
-    when(metrics.getIdAsync(METRIC_B_STRING))
-      .thenAnswer(new Answer<Deferred<byte[]>>() {
-          @Override
-          public Deferred<byte[]> answer(InvocationOnMock invocation)
-              throws Throwable {
-            return Deferred.fromResult(METRIC_B_BYTES);
-          }
-      });
-    when(metrics.getOrCreateId(METRIC_B_STRING))
-      .thenReturn(METRIC_B_BYTES);
-    
-    when(metrics.getNameAsync(METRIC_BYTES))
-      .thenAnswer(new Answer<Deferred<String>>() {
-          @Override
-          public Deferred<String> answer(InvocationOnMock invocation)
-              throws Throwable {
-            return Deferred.fromResult(METRIC_STRING);
-          }
-      });
-    when(metrics.getNameAsync(METRIC_B_BYTES))
-      .thenAnswer(new Answer<Deferred<String>>() {
-            @Override
-            public Deferred<String> answer(InvocationOnMock invocation)
-                throws Throwable {
-              return Deferred.fromResult(METRIC_B_STRING);
-            }
-        });
-    when(metrics.getNameAsync(NSUI_METRIC))
-      .thenThrow(new NoSuchUniqueId("metrics", NSUI_METRIC));
-    
-    final NoSuchUniqueName nsun = new NoSuchUniqueName(NSUN_METRIC, "metrics");
-    
+    mockUID(UniqueIdType.METRIC, METRIC_STRING, METRIC_BYTES);
+    mockUID(UniqueIdType.METRIC, METRIC_B_STRING, METRIC_B_BYTES);
+
+    final NoSuchUniqueName nsun = new NoSuchUniqueName(NSUN_METRIC, "metric");
+
     when(metrics.getId(NSUN_METRIC)).thenThrow(nsun);
     when(metrics.getIdAsync(NSUN_METRIC))
-      .thenReturn(Deferred.<byte[]>fromError(nsun));
+        .thenReturn(Deferred.<byte[]> fromError(nsun));
     when(metrics.getOrCreateId(NSUN_METRIC)).thenThrow(nsun);
+    final NoSuchUniqueName nsunic = new NoSuchUniqueName(NSUN_METRIC, "metric");
+    when(metrics.getOrCreateIdAsync(eq(NSUN_METRIC))).thenThrow(nsunic);
+    when(metrics.getNameAsync(NSUI_METRIC)).thenReturn(
+        Deferred.<String>fromError(new NoSuchUniqueId("metrics", NSUI_METRIC)));
     
-    // Iterate over the metric UIDs and handle both forward and reverse
-    for (final Map.Entry<String, byte[]> uid : METRIC_UIDS.entrySet()) {
-      when(metrics.getId(uid.getKey())).thenReturn(uid.getValue());
-      when(metrics.getIdAsync(uid.getKey()))
-        .thenAnswer(new Answer<Deferred<byte[]>>() {
-            @Override
-            public Deferred<byte[]> answer(InvocationOnMock invocation)
-                throws Throwable {
-              return Deferred.fromResult(uid.getValue());
-            }
-        });
-      when(metrics.getOrCreateId(uid.getKey()))
-        .thenReturn(uid.getValue());
-      when(metrics.getNameAsync(uid.getValue()))
-        .thenAnswer(new Answer<Deferred<String>>() {
-            @Override
-            public Deferred<String> answer(InvocationOnMock invocation)
-                throws Throwable {
-              return Deferred.fromResult(uid.getKey());
-            }
-        });
+    for (final Map.Entry<String, byte[]> uid : UIDS.entrySet()) {
+      mockUID(UniqueIdType.METRIC, uid.getKey(), uid.getValue());
     }
   }
   
   /** Adds the static UIDs to the tag keys UID mock object */
   void setupTagkMaps() {
-    when(tag_names.getId(TAGK_STRING)).thenReturn(TAGK_BYTES);
-    when(tag_names.getOrCreateId(TAGK_STRING)).thenReturn(TAGK_BYTES);
-    when(tag_names.getIdAsync(TAGK_STRING))
-      .thenAnswer(new Answer<Deferred<byte[]>>() {
-            @Override
-            public Deferred<byte[]> answer(InvocationOnMock invocation)
-                throws Throwable {
-              return Deferred.fromResult(TAGK_BYTES);
-            }
-        });
-    when(tag_names.getOrCreateIdAsync(TAGK_STRING))
-      .thenReturn(Deferred.fromResult(TAGK_BYTES));
-    
-    when(tag_names.getId(TAGK_B_STRING)).thenReturn(TAGK_B_BYTES);
-    when(tag_names.getOrCreateId(TAGK_B_STRING)).thenReturn(TAGK_B_BYTES);
-    when(tag_names.getIdAsync(TAGK_B_STRING))
-      .thenAnswer(new Answer<Deferred<byte[]>>() {
-            @Override
-            public Deferred<byte[]> answer(InvocationOnMock invocation)
-                throws Throwable {
-              return Deferred.fromResult(TAGK_B_BYTES);
-            }
-        });
-    when(tag_names.getOrCreateIdAsync(TAGK_B_STRING))
-      .thenReturn(Deferred.fromResult(TAGK_B_BYTES));
-    
-    when(tag_names.getNameAsync(TAGK_BYTES))
-      .thenAnswer(new Answer<Deferred<String>>() {
-            @Override
-            public Deferred<String> answer(InvocationOnMock invocation)
-                throws Throwable {
-              return Deferred.fromResult(TAGK_STRING);
-            }
-        });
-    when(tag_names.getNameAsync(TAGK_B_BYTES))
-      .thenAnswer(new Answer<Deferred<String>>() {
-            @Override
-            public Deferred<String> answer(InvocationOnMock invocation)
-                throws Throwable {
-              return Deferred.fromResult(TAGK_B_STRING);
-            }
-        });
-    when(tag_names.getNameAsync(NSUI_TAGK))
+    mockUID(UniqueIdType.TAGK, TAGK_STRING, TAGK_BYTES);
+    mockUID(UniqueIdType.TAGK, TAGK_B_STRING, TAGK_B_BYTES);
+
+    final NoSuchUniqueName nsunic = new NoSuchUniqueName(NSUN_TAGK, "tagk");
+    when(tag_names.getIdAsync(NSUN_TAGK)).thenReturn(
+        Deferred.<byte[]> fromError(nsunic));
+    when(tag_names.getOrCreateId(eq(NSUN_TAGK))).thenThrow(nsunic);
+    when(tag_names.getOrCreateIdAsync(eq(NSUN_TAGK))).thenReturn(
+        Deferred.<byte[]> fromError(nsunic));
+    when(tag_names.getName(NSUI_TAGK))
       .thenThrow(new NoSuchUniqueId("tagk", NSUI_TAGK));
+    when(tag_names.getNameAsync(NSUI_TAGK)).thenReturn(
+        Deferred.<String>fromError(new NoSuchUniqueId("tagk", NSUI_TAGK)));
     
-    final NoSuchUniqueName nsun = new NoSuchUniqueName(NSUN_TAGK, "tagk");
-    
-    when(tag_names.getId(NSUN_TAGK))
-      .thenThrow(nsun);
-    when(tag_names.getIdAsync(NSUN_TAGK))
-      .thenReturn(Deferred.<byte[]>fromError(nsun));
-    
-    // Iterate over the tagk UIDs and handle both forward and reverse
-    for (final Map.Entry<String, byte[]> uid : TAGK_UIDS.entrySet()) {
-      when(tag_names.getId(uid.getKey())).thenReturn(uid.getValue());
-      when(tag_names.getIdAsync(uid.getKey()))
-        .thenAnswer(new Answer<Deferred<byte[]>>() {
-            @Override
-            public Deferred<byte[]> answer(InvocationOnMock invocation)
-                throws Throwable {
-              return Deferred.fromResult(uid.getValue());
-            }
-        });
-      when(tag_names.getOrCreateId(uid.getKey()))
-        .thenReturn(uid.getValue());
-      when(tag_names.getNameAsync(uid.getValue()))
-        .thenAnswer(new Answer<Deferred<String>>() {
-            @Override
-            public Deferred<String> answer(InvocationOnMock invocation)
-                throws Throwable {
-              return Deferred.fromResult(uid.getKey());
-            }
-        });
+    for (final Map.Entry<String, byte[]> uid : UIDS.entrySet()) {
+      mockUID(UniqueIdType.TAGK, uid.getKey(), uid.getValue());
     }
   }
   
   /** Adds the static UIDs to the tag values UID mock object */
   void setupTagvMaps() {
-    when(tag_values.getId(TAGV_STRING)).thenReturn(TAGV_BYTES);
-    when(tag_values.getOrCreateId(TAGV_STRING)).thenReturn(TAGV_BYTES);
-    when(tag_values.getIdAsync(TAGV_STRING))
-      .thenAnswer(new Answer<Deferred<byte[]>>() {
-          @Override
-          public Deferred<byte[]> answer(InvocationOnMock invocation)
-              throws Throwable {
-            return Deferred.fromResult(TAGV_BYTES);
-          }
-      });
-    when(tag_values.getOrCreateIdAsync(TAGV_STRING))
-      .thenReturn(Deferred.fromResult(TAGV_BYTES));
-  
-    when(tag_values.getId(TAGV_B_STRING)).thenReturn(TAGV_B_BYTES);
-    when(tag_values.getOrCreateId(TAGV_B_STRING)).thenReturn(TAGV_B_BYTES);
-    when(tag_values.getIdAsync(TAGV_B_STRING))
-      .thenAnswer(new Answer<Deferred<byte[]>>() {
-            @Override
-            public Deferred<byte[]> answer(InvocationOnMock invocation)
-                throws Throwable {
-              return Deferred.fromResult(TAGV_B_BYTES);
-            }
-        });
-    when(tag_values.getOrCreateIdAsync(TAGV_B_STRING))
-      .thenReturn(Deferred.fromResult(TAGV_B_BYTES));
-    
-    when(tag_values.getNameAsync(TAGV_BYTES))
-      .thenReturn(Deferred.fromResult(TAGV_STRING));
-    when(tag_values.getNameAsync(TAGV_B_BYTES))
-      .thenReturn(Deferred.fromResult(TAGV_B_STRING));
-    when(tag_values.getNameAsync(NSUI_TAGV))
-      .thenThrow(new NoSuchUniqueId("tagv", NSUI_TAGV));
+    mockUID(UniqueIdType.TAGV, TAGV_STRING, TAGV_BYTES);
+    mockUID(UniqueIdType.TAGV, TAGV_B_STRING, TAGV_B_BYTES);
     
     final NoSuchUniqueName nsun = new NoSuchUniqueName(NSUN_TAGV, "tagv");
-    
+    final NoSuchUniqueId nsui = new NoSuchUniqueId("tagv", NSUI_TAGV);
     when(tag_values.getId(NSUN_TAGV)).thenThrow(nsun);
     when(tag_values.getIdAsync(NSUN_TAGV))
-      .thenReturn(Deferred.<byte[]>fromError(nsun));
+        .thenReturn(Deferred.<byte[]> fromError(nsun));
+    when(tag_values.getName(NSUI_TAGV)).thenThrow(nsui);
+    when(tag_values.getNameAsync(NSUI_TAGV))
+      .thenReturn(Deferred.<String>fromError(nsui));
+    final NoSuchUniqueName nsunic = new NoSuchUniqueName(NSUN_TAGV, "tagv");
+    when(tag_values.getOrCreateId(eq(NSUN_TAGV))).thenThrow(nsunic);
+    when(tag_values.getOrCreateIdAsync(eq(NSUN_TAGV))).thenReturn(
+        Deferred.<byte[]> fromError(nsunic));
     
-    // Iterate over the tagv UIDs and handle both forward and reverse
-    for (final Map.Entry<String, byte[]> uid : TAGV_UIDS.entrySet()) {
-      when(tag_values.getId(uid.getKey())).thenReturn(uid.getValue());
-      when(tag_values.getIdAsync(uid.getKey()))
-        .thenAnswer(new Answer<Deferred<byte[]>>() {
-            @Override
-            public Deferred<byte[]> answer(InvocationOnMock invocation)
-                throws Throwable {
-              return Deferred.fromResult(uid.getValue());
-            }
-        });
-      when(tag_values.getOrCreateId(uid.getKey()))
-        .thenReturn(uid.getValue());
-      when(tag_values.getNameAsync(uid.getValue()))
-        .thenAnswer(new Answer<Deferred<String>>() {
-            @Override
-            public Deferred<String> answer(InvocationOnMock invocation)
-                throws Throwable {
-              return Deferred.fromResult(uid.getKey());
-            }
-        });
+    for (final Map.Entry<String, byte[]> uid : UIDS.entrySet()) {
+      mockUID(UniqueIdType.TAGV, uid.getKey(), uid.getValue());
     }
   }
 
+  /**
+   * Helper method that sets up UIDs for rollup and pre-agg testing.
+   */
+  protected void setupGroupByTagValues() {
+    // set the aggregate tag and value
+    mockUID(UniqueIdType.TAGK, config.getString("tsd.rollups.agg_tag_key"),
+        new byte[] { 0, 0, 42 });
+    uid_map.put(config.getString("tsd.rollups.agg_tag_key"), new byte[] { 0, 0, 42 });
+    mockUID(UniqueIdType.TAGV, config.getString("tsd.rollups.raw_agg_tag_value"),
+        new byte[] { 0, 0, 42 });
+    uid_map.put(config.getString("tsd.rollups.raw_agg_tag_value"), 
+        new byte[] { 0, 0, 42 });
+    mockUID(UniqueIdType.TAGV, "SUM", new byte[] { 0, 0, 43 });
+    uid_map.put("SUM", new byte[] { 0, 0, 43 });
+    mockUID(UniqueIdType.TAGV, "MAX", new byte[] { 0, 0, 44 });
+    uid_map.put("MAX", new byte[] { 0, 0, 44 });
+    mockUID(UniqueIdType.TAGV, "MIN", new byte[] { 0, 0, 45 });
+    uid_map.put("MIN", new byte[] { 0, 0, 45 });
+    mockUID(UniqueIdType.TAGV, "COUNT", new byte[] {  0, 0, 46 });
+    uid_map.put("COUNT", new byte[] { 0, 0, 46 });
+    mockUID(UniqueIdType.TAGV, "AVG", new byte[] { 0, 0, 47 });
+    uid_map.put("AVG", new byte[] { 0, 0, 47 });
+    mockUID(UniqueIdType.TAGV, "NOSUCHAGG", new byte[] { 0, 0, 0, 48 });
+    uid_map.put("NOSUCHAGG", new byte[] { 0, 0, 48 });
+  }
+  
   // ----------------- //
   // Helper functions. //
   // ----------------- //
   
+  /**
+   * Mocks out the UID calls to match keys and values
+   * 
+   * @param type
+   *          The type of UID to deal with
+   * @param key
+   *          The String name of the UID
+   * @param uid
+   *          The byte array UID to pair up with
+   */
+  protected void mockUID(final UniqueIdType type, final String key,
+      final byte[] uid) {
+    switch (type) {
+    case METRIC:
+      when(metrics.getId(key)).thenReturn(uid);
+      when(metrics.getIdAsync(key))
+        .thenAnswer(new Answer<Deferred<byte[]>>() {
+          @Override
+          public Deferred<byte[]> answer(InvocationOnMock invocation)
+              throws Throwable {
+            return Deferred.fromResult(uid);
+          }
+        });
+      when(metrics.getOrCreateId(key)).thenReturn(uid);
+      when(metrics.getOrCreateIdAsync(key))
+          .thenAnswer(new Answer<Deferred<byte[]>>() {
+        @Override
+        public Deferred<byte[]> answer(InvocationOnMock invocation)
+            throws Throwable {
+          return Deferred.fromResult(uid);
+        }
+      });
+      when(metrics.getName(uid)).thenReturn(key);
+      when(metrics.getNameAsync(uid)).thenAnswer(new Answer<Deferred<String>>() {
+        @Override
+        public Deferred<String> answer(InvocationOnMock invocation)
+            throws Throwable {
+          return Deferred.fromResult(key);
+        }
+      });
+      break;
+    case TAGK:
+      when(tag_names.getId(key)).thenReturn(uid);
+      when(tag_names.getIdAsync(key))
+        .thenAnswer(new Answer<Deferred<byte[]>>() {
+          @Override
+          public Deferred<byte[]> answer(InvocationOnMock invocation)
+              throws Throwable {
+            return Deferred.fromResult(uid);
+          }
+        });
+      when(tag_names.getOrCreateId(key)).thenReturn(uid);
+      when(tag_names.getOrCreateIdAsync(key))
+          .thenAnswer(new Answer<Deferred<byte[]>>() {
+        @Override
+        public Deferred<byte[]> answer(InvocationOnMock invocation)
+            throws Throwable {
+          return Deferred.fromResult(uid);
+        }
+      });
+      when(tag_names.getName(uid)).thenReturn(key);
+      when(tag_names.getNameAsync(uid)).thenAnswer(new Answer<Deferred<String>>() {
+        @Override
+        public Deferred<String> answer(InvocationOnMock invocation)
+            throws Throwable {
+          return Deferred.fromResult(key);
+        }
+      });
+      break;
+    case TAGV:
+      when(tag_values.getId(key)).thenReturn(uid);
+      when(tag_values.getIdAsync(key))
+        .thenAnswer(new Answer<Deferred<byte[]>>() {
+          @Override
+          public Deferred<byte[]> answer(InvocationOnMock invocation)
+              throws Throwable {
+            return Deferred.fromResult(uid);
+          }
+        });
+      when(tag_values.getOrCreateId(key)).thenReturn(uid);
+      when(tag_values.getOrCreateIdAsync(key))
+          .thenAnswer(new Answer<Deferred<byte[]>>() {
+          @Override
+          public Deferred<byte[]> answer(InvocationOnMock invocation)
+              throws Throwable {
+            return Deferred.fromResult(uid);
+          }
+        });
+      when(tag_values.getName(uid)).thenReturn(key);
+      when(tag_values.getNameAsync(uid)).thenAnswer(new Answer<Deferred<String>>() {
+          @Override
+          public Deferred<String> answer(InvocationOnMock invocation)
+              throws Throwable {
+            return Deferred.fromResult(key);
+          }
+        });
+      break;
+    }
+  }
+  
   /** @return a row key template with the default metric and tags */
   protected byte[] getRowKeyTemplate() {
     return IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags);
+  }
+  
+  /**
+   * Generates a proper key storage row key based on the metric, base time 
+   * and tags. Adds salting when mocked properly.
+   * @param metric A non-null byte array representing the metric.
+   * @param base_time The base time for the row.
+   * @param tags A non-null list of tag key/value pairs as UIDs.
+   * @return A row key to check mock storage for.
+   */
+  protected byte[] getRowKey(final byte[] metric, final int base_time, 
+      final byte[] tags) {
+    final byte[] key = new byte[Const.SALT_WIDTH() + metric.length + 
+                                Const.TIMESTAMP_BYTES + tags.length];
+    
+    System.arraycopy(metric, 0, key, Const.SALT_WIDTH(), metric.length);
+    System.arraycopy(Bytes.fromInt(base_time), 0, key, 
+        Const.SALT_WIDTH() + metric.length, Const.TIMESTAMP_BYTES);
+    System.arraycopy(tags, 0, key, Const.SALT_WIDTH() + metric.length + 
+        Const.TIMESTAMP_BYTES, tags.length);
+    RowKey.prefixKeyWithSalt(key);
+    return key;
+  }
+  
+  /**
+   * Generates a proper key storage row key based on the metric, base time 
+   * and tags. Adds salting when mocked properly.
+   * @param metric
+   * @param base_time
+   * @param tags
+   * @return
+   */
+  protected byte[] getRowKey(final String metric, final int base_time, 
+      final String... tags) {
+    final int m = TSDB.metrics_width();
+    final int tk = TSDB.tagk_width();
+    final int tv = TSDB.tagv_width();
+    
+    final byte[] key = new byte[Const.SALT_WIDTH() + m + 4 
+       + (tags.length / 2) * tk + (tags.length / 2) * tv];
+    byte[] uid = uid_map.get(metric);
+    
+    // metrics first
+    if (uid != null) {
+      System.arraycopy(uid, 0, key, Const.SALT_WIDTH(), m);
+    } else {
+      throw new IllegalArgumentException("No METRIC UID was mocked for: " + metric);
+    }
+    
+    // timestamp
+    System.arraycopy(Bytes.fromInt(base_time), 0, key, Const.SALT_WIDTH() + m, 
+        Const.TIMESTAMP_BYTES);
+    
+    // shortcut for offsets
+    final int pl = Const.SALT_WIDTH() + m + Const.TIMESTAMP_BYTES;
+    int ctr = 0;
+    int offset = 0;
+    for (final String tag : tags) {
+      uid = uid_map.get(tag);
+      
+      if (ctr % 2 == 0) {
+        // TAGK
+        if (uid != null) {
+          System.arraycopy(uid, 0, key, pl + offset, tk);
+        } else {
+          throw new IllegalArgumentException("No TAGK UID was mocked for: " + tag);
+        }
+        offset += tk;
+      } else {
+        // TAGV
+        if (uid != null) {
+          System.arraycopy(uid, 0, key, pl + offset, tv);
+        } else {
+          throw new IllegalArgumentException("No TAGK UID was mocked for: " + tag);
+        }
+        offset += tv;
+      }
+      
+      ctr++;
+    }
+    
+    RowKey.prefixKeyWithSalt(key);
+    return key;
   }
   
   protected void setDataPointStorage() throws Exception {

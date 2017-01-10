@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2013-2015  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -13,10 +13,15 @@
 package net.opentsdb.core;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Bridging class that stores a normalized data point parsed from the "put" 
@@ -32,22 +37,25 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
  * @since 2.0
  */
 @JsonInclude(Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class IncomingDataPoint {
+  private static final Logger LOG = LoggerFactory.getLogger(IncomingDataPoint.class);
+  
   /** The incoming metric name */
-  private String metric;
+  protected String metric;
   
   /** The incoming timestamp in Unix epoch seconds or milliseconds */
-  private long timestamp;
+  protected long timestamp;
   
   /** The incoming value as a string, we'll parse it to float or int later */
-  private String value;
+  protected String value;
   
   /** A hash map of tag name/values */
-  private HashMap<String, String> tags;
+  protected Map<String, String> tags;
   
   /** TSUID for the data point */
-  private String tsuid;
-  
+  protected String tsuid;
+
   /**
    * Empty constructor necessary for some de/serializers
    */
@@ -65,7 +73,7 @@ public class IncomingDataPoint {
   public IncomingDataPoint(final String metric,
       final long timestamp,
       final String value,
-      final HashMap<String, String> tags) {
+      final Map<String, String> tags) {
     this.metric = metric;
     this.timestamp = timestamp;
     this.value = value;
@@ -94,10 +102,10 @@ public class IncomingDataPoint {
     final StringBuilder buf = new StringBuilder();
     buf.append("metric=").append(this.metric);
     buf.append(" ts=").append(this.timestamp);
-    buf.append(" value=").append(this.value);
+    buf.append(" value=").append(this.value).append(" ");
     if (this.tags != null) {
       for (Map.Entry<String, String> entry : this.tags.entrySet()) {
-        buf.append(" ").append(entry.getKey()).append("=").append(entry.getValue());
+        buf.append(entry.getKey()).append("=").append(entry.getValue());
       }
     }
     return buf.toString();
@@ -119,7 +127,7 @@ public class IncomingDataPoint {
   }
 
   /** @return the tags */
-  public final HashMap<String, String> getTags() {
+  public final Map<String, String> getTags() {
     return tags;
   }
 
@@ -151,5 +159,61 @@ public class IncomingDataPoint {
   /** @param tsuid the TSUID to set */
   public final void setTSUID(String tsuid) {
     this.tsuid = tsuid;
+  }
+
+  /**
+   * Pre-validation of the various fields to make sure they're valid
+   * @param details a map to hold detailed error message. If null then 
+   * the errors will be logged
+   * @return true if data point is valid, otherwise false
+   */
+  public boolean validate(final List<Map<String, Object>> details) {
+    if (this.getMetric() == null || this.getMetric().isEmpty()) {
+      if (details != null) {
+        details.add(getHttpDetails("Metric name was empty"));
+      }
+      LOG.warn("Metric name was empty: " + this);
+      return false;
+    }
+
+    //TODO add blacklisted metric validatin here too
+    
+    if (this.getTimestamp() <= 0) {
+      if (details != null) {
+        details.add(getHttpDetails("Invalid timestamp"));
+      }
+      LOG.warn("Invalid timestamp: " + this);
+      return false;
+    }
+
+    if (this.getValue() == null || this.getValue().isEmpty()) {
+      if (details != null) {
+        details.add(getHttpDetails("Empty value"));
+      }
+      LOG.warn("Empty value: " + this);
+      return false;
+    }
+
+    if (this.getTags() == null || this.getTags().size() < 1) {
+      if (details != null) {
+        details.add(getHttpDetails("Missing tags"));
+      }
+      LOG.warn("Missing tags: " + this);
+      return false;
+    }
+    return true;
+  }
+  
+  /**
+   * Creates a map with an error message and this data point to return
+   * to the HTTP put data point RPC handler
+   * @param message The message to log
+   * @return A map to append to the HTTP response
+   */
+  protected final Map<String, Object> getHttpDetails(final String message) {
+    final Map<String, Object> map = new HashMap<String, Object>();
+    map.put("error", message);
+    map.put("datapoint", this);
+    return map;
   }
 }

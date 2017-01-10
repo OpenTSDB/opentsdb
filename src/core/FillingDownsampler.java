@@ -70,8 +70,27 @@ public class FillingDownsampler extends Downsampler {
   FillingDownsampler(final SeekableView source, final long start_time,
       final long end_time, final DownsamplingSpecification specification, 
       final long query_start, final long end_start) {
+    this(source, start_time, end_time, specification, query_start, end_start,
+        false);
+  }
+  
+  /** 
+   * Create a new filling downsampler.
+   * @param source The iterator to access the underlying data.
+   * @param start_time The time in milliseconds at which the data begins.
+   * @param end_time The time in milliseconds at which the data ends.
+   * @param specification The downsampling spec to use
+   * @param query_start The start timestamp of the actual query for use with "all"
+   * @param query_end The end timestamp of the actual query for use with "all"
+   * @param is_rollup Whether or not this query is handling rollup data.
+   * @throws IllegalArgumentException if fill_policy is interpolation.
+   * @since 2.4
+   */
+  FillingDownsampler(final SeekableView source, final long start_time,
+      final long end_time, final DownsamplingSpecification specification, 
+      final long query_start, final long end_start, final boolean is_rollup) {
     // Lean on the superclass implementation.
-    super(source, specification, query_start, end_start);
+    super(source, specification, query_start, end_start, is_rollup);
 
     // Ensure we aren't given a bogus fill policy.
     if (FillPolicy.NONE == specification.getFillPolicy()) {
@@ -145,7 +164,7 @@ public class FillingDownsampler extends Downsampler {
    */
   @Override
   public DataPoint next() {
-    // Don't proceed if we've already completed iteration.
+ // Don't proceed if we've already completed iteration.
     if (hasNext()) {
       // Ensure that the timestamp we request is valid.
       values_in_interval.initializeIfNotDone();
@@ -162,13 +181,44 @@ public class FillingDownsampler extends Downsampler {
         values_in_interval.moveToNextInterval();
         actual = values_in_interval.getIntervalTimestamp();
       }
-
+      
       // Check whether the timestamp of the calculation interval matches what
       // we expect.
       if (run_all || actual == timestamp) {
         // The calculated interval timestamp matches what we expect, so we can
         // do normal processing.
-        value = specification.getFunction().runDouble(values_in_interval);
+        if (is_rollup && (specification.getFunction() == Aggregators.AVG || 
+            specification.getFunction() == Aggregators.DEV)) {
+          double sum = 0;
+          long count = 0;
+          while (values_in_interval.hasNextValue()) {
+            count += values_in_interval.nextValueCount();
+            sum += values_in_interval.nextDoubleValue();
+          }
+          
+          if (specification.getFunction() == Aggregators.AVG) {
+            if (count == 0) { // avoid # / 0
+              value = 0;
+            } else {
+              value = sum / (double)count;
+            }
+          } else {
+            throw new UnsupportedOperationException(
+                "Standard deviation over rolled up data is not supported");
+          }
+        } else if (is_rollup && 
+            specification.getFunction() == Aggregators.COUNT) {
+          double count = 0;
+          while (values_in_interval.hasNextValue()) {
+            count += values_in_interval.nextValueCount();
+            // WARNING: consume and move next or we'll be stuck in an infinite
+            // loop here.
+            values_in_interval.nextDoubleValue(); 
+          }
+          value = count;
+        } else {
+          value = specification.getFunction().runDouble(values_in_interval);
+        }
         values_in_interval.moveToNextInterval();
       } else {
         // Our expected timestamp precedes the actual, so the interval is
@@ -183,6 +233,8 @@ public class FillingDownsampler extends Downsampler {
         case ZERO:
           value = 0.0;
           break;
+          
+          // TODO - scalar
 
         default:
           throw new RuntimeException("unhandled fill policy");

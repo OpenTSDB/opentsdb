@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -61,6 +62,9 @@ import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.query.expression.ExpressionFactory;
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.tools.StartupPlugin;
@@ -145,6 +149,24 @@ public final class TSDB {
   /** A filter plugin for allowing or blocking UIDs */
   private UniqueIdFilterPlugin uid_filter;
   
+  /** The rollup config object for storing and querying rollups */
+  private final RollupConfig rollup_config;
+  
+  /** The default rollup interval. */
+  private final RollupInterval default_interval;
+  
+  /** Name of the tag we use to determine aggregates */
+  private final String agg_tag_key;
+  
+  /** Name of the tag we use use for raw data. */
+  private final String raw_agg_tag_value;
+  
+  /** Whether or not to tag raw data with the raw value tag */
+  private final boolean tag_raw_data;
+  
+  /** Whether or not to block writing of derived rollups/pre-ags */
+  private final boolean rollups_block_derived;
+  
   /** Writes rejected by the filter */ 
   private final AtomicLong rejected_dps = new AtomicLong();
   private final AtomicLong rejected_aggregate_dps = new AtomicLong();
@@ -207,7 +229,7 @@ public final class TSDB {
     uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
     meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
-
+    
     if (config.getBoolean("tsd.core.uid.random_metrics")) {
       metrics = new UniqueId(this, uidtable, METRICS_QUAL, METRICS_WIDTH, true);
     } else {
@@ -222,6 +244,35 @@ public final class TSDB {
     }
     
     timer = Threads.newTimer("TSDB Timer");
+    
+    if (config.getBoolean("tsd.rollups.enable")) {
+      rollup_config = new RollupConfig();
+      RollupInterval config_default = null;
+      for (final RollupInterval interval: rollup_config.getRollups().values()) {
+        if (interval.isDefaultRollupInterval()) {
+          config_default = interval;
+          System.out.println("Found default: " + interval);
+          break;
+        }
+      }
+      
+      if (config_default == null) {
+        throw new IllegalArgumentException("None of the rollup intervals were "
+            + "marked as the \"default\".");
+      }
+      default_interval = config_default;
+      tag_raw_data = config.getBoolean("tsd.rollups.tag_raw");
+      agg_tag_key = config.getString("tsd.rollups.agg_tag_key");
+      raw_agg_tag_value = config.getString("tsd.rollups.raw_agg_tag_value");
+      rollups_block_derived = config.getBoolean("tsd.rollups.block_derived");
+    } else {
+      rollup_config = null;
+      default_interval = null;
+      tag_raw_data = false;
+      agg_tag_key = null;
+      raw_agg_tag_value = null;
+      rollups_block_derived = false;
+    }
     
     QueryStats.setEnableDuplicates(
         config.getBoolean("tsd.query.allow_simultaneous_duplicates"));
@@ -862,6 +913,10 @@ public final class TSDB {
 
   /**
    * Adds a single integer value data point in the TSDB.
+   * <p>
+   * WARNING: The tags map may be modified by this method without a lock. Give 
+   * the method a copy if you plan to use it elsewhere.
+   * <p>
    * @param metric A non-empty string.
    * @param timestamp The timestamp associated with the value.
    * @param value The value of the data point.
@@ -901,6 +956,10 @@ public final class TSDB {
 
   /**
    * Adds a double precision floating-point value data point in the TSDB.
+   * <p>
+   * WARNING: The tags map may be modified by this method without a lock. Give 
+   * the method a copy if you plan to use it elsewhere.
+   * <p>
    * @param metric A non-empty string.
    * @param timestamp The timestamp associated with the value.
    * @param value The value of the data point.
@@ -938,6 +997,10 @@ public final class TSDB {
 
   /**
    * Adds a single floating-point value data point in the TSDB.
+   * <p>
+   * WARNING: The tags map may be modified by this method without a lock. Give 
+   * the method a copy if you plan to use it elsewhere.
+   * <p>
    * @param metric A non-empty string.
    * @param timestamp The timestamp associated with the value.
    * @param value The value of the data point.
@@ -972,7 +1035,7 @@ public final class TSDB {
                             tags, flags);
   }
 
-  private Deferred<Object> addPointInternal(final String metric,
+  Deferred<Object> addPointInternal(final String metric,
                                             final long timestamp,
                                             final byte[] value,
                                             final Map<String, String> tags,
@@ -1075,6 +1138,306 @@ public final class TSDB {
     return Deferred.fromResult(true).addCallbackDeferring(new WriteCB());
   }
 
+  /**
+   * Adds a rolled up and/or groupby/pre-agged data point to the proper table.
+   * <p>
+   * WARNING: The tags map may be modified by this method without a lock. Give 
+   * the method a copy if you plan to use it elsewhere.
+   * <p>
+   * If {@code interval} is null then the value will be directed to the 
+   * pre-agg table.
+   * If the {@code is_groupby} flag is set, then the aggregate tag, defined in
+   * "tsd.rollups.agg_tag", will be added or overwritten with the {@code aggregator}
+   * value in uppercase as the value. 
+   * @param metric A non-empty string.
+   * @param timestamp The timestamp associated with the value.
+   * @param value The value of the data point.
+   * @param tags The tags on this series.  This map must be non-empty.
+   * @param is_groupby Whether or not the value is a pre-aggregate
+   * @param interval The interval the data reflects (may be null)
+   * @param rollup_aggregator The aggregator used to generate the data
+   * @param groupby_aggregator = The aggregator used for pre-aggregated data.
+   * @return A deferred to optionally wait on to be sure the value was stored 
+   * @throws IllegalArgumentException if the timestamp is less than or equal
+   * to the previous timestamp added or 0 for the first timestamp, or if the
+   * difference with the previous timestamp is too large.
+   * @throws IllegalArgumentException if the metric name is empty or contains
+   * illegal characters.
+   * @throws IllegalArgumentException if the tags list is empty or one of the
+   * elements contains illegal characters.
+   * @throws HBaseException (deferred) if there was a problem while persisting
+   * data.
+   * @since 2.4
+   */
+  public Deferred<Object> addAggregatePoint(final String metric,
+                                   final long timestamp,
+                                   final long value,
+                                   final Map<String, String> tags,
+                                   final boolean is_groupby,
+                                   final String interval,
+                                   final String rollup_aggregator,
+                                   final String groupby_aggregator) {
+    final byte[] val = Internal.vleEncodeLong(value);
+
+    final short flags = (short) (val.length - 1);  // Just the length.
+    
+    return addAggregatePointInternal(metric, timestamp,
+            val, tags, flags, is_groupby, interval, rollup_aggregator,
+            groupby_aggregator);
+  }
+  
+  /**
+   * Adds a rolled up and/or groupby/pre-agged data point to the proper table.
+   * <p>
+   * WARNING: The tags map may be modified by this method without a lock. Give 
+   * the method a copy if you plan to use it elsewhere.
+   * <p>
+   * If {@code interval} is null then the value will be directed to the 
+   * pre-agg table.
+   * If the {@code is_groupby} flag is set, then the aggregate tag, defined in
+   * "tsd.rollups.agg_tag", will be added or overwritten with the {@code aggregator}
+   * value in uppercase as the value. 
+   * @param metric A non-empty string.
+   * @param timestamp The timestamp associated with the value.
+   * @param value The value of the data point.
+   * @param tags The tags on this series.  This map must be non-empty.
+   * @param is_groupby Whether or not the value is a pre-aggregate
+   * @param interval The interval the data reflects (may be null)
+   * @param rollup_aggregator The aggregator used to generate the data
+   * @param groupby_aggregator = The aggregator used for pre-aggregated data.
+   * @return A deferred to optionally wait on to be sure the value was stored 
+   * @throws IllegalArgumentException if the timestamp is less than or equal
+   * to the previous timestamp added or 0 for the first timestamp, or if the
+   * difference with the previous timestamp is too large.
+   * @throws IllegalArgumentException if the metric name is empty or contains
+   * illegal characters.
+   * @throws IllegalArgumentException if the tags list is empty or one of the
+   * elements contains illegal characters.
+   * @throws HBaseException (deferred) if there was a problem while persisting
+   * data.
+   * @since 2.4
+   */
+  public Deferred<Object> addAggregatePoint(final String metric,
+                                   final long timestamp,
+                                   final float value,
+                                   final Map<String, String> tags,
+                                   final boolean is_groupby,
+                                   final String interval,
+                                   final String rollup_aggregator,
+                                   final String groupby_aggregator) {
+    if (Float.isNaN(value) || Float.isInfinite(value)) {
+      throw new IllegalArgumentException("value is NaN or Infinite: " + value
+              + " for metric=" + metric
+              + " timestamp=" + timestamp);
+    }
+
+    final short flags = Const.FLAG_FLOAT | 0x3;  // A float stored on 4 bytes.
+
+    final byte[] val = Bytes.fromInt(Float.floatToRawIntBits(value));
+
+    return addAggregatePointInternal(metric, timestamp,
+            val, tags, flags, is_groupby, interval, rollup_aggregator,
+            groupby_aggregator);
+  }
+  
+  /**
+   * Adds a rolled up and/or groupby/pre-agged data point to the proper table.
+   * If {@code interval} is null then the value will be directed to the 
+   * pre-agg table.
+   * If the {@code is_groupby} flag is set, then the aggregate tag, defined in
+   * "tsd.rollups.agg_tag", will be added or overwritten with the {@code aggregator}
+   * value in uppercase as the value. 
+   * @param metric A non-empty string.
+   * @param timestamp The timestamp associated with the value.
+   * @param value The value of the data point.
+   * @param tags The tags on this series.  This map must be non-empty.
+   * @param is_groupby Whether or not the value is a pre-aggregate
+   * @param interval The interval the data reflects (may be null)
+   * @param rollup_aggregator The aggregator used to generate the data
+   * @param groupby_aggregator = The aggregator used for pre-aggregated data.
+   * @return A deferred to optionally wait on to be sure the value was stored 
+   * @throws IllegalArgumentException if the timestamp is less than or equal
+   * to the previous timestamp added or 0 for the first timestamp, or if the
+   * difference with the previous timestamp is too large.
+   * @throws IllegalArgumentException if the metric name is empty or contains
+   * illegal characters.
+   * @throws IllegalArgumentException if the tags list is empty or one of the
+   * elements contains illegal characters.
+   * @throws HBaseException (deferred) if there was a problem while persisting
+   * data.
+   * @since 2.4
+   */
+  public Deferred<Object> addAggregatePoint(final String metric,
+                                   final long timestamp,
+                                   final double value,
+                                   final Map<String, String> tags,
+                                   final boolean is_groupby,
+                                   final String interval,
+                                   final String rollup_aggregator,
+                                   final String groupby_aggregator) {
+    if (Double.isNaN(value) || Double.isInfinite(value)) {
+      throw new IllegalArgumentException("value is NaN or Infinite: " + value
+              + " for metric=" + metric
+              + " timestamp=" + timestamp);
+    }
+
+    final short flags = Const.FLAG_FLOAT | 0x7;  // A float stored on 4 bytes.
+
+    final byte[] val = Bytes.fromLong(Double.doubleToRawLongBits(value));
+
+    return addAggregatePointInternal(metric, timestamp,
+            val, tags, flags, is_groupby, interval, rollup_aggregator,
+            groupby_aggregator);
+  }
+  
+  Deferred<Object> addAggregatePointInternal(final String metric,
+      final long timestamp,
+      final byte[] value,
+      final Map<String, String> tags,
+      final short flags,
+      final boolean is_groupby,
+      final String interval,
+      final String rollup_aggregator,
+      final String groupby_aggregator) {
+    
+    if (interval != null && !interval.isEmpty() && rollup_config == null) {
+      throw new IllegalArgumentException(
+          "No rollup or aggregations were configured");
+    }
+    if (is_groupby && 
+        (groupby_aggregator == null || groupby_aggregator.isEmpty())) {
+      throw new IllegalArgumentException("Cannot write a group by data point "
+          + "without specifying the aggregation function. Metric=" + metric 
+          + " tags=" + tags);
+    }
+    
+    // we only accept positive unix epoch timestamps in seconds for rollups
+    // and allow milliseconds for pre-aggregates
+    if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0)) {
+      throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
+        + " timestamp=" + timestamp
+        + " when trying to add value=" + Arrays.toString(value) + '/' + flags
+        + " to metric=" + metric + ", tags=" + tags);
+    }
+    
+    String agg_tag_value = tags.get(agg_tag_key);
+    if (agg_tag_value == null) {
+      if (!is_groupby) {
+        // it's a rollup on "raw" data.
+        if (tag_raw_data) {
+          tags.put(agg_tag_key, raw_agg_tag_value);
+        }
+        agg_tag_value = raw_agg_tag_value;
+      } else {
+        // pre-agged so use the aggregator as the tag
+        agg_tag_value = groupby_aggregator.toUpperCase();
+        tags.put(agg_tag_key, agg_tag_value);
+      }
+    } else {
+      // sanity check
+      if (!agg_tag_value.equalsIgnoreCase(groupby_aggregator)) {
+        throw new IllegalArgumentException("Given tag value for " + agg_tag_key 
+            + " of " + agg_tag_value + " did not match the group by "
+                + "aggregator of " + groupby_aggregator + " for " + metric 
+                + " " + tags);
+      }
+      // force upper case
+      agg_tag_value = groupby_aggregator.toUpperCase();
+      tags.put(agg_tag_key, agg_tag_value);
+    }
+    
+    if (is_groupby) {
+      try {
+        Aggregators.get(groupby_aggregator.toLowerCase());
+      } catch (NoSuchElementException e) {
+        throw new IllegalArgumentException("Invalid group by aggregator " 
+            + groupby_aggregator + " with metric " + metric + " " + tags);
+      }
+      if (rollups_block_derived &&
+          // TODO - create a better list of aggs to block
+          (agg_tag_value.equals("AVG") || 
+              agg_tag_value.equals("DEV"))) {
+        throw new IllegalArgumentException("Derived group by aggregations "
+            + "are not allowed " + groupby_aggregator + " with metric " 
+            + metric + " " + tags);
+      }
+    }
+    
+    IncomingDataPoints.checkMetricAndTags(metric, tags);
+    
+    final RollupInterval rollup_interval = interval == null || interval.isEmpty()
+        ? null : rollup_config.getRollupInterval(interval);
+    
+    final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
+    final String rollup_agg = rollup_aggregator != null ? 
+        rollup_aggregator.toUpperCase() : null;
+    if (rollup_agg!= null && rollups_block_derived && 
+        // TODO - create a better list of aggs to block
+        (rollup_agg.equals("AVG") || 
+            rollup_agg.equals("DEV"))) {
+      throw new IllegalArgumentException("Derived rollup aggregations "
+          + "are not allowed " + rollup_agg + " with metric " 
+          + metric + " " + tags);
+    }
+    final int base_time = interval == null || interval.isEmpty() ? 
+        (int)(timestamp - (timestamp % Const.MAX_TIMESPAN))
+          : RollupUtils.getRollupBasetime(timestamp, rollup_interval);
+    final byte[] qualifier = interval == null || interval.isEmpty() ? 
+        Internal.buildQualifier(timestamp, flags)
+        : RollupUtils.buildRollupQualifier(
+            timestamp, base_time, flags, rollup_agg, rollup_interval);
+    
+    /** Callback executed for chaining filter calls to see if the value
+    * should be written or not. */
+    final class WriteCB implements Callback<Deferred<Object>, Boolean> {
+      @Override
+      public Deferred<Object> call(final Boolean allowed) throws Exception {
+        if (!allowed) {
+          rejected_aggregate_dps.incrementAndGet();
+          return Deferred.fromResult(null);
+        }
+        Internal.setBaseTime(row, base_time);
+        // NOTE: Do not modify the row key after calculating and applying the salt
+        RowKey.prefixKeyWithSalt(row);
+        
+        Deferred<Object> result;
+        
+        final PutRequest point;
+        if (interval == null || interval.isEmpty()) {
+          if (!is_groupby) {
+            throw new IllegalArgumentException("Interval cannot be null "
+                + "for a non-group by point");
+          }
+          point = new PutRequest(default_interval.getGroupbyTable(), row, 
+              FAMILY, qualifier, value);
+        } else {
+          point = new PutRequest(
+          is_groupby ? rollup_interval.getGroupbyTable() : 
+            rollup_interval.getTemporalTable(), 
+              row, FAMILY, qualifier, value);
+        }
+        
+        // TODO: Add a callback to time the latency of HBase and store the
+        // timing in a moving Histogram (once we have a class for this).
+        result = client.put(point);
+        
+        // TODO - figure out what we want to do with the real time publisher and
+        // the meta tracking.
+        return result;
+      }
+    }
+    
+    if (ts_filter != null) {
+      return ts_filter.allowDataPoint(metric, timestamp, value, tags, flags)
+          .addCallbackDeferring(new WriteCB());
+    }
+    try {
+      return new WriteCB().call(true);
+    } catch (Exception e) {
+      return Deferred.fromError(e);
+    }
+  }
+  
   /**
    * Forces a flush of any un-committed in memory data including left over 
    * compactions.
@@ -1553,6 +1916,18 @@ public final class TSDB {
       LOG.error("Exception from Search plugin indexer", e);
       return null;
     }
+  }
+  
+  /** @return the rollup config object. May be null 
+   * @since 2.4 */
+  public RollupConfig getRollupConfig() {
+    return rollup_config;
+  }
+  
+  /** @return The default rollup interval config. May be null.
+   * @since 2.4 */
+  public RollupInterval getDefaultInterval() {
+    return default_interval;
   }
   
   /**

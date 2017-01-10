@@ -527,7 +527,7 @@ public final class TestQueryRpc {
   }
   
   @Test
-  public void execute() throws Exception {
+  public void executeURI() throws Exception {
     final DataPoints[] datapoints = new DataPoints[1];
     datapoints[0] = new MockDataPoints().getMock();
     when(query_result.runAsync()).thenReturn(
@@ -535,6 +535,23 @@ public final class TestQueryRpc {
     
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/query?start=1h-ago&m=sum:sys.cpu.user");
+    NettyMocks.mockChannelFuture(query);
+    rpc.execute(tsdb, query);
+    final String json = 
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
+  }
+  
+  @Test
+  public void executeURIDuplicates() throws Exception {
+    final DataPoints[] datapoints = new DataPoints[1];
+    datapoints[0] = new MockDataPoints().getMock();
+    when(query_result.runAsync()).thenReturn(
+        Deferred.fromResult(datapoints));
+    
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/query?start=1h-ago&m=sum:sys.cpu.user&m=sum:sys.cpu.user"
+        + "&m=sum:sys.cpu.user");
     NettyMocks.mockChannelFuture(query);
     rpc.execute(tsdb, query);
     final String json = 
@@ -576,6 +593,41 @@ public final class TestQueryRpc {
       assertTrue(exn.getMessage().startsWith(
           "Unrecognized fill policy: badbadbad"));
     }
+  }
+  
+  @Test
+  public void executePOST() throws Exception {
+    final DataPoints[] datapoints = new DataPoints[1];
+    datapoints[0] = new MockDataPoints().getMock();
+    when(query_result.runAsync()).thenReturn(
+        Deferred.fromResult(datapoints));
+    
+    final HttpQuery query = NettyMocks.postQuery(tsdb,"/api/query",
+        "{\"start\":\"1h-ago\",\"queries\":" +
+            "[{\"metric\":\"sys.cpu.user\",\"aggregator\":\"sum\"}]}");
+    NettyMocks.mockChannelFuture(query);
+    rpc.execute(tsdb, query);
+    final String json = 
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
+  }
+  
+  @Test
+  public void executePOSTDuplicates() throws Exception {
+    final DataPoints[] datapoints = new DataPoints[1];
+    datapoints[0] = new MockDataPoints().getMock();
+    when(query_result.runAsync()).thenReturn(
+        Deferred.fromResult(datapoints));
+    
+    final HttpQuery query = NettyMocks.postQuery(tsdb,"/api/query",
+        "{\"start\":\"1h-ago\",\"queries\":" +
+            "[{\"metric\":\"sys.cpu.user\",\"aggregator\":\"sum\"},"
+            + "{\"metric\":\"sys.cpu.user\",\"aggregator\":\"sum\"}]}");
+    NettyMocks.mockChannelFuture(query);
+    rpc.execute(tsdb, query);
+    final String json = 
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
   }
   
   @Test (expected = BadRequestException.class)

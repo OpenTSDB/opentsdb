@@ -106,6 +106,10 @@ public class Config {
   /** tsd.storage.hbase.scanner.maxNumRows */
   private int scanner_max_num_rows = 128;
   
+  private int mul_get_batch_size = 1024;
+  
+  private int mul_get_cocurrency_number = 16;
+  
   /**
    * The list of properties configured to their defaults or modified by users
    */
@@ -160,6 +164,13 @@ public class Config {
     setDefaults();
   }
 
+  /**
+   * Creates a new empty Config
+   */
+  public Config() {
+    
+  }
+  
   /** @return The file that generated this config. May be null */
   public String configLocation() {
     return config_location;
@@ -253,6 +264,14 @@ public class Config {
     return enable_tree_processing;
   }
   
+  public int mul_get_batch_size() {
+    return mul_get_batch_size;
+  }
+  
+  public int mul_get_concurrency_number() {
+    return mul_get_cocurrency_number;
+  }
+    
   /**
    * Allows for modifying properties after creation or loading.
    * 
@@ -504,10 +523,18 @@ public class Config {
     default_map.put("tsd.core.preload_uid_cache.max_entries", "300000");
     default_map.put("tsd.core.storage_exception_handler.enable", "false");
     default_map.put("tsd.core.uid.random_metrics", "false");
+    default_map.put("tsd.core.bulk.allow_out_of_order_timestamps", "false");
     default_map.put("tsd.query.filter.expansion_limit", "4096");
     default_map.put("tsd.query.skip_unresolved_tagvs", "false");
     default_map.put("tsd.query.allow_simultaneous_duplicates", "true");
     default_map.put("tsd.query.enable_fuzzy_filter", "true");
+    default_map.put("tsd.rpc.telnet.return_errors", "true");
+    // Rollup related settings
+    default_map.put("tsd.rollups.enable", "false");
+    default_map.put("tsd.rollups.tag_raw", "false");
+    default_map.put("tsd.rollups.agg_tag_key", "_aggregate");
+    default_map.put("tsd.rollups.raw_agg_tag_value", "RAW");
+    default_map.put("tsd.rollups.block_derived", "true");
     default_map.put("tsd.rtpublisher.enable", "false");
     default_map.put("tsd.rtpublisher.plugin", "");
     default_map.put("tsd.search.enable", "false");
@@ -544,6 +571,8 @@ public class Config {
       + "Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, "
       + "X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since");
     default_map.put("tsd.query.timeout", "0");
+    default_map.put("tsd.core.mul_get_batch_size", "1024");
+    default_map.put("tsd.core.mul_get_cocurrency_number", "20");
 
     for (Map.Entry<String, String> entry : default_map.entrySet()) {
       if (!properties.containsKey(entry.getKey()))
@@ -637,7 +666,7 @@ public class Config {
    * Loads the static class variables for values that are called often. This
    * should be called any time the configuration changes.
    */
-  protected void loadStaticVariables() {
+  public void loadStaticVariables() {
     auto_metric = this.getBoolean("tsd.core.auto_create_metrics");
     auto_tagk = this.getBoolean("tsd.core.auto_create_tagks");
     auto_tagv = this.getBoolean("tsd.core.auto_create_tagvs");
@@ -657,6 +686,8 @@ public class Config {
     enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
     fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
     scanner_max_num_rows = this.getInt("tsd.storage.hbase.scanner.maxNumRows");
+    mul_get_batch_size = this.getInt("tsd.core.mul_get_batch_size");
+    mul_get_cocurrency_number = this.getInt("tsd.core.mul_get_cocurrency_number");
   }
   
   /**

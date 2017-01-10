@@ -371,6 +371,92 @@ public final class TestDateTime {
   }
   
   @Test
+  public void getDurationUnits() {
+    assertEquals("ms", DateTime.getDurationUnits("5ms"));
+    assertEquals("s", DateTime.getDurationUnits("30s"));
+    assertEquals("m", DateTime.getDurationUnits("60m"));
+    assertEquals("h", DateTime.getDurationUnits("42h"));
+    assertEquals("d", DateTime.getDurationUnits("9d"));
+    assertEquals("w", DateTime.getDurationUnits("4w"));
+    assertEquals("n", DateTime.getDurationUnits("12n"));
+    assertEquals("y", DateTime.getDurationUnits("4y"));
+    
+    // zeros ok
+    assertEquals("d", DateTime.getDurationUnits("0d"));
+    
+    // biggies
+    assertEquals("s", DateTime.getDurationUnits("86400s"));
+    assertEquals("s", DateTime.getDurationUnits("8641816584387483775236188168735700s"));
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getDurationUnitsNegative() {
+    DateTime.getDurationUnits("-1d");
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getDurationUnitsFloat() {
+    DateTime.getDurationUnits("0.42d");
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getDurationUnitsNoUnits() {
+    DateTime.getDurationUnits("42");
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getDurationUnitsNull() {
+    DateTime.getDurationUnits(null);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getDurationUnitsEmpty() {
+    DateTime.getDurationUnits("");
+  }
+  
+  @Test
+  public void getDurationInterval() {
+    assertEquals(1, DateTime.getDurationInterval("1s"));
+    assertEquals(1, DateTime.getDurationInterval("1ms"));
+    assertEquals(42, DateTime.getDurationInterval("42d"));
+    assertEquals(86400, DateTime.getDurationInterval("86400s"));
+    assertEquals(Integer.MAX_VALUE, DateTime.getDurationInterval(
+        Integer.MAX_VALUE + "s"));
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getDurationIntervalTooBig() {
+    long value = Integer.MAX_VALUE;
+    value++;
+    DateTime.getDurationInterval(Long.toString(value) + "s");
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getDurationIntervalNegative() {
+    DateTime.getDurationInterval("-1s");
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getDurationIntervalFloat() {
+    DateTime.getDurationInterval("1.42s");
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getDurationIntervalNoInt() {
+    DateTime.getDurationInterval("s");
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getDurationIntervalNull() {
+    DateTime.getDurationInterval(null);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getDurationIntervalEmpty() {
+    DateTime.getDurationInterval("");
+  }
+  
+  @Test
   public void setTimeZone() {
     SimpleDateFormat fmt = new SimpleDateFormat("yyyy/MM/dd");
     DateTime.setTimeZone(fmt, "America/Los_Angeles");

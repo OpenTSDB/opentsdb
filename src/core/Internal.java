@@ -124,6 +124,16 @@ public final class Internal {
   }
   
   /**
+   * Extracts the timestamp from a row key.
+   * @param row The row to parse the timestamp from.
+   * @return The timestamp in Unix Epoch seconds.
+   * @since 2.4
+   */
+  public static long baseTime(final byte[] row) {
+    return Bytes.getUnsignedInt(row, Const.SALT_WIDTH() + TSDB.metrics_width());
+  }
+  
+  /**
    * Sets the time in a raw data table row key
    * @param row The row to modify
    * @param base_time The base time to store
@@ -917,5 +927,63 @@ public final class Internal {
     } else {
       return Long.MAX_VALUE;
     }
+  }
+
+  /**
+   * Encodes a long on 1, 2, 4 or 8 bytes
+   * @param value The value to encode
+   * @return A byte array containing the encoded value
+   * @since 2.4
+   */
+  public static byte[] vleEncodeLong(final long value) {
+    if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
+      return new byte[] { (byte) value };
+    } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
+      return Bytes.fromShort((short) value);
+    } else if (Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE) {
+      return Bytes.fromInt((int) value);
+    } else {
+      return Bytes.fromLong(value);
+    }
+  }
+
+  /**
+   * Returns true if the given TSUID matches the row key (accounting for salt and
+   * timestamp).
+   * @param tsuid A non-null TSUID array
+   * @param row_key A non-null row key array
+   * @return True if the TSUID matches the row key, false if not.
+   * @throws IllegalArgumentException if the arguments are invalid.
+   */
+  public static boolean rowKeyMatchsTSUID(final byte[] tsuid, 
+      final byte[] row_key) {
+    if (tsuid == null || row_key == null) {
+      throw new IllegalArgumentException("Neither tsuid or row key can be null");
+    }
+    if (row_key.length <= tsuid.length) {
+      throw new IllegalArgumentException("Row key cannot be the same or "
+          + "shorter than tsuid");
+    }
+    // check on the metric part
+    int index_tsuid = 0;
+    int index_row_key = 0;
+    for (index_tsuid = 0, index_row_key = Const.SALT_WIDTH(); index_tsuid < TSDB
+        .metrics_width(); ++index_tsuid, ++index_row_key) {
+      if (tsuid[index_tsuid] != row_key[index_row_key]) {
+        return false;
+      }
+    }
+
+    // check on the tagk tagv part
+    for (index_tsuid = TSDB.metrics_width(), index_row_key = Const.SALT_WIDTH() 
+        + TSDB.metrics_width() + Const.TIMESTAMP_BYTES; 
+        index_tsuid < tsuid.length; ++index_tsuid, 
+        ++index_row_key) {
+      if (tsuid[index_tsuid] != row_key[index_row_key]) {
+        return false;
+      }
+    } // end for
+
+    return true;
   }
 }

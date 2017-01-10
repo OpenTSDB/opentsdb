@@ -69,7 +69,7 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
     oneExtraSameE();
     queryAB_Dstar();
     remapResults();
-    
+    storage.dumpToSystemOut();
     ExpressionIterator exp = new ExpressionIterator("ei", "a + b", 
         SetOperator.INTERSECTION, false, false);
     exp.addResults("a", iterators.get("a"));
@@ -101,8 +101,8 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
   }
   
   @Test
@@ -138,8 +138,8 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
   }
   
   @Test
@@ -188,8 +188,8 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
   }
   
   @Test
@@ -238,8 +238,8 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
   }
   
   @Test
@@ -276,8 +276,8 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
   }
   
   @Test
@@ -314,8 +314,8 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
   }
   
   @Test
@@ -364,8 +364,8 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
   }
   
   @Test
@@ -414,8 +414,8 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
   }
 
   @Test
@@ -452,8 +452,8 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -522,9 +522,9 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("G"), dps[2].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("G"), dps[2].tags().get(UIDS.get("D")));
   }
   
   @Test
@@ -581,9 +581,9 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("G"), dps[2].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("G"), dps[2].tags().get(UIDS.get("D")));
   }
   
   @Test
@@ -642,9 +642,9 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("G"), dps[2].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("G"), dps[2].tags().get(UIDS.get("D")));
   }
   
   @Test
@@ -701,8 +701,8 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
   }
   
   @Test
@@ -739,8 +739,8 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
     // TODO - fix the TODO in the set operators to join tags
     //assertEquals(0, dps[0].tags().size());
     assertEquals(2, dps[0].aggregatedTags().size());
-    assertTrue(dps[0].aggregatedTags().contains(TAGV_UIDS.get("D")));
-    assertTrue(dps[0].aggregatedTags().contains(TAGV_UIDS.get("E")));
+    assertTrue(dps[0].aggregatedTags().contains(UIDS.get("D")));
+    assertTrue(dps[0].aggregatedTags().contains(UIDS.get("E")));
     // TODO - make sure the tags are empty once the expression data does it's
     // thing
     //assertTrue(dps[0].tags().isEmpty());
@@ -788,8 +788,8 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
   }
   
   @Test
@@ -839,8 +839,8 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
   }
   
   @Test (expected = IllegalDataException.class)
@@ -928,8 +928,8 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       //assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
   }
   
   @Test
@@ -986,8 +986,8 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       assertEquals(2, dps[i].tags().size());
       assertTrue(dps[i].aggregatedTags().isEmpty());
     }
-    assertArrayEquals(TAGV_UIDS.get("D"), dps[0].tags().get(TAGV_UIDS.get("D")));
-    assertArrayEquals(TAGV_UIDS.get("F"), dps[1].tags().get(TAGV_UIDS.get("D")));
+    assertArrayEquals(UIDS.get("D"), dps[0].tags().get(UIDS.get("D")));
+    assertArrayEquals(UIDS.get("F"), dps[1].tags().get(UIDS.get("D")));
   }
   
   @Test
@@ -1169,9 +1169,9 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       // arrays
       boolean found = false;
       for (final byte[] metric : dps[i].metricUIDs()) {
-        if (Bytes.memcmp(TAGV_UIDS.get("A"), metric) == 0) {
+        if (Bytes.memcmp(UIDS.get("A"), metric) == 0) {
           found = true;
-        } else if (Bytes.memcmp(TAGV_UIDS.get("B"), metric) == 0) {
+        } else if (Bytes.memcmp(UIDS.get("B"), metric) == 0) {
           found = true;
           break;
         }
@@ -1181,7 +1181,7 @@ public class TestExpressionIterator extends BaseTimeSyncedIteratorTest {
       }
       
       if (common_e) {
-        assertArrayEquals(TAGV_UIDS.get("E"), dps[i].tags().get(TAGV_UIDS.get("E")));
+        assertArrayEquals(UIDS.get("E"), dps[i].tags().get(UIDS.get("E")));
       }
     }
   }
