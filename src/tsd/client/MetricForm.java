@@ -475,7 +475,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       if (filter.tagk.isEmpty() || filter.tagv.isEmpty()) {
         continue;
       }
-      if (filter.is_groupby = group_by) {
+      if (filter.is_groupby == group_by) {
         filters.add(filter);
       }
     }
