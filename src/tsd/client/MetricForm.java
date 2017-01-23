@@ -475,7 +475,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       if (filter.tagk.isEmpty() || filter.tagv.isEmpty()) {
         continue;
       }
-      if (filter.is_groupby = group_by) {
+      if (filter.is_groupby == group_by) {
         filters.add(filter);
       }
     }
@@ -752,8 +752,12 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       if (filter == this) {
         return 0;
       }
-      return tagk.compareTo(filter.tagk) +
-          tagv.compareTo(filter.tagv);
+      int tagkv_order = tagk.compareTo(filter.tagk) == 0 ?
+        tagv.compareTo(filter.tagv) : tagk.compareTo(filter.tagk);
+
+      int groupby_order = is_groupby == filter.is_groupby ? 0 : (is_groupby ? 1 : -1);
+
+      return tagkv_order == 0 ? groupby_order : tagkv_order;
     }
   }
   
