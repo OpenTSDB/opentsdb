@@ -503,7 +503,7 @@ public final class TSDB {
   /**
    * Returns the configured Authentication Plugin
    * @return The Authentication Plugin
-   * @since 2.3
+   * @since 2.4
    */
   public final AuthenticationPlugin getAuth() {
     return this.authentication;

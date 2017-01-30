@@ -1,6 +1,6 @@
 package net.opentsdb.auth;
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
+// Copyright (C) 2016  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -37,7 +37,7 @@ import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import static org.jboss.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 /**
- * @since 2.3
+ * @since 2.4
  */
 public class AuthenticationChannelHandler extends SimpleChannelUpstreamHandler {
   private static final Logger LOG = LoggerFactory.getLogger(AuthenticationChannelHandler.class);

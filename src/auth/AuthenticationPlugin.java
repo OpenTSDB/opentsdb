@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2016  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -20,7 +20,7 @@ import org.jboss.netty.handler.codec.http.HttpRequest;
 import java.util.Map;
 
 /**
- * @since 2.3
+ * @since 2.4
  */
 public abstract class AuthenticationPlugin {
 
