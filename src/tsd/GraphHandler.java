@@ -728,6 +728,9 @@ final class GraphHandler implements HttpRpc {
     if ((value = popParam(querystring, "fgcolor")) != null) {
       params.put("fgcolor", value);
     }
+    if ((value = popParam(querystring, "bmargin")) != null) {
+      params.put("bmargin", value);
+    }
     if ((value = popParam(querystring, "smooth")) != null) {
       params.put("smooth", value);
     }
