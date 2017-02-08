@@ -288,6 +288,7 @@ public final class Plot {
       }
 
       gp.append("\n"
+                + "set macro\n"
                 + "set xdata time\n"
                 + "set timefmt \"%s\"\n"
                 + "if (GPVAL_VERSION < 4.6) set xtics rotate; else set xtics rotate right\n"
