@@ -482,25 +482,25 @@ public final class Aggregators {
   /**
    * Difference of the first value and the last value in multi values aggregator.
    */
-  private static final class StdDiff extends Aggregator {
+  private static final class StdDiff extends net.opentsdb.core.Aggregator {
     public StdDiff(final Interpolation method, final String name) {
       super(method, name);
     }
 
     @Override
-    public long runLong(final Longs values) {
-      double first_mean = values.nextLongValue();
+    public double runLong(final Longs values) {
+      long first_mean = values.nextLongValue();
 
       if (!values.hasNextValue()) {
         return 0;
       }
 
-      double last_mean = 0.;
+      long last_mean = 0;
       do {
         last_mean = values.nextLongValue();
       } while (values.hasNextValue());
 
-      return (long) last_mean - first_mean;
+      return last_mean - first_mean;
     }
 
     @Override
