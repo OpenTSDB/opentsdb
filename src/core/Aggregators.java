@@ -488,7 +488,7 @@ public final class Aggregators {
     }
 
     @Override
-    public double runLong(final Longs values) {
+    public long runLong(final Longs values) {
       long first_mean = values.nextLongValue();
 
       if (!values.hasNextValue()) {
