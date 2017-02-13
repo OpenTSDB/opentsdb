@@ -82,7 +82,7 @@ public final class Aggregators {
   public static final Aggregator DEV = new StdDev(
       Interpolation.LERP, "dev");
   
-  /** Sums data points but will cause the SpanGroup to return a 0 if timesamps
+  /** Sums data points but will cause the SpanGroup to return a 0 if timestamps
    * don't line up instead of interpolating. */
   public static final Aggregator ZIMSUM = new Sum(
       Interpolation.ZIM, "zimsum");
@@ -107,7 +107,7 @@ public final class Aggregators {
   /** Aggregator that returns the first data point. */
   public static final Aggregator FIRST = new First(Interpolation.ZIM, "first");
 
-  /** Aggregator that returns the first data point. */
+  /** Aggregator that returns the last data point. */
   public static final Aggregator LAST = new Last(Interpolation.ZIM, "last");
   
   /** Maps an aggregator name to its instance. */
@@ -119,7 +119,7 @@ public final class Aggregators {
   public static final PercentileAgg p99 = new PercentileAgg(99d, "p99");
   /** Aggregator that returns 95th percentile. */
   public static final PercentileAgg p95 = new PercentileAgg(95d, "p95");
-  /** Aggregator that returns 99th percentile. */
+  /** Aggregator that returns 90th percentile. */
   public static final PercentileAgg p90 = new PercentileAgg(90d, "p90");
   /** Aggregator that returns 75th percentile. */
   public static final PercentileAgg p75 = new PercentileAgg(75d, "p75");
@@ -135,10 +135,10 @@ public final class Aggregators {
   /** Aggregator that returns estimated 95th percentile. */
   public static final PercentileAgg ep95r3 = 
       new PercentileAgg(95d, "ep95r3", EstimationType.R_3);
-  /** Aggregator that returns estimated 75th percentile. */
+  /** Aggregator that returns estimated 90th percentile. */
   public static final PercentileAgg ep90r3 = 
       new PercentileAgg(90d, "ep90r3", EstimationType.R_3);
-  /** Aggregator that returns estimated 50th percentile. */
+  /** Aggregator that returns estimated 75th percentile. */
   public static final PercentileAgg ep75r3 = 
       new PercentileAgg(75d, "ep75r3", EstimationType.R_3);
   /** Aggregator that returns estimated 50th percentile. */
@@ -154,10 +154,10 @@ public final class Aggregators {
   /** Aggregator that returns estimated 95th percentile. */
   public static final PercentileAgg ep95r7 = 
       new PercentileAgg(95d, "ep95r7", EstimationType.R_7);
-  /** Aggregator that returns estimated 75th percentile. */
+  /** Aggregator that returns estimated 90th percentile. */
   public static final PercentileAgg ep90r7 = 
       new PercentileAgg(90d, "ep90r7", EstimationType.R_7);
-  /** Aggregator that returns estimated 50th percentile. */
+  /** Aggregator that returns estimated 75th percentile. */
   public static final PercentileAgg ep75r7 = 
       new PercentileAgg(75d, "ep75r7", EstimationType.R_7);
   /** Aggregator that returns estimated 50th percentile. */
