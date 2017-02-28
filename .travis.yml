@@ -1,5 +1,4 @@
 language: java
-before_script: ./build.sh pom.xml
 script: export MAVEN_OPTS="-Xmx1024m" && mvn test --quiet
 addons:
   hostname: short-hostname
