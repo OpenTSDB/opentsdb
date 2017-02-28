@@ -19,6 +19,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.LinkedHashSet;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.hbase.async.HBaseException;
@@ -597,6 +599,12 @@ final class QueryRpc implements HttpRpc {
     if (data_query.getQueries() == null || data_query.getQueries().size() < 1) {
       throw new BadRequestException("Missing sub queries");
     }
+
+    // Filter out duplicate queries
+    Set<TSSubQuery> query_set = new LinkedHashSet<TSSubQuery>(data_query.getQueries());
+    data_query.getQueries().clear();
+    data_query.getQueries().addAll(query_set);
+
     return data_query;
   }
   
@@ -643,6 +651,10 @@ final class QueryRpc implements HttpRpc {
         }
       } else if (Character.isDigit(parts[x].charAt(0))) {
         sub_query.setDownsample(parts[x]);
+      } else if (parts[x].equalsIgnoreCase("pre-agg")) {
+        sub_query.setPreAggregate(true);
+      } else if (parts[x].toLowerCase().startsWith("rollup_")) {
+        sub_query.setRollupUsage(parts[x]);
       } else if (parts[x].toLowerCase().startsWith("explicit_tags")) {
         sub_query.setExplicitTags(true);
       }
@@ -921,3 +933,4 @@ final class QueryRpc implements HttpRpc {
     }
   }
 }
+

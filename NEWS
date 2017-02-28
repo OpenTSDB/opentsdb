@@ -1,5 +1,28 @@
 OpenTSDB - User visible changes.
 
+
+* Version 2.3.0 (2016-12-31)
+
+Noteworthy Changes:
+  - Release of 2.3.0.
+  - Add example classes for using the Java API.
+
+Bug Fixes:
+  - Same fixes as in 2.2.2
+  - Fix a null UID check on decoding metric names from row keys.
+  - Fix unit tests for JDK 8 and later.
+
+* Version 2.2.2 (2016-12-29)
+
+Bug Fixes:
+  - Fix an issue with writing metadata where using custom tags could cause the compare-
+    and-set to fail due to variable ordering in Java's heap. Now tags are sorted so the
+    custom tag ordering will be consistent.
+  - Fix millisecond queries that would miss data the top of the final hour if the end
+    time was set to 1 second or less than the top of that final hour.
+  - Fix a concurrent modification issue where salt scanners were not synchronized on the
+    annotation map and could cause spinning threads.
+
 * Version 2.3.0 RC2 (2016-10-08)
 
 Noteworthy Changes:
@@ -19,7 +42,34 @@ Bug Fixes:
   - Return a proper error code when dropping caches with the DELETE HTTP verb (#830).
   - Fix backwards compatibility with HBase 0.94 when using explicit tags by removing the
     fuzzy filter (#837).
-  - Fix an RPM build issue when creating the GWT directory.
+  - Fix an RPM build issue when creating the GWT directory.s
+
+* Version 2.2.1 (2016-10-08)
+
+Noteworthy Changes
+  - Generate an incrementing TSMeta request only if both enable_tsuid_incrementing and
+    tsd.core.meta.enable_realtime_ts are enabled. Previously, increments would run
+    regardless of whether or not the real time ts setting was enabled. If tsuid 
+    incrementing is disabled then a get and optional put is executed each time without 
+    modifying the meta counter field.
+  - Improve metadata storage performance by removing an extra getFromStorage() call.
+  - Add global Annotations to the gnuplot graphs (#773)
+  - Allow creation of a TSMeta object without a TSUID (#778)
+  - Move to AsyncHBase 1.7.2
+
+Bug Fixes:
+  - Fix Python scripts to use the environment directory.
+  - Fix config name for "tsd.network.keep_alive" in included config files.
+  - Fix an issue with the filter metric and tag resolution chain during queries.
+  - Fix an issue with malformed, double dotted timestamps (#724).
+  - Fix an issue with tag filters where we need a copy before modifying the list.
+  - Fix comments in the config file around TCP no delay settings.
+  - Fix some query stats calculations around averaging and estimating the number
+    of data points (#784).
+  - Clean out old .SWO files (#821)
+  - Fix a live-lock situation when performing regular expression or wildcard queries (#823).
+  - Change the static file path for the HTTP API to be relative (#857).
+  - Fix an issue where the GUI could flicker when two or more tag filters were set (#708).
 
 * Version 2.3.0 RC1 (2016-05-02)
 
@@ -52,26 +102,6 @@ Bug Fixes:
   - Restore the ability to create TSMeta objects via URI
   - Restore raw data points (along with post-filtered data points) in query stats
   - Built in UI will now properly display global annotations when the query string is passed
-
-Noteworthy Changes:
-  - Improve metadata storage performance by removing an extra getFromStorage() call.
-  - Add global Annotations to the gnuplot graphs (#773)
-  - Allow creation of a TSMeta object without a TSUID (#778)
-  - Move to AsyncHBase 1.7.2
-
-Bug Fixes:
-  - Fix Python scripts to use the environment directory.
-  - Fix config name for "tsd.network.keep_alive" in included config files.
-  - Fix an issue with the filter metric and tag resolution chain during queries.
-  - Fix an issue with malformed, double dotted timestamps (#724).
-  - Fix an issue with tag filters where we need a copy before modifying the list.
-  - Fix comments in the config file around TCP no delay settings.
-  - Fix some query stats calculations around averaging and estimating the number
-    of data points (#784).
-  - Clean out old .SWO files (#821)
-  - Fix a live-lock situation when performing regular expression or wildcard queries (#823).
-  - Change the static file path for the HTTP API to be relative (#857).
-  - Fix an issue where the GUI could flicker when two or more tag filters were set (#708).
 
 * Version 2.2.0 (2016-02-14)
 
@@ -168,10 +198,20 @@ Bug Fixes:
   - Avoid OOM issues over Telnet when the sending client isn't reading errors off it's
     socket fast enough by blocking writes.
 
+* Version 2.1.4 (2016-02-14)
+
+Bug Fixes:
+  - Fix the meta table where the UID/TSMeta APIs were not sorting tags properly 
+    prior to creating the row key, thus allowing for duplicates if the caller changed
+    the order of tags.
+  - Fix a situation where meta sync could hang forever if a routine threw an exception.
+  - Fix an NPE thrown when accessing the /logs endpoint if the Cyclic appender is not
+    enabled in the logback config.
+  - Remove an overly chatty log line in TSMeta on new time series creation.
+
 * Version 2.1.3 (2015-11-11)
 
 Bug Fixes:
-
   - Fix build issues where the static files were not copied into the proper location.
 
 * Version 2.1.2 (2015-11-09)

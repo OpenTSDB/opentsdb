@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>  
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>
+        %d{ISO8601} %-5level [%thread] %logger{0}: %msg%n
+      </pattern>
+    </encoder>
+  </appender>
+
+  <logger name="org.apache.zookeeper" level="${zookeeper-level:-INFO}"/>
+  <logger name="org.hbase.async" level="${hasync-level:-INFO}"/>
+  <logger name="com.stumbleupon.async" level="${async-level:-INFO}"/>
+  <!-- 
+    A logger for each top level opentsdb package 
+    so we can configure them from the commnd line
+  -->
+  <logger name="net.opentsdb.core" level="${core-level:-INFO}"/>
+  <logger name="net.opentsdb.graph" level="${graph-level:-INFO}"/>
+  <logger name="net.opentsdb.meta" level="${meta-level:-INFO}"/>
+  <logger name="net.opentsdb.search" level="${search-level:-INFO}"/>
+  <logger name="net.opentsdb.stats" level="${stats-level:-INFO}"/>
+  <logger name="net.opentsdb.tools" level="${tools-level:-INFO}"/>
+  <logger name="net.opentsdb.tree" level="${tree-level:-INFO}"/>
+  <logger name="net.opentsdb.tsd" level="${tsd-level:-INFO}"/>
+  <logger name="net.opentsdb.uid" level="${uid-level:-INFO}"/>
+  <logger name="net.opentsdb.utils" level="${utils-level:-INFO}"/>  
+  
+  
+  <logger name="net.opentsdb.tsd.ConnectionManager" level="WARN"/>
+  <logger name="net.opentsdb.tsd.HttpQuery" level="WARN"/>
+  <logger name="net.opentsdb.tsd.GraphHandler" level="WARN"/>
+  <logger name="net.opentsdb.core.TsdbQuery" level="WARN"/>
+  
+  
+<!-- 
+    <logger name="net.opentsdb.tools.MetaSync" level="${tools-level:-DEBUG}"/>
+    <logger name="net.opentsdb.tools.UidManager" level="${tools-level:-DEBUG}"/>
+ -->
+
+  
+  <root level="info">
+    <appender-ref ref="STDOUT"/>    
+  </root>
+</configuration>

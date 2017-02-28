@@ -48,6 +48,7 @@ import net.opentsdb.graph.Plot;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.tools.GnuplotInstaller;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 
@@ -908,6 +909,18 @@ final class GraphHandler implements HttpRpc {
    * @return The path to the wrapper script.
    */
   private static String findGnuplotHelperScript() {
+    if(!GnuplotInstaller.FOUND_GP) {
+      LOG.warn("Skipping Gnuplot Shell Script Install since Gnuplot executable was not found");
+      return null;
+    }
+    if(!GnuplotInstaller.GP_FILE.exists()) {
+      GnuplotInstaller.installMyGnuPlot();
+    }
+    if(GnuplotInstaller.GP_FILE.exists() && GnuplotInstaller.GP_FILE.canExecute()) {
+      LOG.info("Auto Installed Gnuplot Invoker at [{}]", GnuplotInstaller.GP_FILE.getAbsolutePath());
+      return GnuplotInstaller.GP_FILE.getAbsolutePath();
+    }
+    
     final URL url = GraphHandler.class.getClassLoader().getResource(WRAPPER);
     if (url == null) {
       throw new RuntimeException("Couldn't find " + WRAPPER + " on the"

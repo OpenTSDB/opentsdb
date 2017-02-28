@@ -787,6 +787,45 @@ public final class TestTags {
     Tags.resolveOrCreateAllAsync(tsdb, "metric", tags).join();
   }
   
+  @Test
+  public void looksLikeIntegerSimple() {
+      assertEquals(true, Tags.looksLikeInteger("123"));
+  }
+
+  @Test
+  public void looksLikeIntegerFloat() {
+      assertEquals(false, Tags.looksLikeInteger("12.3"));
+  }
+
+  @Test
+  public void looksLikeIntegerExponent() {
+      assertEquals(false, Tags.looksLikeInteger("1e10"));
+  }
+
+  @Test
+  public void fitsInFloatSimple() {
+    // deceiving eh?
+    assertEquals(false, Tags.fitsInFloat("12.3"));
+  }
+
+  @Test
+  public void fitsInFloatDoublePrecision() {
+      assertEquals(false, Tags.fitsInFloat("1.234556789123456"));
+  }
+
+  @Test(expected=NumberFormatException.class)
+  public void fitsInFloatMalformed() {
+      assertEquals(false, Tags.fitsInFloat("1.2abc34"));
+  }
+  
+  @Test
+  public void fitsInFloat() {
+    assertEquals(true, Tags.fitsInFloat("0.6116398572921753"));
+    assertEquals(true, Tags.fitsInFloat("1.01417856E9"));
+    assertEquals(false, Tags.fitsInFloat("4.508277154265837E7"));
+    assertEquals(false, Tags.fitsInFloat("8.208611994536002E8"));
+  }
+  
   // PRIVATE helpers to setup unit tests
   
   private void setupStorage() throws Exception {

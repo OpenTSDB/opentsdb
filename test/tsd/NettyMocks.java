@@ -18,7 +18,6 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
-import java.util.HashMap;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
@@ -36,7 +35,6 @@ import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
 import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.junit.Ignore;
-import org.powermock.reflect.Whitebox;
 
 /**
  * Helper class that provides mockups for testing any OpenTSDB processes that
@@ -49,12 +47,10 @@ public final class NettyMocks {
    * Sets up a TSDB object for HTTP RPC tests that has a Config object
    * @return A TSDB mock
    */
-  public static TSDB getMockedHTTPTSDB() {
+  public static TSDB getMockedHTTPTSDB() throws Exception {
     final TSDB tsdb = mock(TSDB.class);
-    final Config config = mock(Config.class);
-    HashMap<String, String> properties = new HashMap<String, String>();
-    properties.put("tsd.http.show_stack_trace", "true");
-    Whitebox.setInternalState(config, "properties", properties);
+    final Config config = new Config(false);
+    config.overrideConfig("tsd.http.show_stack_trace", "true");
     when(tsdb.getConfig()).thenReturn(config);
     return tsdb;
   }

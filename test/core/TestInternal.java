@@ -838,6 +838,62 @@ public final class TestInternal {
       assertNotNull(e);
     }
   }
+
+  @Test
+  public void vleEncodeLong0() throws Exception {
+    final byte[] expected = new byte[1];
+    assertArrayEquals(expected, Internal.vleEncodeLong(0));
+  }
+  
+  @Test
+  public void vleEncodeLong1byte() throws Exception {
+    final byte[] expected = new byte[] { 42 };
+    assertArrayEquals(expected, Internal.vleEncodeLong(42));
+  }
+  
+  @Test
+  public void vleEncodeLong1byteNegative() throws Exception {
+    final byte[] expected = new byte[] { -42 };
+    assertArrayEquals(expected, Internal.vleEncodeLong(-42));
+  }
+  
+  @Test
+  public void vleEncodeLong2bytes() throws Exception {
+    final byte[] expected = new byte[] { 1, 1 };
+    assertArrayEquals(expected, Internal.vleEncodeLong(257));
+  }
+  
+  @Test
+  public void vleEncodeLong2bytesNegative() throws Exception {
+    final byte[] expected = new byte[] { (byte) 0xFE, (byte) 0xFF };
+    assertArrayEquals(expected, Internal.vleEncodeLong(-257));
+  }
+  
+  @Test
+  public void vleEncodeLong4bytes() throws Exception {
+    final byte[] expected = new byte[] { 0, 1, 0, 1 };
+    assertArrayEquals(expected, Internal.vleEncodeLong(65537));
+  }
+  
+  @Test
+  public void vleEncodeLong4bytesNegative() throws Exception {
+    final byte[] expected = 
+        new byte[] { (byte) 0xFF, (byte) 0xFE, (byte) 0xFF, (byte) 0xFF };
+    assertArrayEquals(expected, Internal.vleEncodeLong(-65537));
+  }
+  
+  @Test
+  public void vleEncodeLong8bytes() throws Exception {
+    final byte[] expected = new byte[] { 0, 0, 0, 1, 0, 0, 0, 0 };
+    assertArrayEquals(expected, Internal.vleEncodeLong(4294967296L));
+  }
+  
+  @Test
+  public void vleEncodeLong8bytesNegative() throws Exception {
+    final byte[] expected = new byte[] { 
+        (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, 0, 0, 0, 0 };
+    assertArrayEquals(expected, Internal.vleEncodeLong(-4294967296L));
+  }
   
   /** Shorthand to create a {@link KeyValue}.  */
   private static KeyValue makekv(final byte[] qualifier, final byte[] value) {

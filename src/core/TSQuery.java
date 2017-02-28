@@ -71,7 +71,7 @@ public final class TSQuery {
   private boolean show_tsuids;
   
   /** A list of parsed sub queries, must have one or more to fetch data */
-  private ArrayList<TSSubQuery> queries;
+  private List<TSSubQuery> queries;
 
   /** The parsed start time value 
    * <b>Do not set directly</b> */
@@ -445,7 +445,7 @@ public final class TSQuery {
   }
   
   /** @param queries a list of {@link TSSubQuery} objects to store*/
-  public void setQueries(ArrayList<TSSubQuery> queries) {
+  public void setQueries(final List<TSSubQuery> queries) {
     this.queries = queries;
   }
 

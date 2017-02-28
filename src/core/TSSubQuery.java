@@ -22,6 +22,7 @@ import java.util.NoSuchElementException;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.utils.ByteSet;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableMap;
@@ -68,6 +69,17 @@ public final class TSSubQuery {
   
   /** Parsed downsampling specification. */
   private DownsamplingSpecification downsample_specifier;
+  
+  /** Search the query on pre-aggregated table directly instead of post fetch 
+   * aggregation. */
+  private boolean pre_aggregate;
+
+  /** Do not use rollup tables for down sampling */
+  private TsdbQuery.ROLLUP_USAGE rollup_usage;
+  
+  /** Pointer to the related TSDB Query */
+  @JsonIgnore
+  private TsdbQuery tsdb_query;
   
   /** A list of filters for this query. For now these are pulled out of the
    * tags map. In the future we'll have special JSON objects for them. */
@@ -385,4 +397,55 @@ public final class TSSubQuery {
     this.index = index;
   }
   
+  /** Search the query on pre-aggregated table directly instead of post fetch 
+   * aggregation.
+   * @return Whether or not to fetch data on pre-aggregates 
+   * @since 2.4 
+   */
+  public boolean isPreAggregate() {
+    return pre_aggregate;
+  }
+ 
+  /** Search the query on pre-aggregated table directly instead of post fetch 
+   * aggregation. 
+   * @param pre_aggregate Whether or not to fetch data on pre-aggregated tables. 
+   * @since 2.4 
+   */
+  public void setPreAggregate(boolean pre_aggregate) {
+    this.pre_aggregate = pre_aggregate;
+  }
+
+  /** @return Rollup data usage type. 
+   * @since 2.4 */
+  public TsdbQuery.ROLLUP_USAGE getRollupUsage() {
+    return rollup_usage;
+  }
+
+  /** @param rollup_usage Rollup data usage. 
+   * @since 2.4 */
+  public void setRollupUsage(String rollup_usage) {
+    this.rollup_usage = TsdbQuery.ROLLUP_USAGE.parse(rollup_usage);
+  }
+  
+  /** Which rollup table it scanned to get the final result.
+   * @return The rollup table to use. 
+   * @since 2.4 
+   */
+  public String getRollupTable() {
+    if (tsdb_query != null) {
+      return tsdb_query.getRollupTable();
+    }
+    else {
+      return "raw";
+    }
+  }
+
+  /** @param tsdb_query Parent TsdbQuery, which will tell the which rollup 
+   * table it scanned to get the final result 
+   * @since 2.4 
+   */
+  void setTsdbQuery(TsdbQuery tsdb_query) {
+    this.tsdb_query = tsdb_query;
+  }
+
 }

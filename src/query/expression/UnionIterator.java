@@ -259,7 +259,7 @@ public class UnionIterator implements ITimeSyncedIterator, VariableIterator {
   static byte[] flattenTags(final boolean use_query_tags, 
       final boolean include_agg_tags, final ExpressionDataPoint dp, 
       final ITimeSyncedIterator sub) {
-    if (dp.tags().isEmpty()) {
+    if (dp.tags() == null || dp.tags().isEmpty()) {
       return HBaseClient.EMPTY_ARRAY;
     }
     final int tagk_width = TSDB.tagk_width();

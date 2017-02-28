@@ -32,6 +32,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 /** Tests {@link Downsampler}. */
+@SuppressWarnings("deprecation")
 public class TestDownsampler {
 
   private static final long BASE_TIME = 1356998400000L;
@@ -100,7 +101,33 @@ public class TestDownsampler {
     assertEquals(50, values.get(4), 0.0000001);
     assertEquals(BASE_TIME + 8600000L, timestamps_in_millis.get(4).longValue());
   }
+  
+  @Test
+  public void testDownsamplerDeprecated() {
+    downsampler = new Downsampler(source, THOUSAND_SEC_INTERVAL, AVG);
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
 
+    assertEquals(5, values.size());
+    assertEquals(40, values.get(0), 0.0000001);
+    assertEquals(BASE_TIME - 400000L, timestamps_in_millis.get(0).longValue());
+    assertEquals(50, values.get(1), 0.0000001);
+    assertEquals(BASE_TIME + 1600000, timestamps_in_millis.get(1).longValue());
+    assertEquals(45, values.get(2), 0.0000001);
+    assertEquals(BASE_TIME + 3600000L, timestamps_in_millis.get(2).longValue());
+    assertEquals(40, values.get(3), 0.0000001);
+    assertEquals(BASE_TIME + 6600000L, timestamps_in_millis.get(3).longValue());
+    assertEquals(50, values.get(4), 0.0000001);
+    assertEquals(BASE_TIME + 8600000L, timestamps_in_millis.get(4).longValue());
+  }
+  
   @Test
   public void testDownsamplerDeprecated_10seconds() {
     source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
@@ -1144,6 +1171,111 @@ public class TestDownsampler {
       assertEquals((1 << j++) + (1 << j++), dp.doubleValue(), 0.0000001);
       assertEquals(c.getTimeInMillis(), dp.timestamp());
       c.add(field, 1);
+    }
+  }
+  
+  @Test
+  public void testDownsampler_rollupSum() {
+    source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 0, 1),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 1, 2),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 2, 4),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 3, 8),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 4, 16),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 5, 32),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 6, 64),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 7, 128),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 8, 256),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 9, 512),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 10, 1024)
+    }));
+    specification = new DownsamplingSpecification("10s-sum");
+    downsampler = new Downsampler(source, specification, 0, 0, true);
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+
+    assertEquals(6, values.size());
+    assertEquals(3, values.get(0), 0.0000001);
+    assertEquals(BASE_TIME + 00000L, timestamps_in_millis.get(0).longValue());
+    assertEquals(12, values.get(1), 0.0000001);
+    assertEquals(BASE_TIME + 10000L, timestamps_in_millis.get(1).longValue());
+    assertEquals(48, values.get(2), 0.0000001);
+    assertEquals(BASE_TIME + 20000L, timestamps_in_millis.get(2).longValue());
+    assertEquals(192, values.get(3), 0.0000001);
+    assertEquals(BASE_TIME + 30000L, timestamps_in_millis.get(3).longValue());
+    assertEquals(768, values.get(4), 0.0000001);
+    assertEquals(BASE_TIME + 40000L, timestamps_in_millis.get(4).longValue());
+    assertEquals(1024, values.get(5), 0.0000001);
+    assertEquals(BASE_TIME + 50000L, timestamps_in_millis.get(5).longValue());
+  }
+  
+  @Test
+  public void testDownsampler_rollupAvg() {
+    source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 0, 1),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 1, 2),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 2, 4),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 3, 8)
+    }));
+    specification = new DownsamplingSpecification("10s-avg");
+    downsampler = new Downsampler(source, specification, 0, 0, true);
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+
+    assertEquals(2, values.size());
+    assertEquals(1.5, values.get(0), 0.0000001);
+    assertEquals(BASE_TIME + 00000L, timestamps_in_millis.get(0).longValue());
+    assertEquals(6, values.get(1), 0.0000001);
+    assertEquals(BASE_TIME + 10000L, timestamps_in_millis.get(1).longValue());
+  }
+  
+  @Test
+  public void testDownsampler_rollupCount() {
+    source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 0, 1),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 1, 2),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 2, 4),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 3, 8)
+    }));
+    specification = new DownsamplingSpecification("10s-count");
+    downsampler = new Downsampler(source, specification, 0, 0, true);
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+
+    assertEquals(2, values.size());
+    assertEquals(2, values.get(0), 0.0000001);
+    assertEquals(BASE_TIME + 00000L, timestamps_in_millis.get(0).longValue());
+    assertEquals(2, values.get(1), 0.0000001);
+    assertEquals(BASE_TIME + 10000L, timestamps_in_millis.get(1).longValue());
+  }
+  
+  @Test (expected = UnsupportedOperationException.class)
+  public void testDownsampler_rollupDev() {
+    specification = new DownsamplingSpecification("10s-dev");
+    downsampler = new Downsampler(source, specification, 0, 0, true);
+    while (downsampler.hasNext()) {
+      downsampler.next(); // <-- throws here
     }
   }
   

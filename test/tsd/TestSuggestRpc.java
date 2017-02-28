@@ -39,7 +39,7 @@ public final class TestSuggestRpc {
   private SuggestRpc s = null;
   
   @Before
-  public void before() {
+  public void before() throws Exception {
     s = new SuggestRpc();
     tsdb = NettyMocks.getMockedHTTPTSDB();
     final List<String> metrics = new ArrayList<String>();

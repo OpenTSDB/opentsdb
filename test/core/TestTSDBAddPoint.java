@@ -31,7 +31,6 @@ import java.util.HashMap;
 import org.hbase.async.Bytes;
 import org.junit.Before;
 import org.junit.Test;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.reflect.Whitebox;
 
 import com.stumbleupon.async.Deferred;
@@ -39,17 +38,17 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.uid.NoSuchUniqueName;
 
 public class TestTSDBAddPoint extends BaseTsdbTest {
-
+  protected byte[] row;
+  
   @Before
   public void beforeLocal() throws Exception {
+    row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING);
     setDataPointStorage();
   }
   
   @Test
   public void addPointLong1Byte() throws Exception {
     tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
@@ -58,8 +57,6 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   @Test
   public void addPointLong1ByteNegative() throws Exception {
     tsdb.addPoint(METRIC_STRING, 1356998400, -42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(-42, value[0]);
@@ -68,8 +65,6 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   @Test
   public void addPointLong2Bytes() throws Exception {
     tsdb.addPoint(METRIC_STRING, 1356998400, 257, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 1 });
     assertNotNull(value);
     assertEquals(257, Bytes.getShort(value));
@@ -78,8 +73,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   @Test
   public void addPointLong2BytesNegative() throws Exception {
     tsdb.addPoint(METRIC_STRING, 1356998400, -257, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, new byte[] { 0, 1 });
     assertNotNull(value);
     assertEquals(-257, Bytes.getShort(value));
@@ -88,8 +82,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   @Test
   public void addPointLong4Bytes() throws Exception {
     tsdb.addPoint(METRIC_STRING, 1356998400, 65537, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, new byte[] { 0, 3 });
     assertNotNull(value);
     assertEquals(65537, Bytes.getInt(value));
@@ -98,8 +91,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   @Test
   public void addPointLong4BytesNegative() throws Exception {
     tsdb.addPoint(METRIC_STRING, 1356998400, -65537, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, new byte[] { 0, 3 });
     assertNotNull(value);
     assertEquals(-65537, Bytes.getInt(value));
@@ -108,8 +100,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   @Test
   public void addPointLong8Bytes() throws Exception {
     tsdb.addPoint(METRIC_STRING, 1356998400, 4294967296L, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, new byte[] { 0, 7 });
     assertNotNull(value);
     assertEquals(4294967296L, Bytes.getLong(value));
@@ -118,8 +109,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   @Test
   public void addPointLong8BytesNegative() throws Exception {
     tsdb.addPoint(METRIC_STRING, 1356998400, -4294967296L, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, new byte[] { 0, 7 });
     assertNotNull(value);
     assertEquals(-4294967296L, Bytes.getLong(value));
@@ -128,8 +118,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   @Test
   public void addPointLongMs() throws Exception {
     tsdb.addPoint(METRIC_STRING, 1356998400500L, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, 
         new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
     assertNotNull(value);
@@ -142,8 +131,6 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     for (int i = 1; i <= 50; i++) {
       tsdb.addPoint(METRIC_STRING, timestamp++, i, tags).joinUninterruptibly();
     }
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(1, value[0]);
@@ -156,8 +143,6 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     for (int i = 1; i <= 50; i++) {
       tsdb.addPoint(METRIC_STRING, timestamp++, i, tags).joinUninterruptibly();
     }
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, 
         new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
     assertNotNull(value);
@@ -168,8 +153,6 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   @Test
   public void addPointLongEndOfRow() throws Exception {
     tsdb.addPoint(METRIC_STRING, 1357001999, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xE0, 
         (byte) 0xF0 });
     assertNotNull(value);
@@ -180,8 +163,6 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   public void addPointLongOverwrite() throws Exception {
     tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, 1356998400, 24, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(24, value[0]);
@@ -195,8 +176,8 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   @Test
   public void addPointSecondZero() throws Exception {
     // Thu, 01 Jan 1970 00:00:00 GMT
+    row = getRowKey(METRIC_STRING, 0, TAGK_STRING, TAGV_STRING);
     tsdb.addPoint(METRIC_STRING, 0, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
@@ -205,8 +186,8 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   @Test
   public void addPointSecondOne() throws Exception {
     // hey, it's valid *shrug* Thu, 01 Jan 1970 00:00:01 GMT
+    row = getRowKey(METRIC_STRING, 0, TAGK_STRING, TAGV_STRING);
     tsdb.addPoint(METRIC_STRING, 1, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 16 });
     assertNotNull(value);
     assertEquals(42, value[0]);
@@ -215,9 +196,8 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   @Test
   public void addPointSecond2106() throws Exception {
     // Sun, 07 Feb 2106 06:28:15 GMT
+    row = getRowKey(METRIC_STRING, (int) 4294965600L, TAGK_STRING, TAGV_STRING);
     tsdb.addPoint(METRIC_STRING, 4294967295L, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
-        0x60, 0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0x69, (byte) 0xF0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
@@ -242,9 +222,8 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     // a millisecond timestamp since it doesn't fit in 4 bytes.
     // Base time is 4294800 which is Thu, 19 Feb 1970 17:00:00 GMT
     // offset = F0A36000 or 167296 ms
+    row = getRowKey(METRIC_STRING, 4294800, TAGK_STRING, TAGV_STRING);
     tsdb.addPoint(METRIC_STRING, 4294967296L, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0, (byte) 0x41, (byte) 0x88, 
-        (byte) 0x90, 0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF0, 
         (byte) 0xA3, 0x60, 0});
     assertNotNull(value);
@@ -254,9 +233,8 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   @Test
   public void addPointMS2106() throws Exception {
     // Sun, 07 Feb 2106 06:28:15.000 GMT
+    row = getRowKey(METRIC_STRING, (int) 4294965600L, TAGK_STRING, TAGV_STRING);
     tsdb.addPoint(METRIC_STRING, 4294967295000L, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
-        0x60, 0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF6, 
         (byte) 0x77, 0x46, 0 });
     assertNotNull(value);
@@ -266,9 +244,9 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   @Test
   public void addPointMS2286() throws Exception {
     // It's an artificial limit and more thought needs to be put into it
+    // TODO - and doesn't conform anyways, bad timestamp!
+    row = getRowKey(METRIC_STRING, 1410062608, TAGK_STRING, TAGV_STRING);
     tsdb.addPoint(METRIC_STRING, 9999999999999L, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, (byte) 0x54, (byte) 0x0B, (byte) 0xD9, 
-        0x10, 0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xFA, 
         (byte) 0xAE, 0x5F, (byte) 0xC0 });
     assertNotNull(value);
@@ -293,8 +271,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   @Test
   public void addPointFloat() throws Exception {
     tsdb.addPoint(METRIC_STRING, 1356998400, 42.5F, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
@@ -306,8 +283,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     tsdb.addPoint(METRIC_STRING, 1356998400, -42.5F, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
@@ -317,8 +293,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   @Test
   public void addPointFloatMs() throws Exception {
     tsdb.addPoint(METRIC_STRING, 1356998400500L, 42.5F, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, 
         new byte[] { (byte) 0xF0, 0, 0x7D, 11 });
     assertNotNull(value);
@@ -331,8 +306,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     tsdb.addPoint(METRIC_STRING, 1357001999, 42.5F, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xE0, 
         (byte) 0xFB });
     assertNotNull(value);
@@ -344,8 +318,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   public void addPointFloatPrecision() throws Exception {
     tsdb.addPoint(METRIC_STRING, 1356998400, 42.5123459999F, tags)
       .joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
@@ -356,8 +329,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   public void addPointFloatOverwrite() throws Exception {
     tsdb.addPoint(METRIC_STRING, 1356998400, 42.5F, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, 1356998400, 25.4F, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
@@ -371,8 +343,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     // aggregators when this occurs? 
     tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, 1356998400, 42.5F, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertEquals(2, storage.numColumns(row));
     assertNotNull(value);
@@ -390,8 +361,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     // aggregators when this occurs? 
     tsdb.addPoint(METRIC_STRING, 1356998400500L, 42, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, 1356998400500L, 42.5F, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
     assertEquals(2, storage.numColumns(row));
     assertNotNull(value);
@@ -408,8 +378,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     // timestamp.
     tsdb.addPoint(METRIC_STRING, 1356998400L, 42, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, 1356998400000L, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertEquals(2, storage.numColumns(row));
     assertNotNull(value);
@@ -421,59 +390,11 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
   }
   
   @Test
-  public void addPointWithSalt() throws Exception {
-    PowerMockito.mockStatic(Const.class);
-    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
-    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(20);
-    PowerMockito.when(Const.MAX_NUM_TAGS()).thenReturn((short) 8);
-
-    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 8, 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
-    assertNotNull(value);
-    assertEquals(42, value[0]);
-  }
-
-  @Test
-  public void addPointWithSaltDifferentTags() throws Exception {
-    PowerMockito.mockStatic(Const.class);
-    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
-    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(20);
-    PowerMockito.when(Const.MAX_NUM_TAGS()).thenReturn((short) 8);
-
-    tags.put(TAGK_STRING, TAGV_B_STRING);
-
-    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 9, 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 2};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
-    assertNotNull(value);
-    assertEquals(42, value[0]);
-  }
-  
-  @Test
-  public void addPointWithSaltDifferentTime() throws Exception {
-    PowerMockito.mockStatic(Const.class);
-    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
-    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(20);
-    PowerMockito.when(Const.MAX_NUM_TAGS()).thenReturn((short) 8);
-
-    tsdb.addPoint(METRIC_STRING, 1359680400, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 8, 0, 0, 1, 0x51, (byte) 0x0B, 0x13, 
-        (byte) 0x90, 0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
-    assertNotNull(value);
-    assertEquals(42, value[0]);
-  }
-  
-  @Test
   public void addPointAppend() throws Exception {
     Whitebox.setInternalState(config, "enable_appends", true);
 
     tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, 
         AppendDataPoints.APPEND_COLUMN_QUALIFIER);
     assertArrayEquals(new byte[] { 0, 0, 42 }, value);
@@ -484,8 +405,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     Whitebox.setInternalState(config, "enable_appends", true);
     
     tsdb.addPoint(METRIC_STRING, 1356998430, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, 
         AppendDataPoints.APPEND_COLUMN_QUALIFIER);
     assertArrayEquals(new byte[] { 1, -32, 42 }, value);
@@ -498,8 +418,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, 1356998430, 24, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, 1356998460, 1, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, 
         AppendDataPoints.APPEND_COLUMN_QUALIFIER);
     assertArrayEquals(new byte[] { 0, 0, 42, 1, -32, 24, 3, -64, 1 }, value);
@@ -513,8 +432,6 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     tsdb.addPoint(METRIC_STRING, 1356998460, 1, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, 1356998430, 24, tags).joinUninterruptibly();
 
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, 
         AppendDataPoints.APPEND_COLUMN_QUALIFIER);
     assertArrayEquals(new byte[] { 0, 0, 42, 3, -64, 1, 1, -32, 24 }, value);
@@ -527,8 +444,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, 1356998430, 24, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, 1356998430, 1, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, 
         AppendDataPoints.APPEND_COLUMN_QUALIFIER);
     assertArrayEquals(new byte[] { 0, 0, 42, 1, -32, 24, 1, -32, 1 }, value);
@@ -539,8 +455,7 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     Whitebox.setInternalState(config, "enable_appends", true);
 
     tsdb.addPoint(METRIC_STRING, 1356998400050L, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, 
         AppendDataPoints.APPEND_COLUMN_QUALIFIER);
     assertArrayEquals(new byte[] { (byte) 0xF0, 0, 12, -128, 42 }, value);
@@ -553,46 +468,11 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, 1356998400050L, 1, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, 1356998430, 24, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
+
     final byte[] value = storage.getColumn(row, 
         AppendDataPoints.APPEND_COLUMN_QUALIFIER);
     assertArrayEquals(new byte[] { 
         0, 0, 42, (byte) 0xF0, 0, 12, -128, 1, 1, -32, 24 }, value);
-  }
-  
-  @Test
-  public void addPointAppendWithSalt() throws Exception {
-    PowerMockito.mockStatic(Const.class);
-    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
-    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(20);
-    PowerMockito.when(Const.MAX_NUM_TAGS()).thenReturn((short) 8);
-    Whitebox.setInternalState(config, "enable_appends", true);
-
-    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 8, 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, 
-        AppendDataPoints.APPEND_COLUMN_QUALIFIER);
-    assertArrayEquals(new byte[] { 0, 0, 42 }, value);
-  }
-  
-  @Test
-  public void addPointAppendAppendingWithSalt() throws Exception {
-    PowerMockito.mockStatic(Const.class);
-    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
-    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(20);
-    PowerMockito.when(Const.MAX_NUM_TAGS()).thenReturn((short) 8);
-    Whitebox.setInternalState(config, "enable_appends", true);
-
-    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
-    tsdb.addPoint(METRIC_STRING, 1356998430, 24, tags).joinUninterruptibly();
-    tsdb.addPoint(METRIC_STRING, 1356998460, 1, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 8, 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, 
-        AppendDataPoints.APPEND_COLUMN_QUALIFIER);
-    assertArrayEquals(new byte[] { 0, 0, 42, 1, -32, 24, 3, -64, 1 }, value);
   }
   
   @Test
@@ -606,8 +486,6 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     Whitebox.setInternalState(tsdb, "ts_filter", filter);
     
     tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
@@ -628,8 +506,6 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     Whitebox.setInternalState(tsdb, "ts_filter", filter);
     
     tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertNull(value);
     
@@ -654,8 +530,6 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
       deferred.join();
       fail("Expected an UnitTestException");
     } catch (UnitTestException e) { };
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertNull(value);
     
@@ -678,8 +552,6 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
       tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags);
       fail("Expected an UnitTestException");
     } catch (UnitTestException e) { };
-    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
-        0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertNull(value);
     

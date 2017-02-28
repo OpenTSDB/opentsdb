@@ -67,6 +67,7 @@ public class DateTime {
    * <li>1355961600.000</li></ul></li>
    * </ul>
    * @param datetime The string to parse a value for
+   * @param tz The timezone to use for parsing.
    * @return A Unix epoch timestamp in milliseconds
    * @throws NullPointerException if the timestamp is null
    * @throws IllegalArgumentException if the request was malformed 
@@ -224,6 +225,66 @@ public class DateTime {
     return interval * multiplier;
   }
 
+  /**
+   * Returns the suffix or "units" of the duration as a string. The result will
+   * be ms, s, m, h, d, w, n or y.
+   * @param duration The duration in the format #units, e.g. 1d or 6h
+   * @return Just the suffix, e.g. 'd' or 'h'
+   * @throws IllegalArgumentException if the duration is null, empty or if 
+   * the units are invalid.
+   * @since 2.4
+   */
+  public static final String getDurationUnits(final String duration) {
+    if (duration == null || duration.isEmpty()) {
+      throw new IllegalArgumentException("Duration cannot be null or empty");
+    }
+    int unit = 0;
+    while (unit < duration.length() && 
+        Character.isDigit(duration.charAt(unit))) {
+      unit++;
+    }
+    final String units = duration.substring(unit).toLowerCase();
+    if (units.equals("ms") || units.equals("s") || units.equals("m") || 
+        units.equals("h") || units.equals("d") || units.equals("w") || 
+        units.equals("n") || units.equals("y")) {
+      return units;
+    }
+    throw new IllegalArgumentException("Invalid units in the duration: " + units);
+  }
+  
+  /**
+   * Parses the prefix of the duration, the interval and returns it as a number.
+   * E.g. if you supply "1d" it will return "1". If you supply "60m" it will
+   * return "60".
+   * @param duration The duration to parse in the format #units, e.g. "1d" or "60m"
+   * @return The interval as an integer, regardless of units.
+   * @throws IllegalArgumentException if the duration is null, empty or parsing
+   * of the integer failed.
+   * @since 2.4
+   */
+  public static final int getDurationInterval(final String duration) {
+    if (duration == null || duration.isEmpty()) {
+      throw new IllegalArgumentException("Duration cannot be null or empty");
+    }
+    if (duration.contains(".")) {
+      throw new IllegalArgumentException("Floating point intervals are not supported");
+    }
+    int unit = 0;
+    while (Character.isDigit(duration.charAt(unit))) {
+      unit++;
+    }
+    int interval;
+    try {
+      interval = Integer.parseInt(duration.substring(0, unit));
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("Invalid duration (number): " + duration);
+    }
+    if (interval <= 0) {
+      throw new IllegalArgumentException("Zero or negative duration: " + duration);
+    }
+    return interval;
+  }
+  
   /**
    * Returns whether or not a date is specified in a relative fashion.
    * <p>
