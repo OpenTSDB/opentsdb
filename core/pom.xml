@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <parent>
+      <groupId>net.opentsdb</groupId>
+      <artifactId>opentsdb</artifactId>
+      <version>3.0.0-SNAPSHOT</version>
+    </parent>
+    
+    <artifactId>opentsdb-core</artifactId>
+    <name>opentsdb-core</name>
+    
+    <description>OpenTSDB's core interfaces, abstracts and base classes for
+    use with concrete implementations.</description>
+    
+    <packaging>jar</packaging>
+    
+    <properties>
+
+    </properties>
+    
+    <dependencyManagement>
+      <dependencies>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-common</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>19.0</version>
+        </dependency>
+      </dependencies>
+    </dependencyManagement>
+    
+    <dependencies>
+      <dependency>
+        <groupId>net.opentsdb</groupId>
+        <artifactId>opentsdb-common</artifactId>
+      </dependency>
+      
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+      </dependency>
+    
+      <!-- TESTING Deps. -->
+      <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <scope>test</scope>
+      </dependency>
+    </dependencies>
+    
+    <build>
+  
+    </build>
+</project>
