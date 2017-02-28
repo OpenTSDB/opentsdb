@@ -8,7 +8,6 @@ target
 config.log
 config.status
 configure
-pom.xml
 *.pyc
 .*.swp
 *.rrd
