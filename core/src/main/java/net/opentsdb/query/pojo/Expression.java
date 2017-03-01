@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -12,14 +12,11 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.pojo;
 
-import net.opentsdb.query.expression.ExpressionIterator;
-import net.opentsdb.query.expression.NumericFillPolicy;
-import net.opentsdb.query.expression.VariableIterator.SetOperator;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.commons.jexl2.JexlEngine;
 import org.apache.commons.jexl2.Script;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -29,6 +26,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
 
+import net.opentsdb.query.pojo.Join.SetOperator;
+
 /**
  * Pojo builder class used for serdes of the expression component of a query
  * @since 2.3
@@ -36,6 +35,12 @@ import com.google.common.base.Objects;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonDeserialize(builder = Expression.Builder.class)
 public class Expression extends Validatable {
+  /** Docs don't say whether this is thread safe or not. SOME methods are marked
+   * as not thread safe, so I assume it's ok to instantiate one of these guys
+   * and keep creating scripts from it.
+   */
+  public final static JexlEngine JEXL_ENGINE = new JexlEngine();
+  
   /** An id for this expression for use in output selection or nested expressions */
   private String id;
   
@@ -106,10 +111,10 @@ public class Expression extends Validatable {
     
     // parse it just to make sure we're happy and extract the variable names. 
     // Will throw JexlException
-    parsed_expression = ExpressionIterator.JEXL_ENGINE.createScript(expr);
+    parsed_expression = JEXL_ENGINE.createScript(expr);
     variables = new HashSet<String>();
     for (final List<String> exp_list : 
-      ExpressionIterator.JEXL_ENGINE.getVariables(parsed_expression)) {
+      JEXL_ENGINE.getVariables(parsed_expression)) {
       for (final String variable : exp_list) {
         variables.add(variable);
       }

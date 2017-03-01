@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -12,10 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.pojo;
 
-import net.opentsdb.core.FillPolicy;
-import net.opentsdb.query.expression.NumericFillPolicy;
-import net.opentsdb.query.expression.VariableIterator.SetOperator;
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.pojo.Join.SetOperator;
 import net.opentsdb.utils.JSON;
 
 import org.junit.Before;

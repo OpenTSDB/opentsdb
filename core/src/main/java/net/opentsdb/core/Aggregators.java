@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2016  The OpenTSDB Authors.
+// Copyright (C) 2010-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -16,8 +16,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
@@ -26,6 +24,8 @@ import org.apache.commons.math3.util.ResizableDoubleArray;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+
+import net.opentsdb.exceptions.IllegalDataException;
 
 /**
  * Utility class that provides common, generally useful aggregators.
@@ -87,12 +87,12 @@ public final class Aggregators {
   public static final Aggregator ZIMSUM = new Sum(
       Interpolation.ZIM, "zimsum");
 
-  /** Returns the minimum data point, causing SpanGroup to set <type>.MaxValue
+  /** Returns the minimum data point, causing SpanGroup to set &lt;type&gt;.MaxValue
    * if timestamps don't line up instead of interpolating. */
   public static final Aggregator MIMMIN = new Min(
       Interpolation.MAX, "mimmin");
   
-  /** Returns the maximum data point, causing SpanGroup to set <type>.MinValue
+  /** Returns the maximum data point, causing SpanGroup to set &lt;type&gt;.MinValue
    * if timestamps don't line up instead of interpolating. */
   public static final Aggregator MIMMAX = new Max(
       Interpolation.MIN, "mimmax");
@@ -615,106 +615,106 @@ public final class Aggregators {
     }
 
   }
-  public static final class MovingAverage extends Aggregator {
-    private LinkedList<SumPoint> list = new LinkedList<SumPoint>();
-    private final long numPoints;
-    private final boolean isTimeUnit;
-
-    public MovingAverage(final Interpolation method, final String name, long numPoints, boolean isTimeUnit) {
-      super(method, name);
-      this.numPoints = numPoints;
-      this.isTimeUnit = isTimeUnit;
-    }
-
-    public long runLong(final Longs values) {
-      long sum = values.nextLongValue();
-      while (values.hasNextValue()) {
-        sum += values.nextLongValue();
-      }
-
-      if (values instanceof DataPoint) {
-        long ts = ((DataPoint) values).timestamp();
-        list.addFirst(new SumPoint(ts, sum));
-      }
-
-      long result = 0;
-      int count = 0;
-
-      Iterator<SumPoint> iter = list.iterator();
-      SumPoint first = iter.next();
-      boolean conditionMet = false;
-
-      // now sum up the preceeding points
-      while (iter.hasNext()) {
-        SumPoint next = iter.next();
-        result += (Long) next.val;
-        count++;
-        if (!isTimeUnit && count >= numPoints) {
-          conditionMet = true;
-          break;
-        } else if (isTimeUnit && ((first.ts - next.ts) > numPoints)) {
-          conditionMet = true;
-          break;
-        }
-      }
-
-      if (!conditionMet || count == 0) {
-        return 0;
-      }
-
-      return result / count;
-    }
-
-    @Override
-    public double runDouble(Doubles values) {
-      double sum = values.nextDoubleValue();
-      while (values.hasNextValue()) {
-        sum += values.nextDoubleValue();
-      }
-
-      if (values instanceof DataPoint) {
-        long ts = ((DataPoint) values).timestamp();
-        list.addFirst(new SumPoint(ts, sum));
-      }
-
-      double result = 0;
-      int count = 0;
-
-      Iterator<SumPoint> iter = list.iterator();
-      SumPoint first = iter.next();
-      boolean conditionMet = false;
-
-      // now sum up the preceeding points
-      while (iter.hasNext()) {
-        SumPoint next = iter.next();
-        result += (Double) next.val;
-        count++;
-        if (!isTimeUnit && count >= numPoints) {
-          conditionMet = true;
-          break;
-        } else if (isTimeUnit && ((first.ts - next.ts) > numPoints)) {
-          conditionMet = true;
-          break;
-        }
-      }
-
-      if (!conditionMet || count == 0) {
-        return 0;
-      }
-
-      return result / count;
-    }
-  
-    class SumPoint {
-      long ts;
-      Object val;
-
-      public SumPoint(long ts, Object val) {
-        this.ts = ts;
-        this.val = val;
-      }
-    }
-  }
+//  public static final class MovingAverage extends Aggregator {
+//    private LinkedList<SumPoint> list = new LinkedList<SumPoint>();
+//    private final long numPoints;
+//    private final boolean isTimeUnit;
+//
+//    public MovingAverage(final Interpolation method, final String name, long numPoints, boolean isTimeUnit) {
+//      super(method, name);
+//      this.numPoints = numPoints;
+//      this.isTimeUnit = isTimeUnit;
+//    }
+//
+//    public long runLong(final Longs values) {
+//      long sum = values.nextLongValue();
+//      while (values.hasNextValue()) {
+//        sum += values.nextLongValue();
+//      }
+//
+//      if (values instanceof DataPoint) {
+//        long ts = ((DataPoint) values).timestamp();
+//        list.addFirst(new SumPoint(ts, sum));
+//      }
+//
+//      long result = 0;
+//      int count = 0;
+//
+//      Iterator<SumPoint> iter = list.iterator();
+//      SumPoint first = iter.next();
+//      boolean conditionMet = false;
+//
+//      // now sum up the preceeding points
+//      while (iter.hasNext()) {
+//        SumPoint next = iter.next();
+//        result += (Long) next.val;
+//        count++;
+//        if (!isTimeUnit && count >= numPoints) {
+//          conditionMet = true;
+//          break;
+//        } else if (isTimeUnit && ((first.ts - next.ts) > numPoints)) {
+//          conditionMet = true;
+//          break;
+//        }
+//      }
+//
+//      if (!conditionMet || count == 0) {
+//        return 0;
+//      }
+//
+//      return result / count;
+//    }
+//
+//    @Override
+//    public double runDouble(Doubles values) {
+//      double sum = values.nextDoubleValue();
+//      while (values.hasNextValue()) {
+//        sum += values.nextDoubleValue();
+//      }
+//
+//      if (values instanceof DataPoint) {
+//        long ts = ((DataPoint) values).timestamp();
+//        list.addFirst(new SumPoint(ts, sum));
+//      }
+//
+//      double result = 0;
+//      int count = 0;
+//
+//      Iterator<SumPoint> iter = list.iterator();
+//      SumPoint first = iter.next();
+//      boolean conditionMet = false;
+//
+//      // now sum up the preceeding points
+//      while (iter.hasNext()) {
+//        SumPoint next = iter.next();
+//        result += (Double) next.val;
+//        count++;
+//        if (!isTimeUnit && count >= numPoints) {
+//          conditionMet = true;
+//          break;
+//        } else if (isTimeUnit && ((first.ts - next.ts) > numPoints)) {
+//          conditionMet = true;
+//          break;
+//        }
+//      }
+//
+//      if (!conditionMet || count == 0) {
+//        return 0;
+//      }
+//
+//      return result / count;
+//    }
+//  
+//    class SumPoint {
+//      long ts;
+//      Object val;
+//
+//      public SumPoint(long ts, Object val) {
+//        this.ts = ts;
+//        this.val = val;
+//      }
+//    }
+//  }
   
   private static final class First extends Aggregator {
     public First(final Interpolation method, final String name) {

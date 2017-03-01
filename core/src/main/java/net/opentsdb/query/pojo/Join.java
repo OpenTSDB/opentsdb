@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -12,10 +12,10 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.pojo;
 
-import net.opentsdb.query.expression.VariableIterator.SetOperator;
-
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
@@ -26,6 +26,52 @@ import com.google.common.base.Objects;
  */
 @JsonDeserialize(builder = Join.Builder.class)
 public class Join extends Validatable {
+  /** An operator that determines how to sets of time series are merged via
+   * expression. */
+  public enum SetOperator {
+    /** A union, meaning results from all sets will appear, using FillPolicies
+     * for missing series */
+    UNION("union"),
+    
+    /** Computes the intersection, returning results only for series that appear
+     * in all sets */
+    INTERSECTION("intersection"),
+    
+    /** Cross product. CAREFUL! We'll limit this possibility. */
+    CROSS("cross"),
+    ;
+    
+    /** The user-friendly name of this operator. */
+    private final String name;
+    
+    /** @param the readable name of the operator */
+    SetOperator(final String name) {
+      this.name = name;
+    }
+    
+    /** @return the readable name of the operator */
+    @JsonValue
+    public String getName() {
+      return name;
+    }
+    
+    /** 
+     * Converts a string to lower case then looks up the operator
+     * @param name The name to find an operator for
+     * @return The operator if found.
+     * @throws IllegalArgumentException if the operator wasn't found
+     */
+    @JsonCreator
+    public static SetOperator fromString(final String name) {
+      for (final SetOperator operator : SetOperator.values()) {
+        if (operator.name.equalsIgnoreCase(name)) {
+          return operator;
+        }
+      }
+      throw new IllegalArgumentException("Unrecognized set operator: " + name);
+    }
+  }
+  
   /** The set operator to use for joining sets */
   private SetOperator operator;
   

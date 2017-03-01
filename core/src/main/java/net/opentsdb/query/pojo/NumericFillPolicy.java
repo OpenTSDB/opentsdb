@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -10,15 +10,13 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.query.expression;
+package net.opentsdb.query.pojo;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
-
-import net.opentsdb.core.FillPolicy;
 
 /**
  * POJO for serdes of fill policies. It allows the user to pick either policies
@@ -60,7 +58,7 @@ public class NumericFillPolicy {
     return "policy=" + policy + ", value=" + value;
   }
   
-  /** @returns a NumericFillPolicy builder */
+  /** @return a NumericFillPolicy builder */
   public static Builder Builder() {
     return new Builder();
   }
