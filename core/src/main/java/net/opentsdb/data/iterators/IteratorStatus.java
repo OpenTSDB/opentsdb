@@ -29,11 +29,8 @@ package net.opentsdb.data.iterators;
  * |          |          |
  * |    +-----v------+   |
  * v----+END OF CHUNK+---^
- * |    +------------+   |
- * |          |          |
- * |      +---v---+      |
- * |      |WAITING+------+
- * |      +-------+
+ * |    +------------+   
+ * |          |          
  * |          |
  * |    +-----v-------+
  * +---->END OF STREAM|
@@ -50,10 +47,8 @@ package net.opentsdb.data.iterators;
  * From {@link #HAS_DATA} the state can transition to {@link #HAS_DATA}, 
  * {@link #END_OF_CHUNK}, {@link #END_OF_DATA} or {@link #EXCEPTION}.
  * <p>
- * From {@link #END_OF_CHUNK} the state must transition to {@link #WAITING} if
- * the implementation has made an asynchronous call to check for more data. If
- * the implementation does not need to make an async call, it can transition to
- * {@link #HAS_DATA}, {@link #END_OF_DATA} or {@link #EXCEPTION}.
+ * From {@link #END_OF_CHUNK} the state must transition {@link #HAS_DATA}, 
+ * {@link #END_OF_DATA} or {@link #EXCEPTION}.
  * <p> 
  * {@link #END_OF_DATA} is a termination state. No more data can be read from
  * the stream and it can be closed.
@@ -73,15 +68,52 @@ public enum IteratorStatus {
    * additional data. */
   END_OF_CHUNK,
   
-  /** The stream is waiting on an asynchronous call for more data from the 
-   * source. */
-  WAITING,
-  
   /** A terminal condition that indicates no more data is available for this
    * stream and it can be closed. */
   END_OF_DATA,
   
   /** A terminal condition that indicates that an unrecoverable exception occurred
    * and the stream must be closed. A new stream can be instantiated for a retry. */
-  EXCEPTION
+  EXCEPTION;
+  
+  /**
+   * Decision tree used by a processor to determine how to update the local
+   * status given a child iterator (or processor) status.
+   * @param existing The existing status of the processor.
+   * @param new_status The new status from the child iterator.
+   * @return What the new processor's status should be.
+   * @throws IllegalStateException if the status transition is unsupported.
+   */
+  public static IteratorStatus updateStatus(final IteratorStatus existing, 
+      final IteratorStatus new_status) {
+    if (existing == IteratorStatus.EXCEPTION || new_status == IteratorStatus.EXCEPTION) {
+      return IteratorStatus.EXCEPTION;
+    }
+    // ugly decision tree
+    switch (new_status) {
+    case HAS_DATA:
+      return IteratorStatus.HAS_DATA;
+      
+    case END_OF_CHUNK:
+      switch (existing) {
+      case HAS_DATA:
+        return IteratorStatus.HAS_DATA;
+      default:
+        return IteratorStatus.END_OF_CHUNK; // let all chunks read EOC since they're time synced
+      }
+      
+    case END_OF_DATA:
+      switch (existing) {
+      case HAS_DATA:
+        return IteratorStatus.HAS_DATA;
+      case END_OF_CHUNK:
+        return IteratorStatus.END_OF_CHUNK;
+      default:
+        return IteratorStatus.END_OF_DATA;
+      }
+    default:
+      throw new IllegalStateException("Cannot move from existing status [" 
+          + existing + "] to status [" + new_status +"]");
+    }
+  }
 }
