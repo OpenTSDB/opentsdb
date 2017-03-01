@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
+// Copyright (C) 2010-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -340,7 +340,7 @@ public class DateTime {
   }
 
   /**
-   * Pass through to {@link System.currentTimeMillis} for use in classes to
+   * Pass through to {@link System#currentTimeMillis()} for use in classes to
    * make unit testing easier. Mocking System.class is a bad idea in general
    * so placing this here and mocking DateTime.class is MUCH cleaner.
    * @return The current epoch time in milliseconds
@@ -351,7 +351,7 @@ public class DateTime {
   }
 
   /**
-   * Pass through to {@link System.nanoTime} for use in classes to
+   * Pass through to {@link System#nanoTime()} for use in classes to
    * make unit testing easier. Mocking System.class is a bad idea in general
    * so placing this here and mocking DateTime.class is MUCH cleaner.
    * @return The current epoch time in milliseconds
@@ -606,7 +606,7 @@ public class DateTime {
   /**
    * Return the proper Calendar time unit as an integer given the string
    * @param units The unit to parse
-   * @return An integer matching a Calendar.<UNIT> enum
+   * @return An integer matching a {@code Calendar.<Unit>} enum
    * @throws IllegalArgumentException if the unit is null, empty or doesn't 
    * match one of the configured units.
    * @since 2.3

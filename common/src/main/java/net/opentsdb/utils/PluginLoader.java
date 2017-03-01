@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013-2014  The OpenTSDB Authors.
+// Copyright (C) 2013-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -87,8 +87,9 @@ public final class PluginLoader {
    * @param type The class type to search for
    * @return An instantiated object of the given type if found, null if the
    * class could not be found
-   * @throws ServiceConfigurationError if the plugin cannot be instantiated
-   * @throws IllegalArgumentName if the plugin name is null or empty
+   * @throws java.util.ServiceConfigurationError if the plugin cannot be instantiated
+   * @throws IllegalArgumentException if the plugin name is null or empty
+   * @param <T> The type of plugin to load.
    */
   public static <T> T loadSpecificPlugin(final String name, 
       final Class<T> type) {
@@ -104,7 +105,8 @@ public final class PluginLoader {
     
     while(it.hasNext()) {
       T plugin = it.next();
-      if (plugin.getClass().getName().equals(name) || plugin.getClass().getSuperclass().getName().equals(name)) {
+      if (plugin.getClass().getName().equals(name) || 
+          plugin.getClass().getSuperclass().getName().equals(name)) {
         return plugin;
       }
     }
@@ -129,8 +131,9 @@ public final class PluginLoader {
    * @param type The class type to search for
    * @return An instantiated list of objects of the given type if found, null 
    * if no implementations of the type were found
-   * @throws ServiceConfigurationError if any of the plugins could not be 
+   * @throws java.util.ServiceConfigurationError if any of the plugins could not be 
    * instantiated
+   * @param <T> The type of plugin to load.
    */
   public static <T> List<T> loadPlugins(final Class<T> type) {
     ServiceLoader<T> serviceLoader = ServiceLoader.load(type);

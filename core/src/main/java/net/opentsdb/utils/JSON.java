@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013-2014  The OpenTSDB Authors.
+// Copyright (C) 2013-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -87,6 +87,7 @@ public final class JSON {
    * @throws IllegalArgumentException if the data or class was null or parsing 
    * failed
    * @throws JSONException if the data could not be parsed
+   * @param <T> The type of object to parse to.
    */
   public static final <T> T parseToObject(final String json,
       final Class<T> pojo) {
@@ -116,6 +117,7 @@ public final class JSON {
    * @throws IllegalArgumentException if the data or class was null or parsing 
    * failed
    * @throws JSONException if the data could not be parsed
+   * @param <T> The type of object to parse to.
    */
   public static final <T> T parseToObject(final byte[] json,
       final Class<T> pojo) {
@@ -142,6 +144,7 @@ public final class JSON {
    * @throws IllegalArgumentException if the data or type was null or parsing
    * failed
    * @throws JSONException if the data could not be parsed
+   * @param <T> The type of object to parse to.
    */
   @SuppressWarnings("unchecked")
   public static final <T> T parseToObject(final String json,
@@ -169,6 +172,7 @@ public final class JSON {
    * @throws IllegalArgumentException if the data or type was null or parsing
    * failed
    * @throws JSONException if the data could not be parsed
+   * @param <T> The type of object to parse to.
    */
   @SuppressWarnings("unchecked")
   public static final <T> T parseToObject(final byte[] json,
@@ -260,7 +264,6 @@ public final class JSON {
    * @return A JSON formatted string
    * @throws IllegalArgumentException if the object was null
    * @throws JSONException if the object could not be serialized
-   * @throws IOException Thrown when there was an issue reading the object
    */
   public static final String serializeToString(final Object object) {
     if (object == null)
@@ -278,7 +281,6 @@ public final class JSON {
    * @return A JSON formatted byte array
    * @throws IllegalArgumentException if the object was null
    * @throws JSONException if the object could not be serialized
-   * @throws IOException Thrown when there was an issue reading the object
    */
   public static final byte[] serializeToBytes(final Object object) {
     if (object == null)
@@ -292,7 +294,7 @@ public final class JSON {
 
   /**
    * Serializes the given object and wraps it in a callback function
-   * i.e. &lt;callback&gt;(&lt;json&gt)
+   * i.e. &lt;callback&gt;(&lt;json&gt;)
    * Note: This will not append a trailing semicolon
    * @param callback The name of the Javascript callback to prepend
    * @param object The object to serialize
@@ -300,7 +302,6 @@ public final class JSON {
    * @throws IllegalArgumentException if the callback method name was missing 
    * or object was null
    * @throws JSONException if the object could not be serialized
-   * @throws IOException Thrown when there was an issue reading the object
    */
   public static final String serializeToJSONPString(final String callback,
       final Object object) {
@@ -317,7 +318,7 @@ public final class JSON {
 
   /**
    * Serializes the given object and wraps it in a callback function
-   * i.e. &lt;callback&gt;(&lt;json&gt)
+   * i.e. &lt;callback&gt;(&lt;json&gt;)
    * Note: This will not append a trailing semicolon
    * @param callback The name of the Javascript callback to prepend
    * @param object The object to serialize
@@ -325,7 +326,6 @@ public final class JSON {
    * @throws IllegalArgumentException if the callback method name was missing 
    * or object was null
    * @throws JSONException if the object could not be serialized
-   * @throws IOException Thrown when there was an issue reading the object
    */
   public static final byte[] serializeToJSONPBytes(final String callback,
       final Object object) {
