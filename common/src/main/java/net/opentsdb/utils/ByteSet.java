@@ -17,7 +17,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Set;
 
-import org.hbase.async.Bytes.ByteMap;
+import net.opentsdb.utils.Bytes.ByteMap;
 
 /**
  * An implementation of a set based on the AsyncHBase ByteMap. This provides

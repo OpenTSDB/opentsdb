@@ -18,8 +18,6 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.TimeZone;
 
-import net.opentsdb.core.Tags;
-
 /**
  * Utility class that provides helpers for dealing with dates and timestamps.
  * In particular, this class handles parsing relative or human readable 
@@ -78,7 +76,7 @@ public class DateTime {
       return -1;
 
     if (datetime.matches("^[0-9]+ms$")) {
-      return Tags.parseLong(datetime.replaceFirst("^([0-9]+)(ms)$", "$1"));
+      return Long.parseLong(datetime.replaceFirst("^([0-9]+)(ms)$", "$1"));
     }
 
     if (datetime.toLowerCase().equals("now")) {
@@ -146,9 +144,9 @@ public class DateTime {
                 + ". Millisecond timestamps must be in the format "
                 + "<seconds>.<ms> where the milliseconds are limited to 3 digits");
           }
-          time = Tags.parseLong(datetime.replace(".", ""));   
+          time = Long.parseLong(datetime.replace(".", ""));   
         } else {
-          time = Tags.parseLong(datetime);
+          time = Long.parseLong(datetime);
         }
         if (time < 0) {
           throw new IllegalArgumentException("Invalid time: " + datetime  

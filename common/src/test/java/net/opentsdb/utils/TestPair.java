@@ -23,8 +23,6 @@ import java.util.List;
 
 import org.junit.Test;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-
 public class TestPair {
 
   @Test
@@ -178,52 +176,7 @@ public class TestPair {
     final Pair<Integer, Long> pair = new Pair<Integer, Long>(1, 42L);
     assertEquals("key=1, value=42", pair.toString());
   }
-  
-  @Test
-  public void serdes() {
-    final Pair<String, String> ser = new Pair<String, String>("host", "web01");
-    final String json = JSON.serializeToString(ser);
-    assertEquals("{\"key\":\"host\",\"value\":\"web01\"}", json);
-    
-    @SuppressWarnings("unchecked")
-    final Pair<String, String> des = JSON.parseToObject(json, Pair.class);
-    assertEquals("host", des.getKey());
-    assertEquals("web01", des.getValue());
-  }
-  
-  @Test
-  public void serdesNulls() {
-    final Pair<String, String> ser = new Pair<String, String>();
-    final String json = JSON.serializeToString(ser);
-    assertEquals("{\"key\":null,\"value\":null}", json);
-    
-    @SuppressWarnings("unchecked")
-    final Pair<String, String> des = JSON.parseToObject(json, Pair.class);
-    assertNull(des.getKey());
-    assertNull(des.getValue());
-  }
-  
-  @Test
-  public void serdesList() {
-    final List<Pair<String, String>> ser = 
-        new ArrayList<Pair<String, String>>(2);
-    ser.add(new Pair<String, String>("host", "web01"));
-    ser.add(new Pair<String, String>(null, "keyisnull"));
-    final String json = JSON.serializeToString(ser);
-    assertEquals("[{\"key\":\"host\",\"value\":\"web01\"}," + 
-        "{\"key\":null,\"value\":\"keyisnull\"}]", json);
 
-    final TypeReference<List<Pair<String, String>>> TR = 
-        new TypeReference<List<Pair<String, String>>>() {};
-        
-    final List<Pair<String, String>> des = JSON.parseToObject(json, TR);
-    assertEquals(2, des.size());
-    assertEquals("host", des.get(0).getKey());
-    assertEquals("web01", des.get(0).getValue());
-    assertNull(des.get(1).getKey());
-    assertEquals("keyisnull", des.get(1).getValue());
-  }
-  
   @Test
   public void rawObjects() {
     final Pair<Object, Object> pair = new Pair<Object, Object>("host", "web01");

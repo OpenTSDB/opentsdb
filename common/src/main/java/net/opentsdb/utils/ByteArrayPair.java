@@ -14,8 +14,6 @@ package net.opentsdb.utils;
 
 import java.util.Arrays;
 
-import org.hbase.async.Bytes;
-
 /**
  * Simple helper class to store a pair of byte arrays for use in situations
  * where a map or Map.Entry doesn't make sense. Extends the Pair class and
