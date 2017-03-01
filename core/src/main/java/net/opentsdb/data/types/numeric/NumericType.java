@@ -35,12 +35,14 @@ public abstract class NumericType implements TimeSeriesDataType {
 
   /**
    * Returns the value of the this data point as a {@code long}.
+   * @return The value as a long if {@link #isInteger()} was true.
    * @throws ClassCastException if the {@code isInteger() == false}.
    */
   public abstract long longValue();
 
   /**
    * Returns the value of the this data point as a {@code double}.
+   * @return The value as a double if {@link #isInteger()} was false.
    * @throws ClassCastException if the {@code isInteger() == true}.
    */
   public abstract double doubleValue();
