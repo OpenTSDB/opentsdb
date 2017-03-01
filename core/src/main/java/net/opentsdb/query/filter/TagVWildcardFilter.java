@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -14,8 +14,6 @@ package net.opentsdb.query.filter;
 
 import java.util.Arrays;
 import java.util.Map;
-
-import net.opentsdb.core.Tags;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Objects;
@@ -98,7 +96,7 @@ public class TagVWildcardFilter extends TagVFilter {
       has_prefix = false;
     }
     if (actual.indexOf('*') > 0) {
-      components = Tags.splitString(actual, '*');
+      components = actual.split("\\*");
     } else {
       components = new String[1];
       components[0] = actual;

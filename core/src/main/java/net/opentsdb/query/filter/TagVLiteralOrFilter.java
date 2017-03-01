@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -17,7 +17,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -97,19 +96,19 @@ public class TagVLiteralOrFilter extends TagVFilter {
    * Overridden here so that we can resolve the literal values if we don't have
    * too many of them AND we're not searching with case insensitivity.
    */
-  @Override
-  public Deferred<byte[]> resolveTagkName(final TSDB tsdb) {
-    final Config config = tsdb.getConfig();
-    
-    // resolve tag values if the filter is NOT case insensitive and there are 
-    // fewer literals than the expansion limit
-    if (!case_insensitive && 
-        literals.size() <= config.getInt("tsd.query.filter.expansion_limit")) {
-      return resolveTags(tsdb, literals);
-    } else {
-      return super.resolveTagkName(tsdb);
-    }
-  }
+//  @Override
+//  public Deferred<byte[]> resolveTagkName(final TSDB tsdb) {
+//    final Config config = tsdb.getConfig();
+//    
+//    // resolve tag values if the filter is NOT case insensitive and there are 
+//    // fewer literals than the expansion limit
+//    if (!case_insensitive && 
+//        literals.size() <= config.getInt("tsd.query.filter.expansion_limit")) {
+//      return resolveTags(tsdb, literals);
+//    } else {
+//      return super.resolveTagkName(tsdb);
+//    }
+//  }
   
   /** @return Whether or not this filter has case insensitivity enabled */
   @JsonIgnore

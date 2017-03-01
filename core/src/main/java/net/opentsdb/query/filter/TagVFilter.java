@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -16,30 +16,23 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import org.hbase.async.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.opentsdb.core.TSDB;
-import net.opentsdb.uid.UniqueId.UniqueIdType;
-import net.opentsdb.utils.Config;
+import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Pair;
-import net.opentsdb.utils.PluginLoader;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
-import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 /**
@@ -141,7 +134,7 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
    * The ctor that validates we have a good tag key to work with
    * @param tagk The tag key to associate with this filter
    * @param filter The unparsed filter
-   * @throws IlleglArgumentException if the tag was empty or null.
+   * @throws IllegalArgumentException if the tag was empty or null.
    */
   public TagVFilter(final String tagk, final String filter) {
     this.tagk = tagk;
@@ -161,7 +154,7 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
   
   /**
    * The name of this filter as used in queries. When used in URL queries the
-   * value will be in parentheses, e.g. filter(<exp>)
+   * value will be in parentheses, e.g. filter(&lt;exp&gt;)
    * The name will also be lowercased before storing it in the lookup map.
    * @return The name of the filter.
    */
@@ -169,7 +162,7 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
 
   /**
    * A simple string of the filter settings for printing in toString() calls.
-   * @return A string with the format "{settings=<val>, ...}"
+   * @return A string with the format "{settings=&lt;val&gt;, ...}"
    */
   @JsonIgnore
   public abstract String debugInfo();
@@ -257,42 +250,42 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
    * @throws IllegalArgumentException really shouldn't happen but you know,
    *         checked exceptions...
    */
-  public static void initializeFilterMap(final TSDB tsdb) 
-      throws ClassNotFoundException, NoSuchMethodException, NoSuchFieldException, 
-      IllegalArgumentException, SecurityException, IllegalAccessException, 
-      InvocationTargetException {
-    final List<TagVFilter> filter_plugins = 
-        PluginLoader.loadPlugins(TagVFilter.class);
-    if (filter_plugins != null) {
-      for (final TagVFilter filter : filter_plugins) {
-        // validate required fields and methods
-        filter.getClass().getDeclaredMethod("description");
-        filter.getClass().getDeclaredMethod("examples");
-        filter.getClass().getDeclaredField("FILTER_NAME");
-        
-        final Method initialize = filter.getClass()
-            .getDeclaredMethod("initialize", TSDB.class);
-        initialize.invoke(null, tsdb);
-        
-        final Constructor<? extends TagVFilter> ctor = 
-            filter.getClass().getDeclaredConstructor(String.class, String.class);
-        
-        final Pair<Class<?>, Constructor<? extends TagVFilter>> existing = 
-            tagv_filter_map.get(filter.getType());
-        if (existing != null) {
-          LOG.warn("Overloading existing filter " + 
-              existing.getClass().getCanonicalName() + 
-              " with new filter " + filter.getClass().getCanonicalName());
-        }
-        tagv_filter_map.put(filter.getType().toLowerCase(), 
-            new Pair<Class<?>, Constructor<? extends TagVFilter>>(
-                filter.getClass(), ctor));
-        LOG.info("Successfully loaded TagVFilter plugin: " + 
-            filter.getClass().getCanonicalName());
-      }
-      LOG.info("Loaded " + tagv_filter_map.size() + " filters");
-    }
-  }
+//  public static void initializeFilterMap(final TSDB tsdb) 
+//      throws ClassNotFoundException, NoSuchMethodException, NoSuchFieldException, 
+//      IllegalArgumentException, SecurityException, IllegalAccessException, 
+//      InvocationTargetException {
+//    final List<TagVFilter> filter_plugins = 
+//        PluginLoader.loadPlugins(TagVFilter.class);
+//    if (filter_plugins != null) {
+//      for (final TagVFilter filter : filter_plugins) {
+//        // validate required fields and methods
+//        filter.getClass().getDeclaredMethod("description");
+//        filter.getClass().getDeclaredMethod("examples");
+//        filter.getClass().getDeclaredField("FILTER_NAME");
+//        
+//        final Method initialize = filter.getClass()
+//            .getDeclaredMethod("initialize", TSDB.class);
+//        initialize.invoke(null, tsdb);
+//        
+//        final Constructor<? extends TagVFilter> ctor = 
+//            filter.getClass().getDeclaredConstructor(String.class, String.class);
+//        
+//        final Pair<Class<?>, Constructor<? extends TagVFilter>> existing = 
+//            tagv_filter_map.get(filter.getType());
+//        if (existing != null) {
+//          LOG.warn("Overloading existing filter " + 
+//              existing.getClass().getCanonicalName() + 
+//              " with new filter " + filter.getClass().getCanonicalName());
+//        }
+//        tagv_filter_map.put(filter.getType().toLowerCase(), 
+//            new Pair<Class<?>, Constructor<? extends TagVFilter>>(
+//                filter.getClass(), ctor));
+//        LOG.info("Successfully loaded TagVFilter plugin: " + 
+//            filter.getClass().getCanonicalName());
+//      }
+//      LOG.info("Loaded " + tagv_filter_map.size() + " filters");
+//    }
+//  }
   
   /**
    * Converts the tag map to a filter list. If a filter already exists for a
@@ -398,18 +391,18 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
    * @return A deferred to let the caller know that the lookup was completed.
    * The value will be the tag UID (unless it's an exception of course)
    */
-  public Deferred<byte[]> resolveTagkName(final TSDB tsdb) {
-    class ResolvedCB implements Callback<byte[], byte[]> {
-      @Override
-      public byte[] call(final byte[] uid) throws Exception {
-        tagk_bytes = uid;
-        return uid;
-      }
-    }
-    
-    return tsdb.getUIDAsync(UniqueIdType.TAGK, tagk)
-        .addCallback(new ResolvedCB());
-  }
+//  public Deferred<byte[]> resolveTagkName(final TSDB tsdb) {
+//    class ResolvedCB implements Callback<byte[], byte[]> {
+//      @Override
+//      public byte[] call(final byte[] uid) throws Exception {
+//        tagk_bytes = uid;
+//        return uid;
+//      }
+//    }
+//    
+//    return tsdb.getUIDAsync(UniqueIdType.TAGK, tagk)
+//        .addCallback(new ResolvedCB());
+//  }
   
   /**
    * Resolves both the tagk to it's UID and a list of literal tag values to
@@ -422,69 +415,69 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
    * @return A deferred to let the caller know that the lookup was completed.
    * The value will be the tag UID (unless it's an exception of course)
    */
-  public Deferred<byte[]> resolveTags(final TSDB tsdb, 
-      final Set<String> literals) {
-    final Config config = tsdb.getConfig();
-    
-    /**
-     * Allows the filter to avoid killing the entire query when we can't resolve
-     * a tag value to a UID.
-     */
-    class TagVErrback implements Callback<byte[], Exception> {
-      @Override
-      public byte[] call(final Exception e) throws Exception {
-        if (config.getBoolean("tsd.query.skip_unresolved_tagvs")) {
-          LOG.warn("Query tag value not found: " + e.getMessage());
-          return null;
-        } else {
-          throw e;
-        }
-      }
-    }
-
-    /**
-     * Stores the non-null UIDs in the local list and then sorts them in
-     * prep for use in the regex filter
-     */
-    class ResolvedTagVCB implements Callback<byte[], ArrayList<byte[]>> {
-      @Override
-      public byte[] call(final ArrayList<byte[]> results) 
-          throws Exception {
-        tagv_uids = new ArrayList<byte[]>(results.size() - 1);
-        for (final byte[] tagv : results) {
-          if (tagv != null) {
-            tagv_uids.add(tagv);
-          }
-        }
-        Collections.sort(tagv_uids, Bytes.MEMCMP);
-        return tagk_bytes;
-      }
-    }
-    
-    /**
-     * Super simple callback to set the local tagk and returns null so it won't
-     * be included in the tag value UID lookups.
-     */
-    class ResolvedTagKCB implements Callback<byte[], byte[]> {
-      @Override
-      public byte[] call(final byte[] uid) throws Exception {
-        tagk_bytes = uid;
-        return null;
-      }
-    }
-
-    final List<Deferred<byte[]>> tagvs = 
-        new ArrayList<Deferred<byte[]>>(literals.size());
-    for (final String tagv : literals) {
-      tagvs.add(tsdb.getUIDAsync(UniqueIdType.TAGV, tagv)
-          .addErrback(new TagVErrback()));
-    }
-    // ugly hack to resolve the tagk UID. The callback will return null and we'll
-    // remove it from the UID list.
-    tagvs.add(tsdb.getUIDAsync(UniqueIdType.TAGK, tagk)
-      .addCallback(new ResolvedTagKCB()));
-    return Deferred.group(tagvs).addCallback(new ResolvedTagVCB());
-  }
+//  public Deferred<byte[]> resolveTags(final TSDB tsdb, 
+//      final Set<String> literals) {
+//    final Config config = tsdb.getConfig();
+//    
+//    /**
+//     * Allows the filter to avoid killing the entire query when we can't resolve
+//     * a tag value to a UID.
+//     */
+//    class TagVErrback implements Callback<byte[], Exception> {
+//      @Override
+//      public byte[] call(final Exception e) throws Exception {
+//        if (config.getBoolean("tsd.query.skip_unresolved_tagvs")) {
+//          LOG.warn("Query tag value not found: " + e.getMessage());
+//          return null;
+//        } else {
+//          throw e;
+//        }
+//      }
+//    }
+//
+//    /**
+//     * Stores the non-null UIDs in the local list and then sorts them in
+//     * prep for use in the regex filter
+//     */
+//    class ResolvedTagVCB implements Callback<byte[], ArrayList<byte[]>> {
+//      @Override
+//      public byte[] call(final ArrayList<byte[]> results) 
+//          throws Exception {
+//        tagv_uids = new ArrayList<byte[]>(results.size() - 1);
+//        for (final byte[] tagv : results) {
+//          if (tagv != null) {
+//            tagv_uids.add(tagv);
+//          }
+//        }
+//        Collections.sort(tagv_uids, Bytes.MEMCMP);
+//        return tagk_bytes;
+//      }
+//    }
+//    
+//    /**
+//     * Super simple callback to set the local tagk and returns null so it won't
+//     * be included in the tag value UID lookups.
+//     */
+//    class ResolvedTagKCB implements Callback<byte[], byte[]> {
+//      @Override
+//      public byte[] call(final byte[] uid) throws Exception {
+//        tagk_bytes = uid;
+//        return null;
+//      }
+//    }
+//
+//    final List<Deferred<byte[]>> tagvs = 
+//        new ArrayList<Deferred<byte[]>>(literals.size());
+//    for (final String tagv : literals) {
+//      tagvs.add(tsdb.getUIDAsync(UniqueIdType.TAGV, tagv)
+//          .addErrback(new TagVErrback()));
+//    }
+//    // ugly hack to resolve the tagk UID. The callback will return null and we'll
+//    // remove it from the UID list.
+//    tagvs.add(tsdb.getUIDAsync(UniqueIdType.TAGK, tagk)
+//      .addCallback(new ResolvedTagKCB()));
+//    return Deferred.group(tagvs).addCallback(new ResolvedTagVCB());
+//  }
   
   /** @return the tag key associated with this filter */
   public String getTagk() {
@@ -492,7 +485,7 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
   }
 
   /** @return the tag key UID associated with this filter. 
-   * Call {@link resolveName} first */
+   * Call {@code resolveName} first */
   @JsonIgnore
   public byte[] getTagkBytes() {
     return tagk_bytes;
@@ -571,25 +564,29 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
     @JsonProperty
     private boolean group_by;
     
-    /** @param type The type of filter matching a valid filter name */
+    /** @param type The type of filter matching a valid filter name.
+     * @return This builder. */
     public Builder setType(final String type) {
       this.type = type;
       return this;
     }
     
-    /** @param tagk The tag key to match on for this filter */
+    /** @param tagk The tag key to match on for this filter.
+     * @return This builder. */
     public Builder setTagk(final String tagk) {
       this.tagk = tagk;
       return this;
     }
 
-    /** @param filter The filter expression to use for matching */
+    /** @param filter The filter expression to use for matching.
+     * @return This builder. */
     public Builder setFilter(final String filter) {
       this.filter = filter;
       return this;
     }
     
-    /** @param group_by Whether or not the filter should group results */
+    /** @param group_by Whether or not the filter should group results.
+     * @return This builder. */
     public Builder setGroupBy(final boolean group_by) {
       this.group_by = group_by;
       return this;

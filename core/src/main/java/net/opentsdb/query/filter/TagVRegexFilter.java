@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -34,7 +34,7 @@ public class TagVRegexFilter extends TagVFilter {
    * @param tagk The tag key to associate with this filter
    * @param filter The filter to match on
    * @throws IllegalArgumentException if the tagk or filter were empty or null
-   * @throws PatternSyntaxException if the pattern was invalid
+   * @throws java.util.regex.PatternSyntaxException if the pattern was invalid
    */
   public TagVRegexFilter(final String tagk, final String filter) {
     super(tagk, filter);
