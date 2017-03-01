@@ -78,6 +78,12 @@
 
   <packaging>pom</packaging>
 
+  <parent>
+    <groupId>org.sonatype.oss</groupId>
+    <artifactId>oss-parent</artifactId>
+    <version>7</version>
+  </parent>
+
   <!-- OpenTSDB modules in build order. -->
   <modules>
     <module>common</module>
