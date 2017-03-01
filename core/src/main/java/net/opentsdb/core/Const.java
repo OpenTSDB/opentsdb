@@ -15,6 +15,9 @@ package net.opentsdb.core;
 import java.nio.charset.Charset;
 import java.util.TimeZone;
 
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
+
 /** Constants used in various places.  */
 public final class Const {
 
@@ -114,6 +117,15 @@ public final class Const {
   public static final boolean DONT_CREATE = false;
   public static final boolean CREATE_IF_NEEDED = true;
   public static final boolean MUST_BE_WRITEABLE = true;
+  
+  /**
+   * A global function to use for NON-SECURE hashing of things like queries and
+   * cache objects. Used for deterministic hashing.
+   */
+  private static HashFunction HASH_FUNCTION = Hashing.murmur3_128();
+  public static HashFunction HASH_FUNCTION() {
+    return HASH_FUNCTION;
+  }
   
   /**
    * The number of buckets to use for salting. 

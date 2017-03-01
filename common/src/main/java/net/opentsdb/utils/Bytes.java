@@ -12,11 +12,17 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.utils;
 
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.Map.Entry;
+
+import com.google.common.hash.Funnel;
+import com.google.common.hash.PrimitiveSink;
 
 /**
  * Helper functions to manipulate byte arrays.
@@ -473,7 +479,61 @@ public final class Bytes {
   public static boolean equals(final byte[] a, final byte[] b) {
     return memcmp(a, b) == 0;
   }
-
+  
+  /**
+   * Evaluates two lists of byte arrays for equality. Either list may be 
+   * null.
+   * @param a A list of byte arrays, possibly null.
+   * @param b A list of byte arrays, possibly null.
+   * @return True if the lists contain the same byte array contents in the same
+   * order. False if not.
+   */
+  public static boolean equals(final List<byte[]> a, final List<byte[]> b) {
+    if (a == null && b == null) {
+      return true;
+    }
+    if (a == null && b != null || a != null && b == null) {
+      return false;
+    }
+    if (a.size() != b.size()) {
+      return false;
+    }
+    for (int i = 0; i < a.size(); i++) {
+      if (memcmpMaybeNull(a.get(i), b.get(i)) != 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+  
+  /**
+   * Evaluates two byte maps of byte arrays for equality. Either map may be null.
+   * @param a A byte map of byte arrays, possibly null.
+   * @param b A byte map of byte arrays, possibly null.
+   * @return True if the maps contain the same byte array contents, false if not.
+   */
+  public static boolean equals(final ByteMap<byte[]> a, final ByteMap<byte[]> b) {
+    if (a == null && b == null) {
+      return true;
+    }
+    if (a == null && b != null || a != null && b == null) {
+      return false;
+    }
+    if (a.size() != b.size()) {
+      return false;
+    }
+    for (final Entry<byte[], byte[]> entry : a.entrySet()) {
+      final byte[] b_value = b.get(entry.getKey());
+      if (b_value == null && entry.getValue() != null) {
+        return false;
+      }
+      if (memcmpMaybeNull(entry.getValue(), b_value) != 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+  
   /**
    * {@code memcmp(3)} in Java for possibly {@code null} arrays, hooray.
    * @param a First possibly {@code null} byte array to compare.
@@ -536,4 +596,146 @@ public final class Bytes {
 
   }
 
+  /** A singleton {@link Funnel} used for hashing a list of byte arrays. */
+  public static final ByteListFunnel BYTE_LIST_FUNNEL = new ByteListFunnel();
+  
+  /** {@link Funnel} used for hashing lists of byte arrays. */
+  public static class ByteListFunnel implements Funnel<List<byte[]>> {
+    private static final long serialVersionUID = 4102688353857386395L;
+    private ByteListFunnel() { }
+    @Override
+    public void funnel(final List<byte[]> list, final PrimitiveSink sink) {
+      if (list == null || list.isEmpty()) {
+        return;
+      }
+      for (final byte[] entry : list) {
+        sink.putBytes(entry);
+      }
+    }
+  }
+  
+  /**
+   * A singleton {@link Comparator} for ByteMap&lt;byte[]&gt; maps. Support nulls.
+   */
+  public static final ByteMapComparator BYTE_MAP_CMP = new ByteMapComparator();
+  
+  /** {@link Comparator} for ByteMap&lt;byte[]&gt;s .Support nulls.  */
+  public static class ByteMapComparator implements Comparator<ByteMap<byte[]>> {
+    private ByteMapComparator() { }
+    @Override
+    public int compare(final ByteMap<byte[]> a, final ByteMap<byte[]> b) {
+      if (a == b || a == null && b == null) {
+        return 0;
+      }
+      if (a == null && b != null) {
+        return -1;
+      }
+      if (b == null && a != null) {
+        return 1;
+      }
+      if (a.size() > b.size()) {
+        return -1;
+      }
+      if (b.size() > a.size()) {
+        return 1;
+      }
+      for (final Entry<byte[], byte[]> entry : a.entrySet()) {
+        final byte[] b_value = b.get(entry.getKey());
+        if (b_value == null && entry.getValue() != null) {
+          return 1;
+        }
+        final int cmp = memcmpMaybeNull(entry.getValue(), b_value);
+        if (cmp != 0) {
+          return cmp;
+        }
+      }
+      return 0;
+    }
+  }
+  
+  /** A singleton {@link Funnel} used for hashing a byte map of byte arrays. */
+  public static final ByteMapFunnel BYTE_MAP_FUNNEL = new ByteMapFunnel();
+  
+  /** {@link Funnel} used for hashing byte maps of byte arrays. */
+  public static class ByteMapFunnel implements Funnel<ByteMap<byte[]>> {
+    private static final long serialVersionUID = -8868457139144886254L;
+    private ByteMapFunnel() { }
+    @Override
+    public void funnel(final ByteMap<byte[]> map, final PrimitiveSink sink) {
+      if (map == null || map.isEmpty()) {
+        return;
+      }
+      for (final Entry<byte[], byte[]> entry : map.entrySet()) {
+        sink.putBytes(entry.getKey())
+            .putBytes(entry.getValue());
+      }
+    }
+  }
+  
+  /**
+   * Helper to print out a list of byte arrays with specific decoding or 
+   * using the {@link #pretty(byte[])} method.
+   * @param list A list that may be null, empty or full of byte arrays.
+   * @param charset An optional character set. If provided, used to cast to a 
+   * string. Otherwise uses {@link #pretty(byte[])}.
+   * @return A non-null string.
+   */
+  public static String toString(final List<byte[]> list, final Charset charset) {
+    final StringBuilder buf = new StringBuilder();
+    if (list == null) {
+      buf.append("null");
+    } else if (list.isEmpty()) {
+      buf.append("[]");
+    } else {
+      buf.append("[");
+      for (int i = 0; i < list.size(); i++) {
+        if (i > 0) {
+          buf.append(", ");
+        }
+        if (charset != null) {
+          buf.append(new String(list.get(i), charset));
+        } else {
+          buf.append(pretty(list.get(i)));
+        }
+      }
+      buf.append("]");
+    }
+    return buf.toString();
+  }
+  
+  /**
+   * Helper to print out a {@link ByteMap} of byte arrays with specific decoding
+   * for the key and values or using the {@link #pretty(byte[])} method.
+   * @param map A map of values that may be null.
+   * @param key_charset An optional character set for the keys. If provided, 
+   * used to cast to a string. Otherwise uses {@link #pretty(byte[])}.
+   * @param value_charset An optional character set for the values. If provided, 
+   * used to cast to a string. Otherwise uses {@link #pretty(byte[])}.
+   * @return A non-null string.
+   */
+  public static String toString(final ByteMap<byte[]> map, 
+      final Charset key_charset, final Charset value_charset) {
+    final StringBuilder buf = new StringBuilder();
+    if (map == null) {
+      buf.append("null");
+    } else if (map.isEmpty()) {
+      buf.append("{}");
+    } else {
+      int i = 0;
+      for (final Entry<byte[], byte[]> entry : map.entrySet()) {
+        if (i > 0) {
+          buf.append(", ");
+        }
+        buf.append("{")
+           .append(key_charset != null ? new String(entry.getKey(), key_charset) : pretty(entry.getKey()))
+           .append("=")
+           .append(value_charset != null ? new String(entry.getValue(), value_charset) : pretty(entry.getValue()))
+           .append("}");
+        i++;
+      }
+    }
+    
+    return buf.toString();
+  }
+  
 }
