@@ -13,13 +13,23 @@
 package net.opentsdb.query.pojo;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.utils.JSON;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -28,9 +38,10 @@ import java.util.Set;
  * Pojo builder class used for serdes of the expression query
  * @since 2.3
  */
+@JsonInclude(Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonDeserialize(builder = Query.Builder.class)
-public class Query extends Validatable {
+public class Query extends Validatable implements Comparable<Query> {
   /** An optional name for the query */
   private String name;
   
@@ -93,7 +104,7 @@ public class Query extends Validatable {
   }
 
   /** @return A new builder for the query */
-  public static Builder Builder() {
+  public static Builder newBuilder() {
     return new Builder();
   }
   
@@ -212,7 +223,7 @@ public class Query extends Validatable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(final Object o) {
     if (this == o)
       return true;
     if (o == null || getClass() != o.getClass())
@@ -230,9 +241,59 @@ public class Query extends Validatable {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(name, time, filters, metrics, expressions, outputs);
+    return buildHashCode().asInt();
   }
 
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final HashCode local_hc = Const.HASH_FUNCTION().newHasher()
+        .putString(Strings.nullToEmpty(name), Const.UTF8_CHARSET)
+        .hash();
+    final List<HashCode> hashes = 
+        Lists.newArrayListWithCapacity(2 + 
+            (filters != null ? filters.size() : 0) + 
+            metrics.size() +
+            (expressions != null ? expressions.size() : 0) +
+            (outputs != null ? outputs.size() : 0));
+    hashes.add(local_hc);
+    hashes.add(time.buildHashCode());
+    if (filters != null) {
+      for (final Filter filter : filters) {
+        hashes.add(filter.buildHashCode());
+      }
+    }
+    for (final Metric metric : metrics) {
+      hashes.add(metric.buildHashCode());
+    }
+    if (expressions != null) {
+      for (final Expression exp : expressions) {
+        hashes.add(exp.buildHashCode());
+      }
+    }
+    if (outputs != null) {
+      for (final Output output : outputs) {
+        hashes.add(output.buildHashCode());
+      }
+    }
+    return Hashing.combineOrdered(hashes);
+  }
+  
+  @Override
+  public int compareTo(final Query o) {
+    return ComparisonChain.start()
+        .compare(name, o.name, Ordering.natural().nullsFirst())
+        .compare(time, o.time, Ordering.natural().nullsFirst())
+        .compare(filters, o.filters, 
+            Ordering.<Filter>natural().lexicographical().nullsFirst())
+        .compare(metrics, o.metrics, 
+            Ordering.<Metric>natural().lexicographical().nullsFirst())
+        .compare(expressions, o.expressions, 
+            Ordering.<Expression>natural().lexicographical().nullsFirst())
+        .compare(outputs, o.outputs, 
+            Ordering.<Output>natural().lexicographical().nullsFirst())
+        .result();
+  }
+  
   /**
    * A builder for the query component of a query
    */
@@ -266,21 +327,33 @@ public class Query extends Validatable {
 
     public Builder setFilters(final List<Filter> filters) {
       this.filters = filters;
+      if (filters != null) {
+        Collections.sort(this.filters);
+      }
       return this;
     }
 
     public Builder setMetrics(final List<Metric> metrics) {
       this.metrics = metrics;
+      if (metrics != null) {
+        Collections.sort(this.metrics);
+      }
       return this;
     }
 
     public Builder setExpressions(final List<Expression> expressions) {
       this.expressions = expressions;
+      if (expressions != null) {
+        Collections.sort(this.expressions);
+      }
       return this;
     }
 
     public Builder setOutputs(final List<Output> outputs) {
       this.outputs = outputs;
+      if (outputs != null) {
+        Collections.sort(this.outputs);
+      }
       return this;
     }
 

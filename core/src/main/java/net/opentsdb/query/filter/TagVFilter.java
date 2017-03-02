@@ -27,12 +27,16 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Pair;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
+import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Deferred;
 
 /**
@@ -539,6 +543,41 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
   public void setPostScan(final boolean post_scan) {
     this.post_scan = post_scan;
   }
+  
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+  
+  @Override
+  public boolean equals(final Object obj) {
+    if (obj == null) {
+      return false;
+    }
+    if (!(obj instanceof TagVFilter)) {
+      return false;
+    }
+    if (obj == this) {
+      return true;
+    }
+    final TagVFilter filter = (TagVFilter) obj;
+    return Objects.equal(tagk, filter.tagk)
+        && Objects.equal(this.filter, filter.filter)
+        && Objects.equal(this.getClass().getCanonicalName(), 
+            filter.getClass().getCanonicalName())
+        && Objects.equal(group_by, filter.group_by);
+  }
+  
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    return Const.HASH_FUNCTION().newHasher()
+        .putString(Strings.nullToEmpty(tagk), Const.UTF8_CHARSET)
+        .putString(Strings.nullToEmpty(filter), Const.UTF8_CHARSET)
+        .putString(this.getClass().getCanonicalName(), Const.ASCII_CHARSET)
+        .putBoolean(group_by)
+        .hash();
+  }
+  
   
   @Override
   public int compareTo(final TagVFilter filter) {

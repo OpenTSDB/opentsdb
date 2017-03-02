@@ -13,18 +13,27 @@
 package net.opentsdb.query.pojo;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Ordering;
+import com.google.common.hash.HashCode;
+
+import net.opentsdb.core.Const;
 
 /**
  * Pojo builder class used for serdes of the output component of a query
  * @since 2.3
  */
+@JsonInclude(Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonDeserialize(builder = Output.Builder.class)
-public class Output extends Validatable {
+public class Output extends Validatable implements Comparable<Output> {
   /** The ID of a metric or expression to emit */
   private String id;
   
@@ -51,7 +60,7 @@ public class Output extends Validatable {
   }
 
   /** @return A new builder for the output */
-  public static Builder Builder() {
+  public static Builder newBuilder() {
     return new Builder();
   }
 
@@ -69,7 +78,7 @@ public class Output extends Validatable {
   public String toString() {
     return "var=" + id + ", alias=" + alias;
   }
-  
+    
   @Override
   public boolean equals(Object o) {
     if (this == o)
@@ -85,9 +94,25 @@ public class Output extends Validatable {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(id, alias);
+    return buildHashCode().asInt();
   }
-  
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    return Const.HASH_FUNCTION().newHasher()
+        .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
+        .putString(Strings.nullToEmpty(alias), Const.UTF8_CHARSET)
+        .hash();
+  }
+
+  @Override
+  public int compareTo(final Output o) {
+    return ComparisonChain.start()
+        .compare(id, o.id, Ordering.natural().nullsFirst())
+        .compare(alias, o.alias, Ordering.natural().nullsFirst())
+        .result();
+  }
+
   /**
    * A builder for the downsampler component of a query
    */

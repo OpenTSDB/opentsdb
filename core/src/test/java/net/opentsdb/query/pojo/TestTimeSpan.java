@@ -17,6 +17,7 @@ import net.opentsdb.utils.JSON;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 public class TestTimeSpan {
@@ -107,10 +108,10 @@ public class TestTimeSpan {
         + "\"fillPolicy\":{\"policy\":\"nan\"}},\"aggregator\":\"sum\","
         + "\"unknownfield\":\"boo\"}";
     Timespan timespan = JSON.parseToObject(json, Timespan.class);
-    Timespan expected = Timespan.Builder().setStart("1h-ago")
+    Timespan expected = Timespan.newBuilder().setStart("1h-ago")
         .setEnd("2015/05/05").setTimezone("UTC").setAggregator("sum")
         .setDownsampler(
-            Downsampler.Builder().setInterval("15m").setAggregator("avg")
+            Downsampler.newBuilder().setInterval("15m").setAggregator("avg")
             .setFillPolicy(new NumericFillPolicy(FillPolicy.NOT_A_NUMBER)).build())
         .build();
     timespan.validate();
@@ -119,9 +120,9 @@ public class TestTimeSpan {
 
   @Test
   public void serialize() {
-    Timespan timespan = Timespan.Builder().setStart("1h-ago")
+    Timespan timespan = Timespan.newBuilder().setStart("1h-ago")
         .setEnd("2015/05/05").setTimezone("UTC").setAggregator("sum").setDownsampler(
-            Downsampler.Builder().setInterval("15m").setAggregator("avg")
+            Downsampler.newBuilder().setInterval("15m").setAggregator("avg")
             .setFillPolicy(new NumericFillPolicy(FillPolicy.NOT_A_NUMBER)).build())
         .build();
     String actual = JSON.serializeToString(timespan);
@@ -131,5 +132,170 @@ public class TestTimeSpan {
     assertTrue(actual.contains("\"timezone\":\"UTC\""));
     assertTrue(actual.contains("\"downsampler\":{"));
     assertTrue(actual.contains("\"interval\":\"15m\""));
+  }
+  
+  @Test
+  public void hashCodeEqualsCompareTo() throws Exception {
+    final Timespan t1 = new Timespan.Builder()
+        .setStart("1h-ago")
+        .setEnd("1m-ago")
+        .setAggregator("sum")
+        .setTimezone("UTC")
+        .setDownsampler(new Downsampler.Builder()
+            .setAggregator("sum")
+            .setInterval("1h")
+            .build())
+        .setRate(false)
+        .build();
+    
+    Timespan t2 = new Timespan.Builder()
+        .setStart("1h-ago")
+        .setEnd("1m-ago")
+        .setAggregator("sum")
+        .setTimezone("UTC")
+        .setDownsampler(new Downsampler.Builder()
+            .setAggregator("sum")
+            .setInterval("1h")
+            .build())
+        .setRate(false)
+        .build();
+    assertEquals(t1.hashCode(), t2.hashCode());
+    assertEquals(t1, t2);
+    assertEquals(0, t1.compareTo(t2));
+    
+    t2 = new Timespan.Builder()
+        .setStart("1d-ago") // <-- diff
+        .setEnd("1m-ago")
+        .setAggregator("sum")
+        .setTimezone("UTC")
+        .setDownsampler(new Downsampler.Builder()
+            .setAggregator("sum")
+            .setInterval("1h")
+            .build())
+        .setRate(false)
+        .build();
+    assertNotEquals(t1.hashCode(), t2.hashCode());
+    assertNotEquals(t1, t2);
+    assertEquals(1, t1.compareTo(t2));
+    
+    t2 = new Timespan.Builder()
+        .setStart("1h-ago")
+        .setEnd("10m-ago")  // <-- diff
+        .setAggregator("sum")
+        .setTimezone("UTC")
+        .setDownsampler(new Downsampler.Builder()
+            .setAggregator("sum")
+            .setInterval("1h")
+            .build())
+        .setRate(false)
+        .build();
+    assertNotEquals(t1.hashCode(), t2.hashCode());
+    assertNotEquals(t1, t2);
+    assertEquals(1, t1.compareTo(t2));
+    
+    t2 = new Timespan.Builder()
+        .setStart("1h-ago")
+        //.setEnd("1m-ago")  // <-- diff
+        .setAggregator("sum")
+        .setTimezone("UTC")
+        .setDownsampler(new Downsampler.Builder()
+            .setAggregator("sum")
+            .setInterval("1h")
+            .build())
+        .setRate(false)
+        .build();
+    assertNotEquals(t1.hashCode(), t2.hashCode());
+    assertNotEquals(t1, t2);
+    assertEquals(1, t1.compareTo(t2));
+    
+    t2 = new Timespan.Builder()
+        .setStart("1h-ago")
+        .setEnd("1m-ago")
+        .setAggregator("max")  // <-- diff
+        .setTimezone("UTC")
+        .setDownsampler(new Downsampler.Builder()
+            .setAggregator("sum")
+            .setInterval("1h")
+            .build())
+        .setRate(false)
+        .build();
+    assertNotEquals(t1.hashCode(), t2.hashCode());
+    assertNotEquals(t1, t2);
+    assertEquals(1, t1.compareTo(t2));
+    
+    t2 = new Timespan.Builder()
+        .setStart("1h-ago")
+        .setEnd("1m-ago")
+        .setAggregator("sum")
+        .setTimezone("PST")  // <-- diff
+        .setDownsampler(new Downsampler.Builder()
+            .setAggregator("sum")
+            .setInterval("1h")
+            .build())
+        .setRate(false)
+        .build();
+    assertNotEquals(t1.hashCode(), t2.hashCode());
+    assertNotEquals(t1, t2);
+    assertEquals(1, t1.compareTo(t2));
+    
+    t2 = new Timespan.Builder()
+        .setStart("1h-ago")
+        .setEnd("1m-ago")
+        .setAggregator("sum")
+        //.setTimezone("UTC")  // <-- diff
+        .setDownsampler(new Downsampler.Builder()
+            .setAggregator("sum")
+            .setInterval("1h")
+            .build())
+        .setRate(false)
+        .build();
+    assertNotEquals(t1.hashCode(), t2.hashCode());
+    assertNotEquals(t1, t2);
+    assertEquals(1, t1.compareTo(t2));
+    
+    t2 = new Timespan.Builder()
+        .setStart("1h-ago")
+        .setEnd("1m-ago")
+        .setAggregator("sum")
+        .setTimezone("UTC")
+        .setDownsampler(new Downsampler.Builder()
+            .setAggregator("max")  // <-- diff
+            .setInterval("1h")
+            .build())
+        .setRate(false)
+        .build();
+    assertNotEquals(t1.hashCode(), t2.hashCode());
+    assertNotEquals(t1, t2);
+    assertEquals(1, t1.compareTo(t2));
+    
+    t2 = new Timespan.Builder()
+        .setStart("1h-ago")
+        .setEnd("1m-ago")
+        .setAggregator("sum")
+        .setTimezone("UTC")
+        //.setDownsampler(new Downsampler.Builder()  // <-- diff
+        //    .setAggregator("sum")  
+        //    .setInterval("1h")
+        //    .build())
+        .setRate(false)
+        .build();
+    assertNotEquals(t1.hashCode(), t2.hashCode());
+    assertNotEquals(t1, t2);
+    assertEquals(1, t1.compareTo(t2));
+    
+    t2 = new Timespan.Builder()
+        .setStart("1h-ago")
+        .setEnd("1m-ago")
+        .setAggregator("sum")
+        .setTimezone("UTC")
+        .setDownsampler(new Downsampler.Builder()
+            .setAggregator("sum")
+            .setInterval("1h")
+            .build())
+        .setRate(true)  // <-- diff
+        .build();
+    assertNotEquals(t1.hashCode(), t2.hashCode());
+    assertNotEquals(t1, t2);
+    assertEquals(1, t1.compareTo(t2));
   }
 }

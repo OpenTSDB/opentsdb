@@ -13,22 +13,29 @@
 package net.opentsdb.query.pojo;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
+import java.util.List;
+
+import net.opentsdb.query.pojo.Join.SetOperator;
 import net.opentsdb.utils.JSON;
 
 import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 public class TestNumericFillPolicy {
 
   @Test
   public void builder() throws Exception {
-    NumericFillPolicy nfp = NumericFillPolicy.Builder()
+    NumericFillPolicy nfp = NumericFillPolicy.newBuilder()
         .setPolicy(FillPolicy.NOT_A_NUMBER).build();
     assertEquals(FillPolicy.NOT_A_NUMBER, nfp.getPolicy());
     assertTrue(Double.isNaN((Double)nfp.getValue()));
     
-    nfp = NumericFillPolicy.Builder()
+    nfp = NumericFillPolicy.newBuilder()
         .setPolicy(null).build();
     assertEquals(FillPolicy.ZERO, nfp.getPolicy());
     assertEquals(0, nfp.getValue(), 0.0001);
@@ -299,5 +306,96 @@ public class TestNumericFillPolicy {
       des_nfp = JSON.parseToObject(json, NumericFillPolicy.class);
       fail("Expected a IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void hashCodeEqualsCompareTo() throws Exception {
+    final Join j1 = new Join.Builder()
+        .setOperator(SetOperator.INTERSECTION)
+        .setIncludeAggTags(false)
+        .setUseQueryTags(false)
+        .setTags(Lists.newArrayList("host", "datacenter"))
+        .build();
+    
+    Join j2 = new Join.Builder()
+        .setOperator(SetOperator.INTERSECTION)
+        .setIncludeAggTags(false)
+        .setUseQueryTags(false)
+        .setTags(Lists.newArrayList("host", "datacenter"))
+        .build();
+    assertEquals(j1.hashCode(), j2.hashCode());
+    assertEquals(j1, j2);
+    assertEquals(0, j1.compareTo(j2));
+    
+    j2 = new Join.Builder()
+        .setOperator(SetOperator.UNION) // <-- diff
+        .setIncludeAggTags(false)
+        .setUseQueryTags(false)
+        .setTags(Lists.newArrayList("host", "datacenter"))
+        .build();
+    assertNotEquals(j1.hashCode(), j2.hashCode());
+    assertNotEquals(j1, j2);
+    assertEquals(-1, j1.compareTo(j2));
+    
+    j2 = new Join.Builder()
+        .setOperator(SetOperator.INTERSECTION) 
+        .setIncludeAggTags(true) // <-- diff
+        .setUseQueryTags(false)
+        .setTags(Lists.newArrayList("host", "datacenter"))
+        .build();
+    assertNotEquals(j1.hashCode(), j2.hashCode());
+    assertNotEquals(j1, j2);
+    assertEquals(1, j1.compareTo(j2));
+    
+    j2 = new Join.Builder()
+        .setOperator(SetOperator.INTERSECTION) 
+        .setIncludeAggTags(false)
+        .setUseQueryTags(true)  // <-- diff
+        .setTags(Lists.newArrayList("host", "datacenter"))
+        .build();
+    assertNotEquals(j1.hashCode(), j2.hashCode());
+    assertNotEquals(j1, j2);
+    assertEquals(1, j1.compareTo(j2));
+    
+    j2 = new Join.Builder()
+        .setOperator(SetOperator.INTERSECTION) 
+        .setIncludeAggTags(false)
+        .setUseQueryTags(false)
+        .setTags(Lists.newArrayList("datacenter", "host"))  // <-- diff order
+        .build();
+    assertEquals(j1.hashCode(), j2.hashCode());
+    assertEquals(j1, j2);
+    assertEquals(0, j1.compareTo(j2));
+    
+    j2 = new Join.Builder()
+        .setOperator(SetOperator.INTERSECTION) 
+        .setIncludeAggTags(false)
+        .setUseQueryTags(false)
+        .setTags(Lists.newArrayList("datacenter", "diff"))  // <-- diff
+        .build();
+    assertNotEquals(j1.hashCode(), j2.hashCode());
+    assertNotEquals(j1, j2);
+    assertEquals(1, j1.compareTo(j2));
+    
+    List<String> empty = Lists.newArrayList();
+    j2 = new Join.Builder()
+        .setOperator(SetOperator.INTERSECTION) 
+        .setIncludeAggTags(false)
+        .setUseQueryTags(false)
+        .setTags(empty)  // <-- diff
+        .build();
+    assertNotEquals(j1.hashCode(), j2.hashCode());
+    assertNotEquals(j1, j2);
+    assertEquals(1, j1.compareTo(j2));
+    
+    j2 = new Join.Builder()
+        .setOperator(SetOperator.INTERSECTION) 
+        .setIncludeAggTags(false)
+        .setUseQueryTags(false)
+        //.setTags(Lists.newArrayList("host", "datacenter"))  // <-- diff
+        .build();
+    assertNotEquals(j1.hashCode(), j2.hashCode());
+    assertNotEquals(j1, j2);
+    assertEquals(1, j1.compareTo(j2));
   }
 }

@@ -19,10 +19,13 @@ import net.opentsdb.utils.JSON;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.google.common.collect.Lists;
+
 import java.util.Arrays;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 public class TestQuery {
@@ -81,22 +84,22 @@ public class TestQuery {
 
   @Before
   public void setup() {
-    time = Timespan.Builder().setStart("3h-ago").setAggregator("avg")
+    time = Timespan.newBuilder().setStart("3h-ago").setAggregator("avg")
         .setEnd("1h-ago").setTimezone("UTC").setDownsampler(
-            Downsampler.Builder().setInterval("15m").setAggregator("avg")
+            Downsampler.newBuilder().setInterval("15m").setAggregator("avg")
             .setFillPolicy(new NumericFillPolicy(FillPolicy.NOT_A_NUMBER)).build())
         .build();
     TagVFilter tag = new TagVFilter.Builder().setFilter("*").setGroupBy(
         false)
         .setTagk("host").setType("iwildcard").build();
-    filter = Filter.Builder().setId("f1").setTags(Arrays.asList(tag)).build();
-    metric = Metric.Builder().setMetric("YAMAS.cpu.idle")
+    filter = Filter.newBuilder().setId("f1").setTags(Arrays.asList(tag)).build();
+    metric = Metric.newBuilder().setMetric("YAMAS.cpu.idle")
         .setId("m1").setFilter("f1").setTimeOffset("0")
         .setAggregator("sum").build();
-    expression = Expression.Builder().setId("e1")
+    expression = Expression.newBuilder().setId("e1")
         .setExpression("m1 * 1024").setJoin(
-            Join.Builder().setOperator(SetOperator.UNION).build()).build();
-    output = Output.Builder().setId("m1").setAlias("CPU Idle EAST DC")
+            Join.newBuilder().setOperator(SetOperator.UNION).build()).build();
+    output = Output.newBuilder().setId("m1").setAlias("CPU Idle EAST DC")
         .build();
   }
 
@@ -108,7 +111,7 @@ public class TestQuery {
 
   @Test(expected = IllegalArgumentException.class)
   public void invalidTime() throws Exception {
-    Timespan invalidTime = Timespan.Builder().build();
+    Timespan invalidTime = Timespan.newBuilder().build();
     Query query = getDefaultQueryBuilder().setTime(invalidTime).build();
     query.validate();
   }
@@ -128,7 +131,7 @@ public class TestQuery {
 
   @Test(expected = IllegalArgumentException.class)
   public void invalidMetric() throws Exception {
-    Metric invalidMetric = Metric.Builder().build();
+    Metric invalidMetric = Metric.newBuilder().build();
     Query query = getDefaultQueryBuilder()
         .setMetrics(Arrays.asList(invalidMetric)).build();
     query.validate();
@@ -136,7 +139,7 @@ public class TestQuery {
 
   @Test(expected = IllegalArgumentException.class)
   public void invalidFilter() throws Exception {
-    Filter invalidFilter = Filter.Builder().build();
+    Filter invalidFilter = Filter.newBuilder().build();
     Query query = getDefaultQueryBuilder()
         .setFilters(Arrays.asList(invalidFilter)).build();
     query.validate();
@@ -144,7 +147,7 @@ public class TestQuery {
 
   @Test(expected = IllegalArgumentException.class)
   public void invalidExpression() throws Exception {
-    Expression invalidExpression = Expression.Builder().build();
+    Expression invalidExpression = Expression.newBuilder().build();
     Query query = getDefaultQueryBuilder()
         .setExpressions(Arrays.asList(invalidExpression)).build();
     query.validate();
@@ -152,7 +155,7 @@ public class TestQuery {
 
   @Test(expected = IllegalArgumentException.class)
   public void noSuchFilterIdInMetric() throws Exception {
-    Metric invalid_metric = Metric.Builder().setMetric("YAMAS.cpu.idle")
+    Metric invalid_metric = Metric.newBuilder().setMetric("YAMAS.cpu.idle")
         .setId("m2").setFilter("f2").setTimeOffset("0").build();
     Query query = getDefaultQueryBuilder().setMetrics(
         Arrays.asList(invalid_metric, metric)).build();
@@ -163,7 +166,7 @@ public class TestQuery {
   public void deserialize() throws Exception {
     Query query = JSON.parseToObject(json, Query.class);
     query.validate();
-    Query expected = Query.Builder().setExpressions(Arrays.asList(expression))
+    Query expected = Query.newBuilder().setExpressions(Arrays.asList(expression))
         .setFilters(Arrays.asList(filter)).setMetrics(Arrays.asList(metric))
         .setTime(time).setOutputs(Arrays.asList(output)).build();
     assertEquals(expected, query);
@@ -192,7 +195,7 @@ public class TestQuery {
 
   @Test
   public void serialize() throws Exception {
-    Query query = Query.Builder().setExpressions(Arrays.asList(expression))
+    Query query = Query.newBuilder().setExpressions(Arrays.asList(expression))
         .setFilters(Arrays.asList(filter)).setMetrics(Arrays.asList(metric))
         .setName("q1").setTime(time).setOutputs(Arrays.asList(output)).build();
 
@@ -213,8 +216,221 @@ public class TestQuery {
     // TODO - finish the assertions
   }
 
+  @Test
+  public void hashCodeEqualsCompareTo() throws Exception {
+    Filter f1 = new Filter.Builder()
+        .setId("f1")
+        .setExplicitTags(false)
+        .setTags(Lists.newArrayList(
+            new TagVFilter.Builder()
+              .setFilter("web01")
+              .setTagk("host")
+              .setType("literal_or")
+              .setGroupBy(false)
+              .build(),
+            new TagVFilter.Builder()
+              .setFilter("phx*")
+              .setTagk("dc")
+              .setType("wildcard")
+              .setGroupBy(true)
+              .build()))
+        .build();
+    
+    Output o1 = new Output.Builder()
+        .setId("out1")
+        .setAlias("MyMetric")
+        .build();
+    
+    Expression e1 = new Expression.Builder()
+        .setId("e1")
+        .setExpression("a + b")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setJoin(new Join.Builder()
+            .setOperator(SetOperator.INTERSECTION)
+            .build())
+        .build();
+    
+    Metric m1 = new Metric.Builder()
+        .setId("m1")
+        .setFilter("f1")
+        .setMetric("sys.cpu.user")
+        .setTimeOffset("1h-ago")
+        .setAggregator("sum")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .build();
+    
+    final Query q1 = new Query.Builder()
+        .setName("q1")
+        .setTime(time)
+        .setExpressions(Arrays.asList(expression, e1))
+        .setFilters(Arrays.asList(filter, f1))
+        .setMetrics(Arrays.asList(metric, m1))
+        .setOutputs(Arrays.asList(output, o1))
+        .build();
+    
+    Query q2 = new Query.Builder()
+        .setName("q1")
+        .setTime(time)
+        .setExpressions(Arrays.asList(expression, e1))
+        .setFilters(Arrays.asList(filter, f1))
+        .setMetrics(Arrays.asList(metric, m1))
+        .setOutputs(Arrays.asList(output, o1))
+        .build();
+    assertEquals(q1.hashCode(), q2.hashCode());
+    assertEquals(q1, q2);
+    assertEquals(0, q1.compareTo(q2));
+    
+    q2 = new Query.Builder()
+        .setName("q1")
+        .setTime(time)
+        .setExpressions(Arrays.asList(e1, expression))  // <-- diff order
+        .setFilters(Arrays.asList(filter, f1))
+        .setMetrics(Arrays.asList(metric, m1))
+        .setOutputs(Arrays.asList(output, o1))
+        .build();
+    assertEquals(q1.hashCode(), q2.hashCode());
+    assertEquals(q1, q2);
+    assertEquals(0, q1.compareTo(q2));
+    
+    q2 = new Query.Builder()
+        .setName("q1")
+        .setTime(time)
+        .setExpressions(Arrays.asList(expression, e1))
+        .setFilters(Arrays.asList(f1, filter))  // <-- diff order 
+        .setMetrics(Arrays.asList(metric, m1))
+        .setOutputs(Arrays.asList(output, o1))
+        .build();
+    assertEquals(q1.hashCode(), q2.hashCode());
+    assertEquals(q1, q2);
+    assertEquals(0, q1.compareTo(q2));
+    
+    q2 = new Query.Builder()
+        .setName("q1")
+        .setTime(time)
+        .setExpressions(Arrays.asList(expression, e1))
+        .setFilters(Arrays.asList(filter, f1))
+        .setMetrics(Arrays.asList(m1, metric))  // <-- diff order 
+        .setOutputs(Arrays.asList(output, o1))
+        .build();
+    assertEquals(q1.hashCode(), q2.hashCode());
+    assertEquals(q1, q2);
+    assertEquals(0, q1.compareTo(q2));
+    
+    q2 = new Query.Builder()
+        .setName("q1")
+        .setTime(time)
+        .setExpressions(Arrays.asList(expression, e1))
+        .setFilters(Arrays.asList(filter, f1))
+        .setMetrics(Arrays.asList(metric, m1))
+        .setOutputs(Arrays.asList(o1, output))  // <-- diff order 
+        .build();
+    assertEquals(q1.hashCode(), q2.hashCode());
+    assertEquals(q1, q2);
+    assertEquals(0, q1.compareTo(q2));
+    
+    q2 = new Query.Builder()
+        .setName("q2")  // <-- diff
+        .setTime(time)
+        .setExpressions(Arrays.asList(expression, e1))
+        .setFilters(Arrays.asList(filter, f1))
+        .setMetrics(Arrays.asList(metric, m1))
+        .setOutputs(Arrays.asList(output, o1))
+        .build();
+    assertNotEquals(q1.hashCode(), q2.hashCode());
+    assertNotEquals(q1, q2);
+    assertEquals(-1, q1.compareTo(q2));
+    
+    q2 = new Query.Builder()
+        .setName("q1")
+        .setTime(time)
+        .setExpressions(Arrays.asList(expression))  // <-- diff
+        .setFilters(Arrays.asList(filter, f1))
+        .setMetrics(Arrays.asList(metric, m1))
+        .setOutputs(Arrays.asList(output, o1))
+        .build();
+    assertNotEquals(q1.hashCode(), q2.hashCode());
+    assertNotEquals(q1, q2);
+    assertEquals(-1, q1.compareTo(q2));
+    
+    q2 = new Query.Builder()
+        .setName("q1")
+        .setTime(time)
+        .setExpressions(Arrays.asList(expression, e1))
+        .setFilters(Arrays.asList(filter))  // <-- diff
+        .setMetrics(Arrays.asList(metric, m1))
+        .setOutputs(Arrays.asList(output, o1))
+        .build();
+    assertNotEquals(q1.hashCode(), q2.hashCode());
+    assertNotEquals(q1, q2);
+    assertEquals(1, q1.compareTo(q2));
+    
+    q2 = new Query.Builder()
+        .setName("q1")
+        .setTime(time)
+        .setExpressions(Arrays.asList(expression, e1))
+        .setFilters(Arrays.asList(filter, f1))
+        .setMetrics(Arrays.asList(metric))  // <-- diff
+        .setOutputs(Arrays.asList(output, o1))
+        .build();
+    assertNotEquals(q1.hashCode(), q2.hashCode());
+    assertNotEquals(q1, q2);
+    assertEquals(1, q1.compareTo(q2));
+    
+    q2 = new Query.Builder()
+        .setName("q1")
+        .setTime(time)
+        .setExpressions(Arrays.asList(expression, e1))
+        .setFilters(Arrays.asList(filter, f1))
+        .setMetrics(Arrays.asList(metric, m1))
+        .setOutputs(Arrays.asList(output))  // <-- diff
+        .build();
+    assertNotEquals(q1.hashCode(), q2.hashCode());
+    assertNotEquals(q1, q2);
+    assertEquals(1, q1.compareTo(q2));
+    
+    q2 = new Query.Builder()
+        .setName("q1")
+        .setTime(time)
+        //.setExpressions(Arrays.asList(expression, e1))  // <-- diff
+        .setFilters(Arrays.asList(filter, f1))
+        .setMetrics(Arrays.asList(metric, m1))
+        .setOutputs(Arrays.asList(output, o1))
+        .build();
+    assertNotEquals(q1.hashCode(), q2.hashCode());
+    assertNotEquals(q1, q2);
+    assertEquals(1, q1.compareTo(q2));
+    
+    q2 = new Query.Builder()
+        .setName("q1")
+        .setTime(time)
+        .setExpressions(Arrays.asList(expression, e1))
+        //.setFilters(Arrays.asList(filter, f1))  // <-- diff
+        .setMetrics(Arrays.asList(metric, m1))
+        .setOutputs(Arrays.asList(output, o1))
+        .build();
+    assertNotEquals(q1.hashCode(), q2.hashCode());
+    assertNotEquals(q1, q2);
+    assertEquals(1, q1.compareTo(q2));
+    
+    q2 = new Query.Builder()
+        .setName("q1")
+        .setTime(time)
+        .setExpressions(Arrays.asList(expression, e1))
+        .setFilters(Arrays.asList(filter, f1))
+        .setMetrics(Arrays.asList(metric, m1))
+        //.setOutputs(Arrays.asList(output, o1))  // <-- diff
+        .build();
+    assertNotEquals(q1.hashCode(), q2.hashCode());
+    assertNotEquals(q1, q2);
+    assertEquals(1, q1.compareTo(q2));
+  }
+
   private Query.Builder getDefaultQueryBuilder() {
-    return Query.Builder().setExpressions(Arrays.asList(expression))
+    return Query.newBuilder().setExpressions(Arrays.asList(expression))
           .setFilters(Arrays.asList(filter)).setMetrics(Arrays.asList(metric))
           .setName("q1").setTime(time).setOutputs(Arrays.asList(output));
   }

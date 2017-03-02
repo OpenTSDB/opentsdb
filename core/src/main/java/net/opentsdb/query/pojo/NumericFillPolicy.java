@@ -13,18 +13,25 @@
 package net.opentsdb.query.pojo;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.hash.HashCode;
+
+import net.opentsdb.core.Const;
 
 /**
  * POJO for serdes of fill policies. It allows the user to pick either policies
  * with default values or a scalar that can be supplied with any number.
  * @since 2.3
  */
+@JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = NumericFillPolicy.Builder.class)
-public class NumericFillPolicy {
+public class NumericFillPolicy implements Comparable<NumericFillPolicy> {
 
   /** The fill policy to use. This is required */
   private FillPolicy policy;
@@ -59,7 +66,7 @@ public class NumericFillPolicy {
   }
   
   /** @return a NumericFillPolicy builder */
-  public static Builder Builder() {
+  public static Builder newBuilder() {
     return new Builder();
   }
   
@@ -91,7 +98,7 @@ public class NumericFillPolicy {
   
   @Override
   public int hashCode() {
-    return Objects.hashCode(policy, value);
+    return buildHashCode().asInt();
   }
   
   @Override
@@ -108,6 +115,22 @@ public class NumericFillPolicy {
     final NumericFillPolicy nfp = (NumericFillPolicy)obj;
     return Objects.equal(policy, nfp.policy) &&
            Objects.equal(value, nfp.value);
+  }
+  
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    return Const.HASH_FUNCTION().newHasher()
+        .putString(policy.getName(), Const.ASCII_CHARSET)
+        .putDouble(value)
+        .hash();
+  }
+  
+  @Override
+  public int compareTo(final NumericFillPolicy o) {
+    return ComparisonChain.start()
+        .compare(policy.getName(), o.policy.getName())
+        .compare(value, o.value)
+        .result();
   }
   
   /** @return the fill policy */

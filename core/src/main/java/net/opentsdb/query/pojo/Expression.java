@@ -21,20 +21,30 @@ import org.apache.commons.jexl2.Script;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.query.pojo.Join.SetOperator;
 
 /**
  * Pojo builder class used for serdes of the expression component of a query
  * @since 2.3
  */
+@JsonInclude(Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonDeserialize(builder = Expression.Builder.class)
-public class Expression extends Validatable {
+public class Expression extends Validatable implements Comparable<Expression> {
   /** Docs don't say whether this is thread safe or not. SOME methods are marked
    * as not thread safe, so I assume it's ok to instantiate one of these guys
    * and keep creating scripts from it.
@@ -92,7 +102,7 @@ public class Expression extends Validatable {
   }
   
   /** @return A new builder for the expression */
-  public static Builder Builder() {
+  public static Builder newBuilder() {
     return new Builder();
   }
 
@@ -122,7 +132,7 @@ public class Expression extends Validatable {
     
     // others are optional
     if (join == null) {
-      join = Join.Builder().setOperator(SetOperator.UNION).build();
+      join = Join.newBuilder().setOperator(SetOperator.UNION).build();
     }
   }
 
@@ -157,7 +167,34 @@ public class Expression extends Validatable {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(id, expr, join, fill_policy);
+    return buildHashCode().asInt();
+  }
+
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+        .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
+        .putString(Strings.nullToEmpty(expr), Const.UTF8_CHARSET)
+        .hash();
+    final List<HashCode> hashes = Lists.newArrayListWithCapacity(3);
+    hashes.add(hc);
+    if (join != null) {
+      hashes.add(join.buildHashCode());
+    }
+    if (fill_policy != null) {
+      hashes.add(fill_policy.buildHashCode());
+    }
+    return Hashing.combineOrdered(hashes);
+  }
+
+  @Override
+  public int compareTo(final Expression o) {
+    return ComparisonChain.start()
+        .compare(id, o.id, Ordering.natural().nullsFirst())
+        .compare(expr, o.expr, Ordering.natural().nullsFirst())
+        .compare(join, o.join, Ordering.natural().nullsFirst())
+        .compare(fill_policy, o.fill_policy, Ordering.natural().nullsFirst())
+        .result();
   }
 
   /**

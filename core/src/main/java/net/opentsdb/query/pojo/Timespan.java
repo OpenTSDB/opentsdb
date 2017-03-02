@@ -12,24 +12,35 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.pojo;
 
+import java.util.List;
 import java.util.NoSuchElementException;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
 
 import net.opentsdb.core.Aggregators;
+import net.opentsdb.core.Const;
 import net.opentsdb.utils.DateTime;
 
 /**
  * Pojo builder class used for serdes of the timespan component of a query
  * @since 2.3
  */
+@JsonInclude(Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonDeserialize(builder = Timespan.Builder.class)
-public class Timespan extends Validatable {
+public class Timespan extends Validatable implements Comparable<Timespan> {
   /** User given start date/time, could be relative or absolute */
   private String start;
   
@@ -110,11 +121,40 @@ public class Timespan extends Validatable {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(start, end, timezone, downsampler, aggregator, rate);
+    return buildHashCode().asInt();
   }
 
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+        .putString(Strings.nullToEmpty(start), Const.ASCII_CHARSET)
+        .putString(Strings.nullToEmpty(end), Const.ASCII_CHARSET)
+        .putString(Strings.nullToEmpty(timezone), Const.ASCII_CHARSET)
+        .putString(Strings.nullToEmpty(aggregator), Const.ASCII_CHARSET)
+        .putBoolean(rate)
+        .hash();
+    final List<HashCode> hashes = Lists.newArrayListWithCapacity(2);
+    hashes.add(hc);
+    if (downsampler != null) {
+      hashes.add(downsampler.buildHashCode());
+    }
+    return Hashing.combineOrdered(hashes);
+  }
+  
+  @Override
+  public int compareTo(final Timespan o) {
+    return ComparisonChain.start()
+        .compare(start, o.start, Ordering.natural().nullsFirst())
+        .compare(end, o.end, Ordering.natural().nullsFirst())
+        .compare(timezone, o.timezone, Ordering.natural().nullsFirst())
+        .compare(downsampler, o.downsampler, Ordering.natural().nullsFirst())
+        .compare(aggregator, o.aggregator, Ordering.natural().nullsFirst())
+        .compareTrueFirst(rate, o.rate)
+        .result();
+  }
+  
   /** @return A new builder for the downsampler */
-  public static Builder Builder() {
+  public static Builder newBuilder() {
     return new Builder();
   }
 

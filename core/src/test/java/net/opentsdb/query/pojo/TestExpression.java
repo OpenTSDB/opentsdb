@@ -18,6 +18,7 @@ import net.opentsdb.utils.JSON;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 public class TestExpression {
@@ -69,16 +70,16 @@ public class TestExpression {
     String json = "{\"id\":\"e\",\"expr\":\"a + b + c\"}";
     Expression expression = JSON.parseToObject(json, Expression.class);
     expression.validate();
-    Expression expected = Expression.Builder().setId("e")
+    Expression expected = Expression.newBuilder().setId("e")
         .setExpression("a + b + c").setJoin(
-            Join.Builder().setOperator(SetOperator.UNION).build()).build();
+            Join.newBuilder().setOperator(SetOperator.UNION).build()).build();
     assertEquals(expected, expression);
   }
 
   @Test
   public void serialize() throws Exception {
-    Expression expression = Expression.Builder().setId("e1")
-        .setJoin(Join.Builder().setOperator(SetOperator.UNION).build())
+    Expression expression = Expression.newBuilder().setId("e1")
+        .setJoin(Join.newBuilder().setOperator(SetOperator.UNION).build())
         .setExpression("a + b + c").build();
     String actual = JSON.serializeToString(expression);
     assertTrue(actual.contains("\"id\":\"e1\""));
@@ -93,4 +94,117 @@ public class TestExpression {
     JSON.parseToObject(json, Expression.class);
     // pass if no unexpected exception
   }
+
+  @Test
+  public void hashCodeEqualsCompareTo() throws Exception {
+    final Expression e1 = new Expression.Builder()
+        .setId("e1")
+        .setExpression("a + b")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setJoin(new Join.Builder()
+            .setOperator(SetOperator.INTERSECTION)
+            .build())
+        .build();
+    
+    Expression e2 = new Expression.Builder()
+        .setId("e1")
+        .setExpression("a + b")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setJoin(new Join.Builder()
+            .setOperator(SetOperator.INTERSECTION)
+            .build())
+        .build();
+    assertEquals(e1.hashCode(), e2.hashCode());
+    assertEquals(e1, e2);
+    assertEquals(0, e1.compareTo(e2));
+    
+    e2 = new Expression.Builder()
+        .setId("e2") // <-- diff
+        .setExpression("a + b")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setJoin(new Join.Builder()
+            .setOperator(SetOperator.INTERSECTION)
+            .build())
+        .build();
+    assertNotEquals(e1.hashCode(), e2.hashCode());
+    assertNotEquals(e1, e2);
+    assertEquals(-1, e1.compareTo(e2));
+    
+    e2 = new Expression.Builder()
+        .setId("e1")
+        .setExpression("b + a") // <-- diff
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setJoin(new Join.Builder()
+            .setOperator(SetOperator.INTERSECTION)
+            .build())
+        .build();
+    assertNotEquals(e1.hashCode(), e2.hashCode());
+    assertNotEquals(e1, e2);
+    assertEquals(-1, e1.compareTo(e2));
+    
+    e2 = new Expression.Builder()
+        .setId("e1")
+        .setExpression("a + b")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.ZERO) // <-- diff
+            .build())
+        .setJoin(new Join.Builder()
+            .setOperator(SetOperator.INTERSECTION)
+            .build())
+        .build();
+    assertNotEquals(e1.hashCode(), e2.hashCode());
+    assertNotEquals(e1, e2);
+    assertEquals(-1, e1.compareTo(e2));
+    
+    e2 = new Expression.Builder()
+        .setId("e1")
+        .setExpression("a + b")
+        //.setFillPolicy(new NumericFillPolicy.Builder()  // <-- diff
+        //    .setPolicy(FillPolicy.NOT_A_NUMBER)
+        //    .build())
+        .setJoin(new Join.Builder()
+            .setOperator(SetOperator.INTERSECTION)
+            .build())
+        .build();
+    assertNotEquals(e1.hashCode(), e2.hashCode());
+    assertNotEquals(e1, e2);
+    assertEquals(1, e1.compareTo(e2));
+    
+    e2 = new Expression.Builder()
+        .setId("e1")
+        .setExpression("a + b")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setJoin(new Join.Builder()
+            .setOperator(SetOperator.UNION)  // <-- diff
+            .build())
+        .build();
+    assertNotEquals(e1.hashCode(), e2.hashCode());
+    assertNotEquals(e1, e2);
+    assertEquals(-1, e1.compareTo(e2));
+    
+    e2 = new Expression.Builder()
+        .setId("e1")
+        .setExpression("a + b")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        //.setJoin(new Join.Builder()   // <-- diff
+        //    .setOperator(SetOperator.INTERSECTION)
+        //    .build())
+        .build();
+    assertNotEquals(e1.hashCode(), e2.hashCode());
+    assertNotEquals(e1, e2);
+    assertEquals(1, e1.compareTo(e2));
+  }
+
 }

@@ -17,6 +17,7 @@ import net.opentsdb.utils.JSON;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 public class TestMetric {
@@ -72,7 +73,7 @@ public class TestMetric {
         + "\"fillPolicy\":{\"policy\":\"nan\"}}";
     Metric metric = JSON.parseToObject(json, Metric.class);
     metric.validate();
-    Metric expectedMetric = Metric.Builder().setMetric("YAMAS.cpu.idle")
+    Metric expectedMetric = Metric.newBuilder().setMetric("YAMAS.cpu.idle")
         .setId("e1").setFilter("f2").setTimeOffset("1h-ago")
         .setAggregator("sum")
         .setFillPolicy(new NumericFillPolicy(FillPolicy.NOT_A_NUMBER))
@@ -83,7 +84,7 @@ public class TestMetric {
 
   @Test
   public void serialize() throws Exception {
-    Metric metric = Metric.Builder().setMetric("YAMAS.cpu.idle")
+    Metric metric = Metric.newBuilder().setMetric("YAMAS.cpu.idle")
         .setId("e1").setFilter("f2").setTimeOffset("1h-ago")
         .setFillPolicy(new NumericFillPolicy(FillPolicy.NOT_A_NUMBER))
         .build();
@@ -117,5 +118,159 @@ public class TestMetric {
         + "\"fillPolicy\":{\"policy\":\"zero\",\"value\":42}}";
     Metric metric = JSON.parseToObject(json, Metric.class);
     metric.validate();
+  }
+
+  @Test
+  public void hashCodeEqualsCompareTo() throws Exception {
+    final Metric m1 = new Metric.Builder()
+        .setId("m1")
+        .setFilter("f1")
+        .setMetric("sys.cpu.user")
+        .setTimeOffset("1h-ago")
+        .setAggregator("sum")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .build();
+    
+    Metric m2 = new Metric.Builder()
+        .setId("m1")
+        .setFilter("f1")
+        .setMetric("sys.cpu.user")
+        .setTimeOffset("1h-ago")
+        .setAggregator("sum")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .build();
+    assertEquals(m1.hashCode(), m2.hashCode());
+    assertEquals(m1, m2);
+    assertEquals(0, m1.compareTo(m2));
+    
+    m2 = new Metric.Builder()
+        .setId("m2")  // <-- diff
+        .setFilter("f1")
+        .setMetric("sys.cpu.user")
+        .setTimeOffset("1h-ago")
+        .setAggregator("sum")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .build();
+    assertNotEquals(m1.hashCode(), m2.hashCode());
+    assertNotEquals(m1, m2);
+    assertEquals(-1, m1.compareTo(m2));
+    
+    m2 = new Metric.Builder()
+        .setId("m1")
+        .setFilter("f2")  // <-- diff
+        .setMetric("sys.cpu.user")
+        .setTimeOffset("1h-ago")
+        .setAggregator("sum")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .build();
+    assertNotEquals(m1.hashCode(), m2.hashCode());
+    assertNotEquals(m1, m2);
+    assertEquals(-1, m1.compareTo(m2));
+    
+    m2 = new Metric.Builder()
+        .setId("m1")
+        .setFilter("f1")
+        .setMetric("sys.cpu.sys")  // <-- diff
+        .setTimeOffset("1h-ago")
+        .setAggregator("sum")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .build();
+    assertNotEquals(m1.hashCode(), m2.hashCode());
+    assertNotEquals(m1, m2);
+    assertEquals(1, m1.compareTo(m2));
+    
+    m2 = new Metric.Builder()
+        .setId("m1")
+        .setFilter("f1")
+        .setMetric("sys.cpu.user")
+        .setTimeOffset("2h-ago")  // <-- diff
+        .setAggregator("sum")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .build();
+    assertNotEquals(m1.hashCode(), m2.hashCode());
+    assertNotEquals(m1, m2);
+    assertEquals(-1, m1.compareTo(m2));
+    
+    m2 = new Metric.Builder()
+        .setId("m1")
+        .setFilter("f1")
+        .setMetric("sys.cpu.user")
+        //.setTimeOffset("1h-ago")  // <-- diff
+        .setAggregator("sum")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .build();
+    assertNotEquals(m1.hashCode(), m2.hashCode());
+    assertNotEquals(m1, m2);
+    assertEquals(1, m1.compareTo(m2));
+    
+    m2 = new Metric.Builder()
+        .setId("m1")
+        .setFilter("f1")
+        .setMetric("sys.cpu.user")
+        .setTimeOffset("1h-ago")
+        .setAggregator("max")  // <-- diff
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .build();
+    assertNotEquals(m1.hashCode(), m2.hashCode());
+    assertNotEquals(m1, m2);
+    assertEquals(1, m1.compareTo(m2));
+    
+    m2 = new Metric.Builder()
+        .setId("m1")
+        .setFilter("f1")
+        .setMetric("sys.cpu.user")
+        .setTimeOffset("1h-ago")
+        //.setAggregator("sum")  // <-- diff
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .build();
+    assertNotEquals(m1.hashCode(), m2.hashCode());
+    assertNotEquals(m1, m2);
+    assertEquals(1, m1.compareTo(m2));
+    
+    m2 = new Metric.Builder()
+        .setId("m1")
+        .setFilter("f1")
+        .setMetric("sys.cpu.user")
+        .setTimeOffset("1h-ago")
+        .setAggregator("sum")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.ZERO)  // <-- diff
+            .build())
+        .build();
+    assertNotEquals(m1.hashCode(), m2.hashCode());
+    assertNotEquals(m1, m2);
+    assertEquals(-1, m1.compareTo(m2));
+    
+    m2 = new Metric.Builder()
+        .setId("m1")
+        .setFilter("f1")
+        .setMetric("sys.cpu.user")
+        .setTimeOffset("1h-ago")
+        .setAggregator("sum")
+        //.setFillPolicy(new NumericFillPolicy.Builder()  // <-- diff
+        //    .setPolicy(FillPolicy.NOT_A_NUMBER)
+        //    .build())
+        .build();
+    assertNotEquals(m1.hashCode(), m2.hashCode());
+    assertNotEquals(m1, m2);
+    assertEquals(1, m1.compareTo(m2));
   }
 }

@@ -12,20 +12,32 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.pojo;
 
+import java.util.Collections;
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Ordering;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
+
+import net.opentsdb.core.Const;
 
 /**
  * Pojo builder class used for serdes of the join component of a query
  * @since 2.3
  */
+@JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = Join.Builder.class)
-public class Join extends Validatable {
+public class Join extends Validatable implements Comparable<Join> {
   /** An operator that determines how to sets of time series are merged via
    * expression. */
   public enum SetOperator {
@@ -82,6 +94,9 @@ public class Join extends Validatable {
   /** Whether or not to use the aggregated tags in the results when joining. */
   private boolean include_agg_tags = true;
   
+  /** A list of tag keys to perform the join across. */
+  private List<String> tags;
+  
   /**
    * Default ctor
    * @param builder The builder to pull values from
@@ -90,6 +105,7 @@ public class Join extends Validatable {
     operator = builder.operator;
     use_query_tags = builder.useQueryTags;
     include_agg_tags = builder.includeAggTags;
+    tags = builder.tags;
   }
   
   /** @return the set operator to use for joining sets */
@@ -109,8 +125,13 @@ public class Join extends Validatable {
     return include_agg_tags;
   }
   
+  /** @return The tag keys to consider when performing the join. */
+  public List<String> getTags() {
+    return tags;
+  }
+  
   /** @return A new builder for the joiner */
-  public static Builder Builder() {
+  public static Builder newBuilder() {
     return new Builder();
   }
   
@@ -121,6 +142,13 @@ public class Join extends Validatable {
   public void validate() {
     if (operator == null) {
       throw new IllegalArgumentException("Missing join operator");
+    }
+    if (tags != null) {
+      for (final String tag : tags) {
+        if (tag == null || tag.isEmpty()) {
+          throw new IllegalArgumentException("Cannot have a null or empty tag");
+        }
+      }
     }
   }
   
@@ -133,14 +161,60 @@ public class Join extends Validatable {
 
     final Join join = (Join) o;
 
-    return Objects.equal(operator, join.operator)
+    final boolean result = Objects.equal(operator, join.operator)
         && Objects.equal(use_query_tags, join.use_query_tags)
-    && Objects.equal(include_agg_tags, join.include_agg_tags);
+        && Objects.equal(include_agg_tags, join.include_agg_tags);
+    if (!result) {
+      return false;
+    }
+    // BLAH! Objects.equal() doesn't validate simple string lists properly!
+    if (tags == null && join.tags == null) {
+      return true;
+    }
+    if (tags != null && join.tags == null || tags == null && join.tags != null) {
+      return false;
+    }
+    for (final String tag : tags) {
+      if (!join.tags.contains(tag)) {
+        return false;
+      }
+    }
+    for (final String tag : join.tags) {
+      if (!tags.contains(tag)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(operator, use_query_tags, include_agg_tags);
+    return buildHashCode().asInt();
+  }
+  
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final Hasher hash = Const.HASH_FUNCTION().newHasher()
+        .putString(operator.getName(), Const.ASCII_CHARSET)
+        .putBoolean(use_query_tags)
+        .putBoolean(include_agg_tags);
+    if (tags != null) {
+      for (final String tag : tags) {
+        hash.putString(tag, Const.UTF8_CHARSET);
+      }
+    }
+    return hash.hash();
+  }
+  
+  @Override
+  public int compareTo(final Join o) {
+    return ComparisonChain.start()
+        .compare(operator.toString(), o.operator.toString())
+        .compareTrueFirst(use_query_tags, o.use_query_tags)
+        .compareTrueFirst(include_agg_tags, o.include_agg_tags)
+        .compare(tags, o.tags, 
+            Ordering.<String>natural().lexicographical().nullsFirst())
+        .result();
   }
   
   /**
@@ -155,6 +229,8 @@ public class Join extends Validatable {
     private boolean useQueryTags = false;
     @JsonProperty
     private boolean includeAggTags = true;
+    @JsonProperty
+    private List<String> tags;
     
     public Builder setOperator(final SetOperator operator) {
       this.operator = operator;
@@ -168,6 +244,14 @@ public class Join extends Validatable {
     
     public Builder setIncludeAggTags(final boolean include_agg_tags) {
       this.includeAggTags = include_agg_tags;
+      return this;
+    }
+    
+    public Builder setTags(final List<String> tags) {
+      if (tags != null) {
+        Collections.sort(tags);
+      }
+      this.tags = tags;
       return this;
     }
     

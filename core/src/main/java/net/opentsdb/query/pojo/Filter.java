@@ -13,21 +13,32 @@
 package net.opentsdb.query.pojo;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.query.filter.TagVFilter;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
  * Pojo builder class used for serdes of a filter component of a query
  * @since 2.3
  */
+@JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = Filter.Builder.class)
-public class Filter extends Validatable {
+public class Filter extends Validatable implements Comparable<Filter> {
   /** The id of the filter set to use in a metric query */
   private String id;
   
@@ -65,7 +76,7 @@ public class Filter extends Validatable {
   }
   
   /** @return A new builder for the filter */
-  public static Builder Builder() {
+  public static Builder newBuilder() {
     return new Builder();
   }
 
@@ -95,7 +106,31 @@ public class Filter extends Validatable {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(id, tags, explicit_tags);
+    return buildHashCode().asInt();
+  }
+  
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+        .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
+        .putBoolean(explicit_tags)
+        .hash();
+    final List<HashCode> hashes = Lists.newArrayListWithCapacity(tags.size() + 1);
+    hashes.add(hc);
+    for (final TagVFilter filter : tags) {
+      hashes.add(filter.buildHashCode());
+    }
+    return Hashing.combineOrdered(hashes);
+  }
+
+  @Override
+  public int compareTo(final Filter o) {
+    return ComparisonChain.start()
+        .compare(id, o.id, Ordering.natural().nullsFirst())
+        .compareTrueFirst(explicit_tags, o.explicit_tags)
+        .compare(tags, o.tags, 
+            Ordering.<TagVFilter>natural().lexicographical().nullsFirst())
+        .result();
   }
 
   /**
@@ -119,6 +154,9 @@ public class Filter extends Validatable {
 
     public Builder setTags(List<TagVFilter> tags) {
       this.tags = tags;
+      if (tags != null) {
+        Collections.sort(this.tags);
+      }
       return this;
     }
 

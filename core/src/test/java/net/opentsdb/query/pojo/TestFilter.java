@@ -17,9 +17,12 @@ import net.opentsdb.utils.JSON;
 
 import org.junit.Test;
 
+import com.google.common.collect.Lists;
+
 import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 public class TestFilter {
@@ -48,7 +51,7 @@ public class TestFilter {
         false)
         .setTagk("host").setType("iwildcard").build();
 
-    Filter expectedFilter = Filter.Builder().setId("f1")
+    Filter expectedFilter = Filter.newBuilder().setId("f1")
         .setTags(Arrays.asList(tag)).setExplicitTags(true).build();
 
     Filter filter = JSON.parseToObject(json, Filter.class);
@@ -61,7 +64,7 @@ public class TestFilter {
     TagVFilter tag = new TagVFilter.Builder().setFilter("*").setGroupBy(false)
         .setTagk("host").setType("iwildcard").build();
 
-    Filter filter = Filter.Builder().setId("f1")
+    Filter filter = Filter.newBuilder().setId("f1")
         .setTags(Arrays.asList(tag)).setExplicitTags(true).build();
 
     String actual = JSON.serializeToString(filter);
@@ -96,4 +99,194 @@ public class TestFilter {
     Filter filter = JSON.parseToObject(json, Filter.class);
     filter.validate();
   }
+
+  public void hashCodeEqualsCompareTo() throws Exception {
+    final Filter f1 = new Filter.Builder()
+        .setId("f1")
+        .setExplicitTags(false)
+        .setTags(Lists.newArrayList(
+            new TagVFilter.Builder()
+              .setFilter("web01")
+              .setTagk("host")
+              .setType("literal_or")
+              .setGroupBy(false)
+              .build(),
+            new TagVFilter.Builder()
+              .setFilter("phx*")
+              .setTagk("dc")
+              .setType("wildcard")
+              .setGroupBy(true)
+              .build()))
+        .build();
+    
+    Filter f2 = new Filter.Builder()
+        .setId("f1")
+        .setExplicitTags(false)
+        .setTags(Lists.newArrayList(
+            new TagVFilter.Builder()
+              .setFilter("web01")
+              .setTagk("host")
+              .setType("literal_or")
+              .setGroupBy(false)
+              .build(),
+            new TagVFilter.Builder()
+              .setFilter("phx*")
+              .setTagk("dc")
+              .setType("wildcard")
+              .setGroupBy(true)
+              .build()))
+        .build();
+    assertEquals(f1.hashCode(), f2.hashCode());
+    assertEquals(f1, f2);
+    assertEquals(0, f1.compareTo(f2));
+    
+    f2 = new Filter.Builder()
+        .setId("f2")  // <-- diff
+        .setExplicitTags(false)
+        .setTags(Lists.newArrayList(
+            new TagVFilter.Builder()
+              .setFilter("web01")
+              .setTagk("host")
+              .setType("literal_or")
+              .setGroupBy(false)
+              .build(),
+            new TagVFilter.Builder()
+              .setFilter("phx*")
+              .setTagk("dc")
+              .setType("wildcard")
+              .setGroupBy(true)
+              .build()))
+        .build();
+    assertNotEquals(f1.hashCode(), f2.hashCode());
+    assertNotEquals(f1, f2);
+    assertEquals(-1, f1.compareTo(f2));
+    
+    f2 = new Filter.Builder()
+        .setId("f1")
+        .setExplicitTags(true)  // <-- diff
+        .setTags(Lists.newArrayList(
+            new TagVFilter.Builder()
+              .setFilter("web01")
+              .setTagk("host")
+              .setType("literal_or")
+              .setGroupBy(false)
+              .build(),
+            new TagVFilter.Builder()
+              .setFilter("phx*")
+              .setTagk("dc")
+              .setType("wildcard")
+              .setGroupBy(true)
+              .build()))
+        .build();
+    assertNotEquals(f1.hashCode(), f2.hashCode());
+    assertNotEquals(f1, f2);
+    assertEquals(1, f1.compareTo(f2));
+    
+    f2 = new Filter.Builder()
+        .setId("f1")
+        .setExplicitTags(false)
+        .setTags(Lists.newArrayList(
+            new TagVFilter.Builder()
+              .setFilter("web02")  // <-- diff
+              .setTagk("host")
+              .setType("literal_or")
+              .setGroupBy(false)
+              .build(),
+            new TagVFilter.Builder()
+              .setFilter("phx*")
+              .setTagk("dc")
+              .setType("wildcard")
+              .setGroupBy(true)
+              .build()))
+        .build();
+    assertNotEquals(f1.hashCode(), f2.hashCode());
+    assertNotEquals(f1, f2);
+    assertEquals(-1, f1.compareTo(f2));
+    
+    f2 = new Filter.Builder()
+        .setId("f1")
+        .setExplicitTags(false)
+        .setTags(Lists.newArrayList(
+            new TagVFilter.Builder()
+              .setFilter("web01")
+              .setTagk("host")
+              .setType("literal_or")
+              .setGroupBy(true)  // <-- diff
+              .build(),
+            new TagVFilter.Builder()
+              .setFilter("phx*")
+              .setTagk("dc")
+              .setType("wildcard")
+              .setGroupBy(true)
+              .build()))
+        .build();
+    assertNotEquals(f1.hashCode(), f2.hashCode());
+    assertNotEquals(f1, f2);
+    assertEquals(1, f1.compareTo(f2));
+    
+    f2 = new Filter.Builder()
+        .setId("f1")
+        .setExplicitTags(false)
+        .setTags(Lists.newArrayList(
+            new TagVFilter.Builder()  // <-- order changes, should be good!
+              .setFilter("phx*")
+              .setTagk("dc")
+              .setType("wildcard")
+              .setGroupBy(true)
+              .build(),
+            new TagVFilter.Builder()
+              .setFilter("web01")
+              .setTagk("host")
+              .setType("literal_or")
+              .setGroupBy(false)
+              .build())
+            )
+        .build();
+    assertEquals(f1.hashCode(), f2.hashCode());
+    assertEquals(f1, f2);
+    assertEquals(0, f1.compareTo(f2));
+    
+    f2 = new Filter.Builder()
+        .setId("f1")
+        .setExplicitTags(false)
+        .setTags(Lists.newArrayList(
+            new TagVFilter.Builder()
+              .setFilter("web01")
+              .setTagk("host")
+              .setType("literal_or")
+              .setGroupBy(true)  // <-- diff
+              .build(),
+            new TagVFilter.Builder()
+              .setFilter("phx*")
+              .setTagk("dc")
+              .setType("wildcard")
+              .setGroupBy(true)
+              .build()))
+        .build();
+    assertNotEquals(f1.hashCode(), f2.hashCode());
+    assertNotEquals(f1, f2);
+    assertEquals(1, f1.compareTo(f2));
+    
+    f2 = new Filter.Builder()
+        .setId("f1")
+        .setExplicitTags(false)
+        .setTags(Lists.newArrayList(
+            //new TagVFilter.Builder()  // <-- diff
+            //  .setFilter("web01")
+            //  .setTagk("host")
+            //  .setType("literal_or")
+            //  .setGroupBy(false)
+            //  .build(),
+            new TagVFilter.Builder()
+              .setFilter("phx*")
+              .setTagk("dc")
+              .setType("wildcard")
+              .setGroupBy(true)
+              .build()))
+        .build();
+    assertNotEquals(f1.hashCode(), f2.hashCode());
+    assertNotEquals(f1, f2);
+    assertEquals(-1, f1.compareTo(f2));
+  }
+  
 }

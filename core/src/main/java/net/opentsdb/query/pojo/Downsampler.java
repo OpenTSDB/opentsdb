@@ -12,23 +12,35 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.pojo;
 
+import java.util.List;
 import java.util.NoSuchElementException;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
 
 import net.opentsdb.core.Aggregators;
+import net.opentsdb.core.Const;
 import net.opentsdb.utils.DateTime;
 
 /**
  * Pojo builder class used for serdes of the downsampler component of a query
+ * 
  * @since 2.3
  */
+@JsonInclude(Include.NON_NULL)
 @JsonDeserialize(builder = Downsampler.Builder.class)
-public class Downsampler extends Validatable {
+public class Downsampler extends Validatable implements Comparable<Downsampler> {
   /** The relative interval with value and unit, e.g. 60s */
   private String interval;
   
@@ -42,14 +54,14 @@ public class Downsampler extends Validatable {
    * Default ctor
    * @param builder The builder to pull values from
    */
-  public Downsampler(Builder builder) {
+  protected Downsampler(final Builder builder) {
     interval = builder.interval;
     aggregator = builder.aggregator;
     fill_policy = builder.fillPolicy;
   }
   
   /** @return A new builder for the downsampler */
-  public static Builder Builder() {
+  public static Builder newBuilder() {
     return new Builder();
   }
   
@@ -104,12 +116,35 @@ public class Downsampler extends Validatable {
         && Objects.equal(aggregator, downsampler.aggregator)
         && Objects.equal(fill_policy, downsampler.fill_policy);
   }
-
+  
   @Override
   public int hashCode() {
-    return Objects.hashCode(interval, aggregator, fill_policy);
+    return buildHashCode().asInt();
   }
 
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+        .putString(Strings.nullToEmpty(interval), Const.ASCII_CHARSET)
+        .putString(Strings.nullToEmpty(aggregator), Const.ASCII_CHARSET)
+        .hash();
+    final List<HashCode> hashes = Lists.newArrayListWithCapacity(2);
+    hashes.add(hc);
+    if (fill_policy != null) {
+      hashes.add(fill_policy.buildHashCode());
+    }
+    return Hashing.combineOrdered(hashes);
+  }
+  
+  @Override
+  public int compareTo(final Downsampler o) {
+    return ComparisonChain.start()
+        .compare(interval, o.interval, Ordering.natural().nullsFirst())
+        .compare(aggregator, o.aggregator, Ordering.natural().nullsFirst())
+        .compare(fill_policy, o.fill_policy, Ordering.natural().nullsFirst())
+        .result();
+  }
+  
   /**
    * A builder for the downsampler component of a query
    */
