@@ -68,8 +68,8 @@ public class MillisecondTimeStamp  implements TimeStamp {
   }
 
   @Override
-  public boolean compare(final TimeStamp compareTo, 
-      final TimeStampComparator comparator) {
+  public boolean compare(final TimeStampComparator comparator, 
+      final TimeStamp compareTo) {
     if (compareTo == null) {
       throw new IllegalArgumentException("Timestamp cannot be null.");
     }

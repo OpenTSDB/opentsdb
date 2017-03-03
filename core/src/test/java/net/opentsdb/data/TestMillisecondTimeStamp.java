@@ -72,23 +72,23 @@ public class TestMillisecondTimeStamp {
     final TimeStamp ts1 = new MillisecondTimeStamp(1000);
     final TimeStamp ts2 = new MillisecondTimeStamp(2000);
     
-    assertTrue(ts1.compare(ts2, TimeStampComparator.LT));
-    assertTrue(ts1.compare(ts2, TimeStampComparator.LTE));
-    assertFalse(ts1.compare(ts2, TimeStampComparator.GT));
-    assertFalse(ts1.compare(ts2, TimeStampComparator.GTE));
-    assertFalse(ts1.compare(ts2, TimeStampComparator.EQ));
-    assertTrue(ts1.compare(ts2, TimeStampComparator.NE));
+    assertTrue(ts1.compare(TimeStampComparator.LT, ts2));
+    assertTrue(ts1.compare(TimeStampComparator.LTE, ts2));
+    assertFalse(ts1.compare(TimeStampComparator.GT, ts2));
+    assertFalse(ts1.compare(TimeStampComparator.GTE, ts2));
+    assertFalse(ts1.compare(TimeStampComparator.EQ, ts2));
+    assertTrue(ts1.compare(TimeStampComparator.NE, ts2));
     
     ts2.updateMsEpoch(1000);
-    assertTrue(ts1.compare(ts2, TimeStampComparator.EQ));
+    assertTrue(ts1.compare(TimeStampComparator.EQ, ts2));
     
     try {
-      ts1.compare(null, TimeStampComparator.LT);
+      ts1.compare(TimeStampComparator.LT, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      ts1.compare(ts2, null);
+      ts1.compare(null, ts2);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

@@ -50,7 +50,14 @@ import net.opentsdb.data.iterators.TimeSeriesIterator;
  * functions on the data, it must return a copy of the data.</li>
  * <li>All series under the processor must be iterated so that the values for
  * each series return the same timestamp regardless of group or data type</li>
+ * <li>fetchNext() can be called on child iterators at any time and implementations
+ * should only advance if there really is more data.</li>
  * </ul>
+ * <p>
+ * When working with chunks, as long as at least one child iterator has data
+ * to return, the processor will keep calling {@link #status()} and {@link #next()}
+ * and only call {@link #fetchNext()} once all child iterators are in the
+ * {@link IteratorStatus#END_OF_CHUNK} or {@link IteratorStatus#END_OF_DATA} states.
  * TODO - methods for reading/modifying the processor graph.
  * @since 3.0
  */

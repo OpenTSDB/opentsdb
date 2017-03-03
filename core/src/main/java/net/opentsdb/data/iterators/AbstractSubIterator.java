@@ -41,43 +41,24 @@ public abstract class AbstractSubIterator<T extends TimeSeriesValue<?>> implemen
   
   /**
    * Default ctore that accepts a time series as the source.
-   * @param source A non-null time series iterator.
-   * @throws IllegalArgumentException if the source was null.
+   * @param source An optional source time series iterator.
    */
   public AbstractSubIterator(final TimeSeriesIterator<?> source) {
-    if (source == null) {
-      throw new IllegalArgumentException("Source cannot be null.");
-    }
     this.source = source;
-  }
-  
-  /**
-   * A copy constructor that make a copy of the source and take a reference
-   * to the parent.
-   * @param source A non-null source to copy from.
-   * @param parent A non-null parent.
-   * @throws IllegalArgumentException if the source or parent was null.
-   */
-  protected AbstractSubIterator(final TimeSeriesIterator<?> source, 
-      final TimeSeriesIterator<?> parent) {
-    if (source == null) {
-      throw new IllegalArgumentException("Source cannot be null.");
-    }
-    if (parent == null) {
-      throw new IllegalArgumentException("Parent cannot be null.");
-    }
-    this.source = source.getCopy();
-    parent_copy = parent;
   }
   
   @Override
   public Deferred<Object> initialize() {
-    return source.initialize();
+    return source != null ? source.initialize() : 
+      Deferred.fromError(new UnsupportedOperationException("Not implemented"));
   }
   
   @Override
   public TimeSeriesId id() {
-    return source.id();
+    if (source != null) {
+      return source.id();
+    }
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
@@ -88,22 +69,33 @@ public abstract class AbstractSubIterator<T extends TimeSeriesValue<?>> implemen
   
   @Override
   public IteratorStatus status() {
-    return source.status();
+    if(source != null) {
+      return source.status();
+    }
+    throw new UnsupportedOperationException("Not implemented");
   }
   
   @Override
   public void advance() {
-    source.advance();
+    if (source != null) {
+      source.advance();
+    } else {
+      throw new UnsupportedOperationException("Not implemented");
+    }
   }
   
   @Override
   public TimeStamp nextTimestamp(){
-    return source.nextTimestamp();
+    if (source != null) {
+      return source.nextTimestamp();
+    }
+    throw new UnsupportedOperationException("Not implemented");
   }
   
   @Override
   public Deferred<Object> fetchNext() {
-    return source.fetchNext();
+    return source != null ? source.fetchNext() : 
+      Deferred.fromError(new UnsupportedOperationException("Not implemented"));
   }
   
   @SuppressWarnings("unchecked")
@@ -114,6 +106,7 @@ public abstract class AbstractSubIterator<T extends TimeSeriesValue<?>> implemen
   
   @Override
   public Deferred<Object> close() {
-    return source.close();
+    return source != null ? source.close() : 
+      Deferred.fromError(new UnsupportedOperationException("Not implemented"));
   }
 }

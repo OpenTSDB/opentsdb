@@ -58,29 +58,42 @@ public class TestAbstractSubIterator {
   
   @Test
   public void ctor() throws Exception {
-    final MockIterator it = new MockIterator(source);
+    MockIterator it = new MockIterator(source);
     assertSame(source, it.source);
     assertNull(it.processor);
     assertNull(it.parent_copy);
     
-    try {
-      new MockIterator(null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { } 
+    it = new MockIterator(null);
+    assertNull(it.source);
+    assertNull(it.processor);
+    assertNull(it.parent_copy);
   }
   
   @Test
   public void initialize() throws Exception {
-    final MockIterator it = new MockIterator(source);
-    final Deferred<Object> deferred = it.initialize();
+    MockIterator it = new MockIterator(source);
+    Deferred<Object> deferred = it.initialize();
     assertNull(deferred.join());
     verify(source, times(1)).initialize();
+    
+    it = new MockIterator(null);
+    deferred = it.initialize();
+    try {
+      deferred.join();
+      fail("Expected UnsupportedOperationException");
+    } catch (UnsupportedOperationException e) { }
   }
   
   @Test
   public void id() throws Exception {
-    final MockIterator it = new MockIterator(source);
+    MockIterator it = new MockIterator(source);
     assertSame(id, it.id());
+    
+    it = new MockIterator(null);
+    try {
+      it.id();
+      fail("Expected UnsupportedOperationException");
+    } catch (UnsupportedOperationException e) { }
   }
   
   @Test
@@ -93,8 +106,14 @@ public class TestAbstractSubIterator {
   
   @Test
   public void status() throws Exception {
-    final MockIterator it = new MockIterator(source);
+    MockIterator it = new MockIterator(source);
     assertEquals(IteratorStatus.END_OF_DATA, it.status());
+    
+    it = new MockIterator(null);
+    try {
+      it.status();
+      fail("Expected UnsupportedOperationException");
+    } catch (UnsupportedOperationException e) { }
   }
   
   @Test
@@ -106,23 +125,42 @@ public class TestAbstractSubIterator {
   
   @Test
   public void advance() throws Exception {
-    final MockIterator it = new MockIterator(source);
+    MockIterator it = new MockIterator(source);
     it.advance();
     verify(source, times(1)).advance();
+    
+    it = new MockIterator(null);
+    try {
+      it.advance();
+      fail("Expected UnsupportedOperationException");
+    } catch (UnsupportedOperationException e) { }
   }
   
   @Test
   public void nextTimestamp() throws Exception {
-    final MockIterator it = new MockIterator(source);
+    MockIterator it = new MockIterator(source);
     assertSame(timestamp, it.nextTimestamp());
+    
+    it = new MockIterator(null);
+    try {
+      it.nextTimestamp();
+      fail("Expected UnsupportedOperationException");
+    } catch (UnsupportedOperationException e) { }
   }
 
   @Test
   public void fetchNext() throws Exception {
-    final MockIterator it = new MockIterator(source);
-    final Deferred<Object> deferred = it.fetchNext();
+    MockIterator it = new MockIterator(source);
+    Deferred<Object> deferred = it.fetchNext();
     assertNull(deferred.join());
     verify(source, times(1)).fetchNext();
+    
+    it = new MockIterator(null);
+    deferred = it.fetchNext();
+    try {
+      deferred.join();
+      fail("Expected UnsupportedOperationException");
+    } catch (UnsupportedOperationException e) { }
   }
   
   @Test
@@ -135,10 +173,17 @@ public class TestAbstractSubIterator {
   
   @Test
   public void close() throws Exception {
-    final MockIterator it = new MockIterator(source);
-    final Deferred<Object> deferred = it.close();
+    MockIterator it = new MockIterator(source);
+    Deferred<Object> deferred = it.close();
     assertNull(deferred.join());
     verify(source, times(1)).close();
+    
+    it = new MockIterator(null);
+    deferred = it.close();
+    try {
+      deferred.join();
+      fail("Expected UnsupportedOperationException");
+    } catch (UnsupportedOperationException e) { }
   }
   
   /**
@@ -149,11 +194,7 @@ public class TestAbstractSubIterator {
     public MockIterator(TimeSeriesIterator<?> source) {
       super(source);
     }
-    
-    protected MockIterator(final TimeSeriesIterator<?> source, 
-        final TimeSeriesIterator<?> parent) {
-      super(source, parent);
-    }
+
 
     @Override
     public TypeToken<?> type() {
@@ -167,7 +208,10 @@ public class TestAbstractSubIterator {
 
     @Override
     public TimeSeriesIterator<TimeSeriesValue<?>> getCopy() {
-      return new MockIterator(source, this);
+      final MockIterator copy = new MockIterator(
+          source != null ? source.getCopy() : null);
+      copy.parent_copy = this;
+      return copy;
     }
     
   }

@@ -82,14 +82,14 @@ public interface TimeStamp {
   
   /**
    * Compares this timestamp to the given timestamp using the proper comparator.
-   * @param compareTo The timestamp to compare this against.
    * @param comparator A comparison operator.
+   * @param compareTo The timestamp to compare this against.
    * @return True if the comparison was successful, false if not.
    * @throws IllegalArgumentException if either argument was null.
    * @throws UnsupportedOperationException if the comparator was not supported.
    */
-  public boolean compare(final TimeStamp compareTo, 
-      final TimeStampComparator comparator);
+  public boolean compare(final TimeStampComparator comparator, 
+      final TimeStamp compareTo);
   
   /**
    * Sets the timestamp to the maximum possible value so that when a processor

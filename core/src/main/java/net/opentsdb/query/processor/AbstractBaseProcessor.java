@@ -132,7 +132,7 @@ public abstract class AbstractBaseProcessor<T> implements TimeSeriesProcessor {
   
   @Override
   public void setSyncTime(final TimeStamp timestamp) {
-    if (timestamp.compare(next_sync_time, TimeStampComparator.LT)) {
+    if (timestamp.compare(TimeStampComparator.LT, next_sync_time)) {
       next_sync_time.update(timestamp);
     }
   }
