@@ -17,9 +17,13 @@ import net.opentsdb.utils.JSON;
 
 import org.junit.Test;
 
+import com.google.common.collect.Maps;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+
+import java.util.Map;
 
 public class TestExpression {
   @Test(expected = IllegalArgumentException.class)
@@ -97,6 +101,12 @@ public class TestExpression {
 
   @Test
   public void hashCodeEqualsCompareTo() throws Exception {
+    Map<String, NumericFillPolicy> fills = Maps.newHashMap();
+    fills.put("a", NumericFillPolicy.newBuilder()
+        .setPolicy(FillPolicy.SCALAR).setValue(1).build());
+    fills.put("b", NumericFillPolicy.newBuilder()
+        .setPolicy(FillPolicy.SCALAR).setValue(42).build());
+    
     final Expression e1 = new Expression.Builder()
         .setId("e1")
         .setExpression("a + b")
@@ -106,6 +116,7 @@ public class TestExpression {
         .setJoin(new Join.Builder()
             .setOperator(SetOperator.INTERSECTION)
             .build())
+        .setFillPolicies(Maps.newHashMap(fills))
         .build();
     
     Expression e2 = new Expression.Builder()
@@ -117,6 +128,7 @@ public class TestExpression {
         .setJoin(new Join.Builder()
             .setOperator(SetOperator.INTERSECTION)
             .build())
+        .setFillPolicies(Maps.newHashMap(fills))
         .build();
     assertEquals(e1.hashCode(), e2.hashCode());
     assertEquals(e1, e2);
@@ -131,6 +143,7 @@ public class TestExpression {
         .setJoin(new Join.Builder()
             .setOperator(SetOperator.INTERSECTION)
             .build())
+        .setFillPolicies(Maps.newHashMap(fills))
         .build();
     assertNotEquals(e1.hashCode(), e2.hashCode());
     assertNotEquals(e1, e2);
@@ -145,6 +158,7 @@ public class TestExpression {
         .setJoin(new Join.Builder()
             .setOperator(SetOperator.INTERSECTION)
             .build())
+        .setFillPolicies(Maps.newHashMap(fills))
         .build();
     assertNotEquals(e1.hashCode(), e2.hashCode());
     assertNotEquals(e1, e2);
@@ -159,6 +173,7 @@ public class TestExpression {
         .setJoin(new Join.Builder()
             .setOperator(SetOperator.INTERSECTION)
             .build())
+        .setFillPolicies(Maps.newHashMap(fills))
         .build();
     assertNotEquals(e1.hashCode(), e2.hashCode());
     assertNotEquals(e1, e2);
@@ -173,6 +188,7 @@ public class TestExpression {
         .setJoin(new Join.Builder()
             .setOperator(SetOperator.INTERSECTION)
             .build())
+        .setFillPolicies(Maps.newHashMap(fills))
         .build();
     assertNotEquals(e1.hashCode(), e2.hashCode());
     assertNotEquals(e1, e2);
@@ -187,6 +203,7 @@ public class TestExpression {
         .setJoin(new Join.Builder()
             .setOperator(SetOperator.UNION)  // <-- diff
             .build())
+        .setFillPolicies(Maps.newHashMap(fills))
         .build();
     assertNotEquals(e1.hashCode(), e2.hashCode());
     assertNotEquals(e1, e2);
@@ -201,10 +218,46 @@ public class TestExpression {
         //.setJoin(new Join.Builder()   // <-- diff
         //    .setOperator(SetOperator.INTERSECTION)
         //    .build())
+        .setFillPolicies(Maps.newHashMap(fills))
         .build();
     assertNotEquals(e1.hashCode(), e2.hashCode());
     assertNotEquals(e1, e2);
     assertEquals(1, e1.compareTo(e2));
+    
+    Map<String, NumericFillPolicy> fill2 = Maps.newHashMap();
+    fills.put("a", NumericFillPolicy.newBuilder()
+        .setPolicy(FillPolicy.SCALAR).setValue(1).build());
+    
+    e2 = new Expression.Builder()
+        .setId("e1")
+        .setExpression("a + b")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setJoin(new Join.Builder()
+            .setOperator(SetOperator.INTERSECTION)
+            .build())
+        .setFillPolicies(fill2)   // <-- diff
+        .build();
+    assertNotEquals(e1.hashCode(), e2.hashCode());
+    assertNotEquals(e1, e2);
+    assertEquals(-1, e1.compareTo(e2));
+    
+    e2 = new Expression.Builder()
+        .setId("e1")
+        .setExpression("a + b")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setJoin(new Join.Builder()
+            .setOperator(SetOperator.INTERSECTION)
+            .build())
+        //.setFillPolicies(Maps.newHashMap(fills))   // <-- diff
+        .build();
+    assertNotEquals(e1.hashCode(), e2.hashCode());
+    assertNotEquals(e1, e2);
+    assertEquals(1, e1.compareTo(e2));
+    
   }
 
 }

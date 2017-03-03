@@ -12,9 +12,13 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.pojo;
 
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
 
 import org.apache.commons.jexl2.JexlEngine;
 import org.apache.commons.jexl2.Script;
@@ -60,8 +64,11 @@ public class Expression extends Validatable implements Comparable<Expression> {
   /** The joiner operator */
   private Join join;
   
-  /** The fill policy to use for ? */
+  /** The fill policy to use if this output is included in a DS and nothing is present. */
   private NumericFillPolicy fill_policy;
+  
+  /** An optional map of variables to fill policies. */
+  private Map<String, NumericFillPolicy> fill_policies;
   
   /** Set of unique variables used by this expression. */
   private Set<String> variables;
@@ -73,11 +80,12 @@ public class Expression extends Validatable implements Comparable<Expression> {
    * Default ctor 
    * @param builder The builder to pull values from
    */
-  protected Expression(Builder builder) {
+  protected Expression(final Builder builder) {
     id = builder.id;
     expr = builder.expr;
     join = builder.join;
     fill_policy = builder.fillPolicy;
+    fill_policies = builder.fillPolicies;
   }
   
   /** @return the id for this expression for use in output selection or 
@@ -99,6 +107,11 @@ public class Expression extends Validatable implements Comparable<Expression> {
   /** @return the fill policy to use for ? */
   public NumericFillPolicy getFillPolicy() {
     return fill_policy;
+  }
+  
+  /** @return an optional list of variables to fill policies. */
+  public Map<String, NumericFillPolicy> getFillPolicies() {
+    return fill_policies;
   }
   
   /** @return A new builder for the expression */
@@ -162,7 +175,8 @@ public class Expression extends Validatable implements Comparable<Expression> {
     return Objects.equal(id, expression.id)
         && Objects.equal(expr, expression.expr)
         && Objects.equal(join, expression.join)
-        && Objects.equal(fill_policy, expression.fill_policy);
+        && Objects.equal(fill_policy, expression.fill_policy)
+        && Objects.equal(fill_policies, expression.fill_policies);
   }
 
   @Override
@@ -184,6 +198,14 @@ public class Expression extends Validatable implements Comparable<Expression> {
     if (fill_policy != null) {
       hashes.add(fill_policy.buildHashCode());
     }
+    if (fill_policies != null) {
+      // it's a tree map (via builder) so already sorted
+      for (final Entry<String, NumericFillPolicy> entry : fill_policies.entrySet()) {
+        hashes.add(Const.HASH_FUNCTION().newHasher()
+            .putString(entry.getKey(), Const.UTF8_CHARSET).hash());
+        hashes.add(entry.getValue().buildHashCode());
+      }
+    }
     return Hashing.combineOrdered(hashes);
   }
 
@@ -194,6 +216,7 @@ public class Expression extends Validatable implements Comparable<Expression> {
         .compare(expr, o.expr, Ordering.natural().nullsFirst())
         .compare(join, o.join, Ordering.natural().nullsFirst())
         .compare(fill_policy, o.fill_policy, Ordering.natural().nullsFirst())
+        .compare(fill_policies, o.fill_policies, FILL_CMP)
         .result();
   }
 
@@ -211,6 +234,8 @@ public class Expression extends Validatable implements Comparable<Expression> {
     private Join join;
     @JsonProperty
     private NumericFillPolicy fillPolicy;
+    @JsonProperty
+    private Map<String, NumericFillPolicy> fillPolicies;
     
     public Builder setId(String id) {
       Query.validateId(id);
@@ -233,8 +258,57 @@ public class Expression extends Validatable implements Comparable<Expression> {
       return this;
     }
     
+    public Builder setFillPolicies(Map<String, NumericFillPolicy> fill_policies) {
+      if (fill_policies != null) {
+        fillPolicies = new TreeMap<String, NumericFillPolicy>(fill_policies);
+      }
+      return this;
+    }
+    
     public Expression build() {
       return new Expression(this);
     }
+  }
+  
+  /** Little helper for comparing the variable to fills map. */
+  private static FillPoliciesComparator FILL_CMP = new FillPoliciesComparator();
+  
+  /**
+   * Little helper for comparing the variable to fills map.
+   */
+  private static class FillPoliciesComparator implements 
+    Comparator<Map<String, NumericFillPolicy>> {
+
+    @Override
+    public int compare(final Map<String, NumericFillPolicy> a,
+        final Map<String, NumericFillPolicy> b) {
+      if (a == b || a == null && b == null) {
+        return 0;
+      }
+      if (a == null && b != null) {
+        return -1;
+      }
+      if (b == null && a != null) {
+        return 1;
+      }
+      if (a.size() > b.size()) {
+        return -1;
+      }
+      if (b.size() > a.size()) {
+        return 1;
+      }
+      for (final Entry<String, NumericFillPolicy> entry : a.entrySet()) {
+        final NumericFillPolicy b_value = b.get(entry.getKey());
+        if (b_value == null && entry.getValue() != null) {
+          return 1;
+        }
+        final int cmp = entry.getValue().compareTo(b_value);
+        if (cmp != 0) {
+          return cmp;
+        }
+      }
+      return 0;
+    }
+    
   }
 }

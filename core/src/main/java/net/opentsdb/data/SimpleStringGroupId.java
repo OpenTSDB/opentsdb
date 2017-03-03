@@ -13,7 +13,8 @@
 package net.opentsdb.data;
 
 import java.util.Comparator;
-import java.util.Objects;
+
+import com.google.common.base.Objects;
 
 /**
  * TEMP - simple implementation of the group ID.
