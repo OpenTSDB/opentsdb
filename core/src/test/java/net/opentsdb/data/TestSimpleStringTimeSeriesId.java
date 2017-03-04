@@ -37,6 +37,8 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     
     SimpleStringTimeSeriesId id2 = SimpleStringTimeSeriesId.newBuilder()
@@ -46,6 +48,8 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     assertEquals(id1.hashCode(), id2.hashCode());
     assertEquals(id1, id2);
@@ -58,6 +62,8 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     assertNotEquals(id1.hashCode(), id2.hashCode());
     assertNotEquals(id1, id2);
@@ -70,6 +76,8 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     assertNotEquals(id1.hashCode(), id2.hashCode());
     assertNotEquals(id1, id2);
@@ -82,6 +90,8 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     assertNotEquals(id1.hashCode(), id2.hashCode());
     assertNotEquals(id1, id2);
@@ -94,6 +104,8 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     assertEquals(id1.hashCode(), id2.hashCode());
     assertEquals(id1, id2);
@@ -106,6 +118,8 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     assertNotEquals(id1.hashCode(), id2.hashCode());
     assertNotEquals(id1, id2);
@@ -118,6 +132,8 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     assertNotEquals(id1.hashCode(), id2.hashCode());
     assertNotEquals(id1, id2);
@@ -130,6 +146,8 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     assertEquals(id1.hashCode(), id2.hashCode());
     assertEquals(id1, id2);
@@ -146,6 +164,8 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags2) // <-- Diff
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     assertNotEquals(id1.hashCode(), id2.hashCode());
     assertNotEquals(id1, id2);
@@ -162,6 +182,8 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags2) // <-- Diff
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     assertNotEquals(id1.hashCode(), id2.hashCode());
     assertNotEquals(id1, id2);
@@ -174,6 +196,8 @@ public class TestSimpleStringTimeSeriesId {
         //.setTags(tags) // <-- Diff
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     assertNotEquals(id1.hashCode(), id2.hashCode());
     assertNotEquals(id1, id2);
@@ -186,6 +210,8 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner")) // <-- Diff
         .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     assertNotEquals(id1.hashCode(), id2.hashCode());
     assertNotEquals(id1, id2);
@@ -198,6 +224,8 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags)
         //.setAggregatedTags(Lists.newArrayList("owner", "role")) // <-- Diff
         .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     assertNotEquals(id1.hashCode(), id2.hashCode());
     assertNotEquals(id1, id2);
@@ -210,6 +238,8 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("role", "owner")) // <-- Diff order OK!
         .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     assertEquals(id1.hashCode(), id2.hashCode());
     assertEquals(id1, id2);
@@ -222,6 +252,8 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery"))  // <-- Diff
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     assertNotEquals(id1.hashCode(), id2.hashCode());
     assertNotEquals(id1, id2);
@@ -234,6 +266,8 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         //.setDisjointTags(Lists.newArrayList("propery", "type"))  // <-- Diff
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
         .build();
     assertNotEquals(id1.hashCode(), id2.hashCode());
     assertNotEquals(id1, id2);
@@ -246,6 +280,50 @@ public class TestSimpleStringTimeSeriesId {
         .setTags(tags) 
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("type", "propery")) // <-- Diff order OK!
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        .addUniqueId(new byte[] { 0, 0, 2 })
+        .build();
+    assertEquals(id1.hashCode(), id2.hashCode());
+    assertEquals(id1, id2);
+    assertEquals(0, id1.compareTo(id2));
+    
+    id2 = SimpleStringTimeSeriesId.newBuilder()
+        .setAlias("FakeID")
+        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
+        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setTags(tags) 
+        .setAggregatedTags(Lists.newArrayList("owner", "role"))
+        .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 1 })
+        //.addUniqueId(new byte[] { 0, 0, 2 })  // <-- Diff
+        .build();
+    assertNotEquals(id1.hashCode(), id2.hashCode());
+    assertNotEquals(id1, id2);
+    assertEquals(-1, id1.compareTo(id2));
+    
+    id2 = SimpleStringTimeSeriesId.newBuilder()
+        .setAlias("FakeID")
+        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
+        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setTags(tags) 
+        .setAggregatedTags(Lists.newArrayList("owner", "role"))
+        .setDisjointTags(Lists.newArrayList("propery", "type"))
+        //.addUniqueId(new byte[] { 0, 0, 1 })
+        //.addUniqueId(new byte[] { 0, 0, 2 })  // <-- Diff
+        .build();
+    assertNotEquals(id1.hashCode(), id2.hashCode());
+    assertNotEquals(id1, id2);
+    assertEquals(1, id1.compareTo(id2));
+    
+    id2 = SimpleStringTimeSeriesId.newBuilder()
+        .setAlias("FakeID")
+        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
+        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setTags(tags) 
+        .setAggregatedTags(Lists.newArrayList("owner", "role"))
+        .setDisjointTags(Lists.newArrayList("propery", "type"))
+        .addUniqueId(new byte[] { 0, 0, 2 }) // <-- Diff order OK!
+        .addUniqueId(new byte[] { 0, 0, 1 })
         .build();
     assertEquals(id1.hashCode(), id2.hashCode());
     assertEquals(id1, id2);

@@ -14,6 +14,7 @@ package net.opentsdb.data;
 
 import java.util.List;
 
+import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes.ByteMap;
 
 /**
@@ -118,4 +119,11 @@ public interface TimeSeriesId {
    * @return A non-null list of zero or more tag names.
    */
   public List<byte[]> disjointTags();
+  
+  /**
+   * A flattened list of unique identifiers for the time series that can be used
+   * to determine the count of real series underlying the data.
+   * @return A non-null set of unique identifiers.
+   */
+  public ByteSet uniqueIds();
 }

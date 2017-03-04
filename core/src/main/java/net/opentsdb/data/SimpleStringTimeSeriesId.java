@@ -30,6 +30,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Bytes.ByteMap;
 
@@ -50,6 +51,7 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
   private ByteMap<byte[]> tags;
   private List<byte[]> aggregated_tags;
   private List<byte[]> disjoint_tags;
+  private ByteSet unique_ids;
   
   /**
    * Private CTor used by the builder. Converts the Strings to byte arrays
@@ -91,10 +93,14 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
         disjoint_tags.add(tag.getBytes(Const.UTF8_CHARSET));
       }
     }
+    if (builder.unique_ids != null) {
+      unique_ids = builder.unique_ids;
+    }
   }
   
   @Override
   public boolean encoded() {
+    // TODO
     return false;
   }
 
@@ -127,6 +133,11 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
   public List<byte[]> disjointTags() {
     return disjoint_tags;
   }
+  
+  @Override
+  public ByteSet uniqueIds() {
+    return unique_ids;
+  }
 
   @Override
   public boolean equals(final Object o) {
@@ -135,26 +146,35 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
     if (o == null || getClass() != o.getClass())
       return false;
     
-    final SimpleStringTimeSeriesId id = (SimpleStringTimeSeriesId) o;
+    final TimeSeriesId id = (TimeSeriesId) o;
     
     // long slog through byte arrays.... :(
-    if (Bytes.memcmpMaybeNull(alias, id.alias) != 0) {
+    if (Bytes.memcmpMaybeNull(alias, id.alias()) != 0) {
       return false;
     }
-    if (!Bytes.equals(namespaces, id.namespaces)) {
+    if (!Bytes.equals(namespaces, id.namespaces())) {
       return false;
     }
-    if (!Bytes.equals(metrics, id.metrics)) {
+    if (!Bytes.equals(metrics, id.metrics())) {
       return false;
     }
-    if (!Bytes.equals(tags, id.tags)) {
+    if (!Bytes.equals(tags, id.tags())) {
       return false;
     }
-    if (!Bytes.equals(aggregated_tags, id.aggregated_tags)) {
+    if (!Bytes.equals(aggregated_tags, id.aggregatedTags())) {
       return false;
     }
-    if (!Bytes.equals(disjoint_tags, id.disjoint_tags)) {
+    if (!Bytes.equals(disjoint_tags, id.disjointTags())) {
       return false;
+    }
+    if (unique_ids != null && id.uniqueIds() == null) {
+      return false;
+    }
+    if (unique_ids == null && id.uniqueIds() != null) {
+      return false;
+    }
+    if (unique_ids != null && id.uniqueIds() != null) {
+      return unique_ids.equals(id.uniqueIds());
     }
     return true;
   }
@@ -173,6 +193,7 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
         .putObject(tags, Bytes.BYTE_MAP_FUNNEL)
         .putObject(aggregated_tags, Bytes.BYTE_LIST_FUNNEL)
         .putObject(disjoint_tags, Bytes.BYTE_LIST_FUNNEL)
+        .putObject(unique_ids, ByteSet.BYTE_SET_FUNNEL)
         .hash();
   }
   
@@ -189,6 +210,7 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
             Ordering.from(Bytes.MEMCMP).lexicographical().nullsFirst())
         .compare(disjoint_tags, o.disjointTags(), 
             Ordering.from(Bytes.MEMCMP).lexicographical().nullsFirst())
+        .compare(unique_ids, o.uniqueIds(), ByteSet.BYTE_SET_CMP)
         .result();
   }
   
@@ -206,7 +228,9 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
         .append(", aggregated_tags=")
         .append(Bytes.toString(aggregated_tags, Const.UTF8_CHARSET))
         .append(", disjoint_tags=")
-        .append(Bytes.toString(disjoint_tags, Const.UTF8_CHARSET));
+        .append(Bytes.toString(disjoint_tags, Const.UTF8_CHARSET))
+        .append(", uniqueIds=")
+        .append(unique_ids);
     return buf.toString();
   }
   
@@ -230,6 +254,8 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
     private List<String> aggregated_tags;
     @JsonProperty
     private List<String> disjoint_tags;
+    @JsonProperty
+    private ByteSet unique_ids; 
     
     public Builder setAlias(final String alias) {
       this.alias = alias;
@@ -270,6 +296,19 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
       if (this.disjoint_tags != null) {
         Collections.sort(this.disjoint_tags);
       }
+      return this;
+    }
+    
+    public Builder setUniqueId(final ByteSet unique_ids) {
+      this.unique_ids = unique_ids;
+      return this;
+    }
+    
+    public Builder addUniqueId(final byte[] id) {
+      if (unique_ids == null) {
+        unique_ids = new ByteSet();
+      }
+      unique_ids.add(id);
       return this;
     }
     

@@ -14,9 +14,16 @@ package net.opentsdb.utils;
 
 import java.util.AbstractSet;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Set;
 
+import com.google.common.hash.Funnel;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.PrimitiveSink;
+
+import net.opentsdb.common.Const;
 import net.opentsdb.utils.Bytes.ByteMap;
 
 /**
@@ -25,7 +32,8 @@ import net.opentsdb.utils.Bytes.ByteMap;
  * the arrays, not on the hash codes. 
  */
 public class ByteSet extends AbstractSet<byte[]> 
-  implements Set<byte[]>, Cloneable, java.io.Serializable {
+  implements Set<byte[]>, Cloneable, java.io.Serializable,
+  Comparator<ByteSet> {
 
   private static final long serialVersionUID = -496061795957902656L;
 
@@ -106,5 +114,96 @@ public class ByteSet extends AbstractSet<byte[]>
     }
   }
   
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof ByteSet)) {
+      return false;
+    }
+    final ByteSet other = (ByteSet) o;
+    if (other.size() != size()) {
+      return false;
+    }
+    for (final byte[] entry : this) {
+      if (!other.contains(entry)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @Override
+  public int compare(final ByteSet a, final ByteSet b) {
+    return BYTE_SET_CMP.compare(a, b);
+  }
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+  
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    final Hasher hasher = Const.HASH_FUNCTION().newHasher();
+    // since it's a TreeMap base we're already sorted.
+    for (final byte[] entry : this) {
+      hasher.putBytes(entry);
+    }
+    return hasher.hash();    
+  }
+
+  /** A singleton {@link Funnel} for ByteSets. Support nulls. */
+  public static final ByteSetFunnel BYTE_SET_FUNNEL = new ByteSetFunnel();
+  
+  /** {@link Funnel} for ByteSets .Support nulls.  */
+  public static class ByteSetFunnel implements Funnel<ByteSet> {
+    private static final long serialVersionUID = -3996447772300131045L;
+    private ByteSetFunnel() { }
+    @Override
+    public void funnel(final ByteSet set, final PrimitiveSink sink) {
+      if (set == null || set.isEmpty()) {
+        return;
+      }
+      // since it's a TreeMap base we're already sorted.
+      for (final byte[] entry : set) {
+        sink.putBytes(entry);
+      }
+    }
+    
+  }
+  
+  /** A singleton {@link Comparator} for ByteSets. Support nulls. */
+  public static final ByteSetComparator BYTE_SET_CMP = new ByteSetComparator();
+  
+  /** {@link Comparator} for ByteSets .Support nulls.  */
+  public static class ByteSetComparator implements Comparator<ByteSet> {
+    private ByteSetComparator() { }
+    @Override
+    public int compare(final ByteSet a, final ByteSet b) {
+      if (a == b || a == null && b == null) {
+        return 0;
+      }
+      if (a == null && b != null) {
+        return -1;
+      }
+      if (b == null && a != null) {
+        return 1;
+      }
+      if (a.size() > b.size()) {
+        return -1;
+      }
+      if (b.size() > a.size()) {
+        return 1;
+      }
+      for (final byte[] entry : a) {
+        if (!b.contains(entry)) {
+          return -1;
+        }
+      }
+      return 0;
+    }
+  }
   // TODO - writeObject, readObject
 }
