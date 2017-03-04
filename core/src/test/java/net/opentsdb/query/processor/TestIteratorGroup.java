@@ -631,40 +631,10 @@ public class TestIteratorGroup {
     verify(it_b, never()).initialize();
   }
   
-  /**  _ | * | *
-   *   * | * | *
-   */
   @SuppressWarnings("unchecked")
   @Test
   public void state1() throws Exception {
-    data_a = Lists.newArrayListWithCapacity(1);
-    List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
-    data_a.add(set);
-    it_a.data = data_a;
-    
-    data_b = Lists.newArrayListWithCapacity(1);
-    set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
-    data_b.add(set);
-    it_b.data = data_b;
-    
+    ProcessorTestsHelpers.setState1(it_a, it_b);
     final TimeSeriesProcessor group = new IteratorGroup();
     // add series
     group.addSeries(group_id, it_a);
@@ -710,40 +680,10 @@ public class TestIteratorGroup {
     assertEquals(IteratorStatus.END_OF_DATA, group.status());
   }
   
-  /**  _ | _ | *
-   *   * | * | *
-   */
   @SuppressWarnings("unchecked")
   @Test
   public void state2() throws Exception {
-    data_a = Lists.newArrayListWithCapacity(1);
-    List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
-    data_a.add(set);
-    it_a.data = data_a;
-    
-    data_b = Lists.newArrayListWithCapacity(1);
-    set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
-    data_b.add(set);
-    it_b.data = data_b;
-    
+    ProcessorTestsHelpers.setState2(it_a, it_b);
     final TimeSeriesProcessor group = new IteratorGroup();
     // add series
     group.addSeries(group_id, it_a);
@@ -789,39 +729,10 @@ public class TestIteratorGroup {
     assertEquals(IteratorStatus.END_OF_DATA, group.status());
   }
   
-  /**  * | _ | *
-   *   * | * | *
-   */
   @SuppressWarnings("unchecked")
   @Test
   public void state3() throws Exception {
-    data_a = Lists.newArrayListWithCapacity(1);
-    List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
-    data_a.add(set);
-    it_a.data = data_a;
-    
-    data_b = Lists.newArrayListWithCapacity(1);
-    set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
-    data_b.add(set);
-    it_b.data = data_b;
+    ProcessorTestsHelpers.setState3(it_a, it_b);
     
     final TimeSeriesProcessor group = new IteratorGroup();
     // add series
@@ -868,39 +779,10 @@ public class TestIteratorGroup {
     assertEquals(IteratorStatus.END_OF_DATA, group.status());
   }
   
-  /**  * | _ | _
-   *   * | * | *
-   */
   @SuppressWarnings("unchecked")
   @Test
   public void state4() throws Exception {
-    data_a = Lists.newArrayListWithCapacity(1);
-    List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
-    data_a.add(set);
-    it_a.data = data_a;
-    
-    data_b = Lists.newArrayListWithCapacity(1);
-    set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
-    data_b.add(set);
-    it_b.data = data_b;
+    ProcessorTestsHelpers.setState4(it_a, it_b);
     
     final TimeSeriesProcessor group = new IteratorGroup();
     // add series
@@ -947,39 +829,10 @@ public class TestIteratorGroup {
     assertEquals(IteratorStatus.END_OF_DATA, group.status());
   }
   
-  /**  * | _ | _
-   *   _ | * | *
-   */
   @SuppressWarnings("unchecked")
   @Test
   public void state5() throws Exception {
-    data_a = Lists.newArrayListWithCapacity(1);
-    List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
-    data_a.add(set);
-    it_a.data = data_a;
-    
-    data_b = Lists.newArrayListWithCapacity(1);
-    set = Lists.newArrayListWithCapacity(3);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
-    data_b.add(set);
-    it_b.data = data_b;
+    ProcessorTestsHelpers.setState5(it_a, it_b);
     
     final TimeSeriesProcessor group = new IteratorGroup();
     // add series
@@ -1026,39 +879,10 @@ public class TestIteratorGroup {
     assertEquals(IteratorStatus.END_OF_DATA, group.status());
   }
   
-  /**  * | _ | _
-   *   _ | _ | *
-   */
   @SuppressWarnings("unchecked")
   @Test
   public void state6() throws Exception {
-    data_a = Lists.newArrayListWithCapacity(1);
-    List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
-    data_a.add(set);
-    it_a.data = data_a;
-    
-    data_b = Lists.newArrayListWithCapacity(1);
-    set = Lists.newArrayListWithCapacity(3);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
-    data_b.add(set);
-    it_b.data = data_b;
+    ProcessorTestsHelpers.setState6(it_a, it_b);
     
     final TimeSeriesProcessor group = new IteratorGroup();
     // add series
@@ -1095,39 +919,10 @@ public class TestIteratorGroup {
     assertEquals(IteratorStatus.END_OF_DATA, group.status());
   }
   
-  /**  * | _ | _
-   *   _ | _ | _
-   */
   @SuppressWarnings("unchecked")
   @Test
   public void state7() throws Exception {
-    data_a = Lists.newArrayListWithCapacity(1);
-    List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
-    data_a.add(set);
-    it_a.data = data_a;
-    
-    data_b = Lists.newArrayListWithCapacity(1);
-    set = Lists.newArrayListWithCapacity(3);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
-    data_b.add(set);
-    it_b.data = data_b;
+    ProcessorTestsHelpers.setState7(it_a, it_b);
     
     final TimeSeriesProcessor group = new IteratorGroup();
     // add series
@@ -1156,39 +951,10 @@ public class TestIteratorGroup {
     assertEquals(IteratorStatus.END_OF_DATA, group.status());
   }
   
-  /**  _ | * | _
-   *   _ | _ | _
-   */
   @SuppressWarnings("unchecked")
   @Test
   public void state8() throws Exception {
-    data_a = Lists.newArrayListWithCapacity(1);
-    List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
-    data_a.add(set);
-    it_a.data = data_a;
-    
-    data_b = Lists.newArrayListWithCapacity(1);
-    set = Lists.newArrayListWithCapacity(3);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
-    data_b.add(set);
-    it_b.data = data_b;
+    ProcessorTestsHelpers.setState8(it_a, it_b);
     
     final TimeSeriesProcessor group = new IteratorGroup();
     // add series
@@ -1218,39 +984,10 @@ public class TestIteratorGroup {
     assertEquals(IteratorStatus.END_OF_DATA, group.status());
   }
   
-  /**  _ | _ | *
-   *   _ | _ | _
-   */
   @SuppressWarnings("unchecked")
   @Test
   public void state9() throws Exception {
-    data_a = Lists.newArrayListWithCapacity(1);
-    List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
-    data_a.add(set);
-    it_a.data = data_a;
-    
-    data_b = Lists.newArrayListWithCapacity(1);
-    set = Lists.newArrayListWithCapacity(3);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
-    data_b.add(set);
-    it_b.data = data_b;
+    ProcessorTestsHelpers.setState9(it_a, it_b);
     
     final TimeSeriesProcessor group = new IteratorGroup();
     // add series
@@ -1280,39 +1017,10 @@ public class TestIteratorGroup {
     assertEquals(IteratorStatus.END_OF_DATA, group.status());
   }
   
-  /**  * | _ | *
-   *   _ | * | _
-   */
   @SuppressWarnings("unchecked")
   @Test
   public void state10() throws Exception {
-    data_a = Lists.newArrayListWithCapacity(1);
-    List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
-    data_a.add(set);
-    it_a.data = data_a;
-    
-    data_b = Lists.newArrayListWithCapacity(1);
-    set = Lists.newArrayListWithCapacity(3);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
-    data_b.add(set);
-    it_b.data = data_b;
+    ProcessorTestsHelpers.setState10(it_a, it_b);
     
     final TimeSeriesProcessor group = new IteratorGroup();
     // add series
@@ -1361,39 +1069,10 @@ public class TestIteratorGroup {
     assertEquals(IteratorStatus.END_OF_DATA, group.status());
   }
   
-  /**  * | _ | *
-   *   _ | *  <-- done early
-   */
   @SuppressWarnings("unchecked")
   @Test
   public void state11() throws Exception {
-    data_a = Lists.newArrayListWithCapacity(1);
-    List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
-    data_a.add(set);
-    it_a.data = data_a;
-    
-    data_b = Lists.newArrayListWithCapacity(1);
-    set = Lists.newArrayListWithCapacity(3);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
-    data_b.add(set);
-    
-    //set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
-    //data_b.add(set);
-    it_b.data = data_b;
+    ProcessorTestsHelpers.setState11(it_a, it_b);
     
     final TimeSeriesProcessor group = new IteratorGroup();
     // add series
@@ -1414,7 +1093,8 @@ public class TestIteratorGroup {
         iterators.get(group_id).get(NumericType.TYPE).get(1).next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertTrue(Double.isNaN(v.value().doubleValue()));
-
+    
+    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
     group.fetchNext();
     group.next();
     v = (TimeSeriesValue<NumericType>) 
@@ -1427,6 +1107,7 @@ public class TestIteratorGroup {
     assertEquals(2000, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
     
+    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
     group.fetchNext();
     group.next();
     v = (TimeSeriesValue<NumericType>) 

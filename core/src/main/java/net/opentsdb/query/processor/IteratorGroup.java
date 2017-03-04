@@ -141,7 +141,8 @@ public class IteratorGroup implements TimeSeriesProcessor,
           iterators.values()) {
         for (final List<TimeSeriesIterator<?>> its : type.values()) {
           for (final TimeSeriesIterator<?> it : its) {
-            if (it.status() == IteratorStatus.HAS_DATA) {
+            if (it.status() == IteratorStatus.HAS_DATA || 
+                it.status() == IteratorStatus.END_OF_CHUNK) {
               it.advance();
             } else if (it.status() == IteratorStatus.EXCEPTION) {
               status = IteratorStatus.EXCEPTION;
