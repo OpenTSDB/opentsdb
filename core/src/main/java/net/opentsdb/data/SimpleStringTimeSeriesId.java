@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 
@@ -45,13 +46,26 @@ import net.opentsdb.utils.Bytes.ByteMap;
 @JsonDeserialize(builder = SimpleStringTimeSeriesId.Builder.class)
 public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSeriesId> {
 
+  /** An optional alias. */
   private byte[] alias;
+  
+  /** An optional list of namespaces for the ID. */
   private List<byte[]> namespaces;
+  
+  /** An optional list of metrics for the ID. */
   private List<byte[]> metrics;
-  private ByteMap<byte[]> tags;
+  
+  /** A map of tag key/value pairs for the ID. */
+  private ByteMap<byte[]> tags = new ByteMap<byte[]>();
+  
+  /** An optional list of aggregated tags for the ID. */
   private List<byte[]> aggregated_tags;
+  
+  /** An optional list of disjoint tags for the ID. */
   private List<byte[]> disjoint_tags;
-  private ByteSet unique_ids;
+  
+  /** A list of unique IDs rolled up into the ID. */
+  private ByteSet unique_ids = new ByteSet();
   
   /**
    * Private CTor used by the builder. Converts the Strings to byte arrays
@@ -63,12 +77,22 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
       alias = builder.alias.getBytes(Const.UTF8_CHARSET);
     }
     if (builder.namespaces != null && !builder.namespaces.isEmpty()) {
+      try {
+        Collections.sort(builder.namespaces);
+      } catch (NullPointerException e) {
+        throw new IllegalArgumentException("Namespaces cannot contain nulls");
+      }
       namespaces = Lists.newArrayListWithCapacity(builder.namespaces.size());
       for (final String namespace : builder.namespaces) {
         namespaces.add(namespace.getBytes(Const.UTF8_CHARSET));
       }
     }
     if (builder.metrics != null && !builder.metrics.isEmpty()) {
+      try {
+        Collections.sort(builder.metrics);
+      } catch (NullPointerException e) {
+        throw new IllegalArgumentException("Metrics cannot contain nulls");
+      }
       metrics = Lists.newArrayListWithCapacity(builder.metrics.size());
       for (final String metric : builder.metrics) {
         metrics.add(metric.getBytes(Const.UTF8_CHARSET));
@@ -77,17 +101,33 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
     if (builder.tags != null && !builder.tags.isEmpty()) {
       tags = new ByteMap<byte[]>();
       for (final Entry<String, String> pair : builder.tags.entrySet()) {
+        if (pair.getKey() == null) {
+          throw new IllegalArgumentException("Tag key cannot be null.");
+        }
+        if (pair.getValue() == null) {
+          throw new IllegalArgumentException("Tag value cannot be null.");
+        }
         tags.put(pair.getKey().getBytes(Const.UTF8_CHARSET), 
             pair.getValue().getBytes(Const.UTF8_CHARSET));
       }
     }
     if (builder.aggregated_tags != null && !builder.aggregated_tags.isEmpty()) {
+      try {
+        Collections.sort(builder.aggregated_tags);
+      } catch (NullPointerException e) {
+        throw new IllegalArgumentException("Aggregated tags cannot contain nulls");
+      }
       aggregated_tags = Lists.newArrayListWithCapacity(builder.aggregated_tags.size());
       for (final String tag : builder.aggregated_tags) {
         aggregated_tags.add(tag.getBytes(Const.UTF8_CHARSET));
       }
     }
     if (builder.disjoint_tags != null && !builder.disjoint_tags.isEmpty()) {
+      try {
+        Collections.sort(builder.disjoint_tags);
+      } catch (NullPointerException e) {
+        throw new IllegalArgumentException("Disjoint Tags cannot contain nulls");
+      }
       disjoint_tags = Lists.newArrayListWithCapacity(builder.disjoint_tags.size());
       for (final String tag : builder.disjoint_tags) {
         disjoint_tags.add(tag.getBytes(Const.UTF8_CHARSET));
@@ -111,12 +151,12 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
 
   @Override
   public List<byte[]> namespaces() {
-    return namespaces;
+    return namespaces == null ? Collections.<byte[]>emptyList() : namespaces;
   }
 
   @Override
   public List<byte[]> metrics() {
-    return metrics;
+    return metrics == null ? Collections.<byte[]>emptyList() : metrics;
   }
 
   @Override
@@ -126,12 +166,14 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
 
   @Override
   public List<byte[]> aggregatedTags() {
-    return aggregated_tags;
+    return aggregated_tags == null ? 
+        Collections.<byte[]>emptyList() : aggregated_tags;
   }
 
   @Override
   public List<byte[]> disjointTags() {
-    return disjoint_tags;
+    return disjoint_tags == null ? 
+        Collections.<byte[]>emptyList() : disjoint_tags;
   }
   
   @Override
@@ -218,7 +260,7 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
   public String toString() {
     final StringBuilder buf = new StringBuilder()
         .append("alias=")
-        .append(new String(alias, Const.UTF8_CHARSET))
+        .append(alias != null ? new String(alias, Const.UTF8_CHARSET) : "null")
         .append(", namespaces=")
         .append(Bytes.toString(namespaces, Const.UTF8_CHARSET))
         .append(", metrics=")
@@ -262,19 +304,29 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
       return this;
     }
     
-    public Builder setNamespaces(final List<String> namespace) {
-      this.namespaces = namespace;
-      if (this.namespaces != null) {
-        Collections.sort(this.namespaces);
+    public Builder setNamespaces(final List<String> namespaces) {
+      this.namespaces = namespaces;
+      return this;
+    }
+    
+    public Builder addNamespace(final String namespace) {
+      if (namespaces == null) {
+        namespaces = Lists.newArrayList();
       }
+      namespaces.add(namespace);
       return this;
     }
     
     public Builder setMetrics(final List<String> metrics) {
       this.metrics = metrics;
-      if (this.metrics != null) {
-        Collections.sort(this.metrics);
+      return this;
+    }
+    
+    public Builder addMetric(final String metric) {
+      if (metrics == null) {
+        metrics = Lists.newArrayList();
       }
+      metrics.add(metric);
       return this;
     }
     
@@ -283,19 +335,37 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
       return this;
     }
     
+    public Builder addTags(final String key, final String value) {
+      if (tags == null) {
+        tags = Maps.newHashMap();
+      }
+      tags.put(key, value);
+      return this;
+    }
+    
     public Builder setAggregatedTags(final List<String> aggregated_tags) {
       this.aggregated_tags = aggregated_tags;
-      if (this.aggregated_tags != null) {
-        Collections.sort(this.aggregated_tags);
+      return this;
+    }
+    
+    public Builder addAggregatedTag(final String tag) {
+      if (aggregated_tags == null) {
+        aggregated_tags = Lists.newArrayList();
       }
+      aggregated_tags.add(tag);
       return this;
     }
     
     public Builder setDisjointTags(final List<String> disjoint_tags) {
       this.disjoint_tags = disjoint_tags;
-      if (this.disjoint_tags != null) {
-        Collections.sort(this.disjoint_tags);
+      return this;
+    }
+    
+    public Builder addDisjointTag(final String tag) {
+      if (disjoint_tags == null) {
+        disjoint_tags = Lists.newArrayList();
       }
+      disjoint_tags.add(tag);
       return this;
     }
     
@@ -305,6 +375,9 @@ public class SimpleStringTimeSeriesId implements TimeSeriesId, Comparable<TimeSe
     }
     
     public Builder addUniqueId(final byte[] id) {
+      if (id == null) {
+        throw new IllegalArgumentException("Null unique IDs are not allowed.");
+      }
       if (unique_ids == null) {
         unique_ids = new ByteSet();
       }

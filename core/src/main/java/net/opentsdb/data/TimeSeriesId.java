@@ -33,7 +33,9 @@ import net.opentsdb.utils.Bytes.ByteMap;
  * representation. The encoded values can be passed in the identifiers to save
  * space when series are passed across the network or cached. In such cases the
  * encoded identifiers can be decoded prior to the final sink.
- * 
+ * <p>
+ * <b>Warning:</b> Underlying bytes are mutable so please make a copy before
+ * making any modifications.
  * @since 3.0
  */
 public interface TimeSeriesId {
