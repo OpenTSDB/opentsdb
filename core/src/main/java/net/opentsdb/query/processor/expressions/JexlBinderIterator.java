@@ -59,7 +59,6 @@ public class JexlBinderIterator extends
   
   /**
    * Default ctor accepting a source and config.
-   * @param source A non-null source to pull data from.
    * @param config A non-null config to pull the expression from.
    * @throws IllegalArgumentException if the config was null.
    */
