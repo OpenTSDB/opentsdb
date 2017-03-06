@@ -94,6 +94,9 @@ public class Join extends Validatable implements Comparable<Join> {
   /** Whether or not to use the aggregated tags in the results when joining. */
   private boolean include_agg_tags = true;
   
+  /** Whether or not to use the disjointed tags in the results when joining. */
+  private boolean include_disjoint_tags = true;
+  
   /** A list of tag keys to perform the join across. */
   private List<String> tags;
   
@@ -103,8 +106,9 @@ public class Join extends Validatable implements Comparable<Join> {
    */
   public Join(final Builder builder) {
     operator = builder.operator;
-    use_query_tags = builder.useQueryTags;
-    include_agg_tags = builder.includeAggTags;
+    use_query_tags = builder.use_query_tags;
+    include_agg_tags = builder.include_agg_tags;
+    include_disjoint_tags = builder.include_disjoint_tags;
     tags = builder.tags;
   }
   
@@ -123,6 +127,12 @@ public class Join extends Validatable implements Comparable<Join> {
    * when joining. */
   public boolean getIncludeAggTags() {
     return include_agg_tags;
+  }
+  
+  /** @return Whether or not to use the disjointed tags in the results when 
+   * joining. */
+  public boolean getIncludeDisjointTags() {
+    return include_disjoint_tags;
   }
   
   /** @return The tag keys to consider when performing the join. */
@@ -163,7 +173,8 @@ public class Join extends Validatable implements Comparable<Join> {
 
     final boolean result = Objects.equal(operator, join.operator)
         && Objects.equal(use_query_tags, join.use_query_tags)
-        && Objects.equal(include_agg_tags, join.include_agg_tags);
+        && Objects.equal(include_agg_tags, join.include_agg_tags)
+        && Objects.equal(include_disjoint_tags, join.include_disjoint_tags);
     if (!result) {
       return false;
     }
@@ -197,7 +208,8 @@ public class Join extends Validatable implements Comparable<Join> {
     final Hasher hash = Const.HASH_FUNCTION().newHasher()
         .putString(operator.getName(), Const.ASCII_CHARSET)
         .putBoolean(use_query_tags)
-        .putBoolean(include_agg_tags);
+        .putBoolean(include_agg_tags)
+        .putBoolean(include_disjoint_tags);
     if (tags != null) {
       for (final String tag : tags) {
         hash.putString(tag, Const.UTF8_CHARSET);
@@ -212,23 +224,23 @@ public class Join extends Validatable implements Comparable<Join> {
         .compare(operator.toString(), o.operator.toString())
         .compareTrueFirst(use_query_tags, o.use_query_tags)
         .compareTrueFirst(include_agg_tags, o.include_agg_tags)
+        .compareTrueFirst(include_disjoint_tags, o.include_disjoint_tags)
         .compare(tags, o.tags, 
             Ordering.<String>natural().lexicographical().nullsFirst())
         .result();
   }
   
-  /**
-   * A builder for the downsampler component of a query
-   */
   @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonPOJOBuilder(buildMethodName = "build", withPrefix = "")
   public static final class Builder {
     @JsonProperty
     private SetOperator operator;
     @JsonProperty
-    private boolean useQueryTags = false;
+    private boolean use_query_tags = false;
     @JsonProperty
-    private boolean includeAggTags = true;
+    private boolean include_agg_tags = true;
+    @JsonProperty
+    private boolean include_disjoint_tags = true;
     @JsonProperty
     private List<String> tags;
     
@@ -238,12 +250,17 @@ public class Join extends Validatable implements Comparable<Join> {
     }
     
     public Builder setUseQueryTags(final boolean use_query_tags) {
-      this.useQueryTags = use_query_tags;
+      this.use_query_tags = use_query_tags;
       return this;
     }
     
     public Builder setIncludeAggTags(final boolean include_agg_tags) {
-      this.includeAggTags = include_agg_tags;
+      this.include_agg_tags = include_agg_tags;
+      return this;
+    }
+    
+    public Builder setIncludeDisjointTags(final boolean include_disjoint_tags) {
+      this.include_disjoint_tags = include_disjoint_tags;
       return this;
     }
     

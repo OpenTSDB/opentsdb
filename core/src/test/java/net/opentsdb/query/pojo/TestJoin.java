@@ -93,6 +93,7 @@ public class TestJoin {
   public void hashCodeEqualsCompareTo() throws Exception {
     final Join j1 = new Join.Builder()
         .setOperator(SetOperator.INTERSECTION)
+        .setIncludeDisjointTags(false)
         .setIncludeAggTags(false)
         .setUseQueryTags(false)
         .setTags(Lists.newArrayList("host", "datacenter"))
@@ -100,6 +101,7 @@ public class TestJoin {
     
     Join j2 = new Join.Builder()
         .setOperator(SetOperator.INTERSECTION)
+        .setIncludeDisjointTags(false)
         .setIncludeAggTags(false)
         .setUseQueryTags(false)
         .setTags(Lists.newArrayList("host", "datacenter"))
@@ -110,6 +112,7 @@ public class TestJoin {
     
     j2 = new Join.Builder()
         .setOperator(SetOperator.UNION) // <-- diff
+        .setIncludeDisjointTags(false)
         .setIncludeAggTags(false)
         .setUseQueryTags(false)
         .setTags(Lists.newArrayList("host", "datacenter"))
@@ -119,7 +122,19 @@ public class TestJoin {
     assertEquals(-1, j1.compareTo(j2));
     
     j2 = new Join.Builder()
+        .setOperator(SetOperator.INTERSECTION)
+        .setIncludeDisjointTags(true) // <-- diff
+        .setIncludeAggTags(false)
+        .setUseQueryTags(false)
+        .setTags(Lists.newArrayList("host", "datacenter"))
+        .build();
+    assertNotEquals(j1.hashCode(), j2.hashCode());
+    assertNotEquals(j1, j2);
+    assertEquals(1, j1.compareTo(j2));
+    
+    j2 = new Join.Builder()
         .setOperator(SetOperator.INTERSECTION) 
+        .setIncludeDisjointTags(false)
         .setIncludeAggTags(true) // <-- diff
         .setUseQueryTags(false)
         .setTags(Lists.newArrayList("host", "datacenter"))
@@ -130,6 +145,7 @@ public class TestJoin {
     
     j2 = new Join.Builder()
         .setOperator(SetOperator.INTERSECTION) 
+        .setIncludeDisjointTags(false)
         .setIncludeAggTags(false)
         .setUseQueryTags(true)  // <-- diff
         .setTags(Lists.newArrayList("host", "datacenter"))
@@ -140,6 +156,7 @@ public class TestJoin {
     
     j2 = new Join.Builder()
         .setOperator(SetOperator.INTERSECTION) 
+        .setIncludeDisjointTags(false)
         .setIncludeAggTags(false)
         .setUseQueryTags(false)
         .setTags(Lists.newArrayList("datacenter", "host"))  // <-- diff order
@@ -150,6 +167,7 @@ public class TestJoin {
     
     j2 = new Join.Builder()
         .setOperator(SetOperator.INTERSECTION) 
+        .setIncludeDisjointTags(false)
         .setIncludeAggTags(false)
         .setUseQueryTags(false)
         .setTags(Lists.newArrayList("datacenter", "diff"))  // <-- diff
@@ -161,6 +179,7 @@ public class TestJoin {
     List<String> empty = Lists.newArrayList();
     j2 = new Join.Builder()
         .setOperator(SetOperator.INTERSECTION) 
+        .setIncludeDisjointTags(false)
         .setIncludeAggTags(false)
         .setUseQueryTags(false)
         .setTags(empty)  // <-- diff
@@ -171,6 +190,7 @@ public class TestJoin {
     
     j2 = new Join.Builder()
         .setOperator(SetOperator.INTERSECTION) 
+        .setIncludeDisjointTags(false)
         .setIncludeAggTags(false)
         .setUseQueryTags(false)
         //.setTags(Lists.newArrayList("host", "datacenter"))  // <-- diff

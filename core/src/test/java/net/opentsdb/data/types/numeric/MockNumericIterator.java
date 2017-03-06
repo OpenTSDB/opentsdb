@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.data.types.numeric;
 
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.Ignore;
@@ -46,7 +47,7 @@ public class MockNumericIterator implements TimeSeriesIterator<TimeSeriesValue<N
   public NumericFillPolicy fill;
   public RuntimeException ex;
   public boolean throw_ex;
-  public List<List<MutableNumericType>> data;
+  public List<List<MutableNumericType>> data = Collections.emptyList();
   
   private int outer_index = 0;
   private int inner_index = 0;
@@ -199,7 +200,7 @@ public class MockNumericIterator implements TimeSeriesIterator<TimeSeriesValue<N
     if (ex != null) {
       throw ex;
     }
-    if (inner_index >= data.get(outer_index).size()) {
+    if (outer_index >= data.size() || inner_index >= data.get(outer_index).size()) {
       return new MillisecondTimeStamp(Long.MAX_VALUE);
     }
     return data.get(outer_index).get(inner_index).timestamp();
