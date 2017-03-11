@@ -59,6 +59,7 @@ tsdb_SRC := \
 	src/core/RowKey.java	\
 	src/core/RowSeq.java	\
 	src/core/SaltScanner.java	\
+	src/core/SaltMultiGetter.java \
 	src/core/SeekableView.java	\
 	src/core/Span.java	\
 	src/core/SpanGroup.java	\
@@ -169,6 +170,7 @@ tsdb_SRC := \
 	src/tsd/PutDataPointRpc.java	\
 	src/tsd/QueryExecutor.java	\
 	src/tsd/QueryRpc.java	\
+	src/tsd/RollupDataPointRpc.java	\
 	src/tsd/RpcHandler.java	\
 	src/tsd/RpcPlugin.java	\
 	src/tsd/RpcManager.java	\
@@ -200,7 +202,17 @@ tsdb_SRC := \
 	src/utils/JSONException.java	\
 	src/utils/Pair.java	\
 	src/utils/PluginLoader.java	\
-	src/utils/Threads.java
+	src/utils/Threads.java \
+	src/core/iRowSeq.java \
+	src/rollup/NoSuchRollupForIntervalException.java \
+	src/rollup/NoSuchRollupForTableException.java \
+	src/rollup/RollUpDataPoint.java \
+	src/rollup/RollupConfig.java \
+	src/rollup/RollupInterval.java \
+	src/rollup/RollupQuery.java \
+	src/rollup/RollupSeq.java \
+	src/rollup/RollupSpan.java \
+	src/rollup/RollupUtils.java
 
 tsdb_DEPS = \
 	$(COMMONS_LOGGING)	\
@@ -318,6 +330,10 @@ test_SRC := \
 	test/query/pojo/TestOutput.java	\
 	test/query/pojo/TestQuery.java	\
 	test/query/pojo/TestTimeSpan.java	\
+	test/rollup/TestRollupConfig.java	\
+	test/rollup/TestRollupInterval.java	\
+	test/rollup/TestRollupSeq.java	\
+	test/rollup/TestRollupUtils.java	\
 	test/search/TestSearchPlugin.java	\
 	test/search/TestSearchQuery.java	\
 	test/search/TestTimeSeriesLookup.java	\
@@ -336,6 +352,7 @@ test_SRC := \
 	test/tree/TestTree.java	\
 	test/tree/TestTreeBuilder.java	\
 	test/tree/TestTreeRule.java	\
+	test/tsd/BaseTestPutRpc.java	\
 	test/tsd/NettyMocks.java	\
 	test/tsd/TestAnnotationRpc.java	\
 	test/tsd/TestGraphHandler.java	\
@@ -346,6 +363,7 @@ test_SRC := \
 	test/tsd/TestQueryExecutor.java	\
 	test/tsd/TestQueryRpc.java	\
 	test/tsd/TestQueryRpcLastDataPoint.java	\
+	test/tsd/TestRollupRpc.java	\
 	test/tsd/TestRpcHandler.java	\
 	test/tsd/TestRpcPlugin.java	\
 	test/tsd/TestRpcManager.java	\

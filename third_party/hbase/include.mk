@@ -15,7 +15,7 @@
 
 ASYNCHBASE_VERSION := 1.8.0-20161127.193259-5
 ASYNCHBASE := third_party/hbase/asynchbase-$(ASYNCHBASE_VERSION).jar
-ASYNCHBASE_BASE_URL := https://oss.sonatype.org/content/repositories/snapshots/org/hbase/asynchbase/1.8.0-SNAPSHOT/$(ASYNCHBASE_VERSION)
+ASYNCHBASE_BASE_URL := https://oss.sonatype.org/content/repositories/snapshots/org/hbase/asynchbase/1.8.0-SNAPSHOT/
 
 $(ASYNCHBASE): $(ASYNCHBASE).md5
 	set dummy "$(ASYNCHBASE_BASE_URL)" "$(ASYNCHBASE)"; shift; $(FETCH_DEPENDENCY)
