@@ -13,6 +13,7 @@
 package net.opentsdb.core;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -25,10 +26,13 @@ import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.MockBase.MockScanner;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -42,6 +46,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.powermock.reflect.Whitebox;
 
 import com.stumbleupon.async.Deferred;
 
@@ -1488,6 +1493,53 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     assertEquals(0, dps.length);
   }
 
+  @Test
+  public void runPreAggregate() throws Exception {
+    storeLongTimeSeriesSeconds(false, false);
+    final List<byte[]> families = new ArrayList<byte[]>();
+    families.add("t".getBytes(MockBase.ASCII()));
+    storage.addTable("tsdb-agg".getBytes(), families);
+    setupGroupByTagValues();
+    long start_timestamp = 1356998400L;
+    Whitebox.setInternalState(tsdb, "agg_tag_key", 
+        config.getString("tsd.rollups.agg_tag_key"));
+    Whitebox.setInternalState(tsdb, "raw_agg_tag_value", 
+        config.getString("tsd.rollups.raw_agg_tag_value"));
+    Whitebox.setInternalState(tsdb, "default_interval", new RollupInterval("tsdb", 
+        "tsdb-agg", "1m", "1h", true));
+    
+    tsdb.addAggregatePoint(METRIC_STRING, start_timestamp, 42L, tags, true, null, 
+        null, "SUM");
+    
+    tags.put(config.getString("tsd.rollups.agg_tag_key"), "SUM");
+    TSQuery ts_query = new TSQuery();
+    ts_query.setStart("1356998400");
+    ts_query.setEnd("1357041600");
+    
+    final TSSubQuery sub = new TSSubQuery();
+    sub.setMetric(METRIC_STRING);
+    sub.setTags(new HashMap<String, String>(tags));
+    sub.setAggregator("sum");
+
+    ts_query.setQueries(Arrays.asList(sub));
+    ts_query.validateAndSetQuery();
+    query.configureFromQuery(ts_query, 0);
+
+    final DataPoints[] dps = query.run();
+    assertEquals(1, dps.length);
+    assertEquals(METRIC_STRING, dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals(TAGV_STRING, dps[0].getTags().get(TAGK_STRING));
+
+    long ts = start_timestamp * 1000;
+    final DataPoint dp = dps[0].iterator().next();
+    assertTrue(dp.isInteger());
+    assertEquals(42, dp.longValue());
+    assertEquals(ts, dp.timestamp());
+    assertEquals(1, dps[0].size());
+  }
+  
   @Test
   public void filterExplicitTagsOK() throws Exception {
     tsdb.getConfig().overrideConfig("tsd.query.enable_fuzzy", "true");

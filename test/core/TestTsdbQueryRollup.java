@@ -808,6 +808,42 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     assertEquals(42.5F, dp.toDouble(), 0.0001);
   }
   
+  @Test
+  public void runRollupPreAgg() throws Exception {
+    setupGroupByTagValues();
+    final RollupInterval interval = rollup_config.getRollupInterval("10m");
+    final Aggregator aggr = Aggregators.SUM;
+    long start_timestamp = 1356998400L;
+    long end_timestamp = 1357041600L;
+    storeLongRollup(1356998400L, end_timestamp, false, false, interval, aggr);
+    Whitebox.setInternalState(tsdb, "agg_tag_key", 
+        config.getString("tsd.rollups.agg_tag_key"));
+    Whitebox.setInternalState(tsdb, "raw_agg_tag_value", 
+        config.getString("tsd.rollups.raw_agg_tag_value"));
+    
+    tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, 42L, tags, true, "10m", 
+        "SUM", "SUM");
+    
+    tags.put(config.getString("tsd.rollups.agg_tag_key"), "SUM");
+
+    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    query.configureFromQuery(ts_query, 0);
+
+    final DataPoints[] dps = query.run();
+    assertEquals(1, dps.length);
+    assertEquals(METRIC_STRING, dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals(TAGV_STRING, dps[0].getTags().get(TAGK_STRING));
+
+    long ts = start_timestamp * 1000;
+    final DataPoint dp = dps[0].iterator().next();
+    assertFalse(dp.isInteger());
+    assertEquals(42, dp.doubleValue(), 0.0001);
+    assertEquals(ts, dp.timestamp());
+    assertEquals(1, dps[0].size());
+  }
+  
   // ----------------- //
   // Helper functions. //
   // ----------------- //

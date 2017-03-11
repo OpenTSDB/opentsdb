@@ -47,6 +47,7 @@ import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.query.QueryUtil;
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.filter.TagVLiteralOrFilter;
 import net.opentsdb.rollup.NoSuchRollupForIntervalException;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupQuery;
@@ -474,6 +475,16 @@ final class TsdbQuery implements Query {
             final List<Deferred<byte[]>> deferreds = 
                 new ArrayList<Deferred<byte[]>>(filters.size());
             for (final TagVFilter filter : filters) {
+              // determine if the user is asking for pre-agg data
+              if (filter instanceof TagVLiteralOrFilter && tsdb.getAggTagKey() != null) {
+                if (filter.getTagk().equals(tsdb.getAggTagKey())) {
+                  if (tsdb.getRawTagValue() != null && 
+                      !filter.getFilter().equals(tsdb.getRawTagValue())) {
+                    pre_aggregate = true;
+                  }
+                }
+              }
+              
               deferreds.add(filter.resolveTagkName(tsdb));
             }
             return Deferred.group(deferreds).addCallback(new FilterCB());
@@ -1287,13 +1298,13 @@ final class TsdbQuery implements Query {
         (int) getScanStartTimeSeconds(), end_time == UNSET
         ? -1  // Will scan until the end (0xFFF...).
         : (int) getScanEndTimeSeconds(), 
-        is_rollup ? rollup_query.getRollupInterval().getTemporalTable() : tsdb.table, 
+        tableToBeScanned(), 
         TSDB.FAMILY());
     if (tsuids != null && !tsuids.isEmpty()) {
       createAndSetTSUIDFilter(scanner);
     } else if (filters.size() > 0) {
       createAndSetFilter(scanner);
-    } 
+    }
 
     if (is_rollup) {
       ScanFilter existing = scanner.getFilter();

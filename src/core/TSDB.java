@@ -1963,6 +1963,18 @@ public final class TSDB {
     return timer;
   }
   
+  /** @return The aggregate tag key if set. May be null. 
+   * @since 2.4 */
+  public String getAggTagKey() {
+    return agg_tag_key;
+  }
+  
+  /** @return The raw tag value if set. May be null. 
+   * @since 2.4 */
+  public String getRawTagValue() {
+    return raw_agg_tag_value;
+  }
+  
   // ------------------ //
   // Compaction helpers //
   // ------------------ //
