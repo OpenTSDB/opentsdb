@@ -1586,7 +1586,7 @@ public final class TSDB {
 
   /** Gets the entire given row from the data table. */
   final Deferred<ArrayList<KeyValue>> get(final byte[] key) {
-    return client.get(new GetRequest(table, key));
+    return client.get(new GetRequest(table, key, FAMILY));
   }
 
   /** Puts the given value into the data table. */
