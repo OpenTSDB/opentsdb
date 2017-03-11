@@ -601,11 +601,13 @@ install-data-tools: $(tsdb_DEPS) $(jar)
 	destdatatoolsdir="$(DESTDIR)$(pkgdatadir)/tools" ; \
 	echo " $(mkdir_p) $$destdatatoolsdir"; \
 	$(mkdir_p) "$$destdatatoolsdir" || exit 1; \
-	tools="$$tools $(top_srcdir)/tools/*" ; \
 	tools="$$tools $(top_srcdir)/src/create_table.sh" ; \
 	tools="$$tools $(top_srcdir)/src/upgrade_1to2.sh" ; \
 	echo " $(INSTALL_SCRIPT)" $$tools "$$destdatatoolsdir" ; \
-	$(INSTALL_SCRIPT) $$tools "$$destdatatoolsdir" || exit 1;
+	$(INSTALL_SCRIPT) $$tools "$$destdatatoolsdir" || exit 1; \
+	tools="-r $(top_srcdir)/tools/*" ; \
+	echo " cp" $$tools "$$destdatatoolsdir" ; \
+	cp $$tools "$$destdatatoolsdir" || exit 1; 
 
 uninstall-data-tools:
 	@$(NORMAL_UNINSTALL)
