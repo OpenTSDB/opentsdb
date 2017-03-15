@@ -65,752 +65,752 @@ public class TestJexlBinderIterator {
   
   private JexlBinderProcessorConfig config;
   private Expression expression;
-  
-  @Before
-  public void before() throws Exception {
-    fills = Maps.newHashMap();
-    fills.put("a", NumericFillPolicy.newBuilder()
-        .setPolicy(FillPolicy.ZERO).build());
-    fills.put("b", NumericFillPolicy.newBuilder()
-        .setPolicy(FillPolicy.SCALAR).setValue(-100).build());
-    
-    expression = Expression.newBuilder()
-        .setId("e1")
-        .setExpression("a + b")
-        .setFillPolicy(NumericFillPolicy.newBuilder()
-            .setPolicy(FillPolicy.SCALAR).setValue(-1).build())
-        .setFillPolicies(fills)
-        .build();
-    config = (JexlBinderProcessorConfig) JexlBinderProcessorConfig.newBuilder()
-        .setExpression(expression)
-        .build();
-    
-    group_id_a = new SimpleStringGroupId("a");
-    group_id_b = new SimpleStringGroupId("b");
-    
-    id_a = SimpleStringTimeSeriesId.newBuilder()
-        .setAlias("Khaleesi")
-        .build();
-    id_b = SimpleStringTimeSeriesId.newBuilder()
-        .setAlias("Khalasar")
-        .build();
-    
-    data_a = Lists.newArrayListWithCapacity(2);
-    List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
-    data_a.add(set);
-    
-    set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(6000), 6, 1));
-    data_a.add(set);
-
-    data_b = Lists.newArrayListWithCapacity(2);
-    set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
-    data_b.add(set);
-    
-    set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(4000), 4, 1));
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(6000), 6, 1));
-    data_b.add(set);
-    
-    it_a = spy(new MockNumericIterator(id_a));
-    it_a.data = data_a;
-    
-    it_b = spy(new MockNumericIterator(id_b));
-    it_b.data = data_b;
-    
-    group = new IteratorGroup();
-    group.addSeries(group_id_a, it_a);
-    group.addSeries(group_id_b, it_b);
-  }
-  
-  @Test
-  public void ctor() throws Exception {
-    final JexlBinderIterator it = new JexlBinderIterator(config);
-    assertNull(it.getCopyParent());
-    
-    try {
-      new JexlBinderIterator(null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-  }
-  
-  @Test
-  public void addIterator() throws Exception {
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    
-    try {
-      it.addIterator(null, it_a);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      it.addIterator("", it_a);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      it.addIterator("a", null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      it.addIterator("c", it_a);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      it.addIterator("a", it_a);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void nextOK() throws Exception {
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(1000, v.timestamp().msEpoch());
-    assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(3000, v.timestamp().msEpoch());
-    assertEquals(6, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    assertNull(group.fetchNext().join());
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(4000, v.timestamp().msEpoch());
-    assertEquals(8, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(5000, v.timestamp().msEpoch());
-    assertEquals(-95, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(6000, v.timestamp().msEpoch());
-    assertEquals(12, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    assertEquals(IteratorStatus.END_OF_DATA, group.status());
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void nextNoVariableFills() throws Exception {
-    expression = Expression.newBuilder()
-        .setId("e1")
-        .setExpression("a + b")
-        .setFillPolicy(NumericFillPolicy.newBuilder()
-            .setPolicy(FillPolicy.SCALAR).setValue(-1).build())
-        .build();
-    config = (JexlBinderProcessorConfig) JexlBinderProcessorConfig.newBuilder()
-        .setExpression(expression)
-        .build();
-    
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(1000, v.timestamp().msEpoch());
-    assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(-1, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(3000, v.timestamp().msEpoch());
-    assertEquals(6, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    assertNull(group.fetchNext().join());
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(4000, v.timestamp().msEpoch());
-    assertEquals(8, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(5000, v.timestamp().msEpoch());
-    assertEquals(-1, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(6000, v.timestamp().msEpoch());
-    assertEquals(12, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    assertEquals(IteratorStatus.END_OF_DATA, group.status());
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void nextNoFills() throws Exception {
-    expression = Expression.newBuilder()
-        .setId("e1")
-        .setExpression("a + b")
-        .build();
-    config = (JexlBinderProcessorConfig) JexlBinderProcessorConfig.newBuilder()
-        .setExpression(expression)
-        .build();
-    
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(1000, v.timestamp().msEpoch());
-    assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(2000, v.timestamp().msEpoch());
-    assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(3000, v.timestamp().msEpoch());
-    assertEquals(6, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    assertNull(group.fetchNext().join());
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(4000, v.timestamp().msEpoch());
-    assertEquals(8, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(5000, v.timestamp().msEpoch());
-    assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(6000, v.timestamp().msEpoch());
-    assertEquals(12, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    assertEquals(IteratorStatus.END_OF_DATA, group.status());
-  }
-
-  @SuppressWarnings("unchecked")
-  @Test
-  public void exceptionStatusOnNext() throws Exception {
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(1000, v.timestamp().msEpoch());
-    assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    
-    // inject an exception
-    it_b.ex = new RuntimeException("Boo!");
-    group.next();
-    
-    assertEquals(IteratorStatus.EXCEPTION, group.status());
-    group.next(); // doesn't throw
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void exceptionThrowOnNext() throws Exception {
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(1000, v.timestamp().msEpoch());
-    assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    
-    // inject an exception
-    it_b.ex = new RuntimeException("Boo!");
-    it_b.throw_ex = true;
-    group.next();
-    
-    assertEquals(IteratorStatus.EXCEPTION, group.status());
-    group.next(); // doesn't throw
-  }
-  
-  @Test (expected = IllegalStateException.class)
-  public void missingVariable() throws Exception {
-    expression = Expression.newBuilder()
-        .setId("e1")
-        .setExpression("a + b")
-        .setFillPolicy(NumericFillPolicy.newBuilder()
-            .setPolicy(FillPolicy.SCALAR).setValue(-1).build())
-        .build();
-    config = (JexlBinderProcessorConfig) JexlBinderProcessorConfig.newBuilder()
-        .setExpression(expression)
-        .build();
-    
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.initialize().join();
-  }
-  
-  public void missingVariableHasFill() throws Exception {
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.initialize().join();
-  }
-  
-  @Test
-  public void getCopy() throws Exception {
-    final JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    final JexlBinderIterator copy = (JexlBinderIterator) it.getCopy();
-    assertSame(copy.getCopyParent(), it);
-  }
-
-  @SuppressWarnings("unchecked")
-  @Test
-  public void state1() throws Exception {
-    ProcessorTestsHelpers.setState1(it_a, it_b);
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(1000, v.timestamp().msEpoch());
-    assertEquals(1, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(4, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(3000, v.timestamp().msEpoch());
-    assertEquals(6, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    assertEquals(IteratorStatus.END_OF_DATA, group.status());
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void state2() throws Exception {
-    ProcessorTestsHelpers.setState2(it_a, it_b);
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(1000, v.timestamp().msEpoch());
-    assertEquals(1, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(3000, v.timestamp().msEpoch());
-    assertEquals(6, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    assertEquals(IteratorStatus.END_OF_DATA, group.status());
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void state3() throws Exception {
-    ProcessorTestsHelpers.setState3(it_a, it_b);
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(1000, v.timestamp().msEpoch());
-    assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(3000, v.timestamp().msEpoch());
-    assertEquals(6, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    assertEquals(IteratorStatus.END_OF_DATA, group.status());
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void state4() throws Exception {
-    ProcessorTestsHelpers.setState4(it_a, it_b);
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(1000, v.timestamp().msEpoch());
-    assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(3000, v.timestamp().msEpoch());
-    assertEquals(3, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    assertEquals(IteratorStatus.END_OF_DATA, group.status());
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void state5() throws Exception {
-    ProcessorTestsHelpers.setState5(it_a, it_b);
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(1000, v.timestamp().msEpoch());
-    assertEquals(-99, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(3000, v.timestamp().msEpoch());
-    assertEquals(3, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    assertEquals(IteratorStatus.END_OF_DATA, group.status());
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void state6() throws Exception {
-    ProcessorTestsHelpers.setState6(it_a, it_b);
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(1000, v.timestamp().msEpoch());
-    assertEquals(-99, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(3000, v.timestamp().msEpoch());
-    assertEquals(3, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    assertEquals(IteratorStatus.END_OF_DATA, group.status());
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void state7() throws Exception {
-    ProcessorTestsHelpers.setState7(it_a, it_b);
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(1000, v.timestamp().msEpoch());
-    assertEquals(-99, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.END_OF_DATA, group.status());
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void state8() throws Exception {
-    ProcessorTestsHelpers.setState8(it_a, it_b);
-    group = new IteratorGroup();
-    group.addSeries(group_id_a, it_a);
-    group.addSeries(group_id_b, it_b);
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(-98, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.END_OF_DATA, group.status());
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void state9() throws Exception {
-    ProcessorTestsHelpers.setState9(it_a, it_b);
-    group = new IteratorGroup();
-    group.addSeries(group_id_a, it_a);
-    group.addSeries(group_id_b, it_b);
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(3000, v.timestamp().msEpoch());
-    assertEquals(-97, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    assertEquals(IteratorStatus.END_OF_DATA, group.status());
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void state10() throws Exception {
-    ProcessorTestsHelpers.setState10(it_a, it_b);
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(1000, v.timestamp().msEpoch());
-    assertEquals(-99, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(3000, v.timestamp().msEpoch());
-    assertEquals(-97, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    assertEquals(IteratorStatus.END_OF_DATA, group.status());
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void state11() throws Exception {
-    ProcessorTestsHelpers.setState11(it_a, it_b);
-    JexlBinderIterator it = new JexlBinderIterator(config);
-    it.setProcessor(group);
-    it.addIterator("a", it_a);
-    it.addIterator("b", it_b);
-    it.initialize().join();
-    
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(1000, v.timestamp().msEpoch());
-    assertEquals(-99, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
-    group.fetchNext().join();
-    assertEquals(IteratorStatus.HAS_DATA, group.status());
-    group.next();
-    v = (TimeSeriesValue<NumericType>) it.next();
-    assertEquals(3000, v.timestamp().msEpoch());
-    assertEquals(-97, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
-    assertEquals(IteratorStatus.END_OF_DATA, group.status());
-  }
+//  
+//  @Before
+//  public void before() throws Exception {
+//    fills = Maps.newHashMap();
+//    fills.put("a", NumericFillPolicy.newBuilder()
+//        .setPolicy(FillPolicy.ZERO).build());
+//    fills.put("b", NumericFillPolicy.newBuilder()
+//        .setPolicy(FillPolicy.SCALAR).setValue(-100).build());
+//    
+//    expression = Expression.newBuilder()
+//        .setId("e1")
+//        .setExpression("a + b")
+//        .setFillPolicy(NumericFillPolicy.newBuilder()
+//            .setPolicy(FillPolicy.SCALAR).setValue(-1).build())
+//        .setFillPolicies(fills)
+//        .build();
+//    config = (JexlBinderProcessorConfig) JexlBinderProcessorConfig.newBuilder()
+//        .setExpression(expression)
+//        .build();
+//    
+//    group_id_a = new SimpleStringGroupId("a");
+//    group_id_b = new SimpleStringGroupId("b");
+//    
+//    id_a = SimpleStringTimeSeriesId.newBuilder()
+//        .setAlias("Khaleesi")
+//        .build();
+//    id_b = SimpleStringTimeSeriesId.newBuilder()
+//        .setAlias("Khalasar")
+//        .build();
+//    
+//    data_a = Lists.newArrayListWithCapacity(2);
+//    List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
+//    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
+//    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
+//    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
+//    data_a.add(set);
+//    
+//    set = Lists.newArrayListWithCapacity(3);
+//    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(4000), 4, 1));
+//    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(5000), 5, 1));
+//    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(6000), 6, 1));
+//    data_a.add(set);
+//
+//    data_b = Lists.newArrayListWithCapacity(2);
+//    set = Lists.newArrayListWithCapacity(3);
+//    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
+//    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
+//    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
+//    data_b.add(set);
+//    
+//    set = Lists.newArrayListWithCapacity(3);
+//    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(4000), 4, 1));
+//    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(5000), 5, 1));
+//    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(6000), 6, 1));
+//    data_b.add(set);
+//    
+//    it_a = spy(new MockNumericIterator(id_a));
+//    it_a.data = data_a;
+//    
+//    it_b = spy(new MockNumericIterator(id_b));
+//    it_b.data = data_b;
+//    
+//    group = new IteratorGroup();
+//    group.addSeries(group_id_a, it_a);
+//    group.addSeries(group_id_b, it_b);
+//  }
+//  
+//  @Test
+//  public void ctor() throws Exception {
+//    final JexlBinderIterator it = new JexlBinderIterator(config);
+//    assertNull(it.getCopyParent());
+//    
+//    try {
+//      new JexlBinderIterator(null);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//  }
+//  
+//  @Test
+//  public void addIterator() throws Exception {
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    
+//    try {
+//      it.addIterator(null, it_a);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//    
+//    try {
+//      it.addIterator("", it_a);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//    
+//    try {
+//      it.addIterator("a", null);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//    
+//    try {
+//      it.addIterator("c", it_a);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//    
+//    try {
+//      it.addIterator("a", it_a);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void nextOK() throws Exception {
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(1000, v.timestamp().msEpoch());
+//    assertEquals(2, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(2000, v.timestamp().msEpoch());
+//    assertEquals(2, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(3000, v.timestamp().msEpoch());
+//    assertEquals(6, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    assertNull(group.fetchNext().join());
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(4000, v.timestamp().msEpoch());
+//    assertEquals(8, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(5000, v.timestamp().msEpoch());
+//    assertEquals(-95, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(6000, v.timestamp().msEpoch());
+//    assertEquals(12, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    assertEquals(IteratorStatus.END_OF_DATA, group.status());
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void nextNoVariableFills() throws Exception {
+//    expression = Expression.newBuilder()
+//        .setId("e1")
+//        .setExpression("a + b")
+//        .setFillPolicy(NumericFillPolicy.newBuilder()
+//            .setPolicy(FillPolicy.SCALAR).setValue(-1).build())
+//        .build();
+//    config = (JexlBinderProcessorConfig) JexlBinderProcessorConfig.newBuilder()
+//        .setExpression(expression)
+//        .build();
+//    
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(1000, v.timestamp().msEpoch());
+//    assertEquals(2, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(2000, v.timestamp().msEpoch());
+//    assertEquals(-1, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(3000, v.timestamp().msEpoch());
+//    assertEquals(6, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    assertNull(group.fetchNext().join());
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(4000, v.timestamp().msEpoch());
+//    assertEquals(8, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(5000, v.timestamp().msEpoch());
+//    assertEquals(-1, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(6000, v.timestamp().msEpoch());
+//    assertEquals(12, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    assertEquals(IteratorStatus.END_OF_DATA, group.status());
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void nextNoFills() throws Exception {
+//    expression = Expression.newBuilder()
+//        .setId("e1")
+//        .setExpression("a + b")
+//        .build();
+//    config = (JexlBinderProcessorConfig) JexlBinderProcessorConfig.newBuilder()
+//        .setExpression(expression)
+//        .build();
+//    
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(1000, v.timestamp().msEpoch());
+//    assertEquals(2, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(2000, v.timestamp().msEpoch());
+//    assertTrue(Double.isNaN(v.value().doubleValue()));
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(3000, v.timestamp().msEpoch());
+//    assertEquals(6, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    assertNull(group.fetchNext().join());
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(4000, v.timestamp().msEpoch());
+//    assertEquals(8, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(5000, v.timestamp().msEpoch());
+//    assertTrue(Double.isNaN(v.value().doubleValue()));
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(6000, v.timestamp().msEpoch());
+//    assertEquals(12, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    assertEquals(IteratorStatus.END_OF_DATA, group.status());
+//  }
+//
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void exceptionStatusOnNext() throws Exception {
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(1000, v.timestamp().msEpoch());
+//    assertEquals(2, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    
+//    // inject an exception
+//    it_b.ex = new RuntimeException("Boo!");
+//    group.next();
+//    
+//    assertEquals(IteratorStatus.EXCEPTION, group.status());
+//    group.next(); // doesn't throw
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void exceptionThrowOnNext() throws Exception {
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(1000, v.timestamp().msEpoch());
+//    assertEquals(2, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    
+//    // inject an exception
+//    it_b.ex = new RuntimeException("Boo!");
+//    it_b.throw_ex = true;
+//    group.next();
+//    
+//    assertEquals(IteratorStatus.EXCEPTION, group.status());
+//    group.next(); // doesn't throw
+//  }
+//  
+//  @Test (expected = IllegalStateException.class)
+//  public void missingVariable() throws Exception {
+//    expression = Expression.newBuilder()
+//        .setId("e1")
+//        .setExpression("a + b")
+//        .setFillPolicy(NumericFillPolicy.newBuilder()
+//            .setPolicy(FillPolicy.SCALAR).setValue(-1).build())
+//        .build();
+//    config = (JexlBinderProcessorConfig) JexlBinderProcessorConfig.newBuilder()
+//        .setExpression(expression)
+//        .build();
+//    
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.initialize().join();
+//  }
+//  
+//  public void missingVariableHasFill() throws Exception {
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.initialize().join();
+//  }
+//  
+//  @Test
+//  public void getCopy() throws Exception {
+//    final JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    final JexlBinderIterator copy = (JexlBinderIterator) it.getCopy();
+//    assertSame(copy.getCopyParent(), it);
+//  }
+//
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void state1() throws Exception {
+//    ProcessorTestsHelpers.setState1(it_a, it_b);
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(1000, v.timestamp().msEpoch());
+//    assertEquals(1, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(2000, v.timestamp().msEpoch());
+//    assertEquals(4, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(3000, v.timestamp().msEpoch());
+//    assertEquals(6, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    assertEquals(IteratorStatus.END_OF_DATA, group.status());
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void state2() throws Exception {
+//    ProcessorTestsHelpers.setState2(it_a, it_b);
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(1000, v.timestamp().msEpoch());
+//    assertEquals(1, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(2000, v.timestamp().msEpoch());
+//    assertEquals(2, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(3000, v.timestamp().msEpoch());
+//    assertEquals(6, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    assertEquals(IteratorStatus.END_OF_DATA, group.status());
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void state3() throws Exception {
+//    ProcessorTestsHelpers.setState3(it_a, it_b);
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(1000, v.timestamp().msEpoch());
+//    assertEquals(2, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(2000, v.timestamp().msEpoch());
+//    assertEquals(2, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(3000, v.timestamp().msEpoch());
+//    assertEquals(6, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    assertEquals(IteratorStatus.END_OF_DATA, group.status());
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void state4() throws Exception {
+//    ProcessorTestsHelpers.setState4(it_a, it_b);
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(1000, v.timestamp().msEpoch());
+//    assertEquals(2, v.value().doubleValue(), 0.01);
+//    assertEquals(2, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(2000, v.timestamp().msEpoch());
+//    assertEquals(2, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(3000, v.timestamp().msEpoch());
+//    assertEquals(3, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    assertEquals(IteratorStatus.END_OF_DATA, group.status());
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void state5() throws Exception {
+//    ProcessorTestsHelpers.setState5(it_a, it_b);
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(1000, v.timestamp().msEpoch());
+//    assertEquals(-99, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(2000, v.timestamp().msEpoch());
+//    assertEquals(2, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(3000, v.timestamp().msEpoch());
+//    assertEquals(3, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    assertEquals(IteratorStatus.END_OF_DATA, group.status());
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void state6() throws Exception {
+//    ProcessorTestsHelpers.setState6(it_a, it_b);
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(1000, v.timestamp().msEpoch());
+//    assertEquals(-99, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(3000, v.timestamp().msEpoch());
+//    assertEquals(3, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    assertEquals(IteratorStatus.END_OF_DATA, group.status());
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void state7() throws Exception {
+//    ProcessorTestsHelpers.setState7(it_a, it_b);
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(1000, v.timestamp().msEpoch());
+//    assertEquals(-99, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.END_OF_DATA, group.status());
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void state8() throws Exception {
+//    ProcessorTestsHelpers.setState8(it_a, it_b);
+//    group = new IteratorGroup();
+//    group.addSeries(group_id_a, it_a);
+//    group.addSeries(group_id_b, it_b);
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(2000, v.timestamp().msEpoch());
+//    assertEquals(-98, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.END_OF_DATA, group.status());
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void state9() throws Exception {
+//    ProcessorTestsHelpers.setState9(it_a, it_b);
+//    group = new IteratorGroup();
+//    group.addSeries(group_id_a, it_a);
+//    group.addSeries(group_id_b, it_b);
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(3000, v.timestamp().msEpoch());
+//    assertEquals(-97, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    assertEquals(IteratorStatus.END_OF_DATA, group.status());
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void state10() throws Exception {
+//    ProcessorTestsHelpers.setState10(it_a, it_b);
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(1000, v.timestamp().msEpoch());
+//    assertEquals(-99, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(2000, v.timestamp().msEpoch());
+//    assertEquals(2, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(3000, v.timestamp().msEpoch());
+//    assertEquals(-97, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    assertEquals(IteratorStatus.END_OF_DATA, group.status());
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void state11() throws Exception {
+//    ProcessorTestsHelpers.setState11(it_a, it_b);
+//    JexlBinderIterator it = new JexlBinderIterator(config);
+//    it.setProcessor(group);
+//    it.addIterator("a", it_a);
+//    it.addIterator("b", it_b);
+//    it.initialize().join();
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(1000, v.timestamp().msEpoch());
+//    assertEquals(-99, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(2000, v.timestamp().msEpoch());
+//    assertEquals(2, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, group.status());
+//    group.fetchNext().join();
+//    assertEquals(IteratorStatus.HAS_DATA, group.status());
+//    group.next();
+//    v = (TimeSeriesValue<NumericType>) it.next();
+//    assertEquals(3000, v.timestamp().msEpoch());
+//    assertEquals(-97, v.value().doubleValue(), 0.01);
+//    assertEquals(1, v.realCount());
+//    assertEquals(IteratorStatus.END_OF_DATA, group.status());
+//  }
 }

@@ -113,12 +113,12 @@ public class IteratorGroup implements TimeSeriesProcessor,
     }
     its.add(series);
     
-    if (series.nextTimestamp().compare(TimeStampComparator.LT, sync_time)) {
-      sync_time.update(series.nextTimestamp());
-      next_sync_time.update(sync_time);
-    }
-    status = IteratorStatus.updateStatus(status, series.status());
-    series.setProcessor(this);
+//    if (series.nextTimestamp().compare(TimeStampComparator.LT, sync_time)) {
+//      sync_time.update(series.nextTimestamp());
+//      next_sync_time.update(sync_time);
+//    }
+//    status = IteratorStatus.updateStatus(status, series.status());
+//    series.setProcessor(this);
   }
 
   @Override
@@ -139,17 +139,17 @@ public class IteratorGroup implements TimeSeriesProcessor,
       status = IteratorStatus.END_OF_DATA;
       for (final Map<TypeToken<?>, List<TimeSeriesIterator<?>>> type : 
           iterators.values()) {
-        for (final List<TimeSeriesIterator<?>> its : type.values()) {
-          for (final TimeSeriesIterator<?> it : its) {
-            if (it.status() == IteratorStatus.HAS_DATA || 
-                it.status() == IteratorStatus.END_OF_CHUNK) {
-              it.advance();
-            } else if (it.status() == IteratorStatus.EXCEPTION) {
-              status = IteratorStatus.EXCEPTION;
-              break;
-            }
-          }
-        }
+//        for (final List<TimeSeriesIterator<?>> its : type.values()) {
+//          for (final TimeSeriesIterator<?> it : its) {
+//            if (it.status() == IteratorStatus.HAS_DATA || 
+//                it.status() == IteratorStatus.END_OF_CHUNK) {
+//              it.advance();
+//            } else if (it.status() == IteratorStatus.EXCEPTION) {
+//              status = IteratorStatus.EXCEPTION;
+//              break;
+//            }
+//          }
+//        }
       }
     } catch (RuntimeException e) {
       synchronized (this) {
@@ -201,7 +201,7 @@ public class IteratorGroup implements TimeSeriesProcessor,
         List<TimeSeriesIterator<?>>>> entry : iterators.entrySet()) {
       for (final List<TimeSeriesIterator<?>> its : entry.getValue().values()) {
         for (final TimeSeriesIterator<?> it : its) {
-          new_iterator.addSeries(entry.getKey(), it.getCopy());
+          new_iterator.addSeries(entry.getKey(), it.getCopy(null));
         }
       }
     }

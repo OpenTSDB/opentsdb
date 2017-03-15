@@ -16,16 +16,18 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MockNumericIterator;
+import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.processor.TimeSeriesProcessor;
 
-public class MockAnnotationIterator implements 
-    TimeSeriesIterator<TimeSeriesValue<AnnotationType>> {
+public class MockAnnotationIterator extends 
+    TimeSeriesIterator<AnnotationType> {
   public Deferred<Object> initialize_deferred = Deferred.fromResult(null);
   public Deferred<Object> fetch_next_deferred = Deferred.fromResult(null);
   public Deferred<Object> close_deferred = Deferred.fromResult(null);
@@ -49,24 +51,13 @@ public class MockAnnotationIterator implements
   }
 
   @Override
-  public TypeToken<?> type() {
+  public TypeToken<? extends TimeSeriesDataType> type() {
     return AnnotationType.TYPE;
   }
 
   @Override
   public TimeSeriesId id() {
     return id;
-  }
-
-  @Override
-  public void setProcessor(TimeSeriesProcessor processor) {
-    this.processor = processor;
-  }
-
-  @Override
-  public IteratorStatus status() {
-    // TODO Auto-generated method stub
-    return IteratorStatus.END_OF_DATA;
   }
 
   @Override
@@ -79,19 +70,6 @@ public class MockAnnotationIterator implements
   }
 
   @Override
-  public void advance() {
-    // TODO Auto-generated method stub
-  }
-
-  @Override
-  public TimeStamp nextTimestamp() {
-    if (ex != null) {
-      throw ex;
-    }
-    return new MillisecondTimeStamp(Long.MAX_VALUE);
-  }
-
-  @Override
   public Deferred<Object> fetchNext() {
     // TODO Auto-generated method stub
     if (ex != null) {
@@ -101,13 +79,7 @@ public class MockAnnotationIterator implements
   }
 
   @Override
-  public TimeSeriesIterator<TimeSeriesValue<AnnotationType>> getCopy() {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-  @Override
-  public TimeSeriesIterator<TimeSeriesValue<AnnotationType>> getCopyParent() {
+  public TimeSeriesIterator<AnnotationType> getCopy(final QueryContext context) {
     // TODO Auto-generated method stub
     return null;
   }

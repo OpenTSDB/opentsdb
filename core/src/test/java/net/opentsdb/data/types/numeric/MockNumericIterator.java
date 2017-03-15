@@ -21,12 +21,14 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.TimeStampComparator;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
+import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.NumericFillPolicy;
 import net.opentsdb.query.processor.TimeSeriesProcessor;
@@ -38,7 +40,8 @@ import net.opentsdb.query.processor.TimeSeriesProcessor;
  * calls.
  */
 @Ignore
-public class MockNumericIterator implements TimeSeriesIterator<TimeSeriesValue<NumericType>> {
+public class MockNumericIterator extends 
+    TimeSeriesIterator<NumericType> {
   
   public Deferred<Object> initialize_deferred = Deferred.fromResult(null);
   public Deferred<Object> fetch_next_deferred = Deferred.fromResult(null);
@@ -72,32 +75,13 @@ public class MockNumericIterator implements TimeSeriesIterator<TimeSeriesValue<N
   }
 
   @Override
-  public TypeToken<?> type() {
+  public TypeToken<? extends TimeSeriesDataType> type() {
     return NumericType.TYPE;
   }
 
   @Override
   public TimeSeriesId id() {
     return id;
-  }
-
-  @Override
-  public void setProcessor(final TimeSeriesProcessor processor) {
-    this.processor = processor;
-  }
-
-  @Override
-  public IteratorStatus status() {
-    if (ex != null) {
-      return IteratorStatus.EXCEPTION;
-    }
-    if (outer_index >= data.size()) {
-      return IteratorStatus.END_OF_DATA;
-    }
-    if (inner_index >= data.get(outer_index).size()) {
-      return IteratorStatus.END_OF_CHUNK;
-    }
-    return IteratorStatus.HAS_DATA;
   }
 
   @Override
@@ -125,85 +109,6 @@ public class MockNumericIterator implements TimeSeriesIterator<TimeSeriesValue<N
       inner_index++;
     }
     return v;
-  }
-
-  @Override
-  public void advance() {
-    if (ex != null) {
-      if (throw_ex) {
-        throw ex;
-      }
-      processor.markStatus(IteratorStatus.EXCEPTION);
-      return;
-    }
-    if (outer_index >= data.size()) {
-      processor.markStatus(IteratorStatus.END_OF_DATA);
-      return;
-    }
-    if (inner_index >= data.get(outer_index).size()) {
-      // don't advance until fetchNext() is called.
-      if (outer_index + 1 >= data.size()) {
-        processor.markStatus(IteratorStatus.END_OF_DATA);
-      } else {
-        processor.markStatus(IteratorStatus.END_OF_CHUNK);
-      }
-      return;
-    }
-    
-    final TimeStamp data_ts = data.get(outer_index).get(inner_index).timestamp();
-    if (data_ts.compare(TimeStampComparator.EQ, processor.syncTimestamp())) {
-      if (inner_index + 1 >= data.get(outer_index).size()) {
-        if (outer_index + 1 >= data.size()) {
-          processor.markStatus(IteratorStatus.END_OF_DATA);
-        } else {
-          processor.markStatus(IteratorStatus.END_OF_CHUNK);
-        }
-      } else {
-        processor.markStatus(IteratorStatus.HAS_DATA);
-        processor.setSyncTime(data.get(outer_index).get(inner_index + 1).timestamp());
-      }
-    } else {
-      while (data.get(outer_index).get(inner_index).timestamp().compare(
-          TimeStampComparator.LT, processor.syncTimestamp())) {
-        inner_index++;
-        
-        if (outer_index >= data.size()) {
-          processor.markStatus(IteratorStatus.END_OF_DATA);
-          return;
-        } else if (inner_index >= data.get(outer_index).size()) {
-          processor.markStatus(IteratorStatus.END_OF_CHUNK);
-          return;
-        }
-      }
-      
-      if (data.get(outer_index).get(inner_index).timestamp().compare(
-          TimeStampComparator.GT, processor.syncTimestamp())) {
-        processor.markStatus(IteratorStatus.HAS_DATA);
-        processor.setSyncTime(data.get(outer_index).get(inner_index).timestamp());
-      } else {
-        if (inner_index + 1 >= data.get(outer_index).size()) {
-          if (outer_index + 1 >= data.size()) {
-            processor.markStatus(IteratorStatus.END_OF_DATA);
-          } else {
-            processor.markStatus(IteratorStatus.END_OF_CHUNK);
-          }
-        } else {
-          processor.markStatus(IteratorStatus.HAS_DATA);
-          processor.setSyncTime(data.get(outer_index).get(inner_index + 1).timestamp());
-        }
-      }
-    }
-  }
-
-  @Override
-  public TimeStamp nextTimestamp() {
-    if (ex != null) {
-      throw ex;
-    }
-    if (outer_index >= data.size() || inner_index >= data.get(outer_index).size()) {
-      return new MillisecondTimeStamp(Long.MAX_VALUE);
-    }
-    return data.get(outer_index).get(inner_index).timestamp();
   }
 
   @Override
@@ -243,16 +148,11 @@ public class MockNumericIterator implements TimeSeriesIterator<TimeSeriesValue<N
   }
 
   @Override
-  public TimeSeriesIterator<TimeSeriesValue<NumericType>> getCopy() {
+  public TimeSeriesIterator<NumericType> getCopy(final QueryContext context) {
     final MockNumericIterator it = new MockNumericIterator(id);
     it.data = data;
     it.parent = this;
     return it;
-  }
-
-  @Override
-  public TimeSeriesIterator<TimeSeriesValue<NumericType>> getCopyParent() {
-    return parent;
   }
 
   @Override

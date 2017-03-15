@@ -64,54 +64,54 @@ public class TestMockNumericIterator {
     data.add(set);
   }
   
-  @Test
-  public void standAlone() throws Exception {
-    MockNumericIterator it = new MockNumericIterator(id);
-    it.data = data;
-    
-    assertNull(it.initialize().join());
-    assertSame(id, it.id());
-    
-    int i = 1;
-    assertEquals(IteratorStatus.HAS_DATA, it.status());
-    while (it.status() == IteratorStatus.HAS_DATA) {
-      final TimeSeriesValue<NumericType> v = it.next();
-      assertEquals(i, v.timestamp().epoch());
-      assertTrue(v.value().isInteger());
-      assertEquals(i, v.value().longValue());
-      assertEquals(1, v.realCount());
-      i++;
-    }
-    assertEquals(IteratorStatus.END_OF_CHUNK, it.status());
-    assertNull(it.fetchNext().join());
-    
-    assertEquals(IteratorStatus.HAS_DATA, it.status());
-    while (it.status() == IteratorStatus.HAS_DATA) {
-      final TimeSeriesValue<NumericType> v = it.next();
-      assertEquals(i, v.timestamp().epoch());
-      assertTrue(v.value().isInteger());
-      assertEquals(i, v.value().longValue());
-      assertEquals(1, v.realCount());
-      i++;
-    }
-    
-    assertEquals(IteratorStatus.END_OF_CHUNK, it.status());
-    assertNull(it.fetchNext().join());
-    
-    assertEquals(IteratorStatus.HAS_DATA, it.status());
-    while (it.status() == IteratorStatus.HAS_DATA) {
-      final TimeSeriesValue<NumericType> v = it.next();
-      assertEquals(i, v.timestamp().epoch());
-      assertTrue(v.value().isInteger());
-      assertEquals(i, v.value().longValue());
-      assertEquals(1, v.realCount());
-      i++;
-    }
-    assertEquals(IteratorStatus.END_OF_CHUNK, it.status());
-    assertNull(it.fetchNext().join());
-    assertEquals(IteratorStatus.END_OF_DATA, it.status());
-    assertNull(it.close().join());
-  }
+//  @Test
+//  public void standAlone() throws Exception {
+//    MockNumericIterator it = new MockNumericIterator(id);
+//    it.data = data;
+//    
+//    assertNull(it.initialize().join());
+//    assertSame(id, it.id());
+//    
+//    int i = 1;
+//    assertEquals(IteratorStatus.HAS_DATA, it.status());
+//    while (it.status() == IteratorStatus.HAS_DATA) {
+//      final TimeSeriesValue<NumericType> v = it.next();
+//      assertEquals(i, v.timestamp().epoch());
+//      assertTrue(v.value().isInteger());
+//      assertEquals(i, v.value().longValue());
+//      assertEquals(1, v.realCount());
+//      i++;
+//    }
+//    assertEquals(IteratorStatus.END_OF_CHUNK, it.status());
+//    assertNull(it.fetchNext().join());
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, it.status());
+//    while (it.status() == IteratorStatus.HAS_DATA) {
+//      final TimeSeriesValue<NumericType> v = it.next();
+//      assertEquals(i, v.timestamp().epoch());
+//      assertTrue(v.value().isInteger());
+//      assertEquals(i, v.value().longValue());
+//      assertEquals(1, v.realCount());
+//      i++;
+//    }
+//    
+//    assertEquals(IteratorStatus.END_OF_CHUNK, it.status());
+//    assertNull(it.fetchNext().join());
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, it.status());
+//    while (it.status() == IteratorStatus.HAS_DATA) {
+//      final TimeSeriesValue<NumericType> v = it.next();
+//      assertEquals(i, v.timestamp().epoch());
+//      assertTrue(v.value().isInteger());
+//      assertEquals(i, v.value().longValue());
+//      assertEquals(1, v.realCount());
+//      i++;
+//    }
+//    assertEquals(IteratorStatus.END_OF_CHUNK, it.status());
+//    assertNull(it.fetchNext().join());
+//    assertEquals(IteratorStatus.END_OF_DATA, it.status());
+//    assertNull(it.close().join());
+//  }
 
   @Test
   public void initializeException() throws Exception {
@@ -125,15 +125,7 @@ public class TestMockNumericIterator {
   }
   
   @Test
-  public void statusException() throws Exception {
-    final MockNumericIterator it = new MockNumericIterator(id);
-    it.data = data;
-    it.ex = new RuntimeException("Boo!");
-    assertEquals(IteratorStatus.EXCEPTION, it.status());
-  }
-  
-  @Test
-  public void nexteException() throws Exception {
+  public void nextException() throws Exception {
     final MockNumericIterator it = new MockNumericIterator(id);
     it.data = data;
     it.ex = new RuntimeException("Boo!");
@@ -154,42 +146,42 @@ public class TestMockNumericIterator {
     } catch (RuntimeException e) { }
   }
   
-  @Test
-  public void getCopy() throws Exception {
-    final MockNumericIterator it = new MockNumericIterator(id);
-    it.data = data;
-    
-    assertNull(it.initialize().join());
-    assertSame(id, it.id());
-    
-    int i = 1;
-    assertEquals(IteratorStatus.HAS_DATA, it.status());
-    while (it.status() == IteratorStatus.HAS_DATA) {
-      final TimeSeriesValue<NumericType> v = it.next();
-      assertEquals(i, v.timestamp().epoch());
-      assertTrue(v.value().isInteger());
-      assertEquals(i, v.value().longValue());
-      assertEquals(1, v.realCount());
-      i++;
-    }
-    assertEquals(IteratorStatus.END_OF_CHUNK, it.status());
-    // left the parent in an END_OF_CHUNK state to verify the copy starts over.
-    
-    final MockNumericIterator copy = (MockNumericIterator) it.getCopy();
-    assertSame(id, copy.id());
-    
-    i = 1;
-    assertEquals(IteratorStatus.HAS_DATA, copy.status());
-    while (copy.status() == IteratorStatus.HAS_DATA) {
-      final TimeSeriesValue<NumericType> v = copy.next();
-      assertEquals(i, v.timestamp().epoch());
-      assertTrue(v.value().isInteger());
-      assertEquals(i, v.value().longValue());
-      assertEquals(1, v.realCount());
-      i++;
-    }
-    assertEquals(IteratorStatus.END_OF_CHUNK, copy.status());
-  }
+//  @Test
+//  public void getCopy() throws Exception {
+//    final MockNumericIterator it = new MockNumericIterator(id);
+//    it.data = data;
+//    
+//    assertNull(it.initialize().join());
+//    assertSame(id, it.id());
+//    
+//    int i = 1;
+//    assertEquals(IteratorStatus.HAS_DATA, it.status());
+//    while (it.status() == IteratorStatus.HAS_DATA) {
+//      final TimeSeriesValue<NumericType> v = it.next();
+//      assertEquals(i, v.timestamp().epoch());
+//      assertTrue(v.value().isInteger());
+//      assertEquals(i, v.value().longValue());
+//      assertEquals(1, v.realCount());
+//      i++;
+//    }
+//    assertEquals(IteratorStatus.END_OF_CHUNK, it.status());
+//    // left the parent in an END_OF_CHUNK state to verify the copy starts over.
+//    
+//    final MockNumericIterator copy = (MockNumericIterator) it.getCopy();
+//    assertSame(id, copy.id());
+//    
+//    i = 1;
+//    assertEquals(IteratorStatus.HAS_DATA, copy.status());
+//    while (copy.status() == IteratorStatus.HAS_DATA) {
+//      final TimeSeriesValue<NumericType> v = copy.next();
+//      assertEquals(i, v.timestamp().epoch());
+//      assertTrue(v.value().isInteger());
+//      assertEquals(i, v.value().longValue());
+//      assertEquals(1, v.realCount());
+//      i++;
+//    }
+//    assertEquals(IteratorStatus.END_OF_CHUNK, copy.status());
+//  }
   
   @Test
   public void closeException() throws Exception {

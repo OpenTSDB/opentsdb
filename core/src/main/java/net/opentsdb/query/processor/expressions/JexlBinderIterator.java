@@ -24,11 +24,12 @@ import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.iterators.AbstractSubIterator;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.pojo.Expression;
 import net.opentsdb.query.pojo.NumericFillPolicy;
 
@@ -39,7 +40,7 @@ import net.opentsdb.query.pojo.NumericFillPolicy;
  * @since 3.0
  */
 public class JexlBinderIterator extends 
-  AbstractSubIterator<TimeSeriesValue<NumericType>> {
+  TimeSeriesIterator<NumericType> {
   
   /** Reference to the processor config. */
   private final JexlBinderProcessorConfig config;
@@ -55,7 +56,7 @@ public class JexlBinderIterator extends
   
   /** The context where we'll dump results for processing through the expression */
   // TODO - see if this can be shared
-  private final JexlContext context = new MapContext();
+  private final JexlContext jexl_context = new MapContext();
   
   /**
    * Default ctor accepting a source and config.
@@ -114,12 +115,12 @@ public class JexlBinderIterator extends
   }
   
   @Override
-  public TypeToken<?> type() {
+  public TypeToken<? extends TimeSeriesDataType> type() {
     return NumericType.TYPE;
   }
 
   @Override
-  public TimeSeriesValue<?> next() {
+  public TimeSeriesValue<NumericType> next() {
     int reals = 0;
     for (final Entry<String, TimeSeriesIterator<?>> it : iterators.entrySet()) {
       @SuppressWarnings("unchecked")
@@ -130,33 +131,33 @@ public class JexlBinderIterator extends
         final NumericFillPolicy fill = config.getExpression().getFillPolicies()
             .get(it.getKey());
         if (fill != null) {
-          context.set(it.getKey(), fill.getValue());
+          jexl_context.set(it.getKey(), fill.getValue());
         } else {
           // TODO - default to something else?
-          context.set(it.getKey(), Double.NaN);
+          jexl_context.set(it.getKey(), Double.NaN);
         }
       } else {
-        context.set(it.getKey(), value.value().isInteger() ? 
+        jexl_context.set(it.getKey(), value.value().isInteger() ? 
             value.value().longValue() : value.value().doubleValue());
         reals += value.realCount();
       }
     }
     
-    final Object output = script.execute(context);
+    final Object output = script.execute(jexl_context);
     if (output instanceof Double) {
       if (Double.isNaN((Double) output) && 
           config.getExpression().getFillPolicy() != null) {
         // TODO - infectious nan
-        dp.reset(processor.syncTimestamp(), 
+        dp.reset(context.syncTimestamp(), 
             config.getExpression().getFillPolicy().getValue(),
             reals);
       } else {
-        dp.reset(processor.syncTimestamp(), 
+        dp.reset(context.syncTimestamp(), 
             (Double) output, 
             reals);
       }
     } else if (output instanceof Boolean) {
-      dp.reset(processor.syncTimestamp(), (((Boolean) output) ? 1 : 0), reals);
+      dp.reset(context.syncTimestamp(), (((Boolean) output) ? 1 : 0), reals);
     } else {
       throw new IllegalStateException("Expression returned a result of type: " 
           + output.getClass().getName() + " for " + this);
@@ -165,11 +166,10 @@ public class JexlBinderIterator extends
   }
 
   @Override
-  public TimeSeriesIterator<TimeSeriesValue<?>> getCopy() {
+  public TimeSeriesIterator<NumericType> getCopy(final QueryContext context) {
     final JexlBinderIterator copy = new JexlBinderIterator(config);
-    copy.parent_copy = this;
     for (final Entry<String, TimeSeriesIterator<?>> entry : iterators.entrySet()) {
-      copy.addIterator(entry.getKey(), entry.getValue().getCopy());
+      copy.addIterator(entry.getKey(), entry.getValue().getCopy(context));
     }
     return copy;
   }

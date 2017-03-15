@@ -25,7 +25,7 @@ import com.google.common.reflect.TypeToken;
  * @param <T> A {@link TimeSeriesDataType} object.
  * @since 3.0
  */
-public interface TimeSeriesValue<T> {
+public interface TimeSeriesValue<T extends TimeSeriesDataType> {
   /**
    * A reference to the time series ID associated with this value.
    * @return A non-null {@link TimeSeriesId}.

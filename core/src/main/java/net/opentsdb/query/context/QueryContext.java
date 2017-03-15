@@ -10,15 +10,27 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.data;
+package net.opentsdb.query.context;
 
-import com.google.common.reflect.TypeToken;
+import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.iterators.TimeSeriesIterator;
 
 /**
- * Describes a type of data for use in storing and querying with OpenTSDB.
+ * TODO - complete and doc
  * 
  * @since 3.0
  */
-public interface TimeSeriesDataType {
+public abstract class QueryContext {
 
+  public TimeStamp syncTimestamp() {
+    return null;
+  }
+  
+  public void register(final TimeSeriesIterator<?> it) {
+    
+  }
+  
+  public void unregister(final TimeSeriesIterator<?> it) {
+    
+  }
 }

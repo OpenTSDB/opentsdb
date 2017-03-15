@@ -45,238 +45,238 @@ public class TestJoiner {
   public void before() throws Exception {
     
   }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void joinUnionNullId() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .setTags(Lists.newArrayList("host", "colo"))
-              .build())
-          .build();
-    final Joiner joiner = new Joiner(config);
-    final IteratorGroup group = new IteratorGroup();
-    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(null));
-    joiner.join(group);
-  }
-  
-  @Test
-  public void joinUnionMultiType() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .setTags(Lists.newArrayList("host", "colo"))
-              .build())
-          .build();
-    final Joiner joiner = new Joiner(config);
-    
-    final IteratorGroup group = new IteratorGroup();
-    TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
-        .addTags("host", "web01")
-        .addTags("colo", "lax")
-        .build();
-    //group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
-    
-    id = SimpleStringTimeSeriesId.newBuilder()
-        .addTags("host", "web02")
-        .addTags("colo", "lax")
-        .build();
-    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
-    
-    id = SimpleStringTimeSeriesId.newBuilder()
-        .addTags("host", "web01")
-        .addTags("colo", "phx")
-        .build();
-    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
-    //group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
-
-    final ByteMap<Map<TimeSeriesGroupId, Map<TypeToken<?>, 
-        List<TimeSeriesIterator<?>>>>> joins = joiner.join(group);
-    
-    assertEquals(3, joins.size());
-    byte[] key = "cololaxhostweb01".getBytes(Const.UTF8_CHARSET);
-    Map<TimeSeriesGroupId, Map<TypeToken<?>, List<TimeSeriesIterator<?>>>> join_group
-      = joins.get(key);
-    assertEquals(2, join_group.size());
-    Map<TypeToken<?>, List<TimeSeriesIterator<?>>> join_type = 
-        join_group.get(new SimpleStringGroupId("a"));
-    assertEquals(1, join_type.size());
-    assertNull(join_type.get(NumericType.TYPE));
-    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
-    join_type = join_group.get(new SimpleStringGroupId("b"));
-    assertEquals(2, join_type.size());
-    assertEquals(1, join_type.get(NumericType.TYPE).size());
-    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
-    
-    key = "cololaxhostweb02".getBytes(Const.UTF8_CHARSET);
-    join_group = joins.get(key);
-    assertEquals(2, join_group.size());
-    join_type = join_group.get(new SimpleStringGroupId("a"));
-    assertEquals(2, join_type.size());
-    assertEquals(1, join_type.get(NumericType.TYPE).size());
-    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
-    join_type = join_group.get(new SimpleStringGroupId("b"));
-    assertEquals(2, join_type.size());
-    assertEquals(1, join_type.get(NumericType.TYPE).size());
-    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
-    
-    key = "colophxhostweb01".getBytes(Const.UTF8_CHARSET);
-    join_group = joins.get(key);
-    assertEquals(2, join_group.size());
-    join_type = join_group.get(new SimpleStringGroupId("a"));
-    assertEquals(2, join_type.size());
-    assertEquals(1, join_type.get(NumericType.TYPE).size());
-    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
-    join_type = join_group.get(new SimpleStringGroupId("b"));
-    assertEquals(1, join_type.size());
-    assertEquals(1, join_type.get(NumericType.TYPE).size());
-    assertNull(join_type.get(AnnotationType.TYPE));
-  }
-  
-  @Test
-  public void joinUnionOneSeries() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .setTags(Lists.newArrayList("host", "colo"))
-              .build())
-          .build();
-    final Joiner joiner = new Joiner(config);
-    
-    final IteratorGroup group = new IteratorGroup();
-    TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
-        .addTags("host", "web01")
-        .addTags("colo", "lax")
-        .build();
-    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
-    
-    final ByteMap<Map<TimeSeriesGroupId, Map<TypeToken<?>, 
-        List<TimeSeriesIterator<?>>>>> joins = joiner.join(group);
-    
-    assertEquals(1, joins.size());
-    byte[] key = "cololaxhostweb01".getBytes(Const.UTF8_CHARSET);
-    Map<TimeSeriesGroupId, Map<TypeToken<?>, List<TimeSeriesIterator<?>>>> join_group
-      = joins.get(key);
-    assertEquals(1, join_group.size());
-    Map<TypeToken<?>, List<TimeSeriesIterator<?>>> join_type = 
-        join_group.get(new SimpleStringGroupId("a"));
-    assertEquals(1, join_type.size());
-    assertEquals(1, join_type.get(NumericType.TYPE).size());
-  }
-  
-  @Test
-  public void joinIntersectionMultiType() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.INTERSECTION)
-              .setTags(Lists.newArrayList("host", "colo"))
-              .build())
-          .build();
-    final Joiner joiner = new Joiner(config);
-    
-    final IteratorGroup group = new IteratorGroup();
-    TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
-        .addTags("host", "web01")
-        .addTags("colo", "lax")
-        .build();
-    //group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
-    
-    id = SimpleStringTimeSeriesId.newBuilder()
-        .addTags("host", "web02")
-        .addTags("colo", "lax")
-        .build();
-    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
-    
-    id = SimpleStringTimeSeriesId.newBuilder()
-        .addTags("host", "web01")
-        .addTags("colo", "phx")
-        .build();
-    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
-    //group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
-
-    final ByteMap<Map<TimeSeriesGroupId, Map<TypeToken<?>, 
-        List<TimeSeriesIterator<?>>>>> joins = joiner.join(group);
-    
-    assertEquals(3, joins.size());
-    byte[] key = "cololaxhostweb01".getBytes(Const.UTF8_CHARSET);
-    Map<TimeSeriesGroupId, Map<TypeToken<?>, List<TimeSeriesIterator<?>>>> join_group
-      = joins.get(key);
-    assertEquals(2, join_group.size());
-    Map<TypeToken<?>, List<TimeSeriesIterator<?>>> join_type = 
-        join_group.get(new SimpleStringGroupId("a"));
-    assertEquals(1, join_type.size());
-    assertNull(join_type.get(NumericType.TYPE));
-    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
-    join_type = join_group.get(new SimpleStringGroupId("b"));
-    assertEquals(1, join_type.size());
-    assertNull(join_type.get(NumericType.TYPE));
-    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
-    
-    key = "cololaxhostweb02".getBytes(Const.UTF8_CHARSET);
-    join_group = joins.get(key);
-    assertEquals(2, join_group.size());
-    join_type = join_group.get(new SimpleStringGroupId("a"));
-    assertEquals(2, join_type.size());
-    assertEquals(1, join_type.get(NumericType.TYPE).size());
-    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
-    join_type = join_group.get(new SimpleStringGroupId("b"));
-    assertEquals(2, join_type.size());
-    assertEquals(1, join_type.get(NumericType.TYPE).size());
-    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
-    
-    key = "colophxhostweb01".getBytes(Const.UTF8_CHARSET);
-    join_group = joins.get(key);
-    assertEquals(2, join_group.size());
-    join_type = join_group.get(new SimpleStringGroupId("a"));
-    assertEquals(1, join_type.size());
-    assertEquals(1, join_type.get(NumericType.TYPE).size());
-    assertNull(join_type.get(AnnotationType.TYPE));
-    join_type = join_group.get(new SimpleStringGroupId("b"));
-    assertEquals(1, join_type.size());
-    assertEquals(1, join_type.get(NumericType.TYPE).size());
-    assertNull(join_type.get(AnnotationType.TYPE));
-  }
-  
-  @Test (expected = UnsupportedOperationException.class)
-  public void joinUnsupportedJoin() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.CROSS)
-              .setTags(Lists.newArrayList("host", "colo"))
-              .build())
-          .build();
-    final Joiner joiner = new Joiner(config);
-    
-    final IteratorGroup group = new IteratorGroup();
-    TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
-        .addTags("host", "web01")
-        .addTags("colo", "lax")
-        .build();
-    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
-    joiner.join(group);
-
-  }
+//  
+//  @Test (expected = IllegalArgumentException.class)
+//  public void joinUnionNullId() throws Exception {
+//    config = (JoinConfig) 
+//        JoinConfig.newBuilder()
+//          .setJoin(Join.newBuilder()
+//              .setOperator(SetOperator.UNION)
+//              .setTags(Lists.newArrayList("host", "colo"))
+//              .build())
+//          .build();
+//    final Joiner joiner = new Joiner(config);
+//    final IteratorGroup group = new IteratorGroup();
+//    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(null));
+//    joiner.join(group);
+//  }
+//  
+//  @Test
+//  public void joinUnionMultiType() throws Exception {
+//    config = (JoinConfig) 
+//        JoinConfig.newBuilder()
+//          .setJoin(Join.newBuilder()
+//              .setOperator(SetOperator.UNION)
+//              .setTags(Lists.newArrayList("host", "colo"))
+//              .build())
+//          .build();
+//    final Joiner joiner = new Joiner(config);
+//    
+//    final IteratorGroup group = new IteratorGroup();
+//    TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+//        .addTags("host", "web01")
+//        .addTags("colo", "lax")
+//        .build();
+//    //group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
+//    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
+//    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
+//    group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
+//    
+//    id = SimpleStringTimeSeriesId.newBuilder()
+//        .addTags("host", "web02")
+//        .addTags("colo", "lax")
+//        .build();
+//    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
+//    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
+//    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
+//    group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
+//    
+//    id = SimpleStringTimeSeriesId.newBuilder()
+//        .addTags("host", "web01")
+//        .addTags("colo", "phx")
+//        .build();
+//    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
+//    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
+//    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
+//    //group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
+//
+//    final ByteMap<Map<TimeSeriesGroupId, Map<TypeToken<?>, 
+//        List<TimeSeriesIterator<?>>>>> joins = joiner.join(group);
+//    
+//    assertEquals(3, joins.size());
+//    byte[] key = "cololaxhostweb01".getBytes(Const.UTF8_CHARSET);
+//    Map<TimeSeriesGroupId, Map<TypeToken<?>, List<TimeSeriesIterator<?>>>> join_group
+//      = joins.get(key);
+//    assertEquals(2, join_group.size());
+//    Map<TypeToken<?>, List<TimeSeriesIterator<?>>> join_type = 
+//        join_group.get(new SimpleStringGroupId("a"));
+//    assertEquals(1, join_type.size());
+//    assertNull(join_type.get(NumericType.TYPE));
+//    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
+//    join_type = join_group.get(new SimpleStringGroupId("b"));
+//    assertEquals(2, join_type.size());
+//    assertEquals(1, join_type.get(NumericType.TYPE).size());
+//    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
+//    
+//    key = "cololaxhostweb02".getBytes(Const.UTF8_CHARSET);
+//    join_group = joins.get(key);
+//    assertEquals(2, join_group.size());
+//    join_type = join_group.get(new SimpleStringGroupId("a"));
+//    assertEquals(2, join_type.size());
+//    assertEquals(1, join_type.get(NumericType.TYPE).size());
+//    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
+//    join_type = join_group.get(new SimpleStringGroupId("b"));
+//    assertEquals(2, join_type.size());
+//    assertEquals(1, join_type.get(NumericType.TYPE).size());
+//    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
+//    
+//    key = "colophxhostweb01".getBytes(Const.UTF8_CHARSET);
+//    join_group = joins.get(key);
+//    assertEquals(2, join_group.size());
+//    join_type = join_group.get(new SimpleStringGroupId("a"));
+//    assertEquals(2, join_type.size());
+//    assertEquals(1, join_type.get(NumericType.TYPE).size());
+//    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
+//    join_type = join_group.get(new SimpleStringGroupId("b"));
+//    assertEquals(1, join_type.size());
+//    assertEquals(1, join_type.get(NumericType.TYPE).size());
+//    assertNull(join_type.get(AnnotationType.TYPE));
+//  }
+//  
+//  @Test
+//  public void joinUnionOneSeries() throws Exception {
+//    config = (JoinConfig) 
+//        JoinConfig.newBuilder()
+//          .setJoin(Join.newBuilder()
+//              .setOperator(SetOperator.UNION)
+//              .setTags(Lists.newArrayList("host", "colo"))
+//              .build())
+//          .build();
+//    final Joiner joiner = new Joiner(config);
+//    
+//    final IteratorGroup group = new IteratorGroup();
+//    TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+//        .addTags("host", "web01")
+//        .addTags("colo", "lax")
+//        .build();
+//    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
+//    
+//    final ByteMap<Map<TimeSeriesGroupId, Map<TypeToken<?>, 
+//        List<TimeSeriesIterator<?>>>>> joins = joiner.join(group);
+//    
+//    assertEquals(1, joins.size());
+//    byte[] key = "cololaxhostweb01".getBytes(Const.UTF8_CHARSET);
+//    Map<TimeSeriesGroupId, Map<TypeToken<?>, List<TimeSeriesIterator<?>>>> join_group
+//      = joins.get(key);
+//    assertEquals(1, join_group.size());
+//    Map<TypeToken<?>, List<TimeSeriesIterator<?>>> join_type = 
+//        join_group.get(new SimpleStringGroupId("a"));
+//    assertEquals(1, join_type.size());
+//    assertEquals(1, join_type.get(NumericType.TYPE).size());
+//  }
+//  
+//  @Test
+//  public void joinIntersectionMultiType() throws Exception {
+//    config = (JoinConfig) 
+//        JoinConfig.newBuilder()
+//          .setJoin(Join.newBuilder()
+//              .setOperator(SetOperator.INTERSECTION)
+//              .setTags(Lists.newArrayList("host", "colo"))
+//              .build())
+//          .build();
+//    final Joiner joiner = new Joiner(config);
+//    
+//    final IteratorGroup group = new IteratorGroup();
+//    TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+//        .addTags("host", "web01")
+//        .addTags("colo", "lax")
+//        .build();
+//    //group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
+//    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
+//    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
+//    group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
+//    
+//    id = SimpleStringTimeSeriesId.newBuilder()
+//        .addTags("host", "web02")
+//        .addTags("colo", "lax")
+//        .build();
+//    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
+//    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
+//    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
+//    group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
+//    
+//    id = SimpleStringTimeSeriesId.newBuilder()
+//        .addTags("host", "web01")
+//        .addTags("colo", "phx")
+//        .build();
+//    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
+//    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
+//    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
+//    //group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
+//
+//    final ByteMap<Map<TimeSeriesGroupId, Map<TypeToken<?>, 
+//        List<TimeSeriesIterator<?>>>>> joins = joiner.join(group);
+//    
+//    assertEquals(3, joins.size());
+//    byte[] key = "cololaxhostweb01".getBytes(Const.UTF8_CHARSET);
+//    Map<TimeSeriesGroupId, Map<TypeToken<?>, List<TimeSeriesIterator<?>>>> join_group
+//      = joins.get(key);
+//    assertEquals(2, join_group.size());
+//    Map<TypeToken<?>, List<TimeSeriesIterator<?>>> join_type = 
+//        join_group.get(new SimpleStringGroupId("a"));
+//    assertEquals(1, join_type.size());
+//    assertNull(join_type.get(NumericType.TYPE));
+//    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
+//    join_type = join_group.get(new SimpleStringGroupId("b"));
+//    assertEquals(1, join_type.size());
+//    assertNull(join_type.get(NumericType.TYPE));
+//    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
+//    
+//    key = "cololaxhostweb02".getBytes(Const.UTF8_CHARSET);
+//    join_group = joins.get(key);
+//    assertEquals(2, join_group.size());
+//    join_type = join_group.get(new SimpleStringGroupId("a"));
+//    assertEquals(2, join_type.size());
+//    assertEquals(1, join_type.get(NumericType.TYPE).size());
+//    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
+//    join_type = join_group.get(new SimpleStringGroupId("b"));
+//    assertEquals(2, join_type.size());
+//    assertEquals(1, join_type.get(NumericType.TYPE).size());
+//    assertEquals(1, join_type.get(AnnotationType.TYPE).size());
+//    
+//    key = "colophxhostweb01".getBytes(Const.UTF8_CHARSET);
+//    join_group = joins.get(key);
+//    assertEquals(2, join_group.size());
+//    join_type = join_group.get(new SimpleStringGroupId("a"));
+//    assertEquals(1, join_type.size());
+//    assertEquals(1, join_type.get(NumericType.TYPE).size());
+//    assertNull(join_type.get(AnnotationType.TYPE));
+//    join_type = join_group.get(new SimpleStringGroupId("b"));
+//    assertEquals(1, join_type.size());
+//    assertEquals(1, join_type.get(NumericType.TYPE).size());
+//    assertNull(join_type.get(AnnotationType.TYPE));
+//  }
+//  
+//  @Test (expected = UnsupportedOperationException.class)
+//  public void joinUnsupportedJoin() throws Exception {
+//    config = (JoinConfig) 
+//        JoinConfig.newBuilder()
+//          .setJoin(Join.newBuilder()
+//              .setOperator(SetOperator.CROSS)
+//              .setTags(Lists.newArrayList("host", "colo"))
+//              .build())
+//          .build();
+//    final Joiner joiner = new Joiner(config);
+//    
+//    final IteratorGroup group = new IteratorGroup();
+//    TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+//        .addTags("host", "web01")
+//        .addTags("colo", "lax")
+//        .build();
+//    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
+//    joiner.join(group);
+//
+//  }
   
   @Test (expected = IllegalArgumentException.class)
   public void joinKeyNull() throws Exception {

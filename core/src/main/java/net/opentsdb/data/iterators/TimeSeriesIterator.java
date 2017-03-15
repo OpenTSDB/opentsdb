@@ -18,65 +18,14 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
-import net.opentsdb.query.processor.TimeSeriesProcessor;
+import net.opentsdb.query.context.QueryContext;
 
 /**
- * Represents an interface used for iterating over a set of data for a single
- * time series for a single data type. An iterator may be used independently
- * for working with "raw" data or it may be tied to a processor.
+ * An abstract class used for iterating over a set of data for a single
+ * time series of a single data type. In order to use an iterator properly, it
+ * must be tied to a {@link QueryContext}.
  * <p>
- * <b>Stand-alone</b>
- * <p>
- * When used as a stand-alone iterator, the workflow is as follows:
- * <ol>
- * <li>Call {@link #initialize()} to load the first "chunk" of data and determine
- * the ID of the series.</li>
- * <li>Call {@link #status()} to determine if the iterator has data ready to 
- * process ({@link IteratorStatus#HAS_DATA}), requires one or more (possibly)
- * remote calls for more data ({@link IteratorStatus#END_OF_CHUNK}), has no
- * data ({@link IteratorStatus#END_OF_DATA}) or has an exception.</li>
- * <li> If the iterator has data, call {@link #next()} to retrieve the next 
- * value. Repeat steps #2 and #3 until a different status is returned. </li>
- * <li> If the status is {@link IteratorStatus#END_OF_CHUNK}, call 
- * {@link #fetchNext()} then return to step #2.</li>
- * </ol>
- * <p>
- * Note that if {@link #next()} is called when the status is anything other than
- * {@link IteratorStatus#HAS_DATA} an {@link IllegalStateException} may be thrown.
- * <p>
- * <b>Processor</b>
- * <p>
- * When used with a processor the workflow is as follows:
- * <ol>
- * <li>Call {@link #initialize()} to load the first "chunk" of data and determine
- * the ID of the series.</li>
- * <li>Pass the iterator to 
- * {@link TimeSeriesProcessor#addSeries(net.opentsdb.data.TimeSeriesGroupId, TimeSeriesIterator)}
- * </li>
- * <li>Call {@link TimeSeriesProcessor#status()} to determine if the iterator 
- * group has data ready to process ({@link IteratorStatus#HAS_DATA}), 
- * requires one or more (possibly) remote calls for more data 
- * ({@link IteratorStatus#END_OF_CHUNK}), has no data 
- * ({@link IteratorStatus#END_OF_DATA}) or has an exception.</li>
- * <li> If the iterator has data, call {@link TimeSeriesProcessor#next()} to 
- * advance all iterators to the next value.</li>
- * <li>Then call {@link #next()} on <i>this</i> iterator to retrieve the 
- * value for this series. Repeat steps #3 to #5 until a different status is 
- * returned.
- * <li> If the processor status is {@link IteratorStatus#END_OF_CHUNK}, call 
- * {@link TimeSeriesProcessor#fetchNext()} then return to step #3.</li>
- * </ol>
- * <p>
- * <b>Warning:</b> Do <i>not</i> call {@link #advance()} or {@link #fetchNext()}
- * directly when the series is tied to a processor. The processor will handle
- * iteration as it may require synchronization with additional time series.
- * <p>
- * <b>Warning:</b> When tied to a processor, you must always call 
- * {@link TimeSeriesProcessor#next()} to advance the value for this series. Calling
- * {@link #next()} will return the same value over and over.
- * <p>
- * <b>Notes</b>
+ * TODO - doc usage
  * <p>
  * <b>Thread-Safety:</b> This iterator is <i>not</i> thread safe. Do not call 
  * methods on iterators across multiple threads. If multiple threads require a
@@ -91,7 +40,51 @@ import net.opentsdb.query.processor.TimeSeriesProcessor;
  * 
  * @since 3.0
  */
-public interface TimeSeriesIterator<T extends TimeSeriesValue<?>> {
+public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
+  
+  /** The context this iterator belongs to. May be null. */
+  protected QueryContext context;
+  
+  /** The source of data for this iterator. Purposely wildcarded so that we 
+   * could write a type converter. */
+  protected TimeSeriesIterator<? extends TimeSeriesDataType> source;
+  
+  /** A link to the parent iterator if this is a source feeding into another. 
+   * Purposely wildcarded so we can write type converters.*/
+  protected TimeSeriesIterator<? extends TimeSeriesDataType> parent;
+  
+  /** Default ctor with everything initialized to null. */
+  public TimeSeriesIterator() {
+    
+  }
+  
+  /** 
+   * Ctor for setting the context and registering with it.
+   * @param context A context to register with.
+   */
+  public TimeSeriesIterator(final QueryContext context) {
+    setContext(context);
+  }
+  
+  /**
+   * Ctor for iterators that consume from other iterators.
+   * @param context A context to register with.
+   * @param source A non-null source to consume from.
+   * @throws IllegalArgumentException if the source was null.
+   */
+  public TimeSeriesIterator(final QueryContext context, 
+      final TimeSeriesIterator<? extends TimeSeriesDataType> source) {
+    if (source == null) {
+      throw new IllegalArgumentException("Source cannot be null.");
+    }
+    if (!source.type().equals(type())) {
+      throw new IllegalArgumentException("Source type [" + source.type() 
+        + "] is not the same as our type [" + type() + "]");
+    }
+    setContext(context);
+    this.source = source;
+    source.setParent(this);
+  }
   
   /**
    * Initializes the iterator if initialization is required. E.g. it may load
@@ -104,34 +97,44 @@ public interface TimeSeriesIterator<T extends TimeSeriesValue<?>> {
    * @throws IllegalStateException if this method was called after {@link #next()} or
    * {@link #advance()}.
    */
-  public Deferred<Object> initialize();
+  public Deferred<Object> initialize() {
+    return source != null ? source.initialize() : 
+      Deferred.fromError(new UnsupportedOperationException("Not implemented"));
+  }
   
   /**
    * The {@link TimeSeriesDataType} data type of this data returned by this iterator.
    * @return A non-null type token.
    */
-  public TypeToken<?> type();
+  public abstract TypeToken<? extends TimeSeriesDataType> type();
   
   /**
    * A reference to the time series ID associated with all data points returned
    * by this iterator.
    * @return A non-null {@link TimeSeriesId}.
    */
-  public TimeSeriesId id();
+  public TimeSeriesId id() {
+    if (source != null) {
+      return source.id();
+    }
+    throw new UnsupportedOperationException("Not implemented");
+  }
   
   /**
-   * Configures the iterator to be handled by a time series processor. 
-   * @param processor A non-null time series processor.
+   * Sets the context this iterator belongs to. 
+   * If the context was already set, this method unregisters from it and registers
+   * with the new context if it isn't null.
+   * @param context A context, may be null.
    */
-  public void setProcessor(final TimeSeriesProcessor processor);
-  
-  /**
-   * Returns the current status of the iterator, allowing callers to determine
-   * if the iterator has data, needs to fetch more data, is finished or has
-   * an exception.
-   * @return A non-null iterator status.
-   */
-  public IteratorStatus status();
+  public void setContext(final QueryContext context) {
+    if (this.context != null && this.context != context) {
+      this.context.unregister(this);
+    }
+    this.context = context;
+    if (context != null) {
+      context.register(this);
+    }
+  }
   
   /**
    * Returns the next value for this iterator. Behavior depends on whether the
@@ -143,23 +146,7 @@ public interface TimeSeriesIterator<T extends TimeSeriesValue<?>> {
    * @throws IllegalStateException if the iterator is not ready to return another
    * value.
    */
-  public T next();
-  
-  /**
-   * Advances to the next value when the iterator is associated with a processor.
-   * If the iterator does not have any more data, another chunk must be fetched, 
-   * or the iterator is in stand-alone mode, then this method is a no-op.
-   */
-  public void advance();
-  
-  /**
-   * Returns the next timestamp available for this iterator, i.e. what will be
-   * seen when {@link #next()} is called. If the iterator is at the end of data
-   * or another chunk must be fetched, the result may be null.
-   * @return A timestamp representing the next point in time or null if no more
-   * data is available.
-   */
-  public TimeStamp nextTimestamp();
+  public abstract TimeSeriesValue<T> next();
   
   /**
    * If {@link IteratorStatus#END_OF_CHUNK} was returned via the last 
@@ -169,11 +156,16 @@ public interface TimeSeriesIterator<T extends TimeSeriesValue<?>> {
    * @return A Deferred resolving to a null if the next chunk was fetched 
    * successfully or an exception if fetching data failed.
    */
-  public Deferred<Object> fetchNext();
+  public Deferred<Object> fetchNext() {
+    return source != null ? source.fetchNext() : 
+      Deferred.fromError(new UnsupportedOperationException("Not implemented"));
+  }
   
   /**
    * Creates and returns a deep copy of this iterator for another view on the 
-   * time series.
+   * time series. This allows for multi-pass operations over data by associating
+   * iterators with a separate context and iterating over them without effecting
+   * the parent context.
    * <p>Requirements:
    * <ul>
    * <li>The copy must return a new view of the underlying data. If this method
@@ -183,22 +175,30 @@ public interface TimeSeriesIterator<T extends TimeSeriesValue<?>> {
    * <li>If the source iterator has not been initialized, the copy will not
    * be initialized either. Likewise if the source <i>has</i> been initialized
    * then the copy will have been as well.</li>
+   * <li>The {@code parent} of the returned copy must be {@code null}. The caller
+   * should set the parent if desired.</li>
+   * <li>The copy's {@code context} must be set to the next context.</li>
    * </ul>
+   * @param A context for the iterator to associate with.
    * @return A non-null copy of the iterator.
    */
-  public TimeSeriesIterator<T> getCopy();
-  
+  public abstract TimeSeriesIterator<T> getCopy(final QueryContext context);
+
   /**
-   * Returns the parent iterator if the current iterator is a copy. Allows
-   * for walking up the copy tree to close the parent.
-   * @return The parent iterator. May be null if this was not a copy.
+   * Sets the parent for this iterator.
+   * @param parent A parent iterator. May be null if uncoupling.
    */
-  public TimeSeriesIterator<T> getCopyParent();
+  public void setParent(final TimeSeriesIterator<?> parent) {
+    this.parent = parent;
+  }
   
   /**
    * Closes and releases any resources held by this iterator. If this iterator
    * is a copy, the method is a no-op.
    * @return A deferred resolving to a null on success, an exception on failure.
    */
-  public Deferred<Object> close();
+  public Deferred<Object> close() {
+    return source != null ? source.close() : 
+      Deferred.fromError(new UnsupportedOperationException("Not implemented"));
+  }
 }
