@@ -1,10 +1,10 @@
 language: java
+dist: trusty
 script: export MAVEN_OPTS="-Xmx1024m" && mvn test --quiet
 addons:
   hostname: short-hostname
 jdk:
   - oraclejdk7
-  - openjdk6
   - oraclejdk8
 notifications:
-    email: false
+  email: false
