@@ -15,6 +15,7 @@ package net.opentsdb.utils;
 import java.util.ArrayList;
 
 import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Utility class for handling common tasks related to Deferreds.
@@ -24,12 +25,26 @@ import com.stumbleupon.async.Callback;
 public class Deferreds {
 
   /** A singleton to group deferreds that are expected to return nulls on completion. */
-  public static final NullGroupCB NULL_GROUP_CB = new NullGroupCB();
+  public static final NullGroupCB NULL_GROUP_CB = new NullGroupCB(null);
   
   /** A simple class to group deferreds that are expected to return nulls on completion. */
-  static class NullGroupCB implements Callback<Object, ArrayList<Object>> {
+  public static class NullGroupCB implements Callback<Object, ArrayList<Object>> {
+    private final Deferred<Object> deferred;
+    
+    /**
+     * Default Ctor
+     * @param deferred a non-null Deferred to call on completion or null if
+     * not used.
+     */
+    public NullGroupCB(final Deferred<Object> deferred) {
+      this.deferred = deferred;
+    }
+    
     @Override
     public Object call(final ArrayList<Object> ignored) throws Exception {
+      if (deferred != null) {
+        deferred.callback(null);
+      }
       return null;
     }
   }
