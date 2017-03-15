@@ -67,7 +67,7 @@ public class Joiner {
   }
 
   /**
-   * Computes the join across {@link TimeSeriesGroupID}s and potentially kicks 
+   * Computes the join across {@link TimeSeriesGroupId}s and potentially kicks 
    * any out that don't fulfill the set operator.
    * @param source A non-null source to pull iterators from.
    * @return A non-null byte map with join keys as the key.

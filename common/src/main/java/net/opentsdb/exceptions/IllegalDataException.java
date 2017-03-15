@@ -30,6 +30,7 @@ public final class IllegalDataException extends IllegalStateException {
    * Constructor.
    *
    * @param msg Message describing the problem.
+   * @param cause The source exception.
    */
   public IllegalDataException(final String msg, final Throwable cause) {
     super(msg, cause);

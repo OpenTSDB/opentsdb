@@ -29,8 +29,9 @@ import net.opentsdb.query.context.QueryContext;
  * <p>
  * <b>Thread-Safety:</b> This iterator is <i>not</i> thread safe. Do not call 
  * methods on iterators across multiple threads. If multiple threads require a
- * view into the same data, use {@link #getCopy()} to retrieve a separate view
- * of the same data that may be iterated separately on a different thread.
+ * view into the same data, use {@link #getCopy(QueryContext)} to retrieve a 
+ * separate view of the same data that may be iterated separately on a different 
+ * thread.
  * <p>
  * <b>Mutability:</b> Data returned from the iterator is immutable (so that we
  * can provide a copy of the iterator). 
@@ -94,8 +95,6 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
    * thus subsequent calls must be no-ops.
    * @return A Deferred resolving to a null on success or an exception if 
    * initialization failed.
-   * @throws IllegalStateException if this method was called after {@link #next()} or
-   * {@link #advance()}.
    */
   public Deferred<Object> initialize() {
     return source != null ? source.initialize() : 
@@ -150,7 +149,7 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
   
   /**
    * If {@link IteratorStatus#END_OF_CHUNK} was returned via the last 
-   * {@link #status()} call, this method will fetch the next set of data 
+   * context advance call, this method will fetch the next set of data 
    * asynchronously. The following status may have data, be end of stream
    * or have an exception. 
    * @return A Deferred resolving to a null if the next chunk was fetched 
@@ -179,7 +178,7 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
    * should set the parent if desired.</li>
    * <li>The copy's {@code context} must be set to the next context.</li>
    * </ul>
-   * @param A context for the iterator to associate with.
+   * @param context A context for the iterator to associate with.
    * @return A non-null copy of the iterator.
    */
   public abstract TimeSeriesIterator<T> getCopy(final QueryContext context);
