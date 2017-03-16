@@ -12,9 +12,11 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.data.iterators;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -84,6 +86,16 @@ public class GroupedAndTypedIteratorLists implements
   /** @return The collection of iterator lists. May be empty. */
   public Collection<TypedIteratorList> iterators() {
     return Collections.unmodifiableCollection(iterators.values());
+  }
+  
+  /** @return Returns a single flat list of iterators regardless of type. */
+  public List<TimeSeriesIterator<?>> flattenedIterators() {
+    final List<TimeSeriesIterator<?>> flattened = 
+        new ArrayList<TimeSeriesIterator<?>>();
+    for (final TypedIteratorList list : iterators.values()) {
+      flattened.addAll(list.iterators());
+    }
+    return flattened;
   }
   
   /**

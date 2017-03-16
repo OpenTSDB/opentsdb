@@ -30,7 +30,10 @@ import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.iterators.GroupedAndTypedIteratorLists;
+import net.opentsdb.data.iterators.GroupedIterators;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
+import net.opentsdb.data.iterators.TypedIteratorList;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Join;
 import net.opentsdb.query.pojo.Join.SetOperator;
@@ -72,49 +75,28 @@ public class Joiner {
    * @param source A non-null source to pull iterators from.
    * @return A non-null byte map with join keys as the key.
    */
-  public ByteMap<Map<TimeSeriesGroupId, Map<TypeToken<?>, 
-      List<TimeSeriesIterator<?>>>>> join(final TimeSeriesProcessor source) {
+  public ByteMap<GroupedIterators> join(final TimeSeriesProcessor source) {
     if (source == null) {
       throw new IllegalArgumentException("Source cannot be null.");
     }
-    // <joinkey, <groupid, <type, Its>>>
-    final ByteMap<Map<TimeSeriesGroupId, Map<TypeToken<?>, 
-      List<TimeSeriesIterator<?>>>>> joined = 
-        new ByteMap<Map<TimeSeriesGroupId, Map<TypeToken<?>, 
-          List<TimeSeriesIterator<?>>>>>();
-
-    for (final Entry<TimeSeriesGroupId, Map<TypeToken<?>, 
-        List<TimeSeriesIterator<?>>>> group : source.iterators().entrySet()) {
-      for (final Entry<TypeToken<?>, List<TimeSeriesIterator<?>>> type : 
-          group.getValue().entrySet()) {
-        for (final TimeSeriesIterator<?> it : type.getValue()) {
-          try {
-            final byte[] join_key = joinKey(it.id());
-            if (join_key != null) {
-              // find the proper map to dump it in
-              Map<TimeSeriesGroupId, Map<TypeToken<?>, 
-                List<TimeSeriesIterator<?>>>> joined_group = joined.get(join_key);
-              if (joined_group == null) {
-                joined_group = Maps.newHashMap();
-                joined.put(join_key, joined_group);
-              }
-              
-              Map<TypeToken<?>, List<TimeSeriesIterator<?>>> joined_type
-                = joined_group.get(group.getKey());
-              if (joined_type == null) {
-                joined_type = Maps.newHashMap();
-                joined_group.put(group.getKey(), joined_type);
-              }
-              List<TimeSeriesIterator<?>> joined_its = joined_type.get(it.type());
-              if (joined_its == null) {
-                joined_its = Lists.newArrayList();
-                joined_type.put(it.type(), joined_its);
-              }
-              joined_its.add(it);
+    
+    final ByteMap<GroupedIterators> joined = new ByteMap<GroupedIterators>();
+    for (final GroupedAndTypedIteratorLists group : source.iterators().iteratorLists()) {
+      for (final TimeSeriesIterator<?> it : group.flattenedIterators()) {
+        try {
+          final byte[] join_key = joinKey(it.id());
+          if (join_key != null) {
+            // find the proper map to dump it in
+            GroupedIterators joined_group = joined.get(join_key);
+            if (joined_group == null) {
+              joined_group = new GroupedIterators();
+              joined.put(join_key, joined_group);
             }
-          } catch (IOException e) {
-            throw new RuntimeException("Unexpected exception while joining", e);
+            
+            joined_group.addIterator(group.id(), it);
           }
+        } catch (IOException e) {
+          throw new RuntimeException("Unexpected exception while joining", e);
         }
       }
     }
@@ -138,16 +120,36 @@ public class Joiner {
    * @param joins A non-null list of joins to work on.
    * @return A non-null list of intersected joins.
    */
-  private ByteMap<Map<TimeSeriesGroupId, Map<TypeToken<?>, 
-    List<TimeSeriesIterator<?>>>>> computeIntersection(
-      final ByteMap<Map<TimeSeriesGroupId, Map<TypeToken<?>, 
-        List<TimeSeriesIterator<?>>>>> joins) {
+  private ByteMap<GroupedIterators> computeIntersection(
+      final ByteMap<GroupedIterators> joins) {
     
     // TODO - join on a specific data type. May not care about annotations or 
-    // others when performin an expression so those can be "grouped".
+    // others when performing an expression so those can be "grouped".
     
+    // Ugly but since the iterator sets are immutable, we have to convert to
+    // a map, then back.
+    final ByteMap<Map<TimeSeriesGroupId, Map<TypeToken<?>, 
+        List<TimeSeriesIterator<?>>>>> joined = 
+        new ByteMap<Map<TimeSeriesGroupId, Map<TypeToken<?>, 
+          List<TimeSeriesIterator<?>>>>>();
+    
+    for (final Entry<byte[], GroupedIterators> join : joins.entrySet()) {
+      final Map<TimeSeriesGroupId, Map<TypeToken<?>, List<TimeSeriesIterator<?>>>> 
+          group = Maps.newHashMap();
+      joined.put(join.getKey(), group);
+      for (final Entry<TimeSeriesGroupId, GroupedAndTypedIteratorLists> 
+          iterators : join.getValue()) {
+        final Map<TypeToken<?>, List<TimeSeriesIterator<?>>> types = Maps.newHashMap();
+        group.put(iterators.getKey(), types);
+        for (final Entry<TypeToken<?>, TypedIteratorList> lists : iterators.getValue()) {
+          types.put(lists.getKey(), lists.getValue().iterators());
+        }
+      }
+    }
+    
+    // now clean it up
     final Iterator<Entry<byte[], Map<TimeSeriesGroupId, Map<TypeToken<?>, 
-        List<TimeSeriesIterator<?>>>>>> top_iterator = joins.iterator();
+        List<TimeSeriesIterator<?>>>>>> top_iterator = joined.iterator();
     while (top_iterator.hasNext()) {
       final Entry<byte[], Map<TimeSeriesGroupId, Map<TypeToken<?>, 
         List<TimeSeriesIterator<?>>>>> join = top_iterator.next();
@@ -196,7 +198,24 @@ public class Joiner {
       }
     }
     
-    return joins;
+    final ByteMap<GroupedIterators> final_joins = new ByteMap<GroupedIterators>();
+    // reverse
+    for (final Entry<byte[], Map<TimeSeriesGroupId, Map<TypeToken<?>, 
+        List<TimeSeriesIterator<?>>>>> groups : joined.entrySet()) {
+      final GroupedIterators grouped_iterator = new GroupedIterators();
+      final_joins.put(groups.getKey(), grouped_iterator);
+      for (final Entry<TimeSeriesGroupId, Map<TypeToken<?>, 
+        List<TimeSeriesIterator<?>>>> group : groups.getValue().entrySet()) {
+        for (final Entry<TypeToken<?>, List<TimeSeriesIterator<?>>> typed : 
+          group.getValue().entrySet()) {
+          for (final TimeSeriesIterator<?> iterator : typed.getValue()) {
+            grouped_iterator.addIterator(group.getKey(), iterator);
+          }
+        }
+      }
+    }
+    
+    return final_joins;
   }
   
   /**

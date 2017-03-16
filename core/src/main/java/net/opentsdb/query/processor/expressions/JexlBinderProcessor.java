@@ -14,7 +14,7 @@ package net.opentsdb.query.processor.expressions;
 
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.query.processor.AbstractPassThroughProcessor;
+import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.processor.TimeSeriesProcessor;
 import net.opentsdb.query.processor.TimeSeriesProcessorConfig;
 
@@ -25,34 +25,24 @@ import net.opentsdb.query.processor.TimeSeriesProcessorConfig;
  * 
  * @since 3.0
  */
-public class JexlBinderProcessor extends 
-    AbstractPassThroughProcessor<JexlBinderProcessor> {
-
+public class JexlBinderProcessor extends TimeSeriesProcessor {
+  private final TimeSeriesProcessor source;
+  
   /**
    * Default Ctor used by the registry.
    * @param source A non-null source to operate on.
    * @param config An optional config.
    */
-  public JexlBinderProcessor(TimeSeriesProcessor source,
-      TimeSeriesProcessorConfig<JexlBinderProcessor> config) {
-    super(source, config);
+  public JexlBinderProcessor(final TimeSeriesProcessor source,
+      final TimeSeriesProcessorConfig<JexlBinderProcessor> config) {
+    super(config);
+    this.source = source;
   }
   
-  /**
-   * Copy constructor that sets the parent reference
-   * @param source A non-null source to operate on.
-   * @param config An optional config.
-   * @param parent A non-null parent.
-   */
-  private JexlBinderProcessor(final TimeSeriesProcessor source,
-      final TimeSeriesProcessorConfig<JexlBinderProcessor> config, 
-      final TimeSeriesProcessor parent) {
-    super(source, config, parent);
-  }
-
   @Override
-  public TimeSeriesProcessor getCopy() {
-    return new JexlBinderProcessor(source.getCopy(), config, this);
+  public TimeSeriesProcessor getClone(final QueryContext context) {
+    return new JexlBinderProcessor(source.getClone(context), 
+        config != null ? (TimeSeriesProcessorConfig<JexlBinderProcessor>) config : null);
   }
 
   @Override

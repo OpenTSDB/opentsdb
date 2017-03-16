@@ -40,8 +40,7 @@ import net.opentsdb.query.processor.TimeSeriesProcessor;
  * calls.
  */
 @Ignore
-public class MockNumericIterator extends 
-    TimeSeriesIterator<NumericType> {
+public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
   
   public Deferred<Object> initialize_deferred = Deferred.fromResult(null);
   public Deferred<Object> fetch_next_deferred = Deferred.fromResult(null);
@@ -89,61 +88,75 @@ public class MockNumericIterator extends
     if (ex != null) {
       throw ex;
     }
-    // see if we're time synced or not
-    if (processor != null) {
-      if (outer_index >= data.size() ||
-          inner_index >= data.get(outer_index).size() || 
-          data.get(outer_index).get(inner_index).timestamp().compare(
-          TimeStampComparator.NE, processor.syncTimestamp())) {
-        return new MutableNumericType(id, processor.syncTimestamp(), fill.getValue());
-      }
-      return data.get(outer_index).get(inner_index);
-    }
-    
-    // not synced
-    final MutableNumericType v = data.get(outer_index).get(inner_index);
-    if (inner_index >= data.get(outer_index).size()) {
-      outer_index++;
-      inner_index = 0;
-    } else {
-      inner_index++;
-    }
-    return v;
-  }
-
-  @Override
-  public Deferred<Object> fetchNext() {
-    if (ex != null) {
-      return Deferred.fromError(ex);
-    }
-    if (processor != null) {
-      if (outer_index >= data.size()) {
-        processor.markStatus(IteratorStatus.END_OF_DATA);
-      } else {
-        if (inner_index + 1 >= data.get(outer_index).size()) {
+    TimeSeriesValue<NumericType> result = null;
+    if (outer_index < data.size() && 
+        inner_index < data.get(outer_index).size()) {
+      boolean end = false;
+      while (data.get(outer_index).get(inner_index).timestamp().compare(
+          TimeStampComparator.LT, context.syncTimestamp())) {
+        if (inner_index >= data.get(outer_index).size()) {
           outer_index++;
           inner_index = 0;
         } else {
           inner_index++;
         }
         
-        if (outer_index >= data.size()) {
-          processor.markStatus(IteratorStatus.END_OF_DATA);
-        } else if (inner_index >= data.get(outer_index).size()) {
-          processor.markStatus(IteratorStatus.END_OF_CHUNK);
-        } else {
-          processor.markStatus(IteratorStatus.HAS_DATA);
-          processor.setSyncTime(data.get(outer_index).get(inner_index).timestamp());
+        if (outer_index >= data.size() || 
+            inner_index >= data.get(outer_index).size()) {
+          end = true;
+          break;
         }
       }
-    } else {
-      if (inner_index + 1 >= data.get(outer_index).size()) {
-        outer_index++;
-        inner_index = 0;
+      
+      if (!end && data.get(outer_index).get(inner_index).timestamp().compare(
+          TimeStampComparator.EQ, context.syncTimestamp())) {
+        result = data.get(outer_index).get(inner_index);
+        if (inner_index >= data.get(outer_index).size()) {
+          outer_index++;
+          inner_index = 0;
+        } else {
+          inner_index++;
+        }
       } else {
-        inner_index++;
+        result = new MutableNumericType(id, context.syncTimestamp(), 
+          fill.getValue());
       }
     }
+    
+    updateContext();
+    //System.out.println("   outer: " + outer_index + "  inner: " + inner_index);
+    return result;
+  }
+
+  private void updateContext() {
+    if (outer_index >= data.size()) {
+      context.updateContext(IteratorStatus.END_OF_DATA, null);
+    } else if (inner_index >= data.get(outer_index).size()) {
+      if (outer_index + 1 >= data.size()) {
+        context.updateContext(IteratorStatus.END_OF_DATA, null);
+      } else {
+        context.updateContext(IteratorStatus.END_OF_CHUNK, null);
+      }
+    } else {
+      context.updateContext(IteratorStatus.HAS_DATA, 
+          data.get(outer_index).get(inner_index).timestamp());
+    }
+  }
+  
+  @Override
+  public Deferred<Object> fetchNext() {
+    if (ex != null) {
+      return Deferred.fromError(ex);
+    }
+    if (outer_index >= data.size()) {
+      // noop
+    } else if (inner_index >= data.get(outer_index).size()) {
+      outer_index++;
+      inner_index = 0;
+    } else {
+      inner_index++;
+    }
+    updateContext();
     return fetch_next_deferred;
   }
 

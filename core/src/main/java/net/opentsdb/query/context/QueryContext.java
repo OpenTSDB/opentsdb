@@ -13,7 +13,9 @@
 package net.opentsdb.query.context;
 
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
+import net.opentsdb.query.processor.TimeSeriesProcessor;
 
 /**
  * TODO - complete and doc
@@ -26,11 +28,24 @@ public abstract class QueryContext {
     return null;
   }
   
+  public void updateContext(final IteratorStatus status, 
+      final TimeStamp timestamp) {
+    
+  }
+  
   public void register(final TimeSeriesIterator<?> it) {
     
   }
   
   public void unregister(final TimeSeriesIterator<?> it) {
+    
+  }
+  
+  public void register(final TimeSeriesProcessor processor) {
+    
+  }
+  
+  public void unregister(final TimeSeriesProcessor processor) {
     
   }
 }

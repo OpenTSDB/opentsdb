@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map.Entry;
 
 import org.junit.Before;
@@ -151,6 +152,17 @@ public class TestGroupedAndTypedIteratorLists {
     } catch (UnsupportedOperationException e) { }
   }
 
+  @Test
+  public void flattenedIterators() throws Exception {
+    final GroupedAndTypedIteratorLists collection = 
+        new GroupedAndTypedIteratorLists(group);
+    collection.addIterator(num_1);
+    collection.addIterator(annotation);
+    
+    final List<TimeSeriesIterator<?>> flattened = collection.flattenedIterators();
+    assertEquals(2, flattened.size());
+  }
+  
   @Test
   public void getClone() throws Exception {
     final TimeSeriesIterator<?> num_1_clone = mock(TimeSeriesIterator.class);
