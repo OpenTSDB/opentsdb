@@ -110,6 +110,9 @@ public class GroupedAndTypedIteratorLists implements
    * @throws IllegalArgumentException if the list was null or already present.
    */
   public void addIterators(final TypedIteratorList list) {
+    if (list == null) {
+      throw new IllegalArgumentException("Iterator cannot be null.");
+    }
     if (iterators.containsKey(list.type())) {
       throw new IllegalArgumentException("A list with type " + list.type() 
         + " already exists.");
