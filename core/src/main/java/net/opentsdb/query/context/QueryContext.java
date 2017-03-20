@@ -215,19 +215,18 @@ public abstract class QueryContext {
    * updates {@link #nextTimestamp()} only if the incoming timestamp is less
    * than {@link #nextTimestamp()}.
    * @param status A non-null status to process.
-   * @param timestamp A non-null timestamp to compare against.
-   * @throws IllegalArgumentException if either argument was null.
+   * @param timestamp An optional timestamp to compare against when the next
+   * value is {@link IteratorStatus#HAS_DATA}.
+   * @throws IllegalArgumentException if the status was null.
    */
   public void updateContext(final IteratorStatus status, 
       final TimeStamp timestamp) {
     if (status == null) {
       throw new IllegalArgumentException("Status cannot be null.");
     }
-    if (timestamp == null) {
-      throw new IllegalArgumentException("Timestamp cannot be null.");
-    }
     next_status = IteratorStatus.updateStatus(next_status, status);
-    if (timestamp.compare(TimeStampComparator.LT, next_sync_time)) {
+    if (timestamp != null && 
+        timestamp.compare(TimeStampComparator.LT, next_sync_time)) {
       next_sync_time.update(timestamp);
     }
   }

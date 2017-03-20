@@ -13,6 +13,7 @@
 package net.opentsdb.data.types.numeric;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -26,16 +27,24 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 
 import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.IteratorStatus;
+import net.opentsdb.query.context.DefaultQueryContext;
+import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.processor.DefaultTimeSeriesProcessor;
+import net.opentsdb.query.processor.TimeSeriesProcessor;
 
 /**
  * Yes we are testing a mock. Gotta make sure it's happy.
  */
 public class TestMockNumericIterator {
-
+  private QueryContext context;
+  private TimeSeriesProcessor processor;
+  private TimeSeriesGroupId group;
   private TimeSeriesId id;
   private List<List<MutableNumericType>> data;
   
@@ -62,56 +71,197 @@ public class TestMockNumericIterator {
     set = Lists.newArrayListWithCapacity(1);
     set.add(new MutableNumericType(id, new MillisecondTimeStamp(7000), 7, 1));
     data.add(set);
+    
+    context = new DefaultQueryContext();
+    processor = new DefaultTimeSeriesProcessor();
+    processor.setContext(context);
+    group = new SimpleStringGroupId("Freys");
   }
   
-//  @Test
-//  public void standAlone() throws Exception {
-//    MockNumericIterator it = new MockNumericIterator(id);
-//    it.data = data;
-//    
-//    assertNull(it.initialize().join());
-//    assertSame(id, it.id());
-//    
-//    int i = 1;
-//    assertEquals(IteratorStatus.HAS_DATA, it.status());
-//    while (it.status() == IteratorStatus.HAS_DATA) {
-//      final TimeSeriesValue<NumericType> v = it.next();
-//      assertEquals(i, v.timestamp().epoch());
-//      assertTrue(v.value().isInteger());
-//      assertEquals(i, v.value().longValue());
-//      assertEquals(1, v.realCount());
-//      i++;
-//    }
-//    assertEquals(IteratorStatus.END_OF_CHUNK, it.status());
-//    assertNull(it.fetchNext().join());
-//    
-//    assertEquals(IteratorStatus.HAS_DATA, it.status());
-//    while (it.status() == IteratorStatus.HAS_DATA) {
-//      final TimeSeriesValue<NumericType> v = it.next();
-//      assertEquals(i, v.timestamp().epoch());
-//      assertTrue(v.value().isInteger());
-//      assertEquals(i, v.value().longValue());
-//      assertEquals(1, v.realCount());
-//      i++;
-//    }
-//    
-//    assertEquals(IteratorStatus.END_OF_CHUNK, it.status());
-//    assertNull(it.fetchNext().join());
-//    
-//    assertEquals(IteratorStatus.HAS_DATA, it.status());
-//    while (it.status() == IteratorStatus.HAS_DATA) {
-//      final TimeSeriesValue<NumericType> v = it.next();
-//      assertEquals(i, v.timestamp().epoch());
-//      assertTrue(v.value().isInteger());
-//      assertEquals(i, v.value().longValue());
-//      assertEquals(1, v.realCount());
-//      i++;
-//    }
-//    assertEquals(IteratorStatus.END_OF_CHUNK, it.status());
-//    assertNull(it.fetchNext().join());
-//    assertEquals(IteratorStatus.END_OF_DATA, it.status());
-//    assertNull(it.close().join());
-//  }
+  @Test
+  public void iterator() throws Exception {
+    MockNumericIterator it = new MockNumericIterator(id);
+    it.data = data;
+    processor.addSeries(group, it);
+    
+    assertNull(context.initialize().join());
+    assertSame(id, it.id());
+    
+    assertEquals(IteratorStatus.END_OF_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.HAS_DATA, context.nextStatus());
+    assertEquals(Long.MAX_VALUE, context.syncTimestamp().msEpoch());
+    assertEquals(1000, context.nextTimestamp().msEpoch());
+    
+    // advance
+    assertEquals(IteratorStatus.HAS_DATA, context.advance());
+    assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.END_OF_DATA, context.nextStatus());
+    assertEquals(1000, context.syncTimestamp().msEpoch());
+    assertEquals(Long.MAX_VALUE, context.nextTimestamp().msEpoch());
+    
+    // next
+    TimeSeriesValue<NumericType> v = it.next();
+    assertEquals(1000, v.timestamp().msEpoch());
+    assertTrue(v.value().isInteger());
+    assertEquals(1, v.value().longValue());
+    
+    // post advance
+    assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.HAS_DATA, context.nextStatus());
+    assertEquals(1000, context.syncTimestamp().msEpoch());
+    assertEquals(2000, context.nextTimestamp().msEpoch());
+    
+    // advance
+    assertEquals(IteratorStatus.HAS_DATA, context.advance());
+    assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.END_OF_DATA, context.nextStatus());
+    assertEquals(2000, context.syncTimestamp().msEpoch());
+    assertEquals(Long.MAX_VALUE, context.nextTimestamp().msEpoch());
+    
+    // next
+    v = it.next();
+    assertEquals(2000, v.timestamp().msEpoch());
+    assertTrue(v.value().isInteger());
+    assertEquals(2, v.value().longValue());
+    
+    // post advance
+    assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.HAS_DATA, context.nextStatus());
+    assertEquals(2000, context.syncTimestamp().msEpoch());
+    assertEquals(3000, context.nextTimestamp().msEpoch());
+    
+    // advance
+    assertEquals(IteratorStatus.HAS_DATA, context.advance());
+    assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.END_OF_DATA, context.nextStatus());
+    assertEquals(3000, context.syncTimestamp().msEpoch());
+    assertEquals(Long.MAX_VALUE, context.nextTimestamp().msEpoch());
+    
+    // next
+    v = it.next();
+    assertEquals(3000, v.timestamp().msEpoch());
+    assertTrue(v.value().isInteger());
+    assertEquals(3, v.value().longValue());
+    
+    // post advance
+    assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.END_OF_CHUNK, context.nextStatus());
+    assertEquals(3000, context.syncTimestamp().msEpoch());
+    assertEquals(Long.MAX_VALUE, context.nextTimestamp().msEpoch());
+    
+    // advance
+    assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
+    assertEquals(IteratorStatus.END_OF_CHUNK, context.currentStatus());
+    assertEquals(IteratorStatus.END_OF_CHUNK, context.nextStatus());
+    assertEquals(Long.MAX_VALUE, context.syncTimestamp().msEpoch());
+    assertEquals(Long.MAX_VALUE, context.nextTimestamp().msEpoch());
+    
+    // confirm another call to advance leaves us as-is.
+    assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
+    assertEquals(IteratorStatus.END_OF_CHUNK, context.currentStatus());
+    assertEquals(IteratorStatus.END_OF_CHUNK, context.nextStatus());
+    assertEquals(Long.MAX_VALUE, context.syncTimestamp().msEpoch());
+    assertEquals(Long.MAX_VALUE, context.nextTimestamp().msEpoch());
+    
+    // fetch
+    assertNull(context.fetchNext().join());
+    assertEquals(IteratorStatus.END_OF_CHUNK, context.currentStatus());
+    assertEquals(IteratorStatus.HAS_DATA, context.nextStatus());
+    assertEquals(Long.MAX_VALUE, context.syncTimestamp().msEpoch());
+    assertEquals(4000, context.nextTimestamp().msEpoch());
+    
+    // advance
+    assertEquals(IteratorStatus.HAS_DATA, context.advance());
+    assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.END_OF_DATA, context.nextStatus());
+    assertEquals(4000, context.syncTimestamp().msEpoch());
+    assertEquals(Long.MAX_VALUE, context.nextTimestamp().msEpoch());
+    
+    // next
+    v = it.next();
+    assertEquals(4000, v.timestamp().msEpoch());
+    assertTrue(v.value().isInteger());
+    assertEquals(4, v.value().longValue());
+    
+    // post advance
+    assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.HAS_DATA, context.nextStatus());
+    assertEquals(4000, context.syncTimestamp().msEpoch());
+    assertEquals(5000, context.nextTimestamp().msEpoch());
+    
+    // advance
+    assertEquals(IteratorStatus.HAS_DATA, context.advance());
+    assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.END_OF_DATA, context.nextStatus());
+    assertEquals(5000, context.syncTimestamp().msEpoch());
+    assertEquals(Long.MAX_VALUE, context.nextTimestamp().msEpoch());
+    
+    // next
+    v = it.next();
+    assertEquals(5000, v.timestamp().msEpoch());
+    assertTrue(v.value().isInteger());
+    assertEquals(5, v.value().longValue());
+    
+    // post advance
+    assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.HAS_DATA, context.nextStatus());
+    assertEquals(5000, context.syncTimestamp().msEpoch());
+    assertEquals(6000, context.nextTimestamp().msEpoch());
+    
+    // advance
+    assertEquals(IteratorStatus.HAS_DATA, context.advance());
+    assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.END_OF_DATA, context.nextStatus());
+    assertEquals(6000, context.syncTimestamp().msEpoch());
+    assertEquals(Long.MAX_VALUE, context.nextTimestamp().msEpoch());
+    
+    // next
+    v = it.next();
+    assertEquals(6000, v.timestamp().msEpoch());
+    assertTrue(v.value().isInteger());
+    assertEquals(6, v.value().longValue());
+    
+    // post advance
+    assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.END_OF_CHUNK, context.nextStatus());
+    assertEquals(6000, context.syncTimestamp().msEpoch());
+    assertEquals(Long.MAX_VALUE, context.nextTimestamp().msEpoch());
+    
+    // fetch
+    assertNull(context.fetchNext().join());
+    assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.HAS_DATA, context.nextStatus());
+    assertEquals(6000, context.syncTimestamp().msEpoch());
+    assertEquals(7000, context.nextTimestamp().msEpoch());
+    
+    // advance
+    assertEquals(IteratorStatus.HAS_DATA, context.advance());
+    assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.END_OF_DATA, context.nextStatus());
+    assertEquals(7000, context.syncTimestamp().msEpoch());
+    assertEquals(Long.MAX_VALUE, context.nextTimestamp().msEpoch());
+    
+    // next
+    v = it.next();
+    assertEquals(7000, v.timestamp().msEpoch());
+    assertTrue(v.value().isInteger());
+    assertEquals(7, v.value().longValue());
+    
+    // post advance
+    assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.END_OF_DATA, context.nextStatus());
+    assertEquals(7000, context.syncTimestamp().msEpoch());
+    assertEquals(Long.MAX_VALUE, context.nextTimestamp().msEpoch());
+    
+    // confirm calls to advance just return EOD
+    assertEquals(IteratorStatus.END_OF_DATA, context.advance());
+    assertEquals(IteratorStatus.END_OF_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.END_OF_DATA, context.nextStatus());
+    assertEquals(Long.MAX_VALUE, context.syncTimestamp().msEpoch());
+    assertEquals(Long.MAX_VALUE, context.nextTimestamp().msEpoch());
+    
+    assertNull(it.next());
+  }
 
   @Test
   public void initializeException() throws Exception {
@@ -146,42 +296,48 @@ public class TestMockNumericIterator {
     } catch (RuntimeException e) { }
   }
   
-//  @Test
-//  public void getCopy() throws Exception {
-//    final MockNumericIterator it = new MockNumericIterator(id);
-//    it.data = data;
-//    
-//    assertNull(it.initialize().join());
-//    assertSame(id, it.id());
-//    
-//    int i = 1;
-//    assertEquals(IteratorStatus.HAS_DATA, it.status());
-//    while (it.status() == IteratorStatus.HAS_DATA) {
-//      final TimeSeriesValue<NumericType> v = it.next();
-//      assertEquals(i, v.timestamp().epoch());
-//      assertTrue(v.value().isInteger());
-//      assertEquals(i, v.value().longValue());
-//      assertEquals(1, v.realCount());
-//      i++;
-//    }
-//    assertEquals(IteratorStatus.END_OF_CHUNK, it.status());
-//    // left the parent in an END_OF_CHUNK state to verify the copy starts over.
-//    
-//    final MockNumericIterator copy = (MockNumericIterator) it.getCopy();
-//    assertSame(id, copy.id());
-//    
-//    i = 1;
-//    assertEquals(IteratorStatus.HAS_DATA, copy.status());
-//    while (copy.status() == IteratorStatus.HAS_DATA) {
-//      final TimeSeriesValue<NumericType> v = copy.next();
-//      assertEquals(i, v.timestamp().epoch());
-//      assertTrue(v.value().isInteger());
-//      assertEquals(i, v.value().longValue());
-//      assertEquals(1, v.realCount());
-//      i++;
-//    }
-//    assertEquals(IteratorStatus.END_OF_CHUNK, copy.status());
-//  }
+  @Test
+  public void getCopy() throws Exception {
+    final MockNumericIterator it = new MockNumericIterator(id);
+    it.data = data;
+    processor.addSeries(group, it);
+    
+    assertNull(context.initialize().join());
+    assertSame(id, it.id());
+    
+    assertEquals(IteratorStatus.HAS_DATA, context.advance());
+    TimeSeriesValue<NumericType> v = it.next();
+    assertEquals(1000, v.timestamp().msEpoch());
+    assertEquals(1, v.value().longValue());
+    
+    assertEquals(IteratorStatus.HAS_DATA, context.advance());
+    v = it.next();
+    assertEquals(2000, v.timestamp().msEpoch());
+    assertEquals(2, v.value().longValue());
+    
+    assertEquals(IteratorStatus.HAS_DATA, context.advance());
+    v = it.next();
+    assertEquals(3000, v.timestamp().msEpoch());
+    assertEquals(3, v.value().longValue());
+    
+    assertEquals(IteratorStatus.END_OF_CHUNK, context.nextStatus());
+    // left the parent in an END_OF_CHUNK state to verify the copy starts over.
+    
+    final QueryContext ctx2 = new DefaultQueryContext();
+    final TimeSeriesProcessor processor2 = new DefaultTimeSeriesProcessor();
+    processor2.setContext(ctx2);
+    
+    final MockNumericIterator copy = (MockNumericIterator) it.getCopy(ctx2);
+    processor2.addSeries(group, copy);
+    
+    assertNull(ctx2.initialize().join());
+    assertNotSame(copy, it);
+    
+    assertEquals(IteratorStatus.HAS_DATA, ctx2.advance());
+    v = copy.next();
+    assertEquals(1000, v.timestamp().msEpoch());
+    assertEquals(1, v.value().longValue());
+  }
   
   @Test
   public void closeException() throws Exception {
@@ -194,6 +350,4 @@ public class TestMockNumericIterator {
     } catch (RuntimeException e) { }
   }
   
-  // NOTE That the processor tests are under the TestIteratorGroup class. No need
-  // to duplicate em.
 }

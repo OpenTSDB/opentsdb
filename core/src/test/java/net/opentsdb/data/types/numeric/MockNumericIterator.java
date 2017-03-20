@@ -20,11 +20,9 @@ import org.junit.Ignore;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.TimeStampComparator;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
@@ -55,7 +53,6 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
   private int inner_index = 0;
   
   private final TimeSeriesId id;
-  private MockNumericIterator parent;
   
   public MockNumericIterator(final TimeSeriesId id) {
     this.id = id;
@@ -70,6 +67,7 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
     if (ex != null) {
       return Deferred.fromError(ex);
     }
+    updateContext();
     return initialize_deferred;
   }
 

@@ -13,7 +13,6 @@
 package net.opentsdb.query.context;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -512,6 +511,14 @@ public class TestQueryContext {
     assertEquals(IteratorStatus.END_OF_DATA, context.currentStatus());
     assertEquals(IteratorStatus.HAS_DATA, context.nextStatus());
     
+    // null TS
+    context.updateContext(IteratorStatus.END_OF_CHUNK, null);
+    assertEquals(Long.MAX_VALUE, context.syncTimestamp().msEpoch());
+    assertEquals(3000, context.nextTimestamp().msEpoch());
+    assertEquals(IteratorStatus.END_OF_DATA, context.currentStatus());
+    assertEquals(IteratorStatus.HAS_DATA, context.nextStatus());
+    
+    // exception
     context.updateContext(IteratorStatus.EXCEPTION, ts);
     assertEquals(Long.MAX_VALUE, context.syncTimestamp().msEpoch());
     assertEquals(3000, context.nextTimestamp().msEpoch());
@@ -520,11 +527,6 @@ public class TestQueryContext {
     
     try {
       context.updateContext(null, ts);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      context.updateContext(IteratorStatus.END_OF_CHUNK, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -687,7 +689,7 @@ public class TestQueryContext {
     final TimeSeriesProcessor p_4 = mock(TimeSeriesProcessor.class);
     
     MockContext context = new MockContext();
-    MockContext split_context = new MockContext();
+    MockContext split_context = new MockContext(context);
     
     context.register(p_4, p_3);
     context.register(p_3, p_2);
@@ -730,9 +732,14 @@ public class TestQueryContext {
     assertEquals(1, split_context.processor_sinks.size());
     assertTrue(split_context.processor_sinks.contains(p_3));
     
-    assertFalse(split_context.context_graph.containsVertex(context));
+    assertTrue(split_context.context_graph.containsVertex(context));
     assertTrue(split_context.context_graph.containsVertex(split_context));
-    assertFalse(split_context.context_graph.containsEdge(context, split_context));
+    assertTrue(split_context.context_graph.containsEdge(context, split_context));
+    
+    try {
+      split_context.splitContext(context, p_2);
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
     
     // reset and test bottom
     context = new MockContext();
@@ -767,6 +774,8 @@ public class TestQueryContext {
     assertTrue(split_context.processor_graph.containsEdge(p_2, p_1));
     assertEquals(1, split_context.processor_sinks.size());
     assertTrue(split_context.processor_sinks.contains(p_4));
+    
+    
     
     try {
       context.splitContext(split_context, null);
