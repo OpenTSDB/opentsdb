@@ -436,6 +436,11 @@ public abstract class QueryContext {
     throw new UnsupportedOperationException("Not implemented yet.");
   }
   
+  /** @return A view into the iterator sinks. Primarily for unit testing. */
+  public Set<TimeSeriesIterator<?>> iteratorSinks() {
+    return Collections.unmodifiableSet(iterator_sinks);
+  }
+  
   /** @return The parent of this context if it has one. May be null. */
   public QueryContext getParent() {
     return parent;
