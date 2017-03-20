@@ -875,6 +875,93 @@ public class TestQueryContext {
     }
   }
   
+  @Test
+  public void close() throws Exception {
+    final TimeSeriesIterator<?> it_1 = mock(TimeSeriesIterator.class);
+    final TimeSeriesIterator<?> it_2 = mock(TimeSeriesIterator.class);
+    final TimeSeriesIterator<?> it_3 = mock(TimeSeriesIterator.class);
+    when(it_1.close()).thenAnswer(new Answer<Deferred<Object>>() {
+      @Override
+      public Deferred<Object> answer(final InvocationOnMock invocation)
+          throws Throwable {
+        return Deferred.fromResult(null);
+      }
+    });
+    when(it_2.close()).thenAnswer(new Answer<Deferred<Object>>() {
+      @Override
+      public Deferred<Object> answer(final InvocationOnMock invocation)
+          throws Throwable {
+        return Deferred.fromResult(null);
+      }
+    });
+    when(it_3.close()).thenAnswer(new Answer<Deferred<Object>>() {
+      @Override
+      public Deferred<Object> answer(final InvocationOnMock invocation)
+          throws Throwable {
+        return Deferred.fromResult(null);
+      }
+    });
+    
+    final MockContext context = new MockContext();
+    context.next_status = IteratorStatus.END_OF_CHUNK;
+    context.register(it_1, it_2);
+    context.register(it_3);
+    
+    Deferred<Object> deferred = context.close();
+    assertNull(deferred.join());
+    verify(it_1, times(1)).close();
+    verify(it_2, never()).close(); // not a sink
+    verify(it_3, times(1)).close();
+    assertEquals(IteratorStatus.END_OF_DATA, context.next_status);
+    
+    // make sure children are called
+    final QueryContext mock_context = mock(QueryContext.class);
+    when(mock_context.close()).thenAnswer(new Answer<Deferred<Object>>() {
+      @Override
+      public Deferred<Object> answer(final InvocationOnMock invocation)
+          throws Throwable {
+        return Deferred.fromResult(null);
+      }
+    });
+    when(mock_context.nextStatus()).thenReturn(IteratorStatus.END_OF_CHUNK);
+    
+    context.children = Lists.newArrayListWithExpectedSize(1);
+    context.children.add(mock_context);
+    
+    deferred = context.close();
+    assertNull(deferred.join());
+    verify(it_1, times(2)).close();
+    verify(it_2, never()).close(); // not a sink
+    verify(it_3, times(2)).close();
+    verify(mock_context, times(1)).close();
+    assertEquals(IteratorStatus.END_OF_DATA, context.nextStatus());
+    
+    final RuntimeException ex = new RuntimeException("Boo!");
+    when(it_3.close()).thenAnswer(new Answer<Deferred<Object>>() {
+      @Override
+      public Deferred<Object> answer(final InvocationOnMock invocation)
+          throws Throwable {
+        return Deferred.fromError(ex);
+      }
+    });
+    deferred = context.close();
+    try {
+      deferred.join();
+      fail("Expected DeferredGroupException");
+    } catch (DeferredGroupException e) { 
+      assertSame(ex, e.getCause());
+    }
+    
+    when(mock_context.close()).thenThrow(ex);
+    deferred = context.close();
+    try {
+      deferred.join();
+      fail("Expected RuntimeException");
+    } catch (RuntimeException e) { 
+      assertSame(ex, e);
+    }
+  }
+  
   /**
    * Mock that lets us peek into protected variables.
    */

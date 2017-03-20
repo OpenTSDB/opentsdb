@@ -73,8 +73,7 @@ public class TestMockNumericIterator {
     data.add(set);
     
     context = new DefaultQueryContext();
-    processor = new DefaultTimeSeriesProcessor();
-    processor.setContext(context);
+    processor = new DefaultTimeSeriesProcessor(context);
     group = new SimpleStringGroupId("Freys");
   }
   
@@ -260,7 +259,9 @@ public class TestMockNumericIterator {
     assertEquals(Long.MAX_VALUE, context.syncTimestamp().msEpoch());
     assertEquals(Long.MAX_VALUE, context.nextTimestamp().msEpoch());
     
-    assertNull(it.next());
+    v = it.next();
+    assertEquals(Long.MAX_VALUE, v.timestamp().msEpoch());
+    assertTrue(Double.isNaN(v.value().doubleValue()));
   }
 
   @Test
@@ -324,8 +325,7 @@ public class TestMockNumericIterator {
     // left the parent in an END_OF_CHUNK state to verify the copy starts over.
     
     final QueryContext ctx2 = new DefaultQueryContext();
-    final TimeSeriesProcessor processor2 = new DefaultTimeSeriesProcessor();
-    processor2.setContext(ctx2);
+    final TimeSeriesProcessor processor2 = new DefaultTimeSeriesProcessor(ctx2);
     
     final MockNumericIterator copy = (MockNumericIterator) it.getCopy(ctx2);
     processor2.addSeries(group, copy);

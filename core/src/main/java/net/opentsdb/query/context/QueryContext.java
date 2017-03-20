@@ -40,7 +40,7 @@ import net.opentsdb.utils.Deferreds;
  * 
  * <b>Warning:</b> This class is not intended to be thread safe. ONLY work with
  * a context from a single thread at any time.
- * <b> 
+ * <p>
  * Calls to {@link #initialize()} and {@link #fetchNext()} should be performed
  * asynchronously and a callback should be applied to the deferred from either
  * method.  
@@ -295,6 +295,32 @@ public abstract class QueryContext {
       }
       for (final TimeSeriesIterator<?> iterator : iterator_sinks) {
         deferreds.add(iterator.fetchNext());
+      }
+      return Deferred.group(deferreds).addCallback(Deferreds.NULL_GROUP_CB);
+    } catch (Exception e) {
+      return Deferred.fromError(e);
+    }
+  }
+  
+  /**
+   * Executes {@link TimeSeriesIterator#close()} on the terminal iterators
+   * belonging to this context and {@link #close()} on all child contexts.
+   * 
+   * @return A non-null deferred to wait on that will resolve to null on success
+   * or an exception if there was an error.
+   */
+  public Deferred<Object> close() {
+    final List<Deferred<Object>> deferreds = Lists.newArrayListWithExpectedSize(
+        children != null ? children.size() + 1 : 1);
+    try {
+      next_status = IteratorStatus.END_OF_DATA;
+      if (children != null) {
+        for (final QueryContext child : children) {
+          deferreds.add(child.close());
+        }
+      }
+      for (final TimeSeriesIterator<?> iterator : iterator_sinks) {
+        deferreds.add(iterator.close());
       }
       return Deferred.group(deferreds).addCallback(Deferreds.NULL_GROUP_CB);
     } catch (Exception e) {

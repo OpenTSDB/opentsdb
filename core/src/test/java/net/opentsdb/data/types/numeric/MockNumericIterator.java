@@ -84,7 +84,11 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
   @Override
   public TimeSeriesValue<NumericType> next() {
     if (ex != null) {
-      throw ex;
+      context.updateContext(IteratorStatus.EXCEPTION, null);
+      if (throw_ex) {
+        throw ex;
+      }
+      return null;
     }
     TimeSeriesValue<NumericType> result = null;
     if (outer_index < data.size() && 
@@ -119,6 +123,9 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
         result = new MutableNumericType(id, context.syncTimestamp(), 
           fill.getValue());
       }
+    } else {
+      result = new MutableNumericType(id, context.syncTimestamp(), 
+          fill.getValue());
     }
     
     updateContext();
@@ -144,6 +151,10 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
   @Override
   public Deferred<Object> fetchNext() {
     if (ex != null) {
+      context.updateContext(IteratorStatus.EXCEPTION, null);
+      if (throw_ex) {
+        throw ex;
+      }
       return Deferred.fromError(ex);
     }
     if (outer_index >= data.size()) {
@@ -163,6 +174,7 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
     final MockNumericIterator it = new MockNumericIterator(id);
     it.data = data;
     it.parent = this;
+    it.context = context;
     return it;
   }
 

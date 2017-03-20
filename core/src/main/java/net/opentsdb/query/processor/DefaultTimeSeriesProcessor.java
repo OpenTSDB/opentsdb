@@ -22,11 +22,14 @@ import net.opentsdb.query.context.QueryContext;
  */
 public class DefaultTimeSeriesProcessor extends TimeSeriesProcessor {
 
+  public DefaultTimeSeriesProcessor(final QueryContext context) {
+    super(context);
+  }
+  
   @Override
   public TimeSeriesProcessor getClone(final QueryContext context) {
-    final DefaultTimeSeriesProcessor clone = new DefaultTimeSeriesProcessor();
+    final DefaultTimeSeriesProcessor clone = new DefaultTimeSeriesProcessor(context);
     clone.iterators = iterators.getClone(context);
-    clone.setContext(context);
     return clone;
   }
 
