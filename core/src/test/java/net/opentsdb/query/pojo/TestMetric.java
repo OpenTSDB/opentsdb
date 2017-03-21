@@ -131,6 +131,10 @@ public class TestMetric {
         .setFillPolicy(new NumericFillPolicy.Builder()
             .setPolicy(FillPolicy.NOT_A_NUMBER)
             .build())
+        .setDownsampler(Downsampler.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .build())
         .build();
     
     Metric m2 = new Metric.Builder()
@@ -141,6 +145,10 @@ public class TestMetric {
         .setAggregator("sum")
         .setFillPolicy(new NumericFillPolicy.Builder()
             .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setDownsampler(Downsampler.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
             .build())
         .build();
     assertEquals(m1.hashCode(), m2.hashCode());
@@ -156,6 +164,10 @@ public class TestMetric {
         .setFillPolicy(new NumericFillPolicy.Builder()
             .setPolicy(FillPolicy.NOT_A_NUMBER)
             .build())
+        .setDownsampler(Downsampler.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .build())
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
     assertNotEquals(m1, m2);
@@ -169,6 +181,10 @@ public class TestMetric {
         .setAggregator("sum")
         .setFillPolicy(new NumericFillPolicy.Builder()
             .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setDownsampler(Downsampler.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
             .build())
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
@@ -184,6 +200,10 @@ public class TestMetric {
         .setFillPolicy(new NumericFillPolicy.Builder()
             .setPolicy(FillPolicy.NOT_A_NUMBER)
             .build())
+        .setDownsampler(Downsampler.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .build())
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
     assertNotEquals(m1, m2);
@@ -197,6 +217,10 @@ public class TestMetric {
         .setAggregator("sum")
         .setFillPolicy(new NumericFillPolicy.Builder()
             .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setDownsampler(Downsampler.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
             .build())
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
@@ -212,6 +236,10 @@ public class TestMetric {
         .setFillPolicy(new NumericFillPolicy.Builder()
             .setPolicy(FillPolicy.NOT_A_NUMBER)
             .build())
+        .setDownsampler(Downsampler.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .build())
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
     assertNotEquals(m1, m2);
@@ -225,6 +253,10 @@ public class TestMetric {
         .setAggregator("max")  // <-- diff
         .setFillPolicy(new NumericFillPolicy.Builder()
             .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setDownsampler(Downsampler.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
             .build())
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
@@ -240,6 +272,10 @@ public class TestMetric {
         .setFillPolicy(new NumericFillPolicy.Builder()
             .setPolicy(FillPolicy.NOT_A_NUMBER)
             .build())
+        .setDownsampler(Downsampler.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .build())
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
     assertNotEquals(m1, m2);
@@ -253,6 +289,10 @@ public class TestMetric {
         .setAggregator("sum")
         .setFillPolicy(new NumericFillPolicy.Builder()
             .setPolicy(FillPolicy.ZERO)  // <-- diff
+            .build())
+        .setDownsampler(Downsampler.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
             .build())
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
@@ -268,6 +308,46 @@ public class TestMetric {
         //.setFillPolicy(new NumericFillPolicy.Builder()  // <-- diff
         //    .setPolicy(FillPolicy.NOT_A_NUMBER)
         //    .build())
+        .setDownsampler(Downsampler.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .build())
+        .build();
+    assertNotEquals(m1.hashCode(), m2.hashCode());
+    assertNotEquals(m1, m2);
+    assertEquals(1, m1.compareTo(m2));
+    
+    m2 = new Metric.Builder()
+        .setId("m1")
+        .setFilter("f1")
+        .setMetric("sys.cpu.user")
+        .setTimeOffset("1h-ago")
+        .setAggregator("sum")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setDownsampler(Downsampler.newBuilder()
+            .setAggregator("avg")  // <-- diff
+            .setInterval("1m")
+            .build())
+        .build();
+    assertNotEquals(m1.hashCode(), m2.hashCode());
+    assertNotEquals(m1, m2);
+    assertEquals(1, m1.compareTo(m2));
+    
+    m2 = new Metric.Builder()
+        .setId("m1")
+        .setFilter("f1")
+        .setMetric("sys.cpu.user")
+        .setTimeOffset("1h-ago")
+        .setAggregator("sum")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+//        .setDownsampler(Downsampler.newBuilder()
+//            .setAggregator("avg")  // <-- diff
+//            .setInterval("1m")
+//            .build())
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
     assertNotEquals(m1, m2);

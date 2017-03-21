@@ -58,6 +58,9 @@ public class Metric extends Validatable implements Comparable<Metric> {
   /** A fill policy for dealing with missing values in the metric */
   private NumericFillPolicy fill_policy;
 
+  /** An optional downsampler for this metric. */
+  private Downsampler downsampler;
+  
   /**
    * Default ctor
    * @param builder The builder to pull values from
@@ -69,6 +72,7 @@ public class Metric extends Validatable implements Comparable<Metric> {
     time_offset = builder.timeOffset;
     aggregator = builder.aggregator;
     fill_policy = builder.fillPolicy;
+    downsampler = builder.downsampler;
   }
 
   /** @return the name of the metric */
@@ -99,6 +103,11 @@ public class Metric extends Validatable implements Comparable<Metric> {
   /** @return a fill policy for dealing with missing values in the metric */
   public NumericFillPolicy getFillPolicy() {
     return fill_policy;
+  }
+  
+  /** @return An optional downsampler for this metric. */
+  public Downsampler getDownsampler() {
+    return downsampler;
   }
   
   /** @return A new builder for the metric */
@@ -134,6 +143,10 @@ public class Metric extends Validatable implements Comparable<Metric> {
     if (fill_policy != null) {
       fill_policy.validate();
     }
+    
+    if (downsampler != null) {
+      downsampler.validate();
+    }
   }
   
   @Override
@@ -150,7 +163,8 @@ public class Metric extends Validatable implements Comparable<Metric> {
         && Objects.equal(that.metric, metric)
         && Objects.equal(that.time_offset, time_offset)
         && Objects.equal(that.aggregator, aggregator)
-        && Objects.equal(that.fill_policy, fill_policy);
+        && Objects.equal(that.fill_policy, fill_policy)
+        && Objects.equal(that.downsampler, downsampler);
   }
 
   @Override
@@ -172,6 +186,9 @@ public class Metric extends Validatable implements Comparable<Metric> {
     if (fill_policy != null) {
       hashes.add(fill_policy.buildHashCode());
     }
+    if (downsampler != null) {
+      hashes.add(downsampler.buildHashCode());
+    }
     return Hashing.combineOrdered(hashes);
   }
 
@@ -184,6 +201,7 @@ public class Metric extends Validatable implements Comparable<Metric> {
         .compare(time_offset, o.time_offset, Ordering.natural().nullsFirst())
         .compare(aggregator, o.aggregator, Ordering.natural().nullsFirst())
         .compare(fill_policy, o.fill_policy, Ordering.natural().nullsFirst())
+        .compare(downsampler, o.downsampler, Ordering.natural().nullsFirst())
         .result();
   }
 
@@ -205,6 +223,8 @@ public class Metric extends Validatable implements Comparable<Metric> {
     private String aggregator;
     @JsonProperty
     private NumericFillPolicy fillPolicy;
+    @JsonProperty
+    private Downsampler downsampler;
     
     public Builder setMetric(String metric) {
       this.metric = metric;
@@ -234,6 +254,11 @@ public class Metric extends Validatable implements Comparable<Metric> {
 
     public Builder setFillPolicy(NumericFillPolicy fill_policy) {
       this.fillPolicy = fill_policy;
+      return this;
+    }
+    
+    public Builder setDownsampler(final Downsampler downsampler) {
+      this.downsampler = downsampler;
       return this;
     }
     
