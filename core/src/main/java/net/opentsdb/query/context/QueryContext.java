@@ -16,11 +16,14 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
 import org.jgrapht.experimental.dag.DirectedAcyclicGraph.CycleFoundException;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.traverse.DepthFirstIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -48,7 +51,8 @@ import net.opentsdb.utils.Deferreds;
  * @since 3.0
  */
 public abstract class QueryContext {
-
+  private static final Logger LOG = LoggerFactory.getLogger(QueryContext.class);
+  
   /** The "current" timestamp returned when {@link #syncTimestamp()} is 
    * called. */
   // TODO - allow for a choice of TimeStamps
@@ -89,6 +93,9 @@ public abstract class QueryContext {
    * incoming connections. Used for initialization and closing.
    */
   protected Set<TimeSeriesProcessor> processor_sinks = Sets.newHashSet();
+  
+  /** A list of zero or more exceptions if something went wrong during operation. */
+  protected List<Exception> exceptions;
   
   /**
    * Default ctor initializes the graphs and registers this context to the 
@@ -132,6 +139,30 @@ public abstract class QueryContext {
     }
   }
   
+  @Override
+  public String toString() {
+    final StringBuilder buf = new StringBuilder()
+        .append("currentStatus=")
+        .append(status)
+        .append(", nextStatus=")
+        .append(next_status)
+        .append(", syncTimestamp=")
+        .append(sync_time)
+        .append(", nextSyncTimestamp=")
+        .append(next_sync_time)
+        .append(", processorGraph=")
+        .append(processor_graph)
+        .append(", iteratorGraph=")
+        .append(iterator_graph)
+        .append(", children=")
+        .append(children)
+        .append(", processorSinks=")
+        .append(processor_sinks)
+        .append(", iteratorSinks=")
+        .append(iterator_sinks);
+    return buf.toString();
+  }
+  
   /**
    * Initializes the processors in order, depth first. Chains the callbacks 
    * of incoming processors to their downstream children. 
@@ -144,12 +175,45 @@ public abstract class QueryContext {
    * exception on failure.
    */
   public Deferred<Object> initialize() {
+    // The deferred called at the end of the run with a null on success or
+    // an exception.
+    final Deferred<Object> deferred = new Deferred<Object>();
+    
+    // Used to fail-fast by catching exceptions on grouped deferreds. Without 
+    // an error callback on each init, if one throws an exception without 
+    // passing it upstream, the initialization will hang as the group waits for
+    // all of the deferreds to report in.
+    final AtomicBoolean deferred_called = new AtomicBoolean();
+    
     final DepthFirstIterator<TimeSeriesProcessor, DefaultEdge> df_iterator = 
         new DepthFirstIterator<TimeSeriesProcessor, DefaultEdge>(processor_graph);
     final Set<TimeSeriesProcessor> sources = Sets.newHashSet();
-    final List<Deferred<Object>> tails = Lists.newArrayList();
+    final List<Deferred<Object>> finals = Lists.newArrayList();
     
     try {
+      class ErrBack implements Callback<Object, Exception> {
+        @Override
+        public Object call(final Exception e) throws Exception {
+          if (deferred_called.compareAndSet(false, true)) {
+            deferred.callback(e);
+            handleException(e);
+          } else {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Additional exceptions were caught when initializing "
+                  + "the context: " + QueryContext.this, e);
+            }
+            handleException(e);
+          }
+          // let it bubble up to cancel other calls.
+          return e;
+        }
+        @Override
+        public String toString() {
+          return "Context initialization error callback.";
+        }
+      }
+      final ErrBack error_callback = new ErrBack();
+      
       while (df_iterator.hasNext()) {
         final TimeSeriesProcessor processor = df_iterator.next();
         final Set<DefaultEdge> downstream = processor_graph.outgoingEdgesOf(processor);
@@ -163,50 +227,95 @@ public abstract class QueryContext {
               processor_graph.getEdgeTarget(downstream.iterator().next());
           child
             .initializationDeferred()
-            .addCallback(processor.initializationCallback());
+            .addBothDeferring(processor.initializationCallback())
+            .addErrback(error_callback);
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Linking callback of " + processor 
+                + " to init deferred of " + child);
+          }
         } else {
           final List<Deferred<Object>> child_deferreds = 
               Lists.newArrayListWithExpectedSize(downstream.size());
           for (final DefaultEdge edge : downstream) {
-            child_deferreds.add(processor_graph.getEdgeTarget(edge)
-                .initializationDeferred());
+            final TimeSeriesProcessor child = processor_graph.getEdgeTarget(edge);
+            child_deferreds.add(child.initializationDeferred()
+                .addErrback(error_callback));
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Adding callback of " + processor 
+                  + " to grouped init deferred of " + child);
+            }
           }
           Deferred.group(child_deferreds)
             .addCallback(Deferreds.NULL_GROUP_CB)
-            .addCallback(processor.initializationCallback());
+            .addBoth(processor.initializationCallback())
+            .addErrback(error_callback);
         }
       }
       
       for (final TimeSeriesProcessor processor : sources) {
-        tails.add(processor.initialize());
-      }
-    } catch (Exception e) {
-      return Deferred.fromError(e);
-    }
-    /** Helper class that updates the parent's context if there is one. */
-    class InitCB implements Callback<Object, Object> {
-      @Override
-      public Object call(final Object ignored) throws Exception {
-        if (parent != null) {
-          parent.updateContext(next_status, QueryContext.this.next_sync_time);
+        // Note that if we have properly configured the initialization chain
+        // then we don't need to worry about the output of these initializations
+        // an only need to look at the sink initializations.
+        processor.initialize().addErrback(error_callback);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Initialized processor " + processor);
         }
-        return null;
       }
-      @Override
-      public String toString() {
-        return "Initialization Complete Callback for context: " 
-            + QueryContext.this;
+      
+      // These are the sinks that we need to wait on for initialization.
+      for (final TimeSeriesProcessor sink : processor_sinks) {
+        finals.add(sink.initializationDeferred()
+              .addErrback(error_callback));
       }
+      
+      /** Helper class that updates the parent's context if there is one. */
+      class InitCB implements Callback<Object, Object> {
+        @Override
+        public Object call(final Object result_or_exception) throws Exception {
+          if (!deferred_called.compareAndSet(false, true)) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("InitCB was still called for context " + QueryContext.this 
+                  + " though an exception handler caught it previously.");
+            }
+            return null;
+          }
+          
+          if (result_or_exception instanceof Exception) {
+            handleException((Exception) result_or_exception);
+            deferred.callback((Exception) result_or_exception);
+          } else {
+            if (parent != null) {
+              parent.updateContext(next_status, QueryContext.this.next_sync_time);
+            }
+            deferred.callback(null);
+          }
+          return null;
+        }
+        @Override
+        public String toString() {
+          return "Initialization Complete Callback for context: " 
+              + QueryContext.this;
+        }
+      }
+      
+      Deferred.group(finals)
+          .addCallback(Deferreds.NULL_GROUP_CB)
+          .addBoth(new InitCB());
+    } catch (Exception e) {
+      handleException(e);
+      deferred.callback(e);
     }
-    
-    return Deferred.group(tails)
-        .addCallback(Deferreds.NULL_GROUP_CB)
-        .addCallback(new InitCB());
+    return deferred;
   }
   
   /** @return The set of terminating processors to consume from. */
   public Set<TimeSeriesProcessor> processorSinks() {
     return Collections.unmodifiableSet(processor_sinks);
+  }
+  
+  /** @return A view into the iterator sinks. Primarily for unit testing. */
+  public Set<TimeSeriesIterator<?>> iteratorSinks() {
+    return Collections.unmodifiableSet(iterator_sinks);
   }
   
   /**
@@ -436,14 +545,16 @@ public abstract class QueryContext {
     throw new UnsupportedOperationException("Not implemented yet.");
   }
   
-  /** @return A view into the iterator sinks. Primarily for unit testing. */
-  public Set<TimeSeriesIterator<?>> iteratorSinks() {
-    return Collections.unmodifiableSet(iterator_sinks);
-  }
-  
   /** @return The parent of this context if it has one. May be null. */
   public QueryContext getParent() {
     return parent;
+  }
+
+  /** @return An unmodifiable list of exceptions thrown during operation. May 
+   * be empty. */
+  public List<Exception> getExceptions() {
+    return exceptions != null ? Collections.unmodifiableList(exceptions) :
+      Collections.<Exception>emptyList();
   }
   
   /**
@@ -506,6 +617,24 @@ public abstract class QueryContext {
       child.setContext(context);
       context.register(processor, child);
       recursivelySplit(context, child);
+    }
+  }
+
+  /**
+   * Helper to load exceptions for later serialization or debugging.
+   * @param e A non-null exception.
+   */
+  private void handleException(final Exception e) {
+    if (exceptions == null) {
+      exceptions = Lists.newArrayListWithExpectedSize(1);
+    }
+    exceptions.add(e);
+    if (parent != null) {
+      parent.status = IteratorStatus.EXCEPTION;
+      parent.updateContext(IteratorStatus.EXCEPTION, null);
+    } else {
+      status = IteratorStatus.EXCEPTION;
+      updateContext(IteratorStatus.EXCEPTION, null);
     }
   }
 }

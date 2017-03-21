@@ -30,70 +30,68 @@ import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.annotation.MockAnnotationIterator;
 import net.opentsdb.data.types.numeric.MockNumericIterator;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.query.pojo.Expression;
 import net.opentsdb.query.pojo.Join;
 import net.opentsdb.query.pojo.Join.SetOperator;
+import net.opentsdb.query.processor.expressions.ExpressionProcessorConfig;
 import net.opentsdb.utils.Bytes.ByteMap;
 
 public class TestJoiner {
-  private JoinConfig config;
+  private ExpressionProcessorConfig config;
+  private Expression.Builder expression_builder;
+  private Join.Builder join_builder;
   
   @Before
   public void before() throws Exception {
+    expression_builder = Expression.newBuilder()
+        .setId("e1")
+        .setExpression("a + b");
     
+    join_builder = Join.newBuilder()
+        .setOperator(SetOperator.UNION)
+        .setTags(Lists.newArrayList("host", "colo"));
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void joinUnionNullId() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .setTags(Lists.newArrayList("host", "colo"))
-              .build())
-          .build();
+    setConfig();
     final Joiner joiner = new Joiner(config);
-    final IteratorGroup group = new IteratorGroup();
-    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(null));
+    final GroupedIterators group = new GroupedIterators();
+    group.addIterator(new SimpleStringGroupId("a"), new MockNumericIterator(null));
     joiner.join(group);
   }
   
   @Test
   public void joinUnionMultiType() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .setTags(Lists.newArrayList("host", "colo"))
-              .build())
-          .build();
+    setConfig();
     final Joiner joiner = new Joiner(config);
     
-    final IteratorGroup group = new IteratorGroup();
+    final GroupedIterators group = new GroupedIterators();
     TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .build();
     //group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
+    group.addIterator(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
+    group.addIterator(new SimpleStringGroupId("b"), new MockNumericIterator(id));
+    group.addIterator(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
     
     id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web02")
         .addTags("colo", "lax")
         .build();
-    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
+    group.addIterator(new SimpleStringGroupId("a"), new MockNumericIterator(id));
+    group.addIterator(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
+    group.addIterator(new SimpleStringGroupId("b"), new MockNumericIterator(id));
+    group.addIterator(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
     
     id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "phx")
         .build();
-    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
+    group.addIterator(new SimpleStringGroupId("a"), new MockNumericIterator(id));
+    group.addIterator(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
+    group.addIterator(new SimpleStringGroupId("b"), new MockNumericIterator(id));
     //group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
 
     final ByteMap<GroupedIterators> joins = joiner.join(group);
@@ -139,21 +137,15 @@ public class TestJoiner {
   
   @Test
   public void joinUnionOneSeries() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .setTags(Lists.newArrayList("host", "colo"))
-              .build())
-          .build();
+    setConfig();
     final Joiner joiner = new Joiner(config);
     
-    final IteratorGroup group = new IteratorGroup();
+    final GroupedIterators group = new GroupedIterators();
     TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .build();
-    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
+    group.addIterator(new SimpleStringGroupId("a"), new MockNumericIterator(id));
     
     final ByteMap<GroupedIterators> joins = joiner.join(group);
     
@@ -171,41 +163,36 @@ public class TestJoiner {
   
   @Test
   public void joinIntersectionMultiType() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.INTERSECTION)
-              .setTags(Lists.newArrayList("host", "colo"))
-              .build())
-          .build();
+    join_builder.setOperator(SetOperator.INTERSECTION);
+    setConfig();
     final Joiner joiner = new Joiner(config);
     
-    final IteratorGroup group = new IteratorGroup();
+    final GroupedIterators group = new GroupedIterators();
     TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .build();
     //group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
+    group.addIterator(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
+    group.addIterator(new SimpleStringGroupId("b"), new MockNumericIterator(id));
+    group.addIterator(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
     
     id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web02")
         .addTags("colo", "lax")
         .build();
-    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
+    group.addIterator(new SimpleStringGroupId("a"), new MockNumericIterator(id));
+    group.addIterator(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
+    group.addIterator(new SimpleStringGroupId("b"), new MockNumericIterator(id));
+    group.addIterator(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
     
     id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "phx")
         .build();
-    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
-    group.addSeries(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
-    group.addSeries(new SimpleStringGroupId("b"), new MockNumericIterator(id));
+    group.addIterator(new SimpleStringGroupId("a"), new MockNumericIterator(id));
+    group.addIterator(new SimpleStringGroupId("a"), new MockAnnotationIterator(id));
+    group.addIterator(new SimpleStringGroupId("b"), new MockNumericIterator(id));
     //group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
 
     final ByteMap<GroupedIterators> joins = joiner.join(group);
@@ -251,46 +238,31 @@ public class TestJoiner {
   
   @Test (expected = UnsupportedOperationException.class)
   public void joinUnsupportedJoin() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.CROSS)
-              .setTags(Lists.newArrayList("host", "colo"))
-              .build())
-          .build();
+    join_builder.setOperator(SetOperator.CROSS);
+    setConfig();
     final Joiner joiner = new Joiner(config);
     
-    final IteratorGroup group = new IteratorGroup();
+    final GroupedIterators group = new GroupedIterators();
     TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .build();
-    group.addSeries(new SimpleStringGroupId("a"), new MockNumericIterator(id));
+    group.addIterator(new SimpleStringGroupId("a"), new MockNumericIterator(id));
     joiner.join(group);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void joinKeyNull() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .setTags(Lists.newArrayList("host", "colo", "dept"))
-              .build())
-          .build();
+    join_builder.setTags(Lists.newArrayList("host", "colo", "dept"));
+    setConfig();
     final Joiner joiner = new Joiner(config);
     joiner.joinKey(null);
   }
   
   @Test
   public void joinKeyJoinTagsInTags() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .setTags(Lists.newArrayList("host", "colo", "dept"))
-              .build())
-          .build();
+    join_builder.setTags(Lists.newArrayList("host", "colo", "dept"));
+    setConfig();
     
     final TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web01")
@@ -305,13 +277,8 @@ public class TestJoiner {
   
   @Test
   public void joinKeyJoinTagsOneAgg() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .setTags(Lists.newArrayList("host", "colo", "dept"))
-              .build())
-          .build();
+    join_builder.setTags(Lists.newArrayList("host", "colo", "dept"));
+    setConfig();
     
     final TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web01")
@@ -326,13 +293,8 @@ public class TestJoiner {
   
   @Test
   public void joinKeyJoinTagsOneDisjoint() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .setTags(Lists.newArrayList("host", "colo", "dept"))
-              .build())
-          .build();
+    join_builder.setTags(Lists.newArrayList("host", "colo", "dept"));
+    setConfig();
     
     final TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web01")
@@ -347,13 +309,8 @@ public class TestJoiner {
   
   @Test
   public void joinKeyJoinTagsOneAggOneDisjoint() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .setTags(Lists.newArrayList("host", "colo", "dept"))
-              .build())
-          .build();
+    join_builder.setTags(Lists.newArrayList("host", "colo", "dept"));
+    setConfig();
     
     final TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web01")
@@ -368,14 +325,9 @@ public class TestJoiner {
   
   @Test
   public void joinKeyJoinTagsOneAggOneDisjointNotIncludingAgg() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .setTags(Lists.newArrayList("host", "colo", "dept"))
-              .setIncludeAggTags(false)
-              .build())
-          .build();
+    join_builder.setTags(Lists.newArrayList("host", "colo", "dept"))
+      .setIncludeAggTags(false);
+    setConfig();
     
     final TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web01")
@@ -389,14 +341,9 @@ public class TestJoiner {
   
   @Test
   public void joinKeyJoinTagsOneAggOneDisjointNotIncludingDisjoint() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .setTags(Lists.newArrayList("host", "colo", "dept"))
-              .setIncludeDisjointTags(false)
-              .build())
-          .build();
+    join_builder.setTags(Lists.newArrayList("host", "colo", "dept"))
+      .setIncludeDisjointTags(false);
+    setConfig();
     
     final TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web01")
@@ -410,12 +357,9 @@ public class TestJoiner {
 
   @Test
   public void joinKeyFullJoin() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .build())
-          .build();
+    join_builder = Join.newBuilder()
+        .setOperator(SetOperator.UNION);
+    setConfig();
     Joiner joiner = new Joiner(config);
     
     final TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
@@ -427,25 +371,19 @@ public class TestJoiner {
     assertEquals("hostweb01coloowner", 
         new String(joiner.joinKey(id), Const.UTF8_CHARSET));
     
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .setIncludeAggTags(false)
-              .build())
-          .build();
+    join_builder = Join.newBuilder()
+        .setOperator(SetOperator.UNION)
+        .setIncludeAggTags(false);
+    setConfig();
     joiner = new Joiner(config);
     assertEquals("hostweb01owner", 
         new String(joiner.joinKey(id), Const.UTF8_CHARSET));
     
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .setIncludeAggTags(false)
-              .setIncludeDisjointTags(false)
-              .build())
-          .build();
+    join_builder = Join.newBuilder()
+        .setOperator(SetOperator.UNION)
+        .setIncludeAggTags(false)
+        .setIncludeDisjointTags(false);
+    setConfig();
     joiner = new Joiner(config);
     assertEquals("hostweb01", 
         new String(joiner.joinKey(id), Const.UTF8_CHARSET));
@@ -453,12 +391,9 @@ public class TestJoiner {
   
   @Test
   public void joinKeyEmpty() throws Exception {
-    config = (JoinConfig) 
-        JoinConfig.newBuilder()
-          .setJoin(Join.newBuilder()
-              .setOperator(SetOperator.UNION)
-              .build())
-          .build();
+    join_builder = Join.newBuilder()
+        .setOperator(SetOperator.UNION);
+    setConfig();
     Joiner joiner = new Joiner(config);
     
     final TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
@@ -467,5 +402,15 @@ public class TestJoiner {
     
     assertEquals("", 
         new String(joiner.joinKey(id), Const.UTF8_CHARSET));
+  }
+  
+  private void setConfig() {
+    if (join_builder != null) {
+      expression_builder.setJoin(join_builder.build());
+    }
+    
+    config = (ExpressionProcessorConfig) ExpressionProcessorConfig.newBuilder()
+        .setExpression(expression_builder.build())
+          .build();
   }
 }

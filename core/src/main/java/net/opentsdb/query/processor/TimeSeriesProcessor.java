@@ -14,6 +14,9 @@ package net.opentsdb.query.processor;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -41,6 +44,7 @@ import net.opentsdb.utils.Deferreds;
  * @since 3.0
  */
 public abstract class TimeSeriesProcessor {
+  private static final Logger LOG = LoggerFactory.getLogger(TimeSeriesProcessor.class);
   
   /** An optional config for the implementing processor. */
   protected final TimeSeriesProcessorConfig<?> config;
@@ -114,7 +118,8 @@ public abstract class TimeSeriesProcessor {
       init_deferred.callback(e);
       return init_deferred;
     }
-    Deferred.group(deferreds).addBoth(new Deferreds.NullGroupCB(init_deferred));
+    Deferred.group(deferreds)
+      .addBoth(new Deferreds.NullGroupCB(init_deferred));
     return init_deferred;
   }
   
@@ -200,7 +205,11 @@ public abstract class TimeSeriesProcessor {
   public Callback<Deferred<Object>, Object> initializationCallback() {
     class InitCB implements Callback<Deferred<Object>, Object> {
       @Override
-      public Deferred<Object> call(Object ignored) throws Exception {
+      public Deferred<Object> call(final Object result_or_exception) throws Exception {
+        if (result_or_exception instanceof Throwable) {
+          init_deferred.callback((Exception) result_or_exception);
+          return init_deferred;
+        }
         return initialize();
       }
     }

@@ -175,6 +175,9 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
     it.data = data;
     it.parent = this;
     it.context = context;
+    if (context != null) {
+      context.register(this);
+    }
     return it;
   }
 

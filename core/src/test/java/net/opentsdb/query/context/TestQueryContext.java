@@ -97,7 +97,7 @@ public class TestQueryContext {
     assertEquals(3, p_1.callback_order);
 
     // exception at start
-    final RuntimeException ex = new RuntimeException("Boo!");
+    final IllegalStateException ex = new IllegalStateException("Boo!");
     p_1 = new MockProcessor(1, null);
     p_2 = new MockProcessor(2, null);
     p_3 = new MockProcessor(3, ex);
@@ -110,9 +110,9 @@ public class TestQueryContext {
     deferred = context.initialize();
     try {
       deferred.join();
-      fail("Expected DeferredGroupException");
-    } catch (DeferredGroupException e) {
-      assertSame(ex, e.getCause());
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertSame(ex, e);
     }
     assertEquals(0, p_3.init_order);
     assertEquals(-1, p_3.callback_order);
@@ -120,6 +120,8 @@ public class TestQueryContext {
     assertEquals(-1, p_2.callback_order);
     assertEquals(-1, p_1.init_order);
     assertEquals(-1, p_1.callback_order);
+    assertEquals(IteratorStatus.EXCEPTION, context.currentStatus());
+    assertEquals(IteratorStatus.EXCEPTION, context.nextStatus());
     
     // exception in middle
     p_1 = new MockProcessor(1, null);
@@ -134,9 +136,9 @@ public class TestQueryContext {
     deferred = context.initialize();
     try {
       deferred.join();
-      fail("Expected DeferredGroupException");
-    } catch (DeferredGroupException e) {
-      assertSame(ex, e.getCause());
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertSame(ex, e);
     }
     assertEquals(0, p_3.init_order);
     assertEquals(-1, p_3.callback_order);
@@ -144,6 +146,8 @@ public class TestQueryContext {
     assertEquals(1, p_2.callback_order);
     assertEquals(-1, p_1.init_order);
     assertEquals(-1, p_1.callback_order);
+    assertEquals(IteratorStatus.EXCEPTION, context.currentStatus());
+    assertEquals(IteratorStatus.EXCEPTION, context.nextStatus());
     
     // exception at sink
     p_1 = new MockProcessor(1, ex);
@@ -158,9 +162,9 @@ public class TestQueryContext {
     deferred = context.initialize();
     try {
       deferred.join();
-      fail("Expected DeferredGroupException");
-    } catch (DeferredGroupException e) {
-      assertSame(ex, e.getCause());
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertSame(ex, e);
     }
     assertEquals(0, p_3.init_order);
     assertEquals(-1, p_3.callback_order);
@@ -168,6 +172,62 @@ public class TestQueryContext {
     assertEquals(1, p_2.callback_order);
     assertEquals(4, p_1.init_order);
     assertEquals(3, p_1.callback_order);
+    assertEquals(IteratorStatus.EXCEPTION, context.currentStatus());
+    assertEquals(IteratorStatus.EXCEPTION, context.nextStatus());
+    
+    // exception at sink
+    p_1 = new MockProcessor(1, ex);
+    p_2 = new MockProcessor(2, null);
+    p_3 = new MockProcessor(3, null);
+    p_1.throw_exception = 1;
+
+    order_counter = 0;
+    context = new MockContext();
+    context.register(p_1, p_2);
+    context.register(p_2, p_3);
+    
+    deferred = context.initialize();
+    try {
+      deferred.join();
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertSame(ex, e);
+    }
+    assertEquals(0, p_3.init_order);
+    assertEquals(-1, p_3.callback_order);
+    assertEquals(2, p_2.init_order);
+    assertEquals(1, p_2.callback_order);
+    assertEquals(4, p_1.init_order);
+    assertEquals(3, p_1.callback_order);
+    assertEquals(IteratorStatus.EXCEPTION, context.currentStatus());
+    assertEquals(IteratorStatus.EXCEPTION, context.nextStatus());
+    
+    // exception at sink
+    p_1 = new MockProcessor(1, ex);
+    p_2 = new MockProcessor(2, null);
+    p_3 = new MockProcessor(3, null);
+    p_1.throw_exception = 2;
+
+    order_counter = 0;
+    context = new MockContext();
+    context.register(p_1, p_2);
+    context.register(p_2, p_3);
+    
+    deferred = context.initialize();
+    try {
+      deferred.join();
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertSame(ex, e);
+    }
+    assertEquals(0, p_3.init_order);
+    assertEquals(-1, p_3.callback_order);
+    assertEquals(2, p_2.init_order);
+    assertEquals(1, p_2.callback_order);
+    assertEquals(-1, p_1.init_order);
+    assertEquals(3, p_1.callback_order);
+    assertEquals(IteratorStatus.EXCEPTION, context.currentStatus());
+    assertEquals(IteratorStatus.EXCEPTION, context.nextStatus());
     
     // throw exception in init
     p_1 = new MockProcessor(1, null);
@@ -183,8 +243,8 @@ public class TestQueryContext {
     deferred = context.initialize();
     try {
       deferred.join();
-      fail("Expected RuntimeException");
-    } catch (RuntimeException e) {
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
       assertSame(ex, e);
     }
     assertEquals(0, p_3.init_order);
@@ -193,6 +253,8 @@ public class TestQueryContext {
     assertEquals(-1, p_2.callback_order);
     assertEquals(-1, p_1.init_order);
     assertEquals(-1, p_1.callback_order);
+    assertEquals(IteratorStatus.EXCEPTION, context.currentStatus());
+    assertEquals(IteratorStatus.EXCEPTION, context.nextStatus());
     
     // throw exception in cb
     p_1 = new MockProcessor(1, null);
@@ -208,9 +270,9 @@ public class TestQueryContext {
     deferred = context.initialize();
     try {
       deferred.join();
-      fail("Expected DeferredGroupException");
-    } catch (DeferredGroupException e) {
-      assertSame(ex, e.getCause());
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertSame(ex, e);
     }
     assertEquals(0, p_3.init_order);
     assertEquals(-1, p_3.callback_order);
@@ -218,6 +280,8 @@ public class TestQueryContext {
     assertEquals(1, p_2.callback_order);
     assertEquals(-1, p_1.init_order);
     assertEquals(-1, p_1.callback_order);
+    assertEquals(IteratorStatus.EXCEPTION, context.currentStatus());
+    assertEquals(IteratorStatus.EXCEPTION, context.nextStatus());
   }
   
   @Test
@@ -250,7 +314,7 @@ public class TestQueryContext {
     assertEquals(p_4.init_order - 1, p_4.callback_order);
     
     // exception in first graph
-    final RuntimeException ex = new RuntimeException("Boo!");
+    final IllegalStateException ex = new IllegalStateException("Boo!");
     order_counter = 0;
     p_1 = new MockProcessor(1, null);
     p_2 = new MockProcessor(2, ex);
@@ -266,9 +330,9 @@ public class TestQueryContext {
     deferred = context.initialize();
     try {
       deferred.join();
-      fail("Expected DeferredGroupException");
-    } catch (DeferredGroupException e) {
-      assertSame(ex, e.getCause());
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertSame(ex, e);
     }
     assertTrue(p_3.init_order >= 0);
     assertEquals(-1, p_3.callback_order);
@@ -276,6 +340,8 @@ public class TestQueryContext {
     assertEquals(p_2.init_order - 1, p_2.callback_order);
     assertEquals(-1, p_1.init_order);
     assertEquals(-1, p_1.callback_order);
+    assertEquals(IteratorStatus.EXCEPTION, context.currentStatus());
+    assertEquals(IteratorStatus.EXCEPTION, context.nextStatus());
     // separate graph still inits.
     assertTrue(p_5.init_order >= 0);
     assertEquals(-1, p_5.callback_order);
@@ -311,7 +377,7 @@ public class TestQueryContext {
     assertEquals(p_1.init_order - 1, p_1.callback_order);
 
     // kaboom!
-    final RuntimeException ex = new RuntimeException("Boo!");
+    final IllegalStateException ex = new IllegalStateException("Boo!");
     order_counter = 0;
     p_1 = new MockProcessor(1, null);
     p_2 = new MockProcessor(2, null);
@@ -326,9 +392,9 @@ public class TestQueryContext {
     deferred = context.initialize();
     try {
       deferred.join();
-      fail("Expected DeferredGroupException");
-    } catch (DeferredGroupException e) {
-      assertSame(ex, e.getCause());
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertSame(ex, e);
     }
     // order is indeterminate.
     assertTrue(p_4.init_order >= 0);
@@ -339,6 +405,8 @@ public class TestQueryContext {
     assertEquals(-1, p_2.callback_order);
     assertEquals(-1, p_1.init_order);
     assertEquals(-1, p_1.callback_order);
+    assertEquals(IteratorStatus.EXCEPTION, context.currentStatus());
+    assertEquals(IteratorStatus.EXCEPTION, context.nextStatus());
   }
   
   @Test
@@ -373,7 +441,7 @@ public class TestQueryContext {
     assertEquals(p_5.init_order - 1, p_5.callback_order);
     
     // kaboom!
-    final RuntimeException ex = new RuntimeException("Boo!");
+    final IllegalStateException ex = new IllegalStateException("Boo!");
     order_counter = 0;
     p_1 = new MockProcessor(1, null);
     p_2 = new MockProcessor(2, null);
@@ -390,9 +458,9 @@ public class TestQueryContext {
     deferred = context.initialize();
     try {
       deferred.join();
-      fail("Expected DeferredGroupException");
-    } catch (DeferredGroupException e) {
-      assertSame(ex, e.getCause());
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertSame(ex, e);
     }
     // order is indeterminate.
     assertTrue(p_4.init_order >= 0);
@@ -405,6 +473,8 @@ public class TestQueryContext {
     assertEquals(-1, p_1.callback_order);
     assertEquals(-1, p_5.init_order);
     assertEquals(-1, p_5.callback_order);
+    assertEquals(IteratorStatus.EXCEPTION, context.currentStatus());
+    assertEquals(IteratorStatus.EXCEPTION, context.nextStatus());
   }
   
   @Test
@@ -440,7 +510,7 @@ public class TestQueryContext {
     assertEquals(p_5.init_order - 1, p_5.callback_order);
     
     // kaboom!
-    final RuntimeException ex = new RuntimeException("Boo!");
+    final IllegalStateException ex = new IllegalStateException("Boo!");
     order_counter = 0;
     p_1 = new MockProcessor(1, null);
     p_2 = new MockProcessor(2, null);
@@ -457,9 +527,9 @@ public class TestQueryContext {
     deferred = context.initialize();
     try {
       deferred.join();
-      fail("Expected DeferredGroupException");
-    } catch (DeferredGroupException e) {
-      assertSame(ex, e.getCause());
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertSame(ex, e);
     }
     // order is indeterminate.
     assertTrue(p_4.init_order == 0 || p_4.init_order == 1);
@@ -472,6 +542,8 @@ public class TestQueryContext {
     assertEquals(-1, p_1.callback_order);
     assertEquals(-1, p_5.init_order);
     assertEquals(-1, p_5.callback_order);
+    assertEquals(IteratorStatus.EXCEPTION, context.currentStatus());
+    assertEquals(IteratorStatus.EXCEPTION, context.nextStatus());
   }
   
   @Test
@@ -849,7 +921,7 @@ public class TestQueryContext {
     verify(mock_context, times(1)).fetchNext();
     assertEquals(IteratorStatus.END_OF_CHUNK, context.nextStatus());
     
-    final RuntimeException ex = new RuntimeException("Boo!");
+    final IllegalStateException ex = new IllegalStateException("Boo!");
     when(it_3.fetchNext()).thenAnswer(new Answer<Deferred<Object>>() {
       @Override
       public Deferred<Object> answer(final InvocationOnMock invocation)
@@ -869,8 +941,8 @@ public class TestQueryContext {
     deferred = context.fetchNext();
     try {
       deferred.join();
-      fail("Expected RuntimeException");
-    } catch (RuntimeException e) { 
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { 
       assertSame(ex, e);
     }
   }
@@ -936,7 +1008,7 @@ public class TestQueryContext {
     verify(mock_context, times(1)).close();
     assertEquals(IteratorStatus.END_OF_DATA, context.nextStatus());
     
-    final RuntimeException ex = new RuntimeException("Boo!");
+    final IllegalStateException ex = new IllegalStateException("Boo!");
     when(it_3.close()).thenAnswer(new Answer<Deferred<Object>>() {
       @Override
       public Deferred<Object> answer(final InvocationOnMock invocation)
@@ -956,12 +1028,12 @@ public class TestQueryContext {
     deferred = context.close();
     try {
       deferred.join();
-      fail("Expected RuntimeException");
-    } catch (RuntimeException e) { 
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { 
       assertSame(ex, e);
     }
   }
-  
+
   /**
    * Mock that lets us peek into protected variables.
    */
@@ -986,9 +1058,9 @@ public class TestQueryContext {
     int callback_order = -1;
     int init_order = -1;
     final int id;
-    final RuntimeException e;
+    final IllegalStateException e;
     
-    public MockProcessor(final int id, final RuntimeException e) throws Exception {
+    public MockProcessor(final int id, final IllegalStateException e) throws Exception {
       this.id = id;
       this.e = e;
     }
@@ -1011,7 +1083,12 @@ public class TestQueryContext {
     public Callback<Deferred<Object>, Object> initializationCallback() {
       class InitCB implements Callback<Deferred<Object>, Object> {
         @Override
-        public Deferred<Object> call(Object ignored) throws Exception {
+        public Deferred<Object> call(final Object result_or_exception) 
+            throws Exception {
+          if (result_or_exception instanceof Exception) {
+            init_deferred.callback((Exception) result_or_exception);
+            return init_deferred;
+          }
           callback_order = order_counter++;
           if (throw_exception == 2) {
             throw e;

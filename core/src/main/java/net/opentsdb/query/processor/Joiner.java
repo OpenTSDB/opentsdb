@@ -34,9 +34,8 @@ import net.opentsdb.data.iterators.GroupedAndTypedIteratorLists;
 import net.opentsdb.data.iterators.GroupedIterators;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.iterators.TypedIteratorList;
-import net.opentsdb.query.pojo.Filter;
-import net.opentsdb.query.pojo.Join;
 import net.opentsdb.query.pojo.Join.SetOperator;
+import net.opentsdb.query.processor.expressions.ExpressionProcessorConfig;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Bytes.ByteMap;
 
@@ -45,7 +44,7 @@ import net.opentsdb.utils.Bytes.ByteMap;
  * time series source. For each time series, a join key is computed based on the
  * series ID (this the iterators must be initialized before they get here). Then
  * the iterators are sorted by key into a map of maps returned by 
- * {@link #join(TimeSeriesProcessor)}. 
+ * {@link #join(GroupedIterators)}. 
  * <p>
  * If the operator is set to {@link SetOperator#UNION} then the map is returned
  * as is and the caller must fill in missing group types with proper values or
@@ -59,29 +58,34 @@ import net.opentsdb.utils.Bytes.ByteMap;
 public class Joiner {
   private static final Logger LOG = LoggerFactory.getLogger(Joiner.class);
   
-  final JoinConfig config;
-  final Join join;
-  final Filter filters;
+  /** A non-null config to pull join information from. */
+  final ExpressionProcessorConfig config;
   
-  public Joiner(final JoinConfig config) {
+  /**
+   * Default Ctor.
+   * @param config A non-null expression config.
+   */
+  public Joiner(final ExpressionProcessorConfig config) {
+    if (config == null) {
+      throw new IllegalArgumentException("Expression config cannot be null.");
+    }
     this.config = config;
-    join = ((JoinConfig) config).getJoin();
-    filters = ((JoinConfig) config).getFilters();
   }
 
   /**
    * Computes the join across {@link TimeSeriesGroupId}s and potentially kicks 
    * any out that don't fulfill the set operator.
-   * @param source A non-null source to pull iterators from.
+   * @param source A non-null set of grouped iterators where the 
+   * {@link TimeSeriesGroupId} is the variable name used in the expression.
    * @return A non-null byte map with join keys as the key.
    */
-  public ByteMap<GroupedIterators> join(final TimeSeriesProcessor source) {
+  public ByteMap<GroupedIterators> join(final GroupedIterators source) {
     if (source == null) {
       throw new IllegalArgumentException("Source cannot be null.");
     }
     
     final ByteMap<GroupedIterators> joined = new ByteMap<GroupedIterators>();
-    for (final GroupedAndTypedIteratorLists group : source.iterators().iteratorLists()) {
+    for (final GroupedAndTypedIteratorLists group : source.iteratorLists()) {
       for (final TimeSeriesIterator<?> it : group.flattenedIterators()) {
         try {
           final byte[] join_key = joinKey(it.id());
@@ -101,7 +105,10 @@ public class Joiner {
       }
     }
     
-    switch (join.getOperator()) {
+    final SetOperator operator = config.getExpression().getJoin() != null ? 
+        config.getExpression().getJoin().getOperator() : SetOperator.UNION;
+    
+    switch (operator) {
     case UNION:
       // nothing to do here. Let the caller handle fills for missing values.
       return joined;
@@ -109,8 +116,8 @@ public class Joiner {
       return computeIntersection(joined);
       // TODO - CROSS
     default:
-      throw new UnsupportedOperationException("Join operator " 
-          + join.getOperator() + " is not supported yet.");
+      throw new UnsupportedOperationException("Join operator " + operator 
+          + " is not supported yet.");
     }
   }
   
@@ -232,7 +239,11 @@ public class Joiner {
     }
     final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
     
-    final List<byte[]> tag_keys = ((JoinConfig) config).getTagKeys();
+    final List<byte[]> tag_keys = config.getTagKeys();
+    final boolean include_agg_tags = config.getExpression().getJoin() != null ?
+        config.getExpression().getJoin().getIncludeAggTags() : false;
+    final boolean include_disjoint_tags = config.getExpression().getJoin() != null ?
+        config.getExpression().getJoin().getIncludeDisjointTags() : false;
     if (tag_keys != null) {
       for (final byte[] tag_key : tag_keys) {
         byte[] tag_value = id.tags().get(tag_key);
@@ -241,14 +252,14 @@ public class Joiner {
           buffer.write(tag_value);
         } else {
           boolean matched = false;
-          if (join.getIncludeAggTags()) {
+          if (include_agg_tags) {
             for (final byte[] tag : id.aggregatedTags()) {
               if (Bytes.memcmp(tag_key, tag) == 0) {
                 matched = true;
                 break;
               }
             }
-          } if (!matched && join.getIncludeDisjointTags()) {
+          } if (!matched && include_disjoint_tags) {
             for (final byte[] tag : id.disjointTags()) {
               if (Bytes.memcmp(tag_key, tag) == 0) {
                 matched = true;
@@ -259,11 +270,7 @@ public class Joiner {
           if (!matched) {
             if (LOG.isDebugEnabled()) {
               LOG.debug("Ignoring series " + id + " as it doesn't have the "
-                  + "required " + 
-                    (join.getTags() != null && !join.getTags().isEmpty() ? "Join" : "Query")
-                  + " tag from " + 
-                  (join.getTags() != null && !join.getTags().isEmpty() ? 
-                      join.toString() : filters.toString()));
+                  + "required tags ");
             }
             return null;
           }
@@ -280,7 +287,7 @@ public class Joiner {
         }
       }
       
-      if (join.getIncludeAggTags() && !id.aggregatedTags().isEmpty()) {
+      if (include_agg_tags && !id.aggregatedTags().isEmpty()) {
         // not guaranteed of sorting
         final List<byte[]> sorted = Lists.newArrayList(id.aggregatedTags());
         Collections.sort(sorted, Bytes.MEMCMP);
@@ -289,7 +296,7 @@ public class Joiner {
         }
       }
       
-      if (join.getIncludeDisjointTags() && !id.disjointTags().isEmpty()) {
+      if (include_disjoint_tags && !id.disjointTags().isEmpty()) {
         // not guaranteed of sorting
         final List<byte[]> sorted = Lists.newArrayList(id.disjointTags());
         Collections.sort(sorted, Bytes.MEMCMP);

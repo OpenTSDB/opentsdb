@@ -98,4 +98,9 @@ public class MillisecondTimeStamp  implements TimeStamp {
   public void setMax() {
     timestamp = Long.MAX_VALUE;
   }
+
+  @Override
+  public String toString() {
+    return Long.toString(timestamp);
+  }
 }

@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.processor.expressions;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -27,11 +26,11 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.MergedTimeSeriesId;
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
@@ -48,12 +47,13 @@ import net.opentsdb.utils.Deferreds;
  * 
  * @since 3.0
  */
-public class JexlBinderIterator extends 
-  TimeSeriesIterator<NumericType> {
-  private static final Logger LOG = LoggerFactory.getLogger(JexlBinderIterator.class);
+public class JexlBinderNumericIterator extends 
+    TimeSeriesIterator<NumericType> {
+  private static final Logger LOG = LoggerFactory.getLogger(
+      JexlBinderNumericIterator.class);
   
   /** Reference to the processor config. */
-  private final JexlBinderProcessorConfig config;
+  private final ExpressionProcessorConfig config;
   
   /** The local jexl script. */
   private final Script script;
@@ -68,14 +68,17 @@ public class JexlBinderIterator extends
   // TODO - see if this can be shared
   private final JexlContext jexl_context = new MapContext();
   
+  /** The ID of this series. Set by merging the individual series after init. */
+  private TimeSeriesId id;
+  
   /**
    * Default ctor accepting a source and config.
    * @param context The query context this iterator belongs to.
    * @param config A non-null config to pull the expression from.
    * @throws IllegalArgumentException if the config was null.
    */
-  public JexlBinderIterator(final QueryContext context, 
-      final JexlBinderProcessorConfig config) {
+  public JexlBinderNumericIterator(final QueryContext context, 
+      final ExpressionProcessorConfig config) {
     super(context);
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
@@ -114,6 +117,8 @@ public class JexlBinderIterator extends
   
   @Override
   public Deferred<Object> initialize() {
+    // NOTE: We don't need to initialize the source iterators here as the 
+    // JexlBinderProcessor has already done so.
     for (final String var : config.getExpression().getVariables()) {
       if (!iterators.containsKey(var)) {
         if (config.getExpression().getFillPolicies() == null ||
@@ -123,24 +128,15 @@ public class JexlBinderIterator extends
         }
       }
     }
-    final List<Deferred<Object>> deferreds = 
-        Lists.newArrayListWithExpectedSize(iterators.size());
-    for (final TimeSeriesIterator<?> it : iterators.values()) {
-      deferreds.add(it.initialize());
-    }
     
-    class IDCallback implements Callback<Object, ArrayList<Object>> {
-      @Override
-      public Object call(ArrayList<Object> arg) throws Exception {
-        final MergedTimeSeriesId.Builder merger = MergedTimeSeriesId.newBuilder();
-        for (final TimeSeriesIterator<?> it : iterators.values()) {
-          merger.addSeries(it.id());
-        }
-        dp = new MutableNumericType(merger.build());
-        return null;
-      }
+    final MergedTimeSeriesId.Builder merger = MergedTimeSeriesId.newBuilder();
+    for (final TimeSeriesIterator<?> it : iterators.values()) {
+      merger.addSeries(it.id());
     }
-    return Deferred.group(deferreds).addCallback(new IDCallback());
+    id = merger.build();
+    dp = new MutableNumericType(id);
+    
+    return Deferred.fromResult(null);
   }
   
   @Override
@@ -152,31 +148,29 @@ public class JexlBinderIterator extends
   public TimeSeriesValue<NumericType> next() {
     try {
       int reals = 0;
-      for (final Entry<String, TimeSeriesIterator<?>> it : iterators.entrySet()) {
-        @SuppressWarnings("unchecked")
-        final TimeSeriesValue<NumericType> value = 
-            (TimeSeriesValue<NumericType>) it.getValue().next();
-        if (value == null) {
-          LOG.error("Iterator " + it + " returned a null value.");
-          if (context != null) {
-            context.updateContext(IteratorStatus.EXCEPTION, null);
-          }
-          return null;
-        }
-        if (!value.value().isInteger() && Double.isNaN(value.value().doubleValue()) &&
-            config.getExpression().getFillPolicies() != null) {
-          final NumericFillPolicy fill = config.getExpression().getFillPolicies()
-              .get(it.getKey());
-          if (fill != null) {
-            jexl_context.set(it.getKey(), fill.getValue());
-          } else {
-            // TODO - default to something else?
-            jexl_context.set(it.getKey(), Double.NaN);
-          }
+      for (final String variable : config.getExpression().getVariables()) {
+        final TimeSeriesIterator<?> it = iterators.get(variable);
+        if (it == null) {
+          jexl_context.set(variable, getFillValue(variable));
         } else {
-          jexl_context.set(it.getKey(), value.value().isInteger() ? 
-              value.value().longValue() : value.value().doubleValue());
-          reals += value.realCount();
+          @SuppressWarnings("unchecked")
+          final TimeSeriesValue<NumericType> value = 
+             (TimeSeriesValue<NumericType>) it.next();
+          if (value == null) {
+            LOG.error("Iterator " + it + " returned a null value.");
+            if (context != null) {
+              context.updateContext(IteratorStatus.EXCEPTION, null);
+            }
+            return null;
+          }
+          if (!value.value().isInteger() && 
+              !Double.isFinite(value.value().doubleValue())) {
+            jexl_context.set(variable, getFillValue(variable));
+          } else {
+            jexl_context.set(variable, value.value().isInteger() ? 
+                value.value().longValue() : value.value().doubleValue());
+            reals += value.realCount();
+          }
         }
       }
       
@@ -209,8 +203,13 @@ public class JexlBinderIterator extends
   }
 
   @Override
+  public TimeSeriesId id() {
+    return id;
+  }
+  
+  @Override
   public TimeSeriesIterator<NumericType> getCopy(final QueryContext context) {
-    final JexlBinderIterator copy = new JexlBinderIterator(context, config);
+    final JexlBinderNumericIterator copy = new JexlBinderNumericIterator(context, config);
     for (final Entry<String, TimeSeriesIterator<?>> entry : iterators.entrySet()) {
       copy.addIterator(entry.getKey(), entry.getValue().getCopy(context));
     }
@@ -243,4 +242,26 @@ public class JexlBinderIterator extends
     }
   }
   
+  /**
+   * Helper to determine what value to fill with from the config. Individual
+   * variable fills take precedence, then the expression fill, and finally
+   * it will return NaN.
+   * @param variable The variable name to get a fill for.
+   * @return A fill value or NaN if no fill was specified.
+   */
+  private double getFillValue(final String variable) {
+    if (config.getExpression().getFillPolicies() != null) {
+      final NumericFillPolicy fill = 
+          config.getExpression().getFillPolicies().get(variable);
+      if (fill != null) {
+        return fill.getValue();
+      }
+    }
+    
+    if (config.getExpression().getFillPolicy() != null) {
+      return config.getExpression().getFillPolicy().getValue();
+    }
+    
+    return Double.NaN;
+  }
 }

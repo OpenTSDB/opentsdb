@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.processor.expressions;
 
+import java.util.Collections;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -23,12 +24,17 @@ import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
+import net.opentsdb.common.Const;
+import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Expression;
+import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.processor.TimeSeriesProcessorConfig;
 import net.opentsdb.query.processor.TimeSeriesProcessorConfigBuilder;
+import net.opentsdb.utils.Bytes;
 
 /**
  * Configuration class for the Jexl Expression processor.
@@ -38,25 +44,65 @@ import net.opentsdb.query.processor.TimeSeriesProcessorConfigBuilder;
  * @since 3.0
  */
 @JsonInclude(Include.NON_NULL)
-@JsonDeserialize(builder = JexlBinderProcessorConfig.Builder.class)
-public class JexlBinderProcessorConfig implements 
+@JsonDeserialize(builder = ExpressionProcessorConfig.Builder.class)
+public class ExpressionProcessorConfig implements 
     TimeSeriesProcessorConfig<JexlBinderProcessor>,
-    Comparable<JexlBinderProcessorConfig> {
+    Comparable<ExpressionProcessorConfig> {
   
   /** The expression this processor will work off of. */
   private Expression expression;
+  
+  /** Optional Filters pertinent to the expression join. */
+  private List<Filter> filters;
+
+  /** Optional list of tag keys to join on. 
+   * NOTE: Do not account for this in equals, compare or hash code. Comes from 
+   * Join and Filter. */
+  private List<byte[]> tag_keys;
   
   /**
    * Private CTor to construct from a builder.
    * @param builder A non-null builder.
    */
-  protected JexlBinderProcessorConfig(final Builder builder) {
+  protected ExpressionProcessorConfig(final Builder builder) {
     expression = builder.expression; 
+    
+    // TODO - proper encoding
+    if ((expression.getJoin().getTags() != null && 
+        !expression.getJoin().getTags().isEmpty()) || 
+        expression.getJoin().getUseQueryTags()) {
+      tag_keys = Lists.newArrayList();
+      if (expression.getJoin().getTags() != null && 
+          !expression.getJoin().getTags().isEmpty()) {
+        for (final String tag : expression.getJoin().getTags()) {
+          tag_keys.add(tag.getBytes(Const.UTF8_CHARSET));
+        }
+      } else {
+        if (filters != null) {
+          for (final Filter f : filters) {
+            for (final TagVFilter filter : f.getTags()) {
+              tag_keys.add(filter.getTagk().getBytes(Const.UTF8_CHARSET));
+            }
+          }
+        }
+      }
+      Collections.sort(tag_keys, Bytes.MEMCMP);
+    }
   }
   
   /** @return The expression to work with. */
   public Expression getExpression() {
     return expression;
+  }
+  
+  /** @return Optional filters to use if the join requires them. */
+  public List<Filter> getFilters() {
+    return filters;
+  }
+  
+  /** @return An optional list of tag keys converted to byte arrays. */
+  public List<byte[]> getTagKeys() {
+    return tag_keys;
   }
   
   /** @return A new builder for the expression config. */
@@ -71,9 +117,10 @@ public class JexlBinderProcessorConfig implements
     if (o == null || getClass() != o.getClass())
       return false;
 
-    final JexlBinderProcessorConfig that = (JexlBinderProcessorConfig) o;
+    final ExpressionProcessorConfig that = (ExpressionProcessorConfig) o;
 
-    return Objects.equal(that.expression, expression);
+    return Objects.equal(that.expression, expression) && 
+           Objects.equal(that.filters, filters);
   }
   
   @Override
@@ -83,17 +130,24 @@ public class JexlBinderProcessorConfig implements
   
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
-    final List<HashCode> hashes = Lists.newArrayListWithCapacity(1);
+    final List<HashCode> hashes = Lists.newArrayListWithCapacity(2);
     if (expression != null) {
       hashes.add(expression.buildHashCode());
+    }
+    if (filters != null) {
+      for (final Filter filter : filters) {
+        hashes.add(filter.buildHashCode());
+      }
     }
     return Hashing.combineOrdered(hashes);
   }
   
   @Override
-  public int compareTo(final JexlBinderProcessorConfig o) {
+  public int compareTo(final ExpressionProcessorConfig o) {
     return ComparisonChain.start()
         .compare(expression,  o.expression)
+        .compare(filters, o.filters, 
+            Ordering.<Filter>natural().lexicographical().nullsFirst())
         .result();
   }
   
@@ -103,9 +157,16 @@ public class JexlBinderProcessorConfig implements
       TimeSeriesProcessorConfigBuilder<JexlBinderProcessor> {
     @JsonProperty
     private Expression expression;
+    @JsonProperty
+    private List<Filter> filters;
     
     public Builder setExpression(final Expression expression) {
       this.expression = expression;
+      return this;
+    }
+    
+    public Builder setFilters(final List<Filter> filters) {
+      this.filters = filters;
       return this;
     }
     
@@ -115,7 +176,14 @@ public class JexlBinderProcessorConfig implements
         throw new IllegalArgumentException("Expression cannot be null.");
       }
       expression.validate();
-      return new JexlBinderProcessorConfig(this);
+      if (expression.getJoin() != null) {
+        if (expression.getJoin().getUseQueryTags() && 
+            (filters == null || filters.isEmpty())) {
+          throw new IllegalArgumentException("Filters cannot be null when "
+              + "useQueryTags is true in the join config.");
+        }
+      }
+      return new ExpressionProcessorConfig(this);
     }
   }
   

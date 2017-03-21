@@ -26,12 +26,12 @@ import net.opentsdb.query.pojo.Expression;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.NumericFillPolicy;
 
-public class TestJexlBinderProcessorConfig {
+public class TestExpressionProcessorConfig {
 
   @Test
   public void builder() throws Exception {
-    JexlBinderProcessorConfig config = (JexlBinderProcessorConfig) 
-        JexlBinderProcessorConfig.newBuilder()
+    ExpressionProcessorConfig config = (ExpressionProcessorConfig) 
+        ExpressionProcessorConfig.newBuilder()
           .setExpression(Expression.newBuilder()
             .setId("e1")
             .setExpression("a + b")
@@ -41,14 +41,14 @@ public class TestJexlBinderProcessorConfig {
     assertEquals("a + b", config.getExpression().getExpr());
     
     try {
-      JexlBinderProcessorConfig.newBuilder()
+      ExpressionProcessorConfig.newBuilder()
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     // invalid expression (missing ID)
     try {
-      JexlBinderProcessorConfig.newBuilder()
+      ExpressionProcessorConfig.newBuilder()
         .setExpression(Expression.newBuilder()
           .setExpression("a + b")
           .build())
@@ -65,8 +65,8 @@ public class TestJexlBinderProcessorConfig {
     fills.put("b", NumericFillPolicy.newBuilder()
         .setPolicy(FillPolicy.SCALAR).setValue(-100).build());
     
-    final JexlBinderProcessorConfig c1 = (JexlBinderProcessorConfig) 
-        JexlBinderProcessorConfig.newBuilder()
+    final ExpressionProcessorConfig c1 = (ExpressionProcessorConfig) 
+        ExpressionProcessorConfig.newBuilder()
           .setExpression(Expression.newBuilder()
             .setId("e1")
             .setExpression("a + b")
@@ -75,8 +75,8 @@ public class TestJexlBinderProcessorConfig {
             .build())
         .build();
     
-    JexlBinderProcessorConfig c2 = (JexlBinderProcessorConfig) 
-        JexlBinderProcessorConfig.newBuilder()
+    ExpressionProcessorConfig c2 = (ExpressionProcessorConfig) 
+        ExpressionProcessorConfig.newBuilder()
           .setExpression(Expression.newBuilder()
             .setId("e1")
             .setExpression("a + b")
@@ -88,8 +88,8 @@ public class TestJexlBinderProcessorConfig {
     assertEquals(c1, c2);
     assertEquals(0, c1.compareTo(c2));
     
-    c2 = (JexlBinderProcessorConfig) 
-        JexlBinderProcessorConfig.newBuilder()
+    c2 = (ExpressionProcessorConfig) 
+        ExpressionProcessorConfig.newBuilder()
           .setExpression(Expression.newBuilder()
             .setId("e2") // <-- Diff
             .setExpression("a + b")
