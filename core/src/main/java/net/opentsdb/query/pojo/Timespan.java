@@ -31,6 +31,9 @@ import com.google.common.hash.Hashing;
 
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.Const;
+import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.TimeStamp;
+import net.opentsdb.query.SliceConfig;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -59,6 +62,12 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
   /** Whether or not to compute a rate */
   private boolean rate;
 
+  /** A query slice config. */
+  private String slice_config;
+  
+  /** A parsed slice config. */
+  private SliceConfig slice;
+  
   /**
    * Default ctor
    * @param builder The builder to pull values from
@@ -70,6 +79,7 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
     downsampler = builder.downsampler;
     aggregator = builder.aggregator;
     rate = builder.rate;
+    slice_config = builder.sliceConfig;
   }
   
   /** @return user given start date/time, could be relative or absolute */
@@ -102,6 +112,34 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
     return rate;
   }
   
+  /** @return The slice config if provided. May be null. */
+  public SliceConfig sliceConfig() {
+    return slice;
+  }
+  
+  /** @return The slice config as a string (for serialization). */
+  public String getSliceConfig() {
+    return slice_config;
+  }
+  
+  /** @return Parses the start time and converts it to a {@link TimeStamp}. 
+   * @see DateTime#parseDateTimeString(String, String) */
+  public TimeStamp startTime() {
+    return new MillisecondTimeStamp(
+        DateTime.parseDateTimeString(start, timezone));
+  }
+  
+  /** @return Parses the end time and converts it to a {@link TimeStamp} if set.
+   * If the time was not set, uses {@link DateTime#currentTimeMillis()}. 
+   * @see DateTime#parseDateTimeString(String, String) */
+  public TimeStamp endTime() {
+    if (Strings.isNullOrEmpty(end)) {
+      return new MillisecondTimeStamp(DateTime.currentTimeMillis());
+    }
+    return new MillisecondTimeStamp(
+        DateTime.parseDateTimeString(end, timezone));
+  }
+  
   @Override
   public boolean equals(Object o) {
     if (this == o)
@@ -116,7 +154,8 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
         && Objects.equal(timespan.start, start)
         && Objects.equal(timespan.timezone, timezone)
         && Objects.equal(timespan.aggregator, aggregator)
-        && Objects.equal(timespan.rate, rate);
+        && Objects.equal(timespan.rate, rate)
+        && Objects.equal(timespan.slice_config, slice_config);
   }
 
   @Override
@@ -132,6 +171,7 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
         .putString(Strings.nullToEmpty(timezone), Const.ASCII_CHARSET)
         .putString(Strings.nullToEmpty(aggregator), Const.ASCII_CHARSET)
         .putBoolean(rate)
+        .putString(Strings.nullToEmpty(slice_config), Const.ASCII_CHARSET)
         .hash();
     final List<HashCode> hashes = Lists.newArrayListWithCapacity(2);
     hashes.add(hc);
@@ -150,6 +190,7 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
         .compare(downsampler, o.downsampler, Ordering.natural().nullsFirst())
         .compare(aggregator, o.aggregator, Ordering.natural().nullsFirst())
         .compareTrueFirst(rate, o.rate)
+        .compare(slice_config, o.slice_config, Ordering.natural().nullsFirst())
         .result();
   }
   
@@ -184,6 +225,10 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
     } catch (final NoSuchElementException e) {
       throw new IllegalArgumentException("Invalid aggregator");
     }
+    
+    if (!Strings.isNullOrEmpty(slice_config)) {
+      slice = new SliceConfig(slice_config);
+    }
   }
   
   /**
@@ -209,6 +254,9 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
     
     @JsonProperty
     private boolean rate;
+    
+    @JsonProperty
+    private String sliceConfig;
     
     public Builder setStart(final String start) {
       this.start = start;
@@ -237,6 +285,11 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
     
     public Builder setRate(final boolean rate) {
       this.rate = rate;
+      return this;
+    }
+    
+    public Builder setSliceConfig(final String slice_config) {
+      this.sliceConfig = slice_config;
       return this;
     }
     

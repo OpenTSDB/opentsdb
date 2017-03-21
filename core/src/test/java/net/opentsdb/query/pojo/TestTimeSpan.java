@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.pojo;
 
+import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 
 import org.junit.Test;
@@ -19,6 +20,7 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class TestTimeSpan {
   @Test(expected = IllegalArgumentException.class)
@@ -101,6 +103,82 @@ public class TestTimeSpan {
     timespan.validate();
   }
 
+  @Test(expected = IllegalArgumentException.class)
+  public void invalidSliceConfig() {
+    String json = "{\"start\":\"1h-ago\",\"end\":\"2015/05/05\",\"timezone\":\"UTC\","
+        + "\"downsampler\":{\"interval\":\"15m\",\"aggregator\":\"avg\","
+        + "\"fillPolicy\":{\"policy\":\"nan\"}},\"aggregator\":\"sum\","
+        + "\"sliceConfig\":\"1\"}";
+    Timespan timespan = JSON.parseToObject(json, Timespan.class);
+    timespan.validate();
+  }
+  
+  @Test
+  public void startTime() {
+    Timespan timespan = Timespan.newBuilder()
+        .setStart("1h-ago")
+        .build();
+    assertTrue(timespan.startTime().msEpoch() > 0 && 
+        timespan.startTime().msEpoch() < DateTime.currentTimeMillis());
+    
+    timespan = Timespan.newBuilder()
+        .setStart("2017/02/02 06:30:01")
+        .setTimezone("UTC")
+        .build();
+    assertEquals(1486017001000L, timespan.startTime().msEpoch());
+    
+    timespan = Timespan.newBuilder()
+        .setStart("not a real time")
+        .setTimezone("UTC")
+        .build();
+    try {
+      timespan.startTime();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    timespan = Timespan.newBuilder()
+        .setStart("2017/02/02 06:30:01")
+        .setTimezone("unknown tz")
+        .build();
+    try {
+      timespan.startTime();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void endTime() {
+    Timespan timespan = Timespan.newBuilder()
+        .setEnd("1h-ago")
+        .build();
+    assertTrue(timespan.endTime().msEpoch() > 0 && 
+        timespan.endTime().msEpoch() < DateTime.currentTimeMillis());
+    
+    timespan = Timespan.newBuilder()
+        .setEnd("2017/02/02 06:30:01")
+        .setTimezone("UTC")
+        .build();
+    assertEquals(1486017001000L, timespan.endTime().msEpoch());
+    
+    timespan = Timespan.newBuilder()
+        .setEnd("not a real time")
+        .setTimezone("UTC")
+        .build();
+    try {
+      timespan.endTime();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    timespan = Timespan.newBuilder()
+        .setEnd("2017/02/02 06:30:01")
+        .setTimezone("unknown tz")
+        .build();
+    try {
+      timespan.endTime();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
   @Test
   public void deserialize() {
     String json = "{\"start\":\"1h-ago\",\"end\":\"2015/05/05\",\"timezone\":\"UTC\","
@@ -146,6 +224,7 @@ public class TestTimeSpan {
             .setInterval("1h")
             .build())
         .setRate(false)
+        .setSliceConfig("50%")
         .build();
     
     Timespan t2 = new Timespan.Builder()
@@ -158,6 +237,7 @@ public class TestTimeSpan {
             .setInterval("1h")
             .build())
         .setRate(false)
+        .setSliceConfig("50%")
         .build();
     assertEquals(t1.hashCode(), t2.hashCode());
     assertEquals(t1, t2);
@@ -173,6 +253,7 @@ public class TestTimeSpan {
             .setInterval("1h")
             .build())
         .setRate(false)
+        .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
     assertNotEquals(t1, t2);
@@ -188,6 +269,7 @@ public class TestTimeSpan {
             .setInterval("1h")
             .build())
         .setRate(false)
+        .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
     assertNotEquals(t1, t2);
@@ -203,6 +285,7 @@ public class TestTimeSpan {
             .setInterval("1h")
             .build())
         .setRate(false)
+        .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
     assertNotEquals(t1, t2);
@@ -218,6 +301,7 @@ public class TestTimeSpan {
             .setInterval("1h")
             .build())
         .setRate(false)
+        .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
     assertNotEquals(t1, t2);
@@ -233,6 +317,7 @@ public class TestTimeSpan {
             .setInterval("1h")
             .build())
         .setRate(false)
+        .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
     assertNotEquals(t1, t2);
@@ -248,6 +333,7 @@ public class TestTimeSpan {
             .setInterval("1h")
             .build())
         .setRate(false)
+        .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
     assertNotEquals(t1, t2);
@@ -263,6 +349,7 @@ public class TestTimeSpan {
             .setInterval("1h")
             .build())
         .setRate(false)
+        .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
     assertNotEquals(t1, t2);
@@ -278,6 +365,7 @@ public class TestTimeSpan {
         //    .setInterval("1h")
         //    .build())
         .setRate(false)
+        .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
     assertNotEquals(t1, t2);
@@ -293,6 +381,39 @@ public class TestTimeSpan {
             .setInterval("1h")
             .build())
         .setRate(true)  // <-- diff
+        .setSliceConfig("50%")
+        .build();
+    assertNotEquals(t1.hashCode(), t2.hashCode());
+    assertNotEquals(t1, t2);
+    assertEquals(1, t1.compareTo(t2));
+    
+    t2 = new Timespan.Builder()
+        .setStart("1h-ago")
+        .setEnd("1m-ago")
+        .setAggregator("sum")
+        .setTimezone("UTC")
+        .setDownsampler(new Downsampler.Builder()
+            .setAggregator("sum")
+            .setInterval("1h")
+            .build())
+        .setRate(false)
+        .setSliceConfig("75%")   // <-- diff
+        .build();
+    assertNotEquals(t1.hashCode(), t2.hashCode());
+    assertNotEquals(t1, t2);
+    assertEquals(-1, t1.compareTo(t2));
+    
+    t2 = new Timespan.Builder()
+        .setStart("1h-ago")
+        .setEnd("1m-ago")
+        .setAggregator("sum")
+        .setTimezone("UTC")
+        .setDownsampler(new Downsampler.Builder()
+            .setAggregator("sum")
+            .setInterval("1h")
+            .build())
+        .setRate(false)
+        //.setSliceConfig("50%")   // <-- diff
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
     assertNotEquals(t1, t2);
