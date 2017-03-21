@@ -4,7 +4,6 @@ script: export MAVEN_OPTS="-Xmx1024m" && mvn test --quiet
 addons:
   hostname: short-hostname
 jdk:
-  - oraclejdk7
   - oraclejdk8
 notifications:
   email: false
