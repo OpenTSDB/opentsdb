@@ -59,19 +59,7 @@ public final class Const {
   public static final TimeZone UTC_TZ = TimeZone.getTimeZone("UTC");
 
   /** Number of LSBs in time_deltas reserved for flags.  */
-  public static final short FLAG_BITS = 4;
-  
-  /** Number of LSBs in time_deltas reserved for flags.  */
   public static final short MS_FLAG_BITS = 6;
-
-  /**
-   * When this bit is set, the value is a floating point value.
-   * Otherwise it's an integer value.
-   */
-  public static final short FLAG_FLOAT = 0x8;
-
-  /** Mask to select the size of a value from the qualifier.  */
-  public static final short LENGTH_MASK = 0x7;
 
   /** Mask for the millisecond qualifier flag */
   public static final byte MS_BYTE_FLAG = (byte)0xF0;
@@ -81,9 +69,6 @@ public final class Const {
   
   /** Flag to determine if a compacted column is a mix of seconds and ms */
   public static final byte MS_MIXED_COMPACT = 1;
-  
-  /** Mask to select all the FLAG_BITS.  */
-  public static final short FLAGS_MASK = FLAG_FLOAT | LENGTH_MASK;
   
   /** Mask to verify a timestamp on 4 bytes in seconds */
   public static final long SECOND_MASK = 0xFFFFFFFF00000000L;
