@@ -1,0 +1,295 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2017  The OpenTSDB Authors.
+//
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or (at your
+// option) any later version.  This program is distributed in the hope that it
+// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+// General Public License for more details.  You should have received a copy
+// of the GNU Lesser General Public License along with this program.  If not,
+// see <http://www.gnu.org/licenses/>.
+package net.opentsdb.query.plan;
+
+import com.google.common.base.Strings;
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.TimeStamp;
+import net.opentsdb.query.SliceConfig;
+import net.opentsdb.query.SliceConfig.SliceType;
+import net.opentsdb.query.pojo.Downsampler;
+import net.opentsdb.query.pojo.Query;
+import net.opentsdb.utils.DateTime;
+
+/**
+ * A base class for query planners.
+ * TODO - a lot more work on this.
+ * 
+ * @since 3.0
+ */
+public abstract class QueryPlanner {
+  /** TEMP raw interval in seconds */
+  private static final int RAW_INTERVAL = 3600;
+  
+  /** TEMP The rollup interval in seconds */
+  private static final int ROLLUP_INTERVAL = 86400;
+  
+  /** The original query. */
+  protected final Query query;
+  
+  /** The planned query as a builder (allows for copying and modification). */
+  protected Query.Builder planned_query;
+  
+  /** The time range for the query. Will simply hold the start and end times */
+  protected TimeStamp[][] query_time_ranges;
+  
+  
+  /**
+   * Default ctor.
+   * @param query A non-null query to use.
+   * @throws IllegalArgumentException if the query was null.
+   */
+  public QueryPlanner(final Query query) {
+    if (query == null) {
+      throw new IllegalArgumentException("Query cannot be null.");
+    }
+    this.query = query;
+  }
+  
+  /**  @return The original user query */
+  public Query getOriginalQuery() {
+    return query;
+  }
+  
+  /** @return The planned query. */
+  public Query.Builder getPlannedQuery() {
+    return planned_query;
+  }
+  
+  /** @return The query time ranges. Will be null until {@link #generatePlan()} is called. */
+  public TimeStamp[][] getTimeRanges() {
+    return query_time_ranges;
+  }
+  
+  /**
+   * Called during initialization to generate the plan for the query.
+   * @return A non-null deferred to wait that resolves to a null for success or
+   * an exception on failure.
+   */
+  protected abstract Deferred<Object> generatePlan();
+  
+  /**
+   * Attempts to split the given query on time so that blocks of time can be
+   * cached and/or fetched separately. Queries without downsampling will split
+   * into raw data chunks of 1 hour each.
+   * <p>
+   * If a slice config is supplied in the query, that will take precedence over
+   * all other configs.
+   * <p>
+   * If a downsampler is supplied, then the splits can be set based on the 
+   * downsampling interval. If the interval is less than an hour and on 
+   * boundaries that can be satisfied by data within an hour chunk (e.g. 1m, 5m,
+   * 30m), 1 hour chunks will be returned. However if the interval is strange
+   * (e.g. 45m, 17m) then no chunks will be returned.
+   * <p>
+   * Similarly if the rollup table can be used (e.g. 1h, 6h, 1d, 30d) then the
+   * chunks will be aligned and returned based on 1 day or, if the interval is 
+   * greater than a day, multi-day chunks.
+   * <p> 
+   * When ranges are returned, the start and end times are aligned to boundaries
+   * based on the table data (i.e. raw or hourly).
+   * <p>
+   * The returned arrays are sorted by time ascending, i.e. range[0][] is
+   * earlier than range[42][]. Each nested array contains the start Unix
+   * epoch timestamp at index zero and the end Unix epoch timestamp at index 1.
+   * The nested arrays are guaranteed to be non-null.
+   * 
+   * @param query A non null query to parse.
+   * @return An array of zero or more {@link TimeStamp} arrays in milliseconds.
+   * 
+   * @throws IllegalArgumentException if the query is null, the query time hasn't
+   * been set or the optional metric index is greater than the metric count.
+   * 
+   * @throws IllegalStateException if the number of intervals overflows. This
+   * would only happen if someone asked for hundreds of thousands of years of
+   * data. (and if that does happen, wtf?)
+   */
+  public static TimeStamp[][] getTimeRanges(final Query query) {
+    return getTimeRanges(query, -1);
+  }
+  
+  /**
+   * Attempts to split the given query on time so that blocks of time can be
+   * cached and/or fetched separately. Queries without downsampling will split
+   * into raw data chunks of 1 hour each.
+   * <p>
+   * If a downsampler is supplied, then the splits can be set based on the 
+   * downsampling interval. If the interval is less than an hour and on 
+   * boundaries that can be satisfied by data within an hour chunk (e.g. 1m, 5m,
+   * 30m), 1 hour chunks will be returned. However if the interval is strange
+   * (e.g. 45m, 17m) then no chunks will be returned.
+   * <p>
+   * Similarly if the rollup table can be used (e.g. 1h, 6h, 1d, 30d) then the
+   * chunks will be aligned and returned based on 1 day or, if the interval is 
+   * greater than a day, multi-day chunks.
+   * <p> 
+   * When ranges are returned, the start and end times are aligned to boundaries
+   * based on the table data (i.e. raw or hourly).
+   * <p>
+   * The returned arrays are sorted by time ascending, i.e. range[0][] is
+   * earlier than range[42][]. Each nested array contains the start Unix
+   * epoch timestamp at index zero and the end Unix epoch timestamp at index 1.
+   * The nested arrays are guaranteed to be non-null.
+   * 
+   * @param query A non null query to parse.
+   * @param metric_index An optional metric index to use for overriding the
+   * {@code Time} downsampler. When not used, supply a negative value.
+   * @return An array of zero or more {@link TimeStamp} arrays in milliseconds.
+   * @throws IllegalArgumentException if the query is null, the query time hasn't
+   * been set or the optional metric index is greater than the metric count.
+   * @throws IllegalStateException if the number of intervals overflows. This
+   * would only happen if someone asked for hundreds of thousands of years of
+   * data. (and if that does happen, wtf?)
+   * 
+   * TODO - This guy needs to know about the table structure to align properly
+   * on rows. This would also account for rollups.
+   * TODO - handle Percent slices
+   * TODO - handle calendar based DS
+   */
+  public static TimeStamp[][] getTimeRanges(final Query query, final int metric_index) {
+    if (query == null) {
+      throw new IllegalArgumentException("The query hasn't been set.");
+    }
+    if (query.getTime() == null || 
+        (Strings.isNullOrEmpty(query.getTime().getStart()) && 
+        Strings.isNullOrEmpty(query.getTime().getEnd()))) {
+      throw new IllegalArgumentException("The query time hasn't been set.");
+    }
+    if (metric_index >= 0 && metric_index >= query.getMetrics().size()) {
+      throw new IllegalArgumentException("Metric index out of bounds.");
+    }
+    
+    final SliceConfig slice_config;
+    if (query.getTime().sliceConfig() != null ) {
+      slice_config = query.getTime().sliceConfig();
+    } else {
+      slice_config = null;
+    }
+    
+    // TODO - offsets on a per metric basis once we support those
+    long start = query.getTime().startTime().msEpoch() / 1000;
+    long end = query.getTime().endTime().msEpoch() / 1000;
+    
+    // figure out the interval based on either the row width or downsampling
+    long interval = RAW_INTERVAL; // 1 hour by default unless we're overridden by ds or rollups
+    
+    // check for a downsampler. Metric DS overrides overall
+    final Downsampler ds;
+    if (metric_index >= 0 && 
+        query.getMetrics().get(metric_index).getDownsampler() != null) {
+      ds = query.getMetrics().get(metric_index).getDownsampler();
+    } else if (query.getTime().getDownsampler() != null) {
+      ds = query.getTime().getDownsampler();
+    } else {
+      ds = null;
+    }
+    
+    final long ds_interval;
+    if (ds != null) {
+      ds_interval = DateTime.parseDuration(ds.getInterval()) / 1000;
+      if (ds_interval < interval) {
+        if (interval % ds_interval != 0) {
+          interval = 0;
+        }
+      } else {
+        // could potentially use the rollups if we have a proper boundary.
+        if (ds_interval < ROLLUP_INTERVAL) {
+          if (ROLLUP_INTERVAL % ds_interval != 0) {
+            interval = 0;
+          } else {
+            interval = ROLLUP_INTERVAL;
+          }
+        } else if (ds_interval % ROLLUP_INTERVAL == 0) {
+          interval = ds_interval;
+        } else {
+          interval = 0;
+        }
+      }
+    } else {
+      ds_interval = 0;
+    }
+    
+    // we can't shard properly so return the full range without sharding
+    if (interval < 1 || (slice_config != null 
+        && slice_config.getSliceType() == SliceType.PERCENT 
+        && slice_config.getQuantity() == 100)) {
+      final TimeStamp[][] ranges = new TimeStamp[1][];
+      ranges[0] = new TimeStamp[] { 
+          new MillisecondTimeStamp(start * 1000), 
+          new MillisecondTimeStamp(end * 1000) 
+      };
+      return ranges;
+    }
+    
+    // if we have an absolute interval, use it IF it doesn't interfere with our 
+    // downsampling.
+    if (slice_config != null && slice_config.getSliceType() == SliceType.DURATION) {
+      final long duration = DateTime.parseDuration(slice_config.getStringConfig()) / 1000;
+      if (end - start < duration) {
+        // return the start and end as the user want's a single slice
+        final TimeStamp[][] ranges = new TimeStamp[1][];
+        ranges[0] = new TimeStamp[] { 
+            new MillisecondTimeStamp(start * 1000), 
+            new MillisecondTimeStamp(end * 1000) 
+        };
+        return ranges;
+      }
+      
+      if (ds != null) {
+        if (ds_interval > duration) {
+          throw new IllegalArgumentException("Slice duration " + duration 
+              + " cannot be less than the downsampling duration " + ds_interval);
+        }
+        
+        if (duration % ds_interval != 0) {
+          throw new IllegalArgumentException("Downsampling duration " + ds_interval 
+              + " does not sub-divide into the slice duration " + duration);
+        }
+        
+        interval = duration;
+      }
+    }
+    
+    // snap start and end to the proper interval
+    long snap_start = start - (start % interval);
+    long snap_end = end - (end % interval) + interval;
+    
+    // NOTE - possible rollover if someone asks for around 200,000 years of data.
+    int intervals = (int)((snap_end - snap_start) / interval);
+    
+    if (slice_config != null && slice_config.getSliceType() == SliceType.PERCENT) {
+      // TODO - handle percent.
+    }
+    
+    // bump the interval by one if there is overflow, which there shouldn't be
+    // since we're snapping. But in-case we don't snap in the future, leave this
+    // here as a safety.
+    intervals += ((snap_end - snap_start) - (intervals * interval)) > 0 ? 1 : 0;
+    if (intervals < 0) {
+      throw new IllegalStateException("The query interval is too wide for sharding");
+    }
+    
+    final TimeStamp[][] ranges = new TimeStamp[intervals][];
+    int idx = 0;
+    while (snap_start < snap_end) {
+      ranges[idx++] = new TimeStamp[] { 
+          new MillisecondTimeStamp(snap_start * 1000), 
+          new MillisecondTimeStamp((snap_start + interval) * 1000) 
+      };
+      snap_start += interval;
+    }
+    return ranges;
+  }
+}
