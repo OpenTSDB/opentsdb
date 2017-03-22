@@ -6,7 +6,7 @@
 
   <groupId>net.opentsdb</groupId>
   <artifactId>opentsdb</artifactId>
-  <version>3.0.0-SNAPSHOT</version>
+  <version>3.0.30-SNAPSHOT</version>
   <name>OpenTSDB</name>
   
   <organization>
