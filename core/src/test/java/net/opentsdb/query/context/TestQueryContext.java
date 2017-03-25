@@ -1046,6 +1046,12 @@ public class TestQueryContext {
     public MockContext(final QueryContext context) {
       super(context);
     }
+
+    @Override
+    public RemoteContext getRemoteContext() {
+      // TODO Auto-generated method stub
+      return null;
+    }
     
   }
   

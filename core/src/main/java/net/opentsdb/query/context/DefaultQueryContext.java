@@ -19,4 +19,10 @@ package net.opentsdb.query.context;
  */
 public class DefaultQueryContext extends QueryContext {
 
+  @Override
+  public RemoteContext getRemoteContext() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
 }

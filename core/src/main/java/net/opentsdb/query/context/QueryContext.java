@@ -603,6 +603,8 @@ public abstract class QueryContext {
     }
   }
   
+  public abstract RemoteContext getRemoteContext();
+  
   /**
    * Utility method to traverse all outgoing connections of the processor and
    * assign their context to the new context.

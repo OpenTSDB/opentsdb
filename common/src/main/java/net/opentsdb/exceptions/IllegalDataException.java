@@ -13,7 +13,8 @@
 package net.opentsdb.exceptions;
 
 /**
- * Some illegal / malformed / corrupted data has been found in HBase.
+ * Some illegal / malformed / corrupted data has been found in the pipeline.
+ * @since 1.0
  */
 public final class IllegalDataException extends IllegalStateException {
 
