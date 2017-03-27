@@ -19,6 +19,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -184,6 +185,7 @@ public class TestTimeSpan {
     String json = "{\"start\":\"1h-ago\",\"end\":\"2015/05/05\",\"timezone\":\"UTC\","
         + "\"downsampler\":{\"interval\":\"15m\",\"aggregator\":\"avg\","
         + "\"fillPolicy\":{\"policy\":\"nan\"}},\"aggregator\":\"sum\","
+        + "\"rateOptions\":{\"counter\":true},"
         + "\"unknownfield\":\"boo\"}";
     Timespan timespan = JSON.parseToObject(json, Timespan.class);
     Timespan expected = Timespan.newBuilder().setStart("1h-ago")
@@ -191,6 +193,7 @@ public class TestTimeSpan {
         .setDownsampler(
             Downsampler.newBuilder().setInterval("15m").setAggregator("avg")
             .setFillPolicy(new NumericFillPolicy(FillPolicy.NOT_A_NUMBER)).build())
+        .setRateOptions(RateOptions.newBuilder().setCounter(true))
         .build();
     timespan.validate();
     assertEquals(expected, timespan);
@@ -213,6 +216,33 @@ public class TestTimeSpan {
   }
   
   @Test
+  public void build() throws Exception {
+    final Timespan timespan = new Timespan.Builder()
+        .setStart("1h-ago")
+        .setEnd("1m-ago")
+        .setAggregator("sum")
+        .setTimezone("UTC")
+        .setDownsampler(new Downsampler.Builder()
+            .setAggregator("sum")
+            .setInterval("1h"))
+        .setRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setInterval(30000))
+        .setSliceConfig("50%")
+        .build();
+    final Timespan clone = Timespan.newBuilder(timespan).build();
+    assertNotSame(clone, timespan);
+    assertEquals("1h-ago", clone.getStart());
+    assertEquals("1m-ago", clone.getEnd());
+    assertEquals("sum", clone.getAggregator());
+    assertEquals("UTC", clone.getTimezone());
+    assertEquals("1h", clone.getDownsampler().getInterval());
+    assertTrue(clone.isRate());
+    assertEquals(30000, clone.getRateOptions().getInterval());
+    assertEquals("50%", clone.getSliceConfig());
+  }
+  
+  @Test
   public void hashCodeEqualsCompareTo() throws Exception {
     final Timespan t1 = new Timespan.Builder()
         .setStart("1h-ago")
@@ -223,7 +253,9 @@ public class TestTimeSpan {
             .setAggregator("sum")
             .setInterval("1h")
             .build())
-        .setRate(false)
+        .setRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setInterval(30000))
         .setSliceConfig("50%")
         .build();
     
@@ -236,7 +268,9 @@ public class TestTimeSpan {
             .setAggregator("sum")
             .setInterval("1h")
             .build())
-        .setRate(false)
+        .setRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setInterval(30000))
         .setSliceConfig("50%")
         .build();
     assertEquals(t1.hashCode(), t2.hashCode());
@@ -252,7 +286,9 @@ public class TestTimeSpan {
             .setAggregator("sum")
             .setInterval("1h")
             .build())
-        .setRate(false)
+        .setRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setInterval(30000))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -268,7 +304,9 @@ public class TestTimeSpan {
             .setAggregator("sum")
             .setInterval("1h")
             .build())
-        .setRate(false)
+        .setRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setInterval(30000))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -284,7 +322,9 @@ public class TestTimeSpan {
             .setAggregator("sum")
             .setInterval("1h")
             .build())
-        .setRate(false)
+        .setRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setInterval(30000))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -300,7 +340,9 @@ public class TestTimeSpan {
             .setAggregator("sum")
             .setInterval("1h")
             .build())
-        .setRate(false)
+        .setRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setInterval(30000))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -316,7 +358,9 @@ public class TestTimeSpan {
             .setAggregator("sum")
             .setInterval("1h")
             .build())
-        .setRate(false)
+        .setRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setInterval(30000))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -332,7 +376,9 @@ public class TestTimeSpan {
             .setAggregator("sum")
             .setInterval("1h")
             .build())
-        .setRate(false)
+        .setRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setInterval(30000))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -348,7 +394,9 @@ public class TestTimeSpan {
             .setAggregator("max")  // <-- diff
             .setInterval("1h")
             .build())
-        .setRate(false)
+        .setRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setInterval(30000))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -364,7 +412,9 @@ public class TestTimeSpan {
         //    .setAggregator("sum")  
         //    .setInterval("1h")
         //    .build())
-        .setRate(false)
+        .setRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setInterval(30000))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -380,7 +430,27 @@ public class TestTimeSpan {
             .setAggregator("sum")
             .setInterval("1h")
             .build())
-        .setRate(true)  // <-- diff
+        .setRate(false)  // <-- diff
+        .setRateOptions(RateOptions.newBuilder()
+            .setInterval(30000))
+        .setSliceConfig("50%")
+        .build();
+    assertNotEquals(t1.hashCode(), t2.hashCode());
+    assertNotEquals(t1, t2);
+    assertEquals(-1, t1.compareTo(t2));
+    
+    t2 = new Timespan.Builder()
+        .setStart("1h-ago")
+        .setEnd("1m-ago")
+        .setAggregator("sum")
+        .setTimezone("UTC")
+        .setDownsampler(new Downsampler.Builder()
+            .setAggregator("sum")
+            .setInterval("1h")
+            .build())
+        .setRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setInterval(15000))  // <-- diff
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -396,7 +466,27 @@ public class TestTimeSpan {
             .setAggregator("sum")
             .setInterval("1h")
             .build())
-        .setRate(false)
+        .setRate(true)
+        //.setRateOptions(RateOptions.newBuilder()
+        //    .setInterval(30000))  // <-- diff
+        .setSliceConfig("50%")
+        .build();
+    assertNotEquals(t1.hashCode(), t2.hashCode());
+    assertNotEquals(t1, t2);
+    assertEquals(1, t1.compareTo(t2));
+    
+    t2 = new Timespan.Builder()
+        .setStart("1h-ago")
+        .setEnd("1m-ago")
+        .setAggregator("sum")
+        .setTimezone("UTC")
+        .setDownsampler(new Downsampler.Builder()
+            .setAggregator("sum")
+            .setInterval("1h")
+            .build())
+        .setRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setInterval(30000))
         .setSliceConfig("75%")   // <-- diff
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -412,7 +502,9 @@ public class TestTimeSpan {
             .setAggregator("sum")
             .setInterval("1h")
             .build())
-        .setRate(false)
+        .setRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setInterval(30000))
         //.setSliceConfig("50%")   // <-- diff
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());

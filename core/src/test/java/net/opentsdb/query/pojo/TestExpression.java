@@ -21,6 +21,7 @@ import com.google.common.collect.Maps;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Map;
@@ -76,8 +77,44 @@ public class TestExpression {
     expression.validate();
     Expression expected = Expression.newBuilder().setId("e")
         .setExpression("a + b + c").setJoin(
-            Join.newBuilder().setOperator(SetOperator.UNION).build()).build();
+            Join.newBuilder()
+            .setOperator(SetOperator.UNION))
+        .build();
     assertEquals(expected, expression);
+    
+    json = "{\"id\":\"e\",\"expr\":\"a + b + c\","
+        + "\"join\":{\"operator\":\"INTERSECTION\"}}";
+    expression = JSON.parseToObject(json, Expression.class);
+    expression.validate();
+    expected = Expression.newBuilder().setId("e")
+        .setExpression("a + b + c")
+        .setJoin(
+            Join.newBuilder()
+            .setOperator(SetOperator.INTERSECTION))
+        .build();
+    assertEquals(expected, expression);
+    
+    json = "{\"id\":\"e\",\"expr\":\"a + b + c\","
+        + "\"join\":{\"operator\":\"INTERSECTION\"},\"fillPolicy\":"
+        + "{\"policy\":\"scalar\",\"value\":42},\"fillPolicies\":"
+        + "{\"a\":{\"policy\":\"NAN\"}, \"b\":{\"policy\":\"NAN\"}}}";
+    expression = JSON.parseToObject(json, Expression.class);
+    expression.validate();
+    
+    expected = Expression.newBuilder().setId("e")
+        .setExpression("a + b + c")
+        .setJoin(
+            Join.newBuilder().setOperator(SetOperator.INTERSECTION))
+        .setFillPolicy(NumericFillPolicy.newBuilder()
+            .setPolicy(FillPolicy.SCALAR)
+            .setValue(42))
+        .addFillPolicy("a", NumericFillPolicy.newBuilder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER))
+        .addFillPolicy("b", NumericFillPolicy.newBuilder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER))
+        .build();
+    assertEquals(expected, expression);
+    
   }
 
   @Test
@@ -99,6 +136,43 @@ public class TestExpression {
     // pass if no unexpected exception
   }
 
+  @Test
+  public void build() throws Exception {
+    final Expression expression = Expression.newBuilder()
+        .setId("e1")
+        .setExpression("a + b")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setJoin(new Join.Builder()
+            .setOperator(SetOperator.INTERSECTION)
+            .build())
+        .addFillPolicy("a", NumericFillPolicy.newBuilder()
+            .setPolicy(FillPolicy.SCALAR).setValue(1))
+        .addFillPolicy("b", NumericFillPolicy.newBuilder()
+            .setPolicy(FillPolicy.SCALAR).setValue(1))
+        .build();
+    final Expression clone = Expression.newBuilder(expression).build();
+    assertNotSame(clone, expression);
+    assertEquals("e1", clone.getId());
+    assertEquals("a + b", clone.getExpr());
+    assertEquals(SetOperator.INTERSECTION, clone.getJoin().getOperator());
+    assertEquals(clone.getFillPolicy(), 
+        NumericFillPolicy.newBuilder()
+        .setPolicy(FillPolicy.NOT_A_NUMBER)
+        .build());
+    assertEquals(clone.getFillPolicies().get("a"), 
+        NumericFillPolicy.newBuilder()
+        .setPolicy(FillPolicy.SCALAR)
+        .setValue(1)
+        .build());
+    assertEquals(clone.getFillPolicies().get("b"), 
+        NumericFillPolicy.newBuilder()
+        .setPolicy(FillPolicy.SCALAR)
+        .setValue(1)
+        .build());
+  }
+  
   @Test
   public void hashCodeEqualsCompareTo() throws Exception {
     Map<String, NumericFillPolicy> fills = Maps.newHashMap();

@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.pojo;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -53,7 +54,7 @@ public class Filter extends Validatable implements Comparable<Filter> {
    * Default ctor
    * @param builder The builder to pull values from
    */
-  private Filter(Builder builder) {
+  private Filter(final Builder builder) {
     this.id = builder.id;
     this.tags = builder.tags;
     this.explicit_tags = builder.explicitTags;
@@ -66,7 +67,7 @@ public class Filter extends Validatable implements Comparable<Filter> {
 
   /** @return the list of filters in the filter set */
   public List<TagVFilter> getTags() {
-    return tags;
+    return tags == null ? null : Collections.unmodifiableList(tags);
   }
 
   /** @return Whether or not to only fetch series with exactly the same tag keys as 
@@ -78,6 +79,23 @@ public class Filter extends Validatable implements Comparable<Filter> {
   /** @return A new builder for the filter */
   public static Builder newBuilder() {
     return new Builder();
+  }
+  
+  /**
+   * Clones a filter into a new builder.
+   * @param filter A non-null filter to pull values from
+   * @return A new builder populated with values from the given filter.
+   * @throws IllegalArgumentException if the filter was null.
+   * @since 3.0
+   */
+  public static Builder newBuilder(final Filter filter) {
+    if (filter == null) {
+      throw new IllegalArgumentException("Filter cannot be null.");
+    }
+    return new Builder()
+        .setExplicitTags(filter.explicit_tags)
+        .setId(filter.id)
+        .setTags(Lists.newArrayList(filter.tags));
   }
 
   /** Validates the filter set
@@ -146,21 +164,42 @@ public class Filter extends Validatable implements Comparable<Filter> {
     @JsonProperty
     private boolean explicitTags;
     
-    public Builder setId(String id) {
+    public Builder setId(final String id) {
       Query.validateId(id);
       this.id = id;
       return this;
     }
 
-    public Builder setTags(List<TagVFilter> tags) {
+    public Builder setTags(final List<TagVFilter> tags) {
       this.tags = tags;
       if (tags != null) {
         Collections.sort(this.tags);
       }
       return this;
     }
+    
+    public Builder addFilter(final TagVFilter filter) {
+      if (tags == null) {
+        tags = Lists.newArrayList(filter);
+      } else {
+        tags.add(filter);
+        Collections.sort(this.tags);
+      }
+      return this;
+    }
+    
+    @JsonIgnore
+    public Builder addFilter(final TagVFilter.Builder filter) {
+      if (tags == null) {
+        tags = Lists.newArrayList(filter.build());
+      } else {
+        tags.add(filter.build());
+        Collections.sort(this.tags);
+      }
+      return this;
+    }
 
-    public Builder setExplicitTags(boolean explicit_tags) {
+    public Builder setExplicitTags(final boolean explicit_tags) {
       this.explicitTags = explicit_tags;
       return this;
     }

@@ -26,15 +26,16 @@ import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 public class TestQuery {
-  Timespan time;
-  TagVFilter tag;
-  Filter filter;
-  Metric metric;
-  Expression expression;
-  Output output;
+  private Timespan time;
+  private Filter filter;
+  private Metric metric;
+  private Expression expression;
+  private Output output;
 
   String json = "{"
       + "  \"time\":{"
@@ -195,27 +196,50 @@ public class TestQuery {
 
   @Test
   public void serialize() throws Exception {
-    Query query = Query.newBuilder().setExpressions(Arrays.asList(expression))
+    final Query query = Query.newBuilder().setExpressions(Arrays.asList(expression))
         .setFilters(Arrays.asList(filter)).setMetrics(Arrays.asList(metric))
         .setName("q1").setTime(time).setOutputs(Arrays.asList(output)).build();
 
-    String actual = JSON.serializeToString(query);
-//    String expected = "{\"name\":\"q1\",\"time\":{\"start\":\"3h-ago\"," 
-//        + "\"end\":\"1h-ago\",\"timezone\":\"UTC\",\"downsample\":\"15m-avg-nan\"," 
-//        + "\"interpolation\":\"LERP\"},\"filters\":[{\"id\":\"f1\"," 
-//        + "\"tags\":[{\"tagk\":\"host\",\"filter\":\"*\",\"group_by\":false," 
-//        + "\"type\":\"iwildcard\"}],\"aggregator\":\"sum\"}],"
-//        + "\"metrics\":[{\"metric\":\"YAMAS.cpu.idle\"," 
-//        + "\"id\":\"m1\",\"filter\":\"f1\",\"time_offset\":\"0\"}],"
-//        + "\"expressions\":[{\"id\":\"e1\",\"expr\":\"a + b + c\"}],"
-//        + "\"outputs\":[{\"var\":\"q1.m1\",\"alias\":\"CPU Idle EAST DC\"}]}";
-    assertTrue(actual.contains("\"name\":\"q1\""));
-    assertTrue(actual.contains("\"start\":\"3h-ago\""));
-    assertTrue(actual.contains("\"end\":\"1h-ago\""));
-    assertTrue(actual.contains("\"timezone\":\"UTC\""));
-    // TODO - finish the assertions
+    final String json = JSON.serializeToString(query);
+    assertTrue(json.contains("\"name\":\"q1\""));
+    assertTrue(json.contains("\"start\":\"3h-ago\""));
+    assertTrue(json.contains("\"end\":\"1h-ago\""));
+    assertTrue(json.contains("\"timezone\":\"UTC\""));
+    assertTrue(json.contains("\"downsampler\":{"));
+    assertTrue(json.contains("\"interval\":\"15m\""));
+    assertTrue(json.contains("\"aggregator\":\"avg\""));
+    assertTrue(json.contains("\"filters\":["));
+    assertTrue(json.contains("\"id\":\"f1\""));
+    assertTrue(json.contains("\"metrics\":["));
+    assertTrue(json.contains("\"metric\":\"YAMAS.cpu.idle\""));
+    assertTrue(json.contains("\"expressions\":["));
+    assertTrue(json.contains("\"id\":\"e1\""));
+    assertTrue(json.contains("\"join\":{"));
+    assertTrue(json.contains("\"operator\":\"union\""));
+    assertTrue(json.contains("\"outputs\":["));
+    assertTrue(json.contains("\"id\":\"m1\""));
   }
 
+  @Test
+  public void build() throws Exception {
+    final Query query = Query.newBuilder()
+        .addExpression(expression)
+        .addFilter(filter)
+        .addMetric(metric)
+        .setName("q1")
+        .setTime(time)
+        .addOutput(output)
+        .build();
+    final Query clone = Query.newBuilder(query).build();
+    assertNotSame(clone, query);
+    assertNotSame(clone.getExpressions(), query.getExpressions());
+    assertNotSame(clone.getFilters(), query.getFilters());
+    assertNotSame(clone.getMetrics(), query.getMetrics());
+    assertNotSame(clone.getOutputs(), query.getOutputs());
+    assertEquals("q1", clone.getName());
+    assertSame(clone.getTime(), query.getTime());
+  }
+  
   @Test
   public void hashCodeEqualsCompareTo() throws Exception {
     Filter f1 = new Filter.Builder()

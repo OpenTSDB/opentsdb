@@ -13,7 +13,9 @@
 package net.opentsdb.query.pojo;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
@@ -87,6 +89,25 @@ public class TestJoin {
     String json = "{\"operator\":\"intersection\",\"unknown\":\"yo\"}";
     JSON.parseToObject(json, Filter.class);
     // pass if no unexpected exception
+  }
+  
+  @Test
+  public void build() throws Exception {
+    final Join join = Join.newBuilder()
+        .setOperator(SetOperator.CROSS)
+        .setIncludeAggTags(true)
+        .setIncludeDisjointTags(true)
+        .addTag("b")
+        .addTag("a")
+        .build();
+    final Join clone = Join.newBuilder(join).build();
+    assertNotSame(clone, join);
+    assertEquals(SetOperator.CROSS, clone.getOperator());
+    assertTrue(clone.getIncludeAggTags());
+    assertTrue(clone.getIncludeDisjointTags());
+    assertFalse(clone.getUseQueryTags());
+    assertEquals("a", clone.getTags().get(0));
+    assertEquals("b", clone.getTags().get(1));
   }
   
   @Test

@@ -15,6 +15,7 @@ package net.opentsdb.query.pojo;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -61,6 +62,9 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
   
   /** Whether or not to compute a rate */
   private boolean rate;
+  
+  /** Optional rate options. */
+  private RateOptions rate_options;
 
   /** A query slice config. */
   private String slice_config;
@@ -72,13 +76,14 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
    * Default ctor
    * @param builder The builder to pull values from
    */
-  public Timespan(Builder builder) {
+  public Timespan(final Builder builder) {
     start = builder.start;
     end = builder.end;
     timezone = builder.timezone;
     downsampler = builder.downsampler;
     aggregator = builder.aggregator;
     rate = builder.rate;
+    rate_options = builder.rateOptions;
     slice_config = builder.sliceConfig;
   }
   
@@ -110,6 +115,11 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
   /** @return whether or not to compute a rate */
   public boolean isRate() {
     return rate;
+  }
+  
+  /** @return An optional config for rate calculations. */
+  public RateOptions getRateOptions() {
+    return rate_options;
   }
   
   /** @return The slice config if provided. May be null. */
@@ -155,6 +165,7 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
         && Objects.equal(timespan.timezone, timezone)
         && Objects.equal(timespan.aggregator, aggregator)
         && Objects.equal(timespan.rate, rate)
+        && Objects.equal(timespan.rate_options, rate_options)
         && Objects.equal(timespan.slice_config, slice_config);
   }
 
@@ -178,6 +189,9 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
     if (downsampler != null) {
       hashes.add(downsampler.buildHashCode());
     }
+    if (rate_options != null) {
+      hashes.add(rate_options.buildHashCode());
+    }
     return Hashing.combineOrdered(hashes);
   }
   
@@ -190,6 +204,7 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
         .compare(downsampler, o.downsampler, Ordering.natural().nullsFirst())
         .compare(aggregator, o.aggregator, Ordering.natural().nullsFirst())
         .compareTrueFirst(rate, o.rate)
+        .compare(rate_options, o.rate_options, Ordering.natural().nullsFirst())
         .compare(slice_config, o.slice_config, Ordering.natural().nullsFirst())
         .result();
   }
@@ -197,6 +212,28 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
   /** @return A new builder for the downsampler */
   public static Builder newBuilder() {
     return new Builder();
+  }
+  
+  /**
+   * Clones an timespan into a new builder.
+   * @param timespan A non-null timespan to pull values from
+   * @return A new builder populated with values from the given timespan.
+   * @throws IllegalArgumentException if the timespan was null.
+   * @since 3.0
+   */
+  public static Builder newBuilder(final Timespan timespan) {
+    if (timespan == null) {
+      throw new IllegalArgumentException("Timespan cannot be null.");
+    }
+    return new Builder()
+        .setAggregator(timespan.aggregator)
+        .setDownsampler(timespan.downsampler)
+        .setEnd(timespan.end)
+        .setStart(timespan.start)
+        .setRate(timespan.rate)
+        .setRateOptions(timespan.rate_options)
+        .setSliceConfig(timespan.slice_config)
+        .setTimezone(timespan.timezone);
   }
 
   /** Validates the timespan
@@ -226,6 +263,10 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
       throw new IllegalArgumentException("Invalid aggregator");
     }
     
+    if (rate_options != null) {
+      rate_options.validate();
+    }
+    
     if (!Strings.isNullOrEmpty(slice_config)) {
       slice = new SliceConfig(slice_config);
     }
@@ -239,22 +280,18 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
   public static final class Builder {
     @JsonProperty
     private String start;
-
     @JsonProperty
     private String end;
-
     @JsonProperty
     private String timezone;
-
     @JsonProperty
     private Downsampler downsampler;
-    
     @JsonProperty
     private String aggregator;
-    
     @JsonProperty
     private boolean rate;
-    
+    @JsonProperty
+    private RateOptions rateOptions;
     @JsonProperty
     private String sliceConfig;
     
@@ -278,6 +315,12 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
       return this;
     }
 
+    @JsonIgnore
+    public Builder setDownsampler(final Downsampler.Builder downsample) {
+      this.downsampler = downsample.build();
+      return this;
+    }
+    
     public Builder setAggregator(final String aggregator) {
       this.aggregator = aggregator;
       return this;
@@ -285,6 +328,17 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
     
     public Builder setRate(final boolean rate) {
       this.rate = rate;
+      return this;
+    }
+    
+    public Builder setRateOptions(final RateOptions rate_options) {
+      this.rateOptions = rate_options;
+      return this;
+    }
+    
+    @JsonIgnore
+    public Builder setRateOptions(final RateOptions.Builder rate_options) {
+      this.rateOptions = rate_options.build();
       return this;
     }
     

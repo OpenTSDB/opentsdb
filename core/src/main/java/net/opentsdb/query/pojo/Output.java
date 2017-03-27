@@ -44,7 +44,7 @@ public class Output extends Validatable implements Comparable<Output> {
    * Default ctor
    * @param builder The builder to pull values from
    */
-  public Output(Builder builder) {
+  public Output(final Builder builder) {
     this.id = builder.id;
     this.alias = builder.alias;
   }
@@ -62,6 +62,22 @@ public class Output extends Validatable implements Comparable<Output> {
   /** @return A new builder for the output */
   public static Builder newBuilder() {
     return new Builder();
+  }
+  
+  /**
+   * Clones an output into a new builder.
+   * @param output A non-null output to pull values from
+   * @return A new builder populated with values from the given output.
+   * @throws IllegalArgumentException if the output was null.
+   * @since 3.0
+   */
+  public static Builder newBuilder(final Output output) {
+    if (output == null) {
+      throw new IllegalArgumentException("Output cannot be null.");
+    }
+    return new Builder()
+        .setId(output.id)
+        .setAlias(output.alias);
   }
 
   /** Validates the output

@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
 import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
@@ -137,12 +138,34 @@ public class Join extends Validatable implements Comparable<Join> {
   
   /** @return The tag keys to consider when performing the join. */
   public List<String> getTags() {
-    return tags;
+    return tags == null ? null : Collections.unmodifiableList(tags);
   }
   
   /** @return A new builder for the joiner */
   public static Builder newBuilder() {
     return new Builder();
+  }
+  
+  /**
+   * Clones a join into a new builder.
+   * @param join A non-null join to pull values from
+   * @return A new builder populated with values from the given join.
+   * @throws IllegalArgumentException if the join was null.
+   * @since 3.0
+   */
+  public static Builder newBuilder(final Join join) {
+    if (join == null) {
+      throw new IllegalArgumentException("Join cannot be null.");
+    }
+    final Builder builder = new Builder()
+        .setOperator(join.operator)
+        .setIncludeAggTags(join.include_agg_tags)
+        .setIncludeDisjointTags(join.include_disjoint_tags)
+        .setUseQueryTags(join.use_query_tags);
+    if (join.tags != null) {
+      builder.setTags(Lists.newArrayList(join.tags));
+    }
+    return builder;
   }
   
   /** Validates the joiner
@@ -269,6 +292,18 @@ public class Join extends Validatable implements Comparable<Join> {
         Collections.sort(tags);
       }
       this.tags = tags;
+      return this;
+    }
+    
+    public Builder addTag(final String tag) {
+      if (tags == null) {
+        tags = Lists.newArrayList(tag);
+      } else {
+        if (!tags.contains(tag)) {
+          tags.add(tag);
+          Collections.sort(tags);
+        }
+      }
       return this;
     }
     

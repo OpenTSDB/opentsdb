@@ -17,6 +17,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotSame;
 
 public class TestOutput {
   @Test
@@ -44,6 +45,18 @@ public class TestOutput {
     // pass if no unexpected exception
   }
 
+  @Test
+  public void build() throws Exception {
+    final Output output = new Output.Builder()
+        .setId("out1")
+        .setAlias("MyMetric")
+        .build();
+    final Output clone = Output.newBuilder(output).build();
+    assertNotSame(output, clone);
+    assertEquals("out1", clone.getId());
+    assertEquals("MyMetric", clone.getAlias());
+  }
+  
   @Test
   public void hashCodeEqualsCompareTo() throws Exception {
     final Output o1 = new Output.Builder()

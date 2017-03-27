@@ -70,6 +70,22 @@ public class NumericFillPolicy implements Comparable<NumericFillPolicy> {
     return new Builder();
   }
   
+  /** 
+   * Clones a fill policy into a new builder.
+   * @param fill_policy A non-null fill policy to pull values from. 
+   * @return A builder populated with values from the given fill policy.
+   * @throws IllegalArgumentException if the fill was null. 
+   * @since 3.0
+   */
+  public static Builder newBuilder(final NumericFillPolicy fill_policy) {
+    if (fill_policy == null) {
+      throw new IllegalArgumentException("Fill policy cannot be null.");
+    }
+    return new Builder()
+        .setPolicy(fill_policy.policy)
+        .setValue(fill_policy.value);
+  }
+  
   /**
    * A builder class for deserialization via Jackson
    */

@@ -15,6 +15,7 @@ package net.opentsdb.query.pojo;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -65,7 +66,7 @@ public class Metric extends Validatable implements Comparable<Metric> {
    * Default ctor
    * @param builder The builder to pull values from
    */
-  protected Metric(Builder builder) {
+  protected Metric(final Builder builder) {
     metric = builder.metric;
     id = builder.id;
     filter = builder.filter;
@@ -113,6 +114,27 @@ public class Metric extends Validatable implements Comparable<Metric> {
   /** @return A new builder for the metric */
   public static Builder newBuilder() {
     return new Builder();
+  }
+  
+  /**
+   * Clones an metric into a new builder.
+   * @param metric A non-null metric to pull values from
+   * @return A new builder populated with values from the given metric.
+   * @throws IllegalArgumentException if the metric was null.
+   * @since 3.0
+   */
+  public static Builder newBuilder(final Metric metric) {
+    if (metric == null) {
+      throw new IllegalArgumentException("Metric cannot be null.");
+    }
+    return new Builder()
+        .setAggregator(metric.aggregator)
+        .setDownsampler(metric.downsampler)
+        .setFillPolicy(metric.fill_policy)
+        .setFilter(metric.filter)
+        .setId(metric.id)
+        .setMetric(metric.metric)
+        .setTimeOffset(metric.time_offset);
   }
 
   /** Validates the metric
@@ -257,8 +279,20 @@ public class Metric extends Validatable implements Comparable<Metric> {
       return this;
     }
     
+    @JsonIgnore
+    public Builder setFillPolicy(NumericFillPolicy.Builder fill_policy) {
+      this.fillPolicy = fill_policy.build();
+      return this;
+    }
+    
     public Builder setDownsampler(final Downsampler downsampler) {
       this.downsampler = downsampler;
+      return this;
+    }
+    
+    @JsonIgnore
+    public Builder setDownsampler(final Downsampler.Builder downsampler) {
+      this.downsampler = downsampler.build();
       return this;
     }
     

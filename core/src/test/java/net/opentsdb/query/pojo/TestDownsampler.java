@@ -70,7 +70,23 @@ public class TestDownsampler {
     Downsampler downsampler = JSON.parseToObject(json, Downsampler.class);
     downsampler.validate();
     Downsampler expected = Downsampler.newBuilder()
-        .setInterval("1h").setAggregator("zimsum").build();
+        .setInterval("1h")
+        .setAggregator("zimsum")
+        .build();
+    assertEquals(expected, downsampler);
+    
+    json = "{\"interval\":\"1h\",\"aggregator\":\"zimsum\","
+        + "\"fillPolicy\":{\"policy\":\"nan\"},\"useCalendar\":true,"
+        + "\"timezone\":\"PST\"}";
+    downsampler = JSON.parseToObject(json, Downsampler.class);
+    downsampler.validate();
+    expected = Downsampler.newBuilder()
+        .setInterval("1h")
+        .setAggregator("zimsum")
+        .setFillPolicy(new NumericFillPolicy(FillPolicy.NOT_A_NUMBER))
+        .setUseCalendar(true)
+        .setTimezone("PST")
+        .build();
     assertEquals(expected, downsampler);
     
     json = "{\"interval\":\"1h\",\"aggregator\":\"zimsum\","
@@ -102,12 +118,39 @@ public class TestDownsampler {
   }
 
   @Test
+  public void builder() throws Exception {
+    Downsampler.Builder builder = Downsampler.newBuilder()
+        .setAggregator("sum")
+        .setInterval("60m")
+        .setFillPolicy(NumericFillPolicy.newBuilder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER))
+        .setUseCalendar(true)
+        .setTimezone("PST");
+    
+    Downsampler built = builder.build();
+    assertEquals("sum", built.getAggregator());
+    assertEquals("60m", built.getInterval());
+    assertEquals(FillPolicy.NOT_A_NUMBER, built.getFillPolicy().getPolicy());
+    assertTrue(built.useCalendar());
+    assertEquals("PST", built.getTimezone());
+    
+    built = Downsampler.newBuilder(built).build();
+    assertEquals("sum", built.getAggregator());
+    assertEquals("60m", built.getInterval());
+    assertEquals(FillPolicy.NOT_A_NUMBER, built.getFillPolicy().getPolicy());
+    assertTrue(built.useCalendar());
+    assertEquals("PST", built.getTimezone());
+  }
+  
+  @Test
   public void hashCodeEqualsCompareTo() throws Exception {
     final Downsampler ds1 = new Downsampler.Builder()
         .setAggregator("sum")
         .setInterval("1h")
         .setFillPolicy(new NumericFillPolicy.Builder()
             .setPolicy(FillPolicy.NOT_A_NUMBER).build())
+        .setUseCalendar(true)
+        .setTimezone("PST")
         .build();
     
     Downsampler ds2 = new Downsampler.Builder()
@@ -115,6 +158,8 @@ public class TestDownsampler {
         .setInterval("1h")
         .setFillPolicy(new NumericFillPolicy.Builder()
             .setPolicy(FillPolicy.NOT_A_NUMBER).build())
+        .setUseCalendar(true)
+        .setTimezone("PST")
         .build();
     assertEquals(ds1.hashCode(), ds2.hashCode());
     assertEquals(ds1, ds2);
@@ -125,6 +170,8 @@ public class TestDownsampler {
         .setInterval("1h")
         .setFillPolicy(new NumericFillPolicy.Builder()
             .setPolicy(FillPolicy.NOT_A_NUMBER).build())
+        .setUseCalendar(true)
+        .setTimezone("PST")
         .build();
     assertNotEquals(ds1.hashCode(), ds2.hashCode());
     assertNotEquals(ds1, ds2);
@@ -135,6 +182,8 @@ public class TestDownsampler {
         .setInterval("30m")  // <-- diff
         .setFillPolicy(new NumericFillPolicy.Builder()
             .setPolicy(FillPolicy.NOT_A_NUMBER).build())
+        .setUseCalendar(true)
+        .setTimezone("PST")
         .build();
     assertNotEquals(ds1.hashCode(), ds2.hashCode());
     assertNotEquals(ds1, ds2);
@@ -145,6 +194,8 @@ public class TestDownsampler {
         .setInterval("1h")
         .setFillPolicy(new NumericFillPolicy.Builder()
             .setPolicy(FillPolicy.ZERO).build())   // <-- diff
+        .setUseCalendar(true)
+        .setTimezone("PST")
         .build();
     assertNotEquals(ds1.hashCode(), ds2.hashCode());
     assertNotEquals(ds1, ds2);
@@ -154,7 +205,45 @@ public class TestDownsampler {
         .setAggregator("sum")
         .setInterval("1h")
         //.setFillPolicy(new NumericFillPolicy.Builder() // <-- diff
-        //    .setPolicy(FillPolicy.ZERO).build())   
+        //    .setPolicy(FillPolicy.NOT_A_NUMBER).build())   
+        .setUseCalendar(true)
+        .setTimezone("PST")
+        .build();
+    assertNotEquals(ds1.hashCode(), ds2.hashCode());
+    assertNotEquals(ds1, ds2);
+    assertEquals(1, ds1.compareTo(ds2));
+    
+    ds2 = new Downsampler.Builder()
+        .setAggregator("sum")
+        .setInterval("1h")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER).build())   
+        //.setUseCalendar(true)  // <-- diff
+        .setTimezone("PST")
+        .build();
+    assertNotEquals(ds1.hashCode(), ds2.hashCode());
+    assertNotEquals(ds1, ds2);
+    assertEquals(-1, ds1.compareTo(ds2));
+    
+    ds2 = new Downsampler.Builder()
+        .setAggregator("sum")
+        .setInterval("1h")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER).build())   
+        .setUseCalendar(true)
+        .setTimezone("UTC")  // <-- diff
+        .build();
+    assertNotEquals(ds1.hashCode(), ds2.hashCode());
+    assertNotEquals(ds1, ds2);
+    assertEquals(-1, ds1.compareTo(ds2));
+    
+    ds2 = new Downsampler.Builder()
+        .setAggregator("sum")
+        .setInterval("1h")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER).build())   
+        .setUseCalendar(true)
+        //.setTimezone("PST")  // <-- diff
         .build();
     assertNotEquals(ds1.hashCode(), ds2.hashCode());
     assertNotEquals(ds1, ds2);

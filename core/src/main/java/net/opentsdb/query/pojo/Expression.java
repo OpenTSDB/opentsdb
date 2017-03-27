@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.pojo;
 
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -34,6 +35,7 @@ import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
@@ -109,14 +111,41 @@ public class Expression extends Validatable implements Comparable<Expression> {
     return fill_policy;
   }
   
-  /** @return an optional list of variables to fill policies. */
+  /** @return an optional list of variables to fill policies. May be null. */
   public Map<String, NumericFillPolicy> getFillPolicies() {
-    return fill_policies;
+    return fill_policies == null ? null : 
+        Collections.unmodifiableMap(fill_policies);
   }
   
   /** @return A new builder for the expression */
   public static Builder newBuilder() {
     return new Builder();
+  }
+  
+  /**
+   * Clones an expression into a new builder.
+   * @param expression A non-null expression to pull values from
+   * @return A new builder populated with values from the given expression.
+   * @throws IllegalArgumentException if the expression was null.
+   * @since 3.0
+   */
+  public static Builder newBuilder(final Expression expression) {
+    if (expression == null) {
+      throw new IllegalArgumentException("Expression cannot be null.");
+    }
+    final Builder builder = new Builder()
+        .setId(expression.id)
+        .setExpression(expression.expr);
+    if (expression.fill_policy != null) {
+      builder.setFillPolicy(expression.fill_policy);
+    }
+    if (expression.join != null) {
+      builder.setJoin(expression.join);
+    }
+    if (expression.fill_policies != null) {
+      builder.setFillPolicies(Maps.newHashMap(expression.fill_policies));
+    }
+    return builder;
   }
 
   /** Validates the expression
@@ -221,7 +250,7 @@ public class Expression extends Validatable implements Comparable<Expression> {
   }
 
   /**
-   * A builder for the downsampler component of a query
+   * A builder for the expression component of a query
    */
   @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonPOJOBuilder(buildMethodName = "build", withPrefix = "")
@@ -237,31 +266,61 @@ public class Expression extends Validatable implements Comparable<Expression> {
     @JsonProperty
     private Map<String, NumericFillPolicy> fillPolicies;
     
-    public Builder setId(String id) {
+    public Builder setId(final String id) {
       Query.validateId(id);
       this.id = id;
       return this;
     }
 
-    public Builder setExpression(String expr) {
+    public Builder setExpression(final String expr) {
       this.expr = expr;
       return this;
     }
 
-    public Builder setJoin(Join join) {
+    public Builder setJoin(final Join join) {
       this.join = join;
       return this;
     }
     
-    public Builder setFillPolicy(NumericFillPolicy fill_policy) {
+    @JsonIgnore
+    public Builder setJoin(final Join.Builder join) {
+      this.join = join.build();
+      return this;
+    }
+    
+    public Builder setFillPolicy(final NumericFillPolicy fill_policy) {
       this.fillPolicy = fill_policy;
       return this;
     }
     
-    public Builder setFillPolicies(Map<String, NumericFillPolicy> fill_policies) {
+    @JsonIgnore
+    public Builder setFillPolicy(final NumericFillPolicy.Builder fill_policy) {
+      this.fillPolicy = fill_policy.build();
+      return this;
+    }
+    
+    public Builder setFillPolicies(final Map<String, NumericFillPolicy> fill_policies) {
       if (fill_policies != null) {
         fillPolicies = new TreeMap<String, NumericFillPolicy>(fill_policies);
       }
+      return this;
+    }
+    
+    public Builder addFillPolicy(final String variable, 
+        final NumericFillPolicy fill_policy) {
+      if (fillPolicies == null) {
+        fillPolicies = Maps.newHashMapWithExpectedSize(1);
+      }
+      fillPolicies.put(variable, fill_policy);
+      return this;
+    }
+    
+    public Builder addFillPolicy(final String variable, 
+        final NumericFillPolicy.Builder fill_policy) {
+      if (fillPolicies == null) {
+        fillPolicies = Maps.newHashMapWithExpectedSize(1);
+      }
+      fillPolicies.put(variable, fill_policy.build());
       return this;
     }
     

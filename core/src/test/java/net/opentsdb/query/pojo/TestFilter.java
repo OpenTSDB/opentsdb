@@ -23,6 +23,7 @@ import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 
 public class TestFilter {
@@ -100,6 +101,31 @@ public class TestFilter {
     filter.validate();
   }
 
+  @Test
+  public void build() throws Exception{
+    final Filter filter = Filter.newBuilder()
+        .setId("f1")
+        .addFilter(new TagVFilter.Builder()
+            .setFilter("*")
+            .setGroupBy(false)
+            .setTagk("host")
+            .setType("iwildcard"))
+        .addFilter(new TagVFilter.Builder()
+            .setFilter("*")
+            .setGroupBy(true)
+            .setTagk("datacenter")
+            .setType("wildcard"))
+        .setExplicitTags(true)
+        .build();
+    
+    final Filter clone = Filter.newBuilder(filter).build();
+    assertNotSame(clone, filter);
+    assertEquals("f1", clone.getId());
+    assertTrue(clone.getExplicitTags());
+    assertEquals("host", clone.getTags().get(0).getTagk());
+    assertEquals("datacenter", clone.getTags().get(1).getTagk());
+  }
+  
   public void hashCodeEqualsCompareTo() throws Exception {
     final Filter f1 = new Filter.Builder()
         .setId("f1")
@@ -135,6 +161,44 @@ public class TestFilter {
               .setType("wildcard")
               .setGroupBy(true)
               .build()))
+        .build();
+    assertEquals(f1.hashCode(), f2.hashCode());
+    assertEquals(f1, f2);
+    assertEquals(0, f1.compareTo(f2));
+    
+    f2 = new Filter.Builder()
+        .setId("f1")
+        .setExplicitTags(false)
+        // use add method
+        .addFilter(new TagVFilter.Builder()
+              .setFilter("web01")
+              .setTagk("host")
+              .setType("literal_or")
+              .setGroupBy(false))
+        .addFilter(new TagVFilter.Builder()
+            .setFilter("phx*")
+            .setTagk("dc")
+            .setType("wildcard")
+            .setGroupBy(true))
+        .build();
+    assertEquals(f1.hashCode(), f2.hashCode());
+    assertEquals(f1, f2);
+    assertEquals(0, f1.compareTo(f2));
+    
+    f2 = new Filter.Builder()
+        .setId("f1")
+        .setExplicitTags(false)
+        // use add method. Order is different!
+        .addFilter(new TagVFilter.Builder()
+            .setFilter("phx*")
+            .setTagk("dc")
+            .setType("wildcard")
+            .setGroupBy(true))
+        .addFilter(new TagVFilter.Builder()
+            .setFilter("web01")
+            .setTagk("host")
+            .setType("literal_or")
+            .setGroupBy(false))
         .build();
     assertEquals(f1.hashCode(), f2.hashCode());
     assertEquals(f1, f2);

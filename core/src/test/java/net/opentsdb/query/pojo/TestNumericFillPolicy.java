@@ -14,6 +14,7 @@ package net.opentsdb.query.pojo;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -306,6 +307,14 @@ public class TestNumericFillPolicy {
       des_nfp = JSON.parseToObject(json, NumericFillPolicy.class);
       fail("Expected a IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void build() throws Exception {
+    NumericFillPolicy fill = new NumericFillPolicy(FillPolicy.SCALAR, 42);
+    NumericFillPolicy clone = NumericFillPolicy.newBuilder(fill).build();
+    assertEquals(fill, clone);
+    assertNotSame(fill, clone);
   }
   
   @Test

@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.pojo;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -59,18 +60,22 @@ public class Query extends Validatable implements Comparable<Query> {
   
   /** A list of outputs */
   private List<Output> outputs;
+  
+  /** The order of a sub query in a slice of queries. */
+  private int order;
 
   /**
    * Default ctor
    * @param builder The builder to pull values from
    */
-  public Query(Builder builder) {
+  public Query(final Builder builder) {
     this.name = builder.name;
     this.time = builder.time;
     this.filters = builder.filters;
     this.metrics = builder.metrics;
     this.expressions = builder.expressions;
     this.outputs = builder.outputs;
+    this.order = builder.order;
   }
 
   /** @return an optional name for the query */
@@ -85,27 +90,62 @@ public class Query extends Validatable implements Comparable<Query> {
 
   /** @return a list of filters */
   public List<Filter> getFilters() {
-    return filters;
+    return filters == null ? null : Collections.unmodifiableList(filters);
   }
 
   /** @return a list of metrics */
   public List<Metric> getMetrics() {
-    return metrics;
+    return metrics == null ? null : Collections.unmodifiableList(metrics);
   }
 
   /** @return a list of expressions */
   public List<Expression> getExpressions() {
-    return expressions;
+    return expressions == null ? null : Collections.unmodifiableList(expressions);
   }
 
   /** @return a list of outputs */
   public List<Output> getOutputs() {
-    return outputs;
+    return outputs == null ? null : Collections.unmodifiableList(outputs);
   }
 
+  /** @return The order of a aub query in a slice of queries. */
+  public int getOrder() {
+    return order;
+  }
+  
   /** @return A new builder for the query */
   public static Builder newBuilder() {
     return new Builder();
+  }
+  
+  /**
+   * Clones an query into a new builder.
+   * @param query A non-null query to pull values from
+   * @return A new builder populated with values from the given query.
+   * @throws IllegalArgumentException if the query was null.
+   * @since 3.0
+   */
+  public static Builder newBuilder(final Query query) {
+    if (query == null) {
+      throw new IllegalArgumentException("Query cannot be null.");
+    }
+    final Builder builder = new Builder()
+        .setName(query.getName())
+        .setTime(query.time)
+        .setOrder(query.order);
+    if (query.filters != null) {
+      builder.setFilters(Lists.newArrayList(query.filters));
+    }
+    if (query.metrics != null) {
+      builder.setMetrics(Lists.newArrayList(query.metrics));
+    }
+    if (query.expressions != null) {
+      builder.setExpressions(Lists.newArrayList(query.expressions));
+    }
+    if (query.outputs != null) {
+      builder.setOutputs(Lists.newArrayList(query.outputs));
+    }
+    return builder;
   }
   
   /** Validates the query
@@ -320,6 +360,8 @@ public class Query extends Validatable implements Comparable<Query> {
     private List<Expression> expressions;
     @JsonProperty
     private List<Output> outputs;
+    @JsonProperty
+    private int order;
 
     public Builder() { }
 
@@ -341,6 +383,28 @@ public class Query extends Validatable implements Comparable<Query> {
       return this;
     }
 
+    @JsonIgnore
+    public Builder addFilter(final Filter filter) {
+      if (filters == null) {
+        filters = Lists.newArrayList(filter);
+      } else {
+        filters.add(filter);
+        Collections.sort(filters);
+      }
+      return this;
+    }
+    
+    @JsonIgnore
+    public Builder addFilter(final Filter.Builder filter) {
+      if (filters == null) {
+        filters = Lists.newArrayList(filter.build());
+      } else {
+        filters.add(filter.build());
+        Collections.sort(filters);
+      }
+      return this;
+    }
+    
     public Builder setMetrics(final List<Metric> metrics) {
       this.metrics = metrics;
       if (metrics != null) {
@@ -349,6 +413,28 @@ public class Query extends Validatable implements Comparable<Query> {
       return this;
     }
 
+    @JsonIgnore
+    public Builder addMetric(final Metric metric) {
+      if (metrics == null) {
+        metrics = Lists.newArrayList(metric);
+      } else {
+        metrics.add(metric);
+        Collections.sort(metrics);
+      }
+      return this;
+    }
+    
+    @JsonIgnore
+    public Builder addMetric(final Metric.Builder metric) {
+      if (metrics == null) {
+        metrics = Lists.newArrayList(metric.build());
+      } else {
+        metrics.add(metric.build());
+        Collections.sort(metrics);
+      }
+      return this;
+    }
+    
     public Builder setExpressions(final List<Expression> expressions) {
       this.expressions = expressions;
       if (expressions != null) {
@@ -357,6 +443,28 @@ public class Query extends Validatable implements Comparable<Query> {
       return this;
     }
 
+    @JsonIgnore
+    public Builder addExpression(final Expression expression) {
+      if (expressions == null) {
+        expressions = Lists.newArrayList(expression);
+      } else {
+        expressions.add(expression);
+        Collections.sort(expressions);
+      }
+      return this;
+    }
+    
+    @JsonIgnore
+    public Builder addExpression(final Expression.Builder expression) {
+      if (expressions == null) {
+        expressions = Lists.newArrayList(expression.build());
+      } else {
+        expressions.add(expression.build());
+        Collections.sort(expressions);
+      }
+      return this;
+    }
+    
     public Builder setOutputs(final List<Output> outputs) {
       this.outputs = outputs;
       if (outputs != null) {
@@ -365,6 +473,33 @@ public class Query extends Validatable implements Comparable<Query> {
       return this;
     }
 
+    @JsonIgnore
+    public Builder addOutput(final Output output) {
+      if (outputs == null) {
+        outputs = Lists.newArrayList(output);
+      } else {
+        outputs.add(output);
+        Collections.sort(outputs);
+      }
+      return this;
+    }
+    
+    @JsonIgnore
+    public Builder addOutput(final Output.Builder output) {
+      if (outputs == null) {
+        outputs = Lists.newArrayList(output.build());
+      } else {
+        outputs.add(output.build());
+        Collections.sort(outputs);
+      }
+      return this;
+    }
+    
+    public Builder setOrder(final int order) {
+      this.order = order;
+      return this;
+    }
+    
     public Query build() {
       return new Query(this);
     }

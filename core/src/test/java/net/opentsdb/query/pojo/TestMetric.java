@@ -18,6 +18,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 
 public class TestMetric {
@@ -120,6 +121,33 @@ public class TestMetric {
     metric.validate();
   }
 
+  @Test
+  public void build() throws Exception {
+    final Metric metric = new Metric.Builder()
+        .setId("m1")
+        .setFilter("f1")
+        .setMetric("sys.cpu.user")
+        .setTimeOffset("1h-ago")
+        .setAggregator("sum")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setDownsampler(Downsampler.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .build())
+        .build();
+    final Metric clone = Metric.newBuilder(metric).build();
+    assertNotSame(clone, metric);
+    assertEquals("m1", clone.getId());
+    assertEquals("f1", clone.getFilter());
+    assertEquals("sys.cpu.user", clone.getMetric());
+    assertEquals("1h-ago", clone.getTimeOffset());
+    assertEquals("sum", clone.getAggregator());
+    assertEquals(FillPolicy.NOT_A_NUMBER, clone.getFillPolicy().getPolicy());
+    assertEquals("1m", clone.getDownsampler().getInterval());
+  }
+  
   @Test
   public void hashCodeEqualsCompareTo() throws Exception {
     final Metric m1 = new Metric.Builder()
