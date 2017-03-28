@@ -374,6 +374,12 @@ public class Query extends Validatable implements Comparable<Query> {
       this.time = time;
       return this;
     }
+    
+    @JsonIgnore
+    public Builder setTime(final Timespan.Builder time) {
+      this.time = time.build();
+      return this;
+    }
 
     public Builder setFilters(final List<Filter> filters) {
       this.filters = filters;

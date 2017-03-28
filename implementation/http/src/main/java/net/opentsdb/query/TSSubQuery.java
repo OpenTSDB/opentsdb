@@ -22,6 +22,7 @@ import java.util.NoSuchElementException;
 import net.opentsdb.core.Aggregator;
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.utils.ByteSet;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -64,7 +65,7 @@ public final class TSSubQuery {
   private boolean rate;
   
   /** Rate options for counter rollover/reset */
-  //private RateOptions rate_options;
+  private RateOptions rate_options;
   
   /** Parsed aggregation function */
   private Aggregator agg;
@@ -298,9 +299,9 @@ public final class TSSubQuery {
   }
 
   /** @return options to use for rate calculations */
-//  public RateOptions getRateOptions() {
-//    return rate_options;
-//  }
+  public RateOptions getRateOptions() {
+    return rate_options;
+  }
   
   /** @return the filters pulled from the tags object 
    * @since 2.2 */
@@ -379,10 +380,10 @@ public final class TSSubQuery {
   }
 
   /** @param options Options to set when calculating rates */
-//  public void setRateOptions(RateOptions options) {
-//    this.rate_options = options;
-//  }
-//  
+  public void setRateOptions(RateOptions options) {
+    this.rate_options = options;
+  }
+  
   /** @param filters A list of filters to use when querying
    * @since 2.2 */
   public void setFilters(List<TagVFilter> filters) {

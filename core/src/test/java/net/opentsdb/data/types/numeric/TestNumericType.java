@@ -370,4 +370,61 @@ public class TestNumericType {
     assertEquals(false, NumericType.fitsInFloat(8.208611994536002E8));
   }
   
+  public void parseLongSimple() {
+    assertEquals(0, NumericType.parseLong("0"));
+    assertEquals(0, NumericType.parseLong("+0"));
+    assertEquals(0, NumericType.parseLong("-0"));
+    assertEquals(1, NumericType.parseLong("1"));
+    assertEquals(1, NumericType.parseLong("+1"));
+    assertEquals(-1, NumericType.parseLong("-1"));
+    assertEquals(4242, NumericType.parseLong("4242"));
+    assertEquals(4242, NumericType.parseLong("+4242"));
+    assertEquals(-4242, NumericType.parseLong("-4242"));
+  }
+
+  @Test
+  public void parseLongMaxValue() {
+    assertEquals(Long.MAX_VALUE, NumericType.parseLong(Long.toString(Long.MAX_VALUE)));
+  }
+
+  @Test
+  public void parseLongMinValue() {
+    assertEquals(Long.MIN_VALUE, NumericType.parseLong(Long.toString(Long.MIN_VALUE)));
+  }
+
+  @Test(expected=NumberFormatException.class)
+  public void parseLongEmptyString() {
+    NumericType.parseLong("");
+  }
+
+  @Test(expected=NumberFormatException.class)
+  public void parseLongMalformed() {
+    NumericType.parseLong("42a51");
+  }
+
+  @Test(expected=NumberFormatException.class)
+  public void parseLongMalformedPlus() {
+    NumericType.parseLong("+");
+  }
+
+  @Test(expected=NumberFormatException.class)
+  public void parseLongMalformedMinus() {
+    NumericType.parseLong("-");
+  }
+
+  @Test(expected=NumberFormatException.class)
+  public void parseLongValueTooLarge() {
+    NumericType.parseLong("18446744073709551616");
+  }
+
+  @Test(expected=NumberFormatException.class)
+  public void parseLongValueTooLargeSubtle() {
+    NumericType.parseLong("9223372036854775808"); // MAX_VALUE + 1
+  }
+
+  @Test(expected=NumberFormatException.class)
+  public void parseLongValueTooSmallSubtle() {
+    NumericType.parseLong("-9223372036854775809"); // MIN_VALUE - 1
+  }
+
 }

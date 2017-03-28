@@ -12,11 +12,22 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.context;
 
+import java.util.Map;
+
+import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+
 /**
- * TODO
+ * TODO - stub
  *
  * @since 3.0
  */
-public interface RemoteContext {
+public class HttpContext implements RemoteContext {
 
+  public Map<String, String> getHeaders() {
+    return null;
+  }
+  
+  public CloseableHttpAsyncClient getClient() {
+    return null;
+  }
 }

@@ -106,7 +106,7 @@ public class TestQuery {
 
   @Test(expected = IllegalArgumentException.class)
   public void validationErrorWhenTimeIsNull() throws Exception {
-    Query query = getDefaultQueryBuilder().setTime(null).build();
+    Query query = getDefaultQueryBuilder().setTime((Timespan) null).build();
     query.validate();
   }
 

@@ -504,7 +504,7 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
   /** @return A copy of this filter BEFORE tag resolution, as a new object. */
   @JsonIgnore
   public TagVFilter getCopy() {
-    return Builder()
+    return newBuilder()
         .setFilter(filter)
         .setTagk(tagk)
         .setType(getType())
@@ -578,14 +578,13 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
         .hash();
   }
   
-  
   @Override
   public int compareTo(final TagVFilter filter) {
     return Bytes.memcmpMaybeNull(tagk_bytes, filter.tagk_bytes);
   }
 
   /** @return a TagVFilter builder for constructing filters */
-  public static Builder Builder() {
+  public static Builder newBuilder() {
     return new Builder();
   }
   
