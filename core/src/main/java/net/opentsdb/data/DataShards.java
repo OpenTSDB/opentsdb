@@ -53,6 +53,9 @@ public abstract class DataShards {
   /** The base time shared by all shards. */
   protected TimeStamp base_time;
   
+  /** An order if shard is part of a slice config. */
+  protected int order;
+  
   /**
    * Default ctor that sets the ID.
    * @param id A non-null ID.
@@ -63,6 +66,7 @@ public abstract class DataShards {
       throw new IllegalArgumentException("ID cannot be null.");
     }
     this.id = id;
+    order = -1;
   }
   
   /** @return The ID shared with all shards in the set. */
@@ -80,12 +84,18 @@ public abstract class DataShards {
     return shards == null ? EMPTY_SHARDS : Collections.unmodifiableList(shards);
   }
   
+  /** @return An optional order within a slice config. -1 by default. */
+  public int order() {
+    return order;
+  }
+  
   /**
    * Adds a shard to the collection.
    * @param shard A non-null data shard.
    * @throws IllegalArgumentException if the shard was null, it's ID was different
    * from the collection ID, it's base time was different from the collection's
-   * basetime or a shard of the given type is already present.
+   * base time, it had a different order from other shards or a shard of the 
+   * given type is already present.
    */
   public void addShard(final DataShard<?> shard) {
     if (shard == null) {
@@ -99,10 +109,15 @@ public abstract class DataShards {
       shards = new ArrayList<DataShard<?>>(1);
       shards.add(shard);
       base_time = shard.baseTime();
+      order = shard.order();
     } else {
       if (base_time.compare(TimeStampComparator.NE, shard.baseTime())) {
-        throw new IllegalArgumentException("Base time " + shard.baseTime() 
+        throw new IllegalArgumentException("Shard base time " + shard.baseTime() 
           + " was different from the collection's time: " + base_time);
+      }
+      if (shard.order() != order) {
+        throw new IllegalArgumentException("Shard order " + shard.order() 
+          + " was different from the collection's order: " + order);
       }
       for (final DataShard<?> existing : shards) {
         if (existing.type().equals(shard.type())) {

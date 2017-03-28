@@ -68,6 +68,9 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
   /** How many bytes to encode the offset one from 1 to 8. */
   private final byte encode_on;
   
+  /** An order if shard is part of a slice config. */
+  private final int order;
+  
   /** The base timestamp for the shard (the first timestamp added). */
   private long base_timestamp = -1;
   
@@ -103,7 +106,7 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
    * @throws IllegalArgumentException if the ID was null or span was less than 1.
    */
   public NumericMillisecondShard(final TimeSeriesId id, final long span) {
-    this(id, span, 1);
+    this(id, span, -1, 1);
   }
   
   /**
@@ -112,12 +115,28 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
    * 
    * @param id A non-null ID to associate with the shard.
    * @param span The width of data to store in milliseconds.
+   * @param order An optional order within a slice config.
+   * @throws IllegalArgumentException if the ID was null or span was less than
+   * 1 or the count was less than zero.
+   */
+  public NumericMillisecondShard(final TimeSeriesId id, final long span, 
+      final int order) {
+    this(id, span, order, 1);
+  }
+  
+  /**
+   * Default ctor that sizes the arrays for the given count. If the count is zero
+   * then the arrays will be initialized empty.
+   * 
+   * @param id A non-null ID to associate with the shard.
+   * @param span The width of data to store in milliseconds.
+   * @param order An optional order within a slice config.
    * @param count The expected number of values in the set.
    * @throws IllegalArgumentException if the ID was null or span was less than
    * 1 or the count was less than zero.
    */
   public NumericMillisecondShard(final TimeSeriesId id, final long span, 
-      final int count) {
+      final int order, final int count) {
     if (id == null) {
       throw new IllegalArgumentException("ID cannot be null.");
     }
@@ -129,11 +148,17 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
     }
     this.id = id;
     this.span = span;
+    this.order = order;
     dp = new MutableNumericType(id);
     encode_on = NumericType.encodeOn(span, NumericType.TOTAL_FLAG_BITS);
     timestamp = new MillisecondTimeStamp(-1);
     offsets = new byte[count * encode_on];
     values = new byte[count * 4]; // may be too large or too small.
+  }
+  
+  @Override
+  public int order() {
+    return order;
   }
   
   @Override

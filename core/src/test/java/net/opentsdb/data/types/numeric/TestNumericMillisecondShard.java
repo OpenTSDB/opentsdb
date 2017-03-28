@@ -59,6 +59,7 @@ public class TestNumericMillisecondShard {
     assertEquals(3, shard.offsets().length);
     assertEquals(4, shard.values().length);
     assertEquals(-1, shard.baseTime().msEpoch());
+    assertEquals(-1, shard.order());
     assertSame(id, shard.id());
     assertSame(shard, shard.iterator());
     try {
@@ -66,11 +67,25 @@ public class TestNumericMillisecondShard {
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    shard = new NumericMillisecondShard(id, 86400, 100);
+    shard = new NumericMillisecondShard(id, 86400, 42);
+    assertEquals(3, shard.encodeOn());
+    assertEquals(3, shard.offsets().length);
+    assertEquals(4, shard.values().length);
+    assertEquals(-1, shard.baseTime().msEpoch());
+    assertEquals(42, shard.order());
+    assertSame(id, shard.id());
+    assertSame(shard, shard.iterator());
+    try {
+      shard.next();
+      fail("Expected NoSuchElementException");
+    } catch (NoSuchElementException e) { }
+    
+    shard = new NumericMillisecondShard(id, 86400, 42, 100);
     assertEquals(3, shard.encodeOn());
     assertEquals(300, shard.offsets().length);
     assertEquals(400, shard.values().length);
     assertEquals(-1, shard.baseTime().msEpoch());
+    assertEquals(42, shard.order());
     assertSame(id, shard.id());
     assertSame(shard, shard.iterator());
     try {
@@ -78,11 +93,12 @@ public class TestNumericMillisecondShard {
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    shard = new NumericMillisecondShard(id, 1, 0);
+    shard = new NumericMillisecondShard(id, 1, 42, 0);
     assertEquals(1, shard.encodeOn());
     assertEquals(0, shard.offsets().length);
     assertEquals(0, shard.values().length);
     assertEquals(-1, shard.baseTime().msEpoch());
+    assertEquals(42, shard.order());
     assertSame(id, shard.id());
     assertSame(shard, shard.iterator());
     try {
@@ -91,22 +107,22 @@ public class TestNumericMillisecondShard {
     } catch (NoSuchElementException e) { }
     
     try {
-      shard = new NumericMillisecondShard(null, 86400, 100);
+      shard = new NumericMillisecondShard(null, 86400, 42, 100);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      shard = new NumericMillisecondShard(id, -86400, 100);
+      shard = new NumericMillisecondShard(id, -86400, 42, 100);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      shard = new NumericMillisecondShard(id, 0, 100);
+      shard = new NumericMillisecondShard(id, 0, 42, 100);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      shard = new NumericMillisecondShard(id, 86400, -1);
+      shard = new NumericMillisecondShard(id, 86400, 42, -1);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

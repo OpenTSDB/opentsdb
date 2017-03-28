@@ -13,10 +13,12 @@
 package net.opentsdb.data;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -35,6 +37,8 @@ public class TestDataShardsGroup {
     final TestGroup group = new TestGroup(id);
     assertSame(id, group.id());
     assertTrue(group.data().isEmpty());
+    assertEquals(-1, group.order());
+    assertNull(group.baseTime());
     
     try {
       new TestGroup(null);
@@ -47,16 +51,24 @@ public class TestDataShardsGroup {
     final TestGroup group = new TestGroup(id);
     
     final DataShards shards1 = mock(DataShards.class);
+    when(shards1.baseTime()).thenReturn(new MillisecondTimeStamp(1000L));
+    when(shards1.order()).thenReturn(42);
     final DataShards shards2 = mock(DataShards.class);
+    when(shards2.baseTime()).thenReturn(new MillisecondTimeStamp(1000L));
+    when(shards2.order()).thenReturn(42);
     
     group.addShards(shards1);
     assertEquals(1, group.data().size());
     assertSame(shards1, group.data().get(0));
+    assertEquals(1000L, group.baseTime().msEpoch());
+    assertEquals(42, group.order);
     
     group.addShards(shards2);
     assertEquals(2, group.data().size());
     assertSame(shards1, group.data().get(0));
     assertSame(shards2, group.data().get(1));
+    assertEquals(1000L, group.baseTime().msEpoch());
+    assertEquals(42, group.order);
     
     // no check on same shard added > once yet.
     group.addShards(shards2);
@@ -64,6 +76,23 @@ public class TestDataShardsGroup {
     assertSame(shards1, group.data().get(0));
     assertSame(shards2, group.data().get(1));
     assertSame(shards2, group.data().get(2));
+    assertEquals(1000L, group.baseTime().msEpoch());
+    assertEquals(42, group.order);
+    
+    // diff base time
+    when(shards1.baseTime()).thenReturn(new MillisecondTimeStamp(2000L));
+    try {
+      group.addShards(shards1);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    // diff order
+    when(shards1.baseTime()).thenReturn(new MillisecondTimeStamp(1000L));
+    when(shards1.order()).thenReturn(-1);
+    try {
+      group.addShards(shards1);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
     
     try {
       group.addShards(null);

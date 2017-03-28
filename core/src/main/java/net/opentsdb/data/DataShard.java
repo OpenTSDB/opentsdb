@@ -17,21 +17,32 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 
 /**
- * TODO complete
+ * A collection of data points for a specific {@link TimeSeriesDataType}. All
+ * values belong to the same {@link TimeSeriesId} as well as the same base time
+ * and time interval.
  * 
- * @param <T>
+ * @param <T> A {@link TimeSeriesDataType} representing the data.
  * 
  * @since 3.0
  */
 public interface DataShard<T extends TimeSeriesDataType> {
 
+  /** @return A non-null time series Id for all values in this series. */
   public TimeSeriesId id();
   
+  /** @return A base time stamp shared by all values in this set. Null if no
+   * data has been added to the shard. */
   public TimeStamp baseTime();
   
+  /** @return The type of data stored in this shard. */
   public TypeToken<T> type();
 
+  /** @return An optional order within a slice config. */
+  public int order();
+  
+  /** @return Whether or not this shard was fetched from a cache. */
   public boolean cached();
   
+  /** @return A non-null iterator to fetch values out of the shard. */
   public TimeSeriesIterator<T> iterator();
 }

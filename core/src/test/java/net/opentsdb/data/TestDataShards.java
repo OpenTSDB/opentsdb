@@ -48,7 +48,8 @@ public class TestDataShards {
     assertSame(id, shards.id());
     assertTrue(shards.data().isEmpty());
     assertNull(shards.baseTime());
-    
+    assertEquals(-1, shards.order());
+
     try {
       new TestShards(null);
       fail("Expected IllegalArgumentException");
@@ -64,13 +65,15 @@ public class TestDataShards {
           .setMetrics(Lists.newArrayList("sys.cpu.idle"))
           .build(), 
         NumericType.TYPE, 
-        new MillisecondTimeStamp(1000L));
+        new MillisecondTimeStamp(1000L),
+        -1);
     DataShard<?> note_mock = mockShard(
         SimpleStringTimeSeriesId.newBuilder()
           .setMetrics(Lists.newArrayList("sys.cpu.idle"))
           .build(), 
         AnnotationType.TYPE, 
-        new MillisecondTimeStamp(1000L));
+        new MillisecondTimeStamp(1000L),
+        -1);
     shards.addShard(num_mock);
     shards.addShard(note_mock);
     
@@ -92,7 +95,8 @@ public class TestDataShards {
           .setMetrics(Lists.newArrayList("sys.cpu.user"))
           .build(), 
         AnnotationType.TYPE, 
-        new MillisecondTimeStamp(1000L));
+        new MillisecondTimeStamp(1000L),
+        -1);
     shards.addShard(num_mock);
     try {
       shards.addShard(note_mock);
@@ -106,7 +110,8 @@ public class TestDataShards {
           .setMetrics(Lists.newArrayList("sys.cpu.idle"))
           .build(), 
         AnnotationType.TYPE, 
-        new MillisecondTimeStamp(2000L));
+        new MillisecondTimeStamp(2000L),
+        -1);
     shards.addShard(num_mock);
     try {
       shards.addShard(note_mock);
@@ -120,19 +125,36 @@ public class TestDataShards {
           .setMetrics(Lists.newArrayList("sys.cpu.idle"))
           .build(), 
         NumericType.TYPE, 
-        new MillisecondTimeStamp(1000L));
+        new MillisecondTimeStamp(1000L),
+        -1);
     shards.addShard(num_mock);
     try {
       shards.addShard(new_num_shard);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+    
+    // wrong order
+    shards = new TestShards(id);
+    note_mock = mockShard(
+        SimpleStringTimeSeriesId.newBuilder()
+          .setMetrics(Lists.newArrayList("sys.cpu.idle"))
+          .build(), 
+        AnnotationType.TYPE, 
+        new MillisecondTimeStamp(1000L),
+        42);
+    shards.addShard(num_mock);
+    try {
+      shards.addShard(note_mock);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
   }
   
   private DataShard<?> mockShard(final TimeSeriesId id, final TypeToken<?> type, 
-      final TimeStamp base_timestamp) {
+      final TimeStamp base_timestamp, final int order) {
     final DataShard<?> mock = mock(DataShard.class);
     when(mock.id()).thenReturn(id);
     when(mock.baseTime()).thenReturn(base_timestamp);
+    when(mock.order()).thenReturn(order);
     when(mock.type()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
