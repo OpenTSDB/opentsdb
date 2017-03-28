@@ -72,7 +72,10 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
   private final int order;
   
   /** The base timestamp for the shard (the first timestamp added). */
-  private long base_timestamp = -1;
+  private TimeStamp start_timestamp;
+  
+  /** The end timestamp for the shard (the last inclusive timestamp). */
+  private TimeStamp end_timestamp;
   
   /** Index's for the write and read paths over the array. */
   private int write_offset_idx;
@@ -87,7 +90,7 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
   private byte[] values;
   
   /** The last timestamp recorded to track dupes and OOO data. */
-  private long last_timestamp = -1;
+  private long last_timestamp;
   
   /** The data point reset and returned. */
   private final MutableNumericType dp;
@@ -102,11 +105,14 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
    * Default ctor that sizes the arrays for 1 value.
    * 
    * @param id A non-null ID to associate with the shard.
-   * @param span The width of data to store in milliseconds.
+   * @param start The start of the data shard (base time).
+   * @param end The end of the data shard.
    * @throws IllegalArgumentException if the ID was null or span was less than 1.
    */
-  public NumericMillisecondShard(final TimeSeriesId id, final long span) {
-    this(id, span, -1, 1);
+  public NumericMillisecondShard(final TimeSeriesId id, 
+                                 final TimeStamp start,
+                                 final TimeStamp end) {
+    this(id, start, end, -1, 1);
   }
   
   /**
@@ -114,14 +120,17 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
    * then the arrays will be initialized empty.
    * 
    * @param id A non-null ID to associate with the shard.
-   * @param span The width of data to store in milliseconds.
+   * @param start The start of the data shard (base time).
+   * @param end The end of the data shard.
    * @param order An optional order within a slice config.
    * @throws IllegalArgumentException if the ID was null or span was less than
    * 1 or the count was less than zero.
    */
-  public NumericMillisecondShard(final TimeSeriesId id, final long span, 
-      final int order) {
-    this(id, span, order, 1);
+  public NumericMillisecondShard(final TimeSeriesId id, 
+                                 final TimeStamp start,
+                                 final TimeStamp end, 
+                                 final int order) {
+    this(id, start, end, order, 1);
   }
   
   /**
@@ -129,26 +138,36 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
    * then the arrays will be initialized empty.
    * 
    * @param id A non-null ID to associate with the shard.
-   * @param span The width of data to store in milliseconds.
+   * @param start The start of the data shard (base time).
+   * @param end The end of the data shard.
    * @param order An optional order within a slice config.
    * @param count The expected number of values in the set.
    * @throws IllegalArgumentException if the ID was null or span was less than
    * 1 or the count was less than zero.
    */
-  public NumericMillisecondShard(final TimeSeriesId id, final long span, 
-      final int order, final int count) {
+  public NumericMillisecondShard(final TimeSeriesId id, 
+                                 final TimeStamp start,
+                                 final TimeStamp end, 
+                                 final int order, 
+                                 final int count) {
     if (id == null) {
       throw new IllegalArgumentException("ID cannot be null.");
     }
-    if (span < 1) {
-      throw new IllegalArgumentException("Span cannot be less than 1.");
+    if (start == null) {
+      throw new IllegalArgumentException("Start cannot be null");
+    }
+    if (end == null) {
+      throw new IllegalArgumentException("End cannot be null");
     }
     if (count < 0) {
       throw new IllegalArgumentException("Count cannot be less than zero.");
     }
     this.id = id;
-    this.span = span;
+    this.start_timestamp = start;
+    this.end_timestamp = end;
     this.order = order;
+    last_timestamp = Long.MIN_VALUE;
+    span = end.msEpoch() - start.msEpoch();
     dp = new MutableNumericType(id);
     encode_on = NumericType.encodeOn(span, NumericType.TOTAL_FLAG_BITS);
     timestamp = new MillisecondTimeStamp(-1);
@@ -181,22 +200,26 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
       throw new IllegalStateException("Cannot add data after the shard has "
           + "been copied.");
     }
-    if (base_timestamp < 0) {
-      base_timestamp = timestamp;
-      last_timestamp = timestamp;
-    } else if (timestamp <= last_timestamp) {
+    if (timestamp <= last_timestamp) {
       throw new IllegalArgumentException("Timestamp must be greater than "
           + "last time: " + last_timestamp);
     }
+    if (timestamp < start_timestamp.msEpoch()) {
+      throw new IllegalArgumentException("Timestamp must be greater than or equal "
+          + "to the start time: " + start_timestamp);
+    }
+    if (timestamp > end_timestamp.msEpoch()) {
+      throw new IllegalArgumentException("Timestamp must be less than or equal "
+          + "to the end time: " + end_timestamp);
+    }
     last_timestamp = timestamp;
-    
     final byte[] real_bytes = NumericType.vleEncodeLong(reals);
     final byte[] vle = NumericType.vleEncodeLong(value);
     final byte real_length = (byte) ((real_bytes.length - 1) 
         << NumericType.VALUE_FLAG_BITS);
     final byte flags = (byte) ((vle.length - 1) | real_length);
     final byte[] offset = Bytes.fromLong(
-       (((timestamp - base_timestamp) << NumericType.TOTAL_FLAG_BITS) | flags));
+       (((timestamp - start_timestamp.msEpoch()) << NumericType.TOTAL_FLAG_BITS) | flags));
     final byte[] v = new byte[real_bytes.length + vle.length];
     System.arraycopy(real_bytes, 0, v, 0, real_bytes.length);
     System.arraycopy(vle, 0, v, real_bytes.length, vle.length);
@@ -219,12 +242,17 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
       throw new IllegalStateException("Cannot add data after the shard has "
           + "been copied.");
     }
-    if (base_timestamp < 0) {
-      base_timestamp = timestamp;
-      last_timestamp = timestamp;
-    } else if (timestamp <= last_timestamp) {
+    if (timestamp <= last_timestamp) {
       throw new IllegalArgumentException("Timestamp must be greater than "
           + "last time: " + last_timestamp);
+    }
+    if (timestamp < start_timestamp.msEpoch()) {
+      throw new IllegalArgumentException("Timestamp must be greater than or equal "
+          + "to the start time: " + start_timestamp);
+    }
+    if (timestamp > end_timestamp.msEpoch()) {
+      throw new IllegalArgumentException("Timestamp must be less than or equal "
+          + "to the end time: " + end_timestamp);
     }
     last_timestamp = timestamp;
     final byte[] real_bytes = NumericType.vleEncodeLong(reals);
@@ -236,7 +264,7 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
     final byte flags = (byte) ((vle.length - 1) 
         | NumericType.FLAG_FLOAT | real_length);
     final byte[] offset = Bytes.fromLong(
-       (((timestamp - base_timestamp) << NumericType.TOTAL_FLAG_BITS) | flags));
+       (((timestamp - start_timestamp.msEpoch()) << NumericType.TOTAL_FLAG_BITS) | flags));
     final byte[] v = new byte[real_bytes.length + vle.length];
     System.arraycopy(real_bytes, 0, v, 0, real_bytes.length);
     System.arraycopy(vle, 0, v, real_bytes.length, vle.length);
@@ -274,8 +302,13 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
   }
 
   @Override
-  public TimeStamp baseTime() {
-    return new MillisecondTimeStamp(base_timestamp);
+  public TimeStamp startTime() {
+    return start_timestamp;
+  }
+  
+  @Override
+  public TimeStamp endTime() {
+    return end_timestamp;
   }
 
   @Override
@@ -312,7 +345,7 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
     final byte reals_length = (byte) ((flags & NumericType.REALS_LENGTH_MASK) 
         >> NumericType.VALUE_FLAG_BITS);
     final byte vlen = (byte) ((flags & NumericType.VALUE_LENGTH_MASK) + 1);
-    timestamp.updateMsEpoch(base_timestamp + offset);
+    timestamp.updateMsEpoch(start_timestamp.msEpoch() + offset);
     
     
     if (context != null && 
@@ -342,8 +375,9 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
 
   @Override
   public TimeSeriesIterator<NumericType> getCopy(QueryContext context) {
-    final NumericMillisecondShard shard = new NumericMillisecondShard(id, span);
-    shard.base_timestamp = base_timestamp;
+    final NumericMillisecondShard shard = 
+        new NumericMillisecondShard(id, start_timestamp, end_timestamp);
+    shard.start_timestamp = start_timestamp;
     shard.last_timestamp = last_timestamp;
     shard.read_offset_idx = 0;
     shard.write_offset_idx = write_offset_idx;
@@ -369,7 +403,7 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
         System.arraycopy(offsets, read_offset_idx, offset_copy, 8 - encode_on, encode_on);
         long offset = Bytes.getLong(offset_copy);
         offset = offset >> NumericType.TOTAL_FLAG_BITS;
-        timestamp.updateMsEpoch(base_timestamp + offset);
+        timestamp.updateMsEpoch(start_timestamp.msEpoch() + offset);
         context.updateContext(IteratorStatus.HAS_DATA, timestamp);
       }
     }

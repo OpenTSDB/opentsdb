@@ -108,11 +108,11 @@ public abstract class DataShards {
     if (shards == null) {
       shards = new ArrayList<DataShard<?>>(1);
       shards.add(shard);
-      base_time = shard.baseTime();
+      base_time = shard.startTime();
       order = shard.order();
     } else {
-      if (base_time.compare(TimeStampComparator.NE, shard.baseTime())) {
-        throw new IllegalArgumentException("Shard base time " + shard.baseTime() 
+      if (base_time.compare(TimeStampComparator.NE, shard.startTime())) {
+        throw new IllegalArgumentException("Shard base time " + shard.startTime() 
           + " was different from the collection's time: " + base_time);
       }
       if (shard.order() != order) {

@@ -33,6 +33,7 @@ import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.SimpleStringTimeSeriesId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -44,21 +45,26 @@ import net.opentsdb.query.processor.TimeSeriesProcessor;
 public class TestNumericMillisecondShard {
 
   private TimeSeriesId id;
+  private TimeStamp start;
+  private TimeStamp end;
   
   @Before
   public void before() throws Exception {
     id = SimpleStringTimeSeriesId.newBuilder()
         .setMetrics(Lists.newArrayList("sys.cpu.user"))
         .build();
+    start = new MillisecondTimeStamp(0L);
+    end = new MillisecondTimeStamp(3600000);
   }
   
   @Test
   public void ctor() throws Exception {
-    NumericMillisecondShard shard = new NumericMillisecondShard(id, 86400);
-    assertEquals(3, shard.encodeOn());
-    assertEquals(3, shard.offsets().length);
+    NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
+    assertEquals(4, shard.encodeOn());
+    assertEquals(4, shard.offsets().length);
     assertEquals(4, shard.values().length);
-    assertEquals(-1, shard.baseTime().msEpoch());
+    assertEquals(0L, shard.startTime().msEpoch());
+    assertEquals(3600000, shard.endTime().msEpoch());
     assertEquals(-1, shard.order());
     assertSame(id, shard.id());
     assertSame(shard, shard.iterator());
@@ -67,11 +73,12 @@ public class TestNumericMillisecondShard {
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    shard = new NumericMillisecondShard(id, 86400, 42);
-    assertEquals(3, shard.encodeOn());
-    assertEquals(3, shard.offsets().length);
+    shard = new NumericMillisecondShard(id, start, end, 42);
+    assertEquals(4, shard.encodeOn());
+    assertEquals(4, shard.offsets().length);
     assertEquals(4, shard.values().length);
-    assertEquals(-1, shard.baseTime().msEpoch());
+    assertEquals(0L, shard.startTime().msEpoch());
+    assertEquals(3600000, shard.endTime().msEpoch());
     assertEquals(42, shard.order());
     assertSame(id, shard.id());
     assertSame(shard, shard.iterator());
@@ -80,11 +87,12 @@ public class TestNumericMillisecondShard {
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    shard = new NumericMillisecondShard(id, 86400, 42, 100);
-    assertEquals(3, shard.encodeOn());
-    assertEquals(300, shard.offsets().length);
+    shard = new NumericMillisecondShard(id, start, end, 42, 100);
+    assertEquals(4, shard.encodeOn());
+    assertEquals(400, shard.offsets().length);
     assertEquals(400, shard.values().length);
-    assertEquals(-1, shard.baseTime().msEpoch());
+    assertEquals(0L, shard.startTime().msEpoch());
+    assertEquals(3600000, shard.endTime().msEpoch());
     assertEquals(42, shard.order());
     assertSame(id, shard.id());
     assertSame(shard, shard.iterator());
@@ -93,11 +101,14 @@ public class TestNumericMillisecondShard {
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    shard = new NumericMillisecondShard(id, 1, 42, 0);
+    end = new MillisecondTimeStamp(1L);
+    shard = new NumericMillisecondShard(id, start, end, 42, 0);
+    end = new MillisecondTimeStamp(86400000L);
     assertEquals(1, shard.encodeOn());
     assertEquals(0, shard.offsets().length);
     assertEquals(0, shard.values().length);
-    assertEquals(-1, shard.baseTime().msEpoch());
+    assertEquals(0L, shard.startTime().msEpoch());
+    assertEquals(1L, shard.endTime().msEpoch());
     assertEquals(42, shard.order());
     assertSame(id, shard.id());
     assertSame(shard, shard.iterator());
@@ -107,34 +118,39 @@ public class TestNumericMillisecondShard {
     } catch (NoSuchElementException e) { }
     
     try {
-      shard = new NumericMillisecondShard(null, 86400, 42, 100);
+      shard = new NumericMillisecondShard(null, start, end, 42, 100);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      shard = new NumericMillisecondShard(id, -86400, 42, 100);
+      shard = new NumericMillisecondShard(id, end, start, 42, 100);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      shard = new NumericMillisecondShard(id, 0, 42, 100);
+      shard = new NumericMillisecondShard(id, null, end, 42, 100);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      shard = new NumericMillisecondShard(id, 86400, 42, -1);
+      shard = new NumericMillisecondShard(id, start, null, 42, 100);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      shard = new NumericMillisecondShard(id, start, end, 42, -1);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
   public void add() throws Exception {
-    long span = 86400;
-    NumericMillisecondShard shard = new NumericMillisecondShard(id, span);
+    start = new MillisecondTimeStamp(1486045800000L);
+    end = new MillisecondTimeStamp(1486045900000L);
+    NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
     assertEquals(3, shard.encodeOn());
     assertEquals(3, shard.offsets().length);
     assertEquals(4, shard.values().length);
-    assertEquals(-1, shard.baseTime().msEpoch());
     
     assertArrayEquals(new byte[] { 0, 0, 0 }, shard.offsets());
     assertArrayEquals(new byte[] { 0, 0, 0, 0 }, shard.values());
@@ -142,15 +158,13 @@ public class TestNumericMillisecondShard {
     shard.add(1486045801000L, 42, 1);
     assertEquals(6, shard.offsets().length); // expanded
     assertEquals(4, shard.values().length);
-    assertEquals(1486045801000L, shard.baseTime().msEpoch());
-    assertArrayEquals(new byte[] { 0, 0, 0, 0, 0, 0 }, shard.offsets());
+    assertArrayEquals(new byte[] { 1, -12, 0, 0, 0, 0 }, shard.offsets());
     assertArrayEquals(new byte[] { 1, 42, 0, 0 }, shard.values());
     
     shard.add(1486045871000L, 9866.854, 0);
     assertEquals(12, shard.offsets().length); // expanded
     assertEquals(16, shard.values().length);
-    assertEquals(1486045801000L, shard.baseTime().msEpoch());
-    assertArrayEquals(new byte[] { 0, 0, 0, -120, -72, 15, 0, 0, 0, 0, 0, 0 }, 
+    assertArrayEquals(new byte[] { 1, -12, 0, -118, -84, 15, 0, 0, 0, 0, 0, 0 }, 
         shard.offsets());
     assertArrayEquals(new byte[] { 1, 42, 0, 64, -61, 69, 109, 79, -33, 59, 
         100, 0, 0, 0, 0, 0 }, shard.values());
@@ -167,12 +181,27 @@ public class TestNumericMillisecondShard {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
+    // too late
+    try {
+      shard.add(1486045900001L, 1, 0);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    // too early
+    shard = new NumericMillisecondShard(id, start, end);
+    try {
+      shard.add(1486045799999L, 1, 0);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
     // Ugly to test, so use the next() tests for more checks.
   }
   
   @Test
   public void next() throws Exception {
-    NumericMillisecondShard shard = new NumericMillisecondShard(id, 3600000);
+    start = new MillisecondTimeStamp(1486045800000L);
+    end = new MillisecondTimeStamp(1486046000000L);
+    NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
     shard.add(1486045801000L, 42, 1);
     shard.add(1486045871000L, 9866.854, 0);
     shard.add(1486045881000L, -128, 1024);
@@ -251,13 +280,20 @@ public class TestNumericMillisecondShard {
     assertFalse(v.value().isInteger());
     assertTrue(Double.isNaN(v.value().doubleValue()));
     assertEquals(1, v.realCount());
+    
+    try {
+      v = shard.next();
+      fail("Expected NoSuchElementException");
+    } catch (NoSuchElementException e) { }
   }
 
   @Test
   public void withContext() throws Exception {
+    start = new MillisecondTimeStamp(1486045800000L);
+    end = new MillisecondTimeStamp(1486045890000L);
     final QueryContext context = new DefaultQueryContext();
     final TimeSeriesProcessor group = new DefaultTimeSeriesProcessor(context);
-    NumericMillisecondShard shard = new NumericMillisecondShard(id, 3600000);
+    NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
     group.addSeries(new SimpleStringGroupId("a"), shard);
     
     shard.add(1486045801000L, 42, 1);
@@ -367,7 +403,9 @@ public class TestNumericMillisecondShard {
 
   @Test
   public void getCopy() throws Exception {
-    NumericMillisecondShard shard = new NumericMillisecondShard(id, 3600000);
+    start = new MillisecondTimeStamp(1486045800000L);
+    end = new MillisecondTimeStamp(1486045890000L);
+    NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
     shard.add(1486045801000L, 42, 1);
     shard.add(1486045871000L, 9866.854, 0);
     shard.add(1486045881000L, -128, 1024);

@@ -363,7 +363,7 @@ public class HttpQueryV2Executor extends QueryExecutor {
     parseAggTags(id, node.path("aggregateTags"));
     
     final NumericMillisecondShard shard = new NumericMillisecondShard(id.build(), 
-        (query.getTime().endTime().msEpoch() - query.getTime().startTime().msEpoch()));
+        query.getTime().startTime(), query.getTime().endTime());
     
     final JsonNode dps = node.path("dps");
     if (dps != null) {

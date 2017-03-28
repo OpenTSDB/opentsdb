@@ -276,6 +276,24 @@ public final class Bytes {
     return b;
   }
   
+  /**
+   * Determines if the byte array is in the given list.
+   * @param list A non-null list to search through.
+   * @param needle A non-null needle to search for.
+   * @return True if found, false if not.
+   */
+  public static boolean contains(final List<byte[]> list, final byte[] needle) {
+    if (list == null || needle == null) {
+      throw new IllegalArgumentException("Neither list nor needle may be null.");
+    }
+    for (final byte[] stack : list) {
+      if (memcmp(stack, needle) == 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
   // ---------------------------- //
   // Pretty-printing byte arrays. //
   // ---------------------------- //

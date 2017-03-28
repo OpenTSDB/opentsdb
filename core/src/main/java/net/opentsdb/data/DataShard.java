@@ -30,13 +30,17 @@ public interface DataShard<T extends TimeSeriesDataType> {
   /** @return A non-null time series Id for all values in this series. */
   public TimeSeriesId id();
   
-  /** @return A base time stamp shared by all values in this set. Null if no
-   * data has been added to the shard. */
-  public TimeStamp baseTime();
+  /** @return A non-null base time stamp shared by all values in this set. 
+   * Usually set to the query start time or some offset of it. */
+  public TimeStamp startTime();
+  
+  /** @return A non-null final inclusive timestamp of the shard for which there 
+   * may be data. Usually set to the query end time. */ 
+  public TimeStamp endTime();
   
   /** @return The type of data stored in this shard. */
   public TypeToken<T> type();
-
+  
   /** @return An optional order within a slice config. */
   public int order();
   

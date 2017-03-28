@@ -106,8 +106,8 @@ public class TestHttpQueryV2Executor {
     
     query = Query.newBuilder()
         .setTime(Timespan.newBuilder()
-            .setStart("1486015200")
-            .setEnd("1486018800")
+            .setStart("1490122900000")
+            .setEnd("1490123050000")
             .setAggregator("sum"))
         .addMetric(Metric.newBuilder().setId("m1").setMetric("sys.cpu.user"))
         .build();
@@ -800,8 +800,8 @@ public class TestHttpQueryV2Executor {
         new HttpQueryV2Executor(context, endpoint, group_id);
     final Query query = Query.newBuilder()
         .setTime(Timespan.newBuilder()
-            .setStart("1486015200")
-            .setEnd("1486018800")
+            .setStart("1490122900000")
+            .setEnd("1490123050000")
             .setAggregator("sum"))
         .addMetric(Metric.newBuilder().setId("m1").setMetric("sys.cpu.user"))
         .build();

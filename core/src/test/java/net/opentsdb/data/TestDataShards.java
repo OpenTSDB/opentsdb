@@ -153,7 +153,7 @@ public class TestDataShards {
       final TimeStamp base_timestamp, final int order) {
     final DataShard<?> mock = mock(DataShard.class);
     when(mock.id()).thenReturn(id);
-    when(mock.baseTime()).thenReturn(base_timestamp);
+    when(mock.startTime()).thenReturn(base_timestamp);
     when(mock.order()).thenReturn(order);
     when(mock.type()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
