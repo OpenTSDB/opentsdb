@@ -619,4 +619,56 @@ public class TestNumericMergeLargest {
       fail("Expected IllegalArgumentException");
      } catch (IllegalArgumentException e) { }
   }
+
+  @Test
+  public void mergeOrder() throws Exception {
+    NumericMillisecondShard shard_a = 
+        new NumericMillisecondShard(id, start, end, 42);
+    // no check on order. First one in wins.
+    NumericMillisecondShard shard_b = 
+        new NumericMillisecondShard(id, start, end, 24);
+    NumericMillisecondShard shard_c = 
+        new NumericMillisecondShard(id, start, end, 42);
+    
+    shard_a.add(1486045801000L, 42, 1);
+    shard_b.add(1486045801000L, 42, 1);
+    shard_c.add(1486045801000L, 42, 1);
+    
+    shard_a.add(1486045871000L, 9866.854, 2);
+    shard_b.add(1486045871000L, 9866.854, 2);
+    shard_c.add(1486045871000L, 9866.854, 2);
+    
+    shard_a.add(1486045881000L, -128, 2);
+    shard_b.add(1486045881000L, -128, 2);
+    shard_c.add(1486045881000L, -128, 2);
+    
+    final DataShard<NumericType> merged = new NumericMergeLargest().merge(id, 
+        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c));
+    assertSame(id, merged.id());
+    assertEquals(42, merged.order());
+    
+    final TimeSeriesIterator<NumericType> iterator = merged.iterator();
+    TimeSeriesValue<NumericType> v = iterator.next();
+    assertEquals(1486045801000L, v.timestamp().msEpoch());
+    assertTrue(v.value().isInteger());
+    assertEquals(42, v.value().longValue());
+    assertEquals(1, v.realCount());
+    
+    v = iterator.next();
+    assertEquals(1486045871000L, v.timestamp().msEpoch());
+    assertFalse(v.value().isInteger());
+    assertEquals(9866.854, v.value().doubleValue(), 0.001);
+    assertEquals(2, v.realCount());
+    
+    v = iterator.next();
+    assertEquals(1486045881000L, v.timestamp().msEpoch());
+    assertTrue(v.value().isInteger());
+    assertEquals(-128, v.value().longValue());
+    assertEquals(2, v.realCount());
+    
+    try {
+      iterator.next();
+      fail("Expected NoSuchElementException");
+    } catch (NoSuchElementException e) { }
+  }
 }

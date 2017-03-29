@@ -93,7 +93,8 @@ public abstract class DataShardsGroup {
       }
       if (order != shards.order()) {
         throw new IllegalArgumentException("Shard order " + shards.order() 
-          + " was different from the collection's order: " + order);
+          + " was different from the collection's order: " + order + " " 
+          + shards.id());
       }
     }
     if (data == null) {

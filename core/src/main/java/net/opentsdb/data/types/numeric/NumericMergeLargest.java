@@ -59,7 +59,8 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
     }
     final NumericMillisecondShard shard = 
         new NumericMillisecondShard(id, 
-        shards.get(0).startTime(), shards.get(0).endTime());
+        shards.get(0).startTime(), shards.get(0).endTime(),
+        shards.get(0).order());
     
     final TimeSeriesValue<NumericType>[] values = 
         new TimeSeriesValue[shards.size()];
