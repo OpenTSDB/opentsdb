@@ -12,6 +12,11 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.exceptions;
 
+import java.util.Collections;
+import java.util.List;
+
+import com.google.common.collect.Lists;
+
 /**
  * An exception that occurred when querying a remote location such as a storage
  * server, cache or distributed query engine.
@@ -28,6 +33,9 @@ public class RemoteQueryExecutionException extends RuntimeException {
   /** A status code associated with the exception. The code value depnds on the
    * remote source. */
   private final int status_code;
+  
+  /** An optional list of exceptions thrown. */
+  private final List<Exception> exceptions;
   
   /**
    * Default ctor that sets a message describing this exception.
@@ -54,9 +62,23 @@ public class RemoteQueryExecutionException extends RuntimeException {
    */
   public RemoteQueryExecutionException(final String msg, final int order,
       final int status_code) {
+    this(msg, order, status_code, (List<Exception>) null);
+  }
+  
+  /**
+   * Ctor that takes a descriptive message, order, status_code and optional list
+   * of exceptions that triggered this.
+   * @param msg A non-null message to be given.
+   * @param order An optional order for the result in a set of slices.
+   * @param status_code An optional status code reflecting the error state.
+   * @param exceptions An optional list of exceptions. May be null or empty.
+   */
+  public RemoteQueryExecutionException(final String msg, final int order,
+      final int status_code, final List<Exception> exceptions) {
     super(msg);
     this.order = order;
     this.status_code = status_code;
+    this.exceptions = exceptions;
   }
   
   /**
@@ -71,6 +93,7 @@ public class RemoteQueryExecutionException extends RuntimeException {
     super(msg, e);
     this.order = order;
     this.status_code = status_code;
+    exceptions = Lists.newArrayList(e);
   }
   
   /** @return The slice order if pertaining to a sliced query. */
@@ -78,8 +101,14 @@ public class RemoteQueryExecutionException extends RuntimeException {
     return order;
   }
   
-  /** An optional status code, e.g. HTTP code. */
+  /** @return An optional status code, e.g. HTTP code. */
   public int getStatusCode() {
     return status_code;
+  }
+
+  /** @return A list of exceptions that triggered this or an empty list. */
+  public List<Exception> getExceptions() {
+    return exceptions == null ? Collections.<Exception>emptyList() : 
+      Collections.<Exception>unmodifiableList(exceptions);
   }
 }

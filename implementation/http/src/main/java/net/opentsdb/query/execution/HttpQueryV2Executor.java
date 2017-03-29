@@ -50,11 +50,11 @@ import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
-import net.opentsdb.execution.QueryExecutor;
 import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.TSSubQuery;
 import net.opentsdb.query.context.HttpContext;
 import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
@@ -71,7 +71,7 @@ import net.opentsdb.utils.JSONException;
  * 
  * @since 3.0
  */
-public class HttpQueryV2Executor extends QueryExecutor {
+public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
   private static final Logger LOG = LoggerFactory.getLogger(
       HttpQueryV2Executor.class);
   
@@ -132,16 +132,17 @@ public class HttpQueryV2Executor extends QueryExecutor {
   }
   
   @Override
-  public Deferred<DataShardsGroup> executeQuery(final Query query) {
+  public QueryExecution<DataShardsGroup> executeQuery(final Query query) {
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
     }
-    final Deferred<DataShardsGroup> deferred = new Deferred<DataShardsGroup>();
-    if (cancelled.get()) {
+    final Execution execution = new Execution(query);
+    
+    if (completed.get()) {
       LOG.error("Executor was marked as cancelled but we got a new query: " 
           + query + " for " + this);
-      deferred.callback(new RejectedExecutionException("Cancelled"));
-      return deferred;
+      execution.deferred.callback(new RejectedExecutionException("Cancelled"));
+      return execution;
     }
     
     final String json;
@@ -151,9 +152,9 @@ public class HttpQueryV2Executor extends QueryExecutor {
         LOG.debug("Sending JSON to http endpoint: " + json);
       }
     } catch (Exception e) {
-      deferred.callback(new RejectedExecutionException(
+      execution.deferred.callback(new RejectedExecutionException(
           "Failed to convert query", e));
-      return deferred;
+      return execution;
     }
     
     final HttpPost post = new HttpPost(endpoint);
@@ -166,9 +167,9 @@ public class HttpQueryV2Executor extends QueryExecutor {
     try {
       post.setEntity(new StringEntity(json));
     } catch (UnsupportedEncodingException e) {
-      deferred.callback(new RejectedExecutionException(
+      execution.deferred.callback(new RejectedExecutionException(
           "Failed to generate request", e));
-      return deferred;
+      return execution;
     }
     
     /** Helper to remove the future once it's complete. */
@@ -208,11 +209,11 @@ public class HttpQueryV2Executor extends QueryExecutor {
       @Override
       public void cancelled() {
         LOG.error("HttpPost cancelled: " + query);
-        if (cancelled.get()) {
+        if (completed.get()) {
           LOG.warn("Received HTTP response despite being cancelled.");
         }
         try {
-          deferred.callback(new RemoteQueryExecutionException(
+          execution.deferred.callback(new RemoteQueryExecutionException(
               "Query was cancelled: " + endpoint, query.getOrder(), 500));
         } catch (Exception e) {
           LOG.warn("Exception thrown when calling deferred on cancel", e);
@@ -232,7 +233,7 @@ public class HttpQueryV2Executor extends QueryExecutor {
               + ") received in " 
               + DateTime.msFromNanoDiff(DateTime.nanoTime(), start_ns) + "ms");
         }
-        if (cancelled.get()) {
+        if (completed.get()) {
           LOG.warn("Told to stop running but we had a response: " + response);
           try {
             EntityUtils.consume(response.getEntity());
@@ -247,11 +248,11 @@ public class HttpQueryV2Executor extends QueryExecutor {
           for (final JsonNode node : root) {
             group.addShards(parseTSQuery(query, node));
           }
-          deferred.callback(group);
+          execution.deferred.callback(group);
         } catch (Exception e) {
           LOG.error("Failure handling response: " + response + "\nQuery: " 
               + json, e);
-          deferred.callback(new RemoteQueryExecutionException(
+          execution.deferred.callback(new RemoteQueryExecutionException(
               "Unexepected exception: " + endpoint, query.getOrder(), 500, e));
         }
       }
@@ -259,9 +260,9 @@ public class HttpQueryV2Executor extends QueryExecutor {
       @Override
       public void failed(final Exception e) {
         // TODO possibly retry?
-        if (!cancelled.get()) {
+        if (!completed.get()) {
           LOG.error("Exception from HttpPost: " + endpoint, e);
-          deferred.callback(new RemoteQueryExecutionException(
+          execution.deferred.callback(new RemoteQueryExecutionException(
               "Unexepected exception: " + endpoint, query.getOrder(), 500, e));
         }
       }
@@ -269,13 +270,14 @@ public class HttpQueryV2Executor extends QueryExecutor {
     
     final Future<HttpResponse> future = http_context.getClient()
         .execute(post, new ResponseCallback());
+    execution.setFuture(future);
     futures.add(future);
-    deferred.addCallback(new FutureRemover(future))
+    execution.deferred.addCallback(new FutureRemover(future))
       .addErrback(new FutureExceptionRemover(future));
     if (LOG.isDebugEnabled()) {
       LOG.debug("Sent query to endpoint: " + endpoint);
     }
-    return deferred;
+    return execution;
   }
   
   /**
@@ -433,6 +435,55 @@ public class HttpQueryV2Executor extends QueryExecutor {
     }
   }
 
+  /** An implementation that allows for cancelling the future. */
+  class Execution extends QueryExecution<DataShardsGroup> {
+    private Future<HttpResponse> future;
+    
+    public Execution(final Query query) {
+      super(query);
+    }
+    
+    @Override
+    public void callback(final Object result) {
+      if (completed.compareAndSet(false, true)) {
+        synchronized (this) {
+          future = null;
+        }
+        deferred.callback(result);
+      } else {
+        throw new IllegalStateException("Callback was already executed: " + this);
+      }
+    }
+
+    @Override
+    public void cancel() {
+      synchronized (this) {
+        if (future != null) {
+          try {
+            future.cancel(true);
+          } catch (Exception e) {
+            LOG.error("Failed cancelling future: " + future, e);
+          } finally {
+            future = null;
+          }
+        }
+      }
+      if (!completed.get()) {
+        try {
+          // race condition here.
+          callback(new RemoteQueryExecutionException(
+              "Query was cancelled upstream.", query.getOrder()));
+        } catch (Exception e) {
+          LOG.error("Callback may have already been called", e);
+        }
+      }
+    }
+    
+    void setFuture(final Future<HttpResponse> future) {
+      this.future = future;
+    }
+  }
+  
   /**
    * Converts the time series query into a {@link TSQuery}. Note that since 
    * TSQueries only dealt with metrics and basic aggregation, this method will

@@ -10,29 +10,33 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.execution;
+package net.opentsdb.query.execution;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.RejectedExecutionException;
 
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.data.DataShardsGroup;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.pojo.Query;
 
 /**
  * A base query executor that may spawn a tree of sub executors for processing.
+ * The executor can return data of any type.
+ * 
+ * @param <T> The type of data returned by the executor.
+ * 
  * @since 3.0
  */
-public abstract class QueryExecutor {
+public abstract class QueryExecutor<T> {
 
   /** The query context. */
   protected final QueryContext context;
   
-  /** Set to true when the upstream caller has marked this stream as (or cancelled) */
-  protected final AtomicBoolean cancelled;
+  /** Set to true when the upstream caller has marked this stream as completed 
+   * (or cancelled) */
+  protected final AtomicBoolean completed;
 
   /**
    * Default ctor.
@@ -45,21 +49,21 @@ public abstract class QueryExecutor {
           + "QueryExecutors.");
     }
     this.context = context;
-    cancelled = new AtomicBoolean();
+    completed = new AtomicBoolean();
   }
   
   /**
    * Runs the given query.
    * @param query A non-null query to execute.
-   * @return A deferred to wait on for results. The result will be a shard group
-   * (potentially empty) or an exception.
+   * @return A query execution object that will contain a deferred to wait on
+   * for a response.
    * @throws IllegalArgumentException if the query was null.
    * @throws RejectedExecutionException (in the deferred) if the query could not
    * be executed due to an error such as already being cancelled.
    * @throws RemoteQueryExecutionException (in the deferred) if the remote call
    * failed.
    */
-  public abstract Deferred<DataShardsGroup> executeQuery(final Query query);
+  public abstract QueryExecution<T> executeQuery(final Query query);
   
   /**
    * Method called to close and release all resources.

@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.execution.QueryExecutor;
+import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.pojo.Query;
 
 /**

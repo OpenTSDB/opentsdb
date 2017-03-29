@@ -35,6 +35,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
@@ -42,6 +43,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+import org.apache.http.message.BasicHeader;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -50,7 +52,6 @@ import org.powermock.reflect.Whitebox;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Maps;
-import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
 
 import net.opentsdb.common.Const;
@@ -147,6 +148,9 @@ public class TestHttpQueryV2Executor {
     
     when(response.getEntity()).thenReturn(entity);
     when(response.getStatusLine()).thenReturn(status);
+    final Header[] response_headers = new Header[1];
+    response_headers[0] = new BasicHeader("X-MyHeader", "Winter Is Coming!");
+    when(response.getAllHeaders()).thenReturn(response_headers);
     when(status.getStatusCode()).thenReturn(200);
   }
 
@@ -180,8 +184,7 @@ public class TestHttpQueryV2Executor {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    class DummyRemoteContext implements RemoteContext { }
-    when(context.getRemoteContext()).thenReturn(new DummyRemoteContext());
+    when(context.getRemoteContext()).thenReturn(mock(RemoteContext.class));
     try {
       new HttpQueryV2Executor(context, endpoint, group_id);
       fail("Expected IllegalStateException");
@@ -230,11 +233,11 @@ public class TestHttpQueryV2Executor {
         Whitebox.getInternalState(executor, "futures");
     setupQuery();
     
-    Deferred<DataShardsGroup> deferred = executor.executeQuery(query);
+    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
     assertNotNull(callback);
     assertTrue(futures.contains(future));
     try {
-      deferred.join(1);
+      exec.deferred().join(1);
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
@@ -242,7 +245,7 @@ public class TestHttpQueryV2Executor {
     
     assertEquals("Winter Is Coming!", 
         post_request.getFirstHeader("X-MyHeader").getValue());
-    final DataShardsGroup data = deferred.join();
+    final DataShardsGroup data = exec.deferred().join();
     assertEquals(2, data.data().size());
     TimeSeriesIterator<NumericType> it_a = (TimeSeriesIterator<NumericType>) 
         data.data().get(0).data().get(0);
@@ -308,14 +311,15 @@ public class TestHttpQueryV2Executor {
         Whitebox.getInternalState(executor, "futures");
     setupQuery();
     
-    final AtomicBoolean cancelled = Whitebox.getInternalState(executor, "cancelled");
+    final AtomicBoolean cancelled = 
+        Whitebox.getInternalState(executor, "completed");
     cancelled.set(true);
     
-    Deferred<DataShardsGroup> deferred = executor.executeQuery(query);
+    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
     assertNull(callback);
     assertFalse(futures.contains(future));
     try {
-      deferred.join();
+      exec.deferred().join();
       fail("Expected RejectedExecutionException");
     } catch (RejectedExecutionException e) { }
     verify(http_context, never()).getClient();
@@ -344,39 +348,66 @@ public class TestHttpQueryV2Executor {
         //.addMetric(Metric.newBuilder().setId("m1").setMetric("sys.cpu.user"))
         .build();
     
-    Deferred<DataShardsGroup> deferred = executor.executeQuery(query);
+    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
     assertNull(callback);
     assertFalse(futures.contains(future));
     try {
-      deferred.join();
+      exec.deferred().join();
       fail("Expected RejectedExecutionException");
     } catch (RejectedExecutionException e) { }
     verify(http_context, never()).getClient();
   }
   
   @Test
-  public void executeQueryCancelled() throws Exception {
+  public void executeQueryFutureCancelled() throws Exception {
     final HttpQueryV2Executor executor = 
         new HttpQueryV2Executor(context, endpoint, group_id);
     final Set<Future<HttpResponse>> futures = 
         Whitebox.getInternalState(executor, "futures");
     setupQuery();
     
-    Deferred<DataShardsGroup> deferred = executor.executeQuery(query);
+    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
     assertNotNull(callback);
     assertTrue(futures.contains(future));
     try {
-      deferred.join(1);
+      exec.deferred().join(1);
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
     callback.cancelled();
     
     try {
-      deferred.join();
+      exec.deferred().join();
       fail("Expected RemoteQueryExecutionException");
     } catch (RemoteQueryExecutionException e) { }
     assertTrue(futures.isEmpty());
+  }
+  
+  @Test
+  public void executeQueryUpstreamCancelled() throws Exception {
+    final HttpQueryV2Executor executor = 
+        new HttpQueryV2Executor(context, endpoint, group_id);
+    final Set<Future<HttpResponse>> futures = 
+        Whitebox.getInternalState(executor, "futures");
+    setupQuery();
+    
+    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
+    assertNotNull(callback);
+    assertTrue(futures.contains(future));
+    try {
+      exec.deferred().join(1);
+      fail("Expected TimeoutException");
+    } catch (TimeoutException e) { }
+    
+    exec.cancel();
+    
+    try {
+      exec.deferred().join();
+      fail("Expected RemoteQueryExecutionException");
+    } catch (RemoteQueryExecutionException e) { }
+    assertTrue(futures.isEmpty());
+    verify(future, times(1)).cancel(true);
+    
   }
   
   @Test
@@ -387,18 +418,18 @@ public class TestHttpQueryV2Executor {
         Whitebox.getInternalState(executor, "futures");
     setupQuery();
     
-    Deferred<DataShardsGroup> deferred = executor.executeQuery(query);
+    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
     assertNotNull(callback);
     assertTrue(futures.contains(future));
     try {
-      deferred.join(1);
+      exec.deferred().join(1);
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
     callback.cancelled();
     
     try {
-      deferred.join();
+      exec.deferred().join();
       fail("Expected RemoteQueryExecutionException");
     } catch (RemoteQueryExecutionException e) { }
     assertTrue(futures.isEmpty());
@@ -424,18 +455,18 @@ public class TestHttpQueryV2Executor {
     entity = new StringEntity(response_content);
     when(response.getEntity()).thenReturn(entity);
     
-    Deferred<DataShardsGroup> deferred = executor.executeQuery(query);
+    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
     assertNotNull(callback);
     assertTrue(futures.contains(future));
     try {
-      deferred.join(1);
+      exec.deferred().join(1);
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
     callback.cancelled();
     
     try {
-      deferred.join();
+      exec.deferred().join();
       fail("Expected RemoteQueryExecutionException");
     } catch (RemoteQueryExecutionException e) { }
     assertTrue(futures.isEmpty());
@@ -450,18 +481,18 @@ public class TestHttpQueryV2Executor {
     setupQuery();
     when(status.getStatusCode()).thenReturn(404);
     
-    Deferred<DataShardsGroup> deferred = executor.executeQuery(query);
+    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
     assertNotNull(callback);
     assertTrue(futures.contains(future));
     try {
-      deferred.join(1);
+      exec.deferred().join(1);
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
     callback.cancelled();
     
     try {
-      deferred.join();
+      exec.deferred().join();
       fail("Expected RemoteQueryExecutionException");
     } catch (RemoteQueryExecutionException e) { }
     assertTrue(futures.isEmpty());
