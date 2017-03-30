@@ -14,7 +14,9 @@ package net.opentsdb.query.context;
 
 import java.util.List;
 
-import net.opentsdb.data.DataShardMerger;
+import com.google.common.reflect.TypeToken;
+
+import net.opentsdb.data.DataMerger;
 import net.opentsdb.query.execution.ClusterConfig;
 
 /**
@@ -26,5 +28,5 @@ public interface RemoteContext {
 
   public List<ClusterConfig> clusters();
   
-  public DataShardMerger dataShardMerger();
+  public DataMerger<?> dataMerger(final TypeToken<?> type);
 }

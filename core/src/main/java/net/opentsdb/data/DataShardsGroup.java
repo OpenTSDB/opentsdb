@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.List;
 
 import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeStamp.TimeStampComparator;
 
@@ -27,6 +28,10 @@ import net.opentsdb.data.TimeStamp.TimeStampComparator;
  */
 public abstract class DataShardsGroup {
 
+  /** The data type reference to pass around. */
+  public static final TypeToken<DataShardsGroup> TYPE = 
+      TypeToken.of(DataShardsGroup.class);
+  
   /** The group ID shared with all shards. */
   protected TimeSeriesGroupId id;
   

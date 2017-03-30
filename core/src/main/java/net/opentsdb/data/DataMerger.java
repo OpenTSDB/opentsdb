@@ -10,18 +10,18 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.query.execution;
+package net.opentsdb.data;
+
+import com.google.common.reflect.TypeToken;
 
 /**
- * TODO
+ * TODO - doc
  *
- * @since 3.0
+ * @param <T> The type of data this merger operates on.
  */
-public interface ClusterConfig {
+public interface DataMerger<T> {
 
-  public String id();
+  public TypeToken<?> type();
   
-  public long timeout();
-  
-  public QueryExecutor<?> remoteExecutor();
+  public T merge(final T[] shards);
 }

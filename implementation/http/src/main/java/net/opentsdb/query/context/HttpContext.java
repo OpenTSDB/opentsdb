@@ -17,7 +17,9 @@ import java.util.Map;
 
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 
-import net.opentsdb.data.DataShardMerger;
+import com.google.common.reflect.TypeToken;
+
+import net.opentsdb.data.DataMerger;
 import net.opentsdb.query.execution.ClusterConfig;
 
 /**
@@ -42,7 +44,7 @@ public class HttpContext implements RemoteContext {
   }
 
   @Override
-  public DataShardMerger dataShardMerger() {
+  public DataMerger<?> dataMerger(final TypeToken<?> type) {
     // TODO Auto-generated method stub
     return null;
   }

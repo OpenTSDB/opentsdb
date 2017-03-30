@@ -33,7 +33,7 @@ import net.opentsdb.utils.Bytes;
  * 
  * @since 3.0
  */
-public abstract class DataShardMerger {
+public abstract class DataShardMerger implements DataMerger<DataShardsGroup> {
   private static final Logger LOG = LoggerFactory.getLogger(
       DataShardMerger.class);
   
@@ -45,6 +45,11 @@ public abstract class DataShardMerger {
    */
   public DataShardMerger() {
     strategies = Maps.newHashMapWithExpectedSize(1);
+  }
+  
+  @Override
+  public TypeToken<?> type()  {
+    return DataShardsGroup.TYPE;
   }
   
   /**
@@ -69,6 +74,7 @@ public abstract class DataShardMerger {
    * @return A shards object with the merged results. If all shards in the
    * list were null, the resulting shard will be null.
    */
+  @Override
   public DataShardsGroup merge(final DataShardsGroup[] shards) {
     TimeSeriesGroupId group_id = null;
     for (final DataShardsGroup group : shards) {
