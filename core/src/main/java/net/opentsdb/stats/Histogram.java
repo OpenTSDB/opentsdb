@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
+// Copyright (C) 2010-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -34,6 +34,8 @@ import java.util.Arrays;
  * the arguments given to the constructor.
  * <p>
  * This class is not synchronized.
+ * 
+ * @since 1.0
  */
 public final class Histogram {
 
