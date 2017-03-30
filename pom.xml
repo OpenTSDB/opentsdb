@@ -113,14 +113,25 @@
         
         <dependency>
           <groupId>io.netty</groupId>
-          <artifactId>netty</artifactId>
-          <version>3.10.6.Final</version>
+          <artifactId>netty-common</artifactId>
+          <version>4.1.9.Final</version>
         </dependency>
         
         <dependency>
           <groupId>com.stumbleupon</groupId>
           <artifactId>async</artifactId>
           <version>1.4.1</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>1.2.1</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.1</version>
         </dependency>
         
         <!-- test dependencies -->

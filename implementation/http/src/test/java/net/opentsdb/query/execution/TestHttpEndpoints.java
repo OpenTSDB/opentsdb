@@ -25,7 +25,6 @@ import java.io.File;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import org.jboss.netty.util.HashedWheelTimer;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,6 +34,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.common.io.Files;
 
+import io.netty.util.HashedWheelTimer;
 import net.opentsdb.common.Const;
 import net.opentsdb.utils.Config;
 

@@ -30,6 +30,7 @@ import com.google.common.collect.Sets;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import io.netty.util.Timer;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.TimeStampComparator;
@@ -603,7 +604,18 @@ public abstract class QueryContext {
     }
   }
   
+  /**
+   * If the service is configured to execute queries remotely, returns the
+   * remote context used for querying external systems. Otherwise returns null.
+   * @return A remote context or null.
+   */
   public abstract RemoteContext getRemoteContext();
+  
+  /**
+   * Return a non-null timer for scheduling timer related tasks.
+   * @return A non-null timer.
+   */
+  public abstract Timer getTimer();
   
   /**
    * Utility method to traverse all outgoing connections of the processor and

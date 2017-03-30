@@ -10,21 +10,18 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.query.context;
-
-import java.util.List;
-
-import net.opentsdb.data.DataShardMerger;
-import net.opentsdb.query.execution.ClusterConfig;
+package net.opentsdb.query.execution;
 
 /**
  * TODO
  *
  * @since 3.0
  */
-public interface RemoteContext {
+public interface ClusterConfig {
 
-  public List<ClusterConfig> clusters();
+  public String id();
   
-  public DataShardMerger dataShardMerger();
+  public long timeout();
+  
+  public QueryExecutor getRemoteExecutor();
 }

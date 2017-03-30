@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.context;
 
+import io.netty.util.Timer;
+
 /**
  * Simply allows instantiation of the {@link QueryContext} without overrides.
  * 
@@ -21,6 +23,12 @@ public class DefaultQueryContext extends QueryContext {
 
   @Override
   public RemoteContext getRemoteContext() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public Timer getTimer() {
     // TODO Auto-generated method stub
     return null;
   }

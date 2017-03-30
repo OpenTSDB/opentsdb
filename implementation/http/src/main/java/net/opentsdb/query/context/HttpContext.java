@@ -12,9 +12,13 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.context;
 
+import java.util.List;
 import java.util.Map;
 
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+
+import net.opentsdb.data.DataShardMerger;
+import net.opentsdb.query.execution.ClusterConfig;
 
 /**
  * TODO - stub
@@ -28,6 +32,18 @@ public class HttpContext implements RemoteContext {
   }
   
   public CloseableHttpAsyncClient getClient() {
+    return null;
+  }
+
+  @Override
+  public List<ClusterConfig> clusters() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public DataShardMerger dataShardMerger() {
+    // TODO Auto-generated method stub
     return null;
   }
 }

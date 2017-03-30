@@ -33,6 +33,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import io.netty.util.Timer;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.IteratorStatus;
@@ -1049,6 +1050,12 @@ public class TestQueryContext {
 
     @Override
     public RemoteContext getRemoteContext() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override
+    public Timer getTimer() {
       // TODO Auto-generated method stub
       return null;
     }
