@@ -148,7 +148,7 @@ public class Metric extends Validatable implements Comparable<Metric> {
     if (id == null || id.isEmpty()) {
       throw new IllegalArgumentException("missing or empty id");
     }
-    Query.validateId(id);
+    TimeSeriesQuery.validateId(id);
 
     if (time_offset != null) {
       DateTime.parseDateTimeString(time_offset, null);
@@ -254,7 +254,7 @@ public class Metric extends Validatable implements Comparable<Metric> {
     }
 
     public Builder setId(String id) {
-      Query.validateId(id);
+      TimeSeriesQuery.validateId(id);
       this.id = id;
       return this;
     }

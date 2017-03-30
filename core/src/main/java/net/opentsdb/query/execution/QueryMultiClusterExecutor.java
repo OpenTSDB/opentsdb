@@ -32,7 +32,7 @@ import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.context.RemoteContext;
 import net.opentsdb.query.execution.ClusterConfig;
-import net.opentsdb.query.pojo.Query;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 /**
  * An executor that uses the {@link RemoteContext#clusters()} config to send
@@ -41,7 +41,7 @@ import net.opentsdb.query.pojo.Query;
  * <p>
  * For multi-cluster queries, we fire the same query off to each cluster and 
  * wait for a response from every cluster. If at least one cluster returns
- * a valid result, then that result will be returned via {@link #executeQuery(Query)}.
+ * a valid result, then that result will be returned via {@link #executeQuery(TimeSeriesQuery)}.
  * However if all clusters return an exception, then the exceptions are
  * packed into a {@link RemoteQueryExecutionException} and the highest status
  * code from exceptions (assuming each one returns a RemoteQueryExecutionException)
@@ -105,7 +105,7 @@ public class QueryMultiClusterExecutor<T> extends QueryExecutor<T> {
 
   @SuppressWarnings("unchecked")
   @Override
-  public QueryExecution<T> executeQuery(final Query query) {
+  public QueryExecution<T> executeQuery(final TimeSeriesQuery query) {
     if (completed.get()) {
       return new FailedQueryExecution(query,
           new RemoteQueryExecutionException(
@@ -163,7 +163,7 @@ public class QueryMultiClusterExecutor<T> extends QueryExecutor<T> {
      * @throws IllegalStateException if the remote context cluster call fails.
      */
     @SuppressWarnings("unchecked")
-    public QueryToClusterSplitter(final Query query) {
+    public QueryToClusterSplitter(final TimeSeriesQuery query) {
       super(query);
       clusters = context.getRemoteContext().clusters();
       if (clusters == null || clusters.isEmpty()) {
@@ -175,7 +175,7 @@ public class QueryMultiClusterExecutor<T> extends QueryExecutor<T> {
     }
     
     @SuppressWarnings("unchecked")
-    QueryExecution<T> executeQuery(final Query query) {
+    QueryExecution<T> executeQuery(final TimeSeriesQuery query) {
       final List<Deferred<T>> deferreds = Lists.
           <Deferred<T>>newArrayListWithExpectedSize(clusters.size());
       try {

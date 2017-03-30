@@ -105,7 +105,7 @@ public class Filter extends Validatable implements Comparable<Filter> {
     if (id == null || id.isEmpty()) {
       throw new IllegalArgumentException("Missing or empty id");
     }
-    Query.validateId(id);
+    TimeSeriesQuery.validateId(id);
   }
   
   @Override
@@ -165,7 +165,7 @@ public class Filter extends Validatable implements Comparable<Filter> {
     private boolean explicitTags;
     
     public Builder setId(final String id) {
-      Query.validateId(id);
+      TimeSeriesQuery.validateId(id);
       this.id = id;
       return this;
     }

@@ -33,7 +33,7 @@ import net.opentsdb.utils.Bytes;
  * 
  * @since 3.0
  */
-public abstract class DataShardMerger implements DataMerger<DataShardsGroup> {
+public class DataShardMerger implements DataMerger<DataShardsGroup> {
   private static final Logger LOG = LoggerFactory.getLogger(
       DataShardMerger.class);
   

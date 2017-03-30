@@ -31,8 +31,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
-import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
+import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import net.opentsdb.core.Const;
 import net.opentsdb.utils.Config;
@@ -59,11 +59,8 @@ public class HttpEndpoints implements TimerTask {
   public static TypeReference<Map<String, List<String>>> TR_ENDPOINTS = 
       new TypeReference<Map<String, List<String>>>() { };
   
-  /** A config to use. */
-  private final Config config;
-      
   /** The Timer to use. */
-  private final HashedWheelTimer timer;
+  private final Timer timer;
   
   /** The map of endpoings */
   private final ConcurrentMap<String, List<String>> endpoints;
@@ -73,6 +70,9 @@ public class HttpEndpoints implements TimerTask {
   
   /** The configured file location. */
   private final String file_location;
+  
+  /** The timeout to return for each endpoint. TODO - this is a temp hack. */
+  private final long cluster_timeout;
   
   /** The last load hash so we know if we have changes. */
   private int last_hash = 0;
@@ -84,8 +84,7 @@ public class HttpEndpoints implements TimerTask {
    * @throws IllegalArgumentException if the file location is empty, i.e. the
    * tsd.query.http.endpoints.config property.
    */
-  public HttpEndpoints(final Config config, final HashedWheelTimer timer) {
-    this.config = config;
+  public HttpEndpoints(final Config config, final Timer timer) {
     this.timer = timer;
     endpoints = new ConcurrentHashMap<String, List<String>>();
     
@@ -99,7 +98,11 @@ public class HttpEndpoints implements TimerTask {
       throw new IllegalArgumentException("The config tsd.query.http."
           + "endpoints.config cannot be empty.");
     }
-      
+    if (config.hasProperty("tsd.query.http.endpoints.timeout")) {
+      cluster_timeout = config.getLong("tsd.query.http.endpoints.timeout");
+    } else {
+      cluster_timeout = 120000;
+    }
     try {
       run(null);
     } catch (Exception e) {
@@ -144,10 +147,10 @@ public class HttpEndpoints implements TimerTask {
    * Returns a non-null list of endpoints given the ID.
    * If the ID is null, then the default key is looked up.
    * If the ID starts with "http://" or "https://" then it will be split on
-   * semicolns and the given list is returned. This is useful for custom host
+   * semicolons and the given list is returned. This is useful for custom host
    * or VIPs. 
    * Otherwise the given ID is looked up in the map and if a list of endpoints
-   * is present then the endpoints are returned. Otherise and exception is thrown
+   * is present then the endpoints are returned. Otherwise and exception is thrown
    * if the ID isn't found. 
    * @param id Null for the default list, a configured ID to lookup in the map
    * or a literal semicolon delimited list of endpoints.
@@ -161,13 +164,14 @@ public class HttpEndpoints implements TimerTask {
     } else if (id.toLowerCase().startsWith("http://") || 
                id.toLowerCase().startsWith("https://")) {
       // TODO - maybe some validation on the split urls?
-      return Lists.newArrayList(id.split(";"));
+      results = Lists.newArrayList(id.split(";"));
     } else {
       results = endpoints.get(id);
     }
     if (results == null) {
       throw new IllegalArgumentException("No such endpoint collection found");
     }
+        
     return results;
   }
 
@@ -184,10 +188,14 @@ public class HttpEndpoints implements TimerTask {
     return map;
   }
   
+  /** @return The temporary cluster timeout. */
+  public long clusterTimeout() {
+    return cluster_timeout;
+  }
+  
   @VisibleForTesting
   int getLastHash() {
     return last_hash;
   }
-
-
+  
 }

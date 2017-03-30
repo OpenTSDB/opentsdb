@@ -28,7 +28,7 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.pojo.Query;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 /**
  * A {@link QueryExecutor} wrapper that uses a timer to kill a query that
@@ -77,7 +77,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
   }
 
   @Override
-  public QueryExecution<T> executeQuery(final Query query) {
+  public QueryExecution<T> executeQuery(final TimeSeriesQuery query) {
     if (completed.get()) {
       return new FailedQueryExecution<T>(query, new RemoteQueryExecutionException(
             "Timeout executor was already marked as completed: " + this, 
@@ -108,7 +108,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
      * Default ctor.
      * @param query A non-null query.
      */
-    public TimedQuery(final Query query) {
+    public TimedQuery(final TimeSeriesQuery query) {
       super(query);
       outstanding_queries.add(this);
     }

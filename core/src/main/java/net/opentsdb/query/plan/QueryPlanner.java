@@ -20,7 +20,7 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.SliceConfig;
 import net.opentsdb.query.SliceConfig.SliceType;
 import net.opentsdb.query.pojo.Downsampler;
-import net.opentsdb.query.pojo.Query;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -37,10 +37,10 @@ public abstract class QueryPlanner {
   private static final int ROLLUP_INTERVAL = 86400;
   
   /** The original query. */
-  protected final Query query;
+  protected final TimeSeriesQuery query;
   
   /** The planned query as a builder (allows for copying and modification). */
-  protected Query.Builder planned_query;
+  protected TimeSeriesQuery.Builder planned_query;
   
   /** The time range for the query. Will simply hold the start and end times */
   protected TimeStamp[][] query_time_ranges;
@@ -51,7 +51,7 @@ public abstract class QueryPlanner {
    * @param query A non-null query to use.
    * @throws IllegalArgumentException if the query was null.
    */
-  public QueryPlanner(final Query query) {
+  public QueryPlanner(final TimeSeriesQuery query) {
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
     }
@@ -59,12 +59,12 @@ public abstract class QueryPlanner {
   }
   
   /**  @return The original user query */
-  public Query getOriginalQuery() {
+  public TimeSeriesQuery getOriginalQuery() {
     return query;
   }
   
   /** @return The planned query. */
-  public Query.Builder getPlannedQuery() {
+  public TimeSeriesQuery.Builder getPlannedQuery() {
     return planned_query;
   }
   
@@ -116,7 +116,7 @@ public abstract class QueryPlanner {
    * would only happen if someone asked for hundreds of thousands of years of
    * data. (and if that does happen, wtf?)
    */
-  public static TimeStamp[][] getTimeRanges(final Query query) {
+  public static TimeStamp[][] getTimeRanges(final TimeSeriesQuery query) {
     return getTimeRanges(query, -1);
   }
   
@@ -158,7 +158,7 @@ public abstract class QueryPlanner {
    * TODO - handle Percent slices
    * TODO - handle calendar based DS
    */
-  public static TimeStamp[][] getTimeRanges(final Query query, final int metric_index) {
+  public static TimeStamp[][] getTimeRanges(final TimeSeriesQuery query, final int metric_index) {
     if (query == null) {
       throw new IllegalArgumentException("The query hasn't been set.");
     }

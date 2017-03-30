@@ -106,26 +106,26 @@ public class TestQuery {
 
   @Test(expected = IllegalArgumentException.class)
   public void validationErrorWhenTimeIsNull() throws Exception {
-    Query query = getDefaultQueryBuilder().setTime((Timespan) null).build();
+    TimeSeriesQuery query = getDefaultQueryBuilder().setTime((Timespan) null).build();
     query.validate();
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void invalidTime() throws Exception {
     Timespan invalidTime = Timespan.newBuilder().build();
-    Query query = getDefaultQueryBuilder().setTime(invalidTime).build();
+    TimeSeriesQuery query = getDefaultQueryBuilder().setTime(invalidTime).build();
     query.validate();
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void metricsIsNull() throws Exception {
-    Query query = getDefaultQueryBuilder().setMetrics(null).build();
+    TimeSeriesQuery query = getDefaultQueryBuilder().setMetrics(null).build();
     query.validate();
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void metricsIsEmpty() throws Exception {
-    Query query = getDefaultQueryBuilder().setMetrics(
+    TimeSeriesQuery query = getDefaultQueryBuilder().setMetrics(
         Collections.<Metric>emptyList()).build();
     query.validate();
   }
@@ -133,7 +133,7 @@ public class TestQuery {
   @Test(expected = IllegalArgumentException.class)
   public void invalidMetric() throws Exception {
     Metric invalidMetric = Metric.newBuilder().build();
-    Query query = getDefaultQueryBuilder()
+    TimeSeriesQuery query = getDefaultQueryBuilder()
         .setMetrics(Arrays.asList(invalidMetric)).build();
     query.validate();
   }
@@ -141,7 +141,7 @@ public class TestQuery {
   @Test(expected = IllegalArgumentException.class)
   public void invalidFilter() throws Exception {
     Filter invalidFilter = Filter.newBuilder().build();
-    Query query = getDefaultQueryBuilder()
+    TimeSeriesQuery query = getDefaultQueryBuilder()
         .setFilters(Arrays.asList(invalidFilter)).build();
     query.validate();
   }
@@ -149,7 +149,7 @@ public class TestQuery {
   @Test(expected = IllegalArgumentException.class)
   public void invalidExpression() throws Exception {
     Expression invalidExpression = Expression.newBuilder().build();
-    Query query = getDefaultQueryBuilder()
+    TimeSeriesQuery query = getDefaultQueryBuilder()
         .setExpressions(Arrays.asList(invalidExpression)).build();
     query.validate();
   }
@@ -158,16 +158,16 @@ public class TestQuery {
   public void noSuchFilterIdInMetric() throws Exception {
     Metric invalid_metric = Metric.newBuilder().setMetric("YAMAS.cpu.idle")
         .setId("m2").setFilter("f2").setTimeOffset("0").build();
-    Query query = getDefaultQueryBuilder().setMetrics(
+    TimeSeriesQuery query = getDefaultQueryBuilder().setMetrics(
         Arrays.asList(invalid_metric, metric)).build();
     query.validate();
   }
 
   @Test
   public void deserialize() throws Exception {
-    Query query = JSON.parseToObject(json, Query.class);
+    TimeSeriesQuery query = JSON.parseToObject(json, TimeSeriesQuery.class);
     query.validate();
-    Query expected = Query.newBuilder().setExpressions(Arrays.asList(expression))
+    TimeSeriesQuery expected = TimeSeriesQuery.newBuilder().setExpressions(Arrays.asList(expression))
         .setFilters(Arrays.asList(filter)).setMetrics(Arrays.asList(metric))
         .setTime(time).setOutputs(Arrays.asList(output)).build();
     assertEquals(expected, query);
@@ -175,28 +175,28 @@ public class TestQuery {
 
   @Test(expected = IllegalArgumentException.class)
   public void duplicatedFilterId() throws Exception {
-    Query query = getDefaultQueryBuilder().setFilters(
+    TimeSeriesQuery query = getDefaultQueryBuilder().setFilters(
         Arrays.asList(filter, filter)).build();
     query.validate();
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void duplicatedExpressionId() throws Exception {
-    Query query = getDefaultQueryBuilder().setExpressions(
+    TimeSeriesQuery query = getDefaultQueryBuilder().setExpressions(
         Arrays.asList(expression, expression)).build();
     query.validate();
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void duplicatedMetricId() throws Exception {
-    Query query = getDefaultQueryBuilder().setMetrics(
+    TimeSeriesQuery query = getDefaultQueryBuilder().setMetrics(
         Arrays.asList(metric, metric)).build();
     query.validate();
   }
 
   @Test
   public void serialize() throws Exception {
-    final Query query = Query.newBuilder().setExpressions(Arrays.asList(expression))
+    final TimeSeriesQuery query = TimeSeriesQuery.newBuilder().setExpressions(Arrays.asList(expression))
         .setFilters(Arrays.asList(filter)).setMetrics(Arrays.asList(metric))
         .setName("q1").setTime(time).setOutputs(Arrays.asList(output)).build();
 
@@ -222,7 +222,7 @@ public class TestQuery {
 
   @Test
   public void build() throws Exception {
-    final Query query = Query.newBuilder()
+    final TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .addExpression(expression)
         .addFilter(filter)
         .addMetric(metric)
@@ -230,7 +230,7 @@ public class TestQuery {
         .setTime(time)
         .addOutput(output)
         .build();
-    final Query clone = Query.newBuilder(query).build();
+    final TimeSeriesQuery clone = TimeSeriesQuery.newBuilder(query).build();
     assertNotSame(clone, query);
     assertNotSame(clone.getExpressions(), query.getExpressions());
     assertNotSame(clone.getFilters(), query.getFilters());
@@ -287,7 +287,7 @@ public class TestQuery {
             .build())
         .build();
     
-    final Query q1 = new Query.Builder()
+    final TimeSeriesQuery q1 = new TimeSeriesQuery.Builder()
         .setName("q1")
         .setTime(time)
         .setExpressions(Arrays.asList(expression, e1))
@@ -296,7 +296,7 @@ public class TestQuery {
         .setOutputs(Arrays.asList(output, o1))
         .build();
     
-    Query q2 = new Query.Builder()
+    TimeSeriesQuery q2 = new TimeSeriesQuery.Builder()
         .setName("q1")
         .setTime(time)
         .setExpressions(Arrays.asList(expression, e1))
@@ -308,7 +308,7 @@ public class TestQuery {
     assertEquals(q1, q2);
     assertEquals(0, q1.compareTo(q2));
     
-    q2 = new Query.Builder()
+    q2 = new TimeSeriesQuery.Builder()
         .setName("q1")
         .setTime(time)
         .setExpressions(Arrays.asList(e1, expression))  // <-- diff order
@@ -320,7 +320,7 @@ public class TestQuery {
     assertEquals(q1, q2);
     assertEquals(0, q1.compareTo(q2));
     
-    q2 = new Query.Builder()
+    q2 = new TimeSeriesQuery.Builder()
         .setName("q1")
         .setTime(time)
         .setExpressions(Arrays.asList(expression, e1))
@@ -332,7 +332,7 @@ public class TestQuery {
     assertEquals(q1, q2);
     assertEquals(0, q1.compareTo(q2));
     
-    q2 = new Query.Builder()
+    q2 = new TimeSeriesQuery.Builder()
         .setName("q1")
         .setTime(time)
         .setExpressions(Arrays.asList(expression, e1))
@@ -344,7 +344,7 @@ public class TestQuery {
     assertEquals(q1, q2);
     assertEquals(0, q1.compareTo(q2));
     
-    q2 = new Query.Builder()
+    q2 = new TimeSeriesQuery.Builder()
         .setName("q1")
         .setTime(time)
         .setExpressions(Arrays.asList(expression, e1))
@@ -356,7 +356,7 @@ public class TestQuery {
     assertEquals(q1, q2);
     assertEquals(0, q1.compareTo(q2));
     
-    q2 = new Query.Builder()
+    q2 = new TimeSeriesQuery.Builder()
         .setName("q2")  // <-- diff
         .setTime(time)
         .setExpressions(Arrays.asList(expression, e1))
@@ -368,7 +368,7 @@ public class TestQuery {
     assertNotEquals(q1, q2);
     assertEquals(-1, q1.compareTo(q2));
     
-    q2 = new Query.Builder()
+    q2 = new TimeSeriesQuery.Builder()
         .setName("q1")
         .setTime(time)
         .setExpressions(Arrays.asList(expression))  // <-- diff
@@ -380,7 +380,7 @@ public class TestQuery {
     assertNotEquals(q1, q2);
     assertEquals(-1, q1.compareTo(q2));
     
-    q2 = new Query.Builder()
+    q2 = new TimeSeriesQuery.Builder()
         .setName("q1")
         .setTime(time)
         .setExpressions(Arrays.asList(expression, e1))
@@ -392,7 +392,7 @@ public class TestQuery {
     assertNotEquals(q1, q2);
     assertEquals(1, q1.compareTo(q2));
     
-    q2 = new Query.Builder()
+    q2 = new TimeSeriesQuery.Builder()
         .setName("q1")
         .setTime(time)
         .setExpressions(Arrays.asList(expression, e1))
@@ -404,7 +404,7 @@ public class TestQuery {
     assertNotEquals(q1, q2);
     assertEquals(1, q1.compareTo(q2));
     
-    q2 = new Query.Builder()
+    q2 = new TimeSeriesQuery.Builder()
         .setName("q1")
         .setTime(time)
         .setExpressions(Arrays.asList(expression, e1))
@@ -416,7 +416,7 @@ public class TestQuery {
     assertNotEquals(q1, q2);
     assertEquals(1, q1.compareTo(q2));
     
-    q2 = new Query.Builder()
+    q2 = new TimeSeriesQuery.Builder()
         .setName("q1")
         .setTime(time)
         //.setExpressions(Arrays.asList(expression, e1))  // <-- diff
@@ -428,7 +428,7 @@ public class TestQuery {
     assertNotEquals(q1, q2);
     assertEquals(1, q1.compareTo(q2));
     
-    q2 = new Query.Builder()
+    q2 = new TimeSeriesQuery.Builder()
         .setName("q1")
         .setTime(time)
         .setExpressions(Arrays.asList(expression, e1))
@@ -440,7 +440,7 @@ public class TestQuery {
     assertNotEquals(q1, q2);
     assertEquals(1, q1.compareTo(q2));
     
-    q2 = new Query.Builder()
+    q2 = new TimeSeriesQuery.Builder()
         .setName("q1")
         .setTime(time)
         .setExpressions(Arrays.asList(expression, e1))
@@ -453,8 +453,8 @@ public class TestQuery {
     assertEquals(1, q1.compareTo(q2));
   }
 
-  private Query.Builder getDefaultQueryBuilder() {
-    return Query.newBuilder().setExpressions(Arrays.asList(expression))
+  private TimeSeriesQuery.Builder getDefaultQueryBuilder() {
+    return TimeSeriesQuery.newBuilder().setExpressions(Arrays.asList(expression))
           .setFilters(Arrays.asList(filter)).setMetrics(Arrays.asList(metric))
           .setName("q1").setTime(time).setOutputs(Arrays.asList(output));
   }

@@ -20,15 +20,15 @@ import static org.mockito.Mockito.mock;
 import org.junit.Before;
 import org.junit.Test;
 
-import net.opentsdb.query.pojo.Query;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 public class TestFailedQueryExecution {
-  private Query query;
+  private TimeSeriesQuery query;
   private IllegalArgumentException ex;
   
   @Before
   public void before() throws Exception {
-    query = mock(Query.class);
+    query = mock(TimeSeriesQuery.class);
     ex = new IllegalArgumentException("Boo!");
   }
   

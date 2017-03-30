@@ -19,7 +19,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.pojo.Query;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 /**
  * A base query executor that may spawn a tree of sub executors for processing.
@@ -63,7 +63,7 @@ public abstract class QueryExecutor<T> {
    * @throws RemoteQueryExecutionException (in the deferred) if the remote call
    * failed.
    */
-  public abstract QueryExecution<T> executeQuery(final Query query);
+  public abstract QueryExecution<T> executeQuery(final TimeSeriesQuery query);
   
   /**
    * Method called to close and release all resources.

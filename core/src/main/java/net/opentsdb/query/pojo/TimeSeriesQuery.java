@@ -28,6 +28,7 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.utils.JSON;
 
 import java.util.Collections;
@@ -41,8 +42,8 @@ import java.util.Set;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
-@JsonDeserialize(builder = Query.Builder.class)
-public class Query extends Validatable implements Comparable<Query> {
+@JsonDeserialize(builder = TimeSeriesQuery.Builder.class)
+public class TimeSeriesQuery extends Validatable implements Comparable<TimeSeriesQuery> {
   /** An optional name for the query */
   private String name;
   
@@ -64,11 +65,15 @@ public class Query extends Validatable implements Comparable<Query> {
   /** The order of a sub query in a slice of queries. */
   private int order;
 
+  /** TODO - temp: used to store the time series group ID for sub queries. Not
+   * to be added to comparator, equals, builder, etc. */
+  private TimeSeriesGroupId group_id;
+  
   /**
    * Default ctor
    * @param builder The builder to pull values from
    */
-  public Query(final Builder builder) {
+  public TimeSeriesQuery(final Builder builder) {
     this.name = builder.name;
     this.time = builder.time;
     this.filters = builder.filters;
@@ -125,7 +130,7 @@ public class Query extends Validatable implements Comparable<Query> {
    * @throws IllegalArgumentException if the query was null.
    * @since 3.0
    */
-  public static Builder newBuilder(final Query query) {
+  public static Builder newBuilder(final TimeSeriesQuery query) {
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
     }
@@ -277,7 +282,7 @@ public class Query extends Validatable implements Comparable<Query> {
     if (o == null || getClass() != o.getClass())
       return false;
 
-    Query query = (Query) o;
+    TimeSeriesQuery query = (TimeSeriesQuery) o;
 
     return Objects.equal(query.expressions, expressions)
         && Objects.equal(query.filters, filters)
@@ -327,7 +332,7 @@ public class Query extends Validatable implements Comparable<Query> {
   }
   
   @Override
-  public int compareTo(final Query o) {
+  public int compareTo(final TimeSeriesQuery o) {
     return ComparisonChain.start()
         .compare(name, o.name, Ordering.natural().nullsFirst())
         .compare(time, o.time, Ordering.natural().nullsFirst())
@@ -340,6 +345,14 @@ public class Query extends Validatable implements Comparable<Query> {
         .compare(outputs, o.outputs, 
             Ordering.<Output>natural().lexicographical().nullsFirst())
         .result();
+  }
+  
+  public TimeSeriesGroupId groupId() {
+    return group_id;
+  }
+  
+  public void groupId(final TimeSeriesGroupId id) {
+    group_id = id;
   }
   
   /**
@@ -506,8 +519,8 @@ public class Query extends Validatable implements Comparable<Query> {
       return this;
     }
     
-    public Query build() {
-      return new Query(this);
+    public TimeSeriesQuery build() {
+      return new TimeSeriesQuery(this);
     }
   }
   

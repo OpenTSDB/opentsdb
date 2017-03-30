@@ -43,13 +43,13 @@ import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.context.RemoteContext;
 import net.opentsdb.query.execution.QueryMultiClusterExecutor.QueryToClusterSplitter;
-import net.opentsdb.query.pojo.Query;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 public class TestQueryMultiClusterExecutor {
   private QueryContext context;
   private RemoteContext remote_context;
   private Timer timer;
-  private Query query;
+  private TimeSeriesQuery query;
   private ClusterConfig cluster_a;
   private ClusterConfig cluster_b;
   private QueryExecutor<Long> executor_a;
@@ -64,7 +64,7 @@ public class TestQueryMultiClusterExecutor {
     context = mock(QueryContext.class);
     remote_context = mock(RemoteContext.class);
     timer = mock(Timer.class);
-    query = mock(Query.class);
+    query = mock(TimeSeriesQuery.class);
     cluster_a = mock(ClusterConfig.class);
     cluster_b = mock(ClusterConfig.class);
     executor_a = mock(QueryExecutor.class);
@@ -399,7 +399,7 @@ public class TestQueryMultiClusterExecutor {
   class MockDownstream extends QueryExecution<Long> {
     boolean cancelled;
     
-    public MockDownstream(Query query) {
+    public MockDownstream(TimeSeriesQuery query) {
       super(query);
     }
 

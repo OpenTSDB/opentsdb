@@ -25,15 +25,15 @@ import org.junit.Test;
 
 import com.stumbleupon.async.TimeoutException;
 
-import net.opentsdb.query.pojo.Query;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 public class TestQueryExecution {
 
-  private Query query;
+  private TimeSeriesQuery query;
   
   @Before
   public void before() throws Exception {
-    query = mock(Query.class);
+    query = mock(TimeSeriesQuery.class);
   }
   
   @Test
@@ -92,7 +92,7 @@ public class TestQueryExecution {
   
   class TestImp extends QueryExecution<Long> {
 
-    public TestImp(Query query) {
+    public TestImp(TimeSeriesQuery query) {
       super(query);
     }
 

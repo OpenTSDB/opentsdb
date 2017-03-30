@@ -87,7 +87,7 @@ public class Output extends Validatable implements Comparable<Output> {
     if (id == null || id.isEmpty()) {
       throw new IllegalArgumentException("missing or empty id");
     }
-    Query.validateId(id);
+    TimeSeriesQuery.validateId(id);
   }
   
   @Override
@@ -141,7 +141,7 @@ public class Output extends Validatable implements Comparable<Output> {
     private String alias;
 
     public Builder setId(String id) {
-      Query.validateId(id);
+      TimeSeriesQuery.validateId(id);
       this.id = id;
       return this;
     }

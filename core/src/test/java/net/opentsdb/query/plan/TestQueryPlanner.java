@@ -28,14 +28,14 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Metric;
-import net.opentsdb.query.pojo.Query;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
 
 public class TestQueryPlanner {
 
   @Test
   public void ctor() {
-    final Query query = Query.newBuilder().build();
+    final TimeSeriesQuery query = TimeSeriesQuery.newBuilder().build();
     final TestImplementation planner = new TestImplementation(query);
     assertSame(query, planner.getOriginalQuery());
     assertFalse(planner.generated_plan);
@@ -51,7 +51,7 @@ public class TestQueryPlanner {
   @Test
   public void getTimeRangesLessThan1HourNoDownsampling() {
     final TimeStamp[][] times = QueryPlanner.getTimeRanges(
-        Query.newBuilder()
+        TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(1311022800000L)) // Mon, 18 Jul 2011 21:00:00 GMT
             .setEnd(Long.toString(1311022860000L))  // Mon, 18 Jul 2011 21:01:00 GMT
@@ -65,7 +65,7 @@ public class TestQueryPlanner {
   @Test
   public void getTimeRangesOver1HourNoDownsampling() {
     final TimeStamp[][] times = QueryPlanner.getTimeRanges(
-        Query.newBuilder()
+        TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(1311022800000L)) // Mon, 18 Jul 2011 21:00:00 GMT
             .setEnd(Long.toString(1311026460000L))  // Mon, 18 Jul 2011 22:01:00 GMT
@@ -81,7 +81,7 @@ public class TestQueryPlanner {
   @Test
   public void getTimeRangesStartSnapOver1HourNoDownsampling() {
     final TimeStamp[][] times = QueryPlanner.getTimeRanges(
-        Query.newBuilder()
+        TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(1311022860000L)) // Mon, 18 Jul 2011 21:01:00 GMT
             .setEnd(Long.toString(1311026460000L))  // Mon, 18 Jul 2011 22:01:00 GMT
@@ -97,7 +97,7 @@ public class TestQueryPlanner {
   @Test
   public void getTimeRangesDownsample1Minute() {
     final TimeStamp[][] times = QueryPlanner.getTimeRanges(
-        Query.newBuilder()
+        TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("1m")
@@ -116,7 +116,7 @@ public class TestQueryPlanner {
   
   @Test
   public void getTimeRangesDownsample1MinuteSliceDurationGreaterThanQuery() {
-    final Query query = Query.newBuilder()
+    final TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("1m")
@@ -141,7 +141,7 @@ public class TestQueryPlanner {
   
   @Test
   public void getTimeRangesDownsample1MinuteSliceDurationSameAsDefault() {
-    final Query query = Query.newBuilder()
+    final TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("1m")
@@ -168,7 +168,7 @@ public class TestQueryPlanner {
   
   @Test
   public void getTimeRangesDownsample1MinuteSliceDurationSameAsDownsampler() {
-    final Query query = Query.newBuilder()
+    final TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("1m")
@@ -197,7 +197,7 @@ public class TestQueryPlanner {
   
   @Test
   public void getTimeRangesDownsample1MinuteSliceDurationGreaterThanDownsampler() {
-    final Query query = Query.newBuilder()
+    final TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("1m")
@@ -227,7 +227,7 @@ public class TestQueryPlanner {
   @Test
   public void getTimeRangesDownsample15Minutes() {    
     final TimeStamp[][] times = QueryPlanner.getTimeRanges(
-        Query.newBuilder()
+        TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("15m")
@@ -246,7 +246,7 @@ public class TestQueryPlanner {
   
   @Test
   public void getTimeRangesDownsample15MinutesSlice1h() {
-    final Query query = Query.newBuilder()
+    final TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("15m")
@@ -273,7 +273,7 @@ public class TestQueryPlanner {
   
   @Test
   public void getTimeRangesDownsample15MinutesSlice30m() {
-    final Query query = Query.newBuilder()
+    final TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("15m")
@@ -302,7 +302,7 @@ public class TestQueryPlanner {
   
   @Test (expected = IllegalArgumentException.class)
   public void getTimeRangesDownsample15MinutesSlice20m() {
-    final Query query = Query.newBuilder()
+    final TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("15m")
@@ -324,7 +324,7 @@ public class TestQueryPlanner {
   
   @Test (expected = IllegalArgumentException.class)
   public void getTimeRangesDownsample15MinutesSlice1m() {
-    final Query query = Query.newBuilder()
+    final TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("15m")
@@ -347,7 +347,7 @@ public class TestQueryPlanner {
   @Test
   public void getTimeRangesDownsample45Minutes() {
     final TimeStamp[][] times = QueryPlanner.getTimeRanges(
-        Query.newBuilder()
+        TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("45m")
@@ -365,7 +365,7 @@ public class TestQueryPlanner {
   @Test
   public void getTimeRangesDownsample1Hour() {
     final TimeStamp[][] times = QueryPlanner.getTimeRanges(
-        Query.newBuilder()
+        TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("1h")
@@ -384,7 +384,7 @@ public class TestQueryPlanner {
   @Test
   public void getTimeRangesDownsample2Hours() {
     final TimeStamp[][] times = QueryPlanner.getTimeRanges(
-        Query.newBuilder()
+        TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("2h")
@@ -402,7 +402,7 @@ public class TestQueryPlanner {
   @Test
   public void getTimeRangesDownsample3Hours() {
     final TimeStamp[][] times = QueryPlanner.getTimeRanges(
-        Query.newBuilder()
+        TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("3h")
@@ -422,7 +422,7 @@ public class TestQueryPlanner {
   @Test
   public void getTimeRangesDownsample7Hours() {
     final TimeStamp[][] times = QueryPlanner.getTimeRanges(
-        Query.newBuilder()
+        TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("7h")
@@ -440,7 +440,7 @@ public class TestQueryPlanner {
   @Test
   public void getTimeRangesDownsample12Hours() {
     final TimeStamp[][] times = QueryPlanner.getTimeRanges(
-        Query.newBuilder()
+        TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("12h")
@@ -460,7 +460,7 @@ public class TestQueryPlanner {
   @Test
   public void getTimeRangesDownsample2Days() {
     final TimeStamp[][] times = QueryPlanner.getTimeRanges(
-        Query.newBuilder()
+        TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("48h")
@@ -480,7 +480,7 @@ public class TestQueryPlanner {
   @Test
   public void getTimeRangesMetricOverride() {
     final TimeStamp[][] times = QueryPlanner.getTimeRanges(
-        Query.newBuilder()
+        TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("1h")
@@ -504,7 +504,7 @@ public class TestQueryPlanner {
   @Test
   public void getTimeRangesMetricOverrideFallback() {
     final TimeStamp[][] times = QueryPlanner.getTimeRanges(
-        Query.newBuilder()
+        TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("1h")
@@ -525,7 +525,7 @@ public class TestQueryPlanner {
   public void getTimeRangesOverflow() {
     // before this is ever triggered we better make sure the query is sane.
     QueryPlanner.getTimeRanges(
-        Query.newBuilder()
+        TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(1L)) // Mon, 18 Jul 2011 21:01:00 GMT
             .setEnd(Long.toString(7730944732800000L))  // Tue, 20 Nov 246953 00:00:00 GMT
@@ -540,13 +540,13 @@ public class TestQueryPlanner {
   
   @Test (expected = IllegalArgumentException.class)
   public void getTimeRangesNoTime() {
-    QueryPlanner.getTimeRanges(Query.newBuilder().build());
+    QueryPlanner.getTimeRanges(TimeSeriesQuery.newBuilder().build());
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void getTimeRangesMetricOutOfRange() {
     QueryPlanner.getTimeRanges(
-        Query.newBuilder()
+        TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(1311022800000L)) // Mon, 18 Jul 2011 21:00:00 GMT
             .setEnd(Long.toString(1311022860000L))  // Mon, 18 Jul 2011 21:01:00 GMT
@@ -559,7 +559,7 @@ public class TestQueryPlanner {
   class TestImplementation extends QueryPlanner {
     public boolean generated_plan = false;
     
-    public TestImplementation(final Query query) {
+    public TestImplementation(final TimeSeriesQuery query) {
       super(query);
     }
 

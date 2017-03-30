@@ -12,7 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.execution;
 
-import net.opentsdb.query.pojo.Query;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 /**
  * An execution that can be returned if the query engine catches an exception
@@ -31,7 +31,7 @@ public class FailedQueryExecution<T> extends QueryExecution<T> {
    * @param ex A non-null exception to pass upstream.
    * @throws IllegalArgumentException if the exception or query were null.
    */
-  public FailedQueryExecution(final Query query, final Exception ex) {
+  public FailedQueryExecution(final TimeSeriesQuery query, final Exception ex) {
     super(query);
     if (ex == null) {
       throw new IllegalArgumentException("The exception cannot be null.");

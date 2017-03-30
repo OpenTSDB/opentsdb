@@ -46,7 +46,6 @@ import net.opentsdb.data.DataShardsGroup;
 import net.opentsdb.data.DefaultDataShards;
 import net.opentsdb.data.DefaultDataShardsGroup;
 import net.opentsdb.data.SimpleStringTimeSeriesId;
-import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
@@ -58,13 +57,13 @@ import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
-import net.opentsdb.query.pojo.Query;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.JSONException;
 
 /**
- * An executor that converts {@link Query}s to OpenTSDB v2.x {@link TSQuery}s
+ * An executor that converts {@link TimeSeriesQuery}s to OpenTSDB v2.x {@link TSQuery}s
  * and sends them over HTTP to a 2.x API via /api/query. The client is fetched
  * from an {@link HttpContext} as are any headers that must be forwarded 
  * downstream.
@@ -84,22 +83,17 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
   /** A set of outstanding futures waiting for completion. */
   private final Set<Future<HttpResponse>> futures;
   
-  /** A group ID to associate with the results. */
-  private final TimeSeriesGroupId group_id;
-  
   /**
    * Default Ctor.
    * @param context A non-null query context.
    * @param endpoint A non-null endpoint such as "http://localhost:4242". The
    * ctor will append "/api/query".
-   * @param group_id A non-null group ID to associate with the data.
    * @throws IllegalArgumentException if the endpoint was null/empty, the 
    * remote context was null or the group ID was null.
    * @throws IllegalStateException if the remote context was not an instance
    * of HttpContext.
    */
-  public HttpQueryV2Executor(final QueryContext context, final String endpoint,
-      final TimeSeriesGroupId group_id) {
+  public HttpQueryV2Executor(final QueryContext context, final String endpoint) {
     super(context);
     if (Strings.isNullOrEmpty(endpoint)) {
       throw new IllegalArgumentException("Endpoint cannot be null or empty.");
@@ -110,11 +104,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
     if (!(context.getRemoteContext() instanceof HttpContext)) {
       throw new IllegalStateException("Remote context was not an HttpContext.");
     }
-    if (group_id == null) {
-      throw new IllegalArgumentException("Group ID cannot be null.");
-    }
     this.endpoint = endpoint + "/api/query";
-    this.group_id = group_id;
     http_context = (HttpContext) context.getRemoteContext();
     futures = Sets.newConcurrentHashSet();
   }
@@ -132,9 +122,12 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
   }
   
   @Override
-  public QueryExecution<DataShardsGroup> executeQuery(final Query query) {
+  public QueryExecution<DataShardsGroup> executeQuery(final TimeSeriesQuery query) {
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
+    }
+    if (query.groupId() == null) {
+      throw new IllegalArgumentException("GroupID was not set in the Query.");
     }
     final Execution execution = new Execution(query);
     
@@ -244,7 +237,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
         try {
           final String json = parseResponse(response, query.getOrder());
           final JsonNode root = JSON.getMapper().readTree(json);
-          final DataShardsGroup group = new DefaultDataShardsGroup(group_id);
+          final DataShardsGroup group = new DefaultDataShardsGroup(query.groupId());
           for (final JsonNode node : root) {
             group.addShards(parseTSQuery(query, node));
           }
@@ -342,7 +335,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
    * @throws IllegalArgumentException if the query or node was null.
    */
   @VisibleForTesting
-  DataShards parseTSQuery(final Query query, final JsonNode node) {
+  DataShards parseTSQuery(final TimeSeriesQuery query, final JsonNode node) {
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
     }
@@ -439,7 +432,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
   class Execution extends QueryExecution<DataShardsGroup> {
     private Future<HttpResponse> future;
     
-    public Execution(final Query query) {
+    public Execution(final TimeSeriesQuery query) {
       super(query);
     }
     
@@ -493,7 +486,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
    * @throws IllegalArgumentException if one or more of the query parameters
    * could not compile properly into a {@link TSQuery}.
    */
-  public static TSQuery convertQuery(final Query query) {
+  public static TSQuery convertQuery(final TimeSeriesQuery query) {
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
     }

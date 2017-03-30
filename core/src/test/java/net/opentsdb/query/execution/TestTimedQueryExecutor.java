@@ -39,13 +39,13 @@ import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.pojo.Query;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 public class TestTimedQueryExecutor {
   private QueryContext context;
   private QueryExecutor<Long> executor;
   private Timer timer;
-  private Query query;
+  private TimeSeriesQuery query;
   private MockDownstream downstream;
   private Timeout timeout;
   
@@ -55,7 +55,7 @@ public class TestTimedQueryExecutor {
     context = mock(QueryContext.class);
     executor = mock(QueryExecutor.class);
     timer = mock(Timer.class);
-    query = mock(Query.class);
+    query = mock(TimeSeriesQuery.class);
     downstream = new MockDownstream(query);
     timeout = mock(Timeout.class);
     
@@ -317,7 +317,7 @@ public class TestTimedQueryExecutor {
   class MockDownstream extends QueryExecution<Long> {
     boolean cancelled;
     
-    public MockDownstream(Query query) {
+    public MockDownstream(TimeSeriesQuery query) {
       super(query);
     }
 

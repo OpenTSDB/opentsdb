@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.query.execution.QueryExecutor;
-import net.opentsdb.query.pojo.Query;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 /**
  * A state container for asynchronous queries. All {@link QueryExecutor}s should
@@ -31,7 +31,7 @@ import net.opentsdb.query.pojo.Query;
  */
 public abstract class QueryExecution<T> {
   /** The query that is associated with this request. */
-  protected final Query query;
+  protected final TimeSeriesQuery query;
   
   /** The deferred that will be called with a result (good data or an exception) */
   protected final Deferred<T> deferred;
@@ -44,7 +44,7 @@ public abstract class QueryExecution<T> {
    * @param query A non-null query.
    * @throws IllegalArgumentException if the query was null.
    */
-  public QueryExecution(final Query query) {
+  public QueryExecution(final TimeSeriesQuery query) {
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
     }
@@ -72,7 +72,7 @@ public abstract class QueryExecution<T> {
   }
 
   /** @return The query associated with this execution. */
-  public Query query() {
+  public TimeSeriesQuery query() {
     return query;
   }
   

@@ -73,7 +73,7 @@ import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Expression;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
-import net.opentsdb.query.pojo.Query;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.utils.JSON;
@@ -91,7 +91,7 @@ public class TestHttpQueryV2Executor {
   private HttpResponse response;
   private HttpEntity entity;
   private StatusLine status;
-  private Query query;
+  private TimeSeriesQuery query;
   
   @Before
   public void before() throws Exception {
@@ -105,7 +105,7 @@ public class TestHttpQueryV2Executor {
     when(context.getRemoteContext()).thenReturn((RemoteContext) http_context);
     when(http_context.getHeaders()).thenReturn(headers);
     
-    query = Query.newBuilder()
+    query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1490122900000")
             .setEnd("1490123050000")
@@ -113,6 +113,7 @@ public class TestHttpQueryV2Executor {
         .addMetric(Metric.newBuilder().setId("m1").setMetric("sys.cpu.user"))
         .build();
     query.validate();
+    query.groupId(group_id);
     
     response_content = "[{"
         + " \"metric\": \"some.fun.metric\","
@@ -156,37 +157,32 @@ public class TestHttpQueryV2Executor {
 
   @Test
   public void ctor() throws Exception {
-    new HttpQueryV2Executor(context, endpoint, group_id);
+    new HttpQueryV2Executor(context, endpoint);
     
     try {
-      new HttpQueryV2Executor(null, endpoint, group_id);
+      new HttpQueryV2Executor(null, endpoint);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new HttpQueryV2Executor(context, null, group_id);
+      new HttpQueryV2Executor(context, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new HttpQueryV2Executor(context, "", group_id);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      new HttpQueryV2Executor(context, endpoint, null);
+      new HttpQueryV2Executor(context, "");
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     when(context.getRemoteContext()).thenReturn(null);
     try {
-      new HttpQueryV2Executor(context, endpoint, group_id);
+      new HttpQueryV2Executor(context, endpoint);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     when(context.getRemoteContext()).thenReturn(mock(RemoteContext.class));
     try {
-      new HttpQueryV2Executor(context, endpoint, group_id);
+      new HttpQueryV2Executor(context, endpoint);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
   }
@@ -195,7 +191,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void close() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint, group_id);
+        new HttpQueryV2Executor(context, endpoint);
     assertNull(executor.close().join());
     
     Future<HttpResponse> f1 = mock(Future.class);
@@ -228,7 +224,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void executeQuery() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint, group_id);
+        new HttpQueryV2Executor(context, endpoint);
     final Set<Future<HttpResponse>> futures = 
         Whitebox.getInternalState(executor, "futures");
     setupQuery();
@@ -304,9 +300,29 @@ public class TestHttpQueryV2Executor {
   }
   
   @Test
+  public void executeQueryGroupIdMissing() throws Exception {
+    final HttpQueryV2Executor executor = 
+        new HttpQueryV2Executor(context, endpoint);
+    setupQuery();
+    
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("1490122900000")
+            .setEnd("1490123050000")
+            .setAggregator("sum"))
+        .addMetric(Metric.newBuilder().setId("m1").setMetric("sys.cpu.user"))
+        .build();
+    query.validate();
+    try {
+      executor.executeQuery(query);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
   public void executeQueryAlreadyCancelled() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint, group_id);
+        new HttpQueryV2Executor(context, endpoint);
     final Set<Future<HttpResponse>> futures = 
         Whitebox.getInternalState(executor, "futures");
     setupQuery();
@@ -328,25 +344,26 @@ public class TestHttpQueryV2Executor {
   @Test (expected = IllegalArgumentException.class)
   public void executeQueryNullQuery() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint, group_id);
+        new HttpQueryV2Executor(context, endpoint);
     executor.executeQuery(null);
   }
   
   @Test
   public void executeQueryFailToConvert() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint, group_id);
+        new HttpQueryV2Executor(context, endpoint);
     final Set<Future<HttpResponse>> futures = 
         Whitebox.getInternalState(executor, "futures");
     setupQuery();
     
-    query = Query.newBuilder()
+    query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1486015200")
             .setEnd("1486018800")
             .setAggregator("sum"))
         //.addMetric(Metric.newBuilder().setId("m1").setMetric("sys.cpu.user"))
         .build();
+    query.groupId(group_id);
     
     QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
     assertNull(callback);
@@ -361,7 +378,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void executeQueryFutureCancelled() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint, group_id);
+        new HttpQueryV2Executor(context, endpoint);
     final Set<Future<HttpResponse>> futures = 
         Whitebox.getInternalState(executor, "futures");
     setupQuery();
@@ -386,7 +403,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void executeQueryUpstreamCancelled() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint, group_id);
+        new HttpQueryV2Executor(context, endpoint);
     final Set<Future<HttpResponse>> futures = 
         Whitebox.getInternalState(executor, "futures");
     setupQuery();
@@ -413,7 +430,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void executeQueryException() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint, group_id);
+        new HttpQueryV2Executor(context, endpoint);
     final Set<Future<HttpResponse>> futures = 
         Whitebox.getInternalState(executor, "futures");
     setupQuery();
@@ -438,7 +455,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void executeQueryParsingException() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint, group_id);
+        new HttpQueryV2Executor(context, endpoint);
     final Set<Future<HttpResponse>> futures = 
         Whitebox.getInternalState(executor, "futures");
     setupQuery();
@@ -475,7 +492,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void executeQueryRemoteError() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint, group_id);
+        new HttpQueryV2Executor(context, endpoint);
     final Set<Future<HttpResponse>> futures = 
         Whitebox.getInternalState(executor, "futures");
     setupQuery();
@@ -501,7 +518,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void convertQuery() throws Exception {
     // first one super simple
-    Query query = Query.newBuilder()
+    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1410742740000")
             .setAggregator("sum"))
@@ -523,7 +540,7 @@ public class TestHttpQueryV2Executor {
     assertNull(converted.getQueries().get(0).getDownsample());
     assertTrue(converted.getQueries().get(0).getFilters().isEmpty());
     
-    query = Query.newBuilder()
+    query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1410742740000")
             .setAggregator("sum"))
@@ -559,7 +576,7 @@ public class TestHttpQueryV2Executor {
     assertTrue(converted.getQueries().get(1).getFilters().isEmpty());
     
     // test out TimeSpan options
-    query = Query.newBuilder()
+    query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1410742740000")
             .setEnd("1s-ago")
@@ -595,7 +612,7 @@ public class TestHttpQueryV2Executor {
     assertTrue(converted.getQueries().get(0).getFilters().isEmpty());
     
     // test out per-metric overrides
-    query = Query.newBuilder()
+    query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1410742740000")
             .setAggregator("sum")
@@ -623,7 +640,7 @@ public class TestHttpQueryV2Executor {
     assertEquals("30m-min", converted.getQueries().get(0).getDownsample());
     
     // filters
-    query = Query.newBuilder()
+    query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1410742740000")
             .setAggregator("sum"))
@@ -680,7 +697,7 @@ public class TestHttpQueryV2Executor {
     assertFalse(converted.getQueries().get(0).getFilters().get(1).isGroupBy());
     
     // filter routing between multiple metrics.
-    query = Query.newBuilder()
+    query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1410742740000")
             .setAggregator("sum"))
@@ -758,7 +775,7 @@ public class TestHttpQueryV2Executor {
     assertFalse(converted.getQueries().get(1).getFilters().get(1).isGroupBy());
     
     // filter routing between multiple metrics.
-    query = Query.newBuilder()
+    query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1410742740000")
             .setAggregator("sum"))
@@ -780,7 +797,7 @@ public class TestHttpQueryV2Executor {
     } catch (IllegalArgumentException e) { }
     
     // no metric
-    query = Query.newBuilder()
+    query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1410742740000")
             .setAggregator("sum"))
@@ -795,7 +812,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void parseResponse() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint, group_id);
+        new HttpQueryV2Executor(context, endpoint);
     
     entity = new StringEntity("Hello!");
     when(response.getEntity()).thenReturn(entity);
@@ -828,8 +845,8 @@ public class TestHttpQueryV2Executor {
   @Test
   public void parseTSQuery() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint, group_id);
-    final Query query = Query.newBuilder()
+        new HttpQueryV2Executor(context, endpoint);
+    final TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1490122900000")
             .setEnd("1490123050000")

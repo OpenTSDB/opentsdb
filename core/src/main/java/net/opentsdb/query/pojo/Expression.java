@@ -155,7 +155,7 @@ public class Expression extends Validatable implements Comparable<Expression> {
     if (id == null || id.isEmpty()) {
       throw new IllegalArgumentException("missing or empty id");
     }
-    Query.validateId(id);
+    TimeSeriesQuery.validateId(id);
     
     if (expr == null || expr.isEmpty()) {
       throw new IllegalArgumentException("missing or empty expr");
@@ -267,7 +267,7 @@ public class Expression extends Validatable implements Comparable<Expression> {
     private Map<String, NumericFillPolicy> fillPolicies;
     
     public Builder setId(final String id) {
-      Query.validateId(id);
+      TimeSeriesQuery.validateId(id);
       this.id = id;
       return this;
     }
