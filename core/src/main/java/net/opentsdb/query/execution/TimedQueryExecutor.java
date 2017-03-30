@@ -12,17 +12,12 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.execution;
 
-import java.util.Collections;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Sets;
 import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
@@ -49,9 +44,6 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
   /** How long, in milliseconds, we wait for each query. */
   private final long timeout;
   
-  /** The queries that are still waiting for a response or timeout. */
-  private Set<TimedQuery> outstanding_queries;
-  
   /**
    * Default ctor.
    * @param context A non-null context to pull the timer from.
@@ -72,8 +64,6 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
     }
     this.executor = executor;
     this.timeout = timeout;
-    outstanding_queries = Collections.<TimedQuery>synchronizedSet(
-        Sets.<TimedQuery>newHashSetWithExpectedSize(1));
   }
 
   @Override
@@ -110,7 +100,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
      */
     public TimedQuery(final TimeSeriesQuery query) {
       super(query);
-      outstanding_queries.add(this);
+      outstanding_executions.add(this);
     }
     
     void execute() {
@@ -195,23 +185,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
         timer_timeout.cancel();
         timer_timeout = null;
       }
-      outstanding_queries.remove(this);
+      outstanding_executions.remove(this);
     }
-  }
-  
-  @Override
-  public Deferred<Object> close() {
-    if (completed.compareAndSet(false, true)) {
-      for (final TimedQuery outstanding : outstanding_queries) {
-        outstanding.cancel();
-      }
-      return executor.close();
-    }
-    return Deferred.fromResult(null);
-  }
-
-  @VisibleForTesting
-  Set<TimedQuery> outstandingQueries() {
-    return outstanding_queries;
   }
 }

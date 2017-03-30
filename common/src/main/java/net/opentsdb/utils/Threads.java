@@ -14,10 +14,10 @@ package net.opentsdb.utils;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.netty.util.HashedWheelTimer;
+import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * Utilities dealing with threads, timers and the like.
@@ -25,74 +25,37 @@ import io.netty.util.HashedWheelTimer;
 public class Threads {
   /** Used to count HashedWheelTimers */
   final static AtomicInteger TIMER_ID = new AtomicInteger();
-  
-//  /** Helps give useful names to the Netty threads */
-//  public static class BossThreadNamer implements ThreadNameDeterminer {
-//    final static AtomicInteger tid = new AtomicInteger();
-//    @Override
-//    public String determineThreadName(String currentThreadName,
-//        String proposedThreadName) throws Exception {
-//      return "OpenTSDB I/O Boss #" + tid.incrementAndGet();
-//    }
-//  }
-//  
-//  /** Helps give useful names to the Netty threads */
-//  public static class WorkerThreadNamer implements ThreadNameDeterminer {
-//    final static AtomicInteger tid = new AtomicInteger();
-//    @Override
-//    public String determineThreadName(String currentThreadName,
-//        String proposedThreadName) throws Exception {
-//      return "OpenTSDB I/O Worker #" + tid.incrementAndGet();
-//    }
-//  }
-//  
-//  /** Simple prepends "OpenTSDB" to all threads */
-//  public static class PrependThreadNamer implements ThreadNameDeterminer {
-//    @Override
-//    public String determineThreadName(String currentThreadName, String proposedThreadName)
-//        throws Exception {
-//      return "OpenTSDB " + proposedThreadName;
-//    }
-//  }
-  
+
   /**
    * Returns a new HashedWheelTimer with a name and default ticks
    * @param name The name to add to the thread name
    * @return A timer
    */
   public static HashedWheelTimer newTimer(final String name) {
-    //return newTimer(100, name);
-    return new HashedWheelTimer();
+    return newTimer(100, name);
   }
   
-//  /**
-//   * Returns a new HashedWheelTimer with a name and default ticks
-//   * @param ticks How many ticks per second to sleep between executions, in ms
-//   * @param name The name to add to the thread name
-//   * @return A timer
-//   */
-//  public static HashedWheelTimer newTimer(final int ticks, final String name) {
-//    return newTimer(ticks, 512, name);
-//  }
-//  
-//  /**
-//   * Returns a new HashedWheelTimer with a name and default ticks
-//   * @param ticks How many ticks per second to sleep between executions, in ms
-//   * @param ticks_per_wheel The size of the wheel
-//   * @param name The name to add to the thread name
-//   * @return A timer
-//   */
-//  public static HashedWheelTimer newTimer(final int ticks, 
-//      final int ticks_per_wheel, final String name) {
-//    class TimerThreadNamer implements ThreadNameDeterminer {
-//      @Override
-//      public String determineThreadName(String currentThreadName,
-//          String proposedThreadName) throws Exception {
-//        return "OpenTSDB Timer " + name + " #" + TIMER_ID.incrementAndGet();
-//      }
-//    }
-//    return new HashedWheelTimer(Executors.defaultThreadFactory(), 
-//        new TimerThreadNamer(), ticks, MILLISECONDS, ticks_per_wheel);
-//  }
+  /**
+   * Returns a new HashedWheelTimer with a name and default ticks
+   * @param ticks How many ticks per second to sleep between executions, in ms
+   * @param name The name to add to the thread name
+   * @return A timer
+   */
+  public static HashedWheelTimer newTimer(final int ticks, final String name) {
+    return newTimer(ticks, 512, name);
+  }
+  
+  /**
+   * Returns a new HashedWheelTimer with a name and default ticks
+   * @param ticks How many ticks per second to sleep between executions, in ms
+   * @param ticks_per_wheel The size of the wheel
+   * @param name The name to add to the thread name
+   * @return A timer
+   */
+  public static HashedWheelTimer newTimer(final int ticks, 
+      final int ticks_per_wheel, final String name) {
+    return new HashedWheelTimer(new DefaultThreadFactory(name), 
+        ticks, MILLISECONDS, ticks_per_wheel);
+  }
   
 }

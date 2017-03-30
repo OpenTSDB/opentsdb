@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.Map.Entry;
-import java.util.Set;
 
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
@@ -30,6 +29,7 @@ import org.apache.http.client.entity.GzipDecompressingEntity;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,9 +37,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-import com.google.common.collect.Sets;
 import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.DataShards;
 import net.opentsdb.data.DataShardsGroup;
@@ -80,9 +78,6 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
   /** A non-null HTTP context to use for fetching a client and headers. */
   private final HttpContext http_context;
   
-  /** A set of outstanding futures waiting for completion. */
-  private final Set<Future<HttpResponse>> futures;
-  
   /**
    * Default Ctor.
    * @param context A non-null query context.
@@ -106,19 +101,6 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
     }
     this.endpoint = endpoint + "/api/query";
     http_context = (HttpContext) context.getRemoteContext();
-    futures = Sets.newConcurrentHashSet();
-  }
-
-  @Override
-  public Deferred<Object> close() {
-    try {
-      for (final Future<HttpResponse> future : futures) {
-        future.cancel(true);
-      }
-      return Deferred.fromResult(null);
-    } catch (Exception e) {
-      return Deferred.fromError(e);
-    }
   }
   
   @Override
@@ -129,148 +111,11 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
     if (query.groupId() == null) {
       throw new IllegalArgumentException("GroupID was not set in the Query.");
     }
-    final Execution execution = new Execution(query);
     
-    if (completed.get()) {
-      LOG.error("Executor was marked as cancelled but we got a new query: " 
-          + query + " for " + this);
-      execution.deferred.callback(new RejectedExecutionException("Cancelled"));
-      return execution;
-    }
-    
-    final String json;
-    try {
-    json = JSON.serializeToString(convertQuery(query));
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Sending JSON to http endpoint: " + json);
-      }
-    } catch (Exception e) {
-      execution.deferred.callback(new RejectedExecutionException(
-          "Failed to convert query", e));
-      return execution;
-    }
-    
-    final HttpPost post = new HttpPost(endpoint);
-    if (http_context.getHeaders() != null) {
-      for (final Entry<String, String> header : 
-          http_context.getHeaders().entrySet()) {
-        post.setHeader(header.getKey(), header.getValue());
-      }
-    }
-    try {
-      post.setEntity(new StringEntity(json));
-    } catch (UnsupportedEncodingException e) {
-      execution.deferred.callback(new RejectedExecutionException(
-          "Failed to generate request", e));
-      return execution;
-    }
-    
-    /** Helper to remove the future once it's complete. */
-    class FutureRemover implements Callback<Object, DataShardsGroup> {
-      final Future<HttpResponse> future;
-      public FutureRemover(final Future<HttpResponse> future) {
-        this.future = future;
-      }
-      @Override
-      public Object call(final DataShardsGroup result) throws Exception {
-        futures.remove(future);
-        return result;
-      }
-    }
-    
-    /** Helper to remove the future once it's complete but had an exception. */
-    class FutureExceptionRemover implements Callback<Object, Exception> {
-      final Future<HttpResponse> future;
-      public FutureExceptionRemover(final Future<HttpResponse> future) {
-        this.future = future;
-      }
-      @Override
-      public Object call(final Exception e) throws Exception {
-        futures.remove(future);
-        throw e;
-      }
-    }
-    
-    /** Does the fun bit of parsing the response and calling the deferred. */
-    class ResponseCallback implements FutureCallback<HttpResponse> {
-      final long start_ns;
-      
-      public ResponseCallback() {
-        start_ns = DateTime.nanoTime();
-      }
-      
-      @Override
-      public void cancelled() {
-        LOG.error("HttpPost cancelled: " + query);
-        if (completed.get()) {
-          LOG.warn("Received HTTP response despite being cancelled.");
-        }
-        try {
-          execution.deferred.callback(new RemoteQueryExecutionException(
-              "Query was cancelled: " + endpoint, query.getOrder(), 500));
-        } catch (Exception e) {
-          LOG.warn("Exception thrown when calling deferred on cancel", e);
-        }
-      }
-
-      @Override
-      public void completed(final HttpResponse response) {
-        if (LOG.isDebugEnabled()) {
-          String host = "unknown";
-          for (final Header header : response.getAllHeaders()) {
-            if (header.getName().equals("X-Served-By")) {
-              host = header.getValue();
-            }
-          }
-          LOG.debug("Response from endpoint: " + endpoint + " (" + host 
-              + ") received in " 
-              + DateTime.msFromNanoDiff(DateTime.nanoTime(), start_ns) + "ms");
-        }
-        if (completed.get()) {
-          LOG.warn("Told to stop running but we had a response: " + response);
-          try {
-            EntityUtils.consume(response.getEntity());
-          } catch (Exception e) {
-            LOG.error("Error consuming response", e);
-          }
-        }
-        try {
-          final String json = parseResponse(response, query.getOrder());
-          final JsonNode root = JSON.getMapper().readTree(json);
-          final DataShardsGroup group = new DefaultDataShardsGroup(query.groupId());
-          for (final JsonNode node : root) {
-            group.addShards(parseTSQuery(query, node));
-          }
-          execution.deferred.callback(group);
-        } catch (Exception e) {
-          LOG.error("Failure handling response: " + response + "\nQuery: " 
-              + json, e);
-          execution.deferred.callback(new RemoteQueryExecutionException(
-              "Unexepected exception: " + endpoint, query.getOrder(), 500, e));
-        }
-      }
-
-      @Override
-      public void failed(final Exception e) {
-        // TODO possibly retry?
-        if (!completed.get()) {
-          LOG.error("Exception from HttpPost: " + endpoint, e);
-          execution.deferred.callback(new RemoteQueryExecutionException(
-              "Unexepected exception: " + endpoint, query.getOrder(), 500, e));
-        }
-      }
-    }
-    
-    final Future<HttpResponse> future = http_context.getClient()
-        .execute(post, new ResponseCallback());
-    execution.setFuture(future);
-    futures.add(future);
-    execution.deferred.addCallback(new FutureRemover(future))
-      .addErrback(new FutureExceptionRemover(future));
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Sent query to endpoint: " + endpoint);
-    }
-    return execution;
+    final Execution exec = new Execution(query);
+    outstanding_executions.add(exec);
+    exec.execute();
+    return exec;
   }
   
   /**
@@ -430,24 +275,118 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
 
   /** An implementation that allows for cancelling the future. */
   class Execution extends QueryExecution<DataShardsGroup> {
+    private final CloseableHttpAsyncClient client;
     private Future<HttpResponse> future;
     
     public Execution(final TimeSeriesQuery query) {
       super(query);
+      client = http_context.getClient();
+      deferred.addCallback(new FutureRemover(future))
+              .addErrback(new FutureExceptionRemover(future));
     }
     
-    @Override
-    public void callback(final Object result) {
-      if (completed.compareAndSet(false, true)) {
-        synchronized (this) {
-          future = null;
+    public void execute() {
+      final String json;
+      try {
+      json = JSON.serializeToString(convertQuery(query));
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Sending JSON to http endpoint: " + json);
         }
-        deferred.callback(result);
-      } else {
-        throw new IllegalStateException("Callback was already executed: " + this);
+      } catch (Exception e) {
+        callback(new RejectedExecutionException("Failed to convert query", e));
+        return;
+      }
+      
+      final HttpPost post = new HttpPost(endpoint);
+      if (http_context.getHeaders() != null) {
+        for (final Entry<String, String> header : 
+            http_context.getHeaders().entrySet()) {
+          post.setHeader(header.getKey(), header.getValue());
+        }
+      }
+      try {
+        post.setEntity(new StringEntity(json));
+      } catch (UnsupportedEncodingException e) {
+        callback(new RejectedExecutionException("Failed to generate request", e));
+        return;
+      }
+      
+      /** Does the fun bit of parsing the response and calling the deferred. */
+      class ResponseCallback implements FutureCallback<HttpResponse> {
+        final long start_ns;
+        
+        public ResponseCallback() {
+          start_ns = DateTime.nanoTime();
+        }
+        
+        @Override
+        public void cancelled() {
+          LOG.error("HttpPost cancelled: " + query);
+          if (completed.get()) {
+            LOG.warn("Received HTTP response despite being cancelled.");
+          }
+          try {
+            callback(new RemoteQueryExecutionException(
+                "Query was cancelled: " + endpoint, query.getOrder(), 500));
+          } catch (Exception e) {
+            LOG.warn("Exception thrown when calling deferred on cancel", e);
+          }
+        }
+
+        @Override
+        public void completed(final HttpResponse response) {
+          if (LOG.isDebugEnabled()) {
+            String host = "unknown";
+            for (final Header header : response.getAllHeaders()) {
+              if (header.getName().equals("X-Served-By")) {
+                host = header.getValue();
+              }
+            }
+            LOG.debug("Response from endpoint: " + endpoint + " (" + host 
+                + ") received in " 
+                + DateTime.msFromNanoDiff(DateTime.nanoTime(), start_ns) + "ms");
+          }
+          if (completed.get()) {
+            LOG.warn("Told to stop running but we had a response: " + response);
+            try {
+              EntityUtils.consume(response.getEntity());
+            } catch (Exception e) {
+              LOG.error("Error consuming response", e);
+            }
+          }
+          try {
+            final String json = parseResponse(response, query.getOrder());
+            final JsonNode root = JSON.getMapper().readTree(json);
+            final DataShardsGroup group = new DefaultDataShardsGroup(query.groupId());
+            for (final JsonNode node : root) {
+              group.addShards(parseTSQuery(query, node));
+            }
+            callback(group);
+          } catch (Exception e) {
+            LOG.error("Failure handling response: " + response + "\nQuery: " 
+                + json, e);
+            callback(new RemoteQueryExecutionException(
+                "Unexepected exception: " + endpoint, query.getOrder(), 500, e));
+          }
+        }
+
+        @Override
+        public void failed(final Exception e) {
+          // TODO possibly retry?
+          if (!completed.get()) {
+            LOG.error("Exception from HttpPost: " + endpoint, e);
+            callback(new RemoteQueryExecutionException(
+                "Unexepected exception: " + endpoint, query.getOrder(), 500, e));
+          }
+        }
+      }
+      
+      future = client.execute(post, new ResponseCallback());
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Sent query to endpoint: " + endpoint);
       }
     }
-
+    
     @Override
     public void cancel() {
       synchronized (this) {
@@ -461,7 +400,6 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
           }
         }
       }
-      if (!completed.get()) {
         try {
           // race condition here.
           callback(new RemoteQueryExecutionException(
@@ -469,11 +407,42 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
         } catch (Exception e) {
           LOG.error("Callback may have already been called", e);
         }
+    }
+    
+    /** Helper to remove the future once it's complete but had an exception. */
+    class FutureExceptionRemover implements Callback<Object, Exception> {
+      final Future<HttpResponse> future;
+      public FutureExceptionRemover(final Future<HttpResponse> future) {
+        this.future = future;
+      }
+      @Override
+      public Object call(final Exception e) throws Exception {
+        cleanup();
+        throw e;
       }
     }
     
-    void setFuture(final Future<HttpResponse> future) {
-      this.future = future;
+    /** Helper to remove the future once it's complete. */
+    class FutureRemover implements Callback<Object, DataShardsGroup> {
+      final Future<HttpResponse> future;
+      public FutureRemover(final Future<HttpResponse> future) {
+        this.future = future;
+      }
+      @Override
+      public Object call(final DataShardsGroup result) throws Exception {
+        cleanup();
+        return result;
+      }
+    }
+    
+    /** Helper to close the client and remove this from the outstanding executions. */
+    void cleanup() {
+      outstanding_executions.remove(this);
+      try {
+        client.close();
+      } catch (Exception ex) {
+        LOG.error("Exception while closing the HTTP client", ex);
+      }
     }
   }
   

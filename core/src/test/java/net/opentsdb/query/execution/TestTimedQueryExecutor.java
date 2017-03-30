@@ -70,7 +70,7 @@ public class TestTimedQueryExecutor {
   public void ctor() throws Exception {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
         context, executor, 1000);
-    assertTrue(tqe.outstandingQueries().isEmpty());
+    assertTrue(tqe.outstandingRequests().isEmpty());
     
     try {
       new TimedQueryExecutor<Long>(null, executor, 1000);
@@ -105,11 +105,11 @@ public class TestTimedQueryExecutor {
     verify(executor, times(1)).executeQuery(query);
     assertFalse(downstream.cancelled);
     assertFalse(downstream.completed());
-    assertTrue(tqe.outstandingQueries().contains(exec));
+    assertTrue(tqe.outstandingRequests().contains(exec));
     
     downstream.callback(42L);
     assertEquals(42L, (long) exec.deferred().join());
-    assertFalse(tqe.outstandingQueries().contains(exec));
+    assertFalse(tqe.outstandingRequests().contains(exec));
     verify(timeout, times(1)).cancel();
     assertTrue(downstream.completed());
     assertFalse(downstream.cancelled);
@@ -131,7 +131,7 @@ public class TestTimedQueryExecutor {
     verify(timeout, never()).cancel();
     verify(executor, never()).executeQuery(query);
     assertNotSame(downstream, exec);
-    assertFalse(tqe.outstandingQueries().contains(exec));
+    assertFalse(tqe.outstandingRequests().contains(exec));
   }
   
   @Test
@@ -149,7 +149,7 @@ public class TestTimedQueryExecutor {
       .newTimeout(any(TimerTask.class), eq(1000), eq(TimeUnit.MILLISECONDS));
     verify(timeout, never()).cancel();
     verify(executor, times(1)).executeQuery(query);
-    assertFalse(tqe.outstandingQueries().contains(exec));
+    assertFalse(tqe.outstandingRequests().contains(exec));
   }
   
   @Test
@@ -167,7 +167,7 @@ public class TestTimedQueryExecutor {
       .newTimeout(any(TimerTask.class), eq(1000), eq(TimeUnit.MILLISECONDS));
     verify(timeout, never()).cancel();
     verify(executor, times(1)).executeQuery(query);
-    assertFalse(tqe.outstandingQueries().contains(exec));
+    assertFalse(tqe.outstandingRequests().contains(exec));
   }
   
   @Test
@@ -188,14 +188,14 @@ public class TestTimedQueryExecutor {
     assertFalse(downstream.cancelled);
     assertFalse(downstream.completed());
     assertFalse(exec.completed());
-    assertTrue(tqe.outstandingQueries().contains(exec));
+    assertTrue(tqe.outstandingRequests().contains(exec));
     
     downstream.callback(new IllegalStateException("Boo!"));
     try {
       exec.deferred().join();
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
-    assertFalse(tqe.outstandingQueries().contains(exec));
+    assertFalse(tqe.outstandingRequests().contains(exec));
     verify(timeout, times(1)).cancel();
     assertTrue(downstream.completed());
     assertFalse(downstream.cancelled);
@@ -219,14 +219,14 @@ public class TestTimedQueryExecutor {
     verify(executor, times(1)).executeQuery(query);
     assertFalse(downstream.cancelled);
     assertFalse(downstream.completed());
-    assertTrue(tqe.outstandingQueries().contains(exec));
+    assertTrue(tqe.outstandingRequests().contains(exec));
     
     ((TimerTask) exec).run(null);
     try {
       exec.deferred().join();
       fail("Expected RemoteQueryExecutionException");
     } catch (RemoteQueryExecutionException e) { }
-    assertFalse(tqe.outstandingQueries().contains(exec));
+    assertFalse(tqe.outstandingRequests().contains(exec));
     verify(timeout, never()).cancel();
     assertFalse(downstream.completed());
     assertTrue(downstream.cancelled);
@@ -253,11 +253,11 @@ public class TestTimedQueryExecutor {
     verify(executor, times(1)).executeQuery(query);
     assertFalse(downstream.cancelled);
     assertFalse(downstream.completed());
-    assertTrue(tqe.outstandingQueries().contains(exec));
+    assertTrue(tqe.outstandingRequests().contains(exec));
     
     downstream.callback(42L);
     assertEquals(42L, (long) exec.deferred().join());
-    assertFalse(tqe.outstandingQueries().contains(exec));
+    assertFalse(tqe.outstandingRequests().contains(exec));
     verify(timeout, times(1)).cancel();
     assertTrue(downstream.completed());
     assertFalse(downstream.cancelled);
@@ -282,14 +282,14 @@ public class TestTimedQueryExecutor {
     verify(executor, times(1)).executeQuery(query);
     assertFalse(downstream.cancelled);
     assertFalse(downstream.completed());
-    assertTrue(tqe.outstandingQueries().contains(exec));
+    assertTrue(tqe.outstandingRequests().contains(exec));
     
     exec.cancel();
     try {
       exec.deferred().join();
       fail("Expected RemoteQueryExecutionException");
     } catch (RemoteQueryExecutionException e) { }
-    assertFalse(tqe.outstandingQueries().contains(exec));
+    assertFalse(tqe.outstandingRequests().contains(exec));
     verify(timeout, times(1)).cancel();
     assertFalse(downstream.completed());
     assertTrue(downstream.cancelled);
@@ -305,7 +305,7 @@ public class TestTimedQueryExecutor {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
-    assertTrue(tqe.outstandingQueries().contains(exec));
+    assertTrue(tqe.outstandingRequests().contains(exec));
     
     tqe.close().join();
     verify(timeout, times(1)).cancel();
