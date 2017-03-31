@@ -18,7 +18,6 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.NoSuchElementException;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.ServletConfig;
@@ -46,6 +45,7 @@ import net.opentsdb.data.DataShards;
 import net.opentsdb.data.DataShardsGroup;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
@@ -107,18 +107,16 @@ public class V2QueryResource {
                 
                 @SuppressWarnings("unchecked")
                 TimeSeriesIterator<NumericType> it = shard.iterator();
-                try {
-                  while (true) {
-                    TimeSeriesValue<NumericType> v = it.next();
-                    if (v.value().isInteger()) {
-                      json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
-                          v.value().longValue());
-                    } else {
-                      json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
-                          v.value().doubleValue());
-                    }
+                while (it.status() == IteratorStatus.HAS_DATA) {
+                  TimeSeriesValue<NumericType> v = it.next();
+                  if (v.value().isInteger()) {
+                    json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
+                        v.value().longValue());
+                  } else {
+                    json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
+                        v.value().doubleValue());
                   }
-                } catch (NoSuchElementException e) { }
+                }
                 
                 json.writeEndObject();
                 json.writeEndObject();

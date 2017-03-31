@@ -180,6 +180,13 @@ public class TestTimeSeriesIterator {
   }
 
   @Test
+  public void status() throws Exception {
+    final MockIterator it = new MockIterator(context, source);
+    it.status();
+    verify(source, times(1)).status();
+  }
+  
+  @Test
   public void next() throws Exception {
     final MockIterator it = new MockIterator(context, source);
     it.next();
@@ -268,6 +275,11 @@ public class TestTimeSeriesIterator {
       return NumericType.TYPE;
     }
 
+    @Override
+    public IteratorStatus status() {
+      return source.status();
+    }
+    
     @SuppressWarnings("unchecked")
     @Override
     public TimeSeriesValue<NumericType> next() {

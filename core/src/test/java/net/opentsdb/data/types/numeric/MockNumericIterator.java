@@ -82,6 +82,28 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
   }
 
   @Override
+  public IteratorStatus status() {
+    if (context != null) {
+      throw new IllegalStateException("Cannot call while iterator is "
+          + "part of a context.");
+    }
+    if (ex != null) {
+      return IteratorStatus.EXCEPTION;
+    }
+    if (outer_index >= data.size()) {
+      return IteratorStatus.END_OF_DATA;
+    } else if (inner_index >= data.get(outer_index).size()) {
+      if (outer_index + 1 >= data.size()) {
+        return IteratorStatus.END_OF_DATA;
+      } else {
+        return IteratorStatus.END_OF_CHUNK;
+      }
+    } else {
+      return IteratorStatus.HAS_DATA;
+    }
+  }
+  
+  @Override
   public TimeSeriesValue<NumericType> next() {
     if (ex != null) {
       context.updateContext(IteratorStatus.EXCEPTION, null);

@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.data.iterators;
 
+import java.util.NoSuchElementException;
+
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
@@ -136,13 +138,22 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
   }
   
   /**
+   * Used when working with an iterator in stand-alone mode to determine if 
+   * there is more data. If this iterator is part of a context, it should throw 
+   * an IllegalStateException. 
+   * @return A non-null iterator status reflecting the state of the iterator.
+   * @throws IllegalStateException if the iterator is a part of a context.
+   */
+  public abstract IteratorStatus status();
+  
+  /**
    * Returns the next value for this iterator. Behavior depends on whether the
    * iterator is in stand-alone mode or a part of a processor.
    * <b>NOTE:</b> The value returned may be mutated after the next call to 
    * {@link #next()} so make sure to call {@link TimeSeriesValue#getCopy()} if
    * the value must remain in memory unmutated.
    * @return A non-null value.
-   * @throws IllegalStateException if the iterator is not ready to return another
+   * @throws NoSuchElementException if the iterator is not ready to return another
    * value.
    */
   public abstract TimeSeriesValue<T> next();

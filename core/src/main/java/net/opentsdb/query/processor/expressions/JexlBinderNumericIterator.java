@@ -145,6 +145,18 @@ public class JexlBinderNumericIterator extends
   }
 
   @Override
+  public IteratorStatus status() {
+    if (context != null) {
+      throw new IllegalStateException("Iterator is a part of a context.");
+    }
+    IteratorStatus status = IteratorStatus.END_OF_DATA;
+    for (final TimeSeriesIterator<?> it : iterators.values()) {
+      status = IteratorStatus.updateStatus(status, it.status());
+    }
+    return status;
+  }
+  
+  @Override
   public TimeSeriesValue<NumericType> next() {
     try {
       int reals = 0;

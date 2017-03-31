@@ -327,6 +327,17 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
   }
 
   @Override
+  public IteratorStatus status() {
+    if (context != null) {
+      throw new IllegalStateException("Iterator is a part of a context.");
+    }
+    if (read_offset_idx >= write_offset_idx || read_value_idx >= write_value_idx) {
+      return IteratorStatus.END_OF_DATA;
+    }
+    return IteratorStatus.HAS_DATA;
+  }
+  
+  @Override
   public TimeSeriesValue<NumericType> next() {
     // TODO - fill
     if (read_offset_idx >= write_offset_idx || read_value_idx >= write_value_idx) {

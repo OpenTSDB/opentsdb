@@ -61,6 +61,12 @@ public class MockAnnotationIterator extends
   }
 
   @Override
+  public IteratorStatus status() {
+    // TODO
+    return null;
+  }
+  
+  @Override
   public TimeSeriesValue<AnnotationType> next() {
     if (ex != null) {
       throw ex;
