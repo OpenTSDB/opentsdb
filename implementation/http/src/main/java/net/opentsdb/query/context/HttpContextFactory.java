@@ -10,29 +10,45 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+package net.opentsdb.query.context;
 
 import java.util.Map;
 
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
+import io.netty.util.Timer;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.DataMerger;
+import net.opentsdb.query.execution.HttpEndpoints;
 
 /**
  * TODO - stub
  *
  * @since 3.0
  */
-public class Registry {
+public class HttpContextFactory {
+
+  private HttpEndpoints endpoints;
   
-  /** @return An unmodifiable map of the data mergers. */
-  public Map<TypeToken<?>, DataMerger<?>> dataMergers() {
-    return null;
+  private Map<TypeToken<?>, DataMerger<?>> mergers;
+  
+  public HttpContextFactory() {
   }
   
-  /** @return Package private shutdown returning the deferred to wait on. */
-  Deferred<Object> shutdown() { 
+  public Deferred<Object> initialize(final TSDB tsdb, final Timer timer) {
+    endpoints = new HttpEndpoints(tsdb.getConfig(), timer);
+    mergers = tsdb.getRegistry().dataMergers();
     return Deferred.fromResult(null);
+  }
+  
+  public Deferred<Object> shutdown() {
+    return Deferred.fromResult(null);
+  }
+  
+  public RemoteContext getContext(final QueryContext context, 
+      final Map<String, String> headers) {
+    // TODO headers
+    return new HttpContext(context, endpoints, mergers, headers);
   }
 }
