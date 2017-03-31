@@ -88,7 +88,7 @@
   <modules>
     <module>common</module>
     <module>core</module>
-    <module>implementation/http</module>
+    <module>executors/http</module>
   </modules>
 
   <!-- Dependencies shared by all modules in the OpenTSDB project. -->

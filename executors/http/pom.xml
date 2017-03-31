@@ -9,8 +9,8 @@
       <relativePath>../../pom.xml</relativePath>
     </parent>
     
-    <artifactId>opentsdb-http</artifactId>
-    <name>opentsdb-http</name>
+    <artifactId>opentsdb-executors-http</artifactId>
+    <name>opentsdb-executors-http</name>
     
     <description>Implementations of OpenTSDB APIs using HTTP</description>
     
