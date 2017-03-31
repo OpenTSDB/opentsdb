@@ -9,12 +9,12 @@
       <relativePath>../../pom.xml</relativePath>
     </parent>
     
-    <artifactId>opentsdb-executors-http</artifactId>
-    <name>opentsdb-executors-http</name>
+    <artifactId>opentsdb-servlet</artifactId>
+    <name>opentsdb-servlet</name>
     
-    <description>Implementations of OpenTSDB APIs using HTTP</description>
+    <description>An OpenTSDB implementation as a servlet for hosting via Jetty, Tomcat, etc.</description>
     
-    <packaging>jar</packaging>
+    <packaging>war</packaging>
     
     <properties>
 
@@ -32,16 +32,29 @@
           <artifactId>opentsdb-core</artifactId>
           <version>${project.version}</version>
         </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-executors-http</artifactId>
+          <version>${project.version}</version>
+        </dependency>
       
         <dependency>
-          <groupId>org.apache.httpcomponents</groupId>
-          <artifactId>httpclient</artifactId>
-          <version>4.5.3</version>
+          <groupId>javax.servlet</groupId>
+          <artifactId>javax.servlet-api</artifactId>
+          <version>3.1.0</version>
         </dependency>
         <dependency>
-          <groupId>org.apache.httpcomponents</groupId>
-          <artifactId>httpasyncclient</artifactId>
-          <version>4.1.1</version>
+          <groupId>javax.validation</groupId>
+          <artifactId>validation-api</artifactId>
+          <version>1.1.0.Final</version>
+        </dependency>
+        
+        <dependency>
+          <groupId>org.glassfish.jersey</groupId>
+          <artifactId>jersey-bom</artifactId>
+          <version>2.13</version>
+          <type>pom</type>
+          <scope>import</scope>
         </dependency>
                 
       </dependencies>
@@ -56,21 +69,21 @@
         <groupId>net.opentsdb</groupId>
         <artifactId>opentsdb-core</artifactId>
       </dependency>
-      
       <dependency>
-        <groupId>com.google.guava</groupId>
-        <artifactId>guava</artifactId>
+        <groupId>net.opentsdb</groupId>
+        <artifactId>opentsdb-executors-http</artifactId>
       </dependency>
       
       <dependency>
-        <groupId>org.apache.httpcomponents</groupId>
-        <artifactId>httpclient</artifactId>
+        <groupId>javax.servlet</groupId>
+        <artifactId>javax.servlet-api</artifactId>
       </dependency>
+
       <dependency>
-        <groupId>org.apache.httpcomponents</groupId>
-        <artifactId>httpasyncclient</artifactId>
+        <groupId>org.glassfish.jersey.containers</groupId>
+        <artifactId>jersey-container-servlet</artifactId>
       </dependency>
-        
+    
       <!-- TESTING Deps. -->
       <dependency>
         <groupId>junit</groupId>
