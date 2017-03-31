@@ -20,11 +20,14 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.common.Const;
@@ -182,7 +185,7 @@ public class TestDataShardMerger {
           SimpleStringTimeSeriesId.newBuilder()
           .setAlias("b").build());
     
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -207,7 +210,7 @@ public class TestDataShardMerger {
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("c").build());
     
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -234,7 +237,7 @@ public class TestDataShardMerger {
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("c").build());
     
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -275,7 +278,7 @@ public class TestDataShardMerger {
           .addTags("host", "web02")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -313,7 +316,7 @@ public class TestDataShardMerger {
           .addNamespace("Frey")
           .build());
     
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -342,7 +345,7 @@ public class TestDataShardMerger {
           .addNamespace("GreyJoy")
           .build());
     
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -376,7 +379,7 @@ public class TestDataShardMerger {
           .addNamespace("GreyJoy")
           .build());
     
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -409,7 +412,7 @@ public class TestDataShardMerger {
           .addNamespace("GreyJoy")
           .build());
     
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -442,7 +445,7 @@ public class TestDataShardMerger {
           .addNamespace("GreyJoy")
           .build());
     
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -475,7 +478,7 @@ public class TestDataShardMerger {
           .addNamespace("GreyJoy")
           .build());
     
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -508,7 +511,7 @@ public class TestDataShardMerger {
           .addMetric("sys.mem")
           .build());
     
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -537,7 +540,7 @@ public class TestDataShardMerger {
           .addMetric("sys.disk")
           .build());
     
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -572,7 +575,7 @@ public class TestDataShardMerger {
           .addMetric("sys.if")
           .build());
     
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -609,7 +612,7 @@ public class TestDataShardMerger {
           .addMetric("sys.disk")
           .build());
     
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -646,7 +649,7 @@ public class TestDataShardMerger {
           .addTags("host", "web01")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -684,7 +687,7 @@ public class TestDataShardMerger {
           .addTags("host", "web02")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -727,7 +730,7 @@ public class TestDataShardMerger {
           .addTags("dc", "phx")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -773,7 +776,7 @@ public class TestDataShardMerger {
           .addTags("dc", "phx")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -815,7 +818,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("dc")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -855,7 +858,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("host")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -893,7 +896,7 @@ public class TestDataShardMerger {
           .addDisjointTag("host")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -931,7 +934,7 @@ public class TestDataShardMerger {
           .addTags("host", "web01")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -971,7 +974,7 @@ public class TestDataShardMerger {
           .addTags("host", "web01")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -1011,7 +1014,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("host")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -1049,7 +1052,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("dc")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -1093,7 +1096,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("dc")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -1135,7 +1138,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("dc")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -1175,7 +1178,7 @@ public class TestDataShardMerger {
           .addDisjointTag("host")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -1213,7 +1216,7 @@ public class TestDataShardMerger {
           .addDisjointTag("dc")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -1257,7 +1260,7 @@ public class TestDataShardMerger {
           .addDisjointTag("dc")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -1299,7 +1302,7 @@ public class TestDataShardMerger {
           .addDisjointTag("host")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -1339,7 +1342,7 @@ public class TestDataShardMerger {
           .addDisjointTag("host")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -1378,7 +1381,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("host")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -1427,7 +1430,7 @@ public class TestDataShardMerger {
           .addDisjointTag("host")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2, set3 };
+    final List<DataShardsGroup> shards = Lists.newArrayList(set1, set2, set3);
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -1476,7 +1479,7 @@ public class TestDataShardMerger {
           .addTags("host", "web01")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2, set3 };
+    final List<DataShardsGroup> shards = Lists.newArrayList(set1, set2, set3);
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -1525,7 +1528,7 @@ public class TestDataShardMerger {
           .addTags("host", "web03")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2, set3 };
+    final List<DataShardsGroup> shards = Lists.newArrayList(set1, set2, set3);
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -1581,7 +1584,7 @@ public class TestDataShardMerger {
           .setAlias("f")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2, set3 };
+    final List<DataShardsGroup> shards = Lists.newArrayList(set1, set2, set3);
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     final DataShardsGroup results = merger.merge(shards);
@@ -1635,7 +1638,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("host")
           .build());
 
-    final DataShardsGroup[] shards = new DataShardsGroup[] { set1, set2 };
+    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     merger.merge(shards);

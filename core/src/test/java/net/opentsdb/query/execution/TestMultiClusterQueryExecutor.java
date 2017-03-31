@@ -28,6 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
@@ -118,7 +119,7 @@ public class TestMultiClusterQueryExecutor {
     when(executor_b.executeQuery(query)).thenReturn(downstream_b);
     when(executor_a.close()).thenReturn(Deferred.fromResult(null));
     when(executor_b.close()).thenReturn(Deferred.fromResult(null));
-    when(merger.merge(any(Long[].class))).thenAnswer(new Answer<Long>() {
+    when(merger.merge((List<Long>) any(List.class))).thenAnswer(new Answer<Long>() {
       @Override
       public Long answer(InvocationOnMock invocation) throws Throwable {
         return 42L;
@@ -391,7 +392,7 @@ public class TestMultiClusterQueryExecutor {
     assertFalse(downstream_a.completed());
     assertFalse(downstream_b.cancelled);
     assertFalse(downstream_b.completed());
-    verify(merger, never()).merge(any(Long[].class));
+    verify(merger, never()).merge(any(List.class));
   }
   
   @Test
@@ -419,7 +420,7 @@ public class TestMultiClusterQueryExecutor {
     assertTrue(downstream_a.completed());
     assertFalse(downstream_b.cancelled);
     assertTrue(downstream_b.completed());
-    verify(merger, times(1)).merge(any(Long[].class));
+    verify(merger, times(1)).merge(any(List.class));
   }
   
   @Test
@@ -461,7 +462,7 @@ public class TestMultiClusterQueryExecutor {
     assertTrue(downstream_a.completed());
     assertFalse(downstream_b.cancelled);
     assertTrue(downstream_b.completed());
-    verify(merger, never()).merge(any(Long[].class));
+    verify(merger, never()).merge(any(List.class));
   }
   
   @Test
@@ -491,7 +492,7 @@ public class TestMultiClusterQueryExecutor {
     assertFalse(downstream_a.completed());
     assertTrue(downstream_b.cancelled);
     assertFalse(downstream_b.completed());
-    verify(merger, never()).merge(any(Long[].class));
+    verify(merger, never()).merge(any(List.class));
   }
   
   @Test
@@ -515,7 +516,7 @@ public class TestMultiClusterQueryExecutor {
     assertFalse(downstream_a.completed());
     assertTrue(downstream_b.cancelled);
     assertFalse(downstream_b.completed());
-    verify(merger, never()).merge(any(Long[].class));
+    verify(merger, never()).merge(any(List.class));
   }
 
   /** Simple implementation to peek into the cancel call. */

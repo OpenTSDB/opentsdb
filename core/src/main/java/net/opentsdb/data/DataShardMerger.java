@@ -75,7 +75,7 @@ public class DataShardMerger implements DataMerger<DataShardsGroup> {
    * list were null, the resulting shard will be null.
    */
   @Override
-  public DataShardsGroup merge(final DataShardsGroup[] shards) {
+  public DataShardsGroup merge(final List<DataShardsGroup> shards) {
     TimeSeriesGroupId group_id = null;
     for (final DataShardsGroup group : shards) {
       if (group != null) {
@@ -86,29 +86,29 @@ public class DataShardMerger implements DataMerger<DataShardsGroup> {
     final DataShardsGroup group = new DefaultDataShardsGroup(group_id);
     
     /** Holds the list of matched shard objects to merge */
-    DataShards[] merged = new DataShards[shards.length];
+    DataShards[] merged = new DataShards[shards.size()];
     
     /** An array of arrays to track when we've matched a shard so we can avoid
      * dupe processing and speed things up as we go along. */
-    final boolean[][] processed = new boolean[shards.length][];
+    final boolean[][] processed = new boolean[shards.size()][];
     int order = -1;
     TimeStamp base_time = null;
-    for (int i = 0; i < shards.length; i++) {
-      if (shards[i] == null) {
+    for (int i = 0; i < shards.size(); i++) {
+      if (shards.get(i) == null) {
         processed[i] = new boolean[0];
       } else {
-        processed[i] = new boolean[shards[i].data.size()];
+        processed[i] = new boolean[shards.get(i).data.size()];
         if (order < 0) {
-          order = shards[i].order();
+          order = shards.get(i).order();
         } else {
-          if (order != shards[i].order()) {
+          if (order != shards.get(i).order()) {
             throw new IllegalStateException("One or more shards in the set was "
                 + "for a different order. Expected: " + order + " but got: " 
-                + shards[i]);
+                + shards.get(i));
           }
         }
         if (base_time == null) {
-          base_time = shards[i].baseTime();
+          base_time = shards.get(i).baseTime();
         }
       }
     }
@@ -117,47 +117,47 @@ public class DataShardMerger implements DataMerger<DataShardsGroup> {
     // so if you're looking at this and can find it, please help us!
     
     // outer loop start for iterating over each shard set
-    for (int i = 0; i < shards.length; i++) {
+    for (int i = 0; i < shards.size(); i++) {
       MergedTimeSeriesId.Builder id = null;
-      if (shards[i] == null) {
+      if (shards.get(i) == null) {
         continue;
       }
       
       // inner loop start for iterating over each shard in each set
-      for (int x = 0; x < shards[i].data().size(); x++) {
+      for (int x = 0; x < shards.get(i).data().size(); x++) {
         if (processed[i][x]) {
           continue;
         }
         id = MergedTimeSeriesId.newBuilder();
         
         // NOTE: Make sure to reset the shards array here
-        merged = new DataShards[shards.length];
-        merged[i] = shards[i].data().get(x);
+        merged = new DataShards[shards.size()];
+        merged[i] = shards.get(i).data().get(x);
         
-        if (shards[i].data().get(x).id().alias() != null) {
-          id.setAlias(shards[i].data().get(x).id().alias());
+        if (shards.get(i).data().get(x).id().alias() != null) {
+          id.setAlias(shards.get(i).data().get(x).id().alias());
         }
-        id.addSeries(shards[i].data().get(x).id());
+        id.addSeries(shards.get(i).data().get(x).id());
         processed[i][x] = true;
                 
         // nested outer loop to start searching the other shard groups
-        for (int y = 0; y < shards.length; y++) {
+        for (int y = 0; y < shards.size(); y++) {
           if (y == i) {
             // der, skip ourselves of course.
             continue;
           }
-          if (shards[y] == null) {
+          if (shards.get(y) == null) {
             continue;
           }
           
           // nexted inner loop to match against a shard in another group
-          for (int z = 0; z < shards[y].data().size(); z++) {
+          for (int z = 0; z < shards.get(y).data().size(); z++) {
             if (processed[y][z]) {
               continue;
             }
             // temp build
             final TimeSeriesId temp_id = id.build();
-            final TimeSeriesId local_id = shards[y].data().get(z).id();
+            final TimeSeriesId local_id = shards.get(y).data().get(z).id();
             
             // alias check first
             if (temp_id.alias() != null && temp_id.alias().length > 0) {
@@ -268,8 +268,8 @@ public class DataShardMerger implements DataMerger<DataShardsGroup> {
             }
             
             // matched!!           
-            merged[y] = shards[y].data().get(z);
-            id.addSeries(shards[y].data().get(z).id());
+            merged[y] = shards.get(y).data().get(z);
+            id.addSeries(shards.get(y).data().get(z).id());
             processed[y][z] = true;
           } // end dupe inner data shard loop
         } // end dupe outer shards loop

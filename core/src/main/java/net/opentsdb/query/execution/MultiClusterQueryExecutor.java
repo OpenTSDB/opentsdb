@@ -189,7 +189,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
     final QueryExecution<T>[] executions;
     
     /** The results populated by the group by. */
-    private final T[] results;
+    private final List<T> results;
     
     /** Flag set when starting the timer. */
     private final AtomicBoolean timer_started;
@@ -212,7 +212,10 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
       }
       remote_exceptions = new Exception[clusters.size()];
       executions = new QueryExecution[clusters.size()];
-      results = (T[]) new Object[clusters.size()];
+      results = Lists.newArrayListWithExpectedSize(clusters.size());
+      for (int i = 0; i < clusters.size(); i++) {
+        results.add(null);
+      }
       if (timeout > 0) {
         timer_started = new AtomicBoolean();
       } else {
@@ -255,7 +258,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
                     + QueryToClusterSplitter.this);
               }
             }
-            results[idx] = data;
+            results.set(idx, data);
             return data;
           }
         }
@@ -295,18 +298,17 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
                   timer_timeout = null;
                 }
               }
-              final T[] results = (T[]) new Object[data.size()];
               int valid = 0;
-              for (int i = 0; i < data.size(); i++) {
-                results[i] = data.get(i);
-                if (results[i] != null) {
+              for (final T result : data) {
+                if (result != null) {
                   valid++;
                 }
               }
               
               // we have at least one good result so return it.
               if (valid > 0) {
-                callback(data_merger.merge(results));
+                System.out.println("Merger type: " + data_merger.type());
+                callback(data_merger.merge(data));
                 return null;
               }
               
@@ -344,7 +346,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
         try {
           callback(new RemoteQueryExecutionException(
               "Unexpected exception executing queries downstream.", 
-              query.getOrder(), 500, Lists.newArrayList(remote_exceptions)));
+              query.getOrder(), 500, e));
         } catch (Exception ex) {
           LOG.error("Callback threw an exception", e);
         }

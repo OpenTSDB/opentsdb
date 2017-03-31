@@ -1,24 +1,26 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2016  The OpenTSDB Authors.
+//
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or (at your
+// option) any later version.  This program is distributed in the hope that it
+// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+// General Public License for more details.  You should have received a copy
+// of the GNU Lesser General Public License along with this program.  If not,
+// see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.context;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
-//This file is part of OpenTSDB.
-//Copyright (C) 2017  The OpenTSDB Authors.
-//
-//This program is free software: you can redistribute it and/or modify it
-//under the terms of the GNU Lesser General Public License as published by
-//the Free Software Foundation, either version 2.1 of the License, or (at your
-//option) any later version.  This program is distributed in the hope that it
-//will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-//of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-//General Public License for more details.  You should have received a copy
-//of the GNU Lesser General Public License along with this program.  If not,
-//see <http://www.gnu.org/licenses/>.
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -84,6 +86,7 @@ public class TestHttpContext {
   public void ctor() throws Exception {
     HttpContext ctx = new HttpContext(context, endpoints, mergers, headers);
     assertSame(client, ctx.getClient());
+    verify(client, times(1)).start();
     assertSame(headers, ctx.getHeaders());
     assertEquals(1, ctx.getHeaders().size());
     assertEquals(2, ctx.clusters().size());

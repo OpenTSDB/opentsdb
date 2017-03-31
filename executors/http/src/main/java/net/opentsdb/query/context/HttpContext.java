@@ -84,12 +84,14 @@ public class HttpContext implements RemoteContext {
   
   /** @return An HTTP client. Callers are responsible for closing the client. */
   public CloseableHttpAsyncClient getClient() {
-    return HttpAsyncClients.custom()
+    final CloseableHttpAsyncClient client = HttpAsyncClients.custom()
         .setDefaultIOReactorConfig(IOReactorConfig.custom()
             .setIoThreadCount(1).build())
         .setMaxConnTotal(1)
         .setMaxConnPerRoute(1)
         .build();
+    client.start();
+    return client;
   }
 
   /** @return The cluster config sorted on priority. */

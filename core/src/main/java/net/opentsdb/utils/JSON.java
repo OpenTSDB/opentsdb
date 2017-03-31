@@ -135,6 +135,37 @@ public final class JSON {
       throw new JSONException(e);
     }
   }
+  
+  /**
+   * Deserializes a JSON formatted input stream to a specific class type
+   * <b>Note:</b> If you get mapping exceptions you may need to provide a 
+   * TypeReference
+   * @param stream The stream to deserialize
+   * @param pojo The class type of the object used for deserialization
+   * @return An object of the {@code pojo} type
+   * @throws IllegalArgumentException if the data or class was null or parsing 
+   * failed
+   * @throws JSONException if the data could not be parsed
+   * @param <T> The type of object to parse to.
+   * 
+   * @since 3.0
+   */
+  public static final <T> T parseToObject(final InputStream stream,
+      final Class<T> pojo) {
+    if (stream == null)
+      throw new IllegalArgumentException("Incoming data was null");
+    if (pojo == null)
+      throw new IllegalArgumentException("Missing class type");
+    try {
+      return jsonMapper.readValue(stream, pojo);
+    } catch (JsonParseException e) {
+      throw new IllegalArgumentException(e);
+    } catch (JsonMappingException e) {
+      throw new IllegalArgumentException(e);
+    } catch (IOException e) {
+      throw new JSONException(e);
+    }
+  }
 
   /**
    * Deserializes a JSON formatted string to a specific class type
@@ -192,6 +223,36 @@ public final class JSON {
     }
   }
 
+  /**
+   * Deserializes a JSON formatted input stream to a specific class type
+   * @param stream The input stream to deserialize
+   * @param type A type definition for a complex object
+   * @return An object of the {@code pojo} type
+   * @throws IllegalArgumentException if the data or type was null or parsing
+   * failed
+   * @throws JSONException if the data could not be parsed
+   * @param <T> The type of object to parse to.
+   * 
+   * @since 3.0
+   */
+  @SuppressWarnings("unchecked")
+  public static final <T> T parseToObject(final InputStream stream,
+      final TypeReference<T> type) {
+    if (stream == null)
+      throw new IllegalArgumentException("Incoming data was null");
+    if (type == null)
+      throw new IllegalArgumentException("Missing type reference");
+    try {
+      return (T)jsonMapper.readValue(stream, type);
+    } catch (JsonParseException e) {
+      throw new IllegalArgumentException(e);
+    } catch (JsonMappingException e) {
+      throw new IllegalArgumentException(e);
+    } catch (IOException e) {
+      throw new JSONException(e);
+    }
+  }
+  
   /**
    * Parses a JSON formatted string into raw tokens for streaming or tree
    * iteration

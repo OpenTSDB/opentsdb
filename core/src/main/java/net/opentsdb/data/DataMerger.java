@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.data;
 
+import java.util.List;
+
 import com.google.common.reflect.TypeToken;
 
 /**
@@ -23,5 +25,5 @@ public interface DataMerger<T> {
 
   public TypeToken<?> type();
   
-  public T merge(final T[] shards);
+  public T merge(final List<T> data);
 }
