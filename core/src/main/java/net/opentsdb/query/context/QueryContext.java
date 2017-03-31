@@ -31,6 +31,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import io.netty.util.Timer;
+import io.opentracing.Tracer;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.TimeStampComparator;
@@ -76,6 +77,9 @@ public abstract class QueryContext {
   /** Convenience list of this context's offspring. */
   protected List<QueryContext> children;
   
+  /** The tracer used for tracking the query. */
+  protected final Tracer tracer; 
+  
   /** The context graph so we can find links when sub-contexts are in play. */
   protected final DirectedAcyclicGraph<QueryContext, DefaultEdge> context_graph;
   
@@ -103,6 +107,15 @@ public abstract class QueryContext {
    * context graph.
    */
   public QueryContext() {
+    this((Tracer) null);
+  }
+  
+  /**
+   * Ctor that stores a tracer.
+   * @param tracer An optional tracer to use for tracking queries.
+   */
+  public QueryContext(final Tracer tracer) {
+    this.tracer = tracer;
     context_graph = new DirectedAcyclicGraph<QueryContext, 
         DefaultEdge>(DefaultEdge.class);
     processor_graph = new DirectedAcyclicGraph<TimeSeriesProcessor, 
@@ -122,6 +135,7 @@ public abstract class QueryContext {
     if (context == null) {
       throw new IllegalArgumentException("Parent context cannot be null.");
     }
+    tracer = context.tracer;
     this.context_graph = context.context_graph;
     processor_graph = new DirectedAcyclicGraph<TimeSeriesProcessor, 
         DefaultEdge>(DefaultEdge.class);
@@ -616,6 +630,12 @@ public abstract class QueryContext {
    * @return A non-null timer.
    */
   public abstract Timer getTimer();
+  
+  /** @return The Tracer to use as a component of this query. 
+   * <b>WARNING:</b> This may be null if tracing is disabled. */
+  public Tracer getTracer() {
+    return tracer;
+  }
   
   /**
    * Utility method to traverse all outgoing connections of the processor and

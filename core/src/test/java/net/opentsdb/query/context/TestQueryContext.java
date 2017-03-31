@@ -34,6 +34,7 @@ import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
 import io.netty.util.Timer;
+import io.opentracing.Tracer;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.IteratorStatus;
@@ -58,6 +59,7 @@ public class TestQueryContext {
     assertNull(context.children);
     assertTrue(context.iterator_sinks.isEmpty());
     assertTrue(context.processor_sinks.isEmpty());
+    assertNull(context.getTracer());
     
     MockContext context2 = new MockContext(context);
     assertTrue(context2.context_graph.containsVertex(context));
@@ -74,6 +76,22 @@ public class TestQueryContext {
     assertNull(context2.children);
     assertTrue(context2.iterator_sinks.isEmpty());
     assertTrue(context2.processor_sinks.isEmpty());
+    assertNull(context2.getTracer());
+    
+    final Tracer tracer = mock(Tracer.class);
+    context2 = new MockContext(tracer);
+    assertTrue(context2.context_graph.containsVertex(context2));
+    assertNotNull(context2.iterator_graph);
+    assertNotNull(context2.processor_graph);
+    assertEquals(Long.MAX_VALUE, context2.syncTimestamp().msEpoch());
+    assertEquals(Long.MAX_VALUE, context2.nextTimestamp().msEpoch());
+    assertEquals(IteratorStatus.END_OF_DATA, context2.currentStatus());
+    assertEquals(IteratorStatus.END_OF_DATA, context2.nextStatus());
+    assertNull(context2.getParent());
+    assertNull(context2.children);
+    assertTrue(context2.iterator_sinks.isEmpty());
+    assertTrue(context2.processor_sinks.isEmpty());
+    assertSame(tracer, context2.getTracer());
   }
   
   @Test
@@ -1042,6 +1060,10 @@ public class TestQueryContext {
     
     public MockContext() {
       super();
+    }
+    
+    public MockContext(final Tracer tracer) {
+      super(tracer);
     }
     
     public MockContext(final QueryContext context) {

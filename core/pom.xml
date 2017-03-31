@@ -61,6 +61,12 @@
             <version>0.9.2</version>
         </dependency>
         
+        <dependency>
+          <groupId>io.opentracing</groupId>
+          <artifactId>opentracing-api</artifactId>
+          <version>0.20.10</version>
+        </dependency>
+
       </dependencies>
     </dependencyManagement>
     
@@ -106,7 +112,12 @@
         <groupId>org.jgrapht</groupId>
         <artifactId>jgrapht-core</artifactId>
       </dependency>
-        
+      
+      <dependency>
+        <groupId>io.opentracing</groupId>
+        <artifactId>opentracing-api</artifactId>
+      </dependency>
+      
       <!-- TESTING Deps. -->
       <dependency>
         <groupId>junit</groupId>
