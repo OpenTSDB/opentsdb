@@ -27,6 +27,9 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timer;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 //import org.hbase.async.AppendRequest;
@@ -117,9 +120,9 @@ public final class TSDB {
   /** The plugin and object regsitry used by OpenTSDB. */
   final Registry registry;
 
-//  /** Timer used for various tasks such as idle timeouts or query timeouts */
-//  private final HashedWheelTimer timer;
-//  
+  /** Timer used for various tasks such as idle timeouts or query timeouts */
+  private final HashedWheelTimer timer;
+  
 //  /**
 //   * Row keys that need to be compacted.
 //   * Whenever we write a new data point to a row, we add the row key to this
@@ -309,6 +312,7 @@ public final class TSDB {
   public TSDB(final Config config) {
     this.config = config;
     registry = new Registry();
+    timer = Threads.newTimer("MainTSDBTimer");
   }
   
 //  /** @return The data point column family name */
@@ -1941,11 +1945,11 @@ public final class TSDB {
 //    return default_interval;
 //  }
 //  
-//  /** @return the timer used for various house keeping functions */
-//  public Timer getTimer() {
-//    return timer;
-//  }
-//  
+  /** @return the timer used for various house keeping functions */
+  public Timer getTimer() {
+    return timer;
+  }
+  
 //  // ------------------ //
 //  // Compaction helpers //
 //  // ------------------ //

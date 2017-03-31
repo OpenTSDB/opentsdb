@@ -12,12 +12,17 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.Collections;
 import java.util.Map;
 
+import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.DataMerger;
+import net.opentsdb.data.DataShardMerger;
+import net.opentsdb.data.DataShardsGroup;
+import net.opentsdb.data.types.numeric.NumericMergeLargest;
 
 /**
  * TODO - stub
@@ -26,13 +31,26 @@ import net.opentsdb.data.DataMerger;
  */
 public class Registry {
   
+  private final Map<TypeToken<?>, DataMerger<?>> data_mergers;
+  
+  public Registry() {
+    data_mergers = Maps.<TypeToken<?>, DataMerger<?>>newHashMap();
+    initDataMergers();
+  }
+  
   /** @return An unmodifiable map of the data mergers. */
   public Map<TypeToken<?>, DataMerger<?>> dataMergers() {
-    return null;
+    return Collections.unmodifiableMap(data_mergers);
   }
   
   /** @return Package private shutdown returning the deferred to wait on. */
   Deferred<Object> shutdown() { 
     return Deferred.fromResult(null);
+  }
+  
+  private void initDataMergers() {
+    final DataShardMerger shards_merger = new DataShardMerger();
+    shards_merger.registerStrategy(new NumericMergeLargest());
+    data_mergers.put(DataShardsGroup.TYPE, shards_merger);
   }
 }

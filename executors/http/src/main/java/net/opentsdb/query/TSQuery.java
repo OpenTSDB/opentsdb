@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2013-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -16,14 +16,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.base.Objects;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.pojo.Downsampler;
+import net.opentsdb.query.pojo.Filter;
+import net.opentsdb.query.pojo.Metric;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -468,5 +470,64 @@ public final class TSQuery {
    * based on the calendar @since 2.3 */
   public void setUseCalendar(boolean use_calendar) {
     this.use_calendar = use_calendar;
+  }
+
+  /**
+   * Converts a TSQuery into a Time Series Query for further processing.
+   * @param query A non-null and pre-validated TSQuery. 
+   * @return A TimeSeriesQuery to pass downstream.
+   */
+  public static TimeSeriesQuery convertQuery(final TSQuery query) {
+    final TimeSeriesQuery.Builder q = TimeSeriesQuery.newBuilder();
+    
+    final Timespan.Builder time = Timespan.newBuilder()
+        .setStart(query.getStart())
+        .setAggregator("none");
+    if (query.getEnd() != null && !query.getEnd().isEmpty()) {
+      time.setEnd(query.getEnd());
+    }
+    q.setTime(time);
+    
+    int filter_idx = 1;
+    for (final TSSubQuery sub : query.getQueries()) {
+      final Metric.Builder metric = Metric.newBuilder()
+          .setId("m" + filter_idx)
+          .setMetric(sub.getMetric())
+          .setAggregator(sub.getAggregator());
+      if (sub.getDownsample() != null) {
+        metric.setDownsampler(Downsampler.newBuilder()
+            // TODO - wotcha!!! Here there be demons
+            .setAggregator(sub.getDownsample().substring(
+                sub.getDownsample().indexOf("-") + 1))
+            .setInterval(sub.getDownsample().substring(0, 
+                sub.getDownsample().indexOf("-"))));
+      }
+      if (sub.getRate()) {
+        // TODO full rate options
+        //metric.setRate(Rate.newBuilder().setInterval("1s"));
+      }
+      
+      if (sub.getFilters() != null && !sub.getFilters().isEmpty()) {
+        final String filter_id = "f" + filter_idx++;
+        final Filter.Builder filter_set = Filter.newBuilder()
+            .setId(filter_id)
+            .setExplicitTags(sub.getExplicitTags());
+        metric.setFilter(filter_id);
+        
+        for (final TagVFilter f : sub.getFilters()) {
+          filter_set.addFilter(TagVFilter.newBuilder()
+              .setTagk(f.getTagk())
+              .setFilter(f.getFilter())
+              .setType(f.getType())
+              .setGroupBy(f.isGroupBy()));
+        }
+        filter_set.setExplicitTags(sub.getExplicitTags());
+        q.addFilter(filter_set);
+      }
+      
+      q.addMetric(metric);
+    }
+    
+    return q.build();
   }
 }
