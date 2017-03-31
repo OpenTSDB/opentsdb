@@ -19,6 +19,8 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -26,6 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -37,15 +40,17 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
 
+import io.netty.util.Timeout;
 import io.netty.util.Timer;
+import io.netty.util.TimerTask;
 import net.opentsdb.data.DataMerger;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.context.RemoteContext;
-import net.opentsdb.query.execution.QueryMultiClusterExecutor.QueryToClusterSplitter;
+import net.opentsdb.query.execution.MultiClusterQueryExecutor.QueryToClusterSplitter;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 
-public class TestQueryMultiClusterExecutor {
+public class TestMultiClusterQueryExecutor {
   private QueryContext context;
   private RemoteContext remote_context;
   private Timer timer;
@@ -57,6 +62,7 @@ public class TestQueryMultiClusterExecutor {
   private MockDownstream downstream_a;
   private MockDownstream downstream_b;
   private DataMerger<Long> merger;
+  private Timeout timeout;
   
   @SuppressWarnings("unchecked")
   @Before
@@ -72,9 +78,12 @@ public class TestQueryMultiClusterExecutor {
     downstream_a = new MockDownstream(query);
     downstream_b = new MockDownstream(query);
     merger = mock(DataMerger.class);
+    timeout = mock(Timeout.class);
     
     when(context.getRemoteContext()).thenReturn(remote_context);
     when(context.getTimer()).thenReturn(timer);
+    when(timer.newTimeout(any(TimerTask.class), anyLong(), 
+        eq(TimeUnit.MILLISECONDS))).thenReturn(timeout);
     when(remote_context.dataMerger(any(TypeToken.class)))
       .thenAnswer(new Answer<DataMerger<?>>() {
       @Override
@@ -119,18 +128,22 @@ public class TestQueryMultiClusterExecutor {
   
   @Test
   public void ctor() throws Exception {
-    final QueryMultiClusterExecutor<Long> executor = 
-        new QueryMultiClusterExecutor<Long>(context, Long.class);
+    MultiClusterQueryExecutor<Long> executor = 
+        new MultiClusterQueryExecutor<Long>(context, Long.class);
+    assertSame(merger, executor.dataMerger());
+    assertTrue(executor.outstandingExecutors().isEmpty());
+    
+    executor = new MultiClusterQueryExecutor<Long>(context, Long.class, 60000);
     assertSame(merger, executor.dataMerger());
     assertTrue(executor.outstandingExecutors().isEmpty());
     
     try {
-      new QueryMultiClusterExecutor<Long>(null, Long.class);
+      new MultiClusterQueryExecutor<Long>(null, Long.class);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new QueryMultiClusterExecutor<Long>(context, null);
+      new MultiClusterQueryExecutor<Long>(context, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -141,13 +154,13 @@ public class TestQueryMultiClusterExecutor {
       }
     });
     try {
-      new QueryMultiClusterExecutor<Long>(context, Long.class);
+      new MultiClusterQueryExecutor<Long>(context, Long.class);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
     when(remote_context.dataMerger(any(TypeToken.class))).thenReturn(null);
     try {
-      new QueryMultiClusterExecutor<Long>(context, Long.class);
+      new MultiClusterQueryExecutor<Long>(context, Long.class);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
   }
@@ -155,8 +168,8 @@ public class TestQueryMultiClusterExecutor {
   @SuppressWarnings("rawtypes")
   @Test
   public void execute() throws Exception {
-    final QueryMultiClusterExecutor<Long> executor = 
-        new QueryMultiClusterExecutor<Long>(context, Long.class);
+    final MultiClusterQueryExecutor<Long> executor = 
+        new MultiClusterQueryExecutor<Long>(context, Long.class);
     
     final QueryExecution<Long> exec = executor.executeQuery(query);
     try {
@@ -189,10 +202,120 @@ public class TestQueryMultiClusterExecutor {
     assertTrue(downstream_b.completed());
   }
   
+  @SuppressWarnings("rawtypes")
+  @Test
+  public void executeWithTimeout() throws Exception {
+    final MultiClusterQueryExecutor<Long> executor = 
+        new MultiClusterQueryExecutor<Long>(context, Long.class, 60000);
+    
+    final QueryExecution<Long> exec = executor.executeQuery(query);
+    try {
+      exec.deferred().join(1);
+      fail("Expected TimeoutException");
+    } catch (TimeoutException e) { }
+    
+    verify(remote_context, times(1)).clusters();
+    verify(executor_a, times(1)).executeQuery(query);
+    verify(executor_b, times(1)).executeQuery(query);
+    assertTrue(executor.outstandingExecutors().contains(exec));
+    assertFalse(exec.completed());
+    assertFalse(downstream_a.cancelled);
+    assertFalse(downstream_a.completed());
+    assertFalse(downstream_b.cancelled);
+    assertFalse(downstream_b.completed());
+    assertTrue(exec instanceof QueryToClusterSplitter);
+    assertSame(downstream_a, ((QueryToClusterSplitter) exec).executions[0]);
+    assertSame(downstream_b, ((QueryToClusterSplitter) exec).executions[1]);
+    
+    downstream_a.callback(1L);
+    
+    // should have started the timer task
+    try {
+      exec.deferred().join(1);
+      fail("Expected TimeoutException");
+    } catch (TimeoutException e) { }
+    verify(timer, times(1)).newTimeout((TimerTask) exec, 60000, 
+        TimeUnit.MILLISECONDS);
+    assertTrue(executor.outstandingExecutors().contains(exec));
+    assertFalse(exec.completed());
+    assertFalse(downstream_a.cancelled);
+    assertTrue(downstream_a.completed());
+    assertFalse(downstream_b.cancelled);
+    assertFalse(downstream_b.completed());
+    
+    // pretend it timed out
+    ((TimerTask) exec).run(null);
+    assertEquals(42L, (long) exec.deferred().join()); // still mocked
+    assertFalse(executor.outstandingExecutors().contains(exec));
+    assertTrue(exec.completed());
+    assertTrue(downstream_a.cancelled);
+    assertTrue(downstream_a.completed());
+    assertTrue(downstream_b.cancelled);
+    assertFalse(downstream_b.completed());
+    verify(timeout, never()).cancel();
+  }
+  
+  @SuppressWarnings("rawtypes")
+  @Test
+  public void executeWithTimeoutAllSuccessful() throws Exception {
+    final MultiClusterQueryExecutor<Long> executor = 
+        new MultiClusterQueryExecutor<Long>(context, Long.class, 60000);
+    
+    final QueryExecution<Long> exec = executor.executeQuery(query);
+    try {
+      exec.deferred().join(1);
+      fail("Expected TimeoutException");
+    } catch (TimeoutException e) { }
+    
+    verify(remote_context, times(1)).clusters();
+    verify(executor_a, times(1)).executeQuery(query);
+    verify(executor_b, times(1)).executeQuery(query);
+    assertTrue(executor.outstandingExecutors().contains(exec));
+    assertFalse(exec.completed());
+    assertFalse(downstream_a.cancelled);
+    assertFalse(downstream_a.completed());
+    assertFalse(downstream_b.cancelled);
+    assertFalse(downstream_b.completed());
+    assertTrue(exec instanceof QueryToClusterSplitter);
+    assertSame(downstream_a, ((QueryToClusterSplitter) exec).executions[0]);
+    assertSame(downstream_b, ((QueryToClusterSplitter) exec).executions[1]);
+    
+    downstream_a.callback(1L);
+    
+    // should have started the timer task
+    try {
+      exec.deferred().join(1);
+      fail("Expected TimeoutException");
+    } catch (TimeoutException e) { }
+    verify(timer, times(1)).newTimeout((TimerTask) exec, 60000, 
+        TimeUnit.MILLISECONDS);
+    assertTrue(executor.outstandingExecutors().contains(exec));
+    assertFalse(exec.completed());
+    assertFalse(downstream_a.cancelled);
+    assertTrue(downstream_a.completed());
+    assertFalse(downstream_b.cancelled);
+    assertFalse(downstream_b.completed());
+    
+    // second data makes it in
+    downstream_b.callback(2L);
+    assertEquals(42L, (long) exec.deferred().join()); // still mocked
+    assertFalse(executor.outstandingExecutors().contains(exec));
+    assertTrue(exec.completed());
+    assertFalse(downstream_a.cancelled);
+    assertTrue(downstream_a.completed());
+    assertFalse(downstream_b.cancelled);
+    assertTrue(downstream_b.completed());
+    verify(timeout, times(1)).cancel();
+    
+    // race!
+    ((TimerTask) exec).run(null);
+    assertEquals(42L, (long) exec.deferred().join()); // still mocked
+  }
+  
   @Test
   public void executeRemoteContextThrowsException() throws Exception {
-    final QueryMultiClusterExecutor<Long> executor = 
-        new QueryMultiClusterExecutor<Long>(context, Long.class);
+    final MultiClusterQueryExecutor<Long> executor = 
+        new MultiClusterQueryExecutor<Long>(context, Long.class);
     // exception thrown
     when(remote_context.clusters())
       .thenThrow(new IllegalArgumentException("Boo!"));
@@ -211,8 +334,8 @@ public class TestQueryMultiClusterExecutor {
   
   @Test
   public void executeClustersNull() throws Exception {
-    final QueryMultiClusterExecutor<Long> executor = 
-        new QueryMultiClusterExecutor<Long>(context, Long.class);
+    final MultiClusterQueryExecutor<Long> executor = 
+        new MultiClusterQueryExecutor<Long>(context, Long.class);
     when(remote_context.clusters()).thenReturn(null);
     
     final QueryExecution<Long> exec = executor.executeQuery(query);
@@ -229,8 +352,8 @@ public class TestQueryMultiClusterExecutor {
   
   @Test
   public void executeClustersEmpty() throws Exception {
-    final QueryMultiClusterExecutor<Long> executor = 
-        new QueryMultiClusterExecutor<Long>(context, Long.class);
+    final MultiClusterQueryExecutor<Long> executor = 
+        new MultiClusterQueryExecutor<Long>(context, Long.class);
     when(remote_context.clusters()).thenReturn(
         Collections.<ClusterConfig>emptyList());
     
@@ -248,8 +371,8 @@ public class TestQueryMultiClusterExecutor {
   
   @Test
   public void executeDownstreamThrew() throws Exception {
-    final QueryMultiClusterExecutor<Long> executor = 
-        new QueryMultiClusterExecutor<Long>(context, Long.class);
+    final MultiClusterQueryExecutor<Long> executor = 
+        new MultiClusterQueryExecutor<Long>(context, Long.class);
     when(executor_b.executeQuery(query))
       .thenThrow(new IllegalArgumentException("Boo!"));
     
@@ -273,8 +396,8 @@ public class TestQueryMultiClusterExecutor {
   
   @Test
   public void executeOneBadOneGood() throws Exception {
-    final QueryMultiClusterExecutor<Long> executor = 
-        new QueryMultiClusterExecutor<Long>(context, Long.class);
+    final MultiClusterQueryExecutor<Long> executor = 
+        new MultiClusterQueryExecutor<Long>(context, Long.class);
     
     final QueryExecution<Long> exec = executor.executeQuery(query);
     try {
@@ -301,8 +424,8 @@ public class TestQueryMultiClusterExecutor {
   
   @Test
   public void executeBothBad() throws Exception {
-    final QueryMultiClusterExecutor<Long> executor = 
-        new QueryMultiClusterExecutor<Long>(context, Long.class);
+    final MultiClusterQueryExecutor<Long> executor = 
+        new MultiClusterQueryExecutor<Long>(context, Long.class);
     
     final QueryExecution<Long> exec = executor.executeQuery(query);
     try {
@@ -343,8 +466,8 @@ public class TestQueryMultiClusterExecutor {
   
   @Test
   public void executeCancel() throws Exception {
-    final QueryMultiClusterExecutor<Long> executor = 
-        new QueryMultiClusterExecutor<Long>(context, Long.class);
+    final MultiClusterQueryExecutor<Long> executor = 
+        new MultiClusterQueryExecutor<Long>(context, Long.class);
     
     final QueryExecution<Long> exec = executor.executeQuery(query);
     try {
@@ -373,8 +496,8 @@ public class TestQueryMultiClusterExecutor {
   
   @Test
   public void close() throws Exception {
-    final QueryMultiClusterExecutor<Long> executor = 
-        new QueryMultiClusterExecutor<Long>(context, Long.class);
+    final MultiClusterQueryExecutor<Long> executor = 
+        new MultiClusterQueryExecutor<Long>(context, Long.class);
     
     final QueryExecution<Long> exec = executor.executeQuery(query);
     try {

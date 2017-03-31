@@ -16,6 +16,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +29,8 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import net.opentsdb.data.DataMerger;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
@@ -54,15 +58,18 @@ import net.opentsdb.query.pojo.TimeSeriesQuery;
  * 
  * @param <T>
  */
-public class QueryMultiClusterExecutor<T> extends QueryExecutor<T> {
+public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
   private static final Logger LOG = LoggerFactory.getLogger(
-      QueryMultiClusterExecutor.class);
+      MultiClusterQueryExecutor.class);
 
   /** The list of outstanding executors. */ 
   private final Set<QueryToClusterSplitter> outstanding_executors;
   
   /** The data merger used to merge results. */
   private final DataMerger<T> data_merger;
+  
+  /** Optional timeout in ms for alternate clusters. */
+  private final long timeout;
   
   /**
    * Default Ctor.
@@ -83,9 +90,28 @@ public class QueryMultiClusterExecutor<T> extends QueryExecutor<T> {
    * @throws IllegalStateException if the data merger was null or of the wrong
    * type.
    */
-  @SuppressWarnings("unchecked")
-  public QueryMultiClusterExecutor(final QueryContext context, 
+  public MultiClusterQueryExecutor(final QueryContext context, 
       final Class<T> type) {
+    this(context, type, 0);
+  }
+  
+  /**
+   * Alternate CTor that sets a timeout that, when the first positive response
+   * is received from a cluster, initiates a timer task that will merge and 
+   * forward the query results upstream regardless of the state of remaining
+   * clusters.
+   * 
+   * @param context A non-null context. 
+   * @param type A non-null type, same as T that this executor works on.
+   * @param timeout A timeout in milliseconds for alternate colos. 0 == no 
+   * timeout and it must be positive.
+   * @throws IllegalArgumentException if the cluster or type were null.
+   * @throws IllegalStateException if the data merger was null or of the wrong
+   * type.
+   */
+  @SuppressWarnings("unchecked")
+  public MultiClusterQueryExecutor(final QueryContext context, 
+      final Class<T> type, final long timeout) {
     super(context);
     if (type == null) {
       throw new IllegalArgumentException("Type cannot be null.");
@@ -101,9 +127,13 @@ public class QueryMultiClusterExecutor<T> extends QueryExecutor<T> {
       throw new IllegalStateException("Data merger of type " + data_merger.type() 
         + " did not match the executor's type: " + type);
     }
+    if (timeout < 0) {
+      throw new IllegalArgumentException("Timeout cannot be negative.");
+    }
+    this.timeout = timeout;
   }
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({ "unchecked", "rawtypes" })
   @Override
   public QueryExecution<T> executeQuery(final TimeSeriesQuery query) {
     if (completed.get()) {
@@ -147,15 +177,25 @@ public class QueryMultiClusterExecutor<T> extends QueryExecutor<T> {
 
   /** State class for a specific query that waits for both clusters to complete
    * and merges the response. */
-  class QueryToClusterSplitter extends QueryExecution<T> {
+  class QueryToClusterSplitter extends QueryExecution<T> implements TimerTask {
     /** The cluster config snapshot to use when sending queries. */
-    final List<ClusterConfig> clusters;
+    private final List<ClusterConfig> clusters;
     
     /** A list of remote exceptions */
-    final Exception[] remote_exceptions;
+    private final Exception[] remote_exceptions;
     
     /** The list of outstanding executions so we can cancel them if needed. */
+    @VisibleForTesting
     final QueryExecution<T>[] executions;
+    
+    /** The results populated by the group by. */
+    private final T[] results;
+    
+    /** Flag set when starting the timer. */
+    private final AtomicBoolean timer_started;
+    
+    /** The timeout from the Timer if timeouts are enabled. */ 
+    private Timeout timer_timeout;
     
     /**
      * Default ctor.
@@ -172,6 +212,12 @@ public class QueryMultiClusterExecutor<T> extends QueryExecutor<T> {
       }
       remote_exceptions = new Exception[clusters.size()];
       executions = new QueryExecution[clusters.size()];
+      results = (T[]) new Object[clusters.size()];
+      if (timeout > 0) {
+        timer_started = new AtomicBoolean();
+      } else {
+        timer_started = null;
+      }
     }
     
     @SuppressWarnings("unchecked")
@@ -193,12 +239,36 @@ public class QueryMultiClusterExecutor<T> extends QueryExecutor<T> {
           }
         }
         
+        /** Triggers the timer on the first positive result. */
+        class TimerStarter implements Callback<T, T> {
+          final int idx;
+          TimerStarter(final int idx) {
+            this.idx = idx;
+          }
+          @Override
+          public T call(final T data) throws Exception {
+            if (timer_started.compareAndSet(false, true)) {
+              timer_timeout = context.getTimer().newTimeout(
+                  QueryToClusterSplitter.this, timeout, TimeUnit.MILLISECONDS);
+              if (LOG.isDebugEnabled()) {
+                LOG.debug("Started timout timer after receiving good result: " 
+                    + QueryToClusterSplitter.this);
+              }
+            }
+            results[idx] = data;
+            return data;
+          }
+        }
+        
         // execute the query on each remote and add an ErrCB to capture badness.
         for (int i = 0; i < clusters.size(); i++) {
           executions[i] = (QueryExecution<T>) clusters.get(i)
               .remoteExecutor().executeQuery(query);
           deferreds.add(executions[i].deferred()
               .addErrback(new ErrCB(i)));
+          if (timeout > 0) {
+            executions[i].deferred().addCallback(new TimerStarter(i));
+          }
         }
         
         /** Callback that either merges good results and executes the callback or
@@ -208,12 +278,22 @@ public class QueryMultiClusterExecutor<T> extends QueryExecutor<T> {
           public Object call(final ArrayList<T> data) throws Exception {
             try {
               if (completed.get()) {
-                LOG.error("WTF? Somehow this splitter was called back but it "
-                    + "was marked complete.");
+                LOG.error("Splitter was called back but may have been triggered "
+                    + "by a timeout. Skipping.");
                 deferred.callback(new RemoteQueryExecutionException(
                     "Splitter was already cancelled but we received a result.", 
                     query.getOrder(), 500));
                 return null;
+              }
+              synchronized (this) {
+                if (timer_timeout != null) {
+                  try {
+                    timer_timeout.cancel();
+                  } catch (Exception e) {
+                    LOG.warn("Unexpected exception canceling timeout", e);
+                  }
+                  timer_timeout = null;
+                }
               }
               final T[] results = (T[]) new Object[data.size()];
               int valid = 0;
@@ -286,6 +366,16 @@ public class QueryMultiClusterExecutor<T> extends QueryExecutor<T> {
 
     @Override
     public void cancel() {
+      synchronized (this) {
+        if (timer_timeout != null) {
+          try {
+            timer_timeout.cancel();
+          } catch (Exception e) {
+            LOG.warn("Exception canceling timer task", e);
+          }
+          timer_timeout = null;
+        }
+      }
       for (final QueryExecution<T> exec : executions) {
         try {
           exec.cancel();
@@ -303,6 +393,22 @@ public class QueryMultiClusterExecutor<T> extends QueryExecutor<T> {
         }
       }
       outstanding_executors.remove(this);
+    }
+
+    @Override
+    public void run(final Timeout ignored) throws Exception {
+      synchronized (this) {
+        timer_timeout = null;
+      }
+      try {
+        callback(data_merger.merge(results));
+      } catch (Exception e) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Lost race condition timing out query after getting "
+              + "good results from a colo", e);
+        }
+      }
+      cancel();
     }
   }
 
