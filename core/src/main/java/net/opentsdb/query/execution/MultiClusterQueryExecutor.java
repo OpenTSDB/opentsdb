@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
@@ -31,12 +32,14 @@ import com.stumbleupon.async.Deferred;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+import io.opentracing.Span;
 import net.opentsdb.data.DataMerger;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.context.RemoteContext;
 import net.opentsdb.query.execution.ClusterConfig;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.utils.JSON;
 
 /**
  * An executor that uses the {@link RemoteContext#clusters()} config to send
@@ -45,7 +48,8 @@ import net.opentsdb.query.pojo.TimeSeriesQuery;
  * <p>
  * For multi-cluster queries, we fire the same query off to each cluster and 
  * wait for a response from every cluster. If at least one cluster returns
- * a valid result, then that result will be returned via {@link #executeQuery(TimeSeriesQuery)}.
+ * a valid result, then that result will be returned via 
+ * {@link #executeQuery(TimeSeriesQuery, Span)}.
  * However if all clusters return an exception, then the exceptions are
  * packed into a {@link RemoteQueryExecutionException} and the highest status
  * code from exceptions (assuming each one returns a RemoteQueryExecutionException)
@@ -135,7 +139,8 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
 
   @SuppressWarnings({ "unchecked", "rawtypes" })
   @Override
-  public QueryExecution<T> executeQuery(final TimeSeriesQuery query) {
+  public QueryExecution<T> executeQuery(final TimeSeriesQuery query, 
+                                        final Span upstream_span) {
     if (completed.get()) {
       return new FailedQueryExecution(query,
           new RemoteQueryExecutionException(
@@ -144,7 +149,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
     try {
       final QueryToClusterSplitter executor = new QueryToClusterSplitter(query);
       outstanding_executors.add(executor);
-      return executor.executeQuery(query);
+      return executor.executeQuery(query, upstream_span);
     } catch (Exception e) {
       return new FailedQueryExecution(query, new RemoteQueryExecutionException(
           "Unexpected exception executing query: " + this, 
@@ -224,7 +229,17 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
     }
     
     @SuppressWarnings("unchecked")
-    QueryExecution<T> executeQuery(final TimeSeriesQuery query) {
+    QueryExecution<T> executeQuery(final TimeSeriesQuery query, 
+        final Span upstream_span) {
+      if (context.getTracer() != null) {
+        setSpan(context, MultiClusterQueryExecutor.this.getClass().getSimpleName(), 
+            upstream_span,
+            new ImmutableMap.Builder<String, String>()
+              .put("order", Integer.toString(query.getOrder()))
+              .put("query", JSON.serializeToString(query))
+              .build());
+      }
+      
       final List<Deferred<T>> deferreds = Lists.
           <Deferred<T>>newArrayListWithExpectedSize(clusters.size());
       try {
@@ -266,7 +281,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
         // execute the query on each remote and add an ErrCB to capture badness.
         for (int i = 0; i < clusters.size(); i++) {
           executions[i] = (QueryExecution<T>) clusters.get(i)
-              .remoteExecutor().executeQuery(query);
+              .remoteExecutor().executeQuery(query, tracer_span);
           deferreds.add(executions[i].deferred()
               .addErrback(new ErrCB(i)));
           if (timeout > 0) {
@@ -307,8 +322,10 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
               
               // we have at least one good result so return it.
               if (valid > 0) {
-                System.out.println("Merger type: " + data_merger.type());
-                callback(data_merger.merge(data));
+                callback(data_merger.merge(data),
+                    new ImmutableMap.Builder<String, String>()
+                      .put("status", "ok")
+                      .build());
                 return null;
               }
               
@@ -328,7 +345,12 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
                   "One or more of the cluster sources had an exception", 
                   query.getOrder(), 
                   (status == 0 ? 500 : status), 
-                  Lists.newArrayList(remote_exceptions)));
+                  Lists.newArrayList(remote_exceptions)),
+                  new ImmutableMap.Builder<String, String>()
+                    .put("status", "Error")
+                    .put("error", "One or more of the cluster "
+                        + "sources had an exception.")
+                    .build());
               return null;
             } catch (Exception e) {
               callback(new RemoteQueryExecutionException(
@@ -346,7 +368,11 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
         try {
           callback(new RemoteQueryExecutionException(
               "Unexpected exception executing queries downstream.", 
-              query.getOrder(), 500, e));
+              query.getOrder(), 500, e),
+              new ImmutableMap.Builder<String, String>()
+                .put("status", "Error")
+                .put("error", e.getMessage())
+                .build());
         } catch (Exception ex) {
           LOG.error("Callback threw an exception", e);
         }

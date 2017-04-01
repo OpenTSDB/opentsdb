@@ -17,13 +17,16 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableMap;
 import com.stumbleupon.async.Callback;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+import io.opentracing.Span;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.utils.JSON;
 
 /**
  * A {@link QueryExecutor} wrapper that uses a timer to kill a query that
@@ -67,7 +70,8 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
   }
 
   @Override
-  public QueryExecution<T> executeQuery(final TimeSeriesQuery query) {
+  public QueryExecution<T> executeQuery(final TimeSeriesQuery query,
+                                        final Span upstream_span) {
     if (completed.get()) {
       return new FailedQueryExecution<T>(query, new RemoteQueryExecutionException(
             "Timeout executor was already marked as completed: " + this, 
@@ -75,7 +79,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
     }
     try {
       final TimedQuery timed_query = new TimedQuery(query);
-      timed_query.execute();
+      timed_query.execute(upstream_span);
       return timed_query;
     } catch (Exception e) {
       return new FailedQueryExecution<T>(query, new RemoteQueryExecutionException(
@@ -103,12 +107,24 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
       outstanding_executions.add(this);
     }
     
-    void execute() {
+    void execute(final Span upstream_span) {
+      if (context.getTracer() != null) {
+        setSpan(context, TimedQueryExecutor.this.getClass().getSimpleName(), 
+            upstream_span,
+            new ImmutableMap.Builder<String, String>()
+              .put("order", Integer.toString(query.getOrder()))
+              .put("query", JSON.serializeToString(query))
+              .build());
+      }
       class ErrCB implements Callback<Object, Exception> {
         @Override
         public Object call(final Exception e) throws Exception {
           complete();
-          callback(e);
+          callback(e, 
+              new ImmutableMap.Builder<String, String>()
+                .put("status", "Error")
+                .put("error", e.getMessage())
+                .build());
           return null;
         }
       }
@@ -117,14 +133,17 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
         @Override
         public Object call(final T obj) throws Exception {
           complete();
-          callback(obj);
+          callback(obj,
+              new ImmutableMap.Builder<String, String>()
+                .put("status", "ok")
+                .build());
           return null;
         }
       }
       
       // run it!
       try {
-        downstream = executor.executeQuery(query);
+        downstream = executor.executeQuery(query, upstream_span);
         downstream.deferred()
           .addCallback(new SuccessCB())
           .addErrback(new ErrCB());

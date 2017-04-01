@@ -37,6 +37,7 @@ import com.stumbleupon.async.TimeoutException;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
+import io.opentracing.Span;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
@@ -48,6 +49,7 @@ public class TestTimedQueryExecutor {
   private TimeSeriesQuery query;
   private MockDownstream downstream;
   private Timeout timeout;
+  private Span span;
   
   @SuppressWarnings("unchecked")
   @Before
@@ -58,9 +60,10 @@ public class TestTimedQueryExecutor {
     query = mock(TimeSeriesQuery.class);
     downstream = new MockDownstream(query);
     timeout = mock(Timeout.class);
+    span = mock(Span.class);
     
     when(context.getTimer()).thenReturn(timer);
-    when(executor.executeQuery(query)).thenReturn(downstream);
+    when(executor.executeQuery(eq(query), any(Span.class))).thenReturn(downstream);
     when(executor.close()).thenReturn(Deferred.fromResult(null));
     when(timer.newTimeout(any(TimerTask.class), anyLong(), eq(TimeUnit.MILLISECONDS)))
       .thenReturn(timeout);
@@ -93,7 +96,7 @@ public class TestTimedQueryExecutor {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
         context, executor, 1000);
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query);
+    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
@@ -102,7 +105,7 @@ public class TestTimedQueryExecutor {
     verify(timer, times(1))
       .newTimeout((TimerTask) exec, 1000, TimeUnit.MILLISECONDS);
     verify(timeout, never()).cancel();
-    verify(executor, times(1)).executeQuery(query);
+    verify(executor, times(1)).executeQuery(query, span);
     assertFalse(downstream.cancelled);
     assertFalse(downstream.completed());
     assertTrue(tqe.outstandingRequests().contains(exec));
@@ -121,7 +124,7 @@ public class TestTimedQueryExecutor {
         context, executor, 1000);
     tqe.completed.set(true);
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query);
+    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
       exec.deferred().join();
       fail("Expected RemoteQueryExecutionException");
@@ -129,7 +132,7 @@ public class TestTimedQueryExecutor {
     verify(timer, never())
       .newTimeout(any(TimerTask.class), eq(1000), eq(TimeUnit.MILLISECONDS));
     verify(timeout, never()).cancel();
-    verify(executor, never()).executeQuery(query);
+    verify(executor, never()).executeQuery(query, span);
     assertNotSame(downstream, exec);
     assertFalse(tqe.outstandingRequests().contains(exec));
   }
@@ -138,9 +141,10 @@ public class TestTimedQueryExecutor {
   public void executeThrownException() throws Exception {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
         context, executor, 1000);
-    when(executor.executeQuery(query)).thenThrow(new IllegalStateException("Boo!"));
+    when(executor.executeQuery(eq(query), any(Span.class)))
+      .thenThrow(new IllegalStateException("Boo!"));
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query);
+    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
       exec.deferred().join();
       fail("Expected RemoteQueryExecutionException");
@@ -148,7 +152,7 @@ public class TestTimedQueryExecutor {
     verify(timer, never())
       .newTimeout(any(TimerTask.class), eq(1000), eq(TimeUnit.MILLISECONDS));
     verify(timeout, never()).cancel();
-    verify(executor, times(1)).executeQuery(query);
+    verify(executor, times(1)).executeQuery(query, span);
     assertFalse(tqe.outstandingRequests().contains(exec));
   }
   
@@ -158,7 +162,7 @@ public class TestTimedQueryExecutor {
         context, executor, 1000);
     when(context.getTimer()).thenReturn(null);
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query);
+    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
       exec.deferred().join();
       fail("Expected RemoteQueryExecutionException");
@@ -166,7 +170,7 @@ public class TestTimedQueryExecutor {
     verify(timer, never())
       .newTimeout(any(TimerTask.class), eq(1000), eq(TimeUnit.MILLISECONDS));
     verify(timeout, never()).cancel();
-    verify(executor, times(1)).executeQuery(query);
+    verify(executor, times(1)).executeQuery(query, span);
     assertFalse(tqe.outstandingRequests().contains(exec));
   }
   
@@ -175,7 +179,7 @@ public class TestTimedQueryExecutor {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
         context, executor, 1000);
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query);
+    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
@@ -184,7 +188,7 @@ public class TestTimedQueryExecutor {
     verify(timer, times(1))
       .newTimeout((TimerTask) exec, 1000, TimeUnit.MILLISECONDS);
     verify(timeout, never()).cancel();
-    verify(executor, times(1)).executeQuery(query);
+    verify(executor, times(1)).executeQuery(query, span);
     assertFalse(downstream.cancelled);
     assertFalse(downstream.completed());
     assertFalse(exec.completed());
@@ -207,7 +211,7 @@ public class TestTimedQueryExecutor {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
         context, executor, 1000);
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query);
+    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
@@ -216,7 +220,7 @@ public class TestTimedQueryExecutor {
     verify(timer, times(1))
       .newTimeout((TimerTask) exec, 1000, TimeUnit.MILLISECONDS);
     verify(timeout, never()).cancel();
-    verify(executor, times(1)).executeQuery(query);
+    verify(executor, times(1)).executeQuery(query, span);
     assertFalse(downstream.cancelled);
     assertFalse(downstream.completed());
     assertTrue(tqe.outstandingRequests().contains(exec));
@@ -241,7 +245,7 @@ public class TestTimedQueryExecutor {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
         context, executor, 1000);
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query);
+    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
@@ -250,7 +254,7 @@ public class TestTimedQueryExecutor {
     verify(timer, times(1))
       .newTimeout((TimerTask) exec, 1000, TimeUnit.MILLISECONDS);
     verify(timeout, never()).cancel();
-    verify(executor, times(1)).executeQuery(query);
+    verify(executor, times(1)).executeQuery(query, span);
     assertFalse(downstream.cancelled);
     assertFalse(downstream.completed());
     assertTrue(tqe.outstandingRequests().contains(exec));
@@ -270,7 +274,7 @@ public class TestTimedQueryExecutor {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
         context, executor, 1000);
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query);
+    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
@@ -279,7 +283,7 @@ public class TestTimedQueryExecutor {
     verify(timer, times(1))
       .newTimeout((TimerTask) exec, 1000, TimeUnit.MILLISECONDS);
     verify(timeout, never()).cancel();
-    verify(executor, times(1)).executeQuery(query);
+    verify(executor, times(1)).executeQuery(query, span);
     assertFalse(downstream.cancelled);
     assertFalse(downstream.completed());
     assertTrue(tqe.outstandingRequests().contains(exec));
@@ -300,7 +304,7 @@ public class TestTimedQueryExecutor {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
         context, executor, 1000);
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query);
+    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");

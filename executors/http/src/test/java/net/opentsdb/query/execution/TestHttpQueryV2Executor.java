@@ -50,6 +50,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Maps;
 import com.stumbleupon.async.TimeoutException;
 
+import io.opentracing.Span;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.DataShards;
 import net.opentsdb.data.DataShardsGroup;
@@ -89,6 +90,7 @@ public class TestHttpQueryV2Executor {
   private StatusLine status;
   private TimeSeriesQuery query;
   private CloseableHttpAsyncClient client;
+  private Span span;
   
   @Before
   public void before() throws Exception {
@@ -98,6 +100,7 @@ public class TestHttpQueryV2Executor {
     group_id = new SimpleStringGroupId("a");
     headers = Maps.newHashMap();
     headers.put("X-MyHeader", "Winter Is Coming!");
+    span = mock(Span.class);
     
     when(context.getRemoteContext()).thenReturn((RemoteContext) http_context);
     when(http_context.getHeaders()).thenReturn(headers);
@@ -208,7 +211,7 @@ public class TestHttpQueryV2Executor {
         new HttpQueryV2Executor(context, endpoint);
     setupQuery();
     
-    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
+    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -294,7 +297,7 @@ public class TestHttpQueryV2Executor {
         .build();
     query.validate();
     try {
-      executor.executeQuery(query);
+      executor.executeQuery(query, span);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     verify(http_context, never()).getClient();
@@ -305,7 +308,7 @@ public class TestHttpQueryV2Executor {
   public void executeQueryNullQuery() throws Exception {
     final HttpQueryV2Executor executor = 
         new HttpQueryV2Executor(context, endpoint);
-    executor.executeQuery(null);
+    executor.executeQuery(null, span);
   }
   
   @Test
@@ -323,7 +326,7 @@ public class TestHttpQueryV2Executor {
         .build();
     query.groupId(group_id);
     
-    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
+    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
     assertNull(callback);
     assertFalse(executor.outstandingRequests().contains(future));
     try {
@@ -340,7 +343,7 @@ public class TestHttpQueryV2Executor {
         new HttpQueryV2Executor(context, endpoint);
     setupQuery();
     
-    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
+    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -364,7 +367,7 @@ public class TestHttpQueryV2Executor {
         new HttpQueryV2Executor(context, endpoint);
     setupQuery();
     
-    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
+    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -389,7 +392,7 @@ public class TestHttpQueryV2Executor {
         new HttpQueryV2Executor(context, endpoint);
     setupQuery();
     
-    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
+    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -425,7 +428,7 @@ public class TestHttpQueryV2Executor {
     entity = new StringEntity(response_content);
     when(response.getEntity()).thenReturn(entity);
     
-    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
+    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -450,7 +453,7 @@ public class TestHttpQueryV2Executor {
     setupQuery();
     when(status.getStatusCode()).thenReturn(404);
     
-    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
+    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -474,7 +477,7 @@ public class TestHttpQueryV2Executor {
         new HttpQueryV2Executor(context, endpoint);
     setupQuery();
     
-    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query);
+    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {

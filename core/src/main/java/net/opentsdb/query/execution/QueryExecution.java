@@ -111,7 +111,6 @@ public abstract class QueryExecution<T> {
                        final Map<String, Object> trace_log) {
     if (completed.compareAndSet(false, true)) {
       if (tracer_span != null) {
-        tracer_span.finish();
         if (trace_tags != null) {
           for (final Entry<String, String> stat : trace_tags.entrySet()) {
             tracer_span.setTag(stat.getKey(), stat.getValue());
@@ -120,6 +119,7 @@ public abstract class QueryExecution<T> {
         if (trace_log != null) {
           tracer_span.log(trace_log);
         }
+        tracer_span.finish();
       }
       deferred.callback(result);
     } else {

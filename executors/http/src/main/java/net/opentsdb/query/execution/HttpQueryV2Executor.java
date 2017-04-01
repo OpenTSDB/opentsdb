@@ -37,8 +37,10 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.stumbleupon.async.Callback;
 
+import io.opentracing.Span;
 import net.opentsdb.data.DataShards;
 import net.opentsdb.data.DataShardsGroup;
 import net.opentsdb.data.DefaultDataShards;
@@ -77,9 +79,9 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
   
   /** A non-null HTTP context to use for fetching a client and headers. */
   private final HttpContext http_context;
-  
+
   /**
-   * Default Ctor.
+   * Default Ctor
    * @param context A non-null query context.
    * @param endpoint A non-null endpoint such as "http://localhost:4242". The
    * ctor will append "/api/query".
@@ -104,7 +106,8 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
   }
   
   @Override
-  public QueryExecution<DataShardsGroup> executeQuery(final TimeSeriesQuery query) {
+  public QueryExecution<DataShardsGroup> executeQuery(final TimeSeriesQuery query,
+                                                      final Span upstream_span) {
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
     }
@@ -112,7 +115,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
       throw new IllegalArgumentException("GroupID was not set in the Query.");
     }
     
-    final Execution exec = new Execution(query);
+    final Execution exec = new Execution(query, upstream_span);
     outstanding_executions.add(exec);
     exec.execute();
     return exec;
@@ -273,16 +276,27 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
     }
   }
 
-  /** An implementation that allows for cancelling the future. */
+  /** An implementation that allows for canceling the future. */
   class Execution extends QueryExecution<DataShardsGroup> {
+    /** The client used for communications. */
     private final CloseableHttpAsyncClient client;
+    
+    /** The Future returned by the client so we can cancel it if we need to. */
     private Future<HttpResponse> future;
     
-    public Execution(final TimeSeriesQuery query) {
+    public Execution(final TimeSeriesQuery query, final Span upstream_span) {
       super(query);
       client = http_context.getClient();
       deferred.addCallback(new FutureRemover(future))
               .addErrback(new FutureExceptionRemover(future));
+      if (context.getTracer() != null) {
+        setSpan(context, HttpQueryV2Executor.this.getClass().getSimpleName(), 
+            upstream_span,
+            new ImmutableMap.Builder<String, String>()
+              .put("order", Integer.toString(query.getOrder()))
+              .put("query", JSON.serializeToString(query))
+              .build());
+      }
     }
     
     public void execute() {
@@ -327,7 +341,10 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
           }
           try {
             callback(new RemoteQueryExecutionException(
-                "Query was cancelled: " + endpoint, query.getOrder(), 500));
+                "Query was cancelled: " + endpoint, query.getOrder(), 500),
+                new ImmutableMap.Builder<String, String>()
+                  .put("status", "Cancelled")
+                  .build());
           } catch (Exception e) {
             LOG.warn("Exception thrown when calling deferred on cancel", e);
           }
@@ -361,7 +378,10 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
             for (final JsonNode node : root) {
               group.addShards(parseTSQuery(query, node));
             }
-            callback(group);
+            callback(group, new ImmutableMap.Builder<String, String>()
+                .put("remoteHost", "host")
+                .put("status", "ok")
+                .build());
           } catch (Exception e) {
             LOG.error("Failure handling response: " + response + "\nQuery: " 
                 + json, e);
@@ -376,7 +396,11 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
           if (!completed.get()) {
             LOG.error("Exception from HttpPost: " + endpoint, e);
             callback(new RemoteQueryExecutionException(
-                "Unexepected exception: " + endpoint, query.getOrder(), 500, e));
+                "Unexepected exception: " + endpoint, query.getOrder(), 500, e),
+                new ImmutableMap.Builder<String, String>()
+                  .put("status", "Error")
+                  .put("error", e.getMessage())
+                  .build());
           }
         }
       }

@@ -172,7 +172,7 @@ public class V2QueryResource {
                 DataShardsGroup.class, 5000L);
         
         final QueryExecution<DataShardsGroup> execution = 
-            executor.executeQuery(query);
+            executor.executeQuery(query, null);
         
         class SuccessCB implements Callback<Object, DataShardsGroup> {
 

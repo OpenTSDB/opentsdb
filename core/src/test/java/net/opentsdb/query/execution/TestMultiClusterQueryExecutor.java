@@ -44,6 +44,7 @@ import com.stumbleupon.async.TimeoutException;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
+import io.opentracing.Span;
 import net.opentsdb.data.DataMerger;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
@@ -64,6 +65,7 @@ public class TestMultiClusterQueryExecutor {
   private MockDownstream downstream_b;
   private DataMerger<Long> merger;
   private Timeout timeout;
+  private Span span;
   
   @SuppressWarnings("unchecked")
   @Before
@@ -80,6 +82,7 @@ public class TestMultiClusterQueryExecutor {
     downstream_b = new MockDownstream(query);
     merger = mock(DataMerger.class);
     timeout = mock(Timeout.class);
+    span = mock(Span.class);
     
     when(context.getRemoteContext()).thenReturn(remote_context);
     when(context.getTimer()).thenReturn(timer);
@@ -115,8 +118,8 @@ public class TestMultiClusterQueryExecutor {
         return executor_b;
       }
     });
-    when(executor_a.executeQuery(query)).thenReturn(downstream_a);
-    when(executor_b.executeQuery(query)).thenReturn(downstream_b);
+    when(executor_a.executeQuery(eq(query), any(Span.class))).thenReturn(downstream_a);
+    when(executor_b.executeQuery(eq(query), any(Span.class))).thenReturn(downstream_b);
     when(executor_a.close()).thenReturn(Deferred.fromResult(null));
     when(executor_b.close()).thenReturn(Deferred.fromResult(null));
     when(merger.merge((List<Long>) any(List.class))).thenAnswer(new Answer<Long>() {
@@ -172,15 +175,15 @@ public class TestMultiClusterQueryExecutor {
     final MultiClusterQueryExecutor<Long> executor = 
         new MultiClusterQueryExecutor<Long>(context, Long.class);
     
-    final QueryExecution<Long> exec = executor.executeQuery(query);
+    final QueryExecution<Long> exec = executor.executeQuery(query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
     verify(remote_context, times(1)).clusters();
-    verify(executor_a, times(1)).executeQuery(query);
-    verify(executor_b, times(1)).executeQuery(query);
+    verify(executor_a, times(1)).executeQuery(query, null);
+    verify(executor_b, times(1)).executeQuery(query, null);
     assertTrue(executor.outstandingExecutors().contains(exec));
     assertFalse(exec.completed());
     assertFalse(downstream_a.cancelled);
@@ -209,15 +212,15 @@ public class TestMultiClusterQueryExecutor {
     final MultiClusterQueryExecutor<Long> executor = 
         new MultiClusterQueryExecutor<Long>(context, Long.class, 60000);
     
-    final QueryExecution<Long> exec = executor.executeQuery(query);
+    final QueryExecution<Long> exec = executor.executeQuery(query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
     verify(remote_context, times(1)).clusters();
-    verify(executor_a, times(1)).executeQuery(query);
-    verify(executor_b, times(1)).executeQuery(query);
+    verify(executor_a, times(1)).executeQuery(query, null);
+    verify(executor_b, times(1)).executeQuery(query, null);
     assertTrue(executor.outstandingExecutors().contains(exec));
     assertFalse(exec.completed());
     assertFalse(downstream_a.cancelled);
@@ -262,15 +265,15 @@ public class TestMultiClusterQueryExecutor {
     final MultiClusterQueryExecutor<Long> executor = 
         new MultiClusterQueryExecutor<Long>(context, Long.class, 60000);
     
-    final QueryExecution<Long> exec = executor.executeQuery(query);
+    final QueryExecution<Long> exec = executor.executeQuery(query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
     verify(remote_context, times(1)).clusters();
-    verify(executor_a, times(1)).executeQuery(query);
-    verify(executor_b, times(1)).executeQuery(query);
+    verify(executor_a, times(1)).executeQuery(query, null);
+    verify(executor_b, times(1)).executeQuery(query, null);
     assertTrue(executor.outstandingExecutors().contains(exec));
     assertFalse(exec.completed());
     assertFalse(downstream_a.cancelled);
@@ -321,14 +324,14 @@ public class TestMultiClusterQueryExecutor {
     when(remote_context.clusters())
       .thenThrow(new IllegalArgumentException("Boo!"));
     
-    final QueryExecution<Long> exec = executor.executeQuery(query);
+    final QueryExecution<Long> exec = executor.executeQuery(query, span);
     try {
       exec.deferred().join();
       fail("Expected RemoteQueryExecutionException");
     } catch (RemoteQueryExecutionException e) { }
     verify(remote_context, times(1)).clusters();
-    verify(executor_a, never()).executeQuery(query);
-    verify(executor_b, never()).executeQuery(query);
+    verify(executor_a, never()).executeQuery(query, span);
+    verify(executor_b, never()).executeQuery(query, span);
     assertFalse(executor.outstandingExecutors().contains(exec));
     assertTrue(exec.completed());
   }
@@ -339,14 +342,14 @@ public class TestMultiClusterQueryExecutor {
         new MultiClusterQueryExecutor<Long>(context, Long.class);
     when(remote_context.clusters()).thenReturn(null);
     
-    final QueryExecution<Long> exec = executor.executeQuery(query);
+    final QueryExecution<Long> exec = executor.executeQuery(query, span);
     try {
       exec.deferred().join();
       fail("Expected RemoteQueryExecutionException");
     } catch (RemoteQueryExecutionException e) { }
     verify(remote_context, times(1)).clusters();
-    verify(executor_a, never()).executeQuery(query);
-    verify(executor_b, never()).executeQuery(query);
+    verify(executor_a, never()).executeQuery(query, span);
+    verify(executor_b, never()).executeQuery(query, span);
     assertFalse(executor.outstandingExecutors().contains(exec));
     assertTrue(exec.completed());
   }
@@ -358,14 +361,14 @@ public class TestMultiClusterQueryExecutor {
     when(remote_context.clusters()).thenReturn(
         Collections.<ClusterConfig>emptyList());
     
-    final QueryExecution<Long> exec = executor.executeQuery(query);
+    final QueryExecution<Long> exec = executor.executeQuery(query, span);
     try {
       exec.deferred().join();
       fail("Expected RemoteQueryExecutionException");
     } catch (RemoteQueryExecutionException e) { }
     verify(remote_context, times(1)).clusters();
-    verify(executor_a, never()).executeQuery(query);
-    verify(executor_b, never()).executeQuery(query);
+    verify(executor_a, never()).executeQuery(query, span);
+    verify(executor_b, never()).executeQuery(query, span);
     assertFalse(executor.outstandingExecutors().contains(exec));
     assertTrue(exec.completed());
   }
@@ -374,18 +377,18 @@ public class TestMultiClusterQueryExecutor {
   public void executeDownstreamThrew() throws Exception {
     final MultiClusterQueryExecutor<Long> executor = 
         new MultiClusterQueryExecutor<Long>(context, Long.class);
-    when(executor_b.executeQuery(query))
+    when(executor_b.executeQuery(eq(query), any(Span.class)))
       .thenThrow(new IllegalArgumentException("Boo!"));
     
-    final QueryExecution<Long> exec = executor.executeQuery(query);
+    final QueryExecution<Long> exec = executor.executeQuery(query, span);
     try {
       exec.deferred().join();
       fail("Expected RemoteQueryExecutionException");
     } catch (RemoteQueryExecutionException e) { }
     
     verify(remote_context, times(1)).clusters();
-    verify(executor_a, times(1)).executeQuery(query);
-    verify(executor_b, times(1)).executeQuery(query);
+    verify(executor_a, times(1)).executeQuery(query, null);
+    verify(executor_b, times(1)).executeQuery(query, null);
     assertFalse(executor.outstandingExecutors().contains(exec));
     assertTrue(exec.completed());
     assertTrue(downstream_a.cancelled); // made it through so we cancel it.
@@ -400,7 +403,7 @@ public class TestMultiClusterQueryExecutor {
     final MultiClusterQueryExecutor<Long> executor = 
         new MultiClusterQueryExecutor<Long>(context, Long.class);
     
-    final QueryExecution<Long> exec = executor.executeQuery(query);
+    final QueryExecution<Long> exec = executor.executeQuery(query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
@@ -412,8 +415,8 @@ public class TestMultiClusterQueryExecutor {
     assertEquals(42L, (long) exec.deferred().join());
     
     verify(remote_context, times(1)).clusters();
-    verify(executor_a, times(1)).executeQuery(query);
-    verify(executor_b, times(1)).executeQuery(query);
+    verify(executor_a, times(1)).executeQuery(query, null);
+    verify(executor_b, times(1)).executeQuery(query, null);
     assertFalse(executor.outstandingExecutors().contains(exec));
     assertTrue(exec.completed());
     assertFalse(downstream_a.cancelled); // made it through so we cancel it.
@@ -428,7 +431,7 @@ public class TestMultiClusterQueryExecutor {
     final MultiClusterQueryExecutor<Long> executor = 
         new MultiClusterQueryExecutor<Long>(context, Long.class);
     
-    final QueryExecution<Long> exec = executor.executeQuery(query);
+    final QueryExecution<Long> exec = executor.executeQuery(query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
@@ -454,8 +457,8 @@ public class TestMultiClusterQueryExecutor {
     }
     
     verify(remote_context, times(1)).clusters();
-    verify(executor_a, times(1)).executeQuery(query);
-    verify(executor_b, times(1)).executeQuery(query);
+    verify(executor_a, times(1)).executeQuery(query, null);
+    verify(executor_b, times(1)).executeQuery(query, null);
     assertFalse(executor.outstandingExecutors().contains(exec));
     assertTrue(exec.completed());
     assertFalse(downstream_a.cancelled); // made it through so we cancel it.
@@ -470,7 +473,7 @@ public class TestMultiClusterQueryExecutor {
     final MultiClusterQueryExecutor<Long> executor = 
         new MultiClusterQueryExecutor<Long>(context, Long.class);
     
-    final QueryExecution<Long> exec = executor.executeQuery(query);
+    final QueryExecution<Long> exec = executor.executeQuery(query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
@@ -484,8 +487,8 @@ public class TestMultiClusterQueryExecutor {
     } catch (RemoteQueryExecutionException e) { }
     
     verify(remote_context, times(1)).clusters();
-    verify(executor_a, times(1)).executeQuery(query);
-    verify(executor_b, times(1)).executeQuery(query);
+    verify(executor_a, times(1)).executeQuery(query, null);
+    verify(executor_b, times(1)).executeQuery(query, null);
     assertFalse(executor.outstandingExecutors().contains(exec));
     assertTrue(exec.completed());
     assertTrue(downstream_a.cancelled); // made it through so we cancel it.
@@ -500,7 +503,7 @@ public class TestMultiClusterQueryExecutor {
     final MultiClusterQueryExecutor<Long> executor = 
         new MultiClusterQueryExecutor<Long>(context, Long.class);
     
-    final QueryExecution<Long> exec = executor.executeQuery(query);
+    final QueryExecution<Long> exec = executor.executeQuery(query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
@@ -508,8 +511,8 @@ public class TestMultiClusterQueryExecutor {
     
     assertNull(executor.close().join());
     verify(remote_context, times(1)).clusters();
-    verify(executor_a, times(1)).executeQuery(query);
-    verify(executor_b, times(1)).executeQuery(query);
+    verify(executor_a, times(1)).executeQuery(query, null);
+    verify(executor_b, times(1)).executeQuery(query, null);
     assertFalse(executor.outstandingExecutors().contains(exec));
     assertTrue(exec.completed());
     assertTrue(downstream_a.cancelled); // made it through so we cancel it.

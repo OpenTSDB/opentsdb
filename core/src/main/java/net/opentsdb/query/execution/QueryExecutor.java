@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import com.stumbleupon.async.Deferred;
 
+import io.opentracing.Span;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
@@ -67,6 +68,7 @@ public abstract class QueryExecutor<T> {
   /**
    * Runs the given query.
    * @param query A non-null query to execute.
+   * @param upstream_span An optional upstream tracer span.
    * @return A query execution object that will contain a deferred to wait on
    * for a response.
    * @throws IllegalArgumentException if the query was null.
@@ -75,7 +77,8 @@ public abstract class QueryExecutor<T> {
    * @throws RemoteQueryExecutionException (in the deferred) if the remote call
    * failed.
    */
-  public abstract QueryExecution<T> executeQuery(final TimeSeriesQuery query);
+  public abstract QueryExecution<T> executeQuery(final TimeSeriesQuery query,
+                                                 final Span upstream_span);
   
   /**
    * Method called to close and release all resources. The default simply cancels
