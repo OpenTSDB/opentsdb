@@ -19,6 +19,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -33,6 +34,7 @@ import org.mockito.internal.util.reflection.Whitebox;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.SimpleStringTimeSeriesId;
@@ -54,7 +56,7 @@ import net.opentsdb.query.processor.ProcessorTestsHelpers;
 import net.opentsdb.query.processor.TimeSeriesProcessor;
 
 public class TestJexlBinderIterator {
-
+  private TSDB tsdb;
   private TimeSeriesGroupId group_id_a;
   private TimeSeriesGroupId group_id_b;
   
@@ -77,6 +79,7 @@ public class TestJexlBinderIterator {
   
   @Before
   public void before() throws Exception {
+    tsdb = mock(TSDB.class);
     fills = Maps.newHashMap();
     fills.put("a", NumericFillPolicy.newBuilder()
         .setPolicy(FillPolicy.ZERO).build());
@@ -137,7 +140,7 @@ public class TestJexlBinderIterator {
     it_b = spy(new MockNumericIterator(id_b));
     it_b.data = data_b;
     
-    context = spy(new DefaultQueryContext());
+    context = spy(new DefaultQueryContext(tsdb));
     
     group = new DefaultTimeSeriesProcessor(context);
     group.addSeries(group_id_a, it_a);
@@ -465,7 +468,7 @@ public class TestJexlBinderIterator {
     assertEquals(2, v.value().doubleValue(), 0.01);
     assertEquals(2, v.realCount());
     
-    final QueryContext ctx2 = new DefaultQueryContext();
+    final QueryContext ctx2 = new DefaultQueryContext(tsdb);
     final JexlBinderNumericIterator copy = (JexlBinderNumericIterator) it.getCopy(ctx2);
     
     // manual hack needed to initialize the cloned iterators since they're not

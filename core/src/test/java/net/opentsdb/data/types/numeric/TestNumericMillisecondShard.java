@@ -20,6 +20,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 import java.util.NoSuchElementException;
 
@@ -28,6 +29,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.SimpleStringTimeSeriesId;
@@ -291,7 +293,8 @@ public class TestNumericMillisecondShard {
   public void withContext() throws Exception {
     start = new MillisecondTimeStamp(1486045800000L);
     end = new MillisecondTimeStamp(1486045890000L);
-    final QueryContext context = new DefaultQueryContext();
+    final TSDB tsdb = mock(TSDB.class);
+    final QueryContext context = new DefaultQueryContext(tsdb);
     final TimeSeriesProcessor group = new DefaultTimeSeriesProcessor(context);
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
     group.addSeries(new SimpleStringGroupId("a"), shard);

@@ -28,5 +28,7 @@ public interface DataMerger<T> {
 
   public TypeToken<?> type();
   
-  public T merge(final List<T> data, final QueryContext context, final Span tracer_span);
+  public T merge(final List<T> data, 
+                 final QueryContext context, 
+                 final Span tracer_span);
 }

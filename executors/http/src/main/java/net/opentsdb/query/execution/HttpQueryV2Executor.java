@@ -58,7 +58,6 @@ import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.JSONException;
 
@@ -295,6 +294,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
             new ImmutableMap.Builder<String, String>()
               .put("order", Integer.toString(query.getOrder()))
               .put("query", JSON.serializeToString(query))
+              .put("startThread", Thread.currentThread().getName())
               .build());
       }
     }
@@ -326,13 +326,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
       }
       
       /** Does the fun bit of parsing the response and calling the deferred. */
-      class ResponseCallback implements FutureCallback<HttpResponse> {
-        final long start_ns;
-        
-        public ResponseCallback() {
-          start_ns = DateTime.nanoTime();
-        }
-        
+      class ResponseCallback implements FutureCallback<HttpResponse> {      
         @Override
         public void cancelled() {
           LOG.error("HttpPost cancelled: " + query);
@@ -344,6 +338,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
                 "Query was cancelled: " + endpoint, query.getOrder(), 500),
                 new ImmutableMap.Builder<String, String>()
                   .put("status", "Cancelled")
+                  .put("finalThread", Thread.currentThread().getName())
                   .build());
           } catch (Exception e) {
             LOG.warn("Exception thrown when calling deferred on cancel", e);
@@ -352,16 +347,15 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
 
         @Override
         public void completed(final HttpResponse response) {
-          if (LOG.isDebugEnabled()) {
-            String host = "unknown";
-            for (final Header header : response.getAllHeaders()) {
-              if (header.getName().equals("X-Served-By")) {
-                host = header.getValue();
-              }
+          String host = "unknown";
+          for (final Header header : response.getAllHeaders()) {
+            if (header.getName().equals("X-Served-By")) {
+              host = header.getValue();
             }
+          }
+          if (LOG.isDebugEnabled()) {
             LOG.debug("Response from endpoint: " + endpoint + " (" + host 
-                + ") received in " 
-                + DateTime.msFromNanoDiff(DateTime.nanoTime(), start_ns) + "ms");
+                + ") received");
           }
           if (completed.get()) {
             LOG.warn("Told to stop running but we had a response: " + response);
@@ -378,10 +372,17 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
             for (final JsonNode node : root) {
               group.addShards(parseTSQuery(query, node));
             }
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Calling back upstream.");
+            }
             callback(group, new ImmutableMap.Builder<String, String>()
-                .put("remoteHost", "host")
+                .put("remoteHost", host)
                 .put("status", "ok")
+                .put("finalThread", Thread.currentThread().getName())
                 .build());
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Called back upstream.");
+            }
           } catch (Exception e) {
             LOG.error("Failure handling response: " + response + "\nQuery: " 
                 + json, e);
@@ -400,6 +401,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
                 new ImmutableMap.Builder<String, String>()
                   .put("status", "Error")
                   .put("error", e.getMessage())
+                  .put("finalThread", Thread.currentThread().getName())
                   .build());
           }
         }
@@ -463,9 +465,25 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
     void cleanup() {
       outstanding_executions.remove(this);
       try {
-        client.close();
+        /** For some reason, closing the async client can take over a second!.
+         * Since we don't really care *when* it's closed, we'll just give it to
+         * a cleanup pool to get rid of.
+         * TODO - this is suboptimal. If we have a threadpool based async client
+         * then we can avoid this alltogether.  */
+        class ClientCloser implements Runnable {
+          @Override
+          public void run() {
+            try {
+              client.close();
+            } catch (IOException e) {
+              LOG.error("Exception while closing the HTTP client", e);
+            }
+          }
+        }
+        context.getTSDB()
+          .getRegistry().cleanupPool().execute(new ClientCloser());
       } catch (Exception ex) {
-        LOG.error("Exception while closing the HTTP client", ex);
+        LOG.error("Exception while scheduling the client for closing.", ex);
       }
     }
   }

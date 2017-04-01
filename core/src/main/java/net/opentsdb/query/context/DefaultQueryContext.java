@@ -13,6 +13,7 @@
 package net.opentsdb.query.context;
 
 import io.netty.util.Timer;
+import net.opentsdb.core.TSDB;
 
 /**
  * Simply allows instantiation of the {@link QueryContext} without overrides.
@@ -20,6 +21,10 @@ import io.netty.util.Timer;
  * @since 3.0
  */
 public class DefaultQueryContext extends QueryContext {
+
+  public DefaultQueryContext(TSDB tsdb) {
+    super(tsdb);
+  }
 
   @Override
   public RemoteContext getRemoteContext() {

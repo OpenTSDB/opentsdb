@@ -18,6 +18,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -29,6 +30,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.SimpleStringTimeSeriesId;
@@ -44,7 +46,7 @@ import net.opentsdb.query.context.DefaultQueryContext;
 import net.opentsdb.query.context.QueryContext;
 
 public class TestDefaultTimeSeriesProcessor {
-
+  private TSDB tsdb;
   private TimeSeriesGroupId group_id;
   private TimeSeriesId id_a;
   private TimeSeriesId id_b;
@@ -60,6 +62,7 @@ public class TestDefaultTimeSeriesProcessor {
   
   @Before
   public void before() throws Exception {
+    tsdb = mock(TSDB.class);
     group_id = new SimpleStringGroupId("Dothraki");
     id_a = SimpleStringTimeSeriesId.newBuilder()
         .setAlias("Khaleesi")
@@ -100,7 +103,7 @@ public class TestDefaultTimeSeriesProcessor {
     it_b = spy(new MockNumericIterator(id_b));
     it_b.data = data_b;
     
-    context = new DefaultQueryContext();
+    context = new DefaultQueryContext(tsdb);
     processor = new DefaultTimeSeriesProcessor(context);
   }
   
@@ -1084,7 +1087,7 @@ public class TestDefaultTimeSeriesProcessor {
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     
     // copy!
-    final QueryContext ctx2 = new DefaultQueryContext();
+    final QueryContext ctx2 = new DefaultQueryContext(tsdb);
     final TimeSeriesProcessor copy = processor.getClone(ctx2);
     final List<TimeSeriesIterator<?>> its_copy = 
         copy.iterators().flattenedIterators();

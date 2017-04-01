@@ -32,6 +32,7 @@ import com.stumbleupon.async.Deferred;
 
 import io.netty.util.Timer;
 import io.opentracing.Tracer;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.TimeStampComparator;
@@ -54,6 +55,9 @@ import net.opentsdb.utils.Deferreds;
  */
 public abstract class QueryContext {
   private static final Logger LOG = LoggerFactory.getLogger(QueryContext.class);
+  
+  /** The TSDB to which we belong. */
+  protected final TSDB tsdb;
   
   /** The "current" timestamp returned when {@link #syncTimestamp()} is 
    * called. */
@@ -105,16 +109,24 @@ public abstract class QueryContext {
   /**
    * Default ctor initializes the graphs and registers this context to the 
    * context graph.
+   * @param tsdb The TSDB to which this context belongs. May not be null.
+   * @throws IllegalArgumentException if the TSDB was null.
    */
-  public QueryContext() {
-    this((Tracer) null);
+  public QueryContext(final TSDB tsdb) {
+    this(tsdb, (Tracer) null);
   }
   
   /**
    * Ctor that stores a tracer.
+   * @param tsdb The TSDB to which this context belongs. May not be null.
    * @param tracer An optional tracer to use for tracking queries.
+   * @throws IllegalArgumentException if the TSDB was null.
    */
-  public QueryContext(final Tracer tracer) {
+  public QueryContext(final TSDB tsdb, final Tracer tracer) {
+    if (tsdb == null) {
+      throw new IllegalArgumentException("TSDB cannot be null.");
+    }
+    this.tsdb = tsdb;
     this.tracer = tracer;
     context_graph = new DirectedAcyclicGraph<QueryContext, 
         DefaultEdge>(DefaultEdge.class);
@@ -135,6 +147,7 @@ public abstract class QueryContext {
     if (context == null) {
       throw new IllegalArgumentException("Parent context cannot be null.");
     }
+    tsdb = context.tsdb;
     tracer = context.tracer;
     this.context_graph = context.context_graph;
     processor_graph = new DirectedAcyclicGraph<TimeSeriesProcessor, 
@@ -635,6 +648,11 @@ public abstract class QueryContext {
    * <b>WARNING:</b> This may be null if tracing is disabled. */
   public Tracer getTracer() {
     return tracer;
+  }
+  
+  /** @return The TSDB this context is owned by. */
+  public TSDB getTSDB() {
+    return tsdb;
   }
   
   /**

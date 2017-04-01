@@ -18,6 +18,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 import java.util.List;
 
@@ -26,6 +27,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.SimpleStringTimeSeriesId;
@@ -42,6 +44,7 @@ import net.opentsdb.query.processor.TimeSeriesProcessor;
  * Yes we are testing a mock. Gotta make sure it's happy.
  */
 public class TestMockNumericIterator {
+  private TSDB tsdb;
   private QueryContext context;
   private TimeSeriesProcessor processor;
   private TimeSeriesGroupId group;
@@ -50,6 +53,7 @@ public class TestMockNumericIterator {
   
   @Before
   public void before() throws Exception {
+    tsdb = mock(TSDB.class);
     id = SimpleStringTimeSeriesId.newBuilder()
         .setAlias("Khalisi")
         .build();
@@ -72,7 +76,7 @@ public class TestMockNumericIterator {
     set.add(new MutableNumericType(id, new MillisecondTimeStamp(7000), 7, 1));
     data.add(set);
     
-    context = new DefaultQueryContext();
+    context = new DefaultQueryContext(tsdb);
     processor = new DefaultTimeSeriesProcessor(context);
     group = new SimpleStringGroupId("Freys");
   }
@@ -324,7 +328,7 @@ public class TestMockNumericIterator {
     assertEquals(IteratorStatus.END_OF_CHUNK, context.nextStatus());
     // left the parent in an END_OF_CHUNK state to verify the copy starts over.
     
-    final QueryContext ctx2 = new DefaultQueryContext();
+    final QueryContext ctx2 = new DefaultQueryContext(tsdb);
     final TimeSeriesProcessor processor2 = new DefaultTimeSeriesProcessor(ctx2);
     
     final MockNumericIterator copy = (MockNumericIterator) it.getCopy(ctx2);

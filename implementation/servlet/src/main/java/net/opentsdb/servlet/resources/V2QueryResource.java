@@ -162,7 +162,7 @@ public class V2QueryResource {
         query.groupId(new SimpleStringGroupId(""));
         query.validate();
         
-        final MyContext context = new MyContext(
+        final MyContext context = new MyContext(tsdb, 
             (HttpContextFactory) servlet_config.getServletContext()
             .getAttribute(OpenTSDBApplication.HTTP_CONTEXT_FACTORY),
             headersCopy, tsdb.getTimer());
@@ -222,12 +222,12 @@ public class V2QueryResource {
   class MyContext extends QueryContext {
     final HttpContextFactory ctx;
     final Map<String, String> headers;
-    final Timer timer;
-    MyContext(final HttpContextFactory ctx, final Map<String, String> headers,
+    MyContext(final TSDB tsdb, 
+        final HttpContextFactory ctx, final Map<String, String> headers,
         final Timer timer) {
+      super(tsdb);
       this.ctx = ctx;
       this.headers = headers;
-      this.timer = timer;
     }
     @Override
     public RemoteContext getRemoteContext() {
@@ -236,7 +236,7 @@ public class V2QueryResource {
 
     @Override
     public Timer getTimer() {
-      return timer;
+      return tsdb.getTimer();
     }
     
   }

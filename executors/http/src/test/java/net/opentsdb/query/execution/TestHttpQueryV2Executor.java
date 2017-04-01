@@ -20,6 +20,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -29,6 +30,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 
@@ -52,6 +54,8 @@ import com.stumbleupon.async.TimeoutException;
 
 import io.opentracing.Span;
 import net.opentsdb.common.Const;
+import net.opentsdb.core.Registry;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.DataShards;
 import net.opentsdb.data.DataShardsGroup;
 import net.opentsdb.data.SimpleStringGroupId;
@@ -76,6 +80,9 @@ import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.utils.JSON;
 
 public class TestHttpQueryV2Executor {
+  private TSDB tsdb;
+  private Registry registry;
+  private ExecutorService cleanup_pool;
   private TimeSeriesGroupId group_id;
   private QueryContext context;
   private HttpContext http_context;
@@ -94,7 +101,10 @@ public class TestHttpQueryV2Executor {
   
   @Before
   public void before() throws Exception {
-    context = spy(new DefaultQueryContext());
+    tsdb = mock(TSDB.class);
+    registry = mock(Registry.class);
+    cleanup_pool = mock(ExecutorService.class);
+    context = spy(new DefaultQueryContext(tsdb));
     http_context = mock(HttpContext.class);
     endpoint = "http://my.tsd:4242";
     group_id = new SimpleStringGroupId("a");
@@ -102,6 +112,15 @@ public class TestHttpQueryV2Executor {
     headers.put("X-MyHeader", "Winter Is Coming!");
     span = mock(Span.class);
     
+    when(tsdb.getRegistry()).thenReturn(registry);
+    when(registry.cleanupPool()).thenReturn(cleanup_pool);
+    doAnswer(new Answer<Void>() {
+      @Override
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        ((Runnable) invocation.getArguments()[0]).run();
+        return null;
+      }
+    }).when(cleanup_pool).execute(any(Runnable.class));
     when(context.getRemoteContext()).thenReturn((RemoteContext) http_context);
     when(http_context.getHeaders()).thenReturn(headers);
     

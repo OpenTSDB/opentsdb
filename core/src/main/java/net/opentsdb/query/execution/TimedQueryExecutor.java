@@ -114,6 +114,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
             new ImmutableMap.Builder<String, String>()
               .put("order", Integer.toString(query.getOrder()))
               .put("query", JSON.serializeToString(query))
+              .put("startThread", Thread.currentThread().getName())
               .build());
       }
       class ErrCB implements Callback<Object, Exception> {
@@ -124,6 +125,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
               new ImmutableMap.Builder<String, String>()
                 .put("status", "Error")
                 .put("error", e.getMessage())
+                .put("finalThread", Thread.currentThread().getName())
                 .build());
           return null;
         }
@@ -136,6 +138,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
           callback(obj,
               new ImmutableMap.Builder<String, String>()
                 .put("status", "ok")
+                .put("finalThread", Thread.currentThread().getName())
                 .build());
           return null;
         }

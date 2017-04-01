@@ -14,6 +14,8 @@ package net.opentsdb.core;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
@@ -33,9 +35,12 @@ public class Registry {
   
   private final Map<TypeToken<?>, DataMerger<?>> data_mergers;
   
+  private ExecutorService cleanup_pool;
+  
   public Registry() {
     data_mergers = Maps.<TypeToken<?>, DataMerger<?>>newHashMap();
     initDataMergers();
+    cleanup_pool = Executors.newFixedThreadPool(1);
   }
   
   /** @return An unmodifiable map of the data mergers. */
@@ -43,8 +48,13 @@ public class Registry {
     return Collections.unmodifiableMap(data_mergers);
   }
   
+  public ExecutorService cleanupPool() {
+    return cleanup_pool;
+  }
+  
   /** @return Package private shutdown returning the deferred to wait on. */
-  Deferred<Object> shutdown() { 
+  Deferred<Object> shutdown() {
+    cleanup_pool.shutdown();
     return Deferred.fromResult(null);
   }
   
@@ -53,4 +63,5 @@ public class Registry {
     shards_merger.registerStrategy(new NumericMergeLargest());
     data_mergers.put(DataShardsGroup.TYPE, shards_merger);
   }
+  
 }

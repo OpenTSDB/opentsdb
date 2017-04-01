@@ -237,6 +237,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
             new ImmutableMap.Builder<String, String>()
               .put("order", Integer.toString(query.getOrder()))
               .put("query", JSON.serializeToString(query))
+              .put("startThread", Thread.currentThread().getName())
               .build());
       }
       
@@ -325,6 +326,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
                 callback(data_merger.merge(data, context, tracer_span),
                     new ImmutableMap.Builder<String, String>()
                       .put("status", "ok")
+                      .put("finalThread", Thread.currentThread().getName())
                       .build());
                 return null;
               }
@@ -350,6 +352,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
                     .put("status", "Error")
                     .put("error", "One or more of the cluster "
                         + "sources had an exception.")
+                    .put("finalThread", Thread.currentThread().getName())
                     .build());
               return null;
             } catch (Exception e) {
@@ -372,6 +375,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
               new ImmutableMap.Builder<String, String>()
                 .put("status", "Error")
                 .put("error", e.getMessage())
+                .put("finalThread", Thread.currentThread().getName())
                 .build());
         } catch (Exception ex) {
           LOG.error("Callback threw an exception", e);
