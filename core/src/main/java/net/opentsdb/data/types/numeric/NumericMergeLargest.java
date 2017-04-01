@@ -13,10 +13,10 @@
 package net.opentsdb.data.types.numeric;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 
 import com.google.common.reflect.TypeToken;
 
+import io.opentracing.Span;
 import net.opentsdb.data.DataShard;
 import net.opentsdb.data.DataShardMergeStrategy;
 import net.opentsdb.data.MillisecondTimeStamp;
@@ -24,7 +24,9 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.TimeStampComparator;
+import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
+import net.opentsdb.query.context.QueryContext;
 
 /**
  * Chooses the largest value from amongst the numeric values regardless of
@@ -50,12 +52,17 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
   @SuppressWarnings("unchecked")
   @Override
   public DataShard<NumericType> merge(final TimeSeriesId id, 
-      final List<DataShard<?>> shards) {
+                                      final List<DataShard<?>> shards,
+                                      final QueryContext context,
+                                      final Span tracer_span) {
     if (id == null) {
       throw new IllegalArgumentException("The ID cannot be null.");
     }
     if (shards == null) {
       throw new IllegalArgumentException("Shards list cannot be null.");
+    }
+    if (context == null) {
+      throw new IllegalArgumentException("Query context cannot be null.");
     }
     final NumericMillisecondShard shard = 
         new NumericMillisecondShard(id, 
@@ -77,7 +84,7 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
             + "type: " + shards.get(i).type());
       }
       iterators[i] = (TimeSeriesIterator<NumericType>) shards.get(i).iterator();
-      try {
+      if (iterators[i].status() == IteratorStatus.HAS_DATA) {
         values[i] = iterators[i].next();
         if (last_ts == null) {
           last_ts = new MillisecondTimeStamp(values[i].timestamp().msEpoch());
@@ -86,13 +93,22 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
             last_ts.update(values[i].timestamp());
           }
         }
-      } catch (NoSuchElementException e) { }
+      }
     }
     
     if (last_ts == null) {
       // no data was present. Return the shard
+      if (tracer_span != null) {
+        tracer_span.setTag("totalValues", 0);
+        //tracer_span.setTag("totalValues", 0);
+      }
       return shard;
     }
+    
+    // counters for tracing
+    int total_values = 0;
+    int non_finites = 0;
+    int differences = 0;
     
     final MutableNumericType v = new MutableNumericType(shard.id());
     final TimeStamp next = new MillisecondTimeStamp(Long.MAX_VALUE);
@@ -105,22 +121,28 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
         if (values[i] == null) {
           continue;
         }
+        ++total_values;
         had_value++;
         if (values[i].timestamp().compare(TimeStampComparator.EQ, last_ts)) {
           if (had_value == 1) {
             // start with the first value.
             v.reset(values[i]);
+            if (!values[i].value().isInteger() && 
+                !Double.isFinite(values[i].value().doubleValue())) {
+              ++non_finites;
+            }
           } else if (Double.isFinite(values[i].value().toDouble()) && 
               values[i].value().toDouble() > v.toDouble()) {
             v.reset(values[i]);
+            ++differences;
           }
           
-          try {
+          if (iterators[i].status() == IteratorStatus.HAS_DATA) {
             values[i] = iterators[i].next();
             if (values[i].timestamp().compare(TimeStampComparator.LT, next)) {
               next.update(values[i].timestamp());
             }
-          } catch (NoSuchElementException e) {
+          } else {
             values[i] = null;
           }
         } else if (values[i].timestamp().compare(TimeStampComparator.LT, next)) {
@@ -142,6 +164,11 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
       }
     }
     
+    if (tracer_span != null) {
+      tracer_span.setTag("totalValues", total_values);
+      tracer_span.setTag("nonFiniteValues", non_finites);
+      tracer_span.setTag("differentValues", differences);
+    }
     return shard;
   }
 

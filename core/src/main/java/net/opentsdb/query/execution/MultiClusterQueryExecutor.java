@@ -322,7 +322,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
               
               // we have at least one good result so return it.
               if (valid > 0) {
-                callback(data_merger.merge(data),
+                callback(data_merger.merge(data, context, tracer_span),
                     new ImmutableMap.Builder<String, String>()
                       .put("status", "ok")
                       .build());
@@ -429,7 +429,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
         timer_timeout = null;
       }
       try {
-        callback(data_merger.merge(results));
+        callback(data_merger.merge(results, context, tracer_span));
       } catch (Exception e) {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Lost race condition timing out query after getting "

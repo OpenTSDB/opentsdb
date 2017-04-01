@@ -16,6 +16,9 @@ import java.util.List;
 
 import com.google.common.reflect.TypeToken;
 
+import io.opentracing.Span;
+import net.opentsdb.query.context.QueryContext;
+
 /**
  * TODO - doc
  *
@@ -25,5 +28,5 @@ public interface DataMerger<T> {
 
   public TypeToken<?> type();
   
-  public T merge(final List<T> data);
+  public T merge(final List<T> data, final QueryContext context, final Span tracer_span);
 }

@@ -17,7 +17,11 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.NoSuchElementException;
@@ -27,6 +31,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import io.opentracing.Span;
 import net.opentsdb.data.DataShard;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringTimeSeriesId;
@@ -35,15 +40,18 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.annotation.AnnotationType;
+import net.opentsdb.query.context.QueryContext;
 
 public class TestNumericMergeLargest {
 
+  private QueryContext context;
   private TimeSeriesId id;
   private TimeStamp start;
   private TimeStamp end;
   
   @Before
   public void before() throws Exception {
+    context = mock(QueryContext.class);
     id = SimpleStringTimeSeriesId.newBuilder()
         .setAlias("a")
         .addMetric("sys.cpu.user")
@@ -77,7 +85,8 @@ public class TestNumericMergeLargest {
     shard_c.add(1486045881000L, -128, 2);
     
     final DataShard<NumericType> merged = new NumericMergeLargest().merge(id, 
-        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c));
+        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c), 
+        context, null);
     assertSame(id, merged.id());
     
     final TimeSeriesIterator<NumericType> iterator = merged.iterator();
@@ -124,7 +133,8 @@ public class TestNumericMergeLargest {
     //shard_c.add(1486045881000L, -128, 2);
     
     DataShard<NumericType> merged = new NumericMergeLargest().merge(id, 
-        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c));
+        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c), 
+        context, null);
     assertSame(id, merged.id());
     
     TimeSeriesIterator<NumericType> iterator = merged.iterator();
@@ -169,7 +179,8 @@ public class TestNumericMergeLargest {
     //shard_c.add(1486045881000L, -128, 2);
     
     merged = new NumericMergeLargest().merge(id, 
-        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c));
+        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c), 
+        context, null);
     assertSame(id, merged.id());
     
     iterator = merged.iterator();
@@ -214,7 +225,8 @@ public class TestNumericMergeLargest {
     shard_c.add(1486045881000L, -128, 2);
     
     merged = new NumericMergeLargest().merge(id, 
-        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c));
+        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c), 
+        context, null);
     assertSame(id, merged.id());
     
     iterator = merged.iterator();
@@ -261,7 +273,8 @@ public class TestNumericMergeLargest {
     shard_c.add(1486045881000L, -128, 2);
     
     final DataShard<NumericType> merged = new NumericMergeLargest().merge(id, 
-        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c));
+        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c), 
+        context, null);
     assertSame(id, merged.id());
     
     final TimeSeriesIterator<NumericType> iterator = merged.iterator();
@@ -308,7 +321,8 @@ public class TestNumericMergeLargest {
     shard_c.add(1486045881000L, -128, 2);
     
     final DataShard<NumericType> merged = new NumericMergeLargest().merge(id, 
-        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c));
+        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c), 
+        context, null);
     assertSame(id, merged.id());
     
     final TimeSeriesIterator<NumericType> iterator = merged.iterator();
@@ -355,7 +369,8 @@ public class TestNumericMergeLargest {
     shard_c.add(1486045881000L, -128, 2);
     
     final DataShard<NumericType> merged = new NumericMergeLargest().merge(id, 
-        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c));
+        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c), 
+        context, null);
     assertSame(id, merged.id());
     
     final TimeSeriesIterator<NumericType> iterator = merged.iterator();
@@ -402,7 +417,8 @@ public class TestNumericMergeLargest {
     shard_c.add(1486045881000L, -128, 2);
     
     final DataShard<NumericType> merged = new NumericMergeLargest().merge(id, 
-        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c));
+        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c), 
+        context, null);
     assertSame(id, merged.id());
     
     final TimeSeriesIterator<NumericType> iterator = merged.iterator();
@@ -449,7 +465,8 @@ public class TestNumericMergeLargest {
     shard_c.add(1486045881000L, -128, 2);
     
     DataShard<NumericType> merged = new NumericMergeLargest().merge(id, 
-        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c));
+        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c), 
+        context, null);
     assertSame(id, merged.id());
     
     TimeSeriesIterator<NumericType> iterator = merged.iterator();
@@ -494,7 +511,8 @@ public class TestNumericMergeLargest {
     shard_c.add(1486045881000L, -128, 2);
     
     merged = new NumericMergeLargest().merge(id, 
-        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c));
+        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c), 
+        context, null);
     assertSame(id, merged.id());
     
     iterator = merged.iterator();
@@ -538,7 +556,8 @@ public class TestNumericMergeLargest {
     shard_c.add(1486045881000L, -128, 2);
     
     merged = new NumericMergeLargest().merge(id, 
-        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c));
+        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c), 
+        context, null);
     assertSame(id, merged.id());
     
     iterator = merged.iterator();
@@ -573,7 +592,8 @@ public class TestNumericMergeLargest {
     NumericMillisecondShard shard_c = new NumericMillisecondShard(id, start, end);
 
     final DataShard<NumericType> merged = new NumericMergeLargest().merge(id, 
-        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c));
+        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c), 
+        context, null);
     assertSame(id, merged.id());
     
     final TimeSeriesIterator<NumericType> iterator = merged.iterator();
@@ -595,18 +615,27 @@ public class TestNumericMergeLargest {
     
     try {
       new NumericMergeLargest().merge(null, 
-          Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c));
+          Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c), 
+          context, null);
       fail("Expected IllegalArgumentException");
      } catch (IllegalArgumentException e) { }
     
     try {
-     new NumericMergeLargest().merge(id, null);
+     new NumericMergeLargest().merge(id, null, context, null);
      fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
       new NumericMergeLargest().merge(id, 
-          Lists.<DataShard<?>>newArrayList(shard_a, null, shard_c));
+          Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c), 
+          null, null);
+      fail("Expected IllegalArgumentException");
+     } catch (IllegalArgumentException e) { }
+    
+    try {
+      new NumericMergeLargest().merge(id, 
+          Lists.<DataShard<?>>newArrayList(shard_a, null, shard_c), 
+          context, null);
       fail("Expected IllegalArgumentException");
      } catch (IllegalArgumentException e) { }
     
@@ -615,7 +644,7 @@ public class TestNumericMergeLargest {
     when(mock.type()).thenReturn(AnnotationType.TYPE);
     try {
       new NumericMergeLargest().merge(id, 
-          Lists.<DataShard<?>>newArrayList(shard_a, mock, shard_c));
+          Lists.<DataShard<?>>newArrayList(shard_a, mock, shard_c), context, null);
       fail("Expected IllegalArgumentException");
      } catch (IllegalArgumentException e) { }
   }
@@ -643,7 +672,8 @@ public class TestNumericMergeLargest {
     shard_c.add(1486045881000L, -128, 2);
     
     final DataShard<NumericType> merged = new NumericMergeLargest().merge(id, 
-        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c));
+        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c), 
+        context, null);
     assertSame(id, merged.id());
     assertEquals(42, merged.order());
     
@@ -670,5 +700,61 @@ public class TestNumericMergeLargest {
       iterator.next();
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
+  }
+  
+  @Test
+  public void mergeWithSpan() throws Exception {
+    final Span tracer = mock(Span.class);
+    NumericMillisecondShard shard_a = 
+        new NumericMillisecondShard(id, start, end, 42);
+    // no check on order. First one in wins.
+    NumericMillisecondShard shard_b = 
+        new NumericMillisecondShard(id, start, end, 24);
+    NumericMillisecondShard shard_c = 
+        new NumericMillisecondShard(id, start, end, 42);
+    
+    shard_a.add(1486045801000L, 42, 1);
+    shard_b.add(1486045801000L, 42, 1);
+    shard_c.add(1486045801000L, 42, 1);
+    
+    shard_a.add(1486045871000L, 9866.854, 2);
+    shard_b.add(1486045871000L, 9866.854, 2);
+    shard_c.add(1486045871000L, 9866.854, 2);
+    
+    shard_a.add(1486045881000L, -128, 2);
+    shard_b.add(1486045881000L, -128, 2);
+    shard_c.add(1486045881000L, -128, 2);
+    
+    final DataShard<NumericType> merged = new NumericMergeLargest().merge(id, 
+        Lists.<DataShard<?>>newArrayList(shard_a, shard_b, shard_c), 
+        context, tracer);
+    assertSame(id, merged.id());
+    assertEquals(42, merged.order());
+    
+    final TimeSeriesIterator<NumericType> iterator = merged.iterator();
+    TimeSeriesValue<NumericType> v = iterator.next();
+    assertEquals(1486045801000L, v.timestamp().msEpoch());
+    assertTrue(v.value().isInteger());
+    assertEquals(42, v.value().longValue());
+    assertEquals(1, v.realCount());
+    
+    v = iterator.next();
+    assertEquals(1486045871000L, v.timestamp().msEpoch());
+    assertFalse(v.value().isInteger());
+    assertEquals(9866.854, v.value().doubleValue(), 0.001);
+    assertEquals(2, v.realCount());
+    
+    v = iterator.next();
+    assertEquals(1486045881000L, v.timestamp().msEpoch());
+    assertTrue(v.value().isInteger());
+    assertEquals(-128, v.value().longValue());
+    assertEquals(2, v.realCount());
+    
+    try {
+      iterator.next();
+      fail("Expected NoSuchElementException");
+    } catch (NoSuchElementException e) { }
+    
+    verify(tracer, times(3)).setTag(anyString(), anyInt());
   }
 }

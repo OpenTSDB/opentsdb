@@ -24,6 +24,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
+import io.opentracing.Span;
+import io.opentracing.Tracer.SpanBuilder;
+import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
 
@@ -71,11 +74,35 @@ public class DataShardMerger implements DataMerger<DataShardsGroup> {
    * time and time spans. Nulled shards are skipped.
    * 
    * @param shards A non-null array of shards to merge.
+   * @param context A non-null context to pull info from.
+   * @param tracer_span An optional tracer span.
    * @return A shards object with the merged results. If all shards in the
    * list were null, the resulting shard will be null.
+   * @throws IllegalArgumentException if the context or shards were null.
    */
   @Override
-  public DataShardsGroup merge(final List<DataShardsGroup> shards) {
+  public DataShardsGroup merge(final List<DataShardsGroup> shards, 
+                               final QueryContext context, 
+                               final Span tracer_span) {
+    if (context == null) {
+      throw new IllegalArgumentException("Context cannot be null.");
+    }
+    if (shards == null) {
+      throw new IllegalArgumentException("Shards cannot be null.");
+    }
+    final Span local_span;
+    if (context.getTracer() != null) {
+      final SpanBuilder builder = context.getTracer()
+          .buildSpan(this.getClass().getSimpleName());
+      if (tracer_span != null) {
+        builder.asChildOf(tracer_span);
+      }
+      builder.withTag("shardCount", Integer.toString(shards.size()));
+      local_span = builder.start();
+    } else {
+      local_span = null;
+    }
+        
     TimeSeriesGroupId group_id = null;
     for (final DataShardsGroup group : shards) {
       if (group != null) {
@@ -115,11 +142,12 @@ public class DataShardMerger implements DataMerger<DataShardsGroup> {
 
     // TODO - There MUST be a better way than this naive quadratic merge O(n^2)
     // so if you're looking at this and can find it, please help us!
-    
+    int nulls = 0;
     // outer loop start for iterating over each shard set
     for (int i = 0; i < shards.size(); i++) {
       MergedTimeSeriesId.Builder id = null;
       if (shards.get(i) == null) {
+        ++nulls;
         continue;
       }
       
@@ -274,10 +302,14 @@ public class DataShardMerger implements DataMerger<DataShardsGroup> {
           } // end dupe inner data shard loop
         } // end dupe outer shards loop
 
-        group.addShards(mergeData(merged, id.build()));
+        group.addShards(mergeData(merged, id.build(), context, local_span));
       } // end inner data shard loop
     } // end outer shards loop
     
+    if (local_span != null) {
+      local_span.setTag("nulledShards", nulls);
+      local_span.finish();
+    }
     return group;
   }
 
@@ -285,13 +317,20 @@ public class DataShardMerger implements DataMerger<DataShardsGroup> {
    * Once a set of shards are joined they're passed to this method to merge.
    * @param to_merge A non-null set of shards to merge. May be empty though.
    * @param id A non-null ID.
+   * @param context A non-null query context.
+   * @param tracer_span An optional tracer span.
    * @return A non-null shards object with merged data types for a single
    * ID.
-   * @throws IllegalArgumentException if the shard array was null or the ID was
+   * @throws IllegalArgumentException if the shard array, id or context were
    * null.
    */
   protected DataShards mergeData(final DataShards[] to_merge, 
-      final TimeSeriesId id) {
+                                 final TimeSeriesId id, 
+                                 final QueryContext context, 
+                                 final Span tracer_span) {
+    if (context == null) {
+      throw new IllegalArgumentException("Context cannot be null.");
+    }
     if (to_merge == null) {
       throw new IllegalArgumentException("Merge array cannot be null.");
     }
@@ -315,6 +354,7 @@ public class DataShardMerger implements DataMerger<DataShardsGroup> {
       }
     }
     
+    int dropped_types = 0;
     for (final Entry<TypeToken<?>, List<DataShard<?>>> entry : types.entrySet()) {
       if (entry.getValue().size() == 1) {
         merged.addShard(entry.getValue().get(0));
@@ -325,10 +365,15 @@ public class DataShardMerger implements DataMerger<DataShardsGroup> {
             LOG.debug("No merge strategy found for type " + entry.getKey() 
               + ". Dropping type.");
           }
+          ++dropped_types;
         } else {
-          merged.addShard(strategy.merge(id, entry.getValue()));
+          merged.addShard(
+              strategy.merge(id, entry.getValue(), context, tracer_span));
         }
       }
+    }
+    if (tracer_span != null) {
+      tracer_span.setTag("droppedTypes", dropped_types);
     }
     return merged;
   }
