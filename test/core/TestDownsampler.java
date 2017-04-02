@@ -26,6 +26,8 @@ import java.util.TimeZone;
 import com.google.common.collect.Lists;
 
 import net.opentsdb.core.SeekableViewsForTest.MockSeekableView;
+import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.RollupQuery;
 import net.opentsdb.utils.DateTime;
 
 import org.junit.Before;
@@ -1176,6 +1178,10 @@ public class TestDownsampler {
   
   @Test
   public void testDownsampler_rollupSum() {
+    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
+        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+        3600000, Aggregators.SUM);
     source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 0, 1),
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 1, 2),
@@ -1190,7 +1196,7 @@ public class TestDownsampler {
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 10, 1024)
     }));
     specification = new DownsamplingSpecification("10s-sum");
-    downsampler = new Downsampler(source, specification, 0, 0, true);
+    downsampler = new Downsampler(source, specification, 0, 0, rollup_query);
     verify(source, never()).next();
     List<Double> values = Lists.newArrayList();
     List<Long> timestamps_in_millis = Lists.newArrayList();
@@ -1218,6 +1224,10 @@ public class TestDownsampler {
   
   @Test
   public void testDownsampler_rollupAvg() {
+    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
+        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+        3600000, Aggregators.AVG);
     source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 0, 1),
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 1, 2),
@@ -1225,7 +1235,7 @@ public class TestDownsampler {
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 3, 8)
     }));
     specification = new DownsamplingSpecification("10s-avg");
-    downsampler = new Downsampler(source, specification, 0, 0, true);
+    downsampler = new Downsampler(source, specification, 0, 0, rollup_query);
     verify(source, never()).next();
     List<Double> values = Lists.newArrayList();
     List<Long> timestamps_in_millis = Lists.newArrayList();
@@ -1245,6 +1255,10 @@ public class TestDownsampler {
   
   @Test
   public void testDownsampler_rollupCount() {
+    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
+        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+        3600000, Aggregators.COUNT);
     source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 0, 1),
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 1, 2),
@@ -1252,7 +1266,7 @@ public class TestDownsampler {
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 3, 8)
     }));
     specification = new DownsamplingSpecification("10s-count");
-    downsampler = new Downsampler(source, specification, 0, 0, true);
+    downsampler = new Downsampler(source, specification, 0, 0, rollup_query);
     verify(source, never()).next();
     List<Double> values = Lists.newArrayList();
     List<Long> timestamps_in_millis = Lists.newArrayList();
@@ -1272,8 +1286,12 @@ public class TestDownsampler {
   
   @Test (expected = UnsupportedOperationException.class)
   public void testDownsampler_rollupDev() {
+    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
+        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+        3600000, Aggregators.DEV);
     specification = new DownsamplingSpecification("10s-dev");
-    downsampler = new Downsampler(source, specification, 0, 0, true);
+    downsampler = new Downsampler(source, specification, 0, 0, rollup_query);
     while (downsampler.hasNext()) {
       downsampler.next(); // <-- throws here
     }

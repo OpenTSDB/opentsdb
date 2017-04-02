@@ -19,6 +19,8 @@ import java.util.NoSuchElementException;
 import com.google.common.annotations.VisibleForTesting;
 
 import net.opentsdb.core.Aggregators.Interpolation;
+import net.opentsdb.rollup.RollupQuery;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -342,7 +344,7 @@ public class AggregationIterator implements SeekableView, DataPoint,
    * of the actual values.
    * @param rate_options Specifies the optional additional rate calculation
    * options.
-   * @param is_rollup Whether or not the query is handling rollup data.
+   * @param rollup_query An optional rollup query.
    * @return an AggregationIterator
    * @since 2.4
    */
@@ -356,7 +358,7 @@ public class AggregationIterator implements SeekableView, DataPoint,
       final long query_end,
       final boolean rate,
       final RateOptions rate_options,
-      final boolean is_rollup) {
+      final RollupQuery rollup_query) {
     final int size = spans.size();
     final SeekableView[] iterators = new SeekableView[size];
     for (int i = 0; i < size; i++) {
@@ -366,7 +368,7 @@ public class AggregationIterator implements SeekableView, DataPoint,
         it = spans.get(i).spanIterator();
       } else {
         it = spans.get(i).downsampler(start_time, end_time, downsampler, 
-            query_start, query_end, is_rollup);
+            query_start, query_end, rollup_query);
       }
       if (rate) {
         it = new RateSpan(it, rate_options);

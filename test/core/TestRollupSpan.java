@@ -61,7 +61,7 @@ public final class TestRollupSpan {
   
   private static final RollupQuery rollup_query = 
     new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "1s", "1h"), 
-    aggr_sum, 1000);
+    aggr_sum, 1000, aggr_sum);
   
   @Before
   public void before() throws Exception {

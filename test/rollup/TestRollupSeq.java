@@ -64,31 +64,31 @@ public final class TestRollupSeq {
   public static final byte[] FAMILY = { 't' };
   private static final RollupQuery rollup_query_sum = 
     new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "1s", "1h"), 
-    Aggregators.SUM, 1000);
+    Aggregators.SUM, 1000, Aggregators.SUM);
   private static final RollupQuery rollup_query_avg = 
       new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "1s", "1h"), 
-      Aggregators.AVG, 1000);
+      Aggregators.AVG, 1000, Aggregators.AVG);
   private static final RollupQuery rollup_query_sum_mimmax = 
     new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "1s", "1h"), 
-    Aggregators.MIMMAX, 1000);
+    Aggregators.MIMMAX, 1000, Aggregators.MIMMAX);
   private static final RollupQuery rollup_query_10m_sum = 
     new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "10m", "6h"), 
-    Aggregators.SUM, 600000);
+    Aggregators.SUM, 600000, Aggregators.SUM);
   private static final RollupQuery rollup_query_10m_avg = 
       new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "10m", "6h"), 
-      Aggregators.AVG, 600000);
+      Aggregators.AVG, 600000, Aggregators.AVG);
   private static final RollupQuery rollup_query_10m_count = 
       new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "10m", "6h"), 
-      Aggregators.COUNT, 600000);
+      Aggregators.COUNT, 600000, Aggregators.COUNT);
   private static final RollupQuery rollup_query_1h_sum = 
     new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "1h", "1d"), 
-    Aggregators.SUM, 3600000);
+    Aggregators.SUM, 3600000, Aggregators.SUM);
   private static final RollupQuery rollup_query_1h_avg = 
       new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "1h", "1d"), 
-      Aggregators.AVG, 3600000);
+      Aggregators.AVG, 3600000, Aggregators.AVG);
   private static final RollupQuery rollup_query_1h_count = 
       new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "1h", "1d"), 
-      Aggregators.COUNT, 3600000);
+      Aggregators.COUNT, 3600000, Aggregators.COUNT);
   
   @Before
   public void before() throws Exception {
@@ -113,7 +113,7 @@ public final class TestRollupSeq {
     assertTrue(dp.isInteger());
     assertEquals(4, dp.longValue());
     assertEquals(1356998400000L, dp.timestamp());
-    assertEquals(-1, dp.valueCount());
+    assertEquals(1, dp.valueCount());
     assertFalse(it.hasNext());
   }
    
@@ -147,14 +147,14 @@ public final class TestRollupSeq {
     assertTrue(dp.isInteger());
     assertEquals(1356998400000L, dp.timestamp());
     assertEquals(4, dp.longValue());
-    assertEquals(-1, dp.valueCount());
+    assertEquals(1, dp.valueCount());
     
     assertTrue(it.hasNext());
     dp = it.next();
     assertTrue(dp.isInteger());
     assertEquals(1356998500000L, dp.timestamp());
     assertEquals(5, dp.longValue());
-    assertEquals(-1, dp.valueCount());
+    assertEquals(1, dp.valueCount());
     assertFalse(it.hasNext());
   }
   
@@ -196,7 +196,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertTrue(dp.isInteger());
       assertEquals(value, dp.longValue());
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       ++value;
       ts += 1000;
     }
@@ -230,7 +230,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertTrue(dp.isInteger());
       assertEquals(value, dp.longValue());
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       ++value;
       ts += 1000;
     }
@@ -590,9 +590,10 @@ public final class TestRollupSeq {
     assertTrue(dp.isInteger());
     assertEquals(7, dp.longValue());
     assertEquals(1356998400000L, dp.timestamp());
-    assertEquals(-1, dp.valueCount());
+    assertEquals(1, dp.valueCount());
     assertFalse(it.hasNext());
   }
+  
   // NOTE: many of the tests below also test RollupSeq.size()
   @Test
   public void rollup10m() throws Exception {
@@ -614,7 +615,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertTrue(dp.isInteger());
       assertEquals(value, dp.longValue());
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       ++value;
       ts += 600000;
     }
@@ -640,7 +641,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertFalse(dp.isInteger());
       assertEquals(value, dp.doubleValue(), 0.0001);
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       value += 0.25;
       ts += 600000;
     }
@@ -666,7 +667,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertFalse(dp.isInteger());
       assertEquals(value, dp.doubleValue(), 0.0001);
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       value += 0.50;
       ts += 600000;
     }
@@ -698,7 +699,7 @@ public final class TestRollupSeq {
       } else {
         assertEquals(dvalue, dp.doubleValue(), 0.0001);
       }
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       if (toggle) {
         dvalue += 1;
       } else {
@@ -1064,7 +1065,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertTrue(dp.isInteger());
       assertEquals(value, dp.longValue());
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       ++value;
       ts += 3600000;
     }
@@ -1090,7 +1091,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertFalse(dp.isInteger());
       assertEquals(value, dp.doubleValue(), 0.0001);
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       value += 0.25;
       ts += 3600000;
     }
@@ -1182,7 +1183,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertTrue(dp.isInteger());
       assertEquals(value, dp.longValue());
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       ++value;
       ts += 600000;
     }
@@ -1212,7 +1213,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertTrue(dp.isInteger());
       assertEquals(value, dp.longValue());
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       ++value;
       ts += 600000;
     }
@@ -1262,7 +1263,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertTrue(dp.isInteger());
       assertEquals(value, dp.longValue());
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       ++value;
       ts += 600000;
     }
@@ -1292,7 +1293,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertTrue(dp.isInteger());
       assertEquals(value, dp.longValue());
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       ++value;
       ts += 600000;
     }
@@ -1601,7 +1602,7 @@ public final class TestRollupSeq {
     final int base_time = RollupUtils.getRollupBasetime(timestamp, 
             rollup_query.getRollupInterval());
     return RollupUtils.buildRollupQualifier(timestamp, base_time, flags, 
-            rollup_query.getRollupAgg().toString(), 
+            rollup_query.getGroupBy().toString(), 
             rollup_query.getRollupInterval());
   }
 }

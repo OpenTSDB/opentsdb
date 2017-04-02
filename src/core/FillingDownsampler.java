@@ -12,9 +12,14 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 
+import net.opentsdb.core.Aggregator.Doubles;
+import net.opentsdb.rollup.RollupQuery;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -71,7 +76,7 @@ public class FillingDownsampler extends Downsampler {
       final long end_time, final DownsamplingSpecification specification, 
       final long query_start, final long end_start) {
     this(source, start_time, end_time, specification, query_start, end_start,
-        false);
+        null);
   }
   
   /** 
@@ -82,15 +87,16 @@ public class FillingDownsampler extends Downsampler {
    * @param specification The downsampling spec to use
    * @param query_start The start timestamp of the actual query for use with "all"
    * @param query_end The end timestamp of the actual query for use with "all"
-   * @param is_rollup Whether or not this query is handling rollup data.
+   * @param rollup_query An optional rollup query.
    * @throws IllegalArgumentException if fill_policy is interpolation.
    * @since 2.4
    */
   FillingDownsampler(final SeekableView source, final long start_time,
       final long end_time, final DownsamplingSpecification specification, 
-      final long query_start, final long end_start, final boolean is_rollup) {
+      final long query_start, final long end_start, 
+      final RollupQuery rollup_query) {
     // Lean on the superclass implementation.
-    super(source, specification, query_start, end_start, is_rollup);
+    super(source, specification, query_start, end_start, rollup_query);
 
     // Ensure we aren't given a bogus fill policy.
     if (FillPolicy.NONE == specification.getFillPolicy()) {
@@ -187,26 +193,54 @@ public class FillingDownsampler extends Downsampler {
       if (run_all || actual == timestamp) {
         // The calculated interval timestamp matches what we expect, so we can
         // do normal processing.
-        if (is_rollup && (specification.getFunction() == Aggregators.AVG || 
-            specification.getFunction() == Aggregators.DEV)) {
-          double sum = 0;
-          long count = 0;
-          while (values_in_interval.hasNextValue()) {
-            count += values_in_interval.nextValueCount();
-            sum += values_in_interval.nextDoubleValue();
-          }
-          
-          if (specification.getFunction() == Aggregators.AVG) {
-            if (count == 0) { // avoid # / 0
-              value = 0;
+        if (rollup_query != null && 
+            (rollup_query.getGroupBy() == Aggregators.AVG || 
+            rollup_query.getGroupBy() == Aggregators.DEV)) {
+          if (rollup_query.getGroupBy() == Aggregators.AVG) {
+            if (specification.getFunction() == Aggregators.AVG) {
+              double sum = 0;
+              long count = 0;
+              while (values_in_interval.hasNextValue()) {
+                count += values_in_interval.nextValueCount();
+                sum += values_in_interval.nextDoubleValue();
+              }
+              if (count == 0) { // avoid # / 0
+                value = 0;
+              } else {
+                value = sum / (double)count;
+              }
             } else {
-              value = sum / (double)count;
+              class Accumulator implements Doubles {
+                List<Double> values = new ArrayList<Double>();
+                Iterator<Double> iterator;
+                @Override
+                public boolean hasNextValue() {
+                  return iterator.hasNext();
+                }
+                @Override
+                public double nextDoubleValue() {
+                  return iterator.next();
+                }
+              }
+              
+              final Accumulator accumulator = new Accumulator();
+              while (values_in_interval.hasNextValue()) {
+                long count = values_in_interval.nextValueCount();
+                double sum = values_in_interval.nextDoubleValue();
+                if (count == 0) {
+                  accumulator.values.add(0D);
+                } else {
+                  accumulator.values.add(sum / (double) count);
+                }
+              }
+              accumulator.iterator = accumulator.values.iterator();
+              value = specification.getFunction().runDouble(accumulator);
             }
-          } else {
-            throw new UnsupportedOperationException(
-                "Standard deviation over rolled up data is not supported");
+          } else if (specification.getFunction() == Aggregators.DEV) {
+            throw new UnsupportedOperationException("Standard deviation over "
+                + "rolled up data is not supported at this time");
           }
-        } else if (is_rollup && 
+        } else if (rollup_query != null && 
             specification.getFunction() == Aggregators.COUNT) {
           double count = 0;
           while (values_in_interval.hasNextValue()) {

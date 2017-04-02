@@ -567,8 +567,8 @@ public class SaltScanner {
                 map_notes.add(note);
               }
             } else {
-              if (rollup_query.getRollupAgg() == Aggregators.AVG || 
-                  rollup_query.getRollupAgg() == Aggregators.DEV) {
+              if (rollup_query.getGroupBy() == Aggregators.AVG || 
+                  rollup_query.getGroupBy() == Aggregators.DEV) {
                 if (Bytes.memcmp(RollupQuery.SUM, qual, 0, RollupQuery.SUM.length) == 0 ||
                     Bytes.memcmp(RollupQuery.COUNT, qual, 0, RollupQuery.COUNT.length) == 0) {
                   kvs.add(kv);

@@ -15,6 +15,8 @@ package net.opentsdb.core;
 import org.junit.Test;
 
 import net.opentsdb.core.SeekableViewsForTest.MockSeekableView;
+import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.RollupQuery;
 import net.opentsdb.utils.DateTime;
 
 import static org.junit.Assert.assertEquals;
@@ -816,6 +818,10 @@ public class TestFillingDownsampler {
 
   @Test
   public void testDownsampler_rollup() {
+    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
+        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+        3600000, Aggregators.SUM);
     final long baseTime = 1000L;
     final SeekableView source =
       SeekableViewsForTest.fromArray(new DataPoint[] {
@@ -835,7 +841,7 @@ public class TestFillingDownsampler {
 
     specification = new DownsamplingSpecification("100ms-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 12L * 25L, specification, 0, 0, true);
+      baseTime + 12L * 25L, specification, 0, 0, rollup_query);
 
     long timestamp = baseTime;
     step(downsampler, timestamp, 42.);
@@ -846,6 +852,10 @@ public class TestFillingDownsampler {
   
   @Test
   public void testDownsampler_rollupMissing() {
+    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
+        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+        3600000, Aggregators.SUM);
     final long baseTime = 500L;
     final SeekableView source =
       SeekableViewsForTest.fromArray(new DataPoint[] {
@@ -862,7 +872,7 @@ public class TestFillingDownsampler {
 
     specification = new DownsamplingSpecification("100ms-sum-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 36 * 25L, specification, 0, 0, true);
+      baseTime + 36 * 25L, specification, 0, 0, rollup_query);
     
     long timestamp = baseTime;
     step(downsampler, timestamp, Double.NaN);
@@ -879,6 +889,10 @@ public class TestFillingDownsampler {
   
   @Test
   public void testDownsampler_rollupAvg() {
+    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
+        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+        3600000, Aggregators.SUM);
     final long baseTime = 1000L;
     final SeekableView source =
       SeekableViewsForTest.fromArray(new DataPoint[] {
@@ -900,7 +914,7 @@ public class TestFillingDownsampler {
 
     specification = new DownsamplingSpecification("100ms-avg-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 12L * 25L, specification, 0, 0, true);
+      baseTime + 12L * 25L, specification, 0, 0, rollup_query);
 
     long timestamp = baseTime;
     step(downsampler, timestamp, 10.5);
@@ -911,6 +925,10 @@ public class TestFillingDownsampler {
   
   @Test
   public void testDownsampler_rollupAvgMissing() {
+    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
+        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+        3600000, Aggregators.SUM);
     final long baseTime = 500L;
     final SeekableView source =
       SeekableViewsForTest.fromArray(new DataPoint[] {
@@ -927,7 +945,7 @@ public class TestFillingDownsampler {
 
     specification = new DownsamplingSpecification("100ms-avg-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 36 * 25L, specification, 0, 0, true);
+      baseTime + 36 * 25L, specification, 0, 0, rollup_query);
     
     long timestamp = baseTime;
     step(downsampler, timestamp, Double.NaN);
@@ -944,6 +962,10 @@ public class TestFillingDownsampler {
   
   @Test
   public void testDownsampler_rollupCount() {
+    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
+        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+        3600000, Aggregators.SUM);
     final long baseTime = 1000L;
     final SeekableView source =
       SeekableViewsForTest.fromArray(new DataPoint[] {
@@ -965,7 +987,7 @@ public class TestFillingDownsampler {
 
     specification = new DownsamplingSpecification("100ms-count-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 12L * 25L, specification, 0, 0, true);
+      baseTime + 12L * 25L, specification, 0, 0, rollup_query);
 
     long timestamp = baseTime;
     step(downsampler, timestamp, 4);
@@ -976,6 +998,10 @@ public class TestFillingDownsampler {
   
   @Test
   public void testDownsampler_rollupCountMissing() {
+    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
+        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+        3600000, Aggregators.SUM);
     final long baseTime = 500L;
     final SeekableView source =
       SeekableViewsForTest.fromArray(new DataPoint[] {
@@ -992,7 +1018,7 @@ public class TestFillingDownsampler {
 
     specification = new DownsamplingSpecification("100ms-count-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 36 * 25L, specification, 0, 0, true);
+      baseTime + 36 * 25L, specification, 0, 0, rollup_query);
     
     long timestamp = baseTime;
     step(downsampler, timestamp, Double.NaN);
@@ -1009,6 +1035,10 @@ public class TestFillingDownsampler {
   
   @Test (expected = UnsupportedOperationException.class)
   public void testDownsampler_rollupDev() {
+    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
+        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+        3600000, Aggregators.DEV);
     final long baseTime = 1000L;
     final SeekableView source =
       SeekableViewsForTest.fromArray(new DataPoint[] {
@@ -1030,7 +1060,7 @@ public class TestFillingDownsampler {
 
     specification = new DownsamplingSpecification("100ms-dev-nan");
     final Downsampler downsampler = new FillingDownsampler(source, baseTime,
-      baseTime + 12L * 25L, specification, 0, 0, true);
+      baseTime + 12L * 25L, specification, 0, 0, rollup_query);
     while (downsampler.hasNext()) {
       downsampler.next(); // <-- throws here
     }

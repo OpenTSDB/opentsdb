@@ -432,7 +432,7 @@ final class TsdbQuery implements Query {
     
     if (rollup_usage != ROLLUP_USAGE.ROLLUP_RAW) {
       //Check whether the down sampler is set and rollup is enabled
-      transformDownSamplerToRollupQuery(sub_query.getDownsample());
+      transformDownSamplerToRollupQuery(aggregator, sub_query.getDownsample());
     }
     sub_query.setTsdbQuery(this);
     
@@ -930,8 +930,8 @@ final class TsdbQuery implements Query {
                          Annotation.class);
                  datapoints.getAnnotations().add(note);
                } else {
-                 if (rollup_query.getRollupAgg() == Aggregators.AVG || 
-                     rollup_query.getRollupAgg() == Aggregators.DEV) {
+                 if (rollup_query.getGroupBy() == Aggregators.AVG || 
+                     rollup_query.getGroupBy() == Aggregators.DEV) {
                    if (Bytes.memcmp(RollupQuery.SUM, qual, 0, RollupQuery.SUM.length) == 0 ||
                        Bytes.memcmp(RollupQuery.COUNT, qual, 0, RollupQuery.COUNT.length) == 0) {
                      datapoints.addRow(kv);
@@ -1100,7 +1100,7 @@ final class TsdbQuery implements Query {
               getStartTime(), 
               getEndTime(),
               query_index,
-              RollupQuery.isValidQuery(rollup_query));
+              rollup_query);
           group.add(span);
           groups[i++] = group;
         }
@@ -1120,7 +1120,7 @@ final class TsdbQuery implements Query {
                                               getStartTime(), 
                                               getEndTime(),
                                               query_index,
-                                              RollupQuery.isValidQuery(rollup_query));
+                                              rollup_query);
         if (query_stats != null) {
           query_stats.addStat(query_index, QueryStat.GROUP_BY_TIME, 0);
         }
@@ -1171,7 +1171,7 @@ final class TsdbQuery implements Query {
                                    getStartTime(), 
                                    getEndTime(),
                                    query_index,
-                                   RollupQuery.isValidQuery(rollup_query));
+                                   rollup_query);
           // Copy the array because we're going to keep `group' and overwrite
           // its contents. So we want the collection to have an immutable copy.
           final byte[] group_copy = new byte[group.length];
@@ -1230,7 +1230,8 @@ final class TsdbQuery implements Query {
           else {
             rollup_query = new RollupQuery(interval, 
                   rollup_query.getRollupAgg(),
-                  rollup_query.getSampleIntervalInMS());
+                  rollup_query.getSampleIntervalInMS(),
+                  aggregator);
             //Here the requested sampling rate will be higher than
             //resulted result. So downsample it
             if (!rollup_query.isLowerSamplingRate()) {
@@ -1312,17 +1313,17 @@ final class TsdbQuery implements Query {
       // Set the Scanners column qualifier pattern with rollup aggregator
       // HBase allows only a single filter so if we have a row key filter, keep
       // it. If not, then we can do this
-      if (!rollup_query.getRollupAgg().toString().equals("avg")) {
+      if (!rollup_query.getGroupBy().toString().equals("avg")) {
         if (existing != null) {
           final List<ScanFilter> filters = new ArrayList<ScanFilter>(2);
           filters.add(existing);
           filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-              new BinaryPrefixComparator(rollup_query.getRollupAgg().toString()
+              new BinaryPrefixComparator(rollup_query.getGroupBy().toString()
                       .getBytes(Const.ASCII_CHARSET))));
           scanner.setFilter(new FilterList(filters, Operator.MUST_PASS_ALL));
         } else {
           scanner.setFilter(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-                new BinaryPrefixComparator(rollup_query.getRollupAgg().toString()
+                new BinaryPrefixComparator(rollup_query.getGroupBy().toString()
                         .getBytes(Const.ASCII_CHARSET))));
         }
       } else {
@@ -1520,24 +1521,30 @@ final class TsdbQuery implements Query {
    * Transform downsampler properties to rollup properties, if the rollup
    * is enabled at configuration level and down sampler is set.
    * It falls back to raw data and down sampling if there is no 
-   * RollupInterval is configured against this down sample interval 
+   * RollupInterval is configured against this down sample interval
+   * @param group_by The group by aggregator.
    * @param str_interval String representation of the  interval, for logging
    * @since 2.4
    */
-  public void transformDownSamplerToRollupQuery(final String str_interval)  {
-
+  public void transformDownSamplerToRollupQuery(final Aggregator group_by, 
+      final String str_interval)  {
+    
     if (downsampler != null && downsampler.getInterval() > 0) {
       if (tsdb.getRollupConfig() != null) {
         try {
           best_match_rollups = tsdb.getRollupConfig().
               getRollupInterval(downsampler.getInterval() / 1000, str_interval);
-          //It is thread safe as eatch thread will be working on unique 
+          //It is thread safe as each thread will be working on unique 
           // TsdbQuery object
           //RollupConfig.getRollupInterval guarantees that, 
           //  it always return a non-empty list
           // TODO
           rollup_query = new RollupQuery(best_match_rollups.remove(0), 
-                  downsampler.getFunction(), downsampler.getInterval());
+                  downsampler.getFunction(), downsampler.getInterval(),
+                  group_by);
+          if (group_by == Aggregators.COUNT) {
+            aggregator = Aggregators.SUM;
+          }
         }
         catch (NoSuchRollupForIntervalException nre) {
           LOG.error("There is no such rollup for the downsample interval "

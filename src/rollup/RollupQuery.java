@@ -30,6 +30,8 @@ public class RollupQuery {
   
   private final RollupInterval rollup_interval;
   private final Aggregator rollup_agg;
+  private final Aggregator group_by;
+  
   /** Rollup aggregate prefix along with the delimiter as byte array. It will be
    * the same for the same rollup aggregator, but is defined here to 
    * reduce the number of calculations at scan time*/
@@ -41,22 +43,27 @@ public class RollupQuery {
   private final long sample_interval_ms;
 
   /**
-   * Default private constructor
+   * Default constructor
    * @param rollup_interval RollupInterval object
    * @param rollup_agg Aggregator object
    * @param sample_interval_ms Initial downsaple interval in milliseconds
-   * @throws IllegalStateException if rollup interval or rollup aggregator is
-   *   null
+   * @param group_by Group by aggregation.
+   * @throws IllegalStateException if rollup interval, rollup aggregator or 
+   * group by aggregator is null
    */
   public RollupQuery(final RollupInterval rollup_interval, 
-      final Aggregator rollup_agg, long sample_interval_ms) {
+                     final Aggregator rollup_agg, 
+                     long sample_interval_ms, 
+                     final Aggregator group_by) {
     
     if (rollup_interval == null) {
       throw new IllegalStateException("Rollup interval is null");
     }
-    
     if (rollup_agg == null) {
       throw new IllegalStateException("Rollup aggregator is null");
+    }
+    if (group_by == null) {
+      throw new IllegalStateException("Group by aggregator is null");
     }
     
     this.rollup_interval = rollup_interval;
@@ -71,7 +78,22 @@ public class RollupQuery {
     } else {
       this.rollup_agg = rollup_agg;
     }
-    this.agg_prefix = RollupUtils.getRollupQualifierPrefix(this.rollup_agg.toString());
+    if (group_by == Aggregators.ZIMSUM) {
+      this.group_by = Aggregators.SUM;
+    } else if (group_by == Aggregators.MIMMAX) {
+      this.group_by = Aggregators.MAX;
+    } else if (group_by == Aggregators.MIMMIN) {
+      this.group_by = Aggregators.MIN;
+    } else {
+      this.group_by = group_by;
+    }
+    if (group_by == Aggregators.AVG) {
+      agg_prefix = RollupUtils.getRollupQualifierPrefix(
+          Aggregators.SUM.toString());
+    } else {
+      agg_prefix = RollupUtils.getRollupQualifierPrefix(
+          this.group_by.toString());
+    }
     this.sample_interval_ms = sample_interval_ms;
   }
 
@@ -102,7 +124,9 @@ public class RollupQuery {
     buf.append("rollup interval=")
         .append(rollup_interval.getStringInterval())
         .append(", rollup aggregator=")
-        .append(rollup_agg.toString());
+        .append(rollup_agg.toString())
+        .append(", group_by=")
+        .append(group_by.toString());
     return buf.toString();
   }
 
@@ -120,6 +144,12 @@ public class RollupQuery {
   public Aggregator getRollupAgg() {
     return rollup_agg;
   }
+  
+  @JsonIgnore
+  public Aggregator getGroupBy() {
+    return group_by;
+  }
+  
   /**
    * Does it contain a valid rollup interval, mainly says it is not the default
    * rollup. Default rollup is of same resolution as raw data. So if true, 
