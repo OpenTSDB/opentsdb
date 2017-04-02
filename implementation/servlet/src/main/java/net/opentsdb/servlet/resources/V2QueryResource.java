@@ -39,6 +39,8 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.stumbleupon.async.Callback;
 
 import io.netty.util.Timer;
+import io.opentracing.Span;
+import io.opentracing.Tracer;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.DataShard;
 import net.opentsdb.data.DataShards;
@@ -58,6 +60,7 @@ import net.opentsdb.query.execution.QueryExecution;
 import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
+import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.JSON;
 
 @Path("query/v2")
@@ -84,7 +87,16 @@ public class V2QueryResource {
         
         final DataShardsGroup groups = (DataShardsGroup) request.getAttribute(
             OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE);
-        
+        final MyContext context = (MyContext) request.getAttribute("MYCONTEXT");
+        final Span serdes_span;
+        if (context.trace != null) {
+          serdes_span = context.trace.tracer().buildSpan("serialization")
+              .asChildOf(context.trace.getFirstSpan())
+              .start();
+        } else {
+          serdes_span = null;
+        }
+
         StreamingOutput stream = new StreamingOutput() {
 
           @Override
@@ -102,6 +114,11 @@ public class V2QueryResource {
                 for (final Entry<byte[], byte[]> entry : shard.id().tags().entrySet()) {
                   json.writeStringField(new String(entry.getKey()), new String(entry.getValue()));
                 }
+                json.writeArrayFieldStart("aggregateTags");
+                for (final byte[] tag : shard.id().aggregatedTags()) {
+                  json.writeString(new String(tag));
+                }
+                json.writeEndArray();
                 json.writeEndObject();
                 json.writeObjectFieldStart("dps");
                 
@@ -124,23 +141,46 @@ public class V2QueryResource {
               }
             }
             
+            if (context.trace != null) {
+              context.trace.serializeJSON("trace", json);
+            }
+            
             json.writeEndArray();
             json.flush();
             json.close();
+            if (serdes_span != null) {
+              serdes_span.finish();
+            }
           }
           
         };
+        
+        if (context.trace != null) {
+          context.trace.getFirstSpan().finish();
+        }
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Query completed!");
+        }
         return Response.ok().entity( stream ).type( MediaType.APPLICATION_JSON ).build();
         // all done!
       } else {
-        final TSQuery ts_query = JSON.parseToObject(request.getInputStream(), TSQuery.class);
-        ts_query.validateAndSetQuery();
-        
         final TSDB tsdb = (TSDB) servlet_config.getServletContext()
             .getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
         if (tsdb == null) {
           throw new IllegalStateException("The TSDB instance was null.");
         }
+        final TsdbTrace trace;
+        final Span span;
+        if (tsdb.getRegistry().tracer() != null) {
+          trace = tsdb.getRegistry().tracer().getTracer(true);
+          span = trace.tracer().buildSpan(this.getClass().getSimpleName()).start();
+          trace.setFirstSpan(span);
+        } else {
+          trace = null;
+          span = null;
+        }
+        final TSQuery ts_query = JSON.parseToObject(request.getInputStream(), TSQuery.class);
+        ts_query.validateAndSetQuery();
         
         // copy the required headers.
         // TODO - break this out into a helper function.
@@ -161,23 +201,27 @@ public class V2QueryResource {
         final TimeSeriesQuery query = TSQuery.convertQuery(ts_query);
         query.groupId(new SimpleStringGroupId(""));
         query.validate();
-        
-        final MyContext context = new MyContext(tsdb, 
+
+        final MyContext context = new MyContext(tsdb,
             (HttpContextFactory) servlet_config.getServletContext()
             .getAttribute(OpenTSDBApplication.HTTP_CONTEXT_FACTORY),
-            headersCopy, tsdb.getTimer());
+            headersCopy, trace);
+        request.setAttribute("MYCONTEXT", context);
         
         final QueryExecutor<DataShardsGroup> executor = 
             new MultiClusterQueryExecutor<DataShardsGroup>(context, 
-                DataShardsGroup.class, 5000L);
-        
+                DataShardsGroup.class);
+
         final QueryExecution<DataShardsGroup> execution = 
-            executor.executeQuery(query, null);
+            executor.executeQuery(query, span);
         
         class SuccessCB implements Callback<Object, DataShardsGroup> {
 
           @Override
           public Object call(final DataShardsGroup groups) throws Exception {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Query responded. Setting async to serialize.");
+            }
             request.setAttribute(OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE, groups);
             async.dispatch();
             return null;
@@ -209,11 +253,15 @@ public class V2QueryResource {
           }
         }
         
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Started query");
+        }
         execution.deferred()
           .addCallback(new SuccessCB())
           .addErrback(new ErrorCB());
       }
     } catch (Exception e) {
+      e.printStackTrace();
       throw new WebApplicationException(e, Response.Status.INTERNAL_SERVER_ERROR);
     }
     return null;
@@ -222,12 +270,14 @@ public class V2QueryResource {
   class MyContext extends QueryContext {
     final HttpContextFactory ctx;
     final Map<String, String> headers;
-    MyContext(final TSDB tsdb, 
-        final HttpContextFactory ctx, final Map<String, String> headers,
-        final Timer timer) {
-      super(tsdb);
+    final TsdbTrace trace;
+    
+    MyContext(final TSDB tsdb, final HttpContextFactory ctx, 
+        final Map<String, String> headers, final TsdbTrace trace) {
+      super(tsdb, trace != null ? trace.tracer() : null);
       this.ctx = ctx;
       this.headers = headers;
+      this.trace = trace;
     }
     @Override
     public RemoteContext getRemoteContext() {

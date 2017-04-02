@@ -20,6 +20,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.context.HttpContextFactory;
+import net.opentsdb.stats.BraveTracer;
 import net.opentsdb.utils.Config;
 
 @ApplicationPath("/")
@@ -56,6 +57,16 @@ public class OpenTSDBApplication extends ResourceConfig {
       }
       servletConfig.getServletContext().setAttribute(ASYNC_TIMEOUT_ATTRIBUTE, 
           asyncTimeout);
+      
+      // TEMP
+      tsdb.getConfig().overrideConfig("tsdb.tracer.service_name", "OpenTSDBServlet");
+      tsdb.getConfig().overrideConfig("tracer.brave.zipkin.endpoint", 
+          "http://127.0.0.1:9411/api/v1/spans");
+      
+      tsdb.getRegistry().registerTracer(new BraveTracer());
+      
+      tsdb.initializeRegistry().join();
+      
     } catch (Exception e) {
       throw new RuntimeException("Unable to initialize OpenTSDB app!", e);
     }

@@ -856,7 +856,7 @@ public class TestHttpQueryV2Executor {
     query.validate();
     JsonNode root = JSON.getMapper().readTree(response_content);
     
-    DataShards shards = executor.parseTSQuery(query, root.get(0));
+    DataShards shards = executor.parseTSQuery(query, root.get(0), span);
     assertArrayEquals("some.fun.metric".getBytes(Const.UTF8_CHARSET), 
         shards.id().metrics().get(0));
     assertArrayEquals("group_b".getBytes(Const.UTF8_CHARSET), 
@@ -886,7 +886,7 @@ public class TestHttpQueryV2Executor {
     assertFalse(v.value().isInteger());
     assertEquals(23737.69921875, v.value().doubleValue(), 0.000000001);
     
-    shards = executor.parseTSQuery(query, root.get(1));
+    shards = executor.parseTSQuery(query, root.get(1), span);
     assertArrayEquals("some.fun.metric".getBytes(Const.UTF8_CHARSET), 
         shards.id().metrics().get(0));
     assertArrayEquals("group_a".getBytes(Const.UTF8_CHARSET), 
@@ -937,7 +937,7 @@ public class TestHttpQueryV2Executor {
         + "}]";
     root = JSON.getMapper().readTree(response_content);
     
-    shards = executor.parseTSQuery(query, root.get(0));
+    shards = executor.parseTSQuery(query, root.get(0), span);
     assertArrayEquals("some.fun.metric".getBytes(Const.UTF8_CHARSET), 
         shards.id().metrics().get(0));
     assertArrayEquals("group_b".getBytes(Const.UTF8_CHARSET), 
@@ -956,7 +956,7 @@ public class TestHttpQueryV2Executor {
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    shards = executor.parseTSQuery(query, root.get(1));
+    shards = executor.parseTSQuery(query, root.get(1), span);
     assertArrayEquals("some.fun.metric".getBytes(Const.UTF8_CHARSET), 
         shards.id().metrics().get(0));
     assertArrayEquals("group_a".getBytes(Const.UTF8_CHARSET), 

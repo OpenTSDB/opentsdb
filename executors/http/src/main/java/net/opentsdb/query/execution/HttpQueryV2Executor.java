@@ -178,11 +178,13 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
    * @param query A non-null query to parse.
    * @param node A non-null JSON node set to the root of one of the response
    * objects in the response array.
+   * @param tracer_span An optional span to write stats to.
    * @return A non-null data shards set.
    * @throws IllegalArgumentException if the query or node was null.
    */
   @VisibleForTesting
-  DataShards parseTSQuery(final TimeSeriesQuery query, final JsonNode node) {
+  DataShards parseTSQuery(final TimeSeriesQuery query, final JsonNode node,
+      final Span tracer_span) {
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
     }
@@ -207,6 +209,8 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
     final NumericMillisecondShard shard = new NumericMillisecondShard(id.build(), 
         query.getTime().startTime(), query.getTime().endTime());
     
+    int nans = 0;
+    int values = 0;
     final JsonNode dps = node.path("dps");
     if (dps != null) {
       final Iterator<Entry<String, JsonNode>> it = dps.fields();
@@ -220,9 +224,13 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
         if (NumericType.looksLikeInteger(v)) {
           shard.add(Long.parseLong(value.getKey()), NumericType.parseLong(v), 1);
         } else {
-          shard.add(Long.parseLong(value.getKey()), Double.parseDouble(v), 1);
+          final double parsed = Double.parseDouble(v);
+          shard.add(Long.parseLong(value.getKey()), parsed, 1);
+          if (!Double.isFinite(parsed)) {
+            ++nans;
+          }
         }
-        
+        ++values;
         // TODO ^^ just storing a 1 for now since we don't know from TSDB v2's
         // API which values are real or not.
       }
@@ -231,6 +239,10 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
           + node);
     }
     
+    if (tracer_span != null) {
+      tracer_span.setTag("nonFiniteValues", nans);
+      tracer_span.setTag("totalValues", values);
+    }
     final DataShards shards = new DefaultDataShards(id.build());
     shards.addShard(shard);
     return shards;
@@ -370,7 +382,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
             final JsonNode root = JSON.getMapper().readTree(json);
             final DataShardsGroup group = new DefaultDataShardsGroup(query.groupId());
             for (final JsonNode node : root) {
-              group.addShards(parseTSQuery(query, node));
+              group.addShards(parseTSQuery(query, node, tracer_span));
             }
             if (LOG.isDebugEnabled()) {
               LOG.debug("Calling back upstream.");

@@ -311,8 +311,12 @@ public class TSDB {
    */
   public TSDB(final Config config) {
     this.config = config;
-    registry = new Registry();
+    registry = new Registry(this);
     timer = Threads.newTimer("MainTSDBTimer");
+  }
+  
+  public Deferred<Object> initializeRegistry() {
+    return registry.initialize();
   }
   
 //  /** @return The data point column family name */

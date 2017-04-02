@@ -25,6 +25,7 @@ import net.opentsdb.data.DataMerger;
 import net.opentsdb.data.DataShardMerger;
 import net.opentsdb.data.DataShardsGroup;
 import net.opentsdb.data.types.numeric.NumericMergeLargest;
+import net.opentsdb.stats.TsdbTracer;
 
 /**
  * TODO - stub
@@ -33,14 +34,34 @@ import net.opentsdb.data.types.numeric.NumericMergeLargest;
  */
 public class Registry {
   
+  private final TSDB tsdb;
+  
   private final Map<TypeToken<?>, DataMerger<?>> data_mergers;
+  
+  private TsdbTracer tracer_plugin;
   
   private ExecutorService cleanup_pool;
   
-  public Registry() {
+  /**
+   * Default Ctor.
+   * @param tsdb A non-null TSDB to load and pass to plugins.
+   */
+  public Registry(final TSDB tsdb) {
+    this.tsdb = tsdb;
     data_mergers = Maps.<TypeToken<?>, DataMerger<?>>newHashMap();
     initDataMergers();
     cleanup_pool = Executors.newFixedThreadPool(1);
+  }
+  
+  /**
+   * Initializes plugins and registry types.
+   * @return A non-null deferred to wait on for initialization to complete.
+   */
+  public Deferred<Object> initialize() {
+    if (tracer_plugin != null) {
+      return tracer_plugin.initialize(tsdb);
+    }
+    return Deferred.fromResult(null);
   }
   
   /** @return An unmodifiable map of the data mergers. */
@@ -50,6 +71,14 @@ public class Registry {
   
   public ExecutorService cleanupPool() {
     return cleanup_pool;
+  }
+  
+  public void registerTracer(final TsdbTracer tracer) {
+    this.tracer_plugin = tracer;
+  }
+  
+  public TsdbTracer tracer() {
+    return tracer_plugin;
   }
   
   /** @return Package private shutdown returning the deferred to wait on. */

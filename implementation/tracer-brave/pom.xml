@@ -9,12 +9,12 @@
       <relativePath>../../pom.xml</relativePath>
     </parent>
     
-    <artifactId>opentsdb-servlet</artifactId>
-    <name>opentsdb-servlet</name>
+    <artifactId>opentsdb-tracer-brave</artifactId>
+    <name>opentsdb-tracer-brave</name>
     
-    <description>An OpenTSDB implementation as a servlet for hosting via Jetty, Tomcat, etc.</description>
+    <description>An implementation of a Tracer using Brave</description>
     
-    <packaging>war</packaging>
+    <packaging>jar</packaging>
     
     <properties>
 
@@ -32,34 +32,16 @@
           <artifactId>opentsdb-core</artifactId>
           <version>${project.version}</version>
         </dependency>
-        <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-executors-http</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-tracer-brave</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      
-        <dependency>
-          <groupId>javax.servlet</groupId>
-          <artifactId>javax.servlet-api</artifactId>
-          <version>3.1.0</version>
-        </dependency>
-        <dependency>
-          <groupId>javax.validation</groupId>
-          <artifactId>validation-api</artifactId>
-          <version>1.1.0.Final</version>
-        </dependency>
         
         <dependency>
-          <groupId>org.glassfish.jersey</groupId>
-          <artifactId>jersey-bom</artifactId>
-          <version>2.13</version>
-          <type>pom</type>
-          <scope>import</scope>
+          <groupId>io.opentracing.brave</groupId>
+          <artifactId>brave-opentracing</artifactId>
+          <version>0.18.3</version>
+        </dependency>
+        <dependency>
+          <groupId>io.zipkin.reporter</groupId>
+          <artifactId>zipkin-sender-okhttp3</artifactId>
+          <version>0.6.12</version>
         </dependency>
                 
       </dependencies>
@@ -74,25 +56,16 @@
         <groupId>net.opentsdb</groupId>
         <artifactId>opentsdb-core</artifactId>
       </dependency>
-      <dependency>
-        <groupId>net.opentsdb</groupId>
-        <artifactId>opentsdb-executors-http</artifactId>
-      </dependency>
-      <dependency>
-        <groupId>net.opentsdb</groupId>
-        <artifactId>opentsdb-tracer-brave</artifactId>
-      </dependency>
       
       <dependency>
-        <groupId>javax.servlet</groupId>
-        <artifactId>javax.servlet-api</artifactId>
+        <groupId>io.opentracing.brave</groupId>
+        <artifactId>brave-opentracing</artifactId>
       </dependency>
-
       <dependency>
-        <groupId>org.glassfish.jersey.containers</groupId>
-        <artifactId>jersey-container-servlet</artifactId>
+        <groupId>io.zipkin.reporter</groupId>
+        <artifactId>zipkin-sender-okhttp3</artifactId>
       </dependency>
-    
+      
       <!-- TESTING Deps. -->
       <dependency>
         <groupId>junit</groupId>
