@@ -36,6 +36,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.Query;
@@ -156,6 +157,31 @@ final class QueryRpc implements HttpRpc {
     } catch (Exception e) {
       throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
           e.getMessage(), data_query.toString(), e);
+    }
+    
+    if (tsdb.getAuth() != null && tsdb.getAuth().authorization() != null) {
+      if (query.channel().getAttachment() == null || 
+          !(query.channel().getAttachment() instanceof AuthState)) {
+        throw new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+            "Authentication was enabled but the authentication state for "
+            + "this channel was not set properly");
+      }
+      final AuthState state = tsdb.getAuth().authorization().allowQuery(
+          (AuthState) query.channel().getAttachment(), data_query);
+      switch (state.getStatus()) {
+      case SUCCESS:
+        // cary on :)
+        break;
+      case UNAUTHORIZED:
+        throw new BadRequestException(HttpResponseStatus.UNAUTHORIZED, 
+            state.getMessage());
+      case FORBIDDEN:
+        throw new BadRequestException(HttpResponseStatus.FORBIDDEN, 
+            state.getMessage());
+      default:
+        throw new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+            state.getMessage());
+      }
     }
     
     // if the user tried this query multiple times from the same IP and src port
@@ -320,6 +346,30 @@ final class QueryRpc implements HttpRpc {
     final net.opentsdb.query.pojo.Query v2_query = 
         JSON.parseToObject(query.getContent(), net.opentsdb.query.pojo.Query.class);
     v2_query.validate();
+    if (tsdb.getAuth() != null && tsdb.getAuth().authorization() != null) {
+      if (query.channel().getAttachment() == null || 
+          !(query.channel().getAttachment() instanceof AuthState)) {
+        throw new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+            "Authentication was enabled but the authentication state for "
+            + "this channel was not set properly");
+      }
+      final AuthState state = tsdb.getAuth().authorization().allowQuery(
+          (AuthState) query.channel().getAttachment(), v2_query);
+      switch (state.getStatus()) {
+      case SUCCESS:
+        // cary on :)
+        break;
+      case UNAUTHORIZED:
+        throw new BadRequestException(HttpResponseStatus.UNAUTHORIZED, 
+            state.getMessage());
+      case FORBIDDEN:
+        throw new BadRequestException(HttpResponseStatus.FORBIDDEN, 
+            state.getMessage());
+      default:
+        throw new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+            state.getMessage());
+      }
+    }
     final QueryExecutor executor = new QueryExecutor(tsdb, v2_query);
     executor.execute(query);
   }

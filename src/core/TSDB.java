@@ -43,7 +43,7 @@ import org.jboss.netty.util.HashedWheelTimer;
 import org.jboss.netty.util.Timeout;
 import org.jboss.netty.util.Timer;
 
-import net.opentsdb.auth.AuthenticationPlugin;
+import net.opentsdb.auth.Authentication;
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.tsd.StorageExceptionHandler;
@@ -126,7 +126,7 @@ public final class TSDB {
   private final CompactionQueue compactionq;
 
   /** Authentication Plugin to use if configured */
-  private AuthenticationPlugin authentication = null;
+  private Authentication authentication = null;
 
   /** Search indexer to use if configured */
   private SearchPlugin search = null;
@@ -363,9 +363,11 @@ public final class TSDB {
 
     // load the authentication plugin if enabled
     if (config.getBoolean("tsd.core.authentication.enable")) {
-      authentication = PluginLoader.loadSpecificPlugin(config.getString("tsd.core.authentication.plugin"), AuthenticationPlugin.class);
+      authentication = PluginLoader.loadSpecificPlugin(
+          config.getString("tsd.core.authentication.plugin"), Authentication.class);
       if (authentication == null) {
-        throw new IllegalArgumentException("Unable to locate authentication plugin: "+ config.getString("tsd.core.authentication.plugin"));
+        throw new IllegalArgumentException("Unable to locate authentication "
+            + "plugin: " + config.getString("tsd.core.authentication.plugin"));
       }
       try {
         authentication.initialize(this);
@@ -505,7 +507,7 @@ public final class TSDB {
    * @return The Authentication Plugin
    * @since 2.4
    */
-  public final AuthenticationPlugin getAuth() {
+  public final Authentication getAuth() {
     return this.authentication;
   }
 
@@ -807,6 +809,14 @@ public final class TSDB {
       } finally {
         collector.clearExtraTag("plugin");
       }                        
+    }
+    if (authentication != null) {
+      try {
+        collector.addExtraTag("plugin", "authentication");
+        authentication.collectStats(collector);
+      } finally {
+        collector.clearExtraTag("plugin");
+      }
     }
     if (search != null) {
       try {

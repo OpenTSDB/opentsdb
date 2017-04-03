@@ -18,6 +18,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -25,6 +26,10 @@ import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.util.List;
 
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.auth.Authentication;
+import net.opentsdb.auth.Authorization;
+import net.opentsdb.auth.AuthState.AuthStatus;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
@@ -674,5 +679,37 @@ public final class TestQueryRpc {
     assertTrue(json.contains("factor"));
   }
   
+  @Test
+  public void v1Auth() throws Exception {
+    final DataPoints[] datapoints = new DataPoints[1];
+    datapoints[0] = new MockDataPoints().getMock();
+    when(query_result.runAsync()).thenReturn(
+        Deferred.fromResult(datapoints));
+    
+    final Authorization authorization = mock(Authorization.class);
+    final Authentication authentication = mock(Authentication.class);
+    final AuthState state = mock(AuthState.class);
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/query?start=1h-ago&m=sum:sys.cpu.user");
+    when(tsdb.getAuth()).thenReturn(authentication);
+    when(query.channel().getAttachment()).thenReturn(state);
+    when(state.getStatus()).thenReturn(AuthStatus.SUCCESS);
+    when(authentication.authorization()).thenReturn(authorization);
+    when(authorization.allowQuery(eq(state), any(TSQuery.class))).thenReturn(state);
+    TestHttpQuery.mockChannelFuture(query);
+    rpc.execute(tsdb, query);
+    String json = 
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
+    
+    when(state.getStatus()).thenReturn(AuthStatus.UNAUTHORIZED);
+    
+    try {
+      rpc.execute(tsdb, query);
+      fail("Expected BadRequestException");
+    } catch (BadRequestException e) {
+      assertEquals(e.getStatus(), HttpResponseStatus.UNAUTHORIZED);
+    }
+  }
   //TODO(cl) add unit tests for the rate options parsing
 }
