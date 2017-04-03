@@ -1051,7 +1051,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
               public void run() {
                 // Verify that we still want auto reload and that the graph
                 // hasn't been updated in the mean time.
-                if (autoreload.getValue() && lastgraphuri == uri) {
+                if (autoreload.getValue() && lastgraphuri != null && lastgraphuri.equals(uri)) {
                   // Force refreshGraph to believe that we want a new graph.
                   lastgraphuri = "";
                   refreshGraph();
