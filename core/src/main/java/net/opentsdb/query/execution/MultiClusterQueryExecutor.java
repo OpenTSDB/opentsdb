@@ -13,9 +13,7 @@
 package net.opentsdb.query.execution;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -25,7 +23,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -66,39 +63,12 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
   private static final Logger LOG = LoggerFactory.getLogger(
       MultiClusterQueryExecutor.class);
 
-  /** The list of outstanding executors. */ 
-  private final Set<QueryToClusterSplitter> outstanding_executors;
-  
   /** The data merger used to merge results. */
   private final DataMerger<T> data_merger;
   
   /** Optional timeout in ms for alternate clusters. */
   private final long timeout;
-  
-  /**
-   * Default Ctor.
-   * The ctor will populate a {@link DataMerger} from the context using the
-   * provided type. If a proper merger wasn't found, the ctor throws an
-   * exception.
-   * 
-   * TODO - For this type of class that extends a parameterized abstract, the
-   * TypeToken doesn't fetch the proper type via:
-   * {@code TypeToken<T> type = new TypeToken<T>(getClass()) {};} as it should.
-   * Instead it just returns "T". There must be a way to walk the type tree and
-   * find the proper type but for now we'll have to pass in the type in the ctor
-   * so we can lookup the proper merger.
-   * 
-   * @param context A non-null context. 
-   * @param type A non-null type, same as T that this executor works on.
-   * @throws IllegalArgumentException if the cluster or type were null.
-   * @throws IllegalStateException if the data merger was null or of the wrong
-   * type.
-   */
-  public MultiClusterQueryExecutor(final QueryContext context, 
-      final Class<T> type) {
-    this(context, type, 0);
-  }
-  
+
   /**
    * Alternate CTor that sets a timeout that, when the first positive response
    * is received from a cluster, initiates a timer task that will merge and 
@@ -106,35 +76,35 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
    * clusters.
    * 
    * @param context A non-null context. 
-   * @param type A non-null type, same as T that this executor works on.
-   * @param timeout A timeout in milliseconds for alternate colos. 0 == no 
-   * timeout and it must be positive.
+   * @param config A query executor config.
    * @throws IllegalArgumentException if the cluster or type were null.
    * @throws IllegalStateException if the data merger was null or of the wrong
    * type.
    */
   @SuppressWarnings("unchecked")
   public MultiClusterQueryExecutor(final QueryContext context, 
-      final Class<T> type, final long timeout) {
-    super(context);
-    if (type == null) {
+                                   final QueryExecutorConfig config) {
+    super(context, config);
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null.");
+    }
+    if (((Config<T>) config).type == null) {
       throw new IllegalArgumentException("Type cannot be null.");
     }
-    outstanding_executors = Collections.synchronizedSet(
-        Sets.<QueryToClusterSplitter>newHashSet());
     data_merger = (DataMerger<T>) context.getRemoteContext().dataMerger(
-        TypeToken.of(type));
+        TypeToken.of(((Config<T>) config).type));
     if (data_merger == null) {
-      throw new IllegalStateException("No merger could be found for type " + type);
+      throw new IllegalStateException("No merger could be found for type " 
+          + ((Config<T>) config).type);
     }
-    if (!TypeToken.of(type).equals(data_merger.type())) {
+    if (!TypeToken.of(((Config<T>) config).type).equals(data_merger.type())) {
       throw new IllegalStateException("Data merger of type " + data_merger.type() 
-        + " did not match the executor's type: " + type);
+        + " did not match the executor's type: " + ((Config<T>) config).type);
     }
-    if (timeout < 0) {
+    if (((Config<T>) config).timeout < 0) {
       throw new IllegalArgumentException("Timeout cannot be negative.");
     }
-    this.timeout = timeout;
+    this.timeout = ((Config<T>) config).timeout;
   }
 
   @SuppressWarnings({ "unchecked", "rawtypes" })
@@ -148,36 +118,13 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
     }
     try {
       final QueryToClusterSplitter executor = new QueryToClusterSplitter(query);
-      outstanding_executors.add(executor);
+      outstanding_executions.add(executor);
       return executor.executeQuery(query, upstream_span);
     } catch (Exception e) {
       return new FailedQueryExecution(query, new RemoteQueryExecutionException(
           "Unexpected exception executing query: " + this, 
           query.getOrder(), 500, e));
     }
-  }
-
-  @Override
-  public Deferred<Object> close() {
-    if (completed.compareAndSet(false, true)) {
-      if (outstanding_executors.isEmpty()) {
-        return Deferred.fromResult(null);
-      }
-      
-      for (final QueryToClusterSplitter executor : outstanding_executors) {
-        try {
-          executor.cancel();
-        } catch (Exception e) {
-          LOG.warn("Exception caught when cancelling outstanding "
-              + "executor: " + executor, e);
-        }
-      }
-    } else {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Executor was already cancelled.");
-      }
-    }
-    return Deferred.fromResult(null);
   }
 
   /** State class for a specific query that waits for both clusters to complete
@@ -360,7 +307,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
                   "Unexpected exception", query.getOrder(), 500, e));
               return null;
             } finally {
-              outstanding_executors.remove(QueryToClusterSplitter.this);
+              outstanding_executions.remove(QueryToClusterSplitter.this);
             }
           }
         }
@@ -380,7 +327,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
         } catch (Exception ex) {
           LOG.error("Callback threw an exception", e);
         }
-        outstanding_executors.remove(QueryToClusterSplitter.this);
+        outstanding_executions.remove(QueryToClusterSplitter.this);
         for (final QueryExecution<T> exec : executions) {
           if (exec == null) {
             continue;
@@ -424,7 +371,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
           }
         }
       }
-      outstanding_executors.remove(this);
+      outstanding_executions.remove(this);
     }
 
     @Override
@@ -448,9 +395,51 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
   DataMerger<T> dataMerger() {
     return data_merger;
   }
-  
-  @VisibleForTesting
-  Set<QueryToClusterSplitter> outstandingExecutors() {
-    return outstanding_executors;
+
+  /**
+   * The config for this executor.
+   * @param <T> The type of data returned by the executor.
+   */
+  public static class Config<T> implements QueryExecutorConfig {
+    private Class<T> type;
+    private long timeout;
+    
+    private Config(final Builder<T> builder) {
+      type = builder.type;
+      timeout = builder.timeout;
+    }
+    
+    public static <T> Builder<T> newBuilder() {
+      return new Builder<T>();
+    }
+    
+    public static class Builder<T> {
+      private Class<T> type;
+      private long timeout;
+      
+      /**
+       * The class of the return type handled by the executor.
+       * @param type A non-null class.
+       * @return The builder.
+       */
+      public Builder<T> setType(final Class<T> type) {
+        this.type = type;
+        return this;
+      }
+      
+      /**
+       * An optional timeout in milliseconds for the alternate clusters.
+       * @param timeout A timeout in milliseconds or 0 to disable.
+       * @return The builder.
+       */
+      public Builder<T> setTimeout(final long timeout) {
+        this.timeout = timeout;
+        return this;
+      }
+      
+      public Config<T> build() {
+        return new Config<T>(this);
+      }
+    }
   }
 }

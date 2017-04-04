@@ -40,6 +40,7 @@ import io.netty.util.TimerTask;
 import io.opentracing.Span;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.execution.TimedQueryExecutor.Config;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 public class TestTimedQueryExecutor {
@@ -50,6 +51,7 @@ public class TestTimedQueryExecutor {
   private MockDownstream downstream;
   private Timeout timeout;
   private Span span;
+  private Config<Long> config;
   
   @SuppressWarnings("unchecked")
   @Before
@@ -61,6 +63,10 @@ public class TestTimedQueryExecutor {
     downstream = new MockDownstream(query);
     timeout = mock(Timeout.class);
     span = mock(Span.class);
+    config = TimedQueryExecutor.Config.<Long>newBuilder()
+      .setExecutor(executor)
+      .setTimeout(1000)
+      .build();
     
     when(context.getTimer()).thenReturn(timer);
     when(executor.executeQuery(eq(query), any(Span.class))).thenReturn(downstream);
@@ -72,21 +78,36 @@ public class TestTimedQueryExecutor {
   @Test
   public void ctor() throws Exception {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, executor, 1000);
+        context, TimedQueryExecutor.Config.<Long>newBuilder()
+        .setExecutor(executor)
+        .setTimeout(1000)
+        .build());
     assertTrue(tqe.outstandingRequests().isEmpty());
     
     try {
-      new TimedQueryExecutor<Long>(null, executor, 1000);
+      new TimedQueryExecutor<Long>(null, 
+          TimedQueryExecutor.Config.<Long>newBuilder()
+          .setExecutor(executor)
+          .setTimeout(1000)
+          .build());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new TimedQueryExecutor<Long>(context, null, 1000);
+      new TimedQueryExecutor<Long>(context, 
+          TimedQueryExecutor.Config.<Long>newBuilder()
+          //.setExecutor(executor)
+          .setTimeout(1000)
+          .build());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new TimedQueryExecutor<Long>(context, executor, 0);
+      new TimedQueryExecutor<Long>(context, 
+          TimedQueryExecutor.Config.<Long>newBuilder()
+          .setExecutor(executor)
+          //.setTimeout(1000)
+          .build());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -94,7 +115,7 @@ public class TestTimedQueryExecutor {
   @Test
   public void execute() throws Exception {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, executor, 1000);
+        context, config);
     
     final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
@@ -121,7 +142,7 @@ public class TestTimedQueryExecutor {
   @Test
   public void executeAlreadyCompleted() throws Exception {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, executor, 1000);
+        context, config);
     tqe.completed.set(true);
     
     final QueryExecution<Long> exec = tqe.executeQuery(query, span);
@@ -140,7 +161,7 @@ public class TestTimedQueryExecutor {
   @Test
   public void executeThrownException() throws Exception {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, executor, 1000);
+        context, config);
     when(executor.executeQuery(eq(query), any(Span.class)))
       .thenThrow(new IllegalStateException("Boo!"));
     
@@ -159,7 +180,7 @@ public class TestTimedQueryExecutor {
   @Test
   public void executeNullTimer() throws Exception {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, executor, 1000);
+        context, config);
     when(context.getTimer()).thenReturn(null);
     
     final QueryExecution<Long> exec = tqe.executeQuery(query, span);
@@ -177,7 +198,7 @@ public class TestTimedQueryExecutor {
   @Test
   public void executeDownstreamException() throws Exception {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, executor, 1000);
+        context, config);
     
     final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
@@ -209,7 +230,7 @@ public class TestTimedQueryExecutor {
   @Test
   public void executeTimeout() throws Exception {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, executor, 1000);
+        context, config);
     
     final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
@@ -243,7 +264,7 @@ public class TestTimedQueryExecutor {
   @Test
   public void executeTimeoutAfterSuccess() throws Exception {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, executor, 1000);
+        context, config);
     
     final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
@@ -272,7 +293,7 @@ public class TestTimedQueryExecutor {
   @Test
   public void executeCancel() throws Exception {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, executor, 1000);
+        context, config);
     
     final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
@@ -302,7 +323,7 @@ public class TestTimedQueryExecutor {
   @Test
   public void close() throws Exception {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, executor, 1000);
+        context, config);
     
     final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {

@@ -22,7 +22,6 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -69,6 +68,7 @@ import net.opentsdb.query.context.DefaultQueryContext;
 import net.opentsdb.query.context.HttpContext;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.context.RemoteContext;
+import net.opentsdb.query.execution.HttpQueryV2Executor.Config;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Expression;
@@ -98,6 +98,7 @@ public class TestHttpQueryV2Executor {
   private TimeSeriesQuery query;
   private CloseableHttpAsyncClient client;
   private Span span;
+  private Config<DataShardsGroup> config;
   
   @Before
   public void before() throws Exception {
@@ -111,6 +112,9 @@ public class TestHttpQueryV2Executor {
     headers = Maps.newHashMap();
     headers.put("X-MyHeader", "Winter Is Coming!");
     span = mock(Span.class);
+    config = Config.<DataShardsGroup>newBuilder()
+        .setEndpoint(endpoint)
+        .build();
     
     when(tsdb.getRegistry()).thenReturn(registry);
     when(registry.cleanupPool()).thenReturn(cleanup_pool);
@@ -176,10 +180,10 @@ public class TestHttpQueryV2Executor {
 
   @Test
   public void ctor() throws Exception {
-    new HttpQueryV2Executor(context, endpoint);
+    new HttpQueryV2Executor(context, config);
     
     try {
-      new HttpQueryV2Executor(null, endpoint);
+      new HttpQueryV2Executor(null, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -189,19 +193,27 @@ public class TestHttpQueryV2Executor {
     } catch (IllegalArgumentException e) { }
     
     try {
-      new HttpQueryV2Executor(context, "");
+      new HttpQueryV2Executor(context, Config.<DataShardsGroup>newBuilder()
+          .setEndpoint("")
+          .build());
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      new HttpQueryV2Executor(context, Config.<DataShardsGroup>newBuilder()
+          .build());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     when(context.getRemoteContext()).thenReturn(null);
     try {
-      new HttpQueryV2Executor(context, endpoint);
+      new HttpQueryV2Executor(context, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     when(context.getRemoteContext()).thenReturn(mock(RemoteContext.class));
     try {
-      new HttpQueryV2Executor(context, endpoint);
+      new HttpQueryV2Executor(context, config);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
   }
@@ -210,7 +222,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void close() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint);
+        new HttpQueryV2Executor(context, config);
     assertNull(executor.close().join());
     
     QueryExecution<DataShardsGroup> e1 = mock(QueryExecution.class);
@@ -227,7 +239,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void executeQuery() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint);
+        new HttpQueryV2Executor(context, config);
     setupQuery();
     
     QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
@@ -300,40 +312,18 @@ public class TestHttpQueryV2Executor {
     assertTrue(executor.outstandingRequests().isEmpty());
     verify(client, times(1)).close();
   }
-  
-  @Test
-  public void executeQueryGroupIdMissing() throws Exception {
-    final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint);
-    setupQuery();
     
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("1490122900000")
-            .setEnd("1490123050000")
-            .setAggregator("sum"))
-        .addMetric(Metric.newBuilder().setId("m1").setMetric("sys.cpu.user"))
-        .build();
-    query.validate();
-    try {
-      executor.executeQuery(query, span);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    verify(http_context, never()).getClient();
-    verify(client, never()).close();
-  }
-  
   @Test (expected = IllegalArgumentException.class)
   public void executeQueryNullQuery() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint);
+        new HttpQueryV2Executor(context, config);
     executor.executeQuery(null, span);
   }
   
   @Test
   public void executeQueryFailToConvert() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint);
+        new HttpQueryV2Executor(context, config);
     setupQuery();
     
     query = TimeSeriesQuery.newBuilder()
@@ -359,7 +349,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void executeQueryFutureCancelled() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint);
+        new HttpQueryV2Executor(context, config);
     setupQuery();
     
     QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
@@ -383,7 +373,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void executeQueryUpstreamCancelled() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint);
+        new HttpQueryV2Executor(context, config);
     setupQuery();
     
     QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
@@ -408,7 +398,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void executeQueryException() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint);
+        new HttpQueryV2Executor(context, config);
     setupQuery();
     
     QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
@@ -432,7 +422,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void executeQueryParsingException() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint);
+        new HttpQueryV2Executor(context, config);
     setupQuery();
     
     response_content = "[{"
@@ -468,7 +458,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void executeQueryRemoteError() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint);
+        new HttpQueryV2Executor(context, config);
     setupQuery();
     when(status.getStatusCode()).thenReturn(404);
     
@@ -493,7 +483,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void executeQueryCancelled() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint);
+        new HttpQueryV2Executor(context, config);
     setupQuery();
     
     QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
@@ -812,7 +802,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void parseResponse() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint);
+        new HttpQueryV2Executor(context, config);
     
     entity = new StringEntity("Hello!");
     when(response.getEntity()).thenReturn(entity);
@@ -845,7 +835,7 @@ public class TestHttpQueryV2Executor {
   @Test
   public void parseTSQuery() throws Exception {
     final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, endpoint);
+        new HttpQueryV2Executor(context, config);
     final TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1490122900000")

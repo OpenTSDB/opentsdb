@@ -43,6 +43,9 @@ public abstract class QueryExecutor<T> {
   /** The query context. */
   protected final QueryContext context;
   
+  /** An optional config for the exectuor. */
+  protected final QueryExecutorConfig config;
+  
   /** Set to true when the upstream caller has marked this stream as completed 
    * (or cancelled) */
   protected final AtomicBoolean completed;
@@ -53,14 +56,17 @@ public abstract class QueryExecutor<T> {
   /**
    * Default ctor.
    * @param context A non-null stream context for all components of this stream.
+   * @param config An optional config for the executor.
    * @throws IllegalArgumentException if the context was null.
    */
-  public QueryExecutor(final QueryContext context) {
+  public QueryExecutor(final QueryContext context,
+                       final QueryExecutorConfig config) {
     if (context == null) {
       throw new IllegalArgumentException("Context cannot be null for "
           + "QueryExecutors.");
     }
     this.context = context;
+    this.config = config;
     completed = new AtomicBoolean();
     outstanding_executions = Sets.<QueryExecution<T>>newConcurrentHashSet();
   }

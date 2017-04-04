@@ -24,9 +24,11 @@ import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.DataMerger;
+import net.opentsdb.data.DataShardsGroup;
 import net.opentsdb.query.execution.ClusterConfig;
 import net.opentsdb.query.execution.HttpEndpoints;
 import net.opentsdb.query.execution.HttpQueryV2Executor;
+import net.opentsdb.query.execution.HttpQueryV2Executor.Config;
 import net.opentsdb.query.execution.QueryExecutor;
 
 /**
@@ -135,7 +137,10 @@ public class HttpContext implements RemoteContext {
     @Override
     public QueryExecutor<?> remoteExecutor() {
       // TODO - clean up to allow for other executors.
-      return new HttpQueryV2Executor(context, clusters.get(index));
+      final Config<DataShardsGroup> config = Config.<DataShardsGroup>newBuilder()
+          .setEndpoint(clusters.get(index))
+          .build();
+      return new HttpQueryV2Executor(context, config);
     }
     
   }

@@ -56,6 +56,7 @@ import net.opentsdb.query.context.HttpContextFactory;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.context.RemoteContext;
 import net.opentsdb.query.execution.MultiClusterQueryExecutor;
+import net.opentsdb.query.execution.MultiClusterQueryExecutor.Config;
 import net.opentsdb.query.execution.QueryExecution;
 import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
@@ -210,7 +211,9 @@ public class V2QueryResource {
         
         final QueryExecutor<DataShardsGroup> executor = 
             new MultiClusterQueryExecutor<DataShardsGroup>(context, 
-                DataShardsGroup.class);
+                Config.<DataShardsGroup>newBuilder()
+                .setType(DataShardsGroup.class)
+                .build());
 
         final QueryExecution<DataShardsGroup> execution = 
             executor.executeQuery(query, span);

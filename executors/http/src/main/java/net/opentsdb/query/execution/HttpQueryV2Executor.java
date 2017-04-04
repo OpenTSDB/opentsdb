@@ -45,6 +45,7 @@ import net.opentsdb.data.DataShards;
 import net.opentsdb.data.DataShardsGroup;
 import net.opentsdb.data.DefaultDataShards;
 import net.opentsdb.data.DefaultDataShardsGroup;
+import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.SimpleStringTimeSeriesId;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -82,16 +83,19 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
   /**
    * Default Ctor
    * @param context A non-null query context.
-   * @param endpoint A non-null endpoint such as "http://localhost:4242". The
-   * ctor will append "/api/query".
-   * @throws IllegalArgumentException if the endpoint was null/empty, the 
-   * remote context was null or the group ID was null.
+   * @param config A config for the executor;
+   * @throws IllegalArgumentException if the query context or config were null.
    * @throws IllegalStateException if the remote context was not an instance
    * of HttpContext.
    */
-  public HttpQueryV2Executor(final QueryContext context, final String endpoint) {
-    super(context);
-    if (Strings.isNullOrEmpty(endpoint)) {
+  @SuppressWarnings("unchecked")
+  public HttpQueryV2Executor(final QueryContext context, 
+      final QueryExecutorConfig config) {
+    super(context, config);
+    if (config == null) {
+      throw new IllegalArgumentException("Config connot be null.");
+    }
+    if (Strings.isNullOrEmpty(((Config<DataShardsGroup>) config).endpoint)) {
       throw new IllegalArgumentException("Endpoint cannot be null or empty.");
     }
     if (context.getRemoteContext() == null) {
@@ -100,7 +104,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
     if (!(context.getRemoteContext() instanceof HttpContext)) {
       throw new IllegalStateException("Remote context was not an HttpContext.");
     }
-    this.endpoint = endpoint + "/api/query";
+    this.endpoint = ((Config<DataShardsGroup>) config).endpoint + "/api/query";
     http_context = (HttpContext) context.getRemoteContext();
   }
   
@@ -109,9 +113,6 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
                                                       final Span upstream_span) {
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
-    }
-    if (query.groupId() == null) {
-      throw new IllegalArgumentException("GroupID was not set in the Query.");
     }
     
     final Execution exec = new Execution(query, upstream_span);
@@ -380,7 +381,8 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
           try {
             final String json = parseResponse(response, query.getOrder());
             final JsonNode root = JSON.getMapper().readTree(json);
-            final DataShardsGroup group = new DefaultDataShardsGroup(query.groupId());
+            final DataShardsGroup group = new DefaultDataShardsGroup(
+                new SimpleStringGroupId(query.getMetrics().get(0).getId()));
             for (final JsonNode node : root) {
               group.addShards(parseTSQuery(query, node, tracer_span));
             }
@@ -592,5 +594,39 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
     ts_query.setQueries(subs);
     ts_query.validateAndSetQuery();
     return ts_query;
+  }
+
+  /**
+   * The config for this executor.
+   * @param <T> The type of data returned by the executor.
+   */
+  public static class Config<T> implements QueryExecutorConfig {
+    private String endpoint;
+    
+    private Config(final Builder<T> builder) {
+      endpoint = builder.endpoint;
+    }
+    
+    public static <T> Builder<T> newBuilder() {
+      return new Builder<T>();
+    }
+    
+    public static class Builder<T> {
+      private String endpoint;
+      
+      /**
+       * Sets the endpoint for the executor.
+       * @param endpoint A non-null HTTP endpoint.
+       * @return The builder.
+       */
+      public Builder<T> setEndpoint(final String endpoint) {
+        this.endpoint = endpoint;
+        return this;
+      }
+      
+      public Config<T> build() {
+        return new Config<T>(this);
+      }
+    }
   }
 }
