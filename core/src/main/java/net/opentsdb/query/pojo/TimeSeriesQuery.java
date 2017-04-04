@@ -69,6 +69,9 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
    * to be added to comparator, equals, builder, etc. */
   private TimeSeriesGroupId group_id;
   
+  /** TODO - temp: A list for creating a query graph. */
+  private List<TimeSeriesQuery> sub_queries;
+  
   /**
    * Default ctor
    * @param builder The builder to pull values from
@@ -353,6 +356,18 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
   
   public void groupId(final TimeSeriesGroupId id) {
     group_id = id;
+  }
+  
+  public void addSubQuery(final TimeSeriesQuery query) {
+    if (sub_queries == null) {
+      sub_queries = Lists.newArrayListWithExpectedSize(1);
+    }
+    sub_queries.add(query);
+  }
+  
+  public List<TimeSeriesQuery> subQueries() {
+    return sub_queries == null ? Collections.<TimeSeriesQuery>emptyList() :
+      Collections.unmodifiableList(sub_queries);
   }
   
   /**

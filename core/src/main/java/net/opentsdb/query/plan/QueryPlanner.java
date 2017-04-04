@@ -39,8 +39,8 @@ public abstract class QueryPlanner {
   /** The original query. */
   protected final TimeSeriesQuery query;
   
-  /** The planned query as a builder (allows for copying and modification). */
-  protected TimeSeriesQuery.Builder planned_query;
+  /** The planned query. */
+  protected TimeSeriesQuery planned_query;
   
   /** The time range for the query. Will simply hold the start and end times */
   protected TimeStamp[][] query_time_ranges;
@@ -64,7 +64,7 @@ public abstract class QueryPlanner {
   }
   
   /** @return The planned query. */
-  public TimeSeriesQuery.Builder getPlannedQuery() {
+  public TimeSeriesQuery getPlannedQuery() {
     return planned_query;
   }
   

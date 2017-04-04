@@ -14,6 +14,7 @@ package net.opentsdb.servlet.resources;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Constructor;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -42,6 +43,7 @@ import io.netty.util.Timer;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.DataMerger;
 import net.opentsdb.data.DataShard;
 import net.opentsdb.data.DataShards;
 import net.opentsdb.data.DataShardsGroup;
@@ -55,10 +57,13 @@ import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.context.HttpContextFactory;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.context.RemoteContext;
+import net.opentsdb.query.execution.DefaultQueryExecutorFactory;
 import net.opentsdb.query.execution.MultiClusterQueryExecutor;
 import net.opentsdb.query.execution.MultiClusterQueryExecutor.Config;
 import net.opentsdb.query.execution.QueryExecution;
 import net.opentsdb.query.execution.QueryExecutor;
+import net.opentsdb.query.execution.QueryExecutorConfig;
+import net.opentsdb.query.execution.QueryExecutorFactory;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.stats.TsdbTrace;
@@ -209,11 +214,9 @@ public class V2QueryResource {
             headersCopy, trace);
         request.setAttribute("MYCONTEXT", context);
         
-        final QueryExecutor<DataShardsGroup> executor = 
-            new MultiClusterQueryExecutor<DataShardsGroup>(context, 
-                Config.<DataShardsGroup>newBuilder()
-                .setType(DataShardsGroup.class)
-                .build());
+        final QueryExecutor<DataShardsGroup> executor =
+            (QueryExecutor<DataShardsGroup>) 
+            context.getQueryExecutorContext().newSinkExecutor(context);
 
         final QueryExecution<DataShardsGroup> execution = 
             executor.executeQuery(query, span);
@@ -281,6 +284,27 @@ public class V2QueryResource {
       this.ctx = ctx;
       this.headers = headers;
       this.trace = trace;
+
+      try {
+        Constructor<?> ctor = 
+            MultiClusterQueryExecutor.class.getConstructor(
+                QueryContext.class, QueryExecutorConfig.class);
+        QueryExecutorFactory<DataShardsGroup> downstream = 
+            new DefaultQueryExecutorFactory<DataShardsGroup>((Constructor<QueryExecutor<?>>) ctor,
+                Config.<DataShardsGroup>newBuilder()
+                .setType(DataShardsGroup.class)
+                .build());
+        this.getQueryExecutorContext().registerFactory(downstream);
+        System.out.println("CLUSTER FACTORY: " + downstream);
+        //this.getQueryExecutorContext().registerFactory(downstream, null);
+        
+      } catch (NoSuchMethodException e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+      } catch (SecurityException e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+      } 
     }
     @Override
     public RemoteContext getRemoteContext() {

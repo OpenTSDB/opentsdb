@@ -38,6 +38,7 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.TimeStampComparator;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
+import net.opentsdb.query.context.QueryExecutorContext;
 import net.opentsdb.query.processor.TimeSeriesProcessor;
 import net.opentsdb.utils.Deferreds;
 
@@ -93,6 +94,8 @@ public abstract class QueryContext {
   /** The iterator graph. Should just be a parallel list of iterators. */
   protected final DirectedAcyclicGraph<TimeSeriesIterator<?>, DefaultEdge> iterator_graph;
   
+  protected final QueryExecutorContext executor_context;
+  
   /** The list of terminal iterators in the iterator graph. Initialization and
    * close methods can be called on these to handle all iterators on the chain.
    */
@@ -134,7 +137,7 @@ public abstract class QueryContext {
         DefaultEdge>(DefaultEdge.class);
     iterator_graph = new DirectedAcyclicGraph<TimeSeriesIterator<?>,
         DefaultEdge>(DefaultEdge.class);
-    
+    executor_context = new QueryExecutorContext("Test");
     context_graph.addVertex(this);
   }
   
@@ -154,7 +157,7 @@ public abstract class QueryContext {
         DefaultEdge>(DefaultEdge.class);
     iterator_graph = new DirectedAcyclicGraph<TimeSeriesIterator<?>,
         DefaultEdge>(DefaultEdge.class);
-    
+    executor_context = context.executor_context;
     parent = context;
     context_graph.addVertex(this);
     try {
@@ -653,6 +656,10 @@ public abstract class QueryContext {
   /** @return The TSDB this context is owned by. */
   public TSDB getTSDB() {
     return tsdb;
+  }
+  
+  public QueryExecutorContext getQueryExecutorContext() {
+    return executor_context;
   }
   
   /**
