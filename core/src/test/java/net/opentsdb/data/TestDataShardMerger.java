@@ -1826,7 +1826,7 @@ public class TestDataShardMerger {
   }
   
   @Test
-  public void mergeGroupEmpty() {
+  public void mergeEmpty() {
     final List<DataShardsGroups> shards = Lists.newArrayList();
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
@@ -1861,6 +1861,61 @@ public class TestDataShardMerger {
         results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("b".getBytes(Const.UTF8_CHARSET),
         results.data().get(0).data().get(1).id().alias());
+  }
+  
+  @Test
+  public void mergeOneGroupEmtpy() {
+    final DataShardsGroups set1 = createShards(
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.cpu")
+          .setAlias("a")
+          .build(),
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.mem")
+          .setAlias("b")
+          .build());
+    
+    final DataShardsGroups set2 = createShards(
+        0,
+        new SimpleStringGroupId("Greyjoy"),
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.cpu")
+          .setAlias("c")
+          .build(),
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.mem")
+          .setAlias("d")
+          .build());
+    
+    final DataShardsGroups set3 = new DefaultDataShardsGroups();
+
+    final List<DataShardsGroups> shards = Lists.newArrayList(set1, set2, set3);
+    final DataShardMerger merger = new TestImp();
+    merger.registerStrategy(new NumericMergeLargest());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().size());
+    assertEquals(group_id, results.data().get(0).id());
+    assertEquals(2, results.data().get(0).data().size());
+
+    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+        results.data().get(0).data().get(0).id().metrics().get(0));
+    assertArrayEquals("a".getBytes(Const.UTF8_CHARSET),
+        results.data().get(0).data().get(0).id().alias());
+    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+        results.data().get(0).data().get(1).id().metrics().get(0));
+    assertArrayEquals("b".getBytes(Const.UTF8_CHARSET),
+        results.data().get(0).data().get(1).id().alias());
+    
+    assertEquals("Greyjoy", results.data().get(1).id().id());
+    assertEquals(2, results.data().get(1).data().size());
+    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+        results.data().get(1).data().get(0).id().metrics().get(0));
+    assertArrayEquals("c".getBytes(Const.UTF8_CHARSET),
+        results.data().get(1).data().get(0).id().alias());
+    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+        results.data().get(1).data().get(1).id().metrics().get(0));
+    assertArrayEquals("d".getBytes(Const.UTF8_CHARSET),
+        results.data().get(1).data().get(1).id().alias());
   }
   
   /** Dummy implementation for testing. */

@@ -312,7 +312,9 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
             (expressions != null ? expressions.size() : 0) +
             (outputs != null ? outputs.size() : 0));
     hashes.add(local_hc);
-    hashes.add(time.buildHashCode());
+    if (time != null) {
+      hashes.add(time.buildHashCode());
+    }
     if (filters != null) {
       for (final Filter filter : filters) {
         hashes.add(filter.buildHashCode());

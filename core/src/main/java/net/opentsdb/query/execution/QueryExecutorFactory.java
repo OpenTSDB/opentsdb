@@ -65,6 +65,9 @@ public abstract class QueryExecutorFactory<T> {
     }
     this.ctor = ctor;
     this.config = config;
+    if (config != null) {
+      config.setFactory(this);
+    }
   }
   
   /**

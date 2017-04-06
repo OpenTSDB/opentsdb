@@ -58,12 +58,15 @@ import net.opentsdb.query.context.HttpContextFactory;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.context.RemoteContext;
 import net.opentsdb.query.execution.DefaultQueryExecutorFactory;
+import net.opentsdb.query.execution.MetricShardingExecutor;
 import net.opentsdb.query.execution.MultiClusterQueryExecutor;
 import net.opentsdb.query.execution.MultiClusterQueryExecutor.Config;
 import net.opentsdb.query.execution.QueryExecution;
 import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.QueryExecutorConfig;
 import net.opentsdb.query.execution.QueryExecutorFactory;
+import net.opentsdb.query.plan.QueryPlanner;
+import net.opentsdb.query.plan.SplitMetricPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.stats.TsdbTrace;
@@ -180,7 +183,9 @@ public class V2QueryResource {
         final Span span;
         if (tsdb.getRegistry().tracer() != null) {
           trace = tsdb.getRegistry().tracer().getTracer(true);
-          span = trace.tracer().buildSpan(this.getClass().getSimpleName()).start();
+          span = trace.tracer().buildSpan(this.getClass().getSimpleName())
+              .withTag("query", "Hello!")
+              .start();
           trace.setFirstSpan(span);
         } else {
           trace = null;
@@ -219,8 +224,10 @@ public class V2QueryResource {
             (QueryExecutor<DataShardsGroups>) 
             context.getQueryExecutorContext().newSinkExecutor(context);
 
+        final QueryPlanner planner = new SplitMetricPlanner(query);
+        
         final QueryExecution<DataShardsGroups> execution = 
-            executor.executeQuery(query, span);
+            executor.executeQuery(planner.getPlannedQuery(), span);
         
         class SuccessCB implements Callback<Object, DataShardsGroups> {
 
@@ -288,16 +295,26 @@ public class V2QueryResource {
 
       try {
         Constructor<?> ctor = 
+            MetricShardingExecutor.class.getConstructor(
+                QueryContext.class, QueryExecutorConfig.class);
+        QueryExecutorFactory<DataShardsGroups> sink = 
+            new DefaultQueryExecutorFactory<DataShardsGroups>(
+                (Constructor<QueryExecutor<?>>) ctor,
+                  MetricShardingExecutor.Config.<DataShardsGroups>newBuilder()
+                  .setParallelExecutors(20)
+                  .setType(DataShardsGroups.class)
+                  .build());
+        ctor = 
             MultiClusterQueryExecutor.class.getConstructor(
                 QueryContext.class, QueryExecutorConfig.class);
         QueryExecutorFactory<DataShardsGroups> downstream = 
-            new DefaultQueryExecutorFactory<DataShardsGroups>((Constructor<QueryExecutor<?>>) ctor,
-                Config.<DataShardsGroups>newBuilder()
-                .setType(DataShardsGroups.class)
-                .build());
-        this.getQueryExecutorContext().registerFactory(downstream);
-        System.out.println("CLUSTER FACTORY: " + downstream);
-        //this.getQueryExecutorContext().registerFactory(downstream, null);
+            new DefaultQueryExecutorFactory<DataShardsGroups>(
+                (Constructor<QueryExecutor<?>>) ctor,
+                  Config.<DataShardsGroups>newBuilder()
+                  .setType(DataShardsGroups.class)
+                  .build());
+        
+        getQueryExecutorContext().registerFactory(sink, downstream);
         
       } catch (NoSuchMethodException e) {
         // TODO Auto-generated catch block

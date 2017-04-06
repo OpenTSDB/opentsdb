@@ -17,6 +17,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.lang.reflect.Constructor;
 
@@ -48,12 +51,12 @@ public class TestQueryExecutorFactory {
     assertNull(((TestExec<Long>) executor).config);
     assertSame(context, ((TestExec<Long>) executor).context);
     
-    final TestConfig<Long> config = new TestConfig<Long>();
-    factory = 
-        new DefaultQueryExecutorFactory(ctor, config);
+    final TestConfig<Long> config = spy(new TestConfig<Long>());
+    factory = new DefaultQueryExecutorFactory(ctor, config);
     executor = factory.newExecutor(context);
     assertSame(config, ((TestExec<Long>) executor).config);
     assertSame(context, ((TestExec<Long>) executor).context);
+    verify(config, times(1)).setFactory(factory);
     
     try {
       new DefaultQueryExecutorFactory(null, config);

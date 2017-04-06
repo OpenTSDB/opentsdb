@@ -45,7 +45,6 @@ public abstract class QueryPlanner {
   /** The time range for the query. Will simply hold the start and end times */
   protected TimeStamp[][] query_time_ranges;
   
-  
   /**
    * Default ctor.
    * @param query A non-null query to use.
@@ -75,10 +74,8 @@ public abstract class QueryPlanner {
   
   /**
    * Called during initialization to generate the plan for the query.
-   * @return A non-null deferred to wait that resolves to a null for success or
-   * an exception on failure.
    */
-  protected abstract Deferred<Object> generatePlan();
+  protected abstract void generatePlan();
   
   /**
    * Attempts to split the given query on time so that blocks of time can be

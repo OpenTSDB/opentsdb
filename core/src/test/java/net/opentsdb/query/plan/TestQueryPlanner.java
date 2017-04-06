@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.pojo.Downsampler;
@@ -564,9 +563,8 @@ public class TestQueryPlanner {
     }
 
     @Override
-    protected Deferred<Object> generatePlan() {
+    protected void generatePlan() {
       generated_plan = true;
-      return Deferred.fromResult(null);
     }
     
   }

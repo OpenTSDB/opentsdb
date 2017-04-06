@@ -119,10 +119,13 @@ public class DataShardMerger implements DataMerger<DataShardsGroups> {
       
       final DataShardsGroup group = unpacked.get(i);
       completed[i] = true;
+      if (group.data() == null || group.data().isEmpty()) {
+        continue;
+      }
       final List<DataShardsGroup> same_group = 
           Lists.newArrayListWithExpectedSize(2);
       same_group.add(group);
-      for (int y = i + 1; y < groups.size(); y++) {
+      for (int y = i + 1; y < unpacked.size(); y++) {
         if (unpacked.get(y).id().equals(group.id())) {
           completed[y] = true;
           same_group.add(unpacked.get(y));
@@ -163,10 +166,10 @@ public class DataShardMerger implements DataMerger<DataShardsGroups> {
     int order = -1;
     TimeStamp base_time = null;
     for (int i = 0; i < groups.size(); i++) {
-      if (groups.get(i) == null) {
+      if (groups.get(i) == null || groups.get(i).data() == null) {
         processed[i] = new boolean[0];
       } else {
-        processed[i] = new boolean[groups.get(i).data.size()];
+        processed[i] = new boolean[groups.get(i).data().size()];
         if (order < 0) {
           order = groups.get(i).order();
         } else {
