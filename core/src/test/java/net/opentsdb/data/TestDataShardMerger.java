@@ -182,88 +182,88 @@ public class TestDataShardMerger {
   
   @Test
   public void mergeIdsAlias() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("a").build(),
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("b").build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("a").build(),
           SimpleStringTimeSeriesId.newBuilder()
           .setAlias("b").build());
     
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
     assertArrayEquals("a".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().alias());
+        results.data().get(0).data().get(0).id().alias());
     assertArrayEquals("b".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().alias());
+        results.data().get(0).data().get(1).id().alias());
   }
   
   @Test
   public void mergeIdsAliasDiff() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("a").build(),
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("b").build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("a").build(),
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("c").build());
     
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(3, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(3, results.data().get(0).data().size());
     assertArrayEquals("a".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().alias());
+        results.data().get(0).data().get(0).id().alias());
     assertArrayEquals("b".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().alias());
+        results.data().get(0).data().get(1).id().alias());
     assertArrayEquals("c".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(2).id().alias());
+        results.data().get(0).data().get(2).id().alias());
   }
   
   @Test
   public void mergeIdsAliasDiffDisjoint() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("a").build(),
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("b").build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("d").build(),
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("c").build());
     
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(4, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(4, results.data().get(0).data().size());
     assertArrayEquals("a".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().alias());
+        results.data().get(0).data().get(0).id().alias());
     assertArrayEquals("b".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().alias());
+        results.data().get(0).data().get(1).id().alias());
     assertArrayEquals("d".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(2).id().alias());
+        results.data().get(0).data().get(2).id().alias());
     assertArrayEquals("c".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(3).id().alias());
+        results.data().get(0).data().get(3).id().alias());
   }
   
   @Test
   public void mergeIdsAliasSameDiffTags() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("foo")
           .addMetric("sys.cpu")
@@ -275,7 +275,7 @@ public class TestDataShardMerger {
           .addTags("host", "web01")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("foo")
           .addMetric("sys.cpu")
@@ -287,29 +287,29 @@ public class TestDataShardMerger {
           .addTags("host", "web02")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(3, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(3, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(2).id().metrics().get(0));
+        results.data().get(0).data().get(2).id().metrics().get(0));
     assertArrayEquals("web02".getBytes(Const.UTF8_CHARSET),
-        results.data().get(2).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(2).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
   }
   
   @Test
   public void mergeIdsNamespace() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
@@ -317,7 +317,7 @@ public class TestDataShardMerger {
           .addNamespace("Frey")
           .build());
 
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
@@ -325,20 +325,20 @@ public class TestDataShardMerger {
           .addNamespace("Frey")
           .build());
     
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
     assertArrayEquals("Targaryen".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().namespaces().get(0));
+        results.data().get(0).data().get(0).id().namespaces().get(0));
     assertArrayEquals("Frey".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().namespaces().get(0));
+        results.data().get(0).data().get(1).id().namespaces().get(0));
   }
   
   @Test
   public void mergeIdsNamespaceDiff() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
@@ -346,7 +346,7 @@ public class TestDataShardMerger {
           .addNamespace("Frey")
           .build());
 
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
@@ -354,22 +354,22 @@ public class TestDataShardMerger {
           .addNamespace("GreyJoy")
           .build());
     
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(3, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(3, results.data().get(0).data().size());
     assertArrayEquals("Targaryen".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().namespaces().get(0));
+        results.data().get(0).data().get(0).id().namespaces().get(0));
     assertArrayEquals("Frey".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().namespaces().get(0));
+        results.data().get(0).data().get(1).id().namespaces().get(0));
     assertArrayEquals("GreyJoy".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(2).id().namespaces().get(0));
+        results.data().get(0).data().get(2).id().namespaces().get(0));
   }
   
   @Test
   public void mergeIdsNamespaceExtra() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
@@ -377,7 +377,7 @@ public class TestDataShardMerger {
           .addNamespace("Frey")
           .build());
 
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
@@ -388,22 +388,22 @@ public class TestDataShardMerger {
           .addNamespace("GreyJoy")
           .build());
     
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(3, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(3, results.data().get(0).data().size());
     assertArrayEquals("Targaryen".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().namespaces().get(0));
+        results.data().get(0).data().get(0).id().namespaces().get(0));
     assertArrayEquals("Frey".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().namespaces().get(0));
+        results.data().get(0).data().get(1).id().namespaces().get(0));
     assertArrayEquals("GreyJoy".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(2).id().namespaces().get(0));
+        results.data().get(0).data().get(2).id().namespaces().get(0));
   }
   
   @Test
   public void mergeIdsNamespaceMulti() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addNamespace("Frey")
           .addNamespace("GreyJoy")
@@ -412,7 +412,7 @@ public class TestDataShardMerger {
           .addNamespace("Targaryen")
           .build());
 
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
@@ -421,22 +421,22 @@ public class TestDataShardMerger {
           .addNamespace("GreyJoy")
           .build());
     
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
     assertArrayEquals("Frey".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().namespaces().get(0));
+        results.data().get(0).data().get(0).id().namespaces().get(0));
     assertArrayEquals("GreyJoy".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().namespaces().get(1));
+        results.data().get(0).data().get(0).id().namespaces().get(1));
     assertArrayEquals("Targaryen".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().namespaces().get(0));
+        results.data().get(0).data().get(1).id().namespaces().get(0));
   }
   
   @Test
   public void mergeIdsNamespaceMultiDiffOrder() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addNamespace("GreyJoy")
           .addNamespace("Frey")
@@ -445,7 +445,7 @@ public class TestDataShardMerger {
           .addNamespace("Targaryen")
           .build());
 
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
@@ -454,22 +454,22 @@ public class TestDataShardMerger {
           .addNamespace("GreyJoy")
           .build());
     
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
     assertArrayEquals("Frey".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().namespaces().get(0));
+        results.data().get(0).data().get(0).id().namespaces().get(0));
     assertArrayEquals("GreyJoy".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().namespaces().get(1));
+        results.data().get(0).data().get(0).id().namespaces().get(1));
     assertArrayEquals("Targaryen".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().namespaces().get(0));
+        results.data().get(0).data().get(1).id().namespaces().get(0));
   }
   
   @Test
   public void mergeIdsNamespaceMissing() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addNamespace("GreyJoy")
           //.addNamespace("Frey")
@@ -478,7 +478,7 @@ public class TestDataShardMerger {
           .addNamespace("Targaryen")
           .build());
 
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
@@ -487,24 +487,24 @@ public class TestDataShardMerger {
           .addNamespace("GreyJoy")
           .build());
     
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(3, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(3, results.data().get(0).data().size());
     assertArrayEquals("GreyJoy".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().namespaces().get(0));
+        results.data().get(0).data().get(0).id().namespaces().get(0));
     assertArrayEquals("Targaryen".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().namespaces().get(0));
+        results.data().get(0).data().get(1).id().namespaces().get(0));
     assertArrayEquals("Frey".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(2).id().namespaces().get(0));
+        results.data().get(0).data().get(2).id().namespaces().get(0));
     assertArrayEquals("GreyJoy".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(2).id().namespaces().get(1));
+        results.data().get(0).data().get(2).id().namespaces().get(1));
   }
   
   @Test
   public void mergeIdsMetricsOnly() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .build(),
@@ -512,7 +512,7 @@ public class TestDataShardMerger {
           .addMetric("sys.mem")
           .build());
         
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .build(),
@@ -520,20 +520,20 @@ public class TestDataShardMerger {
           .addMetric("sys.mem")
           .build());
     
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
   }
   
   @Test
   public void mergeIdsMetricsOnlyDiff() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .build(),
@@ -541,7 +541,7 @@ public class TestDataShardMerger {
           .addMetric("sys.mem")
           .build());
         
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .build(),
@@ -549,22 +549,22 @@ public class TestDataShardMerger {
           .addMetric("sys.disk")
           .build());
     
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(3, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(3, results.data().get(0).data().size());
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("sys.disk".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(2).id().metrics().get(0));
+        results.data().get(0).data().get(2).id().metrics().get(0));
   }
   
   @Test
   public void mergeIdsMetricsOnlyMulti() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addMetric("sys.mem")
@@ -574,7 +574,7 @@ public class TestDataShardMerger {
           .addMetric("sys.if")
           .build());
         
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addMetric("sys.mem")
@@ -584,24 +584,24 @@ public class TestDataShardMerger {
           .addMetric("sys.if")
           .build());
     
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(1));
+        results.data().get(0).data().get(0).id().metrics().get(1));
     assertArrayEquals("sys.disk".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("sys.if".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(1));
+        results.data().get(0).data().get(1).id().metrics().get(1));
   }
   
   @Test
   public void mergeIdsMetricsOnlyMultiDiffOrder() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addMetric("sys.mem")
@@ -611,7 +611,7 @@ public class TestDataShardMerger {
           .addMetric("sys.if")
           .build());
         
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addMetric("sys.cpu")
@@ -621,24 +621,24 @@ public class TestDataShardMerger {
           .addMetric("sys.disk")
           .build());
     
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(1));
+        results.data().get(0).data().get(0).id().metrics().get(1));
     assertArrayEquals("sys.disk".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("sys.if".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(1));
+        results.data().get(0).data().get(1).id().metrics().get(1));
   }
   
   @Test
   public void mergeIdsTags() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -648,7 +648,7 @@ public class TestDataShardMerger {
           .addTags("host", "web01")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -658,25 +658,25 @@ public class TestDataShardMerger {
           .addTags("host", "web01")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
   }
   
   @Test
   public void mergeIdsTagsDiff() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -686,7 +686,7 @@ public class TestDataShardMerger {
           .addTags("host", "web01")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -696,29 +696,29 @@ public class TestDataShardMerger {
           .addTags("host", "web02")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(3, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(3, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(2).id().metrics().get(0));
+        results.data().get(0).data().get(2).id().metrics().get(0));
     assertArrayEquals("web02".getBytes(Const.UTF8_CHARSET),
-        results.data().get(2).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(2).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
   }
   
   @Test
   public void mergeIdsTagsExtraTag() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -728,7 +728,7 @@ public class TestDataShardMerger {
           .addTags("host", "web01")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -739,31 +739,31 @@ public class TestDataShardMerger {
           .addTags("dc", "phx")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(3, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(3, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(2).id().metrics().get(0));
+        results.data().get(0).data().get(2).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(2).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(2).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("phx".getBytes(Const.UTF8_CHARSET),
-        results.data().get(2).id().tags().get("dc".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(2).id().tags().get("dc".getBytes(Const.UTF8_CHARSET)));
   }
   
   @Test
   public void mergeIdsTagsExtraTagAggedOut() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -774,7 +774,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("dc")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -785,27 +785,27 @@ public class TestDataShardMerger {
           .addTags("dc", "phx")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("dc".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().aggregatedTags().get(0));
+        results.data().get(0).data().get(1).id().aggregatedTags().get(0));
   }
   
   @Test
   public void mergeIdsTagsExtraTagAggedOutOtherDirection() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -816,7 +816,7 @@ public class TestDataShardMerger {
           .addTags("dc", "phx")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -827,27 +827,27 @@ public class TestDataShardMerger {
           .addAggregatedTag("dc")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("dc".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().aggregatedTags().get(0));
+        results.data().get(0).data().get(1).id().aggregatedTags().get(0));
   }
   
   @Test
   public void mergeIdsTagsExtraTagAggedOutEmptiedTags() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -857,7 +857,7 @@ public class TestDataShardMerger {
           .addTags("host", "web01")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -867,25 +867,25 @@ public class TestDataShardMerger {
           .addAggregatedTag("host")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().aggregatedTags().get(0));
+        results.data().get(0).data().get(1).id().aggregatedTags().get(0));
   }
   
   @Test
   public void mergeIdsTagsExtraTagDisjointedOut() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -895,7 +895,7 @@ public class TestDataShardMerger {
           .addTags("host", "web01")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -905,25 +905,25 @@ public class TestDataShardMerger {
           .addDisjointTag("host")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().disjointTags().get(0));
+        results.data().get(0).data().get(1).id().disjointTags().get(0));
   }
   
   @Test
   public void mergeIdsTagsExtraTagDisjointedOutOtherDirection() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -933,7 +933,7 @@ public class TestDataShardMerger {
           .addDisjointTag("host")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -943,25 +943,25 @@ public class TestDataShardMerger {
           .addTags("host", "web01")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().disjointTags().get(0));
+        results.data().get(0).data().get(1).id().disjointTags().get(0));
   }
   
   @Test
   public void mergeIdsTagsMultiDiffOrder() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -972,7 +972,7 @@ public class TestDataShardMerger {
           .addTags("dc", "phx")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -983,27 +983,27 @@ public class TestDataShardMerger {
           .addTags("host", "web01")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("phx".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().tags().get("dc".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(1).id().tags().get("dc".getBytes(Const.UTF8_CHARSET)));
   }
   
   @Test
   public void mergeIdsAggTags() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
@@ -1013,7 +1013,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("host")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
@@ -1023,25 +1023,25 @@ public class TestDataShardMerger {
           .addAggregatedTag("host")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().aggregatedTags().get(0));
+        results.data().get(0).data().get(0).id().aggregatedTags().get(0));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().aggregatedTags().get(0));
+        results.data().get(0).data().get(1).id().aggregatedTags().get(0));
   }
 
   @Test
   public void mergeIdsAggTagsDiff() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
@@ -1051,7 +1051,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("host")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
@@ -1061,29 +1061,29 @@ public class TestDataShardMerger {
           .addAggregatedTag("dc")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(3, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(3, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().aggregatedTags().get(0));
+        results.data().get(0).data().get(0).id().aggregatedTags().get(0));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().aggregatedTags().get(0));
+        results.data().get(0).data().get(1).id().aggregatedTags().get(0));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(2).id().metrics().get(0));
+        results.data().get(0).data().get(2).id().metrics().get(0));
     assertArrayEquals("dc".getBytes(Const.UTF8_CHARSET),
-        results.data().get(2).id().aggregatedTags().get(0));
+        results.data().get(0).data().get(2).id().aggregatedTags().get(0));
   }
   
   @Test
   public void mergeIdsAggTagsMulti() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
@@ -1094,7 +1094,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("dc")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
@@ -1105,27 +1105,27 @@ public class TestDataShardMerger {
           .addAggregatedTag("dc")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().aggregatedTags().get(0));
+        results.data().get(0).data().get(0).id().aggregatedTags().get(0));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("dc".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().aggregatedTags().get(0));
+        results.data().get(0).data().get(1).id().aggregatedTags().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().aggregatedTags().get(1));
+        results.data().get(0).data().get(1).id().aggregatedTags().get(1));
   }
   
   @Test
   public void mergeIdsAggTagsMultiDiffOrder() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
@@ -1136,7 +1136,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("host")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
@@ -1147,27 +1147,27 @@ public class TestDataShardMerger {
           .addAggregatedTag("dc")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().aggregatedTags().get(0));
+        results.data().get(0).data().get(0).id().aggregatedTags().get(0));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("dc".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().aggregatedTags().get(0));
+        results.data().get(0).data().get(1).id().aggregatedTags().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().aggregatedTags().get(1));
+        results.data().get(0).data().get(1).id().aggregatedTags().get(1));
   }
   
   @Test
   public void mergeIdsDisjointTags() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addDisjointTag("host")
@@ -1177,7 +1177,7 @@ public class TestDataShardMerger {
           .addDisjointTag("host")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addDisjointTag("host")
@@ -1187,25 +1187,25 @@ public class TestDataShardMerger {
           .addDisjointTag("host")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().disjointTags().get(0));
+        results.data().get(0).data().get(0).id().disjointTags().get(0));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().disjointTags().get(0));
+        results.data().get(0).data().get(1).id().disjointTags().get(0));
   }
   
   @Test
   public void mergeIdsDisjointTagsDiff() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addDisjointTag("host")
@@ -1215,7 +1215,7 @@ public class TestDataShardMerger {
           .addDisjointTag("host")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addDisjointTag("host")
@@ -1225,29 +1225,29 @@ public class TestDataShardMerger {
           .addDisjointTag("dc")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(3, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(3, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().disjointTags().get(0));
+        results.data().get(0).data().get(0).id().disjointTags().get(0));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().disjointTags().get(0));
+        results.data().get(0).data().get(1).id().disjointTags().get(0));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(2).id().metrics().get(0));
+        results.data().get(0).data().get(2).id().metrics().get(0));
     assertArrayEquals("dc".getBytes(Const.UTF8_CHARSET),
-        results.data().get(2).id().disjointTags().get(0));
+        results.data().get(0).data().get(2).id().disjointTags().get(0));
   }
   
   @Test
   public void mergeIdsDisjointTagsMulti() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addDisjointTag("host")
@@ -1258,7 +1258,7 @@ public class TestDataShardMerger {
           .addDisjointTag("dc")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addDisjointTag("host")
@@ -1269,27 +1269,27 @@ public class TestDataShardMerger {
           .addDisjointTag("dc")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().disjointTags().get(0));
+        results.data().get(0).data().get(0).id().disjointTags().get(0));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("dc".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().disjointTags().get(0));
+        results.data().get(0).data().get(1).id().disjointTags().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().disjointTags().get(1));
+        results.data().get(0).data().get(1).id().disjointTags().get(1));
   }
   
   @Test
   public void mergeIdsDisjointTagsMultiDiffOrder() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addDisjointTag("host")
@@ -1300,7 +1300,7 @@ public class TestDataShardMerger {
           .addDisjointTag("dc")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addDisjointTag("host")
@@ -1311,27 +1311,27 @@ public class TestDataShardMerger {
           .addDisjointTag("host")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().disjointTags().get(0));
+        results.data().get(0).data().get(0).id().disjointTags().get(0));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("dc".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().disjointTags().get(0));
+        results.data().get(0).data().get(1).id().disjointTags().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().disjointTags().get(1));
+        results.data().get(0).data().get(1).id().disjointTags().get(1));
   }
   
   @Test
   public void mergeIdsAggToDisjoint() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
@@ -1341,7 +1341,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("host")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
@@ -1351,26 +1351,26 @@ public class TestDataShardMerger {
           .addDisjointTag("host")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().aggregatedTags().get(0));
+        results.data().get(0).data().get(0).id().aggregatedTags().get(0));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().disjointTags().get(0));
-    assertTrue(results.data().get(1).id().aggregatedTags().isEmpty());
+        results.data().get(0).data().get(1).id().disjointTags().get(0));
+    assertTrue(results.data().get(0).data().get(1).id().aggregatedTags().isEmpty());
   }
   
   @Test
   public void mergeIdsAggToDisjointOtherDirection() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
@@ -1380,7 +1380,7 @@ public class TestDataShardMerger {
           .addDisjointTag("host")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
@@ -1390,26 +1390,26 @@ public class TestDataShardMerger {
           .addAggregatedTag("host")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().aggregatedTags().get(0));
+        results.data().get(0).data().get(0).id().aggregatedTags().get(0));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().disjointTags().get(0));
-    assertTrue(results.data().get(1).id().aggregatedTags().isEmpty());
+        results.data().get(0).data().get(1).id().disjointTags().get(0));
+    assertTrue(results.data().get(0).data().get(1).id().aggregatedTags().isEmpty());
   }
   
   @Test
   public void mergeIdsTagsToAggToDisjoint() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -1419,7 +1419,7 @@ public class TestDataShardMerger {
           .addTags("host", "web01")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -1429,7 +1429,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("host")
           .build());
     
-    final DataShardsGroup set3 = createShards(
+    final DataShardsGroups set3 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -1439,26 +1439,26 @@ public class TestDataShardMerger {
           .addDisjointTag("host")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList(set1, set2, set3);
+    final List<DataShardsGroups> shards = Lists.newArrayList(set1, set2, set3);
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().disjointTags().get(0));
-    assertTrue(results.data().get(1).id().aggregatedTags().isEmpty());
+        results.data().get(0).data().get(1).id().disjointTags().get(0));
+    assertTrue(results.data().get(0).data().get(1).id().aggregatedTags().isEmpty());
   }
   
   @Test
   public void mergeIdsTagsToAggToDisjointOtherDirection() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -1468,7 +1468,7 @@ public class TestDataShardMerger {
           .addDisjointTag("host")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -1478,7 +1478,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("host")
           .build());
     
-    final DataShardsGroup set3 = createShards(
+    final DataShardsGroups set3 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -1488,26 +1488,26 @@ public class TestDataShardMerger {
           .addTags("host", "web01")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList(set1, set2, set3);
+    final List<DataShardsGroups> shards = Lists.newArrayList(set1, set2, set3);
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(2, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().disjointTags().get(0));
-    assertTrue(results.data().get(1).id().aggregatedTags().isEmpty());
+        results.data().get(0).data().get(1).id().disjointTags().get(0));
+    assertTrue(results.data().get(0).data().get(1).id().aggregatedTags().isEmpty());
   }
   
   @Test
   public void mergeIds3DiffTags() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -1517,7 +1517,7 @@ public class TestDataShardMerger {
           .addTags("host", "web01")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -1527,7 +1527,7 @@ public class TestDataShardMerger {
           .addTags("host", "web02")
           .build());
     
-    final DataShardsGroup set3 = createShards(
+    final DataShardsGroups set3 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
@@ -1537,33 +1537,33 @@ public class TestDataShardMerger {
           .addTags("host", "web03")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList(set1, set2, set3);
+    final List<DataShardsGroups> shards = Lists.newArrayList(set1, set2, set3);
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(4, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(4, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(2).id().metrics().get(0));
+        results.data().get(0).data().get(2).id().metrics().get(0));
     assertArrayEquals("web02".getBytes(Const.UTF8_CHARSET),
-        results.data().get(2).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(2).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(3).id().metrics().get(0));
+        results.data().get(0).data().get(3).id().metrics().get(0));
     assertArrayEquals("web03".getBytes(Const.UTF8_CHARSET),
-        results.data().get(3).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+        results.data().get(0).data().get(3).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
   }
   
   @Test
   public void mergeIds3AliasDisjoint() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .setAlias("a")
@@ -1573,7 +1573,7 @@ public class TestDataShardMerger {
           .setAlias("b")
           .build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .setAlias("c")
@@ -1583,7 +1583,7 @@ public class TestDataShardMerger {
           .setAlias("d")
           .build());
     
-    final DataShardsGroup set3 = createShards(
+    final DataShardsGroups set3 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .setAlias("e")
@@ -1593,41 +1593,41 @@ public class TestDataShardMerger {
           .setAlias("f")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList(set1, set2, set3);
+    final List<DataShardsGroups> shards = Lists.newArrayList(set1, set2, set3);
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
-    final DataShardsGroup results = merger.merge(shards, context, null);
-    assertEquals(6, results.data().size());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(6, results.data().get(0).data().size());
 
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(0).id().metrics().get(0));
+        results.data().get(0).data().get(0).id().metrics().get(0));
     assertArrayEquals("a".getBytes(Const.UTF8_CHARSET),
-        results.data().get(0).id().alias());
+        results.data().get(0).data().get(0).id().alias());
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(1).id().metrics().get(0));
+        results.data().get(0).data().get(1).id().metrics().get(0));
     assertArrayEquals("b".getBytes(Const.UTF8_CHARSET),
-        results.data().get(1).id().alias());
+        results.data().get(0).data().get(1).id().alias());
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(2).id().metrics().get(0));
+        results.data().get(0).data().get(2).id().metrics().get(0));
     assertArrayEquals("c".getBytes(Const.UTF8_CHARSET),
-        results.data().get(2).id().alias());
+        results.data().get(0).data().get(2).id().alias());
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(3).id().metrics().get(0));
+        results.data().get(0).data().get(3).id().metrics().get(0));
     assertArrayEquals("d".getBytes(Const.UTF8_CHARSET),
-        results.data().get(3).id().alias());
+        results.data().get(0).data().get(3).id().alias());
     assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(4).id().metrics().get(0));
+        results.data().get(0).data().get(4).id().metrics().get(0));
     assertArrayEquals("e".getBytes(Const.UTF8_CHARSET),
-        results.data().get(4).id().alias());
+        results.data().get(0).data().get(4).id().alias());
     assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
-        results.data().get(5).id().metrics().get(0));
+        results.data().get(0).data().get(5).id().metrics().get(0));
     assertArrayEquals("f".getBytes(Const.UTF8_CHARSET),
-        results.data().get(5).id().alias());
+        results.data().get(0).data().get(5).id().alias());
   }
   
   @Test (expected = IllegalStateException.class)
   public void mergeIdsBadOrder() {
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
@@ -1637,7 +1637,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("host")
           .build());
     
-    final DataShardsGroup set2 = createShards(1,
+    final DataShardsGroups set2 = createShards(1, // <-- order
         SimpleStringTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
@@ -1647,7 +1647,7 @@ public class TestDataShardMerger {
           .addAggregatedTag("host")
           .build());
 
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     merger.merge(shards, context, null);
@@ -1663,19 +1663,19 @@ public class TestDataShardMerger {
     when(tracer.buildSpan(anyString())).thenReturn(builder);
     when(builder.start()).thenReturn(local_span);
     
-    final DataShardsGroup set1 = createShards(
+    final DataShardsGroups set1 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("a").build(),
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("b").build());
     
-    final DataShardsGroup set2 = createShards(
+    final DataShardsGroups set2 = createShards(
         SimpleStringTimeSeriesId.newBuilder()
           .setAlias("a").build(),
           SimpleStringTimeSeriesId.newBuilder()
           .setAlias("b").build());
     
-    final List<DataShardsGroup> shards = Lists.newArrayList( set1, set2 );
+    final List<DataShardsGroups> shards = Lists.newArrayList( set1, set2 );
     final DataShardMerger merger = new TestImp();
     merger.registerStrategy(new NumericMergeLargest());
     merger.merge(shards, context, parent_span);
@@ -1684,6 +1684,183 @@ public class TestDataShardMerger {
     verify(tracer, times(1)).buildSpan(TestImp.class.getSimpleName());
     verify(builder, times(1)).start();
     verify(local_span, times(1)).finish();
+  }
+  
+  @Test
+  public void mergeGroupAlignment() {
+    final DataShardsGroups set1 = createShards(
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.cpu")
+          .setAlias("a")
+          .build(),
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.mem")
+          .setAlias("b")
+          .build());
+    
+    final DataShardsGroups set2 = createShards(
+        0,
+        new SimpleStringGroupId("Greyjoy"),
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.cpu")
+          .setAlias("c")
+          .build(),
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.mem")
+          .setAlias("d")
+          .build());
+    
+    final DataShardsGroups set3 = createShards(
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.cpu")
+          .setAlias("a")
+          .build(),
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.mem")
+          .setAlias("b")
+          .build());
+
+    final List<DataShardsGroups> shards = Lists.newArrayList(set1, set2, set3);
+    final DataShardMerger merger = new TestImp();
+    merger.registerStrategy(new NumericMergeLargest());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(2, results.data().size());
+    assertEquals(group_id, results.data().get(0).id());
+    assertEquals(2, results.data().get(0).data().size());
+
+    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+        results.data().get(0).data().get(0).id().metrics().get(0));
+    assertArrayEquals("a".getBytes(Const.UTF8_CHARSET),
+        results.data().get(0).data().get(0).id().alias());
+    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+        results.data().get(0).data().get(1).id().metrics().get(0));
+    assertArrayEquals("b".getBytes(Const.UTF8_CHARSET),
+        results.data().get(0).data().get(1).id().alias());
+    
+    assertEquals("Greyjoy", results.data().get(1).id().id());
+    assertEquals(2, results.data().get(1).data().size());
+    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+        results.data().get(1).data().get(0).id().metrics().get(0));
+    assertArrayEquals("c".getBytes(Const.UTF8_CHARSET),
+        results.data().get(1).data().get(0).id().alias());
+    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+        results.data().get(1).data().get(1).id().metrics().get(0));
+    assertArrayEquals("d".getBytes(Const.UTF8_CHARSET),
+        results.data().get(1).data().get(1).id().alias());
+  }
+  
+  @Test
+  public void mergeGroupDisjoint() {
+    final DataShardsGroups set1 = createShards(
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.cpu")
+          .setAlias("a")
+          .build(),
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.mem")
+          .setAlias("b")
+          .build());
+    
+    final DataShardsGroups set2 = createShards(
+        0,
+        new SimpleStringGroupId("Greyjoy"),
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.cpu")
+          .setAlias("c")
+          .build(),
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.mem")
+          .setAlias("d")
+          .build());
+    
+    final DataShardsGroups set3 = createShards(
+        0,
+        new SimpleStringGroupId("Karstark"),
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.cpu")
+          .setAlias("e")
+          .build(),
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.mem")
+          .setAlias("f")
+          .build());
+
+    final List<DataShardsGroups> shards = Lists.newArrayList(set1, set2, set3);
+    final DataShardMerger merger = new TestImp();
+    merger.registerStrategy(new NumericMergeLargest());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(3, results.data().size());
+    assertEquals(group_id, results.data().get(0).id());
+    assertEquals(2, results.data().get(0).data().size());
+
+    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+        results.data().get(0).data().get(0).id().metrics().get(0));
+    assertArrayEquals("a".getBytes(Const.UTF8_CHARSET),
+        results.data().get(0).data().get(0).id().alias());
+    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+        results.data().get(0).data().get(1).id().metrics().get(0));
+    assertArrayEquals("b".getBytes(Const.UTF8_CHARSET),
+        results.data().get(0).data().get(1).id().alias());
+    
+    assertEquals("Greyjoy", results.data().get(1).id().id());
+    assertEquals(2, results.data().get(1).data().size());
+    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+        results.data().get(1).data().get(0).id().metrics().get(0));
+    assertArrayEquals("c".getBytes(Const.UTF8_CHARSET),
+        results.data().get(1).data().get(0).id().alias());
+    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+        results.data().get(1).data().get(1).id().metrics().get(0));
+    assertArrayEquals("d".getBytes(Const.UTF8_CHARSET),
+        results.data().get(1).data().get(1).id().alias());
+    
+    assertEquals("Karstark", results.data().get(2).id().id());
+    assertEquals(2, results.data().get(2).data().size());
+    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+        results.data().get(2).data().get(0).id().metrics().get(0));
+    assertArrayEquals("e".getBytes(Const.UTF8_CHARSET),
+        results.data().get(2).data().get(0).id().alias());
+    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+        results.data().get(2).data().get(1).id().metrics().get(0));
+    assertArrayEquals("f".getBytes(Const.UTF8_CHARSET),
+        results.data().get(2).data().get(1).id().alias());
+  }
+  
+  @Test
+  public void mergeGroupEmpty() {
+    final List<DataShardsGroups> shards = Lists.newArrayList();
+    final DataShardMerger merger = new TestImp();
+    merger.registerStrategy(new NumericMergeLargest());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(0, results.data().size());
+  }
+  
+  @Test
+  public void mergeSingleGroup() {
+    final DataShardsGroups set1 = createShards(
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.cpu")
+          .setAlias("a")
+          .build(),
+        SimpleStringTimeSeriesId.newBuilder()
+          .addMetric("sys.mem")
+          .setAlias("b")
+          .build());
+    final List<DataShardsGroups> shards = Lists.newArrayList(set1);
+    final DataShardMerger merger = new TestImp();
+    merger.registerStrategy(new NumericMergeLargest());
+    final DataShardsGroups results = merger.merge(shards, context, null);
+    assertEquals(1, results.data().size());
+    assertEquals(group_id, results.data().get(0).id());
+    assertEquals(2, results.data().get(0).data().size());
+
+    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+        results.data().get(0).data().get(0).id().metrics().get(0));
+    assertArrayEquals("a".getBytes(Const.UTF8_CHARSET),
+        results.data().get(0).data().get(0).id().alias());
+    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+        results.data().get(0).data().get(1).id().metrics().get(0));
+    assertArrayEquals("b".getBytes(Const.UTF8_CHARSET),
+        results.data().get(0).data().get(1).id().alias());
   }
   
   /** Dummy implementation for testing. */
@@ -1697,17 +1874,40 @@ public class TestDataShardMerger {
    * @param ids A non-null set of IDs.
    * @return A non-null shards group.
    */
-  private DataShardsGroup createShards(final TimeSeriesId... ids) {
+  private DataShardsGroups createShards(final TimeSeriesId... ids) {
     return createShards(0, ids);
   }
   
-  private DataShardsGroup createShards(final int order, final TimeSeriesId... ids) {
+  /**
+   * Generates a data shards group with shards containing the given ids for
+   * testing the ID join.
+   * @param order The order of the group.
+   * @param ids A non-null set of IDs.
+   * @return A non-null shards group.
+   */
+  private DataShardsGroups createShards(final int order, final TimeSeriesId... ids) {
+    return createShards(order, group_id, ids);
+  }
+  
+  /**
+   * Generates a data shards group with shards containing the given ids for
+   * testing the ID join.
+   * @param order The order of the group.
+   * @param group_id A group ID override.
+   * @param ids A non-null set of IDs.
+   * @return A non-null shards group.
+   */
+  private DataShardsGroups createShards(final int order, 
+                                       final TimeSeriesGroupId group_id, 
+                                       final TimeSeriesId... ids) {
     final DataShardsGroup group = new DefaultDataShardsGroup(group_id);
     for (final TimeSeriesId id : ids) {
       final DataShards shards = new DefaultDataShards(id);
       shards.addShard(new NumericMillisecondShard(id, start, end, order));
       group.addShards(shards);
     }
-    return group;
+    final DataShardsGroups groups = new DefaultDataShardsGroups();
+    groups.addGroup(group);
+    return groups;
   }
 }

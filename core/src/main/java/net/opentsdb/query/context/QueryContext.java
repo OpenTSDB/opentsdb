@@ -137,7 +137,7 @@ public abstract class QueryContext {
         DefaultEdge>(DefaultEdge.class);
     iterator_graph = new DirectedAcyclicGraph<TimeSeriesIterator<?>,
         DefaultEdge>(DefaultEdge.class);
-    executor_context = new QueryExecutorContext("Test");
+    executor_context = new QueryExecutorContext("Testing");
     context_graph.addVertex(this);
   }
   

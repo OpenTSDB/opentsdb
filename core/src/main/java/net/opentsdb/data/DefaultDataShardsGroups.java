@@ -10,26 +10,13 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.query.execution;
+package net.opentsdb.data;
 
 /**
- * Stub interface used to configure a QueryExecutor.
+ * Simple implementation of the data shards groups.
  * 
  * @since 3.0
  */
-public abstract class QueryExecutorConfig {
+public class DefaultDataShardsGroups extends DataShardsGroups {
 
-  /** The factory this config is associated with. */
-  protected QueryExecutorFactory<?> factory;
-  
-  /** @return The factory this config is associated with. */
-  public QueryExecutorFactory<?> getFactory() {
-    return factory;
-  }
-  
-  /** @param factory A factory to associate this config with. */
-  public void setFactory(final QueryExecutorFactory<?> factory) {
-    this.factory = factory;
-  }
-  
 }

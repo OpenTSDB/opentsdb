@@ -17,6 +17,7 @@ import java.io.OutputStream;
 import java.lang.reflect.Constructor;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -41,12 +42,11 @@ import com.stumbleupon.async.Callback;
 
 import io.netty.util.Timer;
 import io.opentracing.Span;
-import io.opentracing.Tracer;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.DataMerger;
 import net.opentsdb.data.DataShard;
 import net.opentsdb.data.DataShards;
 import net.opentsdb.data.DataShardsGroup;
+import net.opentsdb.data.DataShardsGroups;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.IteratorStatus;
@@ -91,7 +91,7 @@ public class V2QueryResource {
       } else if (request.getAttribute(
           OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE) != null) {
         
-        final DataShardsGroup groups = (DataShardsGroup) request.getAttribute(
+        final DataShardsGroups groups = (DataShardsGroups) request.getAttribute(
             OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE);
         final MyContext context = (MyContext) request.getAttribute("MYCONTEXT");
         final Span serdes_span;
@@ -111,46 +111,48 @@ public class V2QueryResource {
             JsonGenerator json = JSON.getFactory().createGenerator(output);
             json.writeStartArray();
             
-            for (final DataShards shards : groups.data()) {
-              for (final DataShard shard : shards.data()) {
-                json.writeStartObject();
-                
-                json.writeStringField("metric", new String(shard.id().metrics().get(0)));
-                json.writeObjectFieldStart("tags");
-                for (final Entry<byte[], byte[]> entry : shard.id().tags().entrySet()) {
-                  json.writeStringField(new String(entry.getKey()), new String(entry.getValue()));
-                }
-                json.writeArrayFieldStart("aggregateTags");
-                for (final byte[] tag : shard.id().aggregatedTags()) {
-                  json.writeString(new String(tag));
-                }
-                json.writeEndArray();
-                json.writeEndObject();
-                json.writeObjectFieldStart("dps");
-                
-                @SuppressWarnings("unchecked")
-                TimeSeriesIterator<NumericType> it = shard.iterator();
-                while (it.status() == IteratorStatus.HAS_DATA) {
-                  TimeSeriesValue<NumericType> v = it.next();
-                  if (v.value().isInteger()) {
-                    json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
-                        v.value().longValue());
-                  } else {
-                    json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
-                        v.value().doubleValue());
+            for (final DataShardsGroup group : groups.data()) {
+              for (final DataShards shards : group.data()) {
+                for (final DataShard shard : shards.data()) {
+                  json.writeStartObject();
+                  
+                  json.writeStringField("metric", new String(shard.id().metrics().get(0)));
+                  json.writeObjectFieldStart("tags");
+                  for (final Entry<byte[], byte[]> entry : shard.id().tags().entrySet()) {
+                    json.writeStringField(new String(entry.getKey()), new String(entry.getValue()));
                   }
+                  json.writeArrayFieldStart("aggregateTags");
+                  for (final byte[] tag : shard.id().aggregatedTags()) {
+                    json.writeString(new String(tag));
+                  }
+                  json.writeEndArray();
+                  json.writeEndObject();
+                  json.writeObjectFieldStart("dps");
+                  
+                  @SuppressWarnings("unchecked")
+                  TimeSeriesIterator<NumericType> it = shard.iterator();
+                  while (it.status() == IteratorStatus.HAS_DATA) {
+                    TimeSeriesValue<NumericType> v = it.next();
+                    if (v.value().isInteger()) {
+                      json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
+                          v.value().longValue());
+                    } else {
+                      json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
+                          v.value().doubleValue());
+                    }
+                  }
+                  
+                  json.writeEndObject();
+                  json.writeEndObject();
+                  json.flush();
                 }
-                
-                json.writeEndObject();
-                json.writeEndObject();
-                json.flush();
               }
+              
+              if (context.trace != null) {
+                context.trace.serializeJSON("trace", json);
+              }
+              
             }
-            
-            if (context.trace != null) {
-              context.trace.serializeJSON("trace", json);
-            }
-            
             json.writeEndArray();
             json.flush();
             json.close();
@@ -158,7 +160,6 @@ public class V2QueryResource {
               serdes_span.finish();
             }
           }
-          
         };
         
         if (context.trace != null) {
@@ -214,17 +215,17 @@ public class V2QueryResource {
             headersCopy, trace);
         request.setAttribute("MYCONTEXT", context);
         
-        final QueryExecutor<DataShardsGroup> executor =
-            (QueryExecutor<DataShardsGroup>) 
+        final QueryExecutor<DataShardsGroups> executor =
+            (QueryExecutor<DataShardsGroups>) 
             context.getQueryExecutorContext().newSinkExecutor(context);
 
-        final QueryExecution<DataShardsGroup> execution = 
+        final QueryExecution<DataShardsGroups> execution = 
             executor.executeQuery(query, span);
         
-        class SuccessCB implements Callback<Object, DataShardsGroup> {
+        class SuccessCB implements Callback<Object, DataShardsGroups> {
 
           @Override
-          public Object call(final DataShardsGroup groups) throws Exception {
+          public Object call(final DataShardsGroups groups) throws Exception {
             if (LOG.isDebugEnabled()) {
               LOG.debug("Query responded. Setting async to serialize.");
             }
@@ -289,10 +290,10 @@ public class V2QueryResource {
         Constructor<?> ctor = 
             MultiClusterQueryExecutor.class.getConstructor(
                 QueryContext.class, QueryExecutorConfig.class);
-        QueryExecutorFactory<DataShardsGroup> downstream = 
-            new DefaultQueryExecutorFactory<DataShardsGroup>((Constructor<QueryExecutor<?>>) ctor,
-                Config.<DataShardsGroup>newBuilder()
-                .setType(DataShardsGroup.class)
+        QueryExecutorFactory<DataShardsGroups> downstream = 
+            new DefaultQueryExecutorFactory<DataShardsGroups>((Constructor<QueryExecutor<?>>) ctor,
+                Config.<DataShardsGroups>newBuilder()
+                .setType(DataShardsGroups.class)
                 .build());
         this.getQueryExecutorContext().registerFactory(downstream);
         System.out.println("CLUSTER FACTORY: " + downstream);

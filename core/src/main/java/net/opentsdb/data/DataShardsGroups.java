@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.data;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -21,22 +22,18 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeStamp.TimeStampComparator;
 
 /**
- * A collection of zero or more data shards belonging to the same 
- * {@link TimeSeriesGroupId}.
+ * A collection of zero or more data shard groups resulting from a query.
  * 
  * @since 3.0
  */
-public abstract class DataShardsGroup {
+public abstract class DataShardsGroups {
 
   /** The data type reference to pass around. */
-  public static final TypeToken<DataShardsGroup> TYPE = 
-      TypeToken.of(DataShardsGroup.class);
-  
-  /** The group ID shared with all shards. */
-  protected TimeSeriesGroupId id;
+  public static final TypeToken<DataShardsGroups> TYPE = 
+      TypeToken.of(DataShardsGroups.class);
   
   /** The list of data shards. May be null. */
-  protected List<DataShards> data;
+  protected List<DataShardsGroup> data;
   
   /** The base time shared by all shards. */
   protected TimeStamp base_time;
@@ -46,27 +43,16 @@ public abstract class DataShardsGroup {
   
   /**
    * Default ctor.
-   * @param id A non-null ID.
-   * @throws IllegalArgumentException if the ID was null.
    */
-  public DataShardsGroup(final TimeSeriesGroupId id) {
-    if (id == null) {
-      throw new IllegalArgumentException("ID cannot be null.");
-    }
-    this.id = id;
+  public DataShardsGroups() {
     order = -1;
   }
   
-  /** @return The time series group Id */
-  public TimeSeriesGroupId id() {
-    return id;
+  /** @return The list of data shard groups. May be empty. */
+  public List<DataShardsGroup> data() {
+    return data == null ? Collections.<DataShardsGroup>emptyList() : data;
   }
-  
-  /** @return The list of data shards. May be empty. */
-  public List<DataShards> data() {
-    return data == null ? Collections.<DataShards>emptyList() : data; 
-  }
-  
+
   /** @return The base time of shards in this collection. */
   public TimeStamp baseTime() {
     return base_time;
@@ -78,40 +64,51 @@ public abstract class DataShardsGroup {
   }
   
   /**
-   * Adds a shard collection to the list.
-   * <b>Note:</b> This method does not check for duplicate shards.
-   * @param shards A non-null shards collection.
-   * @throws IllegalArgumentException if the shards were null, the shard's 
+   * Adds a group to the collection.
+   * <b>Note:</b> This method does not check for duplicate groups.
+   * @param group A non-null group.
+   * @throws IllegalArgumentException if the group was null, the group's 
    * base time differed from the collection's base time or it's order was 
    * different.
    */
-  public void addShards(final DataShards shards) {
-    if (shards == null) {
-      throw new IllegalArgumentException("Shards cannot be null.");
+  public void addGroup(final DataShardsGroup group) {
+    if (group == null) {
+      throw new IllegalArgumentException("Group cannot be null.");
     }
     if (base_time == null) {
-      base_time = shards.baseTime();
-      order = shards.order();
+      base_time = group.baseTime();
+      order = group.order();
     } else {
-      if (base_time.compare(TimeStampComparator.NE, shards.baseTime())) {
-        throw new IllegalArgumentException("Shards base time " + shards.baseTime() 
+      if (base_time.compare(TimeStampComparator.NE, group.baseTime())) {
+        throw new IllegalArgumentException("Shards base time " + group.baseTime() 
           + " was different from the collection's time: " + base_time);
       }
-      if (order != shards.order()) {
-        throw new IllegalArgumentException("Shard order " + shards.order() 
+      if (order != group.order()) {
+        throw new IllegalArgumentException("Shard order " + group.order() 
           + " was different from the collection's order: " + order + " " 
-          + shards.id());
+          + group.id());
       }
     }
     if (data == null) {
-      data = Lists.newArrayList(shards);
+      data = Lists.newArrayList(group);
     } else {
-      data.add(shards);
+      data.add(group);
     }
   }
   
-  /** @return TODO */
-  public boolean cached() {
-    return false;
+  /**
+   * Add a collection of groups to this group set.
+   * @param groups A non-null collection of groups.
+   * @throws IllegalArgumentException if the groups was null, any group was null,
+   * a group's base time differed from the collection's base time or a group 
+   * order was different.
+   */
+  public void addGroups(final Collection<DataShardsGroup> groups) {
+    if (groups == null) {
+      throw new IllegalArgumentException("Groups cannot be null.");
+    }
+    for (final DataShardsGroup group : groups) {
+      addGroup(group);
+    }
   }
 }

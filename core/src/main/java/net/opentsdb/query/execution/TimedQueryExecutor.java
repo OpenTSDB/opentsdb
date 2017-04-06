@@ -51,20 +51,21 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
    * Default ctor.
    * @param context A non-null context to pull the timer from.
    * @param config A query executor config.
-   * @throws IllegalArgumentException if the context or executor were null or
+   * @throws IllegalArgumentException if the context or config were null or
    * if the timeout was less than 1 millisecond.
    */
   @SuppressWarnings("unchecked")
   public TimedQueryExecutor(final QueryContext context, 
                             final QueryExecutorConfig config) {
     super(context, config);
-    if (((Config<T>) config).executor == null) {
-      throw new IllegalArgumentException("Executor cannot be null.");
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null.");
     }
     if (((Config<T>) config).timeout < 1) {
       throw new IllegalArgumentException("Timeout must be greater than zero.");
     }
-    executor = ((Config<T>) config).executor;
+    executor = (QueryExecutor<T>) context.getQueryExecutorContext()
+        .newDownstreamExecutor(context, config.getFactory());
     timeout = ((Config<T>) config).timeout;
   }
 
@@ -214,12 +215,10 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
    * The config for this executor.
    * @param <T> The type of data returned by the executor.
    */
-  public static class Config<T> implements QueryExecutorConfig {
-    private QueryExecutor<T> executor; 
+  public static class Config<T> extends QueryExecutorConfig {
     private long timeout;
     
     private Config(final Builder<T> builder) {
-      executor = builder.executor;
       timeout = builder.timeout;
     }
     
@@ -228,19 +227,8 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
     }
     
     public static class Builder<T> {
-      private QueryExecutor<T> executor; 
       private long timeout;
-      
-      /**
-       * The executor this timer is wrapping.
-       * @param executor A non-null executor.
-       * @return The builder.
-       */
-      public Builder<T> setExecutor(final QueryExecutor<T> executor) {
-        this.executor = executor;
-        return this;
-      }
-      
+
       /**
        * The timeout in milliseconds for the executor.
        * @param timeout A timeout in milliseconds.

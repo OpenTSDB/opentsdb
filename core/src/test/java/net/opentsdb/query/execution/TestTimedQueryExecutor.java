@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2016  The OpenTSDB Authors.
+// Copyright (C) 2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -30,6 +30,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
@@ -40,12 +42,14 @@ import io.netty.util.TimerTask;
 import io.opentracing.Span;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.context.QueryExecutorContext;
 import net.opentsdb.query.execution.TimedQueryExecutor.Config;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 public class TestTimedQueryExecutor {
   private QueryContext context;
   private QueryExecutor<Long> executor;
+  private QueryExecutorContext executor_context;
   private Timer timer;
   private TimeSeriesQuery query;
   private MockDownstream downstream;
@@ -58,17 +62,28 @@ public class TestTimedQueryExecutor {
   public void before() throws Exception {
     context = mock(QueryContext.class);
     executor = mock(QueryExecutor.class);
+    executor_context = mock(QueryExecutorContext.class);
     timer = mock(Timer.class);
     query = mock(TimeSeriesQuery.class);
     downstream = new MockDownstream(query);
     timeout = mock(Timeout.class);
     span = mock(Span.class);
     config = TimedQueryExecutor.Config.<Long>newBuilder()
-      .setExecutor(executor)
       .setTimeout(1000)
       .build();
     
     when(context.getTimer()).thenReturn(timer);
+    when(context.getQueryExecutorContext()).thenReturn(executor_context);
+    when(executor_context
+        .newDownstreamExecutor(eq(context), any(QueryExecutorFactory.class)))
+          .thenAnswer(new Answer<QueryExecutor<?>>() {
+      @Override
+      public QueryExecutor<?> answer(InvocationOnMock invocation)
+          throws Throwable {
+        // TODO Auto-generated method stub
+        return executor;
+      }
+    });
     when(executor.executeQuery(eq(query), any(Span.class))).thenReturn(downstream);
     when(executor.close()).thenReturn(Deferred.fromResult(null));
     when(timer.newTimeout(any(TimerTask.class), anyLong(), eq(TimeUnit.MILLISECONDS)))
@@ -79,7 +94,6 @@ public class TestTimedQueryExecutor {
   public void ctor() throws Exception {
     final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
         context, TimedQueryExecutor.Config.<Long>newBuilder()
-        .setExecutor(executor)
         .setTimeout(1000)
         .build());
     assertTrue(tqe.outstandingRequests().isEmpty());
@@ -87,25 +101,19 @@ public class TestTimedQueryExecutor {
     try {
       new TimedQueryExecutor<Long>(null, 
           TimedQueryExecutor.Config.<Long>newBuilder()
-          .setExecutor(executor)
           .setTimeout(1000)
           .build());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new TimedQueryExecutor<Long>(context, 
-          TimedQueryExecutor.Config.<Long>newBuilder()
-          //.setExecutor(executor)
-          .setTimeout(1000)
-          .build());
+      new TimedQueryExecutor<Long>(context, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
       new TimedQueryExecutor<Long>(context, 
           TimedQueryExecutor.Config.<Long>newBuilder()
-          .setExecutor(executor)
           //.setTimeout(1000)
           .build());
       fail("Expected IllegalArgumentException");

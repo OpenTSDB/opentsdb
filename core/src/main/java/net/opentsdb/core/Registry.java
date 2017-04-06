@@ -23,7 +23,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.DataMerger;
 import net.opentsdb.data.DataShardMerger;
-import net.opentsdb.data.DataShardsGroup;
+import net.opentsdb.data.DataShardsGroups;
 import net.opentsdb.data.types.numeric.NumericMergeLargest;
 import net.opentsdb.stats.TsdbTracer;
 
@@ -90,7 +90,7 @@ public class Registry {
   private void initDataMergers() {
     final DataShardMerger shards_merger = new DataShardMerger();
     shards_merger.registerStrategy(new NumericMergeLargest());
-    data_mergers.put(DataShardsGroup.TYPE, shards_merger);
+    data_mergers.put(DataShardsGroups.TYPE, shards_merger);
   }
   
 }

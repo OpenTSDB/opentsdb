@@ -57,6 +57,8 @@ import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.DataShards;
 import net.opentsdb.data.DataShardsGroup;
+import net.opentsdb.data.DataShardsGroups;
+import net.opentsdb.data.DefaultDataShardsGroup;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.TimeSeriesValue;
@@ -139,7 +141,7 @@ public class TestHttpQueryV2Executor {
     query.groupId(group_id);
     
     response_content = "[{"
-        + " \"metric\": \"some.fun.metric\","
+        + " \"metric\": \"sys.cpu.user\","
         + " \"tags\": {"
         + "   \"hostgroup\": \"group_b\","
         + "   \"_aggregate\": \"SUM\""
@@ -152,7 +154,7 @@ public class TestHttpQueryV2Executor {
         + " },"
         + " \"stats\":{}"
         + "}, {"
-        + " \"metric\": \"some.fun.metric\","
+        + " \"metric\": \"sys.cpu.user\","
         + " \"tags\": {"
         + "   \"hostgroup\": \"group_a\","
         + "   \"_aggregate\": \"SUM\""
@@ -225,8 +227,8 @@ public class TestHttpQueryV2Executor {
         new HttpQueryV2Executor(context, config);
     assertNull(executor.close().join());
     
-    QueryExecution<DataShardsGroup> e1 = mock(QueryExecution.class);
-    QueryExecution<DataShardsGroup> e2 = mock(QueryExecution.class);
+    QueryExecution<DataShardsGroups> e1 = mock(QueryExecution.class);
+    QueryExecution<DataShardsGroups> e2 = mock(QueryExecution.class);
     executor.outstandingRequests().add(e1);
     executor.outstandingRequests().add(e2);
     
@@ -242,7 +244,8 @@ public class TestHttpQueryV2Executor {
         new HttpQueryV2Executor(context, config);
     setupQuery();
     
-    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
+    QueryExecution<DataShardsGroups> exec = 
+        executor.executeQuery(query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -254,11 +257,12 @@ public class TestHttpQueryV2Executor {
     
     assertEquals("Winter Is Coming!", 
         post_request.getFirstHeader("X-MyHeader").getValue());
-    final DataShardsGroup data = exec.deferred().join();
-    assertEquals(2, data.data().size());
+    final DataShardsGroups groups = exec.deferred().join();
+    assertEquals(1, groups.data().size());
+    DataShardsGroup data = groups.data().get(0);
     TimeSeriesIterator<NumericType> it_a = (TimeSeriesIterator<NumericType>) 
         data.data().get(0).data().get(0);
-    assertArrayEquals("some.fun.metric".getBytes(Const.UTF8_CHARSET), 
+    assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
         it_a.id().metrics().get(0));
     assertArrayEquals("group_b".getBytes(Const.UTF8_CHARSET), 
         it_a.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
@@ -268,7 +272,7 @@ public class TestHttpQueryV2Executor {
     
     TimeSeriesIterator<NumericType> it_b = (TimeSeriesIterator<NumericType>) 
         data.data().get(1).data().get(0);
-    assertArrayEquals("some.fun.metric".getBytes(Const.UTF8_CHARSET), 
+    assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
         it_b.id().metrics().get(0));
     assertArrayEquals("group_a".getBytes(Const.UTF8_CHARSET), 
         it_b.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
@@ -312,7 +316,7 @@ public class TestHttpQueryV2Executor {
     assertTrue(executor.outstandingRequests().isEmpty());
     verify(client, times(1)).close();
   }
-    
+  
   @Test (expected = IllegalArgumentException.class)
   public void executeQueryNullQuery() throws Exception {
     final HttpQueryV2Executor executor = 
@@ -335,7 +339,8 @@ public class TestHttpQueryV2Executor {
         .build();
     query.groupId(group_id);
     
-    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
+    QueryExecution<DataShardsGroups> exec = 
+        executor.executeQuery(query, span);
     assertNull(callback);
     assertFalse(executor.outstandingRequests().contains(future));
     try {
@@ -352,7 +357,8 @@ public class TestHttpQueryV2Executor {
         new HttpQueryV2Executor(context, config);
     setupQuery();
     
-    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
+    QueryExecution<DataShardsGroups> exec = 
+        executor.executeQuery(query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -376,7 +382,8 @@ public class TestHttpQueryV2Executor {
         new HttpQueryV2Executor(context, config);
     setupQuery();
     
-    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
+    QueryExecution<DataShardsGroups> exec = 
+        executor.executeQuery(query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -401,7 +408,8 @@ public class TestHttpQueryV2Executor {
         new HttpQueryV2Executor(context, config);
     setupQuery();
     
-    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
+    QueryExecution<DataShardsGroups> exec = 
+        executor.executeQuery(query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -437,7 +445,8 @@ public class TestHttpQueryV2Executor {
     entity = new StringEntity(response_content);
     when(response.getEntity()).thenReturn(entity);
     
-    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
+    QueryExecution<DataShardsGroups> exec = 
+        executor.executeQuery(query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -462,7 +471,8 @@ public class TestHttpQueryV2Executor {
     setupQuery();
     when(status.getStatusCode()).thenReturn(404);
     
-    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
+    QueryExecution<DataShardsGroups> exec = 
+        executor.executeQuery(query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -486,7 +496,8 @@ public class TestHttpQueryV2Executor {
         new HttpQueryV2Executor(context, config);
     setupQuery();
     
-    QueryExecution<DataShardsGroup> exec = executor.executeQuery(query, span);
+    QueryExecution<DataShardsGroups> exec = 
+        executor.executeQuery(query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -846,8 +857,11 @@ public class TestHttpQueryV2Executor {
     query.validate();
     JsonNode root = JSON.getMapper().readTree(response_content);
     
-    DataShards shards = executor.parseTSQuery(query, root.get(0), span);
-    assertArrayEquals("some.fun.metric".getBytes(Const.UTF8_CHARSET), 
+    final Map<String, DataShardsGroup> groups = Maps.newHashMapWithExpectedSize(1);
+    groups.put("m1", new DefaultDataShardsGroup(new SimpleStringGroupId("m1")));
+    executor.parseTSQuery(query, root.get(0), span, groups);
+    DataShards shards = groups.get("m1").data().get(0);
+    assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
         shards.id().metrics().get(0));
     assertArrayEquals("group_b".getBytes(Const.UTF8_CHARSET), 
         shards.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
@@ -876,8 +890,9 @@ public class TestHttpQueryV2Executor {
     assertFalse(v.value().isInteger());
     assertEquals(23737.69921875, v.value().doubleValue(), 0.000000001);
     
-    shards = executor.parseTSQuery(query, root.get(1), span);
-    assertArrayEquals("some.fun.metric".getBytes(Const.UTF8_CHARSET), 
+    executor.parseTSQuery(query, root.get(1), span, groups);
+    shards = groups.get("m1").data().get(1);
+    assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
         shards.id().metrics().get(0));
     assertArrayEquals("group_a".getBytes(Const.UTF8_CHARSET), 
         shards.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
@@ -909,7 +924,7 @@ public class TestHttpQueryV2Executor {
     
     // no data points
     response_content = "[{"
-        + " \"metric\": \"some.fun.metric\","
+        + " \"metric\": \"sys.cpu.user\","
         + " \"tags\": {"
         + "   \"hostgroup\": \"group_b\","
         + "   \"_aggregate\": \"SUM\""
@@ -917,7 +932,7 @@ public class TestHttpQueryV2Executor {
         + " \"aggregateTags\": [],"
         + " \"stats\":{}"
         + "}, {"
-        + " \"metric\": \"some.fun.metric\","
+        + " \"metric\": \"sys.cpu.user\","
         + " \"tags\": {"
         + "   \"hostgroup\": \"group_a\","
         + "   \"_aggregate\": \"SUM\""
@@ -926,9 +941,12 @@ public class TestHttpQueryV2Executor {
         + " \"stats\":{}"
         + "}]";
     root = JSON.getMapper().readTree(response_content);
+    groups.clear();
+    groups.put("m1", new DefaultDataShardsGroup(new SimpleStringGroupId("m1")));
     
-    shards = executor.parseTSQuery(query, root.get(0), span);
-    assertArrayEquals("some.fun.metric".getBytes(Const.UTF8_CHARSET), 
+    executor.parseTSQuery(query, root.get(0), span, groups);
+    shards = groups.get("m1").data().get(0);
+    assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
         shards.id().metrics().get(0));
     assertArrayEquals("group_b".getBytes(Const.UTF8_CHARSET), 
         shards.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
@@ -946,8 +964,9 @@ public class TestHttpQueryV2Executor {
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    shards = executor.parseTSQuery(query, root.get(1), span);
-    assertArrayEquals("some.fun.metric".getBytes(Const.UTF8_CHARSET), 
+    executor.parseTSQuery(query, root.get(1), span, groups);
+    shards = groups.get("m1").data().get(1);
+    assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
         shards.id().metrics().get(0));
     assertArrayEquals("group_a".getBytes(Const.UTF8_CHARSET), 
         shards.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));

@@ -400,7 +400,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
    * The config for this executor.
    * @param <T> The type of data returned by the executor.
    */
-  public static class Config<T> implements QueryExecutorConfig {
+  public static class Config<T> extends QueryExecutorConfig {
     private Class<T> type;
     private long timeout;
     

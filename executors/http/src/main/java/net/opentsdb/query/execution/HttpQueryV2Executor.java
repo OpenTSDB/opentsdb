@@ -17,6 +17,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.Map.Entry;
@@ -38,13 +39,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 
 import io.opentracing.Span;
 import net.opentsdb.data.DataShards;
 import net.opentsdb.data.DataShardsGroup;
+import net.opentsdb.data.DataShardsGroups;
 import net.opentsdb.data.DefaultDataShards;
 import net.opentsdb.data.DefaultDataShardsGroup;
+import net.opentsdb.data.DefaultDataShardsGroups;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.SimpleStringTimeSeriesId;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
@@ -70,7 +74,7 @@ import net.opentsdb.utils.JSONException;
  * 
  * @since 3.0
  */
-public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
+public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
   private static final Logger LOG = LoggerFactory.getLogger(
       HttpQueryV2Executor.class);
   
@@ -95,7 +99,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
     if (config == null) {
       throw new IllegalArgumentException("Config connot be null.");
     }
-    if (Strings.isNullOrEmpty(((Config<DataShardsGroup>) config).endpoint)) {
+    if (Strings.isNullOrEmpty(((Config<List<DataShardsGroup>>) config).endpoint)) {
       throw new IllegalArgumentException("Endpoint cannot be null or empty.");
     }
     if (context.getRemoteContext() == null) {
@@ -104,13 +108,14 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
     if (!(context.getRemoteContext() instanceof HttpContext)) {
       throw new IllegalStateException("Remote context was not an HttpContext.");
     }
-    this.endpoint = ((Config<DataShardsGroup>) config).endpoint + "/api/query";
+    this.endpoint = ((Config<List<DataShardsGroup>>) config).endpoint + "/api/query";
     http_context = (HttpContext) context.getRemoteContext();
   }
   
   @Override
-  public QueryExecution<DataShardsGroup> executeQuery(final TimeSeriesQuery query,
-                                                      final Span upstream_span) {
+  public QueryExecution<DataShardsGroups> executeQuery(
+      final TimeSeriesQuery query,
+      final Span upstream_span) {
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
     }
@@ -180,12 +185,15 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
    * @param node A non-null JSON node set to the root of one of the response
    * objects in the response array.
    * @param tracer_span An optional span to write stats to.
+   * @param groups The map of groups to write to (matches on metric).
    * @return A non-null data shards set.
    * @throws IllegalArgumentException if the query or node was null.
    */
   @VisibleForTesting
-  DataShards parseTSQuery(final TimeSeriesQuery query, final JsonNode node,
-      final Span tracer_span) {
+  void parseTSQuery(final TimeSeriesQuery query, 
+                          final JsonNode node,
+                          final Span tracer_span,
+                          final Map<String, DataShardsGroup> groups) {
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
     }
@@ -195,13 +203,26 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
     final SimpleStringTimeSeriesId.Builder id = 
         SimpleStringTimeSeriesId.newBuilder();
     
+    final String metric;
     if (node.has("metric")) {
       if (node.path("metric").isNull()) {
         throw new JSONException("Metric was null for query result: " + node);
       }
-      id.addMetric(node.path("metric").asText());
+      metric = node.path("metric").asText();
+      id.addMetric(metric);
     } else {
       throw new JSONException("No metric found for the series: " + node);
+    }
+    DataShardsGroup group = null;
+    for (final Metric m : query.getMetrics()) {
+      if (m.getMetric().equals(metric)) {
+        group = groups.get(m.getId());
+        break;
+      }
+    }
+    if (group == null) {
+      throw new IllegalStateException("Couldn't find a group for metric: " 
+          + metric);
     }
     
     parseTags(id, node.path("tags"));
@@ -246,7 +267,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
     }
     final DataShards shards = new DefaultDataShards(id.build());
     shards.addShard(shard);
-    return shards;
+    group.addShards(shards);
   }
   
   /**
@@ -289,7 +310,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
   }
 
   /** An implementation that allows for canceling the future. */
-  class Execution extends QueryExecution<DataShardsGroup> {
+  class Execution extends QueryExecution<DataShardsGroups> {
     /** The client used for communications. */
     private final CloseableHttpAsyncClient client;
     
@@ -381,19 +402,26 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
           try {
             final String json = parseResponse(response, query.getOrder());
             final JsonNode root = JSON.getMapper().readTree(json);
-            final DataShardsGroup group = new DefaultDataShardsGroup(
-                new SimpleStringGroupId(query.getMetrics().get(0).getId()));
+            final Map<String, DataShardsGroup> groups = 
+                Maps.newHashMapWithExpectedSize(query.getMetrics().size());
+            for (final Metric metric : query.getMetrics()) {
+              groups.put(metric.getId(), new DefaultDataShardsGroup(
+                  new SimpleStringGroupId(metric.getId())));
+            }
             for (final JsonNode node : root) {
-              group.addShards(parseTSQuery(query, node, tracer_span));
+              parseTSQuery(query, node, tracer_span, groups);
             }
             if (LOG.isDebugEnabled()) {
               LOG.debug("Calling back upstream.");
             }
-            callback(group, new ImmutableMap.Builder<String, String>()
-                .put("remoteHost", host)
-                .put("status", "ok")
-                .put("finalThread", Thread.currentThread().getName())
-                .build());
+            final DataShardsGroups results = new DefaultDataShardsGroups();
+            results.addGroups(groups.values());
+            callback(results, 
+                new ImmutableMap.Builder<String, String>()
+                  .put("remoteHost", host)
+                  .put("status", "ok")
+                  .put("finalThread", Thread.currentThread().getName())
+                  .build());
             if (LOG.isDebugEnabled()) {
               LOG.debug("Called back upstream.");
             }
@@ -463,15 +491,15 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
     }
     
     /** Helper to remove the future once it's complete. */
-    class FutureRemover implements Callback<Object, DataShardsGroup> {
+    class FutureRemover implements Callback<Object, DataShardsGroups> {
       final Future<HttpResponse> future;
       public FutureRemover(final Future<HttpResponse> future) {
         this.future = future;
       }
       @Override
-      public Object call(final DataShardsGroup result) throws Exception {
+      public Object call(final DataShardsGroups results) throws Exception {
         cleanup();
-        return result;
+        return results;
       }
     }
     
@@ -600,7 +628,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroup> {
    * The config for this executor.
    * @param <T> The type of data returned by the executor.
    */
-  public static class Config<T> implements QueryExecutorConfig {
+  public static class Config<T> extends QueryExecutorConfig {
     private String endpoint;
     
     private Config(final Builder<T> builder) {

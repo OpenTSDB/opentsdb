@@ -36,7 +36,7 @@ import net.opentsdb.utils.Bytes;
  * 
  * @since 3.0
  */
-public class DataShardMerger implements DataMerger<DataShardsGroup> {
+public class DataShardMerger implements DataMerger<DataShardsGroups> {
   private static final Logger LOG = LoggerFactory.getLogger(
       DataShardMerger.class);
   
@@ -52,7 +52,7 @@ public class DataShardMerger implements DataMerger<DataShardsGroup> {
   
   @Override
   public TypeToken<?> type()  {
-    return DataShardsGroup.TYPE;
+    return DataShardsGroups.TYPE;
   }
   
   /**
@@ -68,26 +68,27 @@ public class DataShardMerger implements DataMerger<DataShardsGroup> {
   }
   
   /**
-   * Merge the given shards groups into one result.
+   * Merge the given shards groups into one result, joining first on the shards
+   * group ID (using {@code .equals()}) then on the time series IDs.
    * <p>
-   * Invariant: All shards in the array must be null or have the same base
-   * time and time spans. Nulled shards are skipped.
+   * Invariant: All groups in the array must be null or have the same base
+   * time and time spans. Nulled groups are skipped.
    * 
-   * @param shards A non-null array of shards to merge.
+   * @param groups A non-null list of groups to merge.
    * @param context A non-null context to pull info from.
    * @param tracer_span An optional tracer span.
-   * @return A shards object with the merged results. If all shards in the
-   * list were null, the resulting shard will be null.
-   * @throws IllegalArgumentException if the context or shards were null.
+   * @return A non-null list of merged groups. If all groups in the list were
+   * null, then result will be empty.
+   * @throws IllegalArgumentException if the context or groups were null.
    */
   @Override
-  public DataShardsGroup merge(final List<DataShardsGroup> shards, 
-                               final QueryContext context, 
-                               final Span tracer_span) {
+  public DataShardsGroups merge(final List<DataShardsGroups> groups, 
+                                     final QueryContext context, 
+                                     final Span tracer_span) {
     if (context == null) {
       throw new IllegalArgumentException("Context cannot be null.");
     }
-    if (shards == null) {
+    if (groups == null) {
       throw new IllegalArgumentException("Shards cannot be null.");
     }
     final Span local_span;
@@ -97,95 +98,134 @@ public class DataShardMerger implements DataMerger<DataShardsGroup> {
       if (tracer_span != null) {
         builder.asChildOf(tracer_span);
       }
-      builder.withTag("shardCount", Integer.toString(shards.size()));
+      builder.withTag("shardCount", Integer.toString(groups.size()));
       local_span = builder.start();
     } else {
       local_span = null;
     }
-        
-    TimeSeriesGroupId group_id = null;
-    for (final DataShardsGroup group : shards) {
-      if (group != null) {
-        group_id = group.id;
-        break;
-      }
+    
+    final List<DataShardsGroup> unpacked = Lists.newArrayList();
+    for (final DataShardsGroups set : groups) {
+      unpacked.addAll(set.data());
     }
+    final DataShardsGroups results = new DefaultDataShardsGroups();
+    
+    // first, join by the Group ID.
+    final boolean[] completed = new boolean[unpacked.size()];
+    for (int i = 0; i < unpacked.size(); i++) {
+      if (completed[i]) {
+        continue;
+      }
+      
+      final DataShardsGroup group = unpacked.get(i);
+      completed[i] = true;
+      final List<DataShardsGroup> same_group = 
+          Lists.newArrayListWithExpectedSize(2);
+      same_group.add(group);
+      for (int y = i + 1; y < groups.size(); y++) {
+        if (unpacked.get(y).id().equals(group.id())) {
+          completed[y] = true;
+          same_group.add(unpacked.get(y));
+        }
+      }
+      results.addGroup(mergeGroups(group.id(), same_group, context, local_span));
+    }
+    if (local_span != null) {
+      local_span.finish();
+    }
+    return results;
+  }
+
+  /**
+   * Takes one or more groups with the same group ID and joins the 
+   * {@link DataShards} in each group then calls the merge data function to
+   * merge the results using the proper type mergers. 
+   * @param group_id A non-null group ID that is common across all groups and 
+   * will be used in the resulting group.
+   * @param groups A non-null list of 1 or more groups to merge.
+   * @param context A non-null query context.
+   * @param tracer_span An optional tracer span.
+   * @return A non-null group with the merged results.
+   */
+  @VisibleForTesting
+  DataShardsGroup mergeGroups(final TimeSeriesGroupId group_id, 
+                              final List<DataShardsGroup> groups, 
+                              final QueryContext context, 
+                              final Span tracer_span) {
     final DataShardsGroup group = new DefaultDataShardsGroup(group_id);
     
     /** Holds the list of matched shard objects to merge */
-    DataShards[] merged = new DataShards[shards.size()];
+    DataShards[] merged = new DataShards[groups.size()];
     
     /** An array of arrays to track when we've matched a shard so we can avoid
      * dupe processing and speed things up as we go along. */
-    final boolean[][] processed = new boolean[shards.size()][];
+    final boolean[][] processed = new boolean[groups.size()][];
     int order = -1;
     TimeStamp base_time = null;
-    for (int i = 0; i < shards.size(); i++) {
-      if (shards.get(i) == null) {
+    for (int i = 0; i < groups.size(); i++) {
+      if (groups.get(i) == null) {
         processed[i] = new boolean[0];
       } else {
-        processed[i] = new boolean[shards.get(i).data.size()];
+        processed[i] = new boolean[groups.get(i).data.size()];
         if (order < 0) {
-          order = shards.get(i).order();
+          order = groups.get(i).order();
         } else {
-          if (order != shards.get(i).order()) {
+          if (order != groups.get(i).order()) {
             throw new IllegalStateException("One or more shards in the set was "
                 + "for a different order. Expected: " + order + " but got: " 
-                + shards.get(i));
+                + groups.get(i));
           }
         }
         if (base_time == null) {
-          base_time = shards.get(i).baseTime();
+          base_time = groups.get(i).baseTime();
         }
       }
     }
 
     // TODO - There MUST be a better way than this naive quadratic merge O(n^2)
     // so if you're looking at this and can find it, please help us!
-    int nulls = 0;
     // outer loop start for iterating over each shard set
-    for (int i = 0; i < shards.size(); i++) {
+    for (int i = 0; i < groups.size(); i++) {
       MergedTimeSeriesId.Builder id = null;
-      if (shards.get(i) == null) {
-        ++nulls;
+      if (groups.get(i) == null) {
         continue;
       }
       
       // inner loop start for iterating over each shard in each set
-      for (int x = 0; x < shards.get(i).data().size(); x++) {
+      for (int x = 0; x < groups.get(i).data().size(); x++) {
         if (processed[i][x]) {
           continue;
         }
         id = MergedTimeSeriesId.newBuilder();
         
         // NOTE: Make sure to reset the shards array here
-        merged = new DataShards[shards.size()];
-        merged[i] = shards.get(i).data().get(x);
+        merged = new DataShards[groups.size()];
+        merged[i] = groups.get(i).data().get(x);
         
-        if (shards.get(i).data().get(x).id().alias() != null) {
-          id.setAlias(shards.get(i).data().get(x).id().alias());
+        if (groups.get(i).data().get(x).id().alias() != null) {
+          id.setAlias(groups.get(i).data().get(x).id().alias());
         }
-        id.addSeries(shards.get(i).data().get(x).id());
+        id.addSeries(groups.get(i).data().get(x).id());
         processed[i][x] = true;
                 
         // nested outer loop to start searching the other shard groups
-        for (int y = 0; y < shards.size(); y++) {
+        for (int y = 0; y < groups.size(); y++) {
           if (y == i) {
             // der, skip ourselves of course.
             continue;
           }
-          if (shards.get(y) == null) {
+          if (groups.get(y) == null) {
             continue;
           }
           
           // nexted inner loop to match against a shard in another group
-          for (int z = 0; z < shards.get(y).data().size(); z++) {
+          for (int z = 0; z < groups.get(y).data().size(); z++) {
             if (processed[y][z]) {
               continue;
             }
             // temp build
             final TimeSeriesId temp_id = id.build();
-            final TimeSeriesId local_id = shards.get(y).data().get(z).id();
+            final TimeSeriesId local_id = groups.get(y).data().get(z).id();
             
             // alias check first
             if (temp_id.alias() != null && temp_id.alias().length > 0) {
@@ -296,23 +336,19 @@ public class DataShardMerger implements DataMerger<DataShardsGroup> {
             }
             
             // matched!!           
-            merged[y] = shards.get(y).data().get(z);
-            id.addSeries(shards.get(y).data().get(z).id());
+            merged[y] = groups.get(y).data().get(z);
+            id.addSeries(groups.get(y).data().get(z).id());
             processed[y][z] = true;
           } // end dupe inner data shard loop
         } // end dupe outer shards loop
 
-        group.addShards(mergeData(merged, id.build(), context, local_span));
+        group.addShards(mergeData(merged, id.build(), context, tracer_span));
       } // end inner data shard loop
     } // end outer shards loop
-    
-    if (local_span != null) {
-      local_span.setTag("nulledShards", nulls);
-      local_span.finish();
-    }
+
     return group;
   }
-
+  
   /**
    * Once a set of shards are joined they're passed to this method to merge.
    * @param to_merge A non-null set of shards to merge. May be empty though.

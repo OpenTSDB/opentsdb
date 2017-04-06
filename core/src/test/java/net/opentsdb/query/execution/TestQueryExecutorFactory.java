@@ -107,7 +107,7 @@ public class TestQueryExecutorFactory {
         final Span upstream_span) { return null; }
   }
   
-  private static class TestConfig<T> implements QueryExecutorConfig {
+  private static class TestConfig<T> extends QueryExecutorConfig {
     
   }
 }
