@@ -22,8 +22,10 @@ import com.google.common.base.Objects;
 
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Downsampler;
+import net.opentsdb.query.pojo.DownsamplingSpecification;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
+import net.opentsdb.query.pojo.NumericFillPolicy;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.utils.DateTime;
@@ -495,16 +497,20 @@ public final class TSQuery {
           .setMetric(sub.getMetric())
           .setAggregator(sub.getAggregator());
       if (sub.getDownsample() != null) {
-        metric.setDownsampler(Downsampler.newBuilder()
-            // TODO - wotcha!!! Here there be demons
-            .setAggregator(sub.getDownsample().substring(
-                sub.getDownsample().indexOf("-") + 1))
-            .setInterval(sub.getDownsample().substring(0, 
-                sub.getDownsample().indexOf("-"))));
+        final DownsamplingSpecification spec = 
+            new DownsamplingSpecification(sub.getDownsample());
+        final Downsampler.Builder builder = Downsampler.newBuilder()
+            .setAggregator(spec.getFunction().toString())
+            .setInterval(spec.getStringInterval());
+        if (spec.getFillPolicy() != null) {
+          builder.setFillPolicy(NumericFillPolicy.newBuilder()
+              .setPolicy(spec.getFillPolicy()));
+        }
+        metric.setDownsampler(builder);
       }
       if (sub.getRate()) {
-        // TODO full rate options
-        //metric.setRate(Rate.newBuilder().setInterval("1s"));
+        metric.setIsRate(true);
+        metric.setRateOptions(sub.getRateOptions());
       }
       
       if (sub.getFilters() != null && !sub.getFilters().isEmpty()) {

@@ -100,7 +100,8 @@ public class TestMetric {
 
   @Test
   public void unknownShouldBeIgnored() throws Exception {
-    String json = "{\"aggregator\":\"sum\",\"tags\":[\"foo\",\"bar\"],\"unknown\":\"garbage\"}";
+    String json = "{\"aggregator\":\"sum\",\"tags\":[\"foo\",\"bar\"]"
+        + ",\"unknown\":\"garbage\"}";
     JSON.parseToObject(json, Metric.class);
     // pass if no unexpected exception
   }
@@ -163,6 +164,10 @@ public class TestMetric {
             .setAggregator("sum")
             .setInterval("1m")
             .build())
+        .setIsRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setCounter(true)
+            .setCounterMax(1024))
         .build();
     
     Metric m2 = new Metric.Builder()
@@ -178,6 +183,10 @@ public class TestMetric {
             .setAggregator("sum")
             .setInterval("1m")
             .build())
+        .setIsRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setCounter(true)
+            .setCounterMax(1024))
         .build();
     assertEquals(m1.hashCode(), m2.hashCode());
     assertEquals(m1, m2);
@@ -196,6 +205,10 @@ public class TestMetric {
             .setAggregator("sum")
             .setInterval("1m")
             .build())
+        .setIsRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setCounter(true)
+            .setCounterMax(1024))
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
     assertNotEquals(m1, m2);
@@ -214,6 +227,10 @@ public class TestMetric {
             .setAggregator("sum")
             .setInterval("1m")
             .build())
+        .setIsRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setCounter(true)
+            .setCounterMax(1024))
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
     assertNotEquals(m1, m2);
@@ -232,6 +249,10 @@ public class TestMetric {
             .setAggregator("sum")
             .setInterval("1m")
             .build())
+        .setIsRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setCounter(true)
+            .setCounterMax(1024))
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
     assertNotEquals(m1, m2);
@@ -250,6 +271,10 @@ public class TestMetric {
             .setAggregator("sum")
             .setInterval("1m")
             .build())
+        .setIsRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setCounter(true)
+            .setCounterMax(1024))
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
     assertNotEquals(m1, m2);
@@ -268,6 +293,10 @@ public class TestMetric {
             .setAggregator("sum")
             .setInterval("1m")
             .build())
+        .setIsRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setCounter(true)
+            .setCounterMax(1024))
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
     assertNotEquals(m1, m2);
@@ -286,6 +315,10 @@ public class TestMetric {
             .setAggregator("sum")
             .setInterval("1m")
             .build())
+        .setIsRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setCounter(true)
+            .setCounterMax(1024))
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
     assertNotEquals(m1, m2);
@@ -304,6 +337,10 @@ public class TestMetric {
             .setAggregator("sum")
             .setInterval("1m")
             .build())
+        .setIsRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setCounter(true)
+            .setCounterMax(1024))
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
     assertNotEquals(m1, m2);
@@ -322,6 +359,10 @@ public class TestMetric {
             .setAggregator("sum")
             .setInterval("1m")
             .build())
+        .setIsRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setCounter(true)
+            .setCounterMax(1024))
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
     assertNotEquals(m1, m2);
@@ -340,6 +381,10 @@ public class TestMetric {
             .setAggregator("sum")
             .setInterval("1m")
             .build())
+        .setIsRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setCounter(true)
+            .setCounterMax(1024))
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
     assertNotEquals(m1, m2);
@@ -358,6 +403,10 @@ public class TestMetric {
             .setAggregator("avg")  // <-- diff
             .setInterval("1m")
             .build())
+        .setIsRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setCounter(true)
+            .setCounterMax(1024))
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
     assertNotEquals(m1, m2);
@@ -372,10 +421,58 @@ public class TestMetric {
         .setFillPolicy(new NumericFillPolicy.Builder()
             .setPolicy(FillPolicy.NOT_A_NUMBER)
             .build())
-//        .setDownsampler(Downsampler.newBuilder()
-//            .setAggregator("avg")  // <-- diff
+//        .setDownsampler(Downsampler.newBuilder()  // <-- diff
+//            .setAggregator("sum")
 //            .setInterval("1m")
 //            .build())
+        .setIsRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setCounter(true)
+            .setCounterMax(1024))
+        .build();
+    assertNotEquals(m1.hashCode(), m2.hashCode());
+    assertNotEquals(m1, m2);
+    assertEquals(1, m1.compareTo(m2));
+    
+    m2 = new Metric.Builder()
+        .setId("m1")
+        .setFilter("f1")
+        .setMetric("sys.cpu.user")
+        .setTimeOffset("1h-ago")
+        .setAggregator("sum")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setDownsampler(Downsampler.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .build())
+        .setIsRate(true)
+        .setRateOptions(RateOptions.newBuilder()
+            .setCounter(true)
+            .setCounterMax(32000))  // <-- diff
+        .build();
+    assertNotEquals(m1.hashCode(), m2.hashCode());
+    assertNotEquals(m1, m2);
+    assertEquals(-1, m1.compareTo(m2));
+    
+    m2 = new Metric.Builder()
+        .setId("m1")
+        .setFilter("f1")
+        .setMetric("sys.cpu.user")
+        .setTimeOffset("1h-ago")
+        .setAggregator("sum")
+        .setFillPolicy(new NumericFillPolicy.Builder()
+            .setPolicy(FillPolicy.NOT_A_NUMBER)
+            .build())
+        .setDownsampler(Downsampler.newBuilder()
+            .setAggregator("sum")
+            .setInterval("1m")
+            .build())
+        .setIsRate(true)
+//        .setRateOptions(RateOptions.newBuilder()  // <-- diff
+//            .setCounter(true)
+//            .setCounterMax(1024))
         .build();
     assertNotEquals(m1.hashCode(), m2.hashCode());
     assertNotEquals(m1, m2);

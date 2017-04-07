@@ -22,6 +22,7 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 public class TestTSQuery {
@@ -37,6 +38,10 @@ public class TestTSQuery {
     sub.setDownsample("60m-max");
     sub.setAggregator("sum");
     sub.setRate(true);
+    sub.setRateOptions(RateOptions.newBuilder()
+        .setCounter(true)
+        .setCounterMax(1024)
+        .build());
     sub.setFilters(Lists.newArrayList(new TagVFilter.Builder()
         .setFilter("*")
         .setType("wildcard")
@@ -58,6 +63,7 @@ public class TestTSQuery {
         .setType("literal_or")
         .setTagk("colo")
         .build()));
+    sub2.setRate(false);
     ts_query.setQueries(Lists.newArrayList(sub, sub2));
     ts_query.validateAndSetQuery();
     
@@ -95,11 +101,16 @@ public class TestTSQuery {
     assertEquals("sum", query.getMetrics().get(0).getAggregator());
     assertEquals("60m", query.getMetrics().get(0).getDownsampler().getInterval());
     assertEquals("max", query.getMetrics().get(0).getDownsampler().getAggregator());
+    assertTrue(query.getMetrics().get(0).isRate());
+    assertTrue(query.getMetrics().get(0).getRateOptions().isCounter());
+    assertEquals(1024, query.getMetrics().get(0).getRateOptions().getCounterMax());
     
     assertEquals("m2", query.getMetrics().get(1).getId());
     assertEquals("f2", query.getMetrics().get(1).getFilter());
     assertEquals("sys.cpu.busy", query.getMetrics().get(1).getMetric());
     assertEquals("avg", query.getMetrics().get(1).getAggregator());
     assertNull(query.getMetrics().get(1).getDownsampler());
+    assertFalse(query.getMetrics().get(1).isRate());
+    assertNull(query.getMetrics().get(1).getRateOptions());
   }
 }

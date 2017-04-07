@@ -62,6 +62,12 @@ public class Metric extends Validatable implements Comparable<Metric> {
   /** An optional downsampler for this metric. */
   private Downsampler downsampler;
   
+  /** Whether or not to convert to a rate. */
+  private boolean is_rate;
+  
+  /** Optional rate options. */
+  private RateOptions rate_options;
+  
   /**
    * Default ctor
    * @param builder The builder to pull values from
@@ -74,6 +80,8 @@ public class Metric extends Validatable implements Comparable<Metric> {
     aggregator = builder.aggregator;
     fill_policy = builder.fillPolicy;
     downsampler = builder.downsampler;
+    is_rate = builder.isRate;
+    rate_options = builder.rateOptions;
   }
 
   /** @return the name of the metric */
@@ -109,6 +117,16 @@ public class Metric extends Validatable implements Comparable<Metric> {
   /** @return An optional downsampler for this metric. */
   public Downsampler getDownsampler() {
     return downsampler;
+  }
+  
+  /** @return Whether or not to convert to a rate. */
+  public boolean isRate() {
+    return is_rate;
+  }
+  
+  /** @return An optional rate options config. */
+  public RateOptions getRateOptions() {
+    return rate_options;
   }
   
   /** @return A new builder for the metric */
@@ -169,6 +187,10 @@ public class Metric extends Validatable implements Comparable<Metric> {
     if (downsampler != null) {
       downsampler.validate();
     }
+    
+    if (rate_options != null) {
+      rate_options.validate();
+    }
   }
   
   @Override
@@ -186,7 +208,9 @@ public class Metric extends Validatable implements Comparable<Metric> {
         && Objects.equal(that.time_offset, time_offset)
         && Objects.equal(that.aggregator, aggregator)
         && Objects.equal(that.fill_policy, fill_policy)
-        && Objects.equal(that.downsampler, downsampler);
+        && Objects.equal(that.downsampler, downsampler)
+        && Objects.equal(that.is_rate, is_rate)
+        && Objects.equal(that.rate_options, rate_options);
   }
 
   @Override
@@ -202,6 +226,7 @@ public class Metric extends Validatable implements Comparable<Metric> {
         .putString(Strings.nullToEmpty(filter), Const.UTF8_CHARSET)
         .putString(Strings.nullToEmpty(time_offset), Const.UTF8_CHARSET)
         .putString(Strings.nullToEmpty(aggregator), Const.UTF8_CHARSET)
+        .putBoolean(is_rate)
         .hash();
     final List<HashCode> hashes = Lists.newArrayListWithCapacity(2);
     hashes.add(hc);
@@ -210,6 +235,9 @@ public class Metric extends Validatable implements Comparable<Metric> {
     }
     if (downsampler != null) {
       hashes.add(downsampler.buildHashCode());
+    }
+    if (rate_options != null) {
+      hashes.add(rate_options.buildHashCode());
     }
     return Hashing.combineOrdered(hashes);
   }
@@ -224,6 +252,8 @@ public class Metric extends Validatable implements Comparable<Metric> {
         .compare(aggregator, o.aggregator, Ordering.natural().nullsFirst())
         .compare(fill_policy, o.fill_policy, Ordering.natural().nullsFirst())
         .compare(downsampler, o.downsampler, Ordering.natural().nullsFirst())
+        .compareTrueFirst(is_rate, o.is_rate)
+        .compare(rate_options, o.rate_options, Ordering.natural().nullsFirst())
         .result();
   }
 
@@ -247,6 +277,10 @@ public class Metric extends Validatable implements Comparable<Metric> {
     private NumericFillPolicy fillPolicy;
     @JsonProperty
     private Downsampler downsampler;
+    @JsonProperty
+    private boolean isRate;
+    @JsonProperty
+    private RateOptions rateOptions;
     
     public Builder setMetric(String metric) {
       this.metric = metric;
@@ -293,6 +327,22 @@ public class Metric extends Validatable implements Comparable<Metric> {
     @JsonIgnore
     public Builder setDownsampler(final Downsampler.Builder downsampler) {
       this.downsampler = downsampler.build();
+      return this;
+    }
+    
+    public Builder setIsRate(final boolean is_rate) {
+      isRate = is_rate;
+      return this;
+    }
+    
+    public Builder setRateOptions(final RateOptions rate_options) {
+      rateOptions = rate_options;
+      return this;
+    }
+    
+    @JsonIgnore
+    public Builder setRateOptions(final RateOptions.Builder rate_options) {
+      rateOptions = rate_options.build();
       return this;
     }
     
