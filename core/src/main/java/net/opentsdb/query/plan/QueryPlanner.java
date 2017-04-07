@@ -13,7 +13,6 @@
 package net.opentsdb.query.plan;
 
 import com.google.common.base.Strings;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;

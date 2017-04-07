@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 
@@ -53,6 +52,7 @@ import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.SimpleStringTimeSeriesId;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.TSSubQuery;
@@ -63,6 +63,7 @@ import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.JSONException;
 
@@ -131,16 +132,19 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
    * The body is returned as a string if it's successful. If the response code
    * is NOT 200 or the body is null then it throws an exception to pass upstream.
    * @param response A non-null response to parse.
+   * @param order The order of the response.
+   * @param host The host that sent the response.
    * @return a non-null string if the body contained content.
    * @throws RuntimeException if the response is not 200 or the body couldn't be
    * read into a string.
    */
   @VisibleForTesting
-  String parseResponse(final HttpResponse response, final int order) {
+  String parseResponse(final HttpResponse response, final int order, 
+      final String host) {
     final String content;
     if (response.getEntity() == null) {
       throw new RemoteQueryExecutionException("Content for http response "
-          + "was null: " + response, order, 500);
+          + "was null: " + response, host, order, 500);
     }
     
     try {
@@ -158,24 +162,24 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
         content = EntityUtils.toString(response.getEntity());
       } else {
         throw new RemoteQueryExecutionException("Unhandled content encoding [" 
-            + encoding + "] : " + response, order, 500);
+            + encoding + "] : " + response, host, 500, order);
       }
     } catch (ParseException e) {
       LOG.error("Failed to parse content from HTTP response: " + response, e);
       throw new RemoteQueryExecutionException("Content parsing failure for: " 
-          + response, order, 500, e);
+          + response, host, 500, order, e);
     } catch (IOException e) {
       LOG.error("Failed to parse content from HTTP response: " + response, e);
       throw new RemoteQueryExecutionException("Content parsing failure for: " 
-          + response, order, 500, e);
+          + response, host, 500, order, e);
     }
   
     if (response.getStatusLine().getStatusCode() == 200) {
       return content;
     }
     // TODO - parse out the exception
-    throw new RemoteQueryExecutionException(content, order, 
-        response.getStatusLine().getStatusCode());
+    throw new RemoteQueryExecutionException(content, host, 
+        response.getStatusLine().getStatusCode(), order);
   }
   
   /**
@@ -323,13 +327,13 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
       deferred.addCallback(new FutureRemover(future))
               .addErrback(new FutureExceptionRemover(future));
       if (context.getTracer() != null) {
-        setSpan(context, HttpQueryV2Executor.this.getClass().getSimpleName(), 
+        setSpan(context, 
+            HttpQueryV2Executor.this.getClass().getSimpleName(), 
             upstream_span,
-            new ImmutableMap.Builder<String, String>()
-              .put("order", Integer.toString(query.getOrder()))
-              .put("query", JSON.serializeToString(query))
-              .put("startThread", Thread.currentThread().getName())
-              .build());
+            TsdbTrace.addTags(
+                "order", Integer.toString(query.getOrder()),
+                "query", JSON.serializeToString(query),
+                "startThread", Thread.currentThread().getName()));
       }
     }
     
@@ -366,14 +370,13 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
           LOG.error("HttpPost cancelled: " + query);
           if (completed.get()) {
             LOG.warn("Received HTTP response despite being cancelled.");
+            return;
           }
           try {
-            callback(new RemoteQueryExecutionException(
-                "Query was cancelled: " + endpoint, query.getOrder(), 500),
-                new ImmutableMap.Builder<String, String>()
-                  .put("status", "Cancelled")
-                  .put("finalThread", Thread.currentThread().getName())
-                  .build());
+            final Exception e =new QueryExecutionException(
+                "Query was cancelled: " + endpoint, 400, query.getOrder()); 
+            callback(e,
+                TsdbTrace.canceledTags(e));
           } catch (Exception e) {
             LOG.warn("Exception thrown when calling deferred on cancel", e);
           }
@@ -398,9 +401,10 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
             } catch (Exception e) {
               LOG.error("Error consuming response", e);
             }
+            return;
           }
           try {
-            final String json = parseResponse(response, query.getOrder());
+            final String json = parseResponse(response, query.getOrder(), host);
             final JsonNode root = JSON.getMapper().readTree(json);
             final Map<String, DataShardsGroup> groups = 
                 Maps.newHashMapWithExpectedSize(query.getMetrics().size());
@@ -411,25 +415,24 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
             for (final JsonNode node : root) {
               parseTSQuery(query, node, tracer_span, groups);
             }
-            if (LOG.isDebugEnabled()) {
-              LOG.debug("Calling back upstream.");
-            }
             final DataShardsGroups results = new DefaultDataShardsGroups();
             results.addGroups(groups.values());
             callback(results, 
-                new ImmutableMap.Builder<String, String>()
-                  .put("remoteHost", host)
-                  .put("status", "ok")
-                  .put("finalThread", Thread.currentThread().getName())
-                  .build());
-            if (LOG.isDebugEnabled()) {
-              LOG.debug("Called back upstream.");
-            }
+                TsdbTrace.successfulTags("remoteHost", host));
           } catch (Exception e) {
             LOG.error("Failure handling response: " + response + "\nQuery: " 
                 + json, e);
-            callback(new RemoteQueryExecutionException(
-                "Unexepected exception: " + endpoint, query.getOrder(), 500, e));
+            if (e instanceof QueryExecutionException) {
+              callback(e,
+                  TsdbTrace.exceptionTags(e, "remoteHost", host),
+                  TsdbTrace.exceptionAnnotation(e));
+            } else {
+              final Exception ex = new QueryExecutionException(
+                  "Unexepected exception: " + endpoint, 500, query.getOrder(), e);
+              callback(ex,
+                  TsdbTrace.exceptionTags(ex, "remoteHost", host),
+                  TsdbTrace.exceptionAnnotation(ex));
+            }
           }
         }
 
@@ -438,13 +441,11 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
           // TODO possibly retry?
           if (!completed.get()) {
             LOG.error("Exception from HttpPost: " + endpoint, e);
-            callback(new RemoteQueryExecutionException(
-                "Unexepected exception: " + endpoint, query.getOrder(), 500, e),
-                new ImmutableMap.Builder<String, String>()
-                  .put("status", "Error")
-                  .put("error", e.getMessage())
-                  .put("finalThread", Thread.currentThread().getName())
-                  .build());
+            final Exception ex = new QueryExecutionException(
+                "Unexepected exception: " + endpoint, 500, query.getOrder(), e);
+            callback(ex,
+                TsdbTrace.exceptionTags(ex),
+                TsdbTrace.exceptionAnnotation(ex));
           }
         }
       }
@@ -458,6 +459,9 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
     @Override
     public void cancel() {
       synchronized (this) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Canceling query.");
+        }
         if (future != null) {
           try {
             future.cancel(true);
@@ -470,10 +474,14 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
       }
         try {
           // race condition here.
-          callback(new RemoteQueryExecutionException(
-              "Query was cancelled upstream.", query.getOrder()));
+          final Exception e = new QueryExecutionException(
+              "Query was cancelled upstream.", 400, query.getOrder());
+          callback(e,
+              TsdbTrace.canceledTags(e));
         } catch (Exception e) {
-          LOG.error("Callback may have already been called", e);
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Callback may have already been called", e);
+          }
         }
     }
     

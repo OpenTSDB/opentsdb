@@ -21,7 +21,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
@@ -31,11 +30,12 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.opentracing.Span;
 import net.opentsdb.data.DataMerger;
-import net.opentsdb.exceptions.RemoteQueryExecutionException;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.context.RemoteContext;
 import net.opentsdb.query.execution.ClusterConfig;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -48,9 +48,9 @@ import net.opentsdb.utils.JSON;
  * a valid result, then that result will be returned via 
  * {@link #executeQuery(TimeSeriesQuery, Span)}.
  * However if all clusters return an exception, then the exceptions are
- * packed into a {@link RemoteQueryExecutionException} and the highest status
- * code from exceptions (assuming each one returns a RemoteQueryExecutionException)
- * is used. (500 if they weren't RemoteQueryExecutionExceptions.)
+ * packed into a {@link QueryExecutionException} and the highest status
+ * code from exceptions (assuming each one returns a QueryExecutionException)
+ * is used. (500 if they weren't QueryExecutionExceptions.)
  * 
  * <p>
  * This implementation does not provide timeout handling. Instead, make sure
@@ -113,17 +113,17 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
                                         final Span upstream_span) {
     if (completed.get()) {
       return new FailedQueryExecution(query,
-          new RemoteQueryExecutionException(
-          "Executor has been cancelled", query.getOrder(), 410));
+          new QueryExecutionException(
+          "Executor has been cancelled", 410, query.getOrder()));
     }
     try {
       final QueryToClusterSplitter executor = new QueryToClusterSplitter(query);
       outstanding_executions.add(executor);
       return executor.executeQuery(query, upstream_span);
     } catch (Exception e) {
-      return new FailedQueryExecution(query, new RemoteQueryExecutionException(
+      return new FailedQueryExecution(query, new QueryExecutionException(
           "Unexpected exception executing query: " + this, 
-          query.getOrder(), 500, e));
+          500, query.getOrder(), e));
     }
   }
 
@@ -179,13 +179,13 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
     QueryExecution<T> executeQuery(final TimeSeriesQuery query, 
         final Span upstream_span) {
       if (context.getTracer() != null) {
-        setSpan(context, MultiClusterQueryExecutor.this.getClass().getSimpleName(), 
+        setSpan(context, 
+            MultiClusterQueryExecutor.this.getClass().getSimpleName(), 
             upstream_span,
-            new ImmutableMap.Builder<String, String>()
-              .put("order", Integer.toString(query.getOrder()))
-              .put("query", JSON.serializeToString(query))
-              .put("startThread", Thread.currentThread().getName())
-              .build());
+            TsdbTrace.addTags(
+                "order", Integer.toString(query.getOrder()),
+                "query", JSON.serializeToString(query),
+                "startThread", Thread.currentThread().getName()));
       }
       
       final List<Deferred<T>> deferreds = Lists.
@@ -246,7 +246,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
               if (completed.get()) {
                 LOG.error("Splitter was called back but may have been triggered "
                     + "by a timeout. Skipping.");
-                deferred.callback(new RemoteQueryExecutionException(
+                deferred.callback(new QueryExecutionException(
                     "Splitter was already cancelled but we received a result.", 
                     query.getOrder(), 500));
                 return null;
@@ -271,10 +271,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
               // we have at least one good result so return it.
               if (valid > 0) {
                 callback(data_merger.merge(data, context, tracer_span),
-                    new ImmutableMap.Builder<String, String>()
-                      .put("status", "ok")
-                      .put("finalThread", Thread.currentThread().getName())
-                      .build());
+                    TsdbTrace.successfulTags());
                 return null;
               }
               
@@ -282,29 +279,26 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
               int status = 0;
               for (int i = 0; i < remote_exceptions.length; i++) {
                 if (remote_exceptions[i] != null && 
-                    remote_exceptions[i] instanceof RemoteQueryExecutionException) {
-                  final RemoteQueryExecutionException e = 
-                      (RemoteQueryExecutionException) remote_exceptions[i];
+                    remote_exceptions[i] instanceof QueryExecutionException) {
+                  final QueryExecutionException e = 
+                      (QueryExecutionException) remote_exceptions[i];
                   if (e.getStatusCode() > status) {
                     status = e.getStatusCode();
                   }
                 }
               }
-              callback(new RemoteQueryExecutionException(
+              final Exception e = new QueryExecutionException(
                   "One or more of the cluster sources had an exception", 
-                  query.getOrder(), 
-                  (status == 0 ? 500 : status), 
-                  Lists.newArrayList(remote_exceptions)),
-                  new ImmutableMap.Builder<String, String>()
-                    .put("status", "Error")
-                    .put("error", "One or more of the cluster "
-                        + "sources had an exception.")
-                    .put("finalThread", Thread.currentThread().getName())
-                    .build());
+                  (status == 0 ? 500 : status),
+                  query.getOrder(),
+                  Lists.newArrayList(remote_exceptions));
+              callback(e,
+                  TsdbTrace.exceptionTags(e),
+                  TsdbTrace.exceptionAnnotation(e));
               return null;
             } catch (Exception e) {
-              callback(new RemoteQueryExecutionException(
-                  "Unexpected exception", query.getOrder(), 500, e));
+              callback(new QueryExecutionException(
+                  "Unexpected exception", 500, query.getOrder(), e));
               return null;
             } finally {
               outstanding_executions.remove(QueryToClusterSplitter.this);
@@ -316,14 +310,12 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
         return this;
       } catch (Exception e) {
         try {
-          callback(new RemoteQueryExecutionException(
+          final Exception ex = new QueryExecutionException(
               "Unexpected exception executing queries downstream.", 
-              query.getOrder(), 500, e),
-              new ImmutableMap.Builder<String, String>()
-                .put("status", "Error")
-                .put("error", e.getMessage())
-                .put("finalThread", Thread.currentThread().getName())
-                .build());
+              500, query.getOrder(), e);
+          callback(ex,
+              TsdbTrace.exceptionTags(ex),
+              TsdbTrace.exceptionAnnotation(ex));
         } catch (Exception ex) {
           LOG.error("Callback threw an exception", e);
         }
@@ -364,8 +356,9 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
         }
         if (!completed.get()) {
           try {
-            callback(new RemoteQueryExecutionException(
-                "Query was cancelled upstream: " + this, query.getOrder(), 500));
+            final Exception e = new QueryExecutionException(
+                "Query was cancelled upstream: " + this, 500, query.getOrder());
+            callback(e, TsdbTrace.canceledTags(e));
           } catch (Exception e) {
             LOG.warn("Exception thrown trying to callback on cancellation.", e);
           }

@@ -45,7 +45,7 @@ import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import io.opentracing.Span;
 import net.opentsdb.data.DataMerger;
-import net.opentsdb.exceptions.RemoteQueryExecutionException;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.context.QueryExecutorContext;
 import net.opentsdb.query.context.RemoteContext;
@@ -493,8 +493,8 @@ public class TestMetricShardingExecutor {
     
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { }
     verify(executor_a, never()).executeQuery(query.subQueries().get(2), null);
     verify(executor_a, never()).executeQuery(query.subQueries().get(3), null);
     verify(executor_b, never()).executeQuery(query.subQueries().get(3), null);
@@ -535,8 +535,8 @@ public class TestMetricShardingExecutor {
     
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { }
     verify(executor_a, never()).executeQuery(query.subQueries().get(2), null);
     verify(executor_a, never()).executeQuery(query.subQueries().get(3), null);
     verify(executor_b, never()).executeQuery(query.subQueries().get(3), null);

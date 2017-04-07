@@ -20,6 +20,8 @@ import org.glassfish.jersey.server.ResourceConfig;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.context.HttpContextFactory;
+import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
+import net.opentsdb.servlet.exceptions.QueryExecutionExceptionMapper;
 import net.opentsdb.stats.BraveTracer;
 import net.opentsdb.utils.Config;
 
@@ -66,6 +68,9 @@ public class OpenTSDBApplication extends ResourceConfig {
       tsdb.getRegistry().registerTracer(new BraveTracer());
       
       tsdb.initializeRegistry().join();
+      
+      register(GenericExceptionMapper.class);
+      register(new QueryExecutionExceptionMapper(false, 1024));
       
     } catch (Exception e) {
       throw new RuntimeException("Unable to initialize OpenTSDB app!", e);

@@ -64,6 +64,7 @@ import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.context.DefaultQueryContext;
@@ -74,8 +75,10 @@ import net.opentsdb.query.execution.HttpQueryV2Executor.Config;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Expression;
+import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
+import net.opentsdb.query.pojo.NumericFillPolicy;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.pojo.Timespan;
@@ -370,8 +373,10 @@ public class TestHttpQueryV2Executor {
     
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { 
+      assertEquals(400, e.getStatusCode());
+    }
     assertTrue(executor.outstandingRequests().isEmpty());
     verify(client, times(1)).close();
   }
@@ -395,8 +400,10 @@ public class TestHttpQueryV2Executor {
     
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { 
+      assertEquals(400, e.getStatusCode());
+    }
     assertTrue(executor.outstandingRequests().isEmpty());
     verify(future, times(1)).cancel(true);
     verify(client, times(1)).close();
@@ -417,12 +424,14 @@ public class TestHttpQueryV2Executor {
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
-    callback.cancelled();
+    callback.failed(new IllegalArgumentException("Boo!"));
     
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { 
+      assertEquals(500, e.getStatusCode());
+    }
     assertTrue(executor.outstandingRequests().isEmpty());
     verify(client, times(1)).close();
   }
@@ -454,12 +463,14 @@ public class TestHttpQueryV2Executor {
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
-    callback.cancelled();
+    callback.completed(response);
     
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) {
+      assertEquals(500, e.getStatusCode());
+    }
     assertTrue(executor.outstandingRequests().isEmpty());
     verify(client, times(1)).close();
   }
@@ -480,12 +491,14 @@ public class TestHttpQueryV2Executor {
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
-    callback.cancelled();
+    callback.completed(response);
     
     try {
       exec.deferred().join();
       fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+    } catch (RemoteQueryExecutionException e) { 
+      assertEquals(404, e.getStatusCode());
+    }
     assertTrue(executor.outstandingRequests().isEmpty());
     verify(client, times(1)).close();
   }
@@ -509,8 +522,10 @@ public class TestHttpQueryV2Executor {
     
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { 
+      assertEquals(400, e.getStatusCode());
+    }
     assertTrue(executor.outstandingRequests().isEmpty());
     verify(future, times(1)).cancel(true);
     verify(client, times(1)).close();
@@ -611,6 +626,61 @@ public class TestHttpQueryV2Executor {
     assertEquals(-1, converted.getQueries().get(0).getRateOptions().getResetValue());
     assertEquals("1m-max", converted.getQueries().get(0).getDownsample());
     assertTrue(converted.getQueries().get(0).getFilters().isEmpty());
+    
+    // Downsample fills
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("1410742740000")
+            .setEnd("1s-ago")
+            .setAggregator("sum")
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("max")
+                .setInterval("1m")
+                .setFillPolicy(NumericFillPolicy.newBuilder()
+                    .setPolicy(FillPolicy.NOT_A_NUMBER)))
+            .setTimezone("UTC")
+            .setRate(true)
+            .setRateOptions(RateOptions.newBuilder()
+                .setCounter(true)
+                .setCounterMax(1024)
+                .setResetValue(-1)))
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric("sys.cpu.user"))
+        .addMetric(Metric.newBuilder()
+            .setId("m2")
+            .setMetric("sys.cpu.idle")
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("min")
+                .setInterval("30s")
+                .setFillPolicy(NumericFillPolicy.newBuilder()
+                    .setPolicy(FillPolicy.ZERO))))
+        .build();
+    query.validate();
+    
+    converted = HttpQueryV2Executor.convertQuery(query);
+    converted.validateAndSetQuery();
+    assertEquals("1410742740000", converted.getStart());
+    assertEquals("1s-ago", converted.getEnd());
+    assertEquals("UTC", converted.getTimezone());
+    assertEquals(2, converted.getQueries().size());
+    assertEquals("sum", converted.getQueries().get(0).getAggregator());
+    assertEquals("sys.cpu.user", converted.getQueries().get(0).getMetric());
+    assertTrue(converted.getQueries().get(0).getRate());
+    assertTrue(converted.getQueries().get(0).getRateOptions().isCounter());
+    assertEquals(1024, converted.getQueries().get(0).getRateOptions().getCounterMax());
+    assertEquals(-1, converted.getQueries().get(0).getRateOptions().getResetValue());
+    assertEquals("1m-max-nan", converted.getQueries().get(0).getDownsample());
+    assertTrue(converted.getQueries().get(0).getFilters().isEmpty());
+    
+    assertEquals("sum", converted.getQueries().get(1).getAggregator());
+    assertEquals("sys.cpu.idle", converted.getQueries().get(1).getMetric());
+    assertTrue(converted.getQueries().get(1).getRate());
+    assertTrue(converted.getQueries().get(1).getRateOptions().isCounter());
+    assertEquals(1024, converted.getQueries().get(1).getRateOptions().getCounterMax());
+    assertEquals(-1, converted.getQueries().get(1).getRateOptions().getResetValue());
+    assertEquals("30s-min-zero", converted.getQueries().get(1).getDownsample());
+    assertTrue(converted.getQueries().get(1).getFilters().isEmpty());
     
     // test out per-metric overrides
     query = TimeSeriesQuery.newBuilder()
@@ -819,7 +889,7 @@ public class TestHttpQueryV2Executor {
     when(response.getEntity()).thenReturn(entity);
     
     // raw
-    assertEquals("Hello!", executor.parseResponse(response, 0));
+    assertEquals("Hello!", executor.parseResponse(response, 0, "unknown"));
     
     // TODO - figure out how to test the compressed entities. Looks like it's a 
     // bit of a pain.
@@ -827,7 +897,7 @@ public class TestHttpQueryV2Executor {
     // non-200
     when(status.getStatusCode()).thenReturn(400);
     try {
-      executor.parseResponse(response, 0);
+      executor.parseResponse(response, 0, "unknown");
       fail("Expected RemoteQueryExecutionException");
     } catch (RemoteQueryExecutionException e) { 
       assertEquals("Hello!", e.getMessage());
@@ -837,7 +907,7 @@ public class TestHttpQueryV2Executor {
     when(status.getStatusCode()).thenReturn(200);
     when(response.getEntity()).thenReturn(null);
     try {
-      executor.parseResponse(response, 0);
+      executor.parseResponse(response, 0, "unknown");
       fail("Expected RemoteQueryExecutionException");
     } catch (RemoteQueryExecutionException e) { }
   }

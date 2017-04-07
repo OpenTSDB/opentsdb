@@ -46,7 +46,7 @@ import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import io.opentracing.Span;
 import net.opentsdb.data.DataMerger;
-import net.opentsdb.exceptions.RemoteQueryExecutionException;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.context.RemoteContext;
 import net.opentsdb.query.execution.MultiClusterQueryExecutor.Config;
@@ -339,8 +339,8 @@ public class TestMultiClusterQueryExecutor {
     final QueryExecution<Long> exec = executor.executeQuery(query, span);
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { }
     verify(remote_context, times(1)).clusters();
     verify(executor_a, never()).executeQuery(query, span);
     verify(executor_b, never()).executeQuery(query, span);
@@ -357,8 +357,8 @@ public class TestMultiClusterQueryExecutor {
     final QueryExecution<Long> exec = executor.executeQuery(query, span);
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { }
     verify(remote_context, times(1)).clusters();
     verify(executor_a, never()).executeQuery(query, span);
     verify(executor_b, never()).executeQuery(query, span);
@@ -376,8 +376,8 @@ public class TestMultiClusterQueryExecutor {
     final QueryExecution<Long> exec = executor.executeQuery(query, span);
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { }
     verify(remote_context, times(1)).clusters();
     verify(executor_a, never()).executeQuery(query, span);
     verify(executor_b, never()).executeQuery(query, span);
@@ -385,6 +385,7 @@ public class TestMultiClusterQueryExecutor {
     assertTrue(exec.completed());
   }
   
+  @SuppressWarnings("unchecked")
   @Test
   public void executeDownstreamThrew() throws Exception {
     final MultiClusterQueryExecutor<Long> executor = 
@@ -395,8 +396,8 @@ public class TestMultiClusterQueryExecutor {
     final QueryExecution<Long> exec = executor.executeQuery(query, span);
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { }
     
     verify(remote_context, times(1)).clusters();
     verify(executor_a, times(1)).executeQuery(query, null);
@@ -410,6 +411,7 @@ public class TestMultiClusterQueryExecutor {
     verify(merger, never()).merge(any(List.class), eq(context), any(Span.class));
   }
   
+  @SuppressWarnings("unchecked")
   @Test
   public void executeOneBadOneGood() throws Exception {
     final MultiClusterQueryExecutor<Long> executor = 
@@ -421,7 +423,7 @@ public class TestMultiClusterQueryExecutor {
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
-    downstream_a.callback(new RemoteQueryExecutionException("Boo!"));
+    downstream_a.callback(new QueryExecutionException("Boo!", 500));
     downstream_b.callback(1L);
     
     assertEquals(42L, (long) exec.deferred().join());
@@ -438,6 +440,7 @@ public class TestMultiClusterQueryExecutor {
     verify(merger, times(1)).merge(any(List.class), eq(context), any(Span.class));
   }
   
+  @SuppressWarnings("unchecked")
   @Test
   public void executeBothBad() throws Exception {
     final MultiClusterQueryExecutor<Long> executor = 
@@ -450,18 +453,18 @@ public class TestMultiClusterQueryExecutor {
     } catch (TimeoutException e) { }
     
     // higher status wins
-    final RemoteQueryExecutionException e1 = 
-        new RemoteQueryExecutionException("Boo!", 0, 500);
-    final RemoteQueryExecutionException e2 = 
-        new RemoteQueryExecutionException("Boo!", 0 , 408);
+    final QueryExecutionException e1 = 
+        new QueryExecutionException("Boo!", 500);
+    final QueryExecutionException e2 = 
+        new QueryExecutionException("Boo!", 408);
     
     downstream_a.callback(e1);
     downstream_b.callback(e2);
     
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { 
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { 
       assertEquals(2, e.getExceptions().size());
       assertSame(e1, e.getExceptions().get(0));
       assertSame(e2, e.getExceptions().get(1));
@@ -480,6 +483,7 @@ public class TestMultiClusterQueryExecutor {
     verify(merger, never()).merge(any(List.class), eq(context), any(Span.class));
   }
   
+  @SuppressWarnings("unchecked")
   @Test
   public void executeCancel() throws Exception {
     final MultiClusterQueryExecutor<Long> executor = 
@@ -495,8 +499,8 @@ public class TestMultiClusterQueryExecutor {
     
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { }
     
     verify(remote_context, times(1)).clusters();
     verify(executor_a, times(1)).executeQuery(query, null);
@@ -510,6 +514,7 @@ public class TestMultiClusterQueryExecutor {
     verify(merger, never()).merge(any(List.class), eq(context), any(Span.class));
   }
   
+  @SuppressWarnings("unchecked")
   @Test
   public void close() throws Exception {
     final MultiClusterQueryExecutor<Long> executor = 

@@ -19,7 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
@@ -27,10 +26,11 @@ import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Span;
 import net.opentsdb.data.DataMerger;
-import net.opentsdb.exceptions.RemoteQueryExecutionException;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.plan.SplitMetricPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -152,11 +152,10 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       if (context.getTracer() != null) {
         setSpan(context, MetricShardingExecutor.this.getClass().getSimpleName(), 
             upstream_span,
-            new ImmutableMap.Builder<String, String>()
-              .put("order", Integer.toString(query.getOrder()))
-              .put("query", JSON.serializeToString(query))
-              .put("startThread", Thread.currentThread().getName())
-              .build());
+            TsdbTrace.addTags(
+                "order", Integer.toString(query.getOrder()),
+                "query", JSON.serializeToString(query),
+                "startThread", Thread.currentThread().getName()));
       }
       for (int i = 0; i < executions.length && i < parallel_executors; i++) {
         executions[i] = (QueryExecution<T>) 
@@ -191,6 +190,9 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
     
     @Override
     public void cancel() {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Cancelling query.");
+      }
       synchronized (this) {
         outstanding_executions.remove(this);
         // set to max to prevent anyone else running.
@@ -202,8 +204,9 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
         }
         if (!completed.get()) {
           try {
-            callback(new RemoteQueryExecutionException(
-                "Query was cancelled upstream: " + this, query.getOrder(), 500));
+            final Exception e = new QueryExecutionException(
+                "Query was cancelled upstream: " + this, 500, query.getOrder());
+            callback(e, TsdbTrace.canceledTags(e));
           } catch (Exception e) {
             LOG.warn("Exception thrown trying to callback on cancellation.", e);
           }
@@ -216,6 +219,9 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       final List<Deferred<T>> deferreds = 
           Lists.<Deferred<T>>newArrayListWithExpectedSize(executions.length);
       for (final QueryExecution<T> execution : executions) {
+        if (execution == null) {
+          continue;
+        }
         deferreds.add(execution.deferred());
       }
       Deferred.group(deferreds).addCallback(new GroupCB());
@@ -227,10 +233,7 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       public Object call(final ArrayList<T> data) throws Exception {
         outstanding_executions.remove(QuerySplitter.this);
         callback(data_merger.merge(data, context, tracer_span),
-            new ImmutableMap.Builder<String, String>()
-              .put("status", "ok")
-              .put("finalThread", Thread.currentThread().getName())
-              .build());
+            TsdbTrace.successfulTags());
         return null;
       }
     }
@@ -241,7 +244,9 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       @Override
       public Object call(final Exception ex) throws Exception {
         if (!completed.get()) {
-          callback(ex);
+          callback(ex,
+              TsdbTrace.exceptionTags(ex),
+              TsdbTrace.exceptionAnnotation(ex));
           cancel();
         }
         return ex;
@@ -252,9 +257,11 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
     class DataCB implements Callback<T, T> {
       @Override
       public T call(final T arg) throws Exception {
-        synchronized (QuerySplitter.this) {
-          if (splits_index < query.subQueries().size()) {
-            launchNext();
+        if (!completed.get()) {
+          synchronized (QuerySplitter.this) {
+            if (splits_index < query.subQueries().size()) {
+              launchNext();
+            }
           }
         }
         return arg;

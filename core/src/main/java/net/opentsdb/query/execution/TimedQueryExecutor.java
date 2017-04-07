@@ -17,15 +17,15 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.ImmutableMap;
 import com.stumbleupon.async.Callback;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.opentracing.Span;
-import net.opentsdb.exceptions.RemoteQueryExecutionException;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -73,18 +73,18 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
   public QueryExecution<T> executeQuery(final TimeSeriesQuery query,
                                         final Span upstream_span) {
     if (completed.get()) {
-      return new FailedQueryExecution<T>(query, new RemoteQueryExecutionException(
+      return new FailedQueryExecution<T>(query, new QueryExecutionException(
             "Timeout executor was already marked as completed: " + this, 
-            query.getOrder(), 500));
+            500, query.getOrder()));
     }
     try {
       final TimedQuery timed_query = new TimedQuery(query);
       timed_query.execute(upstream_span);
       return timed_query;
     } catch (Exception e) {
-      return new FailedQueryExecution<T>(query, new RemoteQueryExecutionException(
+      return new FailedQueryExecution<T>(query, new QueryExecutionException(
           "Unexpected exception executing query: " + this, 
-          query.getOrder(), 500, e));
+          500, query.getOrder(), e));
     }
   }
   
@@ -109,24 +109,22 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
     
     void execute(final Span upstream_span) {
       if (context.getTracer() != null) {
-        setSpan(context, TimedQueryExecutor.this.getClass().getSimpleName(), 
+        setSpan(context, 
+            TimedQueryExecutor.this.getClass().getSimpleName(), 
             upstream_span,
-            new ImmutableMap.Builder<String, String>()
-              .put("order", Integer.toString(query.getOrder()))
-              .put("query", JSON.serializeToString(query))
-              .put("startThread", Thread.currentThread().getName())
-              .build());
+            TsdbTrace.addTags(
+                "order", Integer.toString(query.getOrder()),
+                "query", JSON.serializeToString(query),
+                "startThread", Thread.currentThread().getName()));
       }
+      
       class ErrCB implements Callback<Object, Exception> {
         @Override
         public Object call(final Exception e) throws Exception {
           complete();
           callback(e, 
-              new ImmutableMap.Builder<String, String>()
-                .put("status", "Error")
-                .put("error", e.getMessage())
-                .put("finalThread", Thread.currentThread().getName())
-                .build());
+              TsdbTrace.exceptionTags(e),
+              TsdbTrace.exceptionAnnotation(e));
           return null;
         }
       }
@@ -135,11 +133,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
         @Override
         public Object call(final T obj) throws Exception {
           complete();
-          callback(obj,
-              new ImmutableMap.Builder<String, String>()
-                .put("status", "ok")
-                .put("finalThread", Thread.currentThread().getName())
-                .build());
+          callback(obj, TsdbTrace.successfulTags());
           return null;
         }
       }
@@ -155,9 +149,12 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
       } catch (Exception e) {
         cancel();
         complete();
-        callback(new RemoteQueryExecutionException(
-          "Unexpected exception executing query: " + this, 
-              query.getOrder(), 500, e));
+        final Exception ex = new QueryExecutionException(
+            "Unexpected exception executing query: " + this, 
+            500, query.getOrder(), e);
+        callback(ex,
+            TsdbTrace.exceptionTags(ex),
+            TsdbTrace.exceptionAnnotation(ex));
       }
     }
 
@@ -170,8 +167,11 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
           }
           return;
         }
-        callback(new RemoteQueryExecutionException(
-            "Timed executor timed out " + this, query.getOrder(), 504));
+        final Exception e = new QueryExecutionException(
+            "Timed executor timed out " + this, 408, query.getOrder());
+        callback(e,
+            TsdbTrace.exceptionTags(e),
+            TsdbTrace.exceptionAnnotation(e));
       } catch (Exception e) {
         LOG.error("Timer task callback: ", e);
       }
@@ -191,8 +191,9 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
         complete();
         if (!completed.get()) {
           try {
-            callback(new RemoteQueryExecutionException(
-                "Query was cancelled upstream: " + this, query.getOrder(), 500));
+            final Exception e = new QueryExecutionException(
+                "Query was cancelled upstream: " + this, 500, query.getOrder()); 
+            callback(e, TsdbTrace.canceledTags(e));
           } catch (Exception e) {
             LOG.warn("Exception thrown trying to callback on cancellation.", e);
           }

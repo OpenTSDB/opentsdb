@@ -40,7 +40,7 @@ import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import io.opentracing.Span;
-import net.opentsdb.exceptions.RemoteQueryExecutionException;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.context.QueryExecutorContext;
 import net.opentsdb.query.execution.TimedQueryExecutor.Config;
@@ -156,8 +156,8 @@ public class TestTimedQueryExecutor {
     final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { }
     verify(timer, never())
       .newTimeout(any(TimerTask.class), eq(1000), eq(TimeUnit.MILLISECONDS));
     verify(timeout, never()).cancel();
@@ -176,8 +176,8 @@ public class TestTimedQueryExecutor {
     final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { }
     verify(timer, never())
       .newTimeout(any(TimerTask.class), eq(1000), eq(TimeUnit.MILLISECONDS));
     verify(timeout, never()).cancel();
@@ -194,8 +194,8 @@ public class TestTimedQueryExecutor {
     final QueryExecution<Long> exec = tqe.executeQuery(query, span);
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { }
     verify(timer, never())
       .newTimeout(any(TimerTask.class), eq(1000), eq(TimeUnit.MILLISECONDS));
     verify(timeout, never()).cancel();
@@ -257,8 +257,8 @@ public class TestTimedQueryExecutor {
     ((TimerTask) exec).run(null);
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { }
     assertFalse(tqe.outstandingRequests().contains(exec));
     verify(timeout, never()).cancel();
     assertFalse(downstream.completed());
@@ -320,8 +320,8 @@ public class TestTimedQueryExecutor {
     exec.cancel();
     try {
       exec.deferred().join();
-      fail("Expected RemoteQueryExecutionException");
-    } catch (RemoteQueryExecutionException e) { }
+      fail("Expected QueryExecutionException");
+    } catch (QueryExecutionException e) { }
     assertFalse(tqe.outstandingRequests().contains(exec));
     verify(timeout, times(1)).cancel();
     assertFalse(downstream.completed());

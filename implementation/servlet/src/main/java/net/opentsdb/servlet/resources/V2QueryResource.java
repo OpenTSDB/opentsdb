@@ -52,6 +52,7 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.context.HttpContextFactory;
@@ -81,202 +82,197 @@ public class V2QueryResource {
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   public Response post(
-      final @Context ServletConfig servlet_config, 
-      final @Context HttpServletRequest request) {
-    try {
-      if (request.getAttribute(
-          OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE) != null) {
-        throw new WebApplicationException(
-            (Exception) request.getAttribute(
-                OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE), 
-            Response.Status.BAD_REQUEST);
+    final @Context ServletConfig servlet_config, 
+    final @Context HttpServletRequest request) throws Exception {
+    if (request.getAttribute(
+        OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE) != null) {
+      throw (Exception) request.getAttribute(
+              OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE);
 
-      } else if (request.getAttribute(
-          OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE) != null) {
-        
-        final DataShardsGroups groups = (DataShardsGroups) request.getAttribute(
-            OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE);
-        final MyContext context = (MyContext) request.getAttribute("MYCONTEXT");
-        final Span serdes_span;
-        if (context.trace != null) {
-          serdes_span = context.trace.tracer().buildSpan("serialization")
-              .asChildOf(context.trace.getFirstSpan())
-              .start();
-        } else {
-          serdes_span = null;
-        }
-
-        StreamingOutput stream = new StreamingOutput() {
-
-          @Override
-          public void write(OutputStream output)
-              throws IOException, WebApplicationException {
-            JsonGenerator json = JSON.getFactory().createGenerator(output);
-            json.writeStartArray();
-            
-            for (final DataShardsGroup group : groups.data()) {
-              for (final DataShards shards : group.data()) {
-                for (final DataShard shard : shards.data()) {
-                  json.writeStartObject();
-                  
-                  json.writeStringField("metric", new String(shard.id().metrics().get(0)));
-                  json.writeObjectFieldStart("tags");
-                  for (final Entry<byte[], byte[]> entry : shard.id().tags().entrySet()) {
-                    json.writeStringField(new String(entry.getKey()), new String(entry.getValue()));
-                  }
-                  json.writeArrayFieldStart("aggregateTags");
-                  for (final byte[] tag : shard.id().aggregatedTags()) {
-                    json.writeString(new String(tag));
-                  }
-                  json.writeEndArray();
-                  json.writeEndObject();
-                  json.writeObjectFieldStart("dps");
-                  
-                  @SuppressWarnings("unchecked")
-                  TimeSeriesIterator<NumericType> it = shard.iterator();
-                  while (it.status() == IteratorStatus.HAS_DATA) {
-                    TimeSeriesValue<NumericType> v = it.next();
-                    if (v.value().isInteger()) {
-                      json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
-                          v.value().longValue());
-                    } else {
-                      json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
-                          v.value().doubleValue());
-                    }
-                  }
-                  
-                  json.writeEndObject();
-                  json.writeEndObject();
-                  json.flush();
-                }
-              }
-              
-              if (context.trace != null) {
-                context.trace.serializeJSON("trace", json);
-              }
-              
-            }
-            json.writeEndArray();
-            json.flush();
-            json.close();
-            if (serdes_span != null) {
-              serdes_span.finish();
-            }
-          }
-        };
-        
-        if (context.trace != null) {
-          context.trace.getFirstSpan().finish();
-        }
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Query completed!");
-        }
-        return Response.ok().entity( stream ).type( MediaType.APPLICATION_JSON ).build();
-        // all done!
+    } else if (request.getAttribute(
+        OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE) != null) {
+      
+      final DataShardsGroups groups = (DataShardsGroups) request.getAttribute(
+          OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE);
+      final MyContext context = (MyContext) request.getAttribute("MYCONTEXT");
+      final Span serdes_span;
+      if (context.trace != null) {
+        serdes_span = context.trace.tracer().buildSpan("serialization")
+            .asChildOf(context.trace.getFirstSpan())
+            .start();
       } else {
-        final TSDB tsdb = (TSDB) servlet_config.getServletContext()
-            .getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
-        if (tsdb == null) {
-          throw new IllegalStateException("The TSDB instance was null.");
-        }
-        final TsdbTrace trace;
-        final Span span;
-        if (tsdb.getRegistry().tracer() != null) {
-          trace = tsdb.getRegistry().tracer().getTracer(true);
-          span = trace.tracer().buildSpan(this.getClass().getSimpleName())
-              .withTag("query", "Hello!")
-              .start();
-          trace.setFirstSpan(span);
-        } else {
-          trace = null;
-          span = null;
-        }
-        final TSQuery ts_query = JSON.parseToObject(request.getInputStream(), TSQuery.class);
-        ts_query.validateAndSetQuery();
-        
-        // copy the required headers.
-        // TODO - break this out into a helper function.
-        final Enumeration<String> headers = request.getHeaderNames();
-        final Map<String, String> headersCopy = new HashMap<String, String>();
-        while (headers.hasMoreElements()) {
-          final String header = headers.nextElement();
-          if (header.toUpperCase().startsWith("X") || header.equals("Cookie")) {
-            headersCopy.put(header, request.getHeader(header));
-          }
-        }
-        
-        // start the Async context and pass it around.
-        final AsyncContext async = request.startAsync();
-        async.setTimeout((Integer) servlet_config.getServletContext()
-            .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
-        
-        final TimeSeriesQuery query = TSQuery.convertQuery(ts_query);
-        query.groupId(new SimpleStringGroupId(""));
-        query.validate();
+        serdes_span = null;
+      }
 
-        final MyContext context = new MyContext(tsdb,
-            (HttpContextFactory) servlet_config.getServletContext()
-            .getAttribute(OpenTSDBApplication.HTTP_CONTEXT_FACTORY),
-            headersCopy, trace);
-        request.setAttribute("MYCONTEXT", context);
-        
-        final QueryExecutor<DataShardsGroups> executor =
-            (QueryExecutor<DataShardsGroups>) 
-            context.getQueryExecutorContext().newSinkExecutor(context);
+      StreamingOutput stream = new StreamingOutput() {
 
-        final QueryPlanner planner = new SplitMetricPlanner(query);
-        
-        final QueryExecution<DataShardsGroups> execution = 
-            executor.executeQuery(planner.getPlannedQuery(), span);
-        
-        class SuccessCB implements Callback<Object, DataShardsGroups> {
-
-          @Override
-          public Object call(final DataShardsGroups groups) throws Exception {
-            if (LOG.isDebugEnabled()) {
-              LOG.debug("Query responded. Setting async to serialize.");
-            }
-            request.setAttribute(OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE, groups);
-            async.dispatch();
-            return null;
-          }
+        @Override
+        public void write(OutputStream output)
+            throws IOException, WebApplicationException {
+          JsonGenerator json = JSON.getFactory().createGenerator(output);
+          json.writeStartArray();
           
-        }
-        
-        class ErrorCB implements Callback<Object, Exception> {
-          @Override
-          public Object call(final Exception ex) throws Exception {
-            if (ex instanceof RemoteQueryExecutionException) {
-              try {
-              RemoteQueryExecutionException e = (RemoteQueryExecutionException) ex;
-              if (e.getExceptions().size() > 0) {
-                for (Exception exception : e.getExceptions()) {
-                  if (exception != null) {
-                    exception.printStackTrace();
+          for (final DataShardsGroup group : groups.data()) {
+            for (final DataShards shards : group.data()) {
+              for (final DataShard shard : shards.data()) {
+                json.writeStartObject();
+                
+                json.writeStringField("metric", new String(shard.id().metrics().get(0)));
+                json.writeObjectFieldStart("tags");
+                for (final Entry<byte[], byte[]> entry : shard.id().tags().entrySet()) {
+                  json.writeStringField(new String(entry.getKey()), new String(entry.getValue()));
+                }
+                json.writeArrayFieldStart("aggregateTags");
+                for (final byte[] tag : shard.id().aggregatedTags()) {
+                  json.writeString(new String(tag));
+                }
+                json.writeEndArray();
+                json.writeEndObject();
+                json.writeObjectFieldStart("dps");
+                
+                @SuppressWarnings("unchecked")
+                TimeSeriesIterator<NumericType> it = shard.iterator();
+                while (it.status() == IteratorStatus.HAS_DATA) {
+                  TimeSeriesValue<NumericType> v = it.next();
+                  if (v.value().isInteger()) {
+                    json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
+                        v.value().longValue());
+                  } else {
+                    json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
+                        v.value().doubleValue());
                   }
                 }
-              }
-              } catch (Exception e) {
-                e.printStackTrace();
+                
+                json.writeEndObject();
+                json.writeEndObject();
+                json.flush();
               }
             }
-            ex.printStackTrace();
-            request.setAttribute(OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE, ex);
-            async.dispatch();
-            return null;
+            
+            if (context.trace != null) {
+              context.trace.serializeJSON("trace", json);
+            }
+            
+          }
+          json.writeEndArray();
+          json.flush();
+          json.close();
+          if (serdes_span != null) {
+            serdes_span.finish();
           }
         }
-        
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Started query");
-        }
-        execution.deferred()
-          .addCallback(new SuccessCB())
-          .addErrback(new ErrorCB());
+      };
+      
+      if (context.trace != null) {
+        context.trace.getFirstSpan().finish();
       }
-    } catch (Exception e) {
-      e.printStackTrace();
-      throw new WebApplicationException(e, Response.Status.INTERNAL_SERVER_ERROR);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Query completed!");
+      }
+      return Response.ok().entity(stream)
+          .type( MediaType.APPLICATION_JSON )
+          .build();
+      // all done!
+    } else {
+      final TSDB tsdb = (TSDB) servlet_config.getServletContext()
+          .getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
+      if (tsdb == null) {
+        throw new IllegalStateException("The TSDB instance was null.");
+      }
+      final TsdbTrace trace;
+      final Span span;
+      if (tsdb.getRegistry().tracer() != null) {
+        trace = tsdb.getRegistry().tracer().getTracer(true);
+        span = trace.tracer().buildSpan(this.getClass().getSimpleName())
+            .withTag("query", "Hello!")
+            .start();
+        trace.setFirstSpan(span);
+      } else {
+        trace = null;
+        span = null;
+      }
+      final TSQuery ts_query = JSON.parseToObject(request.getInputStream(), TSQuery.class);
+      ts_query.validateAndSetQuery();
+      
+      // copy the required headers.
+      // TODO - break this out into a helper function.
+      final Enumeration<String> headers = request.getHeaderNames();
+      final Map<String, String> headersCopy = new HashMap<String, String>();
+      while (headers.hasMoreElements()) {
+        final String header = headers.nextElement();
+        if (header.toUpperCase().startsWith("X") || header.equals("Cookie")) {
+          headersCopy.put(header, request.getHeader(header));
+        }
+      }
+      
+      // start the Async context and pass it around.
+      final AsyncContext async = request.startAsync();
+      async.setTimeout((Integer) servlet_config.getServletContext()
+          .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
+      
+      final TimeSeriesQuery query = TSQuery.convertQuery(ts_query);
+      query.groupId(new SimpleStringGroupId(""));
+      query.validate();
+
+      final MyContext context = new MyContext(tsdb,
+          (HttpContextFactory) servlet_config.getServletContext()
+          .getAttribute(OpenTSDBApplication.HTTP_CONTEXT_FACTORY),
+          headersCopy, trace);
+      request.setAttribute("MYCONTEXT", context);
+      
+      final QueryExecutor<DataShardsGroups> executor =
+          (QueryExecutor<DataShardsGroups>) 
+          context.getQueryExecutorContext().newSinkExecutor(context);
+
+      final QueryPlanner planner = new SplitMetricPlanner(query);
+      
+      final QueryExecution<DataShardsGroups> execution = 
+          executor.executeQuery(planner.getPlannedQuery(), span);
+      
+      class SuccessCB implements Callback<Object, DataShardsGroups> {
+
+        @Override
+        public Object call(final DataShardsGroups groups) throws Exception {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Query responded. Setting async to serialize.");
+          }
+          request.setAttribute(OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE, groups);
+          async.dispatch();
+          return null;
+        }
+        
+      }
+      
+      class ErrorCB implements Callback<Object, Exception> {
+        @Override
+        public Object call(final Exception ex) throws Exception {
+          if (ex instanceof RemoteQueryExecutionException) {
+            try {
+            RemoteQueryExecutionException e = (RemoteQueryExecutionException) ex;
+            if (e.getExceptions().size() > 0) {
+              for (Exception exception : e.getExceptions()) {
+                if (exception != null) {
+                  exception.printStackTrace();
+                }
+              }
+            }
+            } catch (Exception e) {
+              e.printStackTrace();
+            }
+          }
+          ex.printStackTrace();
+          request.setAttribute(OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE, ex);
+          async.dispatch();
+          return null;
+        }
+      }
+      
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Started query");
+      }
+      execution.deferred()
+        .addCallback(new SuccessCB())
+        .addErrback(new ErrorCB());
     }
     return null;
   }
