@@ -352,6 +352,11 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
         .result();
   }
   
+  @Override
+  public String toString() {
+    return JSON.serializeToString(this);
+  }
+  
   public TimeSeriesGroupId groupId() {
     return group_id;
   }

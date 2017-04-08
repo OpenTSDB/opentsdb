@@ -30,6 +30,7 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.opentracing.Span;
 import net.opentsdb.data.DataMerger;
+import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.context.RemoteContext;
@@ -247,11 +248,10 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
           public Object call(final ArrayList<T> data) throws Exception {
             try {
               if (completed.get()) {
-                LOG.error("Splitter was called back but may have been triggered "
-                    + "by a timeout. Skipping.");
-                deferred.callback(new QueryExecutionException(
-                    "Splitter was already cancelled but we received a result.", 
-                    query.getOrder(), 500));
+                if (LOG.isDebugEnabled()) {
+                  LOG.debug("Splitter was already cancelled but we received "
+                      + "a result: " + this);
+                }
                 return null;
               }
               synchronized (this) {
@@ -273,8 +273,29 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
               
               // we have at least one good result so return it.
               if (valid > 0) {
-                callback(data_merger.merge(data, context, tracer_span),
-                    TsdbTrace.successfulTags());
+                try {
+                  callback(data_merger.merge(data, context, tracer_span),
+                      TsdbTrace.successfulTags());
+                } catch (IllegalArgumentException e) {
+                  if (LOG.isDebugEnabled()) {
+                    LOG.debug("Lost race returning good data on execution: " 
+                        + this);
+                  }
+                } catch (Exception e) {
+                  try {
+                    final QueryExecutionException ex = 
+                        new QueryExecutionException("Unexpected exception "
+                            + "calling callback for execution: " + this, 500,
+                            query.getOrder(), e);
+                    callback(ex, TsdbTrace.exceptionTags(ex),
+                        TsdbTrace.exceptionAnnotation(ex));
+                  } catch (IllegalArgumentException ex) {
+                    // lost race, no prob.
+                  } catch (Exception ex) {
+                    LOG.warn("Failed to complete callback due to unexepcted "
+                        + "exception: " + this, ex);
+                  }
+                }
                 return null;
               }
               
@@ -295,13 +316,30 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
                   (status == 0 ? 500 : status),
                   query.getOrder(),
                   Lists.newArrayList(remote_exceptions));
-              callback(e,
-                  TsdbTrace.exceptionTags(e),
-                  TsdbTrace.exceptionAnnotation(e));
+              try {
+                callback(e,
+                    TsdbTrace.exceptionTags(e),
+                    TsdbTrace.exceptionAnnotation(e));
+              } catch (IllegalArgumentException ex) {
+                // lost race, no prob.
+              } catch (Exception ex) {
+                LOG.warn("Failed to complete callback due to unexepcted "
+                    + "exception: " + this, ex);
+              }
               return null;
             } catch (Exception e) {
-              callback(new QueryExecutionException(
-                  "Unexpected exception", 500, query.getOrder(), e));
+              try {
+                final QueryExecutionException ex = new QueryExecutionException(
+                    "Unexpected exception", 500, query.getOrder(), e);
+                callback(ex, 
+                    TsdbTrace.exceptionTags(e),
+                    TsdbTrace.exceptionAnnotation(e));
+              } catch (IllegalArgumentException ex) {
+                // lost race, no prob.
+              } catch (Exception ex) {
+                LOG.warn("Failed to complete callback due to unexepcted "
+                    + "exception: " + this, ex);
+              }
               return null;
             } finally {
               outstanding_executions.remove(QueryToClusterSplitter.this);
@@ -319,8 +357,11 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
           callback(ex,
               TsdbTrace.exceptionTags(ex),
               TsdbTrace.exceptionAnnotation(ex));
+        } catch (IllegalArgumentException ex) {
+          // lost race, no prob.
         } catch (Exception ex) {
-          LOG.error("Callback threw an exception", e);
+          LOG.warn("Failed to complete callback due to unexepcted "
+              + "exception: " + this, ex);
         }
         outstanding_executions.remove(QueryToClusterSplitter.this);
         for (final QueryExecution<T> exec : executions) {
@@ -340,6 +381,18 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
 
     @Override
     public void cancel() {
+      if (!completed.get()) {
+        try {
+          final Exception e = new QueryExecutionCanceled(
+              "Query was cancelled upstream: " + this, 400, query.getOrder());
+          callback(e, TsdbTrace.canceledTags(e));
+        } catch (IllegalArgumentException ex) {
+          // lost race, no prob.
+        } catch (Exception ex) {
+          LOG.warn("Failed to complete callback due to unexepcted "
+              + "exception: " + this, ex);
+        }
+      }
       synchronized (this) {
         if (timer_timeout != null) {
           try {
@@ -357,15 +410,6 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
           LOG.warn("Exception caught while trying to cancel execution: " 
               + exec, e);
         }
-        if (!completed.get()) {
-          try {
-            final Exception e = new QueryExecutionException(
-                "Query was cancelled upstream: " + this, 500, query.getOrder());
-            callback(e, TsdbTrace.canceledTags(e));
-          } catch (Exception e) {
-            LOG.warn("Exception thrown trying to callback on cancellation.", e);
-          }
-        }
       }
       outstanding_executions.remove(this);
     }
@@ -377,11 +421,11 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
       }
       try {
         callback(data_merger.merge(results, context, tracer_span));
-      } catch (Exception e) {
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Lost race condition timing out query after getting "
-              + "good results from a colo", e);
-        }
+      } catch (IllegalArgumentException ex) {
+        // lost race, no prob.
+      } catch (Exception ex) {
+        LOG.warn("Failed to complete callback due to unexepcted "
+            + "exception: " + this, ex);
       }
       cancel();
     }

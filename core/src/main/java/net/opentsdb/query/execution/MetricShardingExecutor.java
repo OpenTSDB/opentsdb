@@ -26,6 +26,7 @@ import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Span;
 import net.opentsdb.data.DataMerger;
+import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.plan.SplitMetricPlanner;
@@ -161,15 +162,25 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
                 "query", JSON.serializeToString(query),
                 "startThread", Thread.currentThread().getName()));
       }
-      for (int i = 0; i < executions.length && i < parallel_executors; i++) {
-        executions[i] = (QueryExecution<T>) 
-            nextExecutor().executeQuery(query.subQueries().get(i), tracer_span);
-        executions[i].deferred().addCallback(new DataCB())
-                                .addErrback(new ErrCB());
-        ++splits_index;
-      }
-      if (splits_index >= executions.length) {
-        groupEm();
+      synchronized (this) {
+        for (int i = 0; i < executions.length && i < parallel_executors; i++) {
+          if (!completed.get()) {
+            executions[i] = (QueryExecution<T>) 
+                nextExecutor().executeQuery(query.subQueries().get(i), tracer_span);
+            executions[i].deferred().addCallback(new DataCB(splits_index))
+                                    .addErrback(new ErrCB(splits_index));
+            LOG.debug("Sent query index: " + splits_index);
+            ++splits_index;
+          } else {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Canceled during initial execution. Bailing out.");
+            }
+            return this;
+          }
+        }
+        if (splits_index >= executions.length) {
+          groupEm();
+        }
       }
       return this;
     }
@@ -184,8 +195,9 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       executions[splits_index] = (QueryExecution<T>) 
           nextExecutor().executeQuery(sub_query, tracer_span);
       executions[splits_index].deferred()
-                              .addCallback(new DataCB())
-                              .addErrback(new ErrCB());
+                              .addCallback(new DataCB(splits_index))
+                              .addErrback(new ErrCB(splits_index));
+      LOG.debug("Launched next index: " + splits_index);
       ++splits_index;
       if (splits_index >= query.subQueries().size()) {
         groupEm();
@@ -197,6 +209,22 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       if (LOG.isDebugEnabled()) {
         LOG.debug("Cancelling query.");
       }
+      if (!completed.get()) {
+        try {
+          final Exception e = new QueryExecutionCanceled(
+              "Query was cancelled upstream: " + this, 400, query.getOrder());
+          callback(e, TsdbTrace.canceledTags(e));
+        } catch (IllegalStateException e) {
+          // already called, don't care.
+        } catch (Exception e) {
+          LOG.warn("Exception thrown trying to callback on cancellation: " 
+              + this, e);
+        }
+      } else {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Canceling but already called completed.");
+        }
+      }
       synchronized (this) {
         outstanding_executions.remove(this);
         // set to max to prevent anyone else running.
@@ -204,15 +232,6 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
         for (final QueryExecution<T> execution : executions) {
           if (execution != null) {
             execution.cancel();
-          }
-        }
-        if (!completed.get()) {
-          try {
-            final Exception e = new QueryExecutionException(
-                "Query was cancelled upstream: " + this, 500, query.getOrder());
-            callback(e, TsdbTrace.canceledTags(e));
-          } catch (Exception e) {
-            LOG.warn("Exception thrown trying to callback on cancellation.", e);
           }
         }
       }
@@ -236,8 +255,25 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       @Override
       public Object call(final ArrayList<T> data) throws Exception {
         outstanding_executions.remove(QuerySplitter.this);
-        callback(data_merger.merge(data, context, tracer_span),
-            TsdbTrace.successfulTags());
+        try {
+          callback(data_merger.merge(data, context, tracer_span),
+              TsdbTrace.successfulTags());
+        } catch (IllegalStateException e) {
+          LOG.warn("Group callback tried to return results despite being "
+              + "called: " + this);
+        } catch (Exception e) {
+          try {
+            final QueryExecutionException ex = new QueryExecutionException(
+                "Unexpected exception", 500, query.getOrder(), e);
+            callback(ex, 
+                TsdbTrace.exceptionTags(ex),
+                TsdbTrace.exceptionAnnotation(ex));
+          } catch (IllegalStateException ex) {
+            // already called, it's ok.
+          } catch (Exception ex) {
+            LOG.warn("Failed callback: " + this, ex);
+          }
+        }
         return null;
       }
     }
@@ -245,13 +281,31 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
     /** Error catcher for each execution that will cancel the remaining 
      * executions. */
     class ErrCB implements Callback<Object, Exception> {
+      final int index;
+      ErrCB(final int index) {
+        this.index = index;
+      }
       @Override
       public Object call(final Exception ex) throws Exception {
         if (!completed.get()) {
-          callback(ex,
-              TsdbTrace.exceptionTags(ex),
-              TsdbTrace.exceptionAnnotation(ex));
+          try {
+            callback(ex,
+                TsdbTrace.exceptionTags(ex),
+                TsdbTrace.exceptionAnnotation(ex));
+          } catch (IllegalStateException e) {
+            // already called, it's ok.
+          } catch (Exception e) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Unexected exception triggering callback on "
+                  + "exception: " + this, e);
+            }
+          }
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Exception on index " + index, ex);
+          }
           cancel();
+        } else {
+          // cancels bubble up here so don't pollute the logs.
         }
         return ex;
       }
@@ -259,13 +313,25 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
     
     /** Called on success to trigger the next sub query. */
     class DataCB implements Callback<T, T> {
+      final int index;
+      DataCB(final int index) {
+        this.index = index;
+      }
       @Override
       public T call(final T arg) throws Exception {
         if (!completed.get()) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Received data on index " + index);
+          }
           synchronized (QuerySplitter.this) {
             if (splits_index < query.subQueries().size()) {
               launchNext();
             }
+          }
+        } else {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Successful response from index " + index 
+                + " but we've been canceled.");
           }
         }
         return arg;

@@ -52,6 +52,7 @@ import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.SimpleStringTimeSeriesId;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.TSQuery;
@@ -345,7 +346,17 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
           LOG.debug("Sending JSON to http endpoint: " + json);
         }
       } catch (Exception e) {
-        callback(new RejectedExecutionException("Failed to convert query", e));
+        try {
+          final Exception ex = new RejectedExecutionException(
+              "Failed to convert query", e);
+          callback(ex, TsdbTrace.exceptionTags(ex));
+        } catch (IllegalStateException ex) {
+           LOG.error("Unexpected state halting execution with a failed "
+               + "conversion: " + this);
+        } catch (Exception ex) {
+          LOG.error("Unexpected exception halting execution with a failed "
+              + "conversion: " + this);
+        }
         return;
       }
       
@@ -359,7 +370,17 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
       try {
         post.setEntity(new StringEntity(json));
       } catch (UnsupportedEncodingException e) {
-        callback(new RejectedExecutionException("Failed to generate request", e));
+        try {
+          final Exception ex = new RejectedExecutionException(
+              "Failed to generate request", e);
+          callback(ex, TsdbTrace.exceptionTags(ex));
+        } catch (IllegalStateException ex) {
+            LOG.error("Unexpected state halting execution with a failed "
+                + "conversion: " + this);
+         } catch (Exception ex) {
+           LOG.error("Unexpected exception halting execution with a failed "
+               + "conversion: " + this);
+         }
         return;
       }
       
@@ -367,18 +388,22 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
       class ResponseCallback implements FutureCallback<HttpResponse> {      
         @Override
         public void cancelled() {
-          LOG.error("HttpPost cancelled: " + query);
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Http query was canceled: " + this);
+          }
           if (completed.get()) {
-            LOG.warn("Received HTTP response despite being cancelled.");
             return;
           }
           try {
-            final Exception e =new QueryExecutionException(
-                "Query was cancelled: " + endpoint, 400, query.getOrder()); 
+            final Exception e = new QueryExecutionCanceled(
+                "Query was canceled: " + endpoint, 400, query.getOrder()); 
             callback(e,
                 TsdbTrace.canceledTags(e));
+          } catch (IllegalStateException e) {
+            // already called, ignore it.
           } catch (Exception e) {
-            LOG.warn("Exception thrown when calling deferred on cancel", e);
+            LOG.warn("Exception thrown when calling deferred on cancel: " 
+                + this, e);
           }
         }
 
@@ -395,11 +420,14 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
                 + ") received");
           }
           if (completed.get()) {
-            LOG.warn("Told to stop running but we had a response: " + response);
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Successfully received response [" + response 
+                  + "] but execution was already marked complete. " + this);
+            }
             try {
               EntityUtils.consume(response.getEntity());
             } catch (Exception e) {
-              LOG.error("Error consuming response", e);
+              LOG.error("Unexpected exception consuming response: " + this, e);
             }
             return;
           }
@@ -419,19 +447,38 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
             results.addGroups(groups.values());
             callback(results, 
                 TsdbTrace.successfulTags("remoteHost", host));
+          } catch (IllegalStateException caught) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Callback was already called but we recieved "
+                  + "a result: " + this);
+            }
           } catch (Exception e) {
             LOG.error("Failure handling response: " + response + "\nQuery: " 
                 + json, e);
             if (e instanceof QueryExecutionException) {
-              callback(e,
-                  TsdbTrace.exceptionTags(e, "remoteHost", host),
-                  TsdbTrace.exceptionAnnotation(e));
+              try {
+                callback(e,
+                    TsdbTrace.exceptionTags(e, "remoteHost", host),
+                    TsdbTrace.exceptionAnnotation(e));
+              } catch (IllegalStateException caught) {
+                // ignore;
+              } catch (Exception ex) {
+                LOG.warn("Unexpected exception when handling exception: " 
+                    + this, e);
+              }
             } else {
-              final Exception ex = new QueryExecutionException(
-                  "Unexepected exception: " + endpoint, 500, query.getOrder(), e);
-              callback(ex,
-                  TsdbTrace.exceptionTags(ex, "remoteHost", host),
-                  TsdbTrace.exceptionAnnotation(ex));
+              try {
+                final Exception ex = new QueryExecutionException(
+                    "Unexepected exception: " + endpoint, 500, query.getOrder(), e);
+                callback(ex,
+                    TsdbTrace.exceptionTags(ex, "remoteHost", host),
+                    TsdbTrace.exceptionAnnotation(ex));
+              } catch (IllegalStateException caught) {
+                // ignore;
+              } catch (Exception ex) {
+                LOG.warn("Unexpected exception when handling exception: " 
+                    + this, e);
+              }
             }
           }
         }
@@ -443,46 +490,58 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
             LOG.error("Exception from HttpPost: " + endpoint, e);
             final Exception ex = new QueryExecutionException(
                 "Unexepected exception: " + endpoint, 500, query.getOrder(), e);
-            callback(ex,
-                TsdbTrace.exceptionTags(ex),
-                TsdbTrace.exceptionAnnotation(ex));
+            try {
+              callback(ex,
+                  TsdbTrace.exceptionTags(ex),
+                  TsdbTrace.exceptionAnnotation(ex));
+            } catch (IllegalStateException caught) {
+              if (LOG.isDebugEnabled()) {
+                LOG.debug("Callback was already called but we recieved "
+                    + "an exception: " + this, e);
+              }
+            } catch (Exception caught) {
+              LOG.error("Unexpected exception calling back failed query", caught);
+            }
           }
         }
       }
       
       future = client.execute(post, new ResponseCallback());
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Sent query to endpoint: " + endpoint);
+        LOG.debug("Sent Http query to a TSD: " + this);
       }
     }
     
     @Override
     public void cancel() {
+      try {
+        // race condition here.
+        final Exception e = new QueryExecutionCanceled(
+            "Query was cancelled upstream.", 400, query.getOrder());
+        callback(e,
+            TsdbTrace.canceledTags(e));
+      } catch (IllegalStateException caught) {
+        // ignore if already called
+      } catch (Exception e) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Callback may have already been called", e);
+        }
+      }
       synchronized (this) {
         if (LOG.isDebugEnabled()) {
-          LOG.debug("Canceling query.");
+          LOG.debug("Canceling query: " + this);
         }
         if (future != null) {
           try {
             future.cancel(true);
           } catch (Exception e) {
-            LOG.error("Failed cancelling future: " + future, e);
+            LOG.error("Failed cancelling future: " + future 
+                + " on execution: " + this, e);
           } finally {
             future = null;
           }
         }
       }
-        try {
-          // race condition here.
-          final Exception e = new QueryExecutionException(
-              "Query was cancelled upstream.", 400, query.getOrder());
-          callback(e,
-              TsdbTrace.canceledTags(e));
-        } catch (Exception e) {
-          if (LOG.isDebugEnabled()) {
-            LOG.debug("Callback may have already been called", e);
-          }
-        }
     }
     
     /** Helper to remove the future once it's complete but had an exception. */
@@ -535,6 +594,24 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
       } catch (Exception ex) {
         LOG.error("Exception while scheduling the client for closing.", ex);
       }
+    }
+  
+    @Override
+    public String toString() {
+      final StringBuilder buf = new StringBuilder()
+          .append("query=")
+          .append(query.toString())
+          .append(", completed=")
+          .append(completed.get())
+          .append(", tracerSpan=")
+          .append(tracer_span)
+          .append(", endpoint=")
+          .append(endpoint)
+          .append(", context=")
+          .append(context)
+          .append(", executor=")
+          .append(HttpQueryV2Executor.this);
+      return buf.toString();
     }
   }
   

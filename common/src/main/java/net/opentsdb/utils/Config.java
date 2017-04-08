@@ -616,17 +616,22 @@ public class Config {
     }
 
     for (String file : file_locations) {
+      FileInputStream file_stream = null;
       try {
-        FileInputStream file_stream = new FileInputStream(file);
+        file_stream = new FileInputStream(file);
         Properties props = new Properties();
         props.load(file_stream);
         
         // load the hash map
         loadHashMap(props);        
-      } catch (Exception e) {
+      } catch (FileNotFoundException e) {
         // don't do anything, the file may be missing and that's fine
-        LOG.debug("Unable to find or load " + file, e);
+        LOG.warn(e.getMessage());
         continue;
+      } finally {
+        if (file_stream != null) {
+          file_stream.close();
+        }
       }
 
       // no exceptions thrown, so save the valid path and exit
@@ -644,10 +649,10 @@ public class Config {
    * @throws IOException Thrown if there was an issue reading the file
    * @throws FileNotFoundException Thrown if the config file was not found
    */
-  protected void loadConfig(final String file) throws FileNotFoundException,
-      IOException {
-    final FileInputStream file_stream = new FileInputStream(file);
+  protected void loadConfig(final String file) throws IOException {
+    FileInputStream file_stream = null;
     try {
+      file_stream = new FileInputStream(file);
       final Properties props = new Properties();
       props.load(file_stream);
   
@@ -658,7 +663,9 @@ public class Config {
       LOG.info("Successfully loaded configuration file: " + file);
       config_location = file;
     } finally {
-      file_stream.close();
+      if (file_stream != null) {
+        file_stream.close();
+      }
     }
   }
 
