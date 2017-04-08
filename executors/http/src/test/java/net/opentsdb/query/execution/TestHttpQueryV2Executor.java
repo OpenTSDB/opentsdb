@@ -627,6 +627,44 @@ public class TestHttpQueryV2Executor {
     assertEquals("1m-max", converted.getQueries().get(0).getDownsample());
     assertTrue(converted.getQueries().get(0).getFilters().isEmpty());
     
+    // metric rate overrides
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("1410742740000")
+            .setEnd("1s-ago")
+            .setAggregator("sum")
+            .setTimezone("UTC")
+            .setRate(true)
+            .setRateOptions(RateOptions.newBuilder()
+                .setCounter(true)
+                .setCounterMax(1024)
+                .setResetValue(-1)))
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric("sys.cpu.user")
+            .setIsRate(false)
+            .setRateOptions(RateOptions.newBuilder()
+                .setCounter(true)
+                .setCounterMax(128)
+                .setResetValue(16)))
+        .build();
+    query.validate();
+    
+    converted = HttpQueryV2Executor.convertQuery(query);
+    converted.validateAndSetQuery();
+    assertEquals("1410742740000", converted.getStart());
+    assertEquals("1s-ago", converted.getEnd());
+    assertEquals("UTC", converted.getTimezone());
+    assertEquals(1, converted.getQueries().size());
+    assertEquals("sum", converted.getQueries().get(0).getAggregator());
+    assertEquals("sys.cpu.user", converted.getQueries().get(0).getMetric());
+    assertTrue(converted.getQueries().get(0).getRate());
+    assertTrue(converted.getQueries().get(0).getRateOptions().isCounter());
+    assertEquals(128, converted.getQueries().get(0).getRateOptions().getCounterMax());
+    assertEquals(16, converted.getQueries().get(0).getRateOptions().getResetValue());
+    assertNull(converted.getQueries().get(0).getDownsample());
+    assertTrue(converted.getQueries().get(0).getFilters().isEmpty());
+    
     // Downsample fills
     query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()

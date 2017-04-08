@@ -617,10 +617,14 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
                 "-" + query.getTime().getDownsampler().getFillPolicy().getPolicy().getName() : ""));
       }
       
-      if (query.getTime().isRate()) {
+      // TODO - may need Guava's Optional here. Otherwise timespan makes everyone
+      // a rate.
+      if (metric.isRate() || query.getTime().isRate()) {
         sub.setRate(true);
       }
-      if (query.getTime().getRateOptions() != null) {
+      if (metric.getRateOptions() != null) {
+        sub.setRateOptions(metric.getRateOptions());
+      } else if (query.getTime().getRateOptions() != null) {
         sub.setRateOptions(query.getTime().getRateOptions());
       }
       
