@@ -94,6 +94,7 @@ public abstract class QueryContext {
   /** The iterator graph. Should just be a parallel list of iterators. */
   protected final DirectedAcyclicGraph<TimeSeriesIterator<?>, DefaultEdge> iterator_graph;
   
+  /** The executor context to use for running queries. */
   protected final QueryExecutorContext executor_context;
   
   /** The list of terminal iterators in the iterator graph. Initialization and
@@ -113,10 +114,12 @@ public abstract class QueryContext {
    * Default ctor initializes the graphs and registers this context to the 
    * context graph.
    * @param tsdb The TSDB to which this context belongs. May not be null.
+   * @param executor_context The non-null executor context to use.
    * @throws IllegalArgumentException if the TSDB was null.
    */
-  public QueryContext(final TSDB tsdb) {
-    this(tsdb, (Tracer) null);
+  public QueryContext(final TSDB tsdb, 
+                      final QueryExecutorContext executor_context) {
+    this(tsdb, executor_context, (Tracer) null);
   }
   
   /**
@@ -125,11 +128,17 @@ public abstract class QueryContext {
    * @param tracer An optional tracer to use for tracking queries.
    * @throws IllegalArgumentException if the TSDB was null.
    */
-  public QueryContext(final TSDB tsdb, final Tracer tracer) {
+  public QueryContext(final TSDB tsdb, 
+                      final QueryExecutorContext executor_context, 
+                      final Tracer tracer) {
     if (tsdb == null) {
       throw new IllegalArgumentException("TSDB cannot be null.");
     }
+    if (executor_context == null) {
+      throw new IllegalArgumentException("Executor context cannot be null.");
+    }
     this.tsdb = tsdb;
+    this.executor_context = executor_context;
     this.tracer = tracer;
     context_graph = new DirectedAcyclicGraph<QueryContext, 
         DefaultEdge>(DefaultEdge.class);
@@ -137,7 +146,6 @@ public abstract class QueryContext {
         DefaultEdge>(DefaultEdge.class);
     iterator_graph = new DirectedAcyclicGraph<TimeSeriesIterator<?>,
         DefaultEdge>(DefaultEdge.class);
-    executor_context = new QueryExecutorContext("Testing");
     context_graph.addVertex(this);
   }
   

@@ -49,6 +49,7 @@ import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.context.DefaultQueryContext;
 import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.context.QueryExecutorContext;
 import net.opentsdb.query.pojo.Expression;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.Join;
@@ -162,7 +163,8 @@ public class TestJexlBinderProcessor {
     it_b_b = new MockNumericIterator(id_b);
     it_b_b.data = data_b;
     
-    context = spy(new DefaultQueryContext(tsdb));
+    context = spy(new DefaultQueryContext(tsdb, 
+        mock(QueryExecutorContext.class)));
     group = new DefaultTimeSeriesProcessor(context);
   }
   
@@ -196,7 +198,7 @@ public class TestJexlBinderProcessor {
     
     final IllegalStateException e = new IllegalStateException("Boo!");
     
-    context = new DefaultQueryContext(tsdb);
+    context = new DefaultQueryContext(tsdb, mock(QueryExecutorContext.class));
     MockProcessor mock_proc = new MockProcessor(1, e);
     processor = new JexlBinderProcessor(context, config);
     processor.addProcessor(mock_proc);
@@ -207,7 +209,7 @@ public class TestJexlBinderProcessor {
       assertSame(ex, e);
     }
     
-    context = new DefaultQueryContext(tsdb);
+    context = new DefaultQueryContext(tsdb, mock(QueryExecutorContext.class));
     mock_proc = new MockProcessor(1, e);
     mock_proc.setThrowException(1);
     processor = new JexlBinderProcessor(context, config);
@@ -219,7 +221,7 @@ public class TestJexlBinderProcessor {
       assertSame(ex, e);
     }
     
-    context = new DefaultQueryContext(tsdb);
+    context = new DefaultQueryContext(tsdb, mock(QueryExecutorContext.class));
     mock_proc = new MockProcessor(1, e);
     mock_proc.setThrowException(2);
     processor = new JexlBinderProcessor(context, config);
@@ -245,7 +247,7 @@ public class TestJexlBinderProcessor {
     assertNull(context.initialize().join());
     assertEquals(1, processor.iterators().flattenedIterators().size());
     
-    context = new DefaultQueryContext(tsdb);
+    context = new DefaultQueryContext(tsdb, mock(QueryExecutorContext.class));
     processor = new JexlBinderProcessor(context, config);
     group = new DefaultTimeSeriesProcessor(context);
     group.addSeries(group_id_a, new MockAnnotationIterator(id_a));
@@ -767,7 +769,7 @@ public class TestJexlBinderProcessor {
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     
-    final QueryContext ctx2 = new DefaultQueryContext(tsdb);
+    final QueryContext ctx2 = new DefaultQueryContext(tsdb, mock(QueryExecutorContext.class));
     final JexlBinderProcessor clone = (JexlBinderProcessor) processor.getClone(ctx2);
     assertNull(ctx2.initialize().join());
     

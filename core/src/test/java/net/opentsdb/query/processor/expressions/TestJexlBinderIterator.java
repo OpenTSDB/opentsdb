@@ -48,6 +48,7 @@ import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.context.DefaultQueryContext;
 import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.context.QueryExecutorContext;
 import net.opentsdb.query.pojo.Expression;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.NumericFillPolicy;
@@ -140,7 +141,8 @@ public class TestJexlBinderIterator {
     it_b = spy(new MockNumericIterator(id_b));
     it_b.data = data_b;
     
-    context = spy(new DefaultQueryContext(tsdb));
+    context = spy(new DefaultQueryContext(tsdb, 
+        mock(QueryExecutorContext.class)));
     
     group = new DefaultTimeSeriesProcessor(context);
     group.addSeries(group_id_a, it_a);
@@ -454,7 +456,8 @@ public class TestJexlBinderIterator {
   @SuppressWarnings("unchecked")
   @Test
   public void getCopy() throws Exception {
-    final JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    final JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
  
@@ -468,8 +471,10 @@ public class TestJexlBinderIterator {
     assertEquals(2, v.value().doubleValue(), 0.01);
     assertEquals(2, v.realCount());
     
-    final QueryContext ctx2 = new DefaultQueryContext(tsdb);
-    final JexlBinderNumericIterator copy = (JexlBinderNumericIterator) it.getCopy(ctx2);
+    final QueryContext ctx2 = 
+        new DefaultQueryContext(tsdb, mock(QueryExecutorContext.class));
+    final JexlBinderNumericIterator copy = 
+        (JexlBinderNumericIterator) it.getCopy(ctx2);
     
     // manual hack needed to initialize the cloned iterators since they're not
     // a part of a binder.

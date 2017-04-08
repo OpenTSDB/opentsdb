@@ -44,6 +44,7 @@ import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.context.DefaultQueryContext;
 import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.context.QueryExecutorContext;
 
 public class TestDefaultTimeSeriesProcessor {
   private TSDB tsdb;
@@ -103,7 +104,7 @@ public class TestDefaultTimeSeriesProcessor {
     it_b = spy(new MockNumericIterator(id_b));
     it_b.data = data_b;
     
-    context = new DefaultQueryContext(tsdb);
+    context = new DefaultQueryContext(tsdb, mock(QueryExecutorContext.class));
     processor = new DefaultTimeSeriesProcessor(context);
   }
   
@@ -1087,7 +1088,8 @@ public class TestDefaultTimeSeriesProcessor {
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     
     // copy!
-    final QueryContext ctx2 = new DefaultQueryContext(tsdb);
+    final QueryContext ctx2 = new DefaultQueryContext(tsdb, 
+        mock(QueryExecutorContext.class));
     final TimeSeriesProcessor copy = processor.getClone(ctx2);
     final List<TimeSeriesIterator<?>> its_copy = 
         copy.iterators().flattenedIterators();

@@ -22,8 +22,9 @@ import net.opentsdb.core.TSDB;
  */
 public class DefaultQueryContext extends QueryContext {
 
-  public DefaultQueryContext(TSDB tsdb) {
-    super(tsdb);
+  public DefaultQueryContext(final TSDB tsdb, 
+                             final QueryExecutorContext executor_context) {
+    super(tsdb, executor_context);
   }
 
   @Override

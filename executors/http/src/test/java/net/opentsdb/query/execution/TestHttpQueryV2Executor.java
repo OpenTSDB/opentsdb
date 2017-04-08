@@ -70,6 +70,7 @@ import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.context.DefaultQueryContext;
 import net.opentsdb.query.context.HttpContext;
 import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.context.QueryExecutorContext;
 import net.opentsdb.query.context.RemoteContext;
 import net.opentsdb.query.execution.HttpQueryV2Executor.Config;
 import net.opentsdb.query.filter.TagVFilter;
@@ -110,7 +111,8 @@ public class TestHttpQueryV2Executor {
     tsdb = mock(TSDB.class);
     registry = mock(Registry.class);
     cleanup_pool = mock(ExecutorService.class);
-    context = spy(new DefaultQueryContext(tsdb));
+    context = spy(new DefaultQueryContext(tsdb, 
+        mock(QueryExecutorContext.class)));
     http_context = mock(HttpContext.class);
     endpoint = "http://my.tsd:4242";
     group_id = new SimpleStringGroupId("a");

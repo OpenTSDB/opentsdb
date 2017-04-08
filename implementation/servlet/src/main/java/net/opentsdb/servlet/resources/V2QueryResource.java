@@ -291,41 +291,11 @@ public class V2QueryResource {
     
     MyContext(final TSDB tsdb, final HttpContextFactory ctx, 
         final Map<String, String> headers, final TsdbTrace trace) {
-      super(tsdb, trace != null ? trace.tracer() : null);
+      super(tsdb, tsdb.getRegistry().getQueryExecutorContext(null), 
+          trace != null ? trace.tracer() : null);
       this.ctx = ctx;
       this.headers = headers;
       this.trace = trace;
-
-      try {
-        Constructor<?> ctor = 
-            MetricShardingExecutor.class.getConstructor(
-                QueryContext.class, QueryExecutorConfig.class);
-        QueryExecutorFactory<DataShardsGroups> sink = 
-            new DefaultQueryExecutorFactory<DataShardsGroups>(
-                (Constructor<QueryExecutor<?>>) ctor,
-                  MetricShardingExecutor.Config.<DataShardsGroups>newBuilder()
-                  .setParallelExecutors(20)
-                  .setType(DataShardsGroups.class)
-                  .build());
-        ctor = 
-            MultiClusterQueryExecutor.class.getConstructor(
-                QueryContext.class, QueryExecutorConfig.class);
-        QueryExecutorFactory<DataShardsGroups> downstream = 
-            new DefaultQueryExecutorFactory<DataShardsGroups>(
-                (Constructor<QueryExecutor<?>>) ctor,
-                  Config.<DataShardsGroups>newBuilder()
-                  .setType(DataShardsGroups.class)
-                  .build());
-        
-        getQueryExecutorContext().registerFactory(sink, downstream);
-        
-      } catch (NoSuchMethodException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-      } catch (SecurityException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-      } 
     }
     @Override
     public RemoteContext getRemoteContext() {

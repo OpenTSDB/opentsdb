@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.servlet.applications;
 
+import java.lang.reflect.Constructor;
+
 import javax.servlet.ServletConfig;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Context;
@@ -19,7 +21,16 @@ import javax.ws.rs.core.Context;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.DataShardsGroups;
 import net.opentsdb.query.context.HttpContextFactory;
+import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.context.QueryExecutorContext;
+import net.opentsdb.query.execution.DefaultQueryExecutorFactory;
+import net.opentsdb.query.execution.MetricShardingExecutor;
+import net.opentsdb.query.execution.MultiClusterQueryExecutor;
+import net.opentsdb.query.execution.QueryExecutor;
+import net.opentsdb.query.execution.QueryExecutorConfig;
+import net.opentsdb.query.execution.QueryExecutorFactory;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.exceptions.QueryExecutionExceptionMapper;
 import net.opentsdb.stats.BraveTracer;
@@ -69,11 +80,44 @@ public class OpenTSDBApplication extends ResourceConfig {
       
       tsdb.initializeRegistry().join();
       
+      registerDefaultExecutorContexts(tsdb);
+      
       register(GenericExceptionMapper.class);
       register(new QueryExecutionExceptionMapper(false, 1024));
       
     } catch (Exception e) {
       throw new RuntimeException("Unable to initialize OpenTSDB app!", e);
     }
+  }
+  
+  @SuppressWarnings("unchecked")
+  private void registerDefaultExecutorContexts(final TSDB tsdb) {
+    final QueryExecutorContext context = new QueryExecutorContext(
+        "MetricShardingAndMultiCluster");
+    try {
+      Constructor<?> ctor = MetricShardingExecutor.class.getConstructor(
+              QueryContext.class, QueryExecutorConfig.class);
+      QueryExecutorFactory<DataShardsGroups> sink = 
+          new DefaultQueryExecutorFactory<DataShardsGroups>(
+              (Constructor<QueryExecutor<?>>) ctor,
+                MetricShardingExecutor.Config.<DataShardsGroups>newBuilder()
+                .setParallelExecutors(20)
+                .setType(DataShardsGroups.class)
+                .build());
+      ctor = 
+          MultiClusterQueryExecutor.class.getConstructor(
+              QueryContext.class, QueryExecutorConfig.class);
+      QueryExecutorFactory<DataShardsGroups> downstream = 
+          new DefaultQueryExecutorFactory<DataShardsGroups>(
+              (Constructor<QueryExecutor<?>>) ctor,
+              MultiClusterQueryExecutor.Config.<DataShardsGroups>newBuilder()
+                .setType(DataShardsGroups.class)
+                .build());
+      context.registerFactory(sink, downstream);
+      tsdb.getRegistry().registerQueryExecutorContext(context, true);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to initialize default query "
+          + "executor context", e);
+    } 
   }
 }
