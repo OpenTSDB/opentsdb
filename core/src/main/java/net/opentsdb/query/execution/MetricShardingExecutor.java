@@ -109,16 +109,20 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       if (executors[i] == null) {
         throw new IllegalStateException("Downstream executor returned null.");
       }
+      registerDownstreamExecutor(executors[i]);
     }
   }
 
   @Override
   public QueryExecution<T> executeQuery(final TimeSeriesQuery query,
                                         final Span upstream_span) {
-    if (query.subQueries() == null || query.subQueries().isEmpty()) {
-      throw new IllegalArgumentException("Query didn't have any sub queries.");
+    final SplitMetricPlanner plan = new SplitMetricPlanner(query);
+    if (plan.getPlannedQuery().subQueries() == null || 
+        plan.getPlannedQuery().subQueries().isEmpty()) {
+      throw new IllegalArgumentException("Query didn't have any sub after "
+          + "planning: " + plan.getPlannedQuery());
     }
-    final QuerySplitter executor = new QuerySplitter(query);
+    final QuerySplitter executor = new QuerySplitter(plan.getPlannedQuery());
     executor.executeQuery(upstream_span);
     return executor;
   }

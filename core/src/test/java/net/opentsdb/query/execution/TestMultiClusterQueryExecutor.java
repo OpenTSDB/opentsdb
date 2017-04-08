@@ -142,10 +142,12 @@ public class TestMultiClusterQueryExecutor {
         new MultiClusterQueryExecutor<Long>(context, config);
     assertSame(merger, executor.dataMerger());
     assertTrue(executor.outstandingRequests().isEmpty());
+    assertNull(executor.downstreamExecutors());
     
     executor = new MultiClusterQueryExecutor<Long>(context, config);
     assertSame(merger, executor.dataMerger());
     assertTrue(executor.outstandingRequests().isEmpty());
+    assertNull(executor.downstreamExecutors());
     
     try {
       new MultiClusterQueryExecutor<Long>(null, config);
@@ -210,6 +212,9 @@ public class TestMultiClusterQueryExecutor {
     assertTrue(downstream_a.completed());
     assertFalse(downstream_b.cancelled);
     assertTrue(downstream_b.completed());
+    assertEquals(2, executor.downstreamExecutors().size());
+    assertSame(executor_a, executor.downstreamExecutors().get(0));
+    assertSame(executor_b, executor.downstreamExecutors().get(1));
   }
   
   @SuppressWarnings("rawtypes")
@@ -537,6 +542,11 @@ public class TestMultiClusterQueryExecutor {
     assertTrue(downstream_b.cancelled);
     assertFalse(downstream_b.completed());
     verify(merger, never()).merge(any(List.class), eq(context), any(Span.class));
+    assertEquals(2, executor.downstreamExecutors().size());
+    assertSame(executor_a, executor.downstreamExecutors().get(0));
+    assertSame(executor_b, executor.downstreamExecutors().get(1));
+    verify(executor_a, times(1)).close();
+    verify(executor_b, times(1)).close();
   }
 
   /** Simple implementation to peek into the cancel call. */

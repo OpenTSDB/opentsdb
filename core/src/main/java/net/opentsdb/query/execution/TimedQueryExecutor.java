@@ -66,6 +66,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
     }
     executor = (QueryExecutor<T>) context.getQueryExecutorContext()
         .newDownstreamExecutor(context, config.getFactory());
+    registerDownstreamExecutor(executor);
     timeout = ((Config<T>) config).timeout;
   }
 

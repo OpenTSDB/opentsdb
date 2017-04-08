@@ -86,9 +86,12 @@ public class V2QueryResource {
     final @Context HttpServletRequest request) throws Exception {
     if (request.getAttribute(
         OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE) != null) {
+      final QueryExecutor<DataShardsGroups> executor = 
+          (QueryExecutor<DataShardsGroups>) request.getAttribute("MYEXECUTOR");
+      // TODO - attach callback to log faults.
+      executor.close();
       throw (Exception) request.getAttribute(
               OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE);
-
     } else if (request.getAttribute(
         OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE) != null) {
       
@@ -169,6 +172,11 @@ public class V2QueryResource {
       if (LOG.isDebugEnabled()) {
         LOG.debug("Query completed!");
       }
+      final QueryExecutor<DataShardsGroups> executor = 
+          (QueryExecutor<DataShardsGroups>) request.getAttribute("MYEXECUTOR");
+      // TODO - attach callback to log faults.
+      executor.close();
+      
       return Response.ok().entity(stream)
           .type( MediaType.APPLICATION_JSON )
           .build();
@@ -223,11 +231,10 @@ public class V2QueryResource {
       final QueryExecutor<DataShardsGroups> executor =
           (QueryExecutor<DataShardsGroups>) 
           context.getQueryExecutorContext().newSinkExecutor(context);
-
-      final QueryPlanner planner = new SplitMetricPlanner(query);
+      request.setAttribute("MYEXECUTOR", executor);
       
       final QueryExecution<DataShardsGroups> execution = 
-          executor.executeQuery(planner.getPlannedQuery(), span);
+          executor.executeQuery(query, span);
       
       class SuccessCB implements Callback<Object, DataShardsGroups> {
 

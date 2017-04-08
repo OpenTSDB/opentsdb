@@ -17,10 +17,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.RejectedExecutionException;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.stumbleupon.async.Deferred;
 
@@ -28,6 +30,7 @@ import io.opentracing.Span;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.utils.Deferreds;
 
 /**
  * A base query executor that may spawn a tree of sub executors for processing.
@@ -52,6 +55,9 @@ public abstract class QueryExecutor<T> {
 
   /** The list of outstanding executions to be used when closing. */
   protected final Set<QueryExecution<T>> outstanding_executions;
+  
+  /** Downstream executors to close. */
+  protected List<QueryExecutor<T>> downstream_executors;
   
   /**
    * Default ctor.
@@ -88,12 +94,26 @@ public abstract class QueryExecutor<T> {
   
   /**
    * Method called to close and release all resources. The default simply cancels
-   * any outstanding requests.
+   * any outstanding requests then closes any downstream executors.
    * @return A non-null deferred that may contain a null response or an exception
    * on completion.
    */
   public Deferred<Object> close() {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Closing executor: " + this);
+    }
     cancelOutstanding();
+    if (downstream_executors != null) {
+      if (downstream_executors.size() == 1) {
+        return downstream_executors.iterator().next().close();
+      }
+      final List<Deferred<Object>> deferreds = 
+          Lists.newArrayListWithExpectedSize(downstream_executors.size());
+      for (final QueryExecutor<T> executor : downstream_executors) {
+        deferreds.add(executor.close());
+      }
+      return Deferred.group(deferreds).addCallback(Deferreds.NULL_GROUP_CB);
+    }
     return Deferred.fromResult(null);
   }
   
@@ -111,8 +131,30 @@ public abstract class QueryExecutor<T> {
     }
   }
   
+  /**
+   * Adds a downstream executor to the set or closing at the end.
+   * @param executor A non-null executor to add.
+   * @throws IllegalArgumentException if the executor was null.
+   */
+  @SuppressWarnings("unchecked")
+  protected void registerDownstreamExecutor(final QueryExecutor<T> executor) {
+    if (executor == null) {
+      throw new IllegalArgumentException("Executor cnnot be null.");
+    }
+    if (downstream_executors == null) {
+      downstream_executors = Lists.<QueryExecutor<T>>newArrayList(executor);
+    } else {
+      downstream_executors.add(executor);
+    }
+  }
+  
   @VisibleForTesting
   Set<QueryExecution<T>> outstandingRequests() {
     return outstanding_executions;
+  }
+
+  @VisibleForTesting 
+  List<QueryExecutor<T>> downstreamExecutors() {
+    return downstream_executors;
   }
 }

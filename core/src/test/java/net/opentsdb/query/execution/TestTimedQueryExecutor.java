@@ -15,6 +15,7 @@ package net.opentsdb.query.execution;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -97,6 +98,8 @@ public class TestTimedQueryExecutor {
         .setTimeout(1000)
         .build());
     assertTrue(tqe.outstandingRequests().isEmpty());
+    assertEquals(1, tqe.downstreamExecutors().size());
+    assertSame(executor, tqe.downstreamExecutors().get(0));
     
     try {
       new TimedQueryExecutor<Long>(null, 
@@ -342,6 +345,7 @@ public class TestTimedQueryExecutor {
     
     tqe.close().join();
     verify(timeout, times(1)).cancel();
+    verify(executor, times(1)).close();
     assertFalse(downstream.completed());
     assertTrue(downstream.cancelled);
   }

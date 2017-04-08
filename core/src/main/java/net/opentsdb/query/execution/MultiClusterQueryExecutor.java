@@ -228,8 +228,11 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
         
         // execute the query on each remote and add an ErrCB to capture badness.
         for (int i = 0; i < clusters.size(); i++) {
-          executions[i] = (QueryExecution<T>) clusters.get(i)
-              .remoteExecutor().executeQuery(query, tracer_span);
+          final QueryExecutor<T> remote_executor = (QueryExecutor<T>) 
+              clusters.get(i).remoteExecutor();
+          registerDownstreamExecutor(remote_executor);
+          executions[i] = (QueryExecution<T>) remote_executor
+              .executeQuery(query, tracer_span);
           deferreds.add(executions[i].deferred()
               .addErrback(new ErrCB(i)));
           if (timeout > 0) {

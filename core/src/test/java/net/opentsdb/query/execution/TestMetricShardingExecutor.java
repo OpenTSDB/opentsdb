@@ -69,6 +69,10 @@ public class TestMetricShardingExecutor {
   private Timeout timeout;
   private Span span;
   private Config<Long> config;
+  private TimeSeriesQuery q1;
+  private TimeSeriesQuery q2;
+  private TimeSeriesQuery q3;
+  private TimeSeriesQuery q4;
   
   @SuppressWarnings("unchecked")
   @Before
@@ -169,16 +173,16 @@ public class TestMetricShardingExecutor {
       }
     });
     
-    final TimeSeriesQuery q1 = TimeSeriesQuery.newBuilder()
+    q1 = TimeSeriesQuery.newBuilder()
         .addMetric(Metric.newBuilder().setMetric("sys.cpu.user").setId("m1"))
         .build();
-    final TimeSeriesQuery q2 = TimeSeriesQuery.newBuilder()
+    q2 = TimeSeriesQuery.newBuilder()
         .addMetric(Metric.newBuilder().setMetric("sys.cpu.idle").setId("m2"))
         .build();
-    final TimeSeriesQuery q3 = TimeSeriesQuery.newBuilder()
+    q3 = TimeSeriesQuery.newBuilder()
         .addMetric(Metric.newBuilder().setMetric("sys.cpu.iowait").setId("m3"))
         .build();
-    final TimeSeriesQuery q4 = TimeSeriesQuery.newBuilder()
+    q4 = TimeSeriesQuery.newBuilder()
         .addMetric(Metric.newBuilder().setMetric("sys.cpu.softirq").setId("m4"))
         .build();
     
@@ -188,10 +192,6 @@ public class TestMetricShardingExecutor {
         .addMetric(Metric.newBuilder().setMetric("sys.cpu.iowait").setId("m3"))
         .addMetric(Metric.newBuilder().setMetric("sys.cpu.softirq").setId("m4"))
         .build();
-    query.addSubQuery(q1);
-    query.addSubQuery(q2);
-    query.addSubQuery(q3);
-    query.addSubQuery(q4);
   }
   
   @Test
@@ -200,10 +200,16 @@ public class TestMetricShardingExecutor {
         new MetricShardingExecutor<Long>(context, config);
     assertSame(merger, executor.dataMerger());
     assertTrue(executor.outstandingRequests().isEmpty());
+    assertEquals(2, executor.downstreamExecutors().size());
+    assertSame(executor_a, executor.downstreamExecutors().get(0));
+    assertSame(executor_b, executor.downstreamExecutors().get(1));
     
     executor = new MetricShardingExecutor<Long>(context, config);
     assertSame(merger, executor.dataMerger());
     assertTrue(executor.outstandingRequests().isEmpty());
+    assertEquals(2, executor.downstreamExecutors().size());
+    assertSame(executor_a, executor.downstreamExecutors().get(0));
+    assertSame(executor_b, executor.downstreamExecutors().get(1));
     
     try {
       new MetricShardingExecutor<Long>(null, config);
@@ -280,12 +286,12 @@ public class TestMetricShardingExecutor {
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
-    verify(executor_a, times(1)).executeQuery(query.subQueries().get(0), null);
-    verify(executor_b, times(1)).executeQuery(query.subQueries().get(1), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(2), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(2), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(3), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(3), null);
+    verify(executor_a, times(1)).executeQuery(q1, null);
+    verify(executor_b, times(1)).executeQuery(q2, null);
+    verify(executor_a, never()).executeQuery(q3, null);
+    verify(executor_b, never()).executeQuery(q3, null);
+    verify(executor_a, never()).executeQuery(q4, null);
+    verify(executor_b, never()).executeQuery(q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(2, downstreams.size());
@@ -296,16 +302,16 @@ public class TestMetricShardingExecutor {
 
     // callback 1st, next should start
     downstreams.get(0).callback(1L);
-    verify(executor_a, times(1)).executeQuery(query.subQueries().get(2), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(3), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(3), null);
+    verify(executor_a, times(1)).executeQuery(q3, null);
+    verify(executor_a, never()).executeQuery(q4, null);
+    verify(executor_b, never()).executeQuery(q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(3, downstreams.size());
     
     // callback 2nd, last should start
     downstreams.get(1).callback(2L);
-    verify(executor_b, times(1)).executeQuery(query.subQueries().get(3), null);
+    verify(executor_b, times(1)).executeQuery(q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(4, downstreams.size());
@@ -323,6 +329,13 @@ public class TestMetricShardingExecutor {
     }
   }
   
+  @Test (expected = IllegalStateException.class)
+  public void executNoSubQueries() throws Exception {
+    final MetricShardingExecutor<Long> executor = 
+        new MetricShardingExecutor<Long>(context, config);
+    executor.executeQuery(TimeSeriesQuery.newBuilder().build(), null);
+  }
+  
   @Test
   public void executeEarlyFail() throws Exception {
     final MetricShardingExecutor<Long> executor = 
@@ -334,12 +347,12 @@ public class TestMetricShardingExecutor {
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
-    verify(executor_a, times(1)).executeQuery(query.subQueries().get(0), null);
-    verify(executor_b, times(1)).executeQuery(query.subQueries().get(1), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(2), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(2), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(3), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(3), null);
+    verify(executor_a, times(1)).executeQuery(q1, null);
+    verify(executor_b, times(1)).executeQuery(q2, null);
+    verify(executor_a, never()).executeQuery(q3, null);
+    verify(executor_b, never()).executeQuery(q3, null);
+    verify(executor_a, never()).executeQuery(q4, null);
+    verify(executor_b, never()).executeQuery(q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(2, downstreams.size());
@@ -355,9 +368,9 @@ public class TestMetricShardingExecutor {
       exec.deferred().join();
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
-    verify(executor_a, never()).executeQuery(query.subQueries().get(2), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(3), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(3), null);
+    verify(executor_a, never()).executeQuery(q3, null);
+    verify(executor_a, never()).executeQuery(q4, null);
+    verify(executor_b, never()).executeQuery(q4, null);
     assertFalse(executor.outstandingRequests().contains(exec));
     assertTrue(exec.completed());
     assertEquals(2, downstreams.size());
@@ -376,12 +389,12 @@ public class TestMetricShardingExecutor {
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
-    verify(executor_a, times(1)).executeQuery(query.subQueries().get(0), null);
-    verify(executor_b, times(1)).executeQuery(query.subQueries().get(1), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(2), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(2), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(3), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(3), null);
+    verify(executor_a, times(1)).executeQuery(q1, null);
+    verify(executor_b, times(1)).executeQuery(q2, null);
+    verify(executor_a, never()).executeQuery(q3, null);
+    verify(executor_b, never()).executeQuery(q3, null);
+    verify(executor_a, never()).executeQuery(q4, null);
+    verify(executor_b, never()).executeQuery(q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(2, downstreams.size());
@@ -392,16 +405,16 @@ public class TestMetricShardingExecutor {
 
     // callback 1st, next should start
     downstreams.get(0).callback(1L);
-    verify(executor_a, times(1)).executeQuery(query.subQueries().get(2), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(3), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(3), null);
+    verify(executor_a, times(1)).executeQuery(q3, null);
+    verify(executor_a, never()).executeQuery(q4, null);
+    verify(executor_b, never()).executeQuery(q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(3, downstreams.size());
     
     // callback 2nd, last should start
     downstreams.get(1).callback(2L);
-    verify(executor_b, times(1)).executeQuery(query.subQueries().get(3), null);
+    verify(executor_b, times(1)).executeQuery(q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(4, downstreams.size());
@@ -431,12 +444,12 @@ public class TestMetricShardingExecutor {
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
-    verify(executor_a, times(1)).executeQuery(query.subQueries().get(0), null);
-    verify(executor_b, times(1)).executeQuery(query.subQueries().get(1), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(2), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(2), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(3), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(3), null);
+    verify(executor_a, times(1)).executeQuery(q1, null);
+    verify(executor_b, times(1)).executeQuery(q2, null);
+    verify(executor_a, never()).executeQuery(q3, null);
+    verify(executor_b, never()).executeQuery(q3, null);
+    verify(executor_a, never()).executeQuery(q4, null);
+    verify(executor_b, never()).executeQuery(q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(2, downstreams.size());
@@ -453,9 +466,9 @@ public class TestMetricShardingExecutor {
       exec.deferred().join();
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
-    verify(executor_a, never()).executeQuery(query.subQueries().get(2), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(3), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(3), null);
+    verify(executor_a, never()).executeQuery(q3, null);
+    verify(executor_a, never()).executeQuery(q4, null);
+    verify(executor_b, never()).executeQuery(q4, null);
     assertFalse(executor.outstandingRequests().contains(exec));
     assertTrue(exec.completed());
     assertEquals(2, downstreams.size());
@@ -475,12 +488,12 @@ public class TestMetricShardingExecutor {
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
-    verify(executor_a, times(1)).executeQuery(query.subQueries().get(0), null);
-    verify(executor_b, times(1)).executeQuery(query.subQueries().get(1), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(2), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(2), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(3), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(3), null);
+    verify(executor_a, times(1)).executeQuery(q1, null);
+    verify(executor_b, times(1)).executeQuery(q2, null);
+    verify(executor_a, never()).executeQuery(q3, null);
+    verify(executor_b, never()).executeQuery(q3, null);
+    verify(executor_a, never()).executeQuery(q4, null);
+    verify(executor_b, never()).executeQuery(q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(2, downstreams.size());
@@ -495,9 +508,9 @@ public class TestMetricShardingExecutor {
       exec.deferred().join();
       fail("Expected QueryExecutionException");
     } catch (QueryExecutionException e) { }
-    verify(executor_a, never()).executeQuery(query.subQueries().get(2), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(3), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(3), null);
+    verify(executor_a, never()).executeQuery(q3, null);
+    verify(executor_a, never()).executeQuery(q4, null);
+    verify(executor_b, never()).executeQuery(q4, null);
     assertFalse(executor.outstandingRequests().contains(exec));
     assertTrue(exec.completed());
     assertEquals(2, downstreams.size());
@@ -517,12 +530,12 @@ public class TestMetricShardingExecutor {
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
-    verify(executor_a, times(1)).executeQuery(query.subQueries().get(0), null);
-    verify(executor_b, times(1)).executeQuery(query.subQueries().get(1), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(2), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(2), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(3), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(3), null);
+    verify(executor_a, times(1)).executeQuery(q1, null);
+    verify(executor_b, times(1)).executeQuery(q2, null);
+    verify(executor_a, never()).executeQuery(q3, null);
+    verify(executor_b, never()).executeQuery(q3, null);
+    verify(executor_a, never()).executeQuery(q4, null);
+    verify(executor_b, never()).executeQuery(q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(2, downstreams.size());
@@ -537,15 +550,20 @@ public class TestMetricShardingExecutor {
       exec.deferred().join();
       fail("Expected QueryExecutionException");
     } catch (QueryExecutionException e) { }
-    verify(executor_a, never()).executeQuery(query.subQueries().get(2), null);
-    verify(executor_a, never()).executeQuery(query.subQueries().get(3), null);
-    verify(executor_b, never()).executeQuery(query.subQueries().get(3), null);
+    verify(executor_a, never()).executeQuery(q3, null);
+    verify(executor_a, never()).executeQuery(q4, null);
+    verify(executor_b, never()).executeQuery(q4, null);
     assertFalse(executor.outstandingRequests().contains(exec));
     assertTrue(exec.completed());
     assertEquals(2, downstreams.size());
     
     assertTrue(downstreams.get(0).cancelled);
     assertTrue(downstreams.get(1).cancelled);
+    assertEquals(2, executor.downstreamExecutors().size());
+    assertSame(executor_a, executor.downstreamExecutors().get(0));
+    assertSame(executor_b, executor.downstreamExecutors().get(1));
+    verify(executor_a, times(1)).close();
+    verify(executor_b, times(1)).close();
   }
   
   /** Simple implementation to peek into the cancel call. */
