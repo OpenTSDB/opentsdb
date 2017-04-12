@@ -29,7 +29,8 @@ MAX_OPEN_FILES=65535
 
 # The first existing directory is used for JAVA_HOME
 # (if JAVA_HOME is not defined in $DEFAULT)
-JDK_DIRS="/usr/lib/jvm/java-7-oracle /usr/lib/jvm/java-7-openjdk \
+JDK_DIRS="/usr/lib/jvm/java-8-oracle \
+   /usr/lib/jvm/java-7-oracle /usr/lib/jvm/java-7-openjdk \
    /usr/lib/jvm/java-7-openjdk-amd64/ /usr/lib/jvm/java-7-openjdk-i386/ \
    /usr/lib/jvm/java-6-sun /usr/lib/jvm/java-6-openjdk \
    /usr/lib/jvm/java-6-openjdk-amd64 /usr/lib/jvm/java-6-openjdk-i386 \
