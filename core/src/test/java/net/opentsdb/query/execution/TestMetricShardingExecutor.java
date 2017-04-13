@@ -14,12 +14,13 @@ package net.opentsdb.query.execution;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -28,7 +29,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -36,39 +36,23 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
-
-import io.netty.util.Timeout;
-import io.netty.util.Timer;
-import io.netty.util.TimerTask;
 import io.opentracing.Span;
 import net.opentsdb.data.DataMerger;
 import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.context.QueryExecutorContext;
-import net.opentsdb.query.context.RemoteContext;
 import net.opentsdb.query.execution.MetricShardingExecutor.Config;
+import net.opentsdb.query.execution.TestQueryExecutor.MockDownstream;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.utils.JSON;
 
-public class TestMetricShardingExecutor {
-  private QueryContext context;
-  private RemoteContext remote_context;
-  private QueryExecutorContext executor_context;
-  private Timer timer;
-  private TimeSeriesQuery query;
-  private ClusterConfig cluster_a;
-  private ClusterConfig cluster_b;
-  private int executor_index;
-  private QueryExecutor<Long> executor_a;
-  private QueryExecutor<Long> executor_b;
+public class TestMetricShardingExecutor extends BaseExecutorTest {
+  private QueryExecutor<Long> executor;
   private List<MockDownstream> downstreams;
   private DataMerger<Long> merger;
-  private Timeout timeout;
-  private Span span;
-  private Config<Long> config;
+  private Config config;
   private TimeSeriesQuery q1;
   private TimeSeriesQuery q2;
   private TimeSeriesQuery q3;
@@ -76,30 +60,20 @@ public class TestMetricShardingExecutor {
   
   @SuppressWarnings("unchecked")
   @Before
-  public void before() throws Exception {
-    context = mock(QueryContext.class);
-    remote_context = mock(RemoteContext.class);
-    executor_context = mock(QueryExecutorContext.class);
-    timer = mock(Timer.class);
-    cluster_a = mock(ClusterConfig.class);
-    cluster_b = mock(ClusterConfig.class);
-    executor_a = mock(QueryExecutor.class);
-    executor_b = mock(QueryExecutor.class);
+  public void beforeLocal() throws Exception {
+    node = mock(ExecutionGraphNode.class);
+    executor = mock(QueryExecutor.class);
     downstreams = Lists.newArrayList();
     merger = mock(DataMerger.class);
-    timeout = mock(Timeout.class);
-    span = mock(Span.class);
-    config = Config.<Long>newBuilder()
-        .setType(Long.class)
+    config = (Config) Config.newBuilder()
         .setParallelExecutors(2)
+        .setExecutorId("UT Executor")
+        .setExecutorType("MetricShardingExecutor")
         .build();
-    
-    when(context.getRemoteContext()).thenReturn(remote_context);
-    when(context.getTimer()).thenReturn(timer);
-    when(context.getQueryExecutorContext()).thenReturn(executor_context);
-    when(timer.newTimeout(any(TimerTask.class), anyLong(), 
-        eq(TimeUnit.MILLISECONDS))).thenReturn(timeout);
-    when(remote_context.dataMerger(any(TypeToken.class)))
+
+    when(node.graph()).thenReturn(graph);
+    when(node.getDefaultConfig()).thenReturn(config);
+    when(registry.getDataMerger(anyString()))
       .thenAnswer(new Answer<DataMerger<?>>() {
       @Override
       public DataMerger<?> answer(InvocationOnMock invocation)
@@ -107,70 +81,32 @@ public class TestMetricShardingExecutor {
         return merger;
       }
     });
-    when(remote_context.clusters()).thenReturn(
-        Lists.newArrayList(cluster_a, cluster_b));
-    when(merger.type()).thenAnswer(new Answer<TypeToken<?>>() {
-      @Override
-      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
-        return TypeToken.of(Long.class);
-      }
-    });
-    when(executor_context.newDownstreamExecutor(context, config.getFactory()))
+    when(graph.getDownstreamExecutor(anyString()))
       .thenAnswer(new Answer<QueryExecutor<?>>() {
       @Override
       public QueryExecutor<?> answer(InvocationOnMock invocation)
           throws Throwable {
-        if ((executor_index++ % 2) == 0) {
-          return executor_a;
-        } else {
-          return executor_b;
-        }
+        return executor;
       }
     });
-    when(cluster_a.remoteExecutor()).thenAnswer(new Answer<QueryExecutor<?>>() {
-      @Override
-      public QueryExecutor<?> answer(InvocationOnMock invocation)
-          throws Throwable {
-        return executor_a;
-      }
-    });
-    when(cluster_b.remoteExecutor()).thenAnswer(new Answer<QueryExecutor<?>>() {
-      @Override
-      public QueryExecutor<?> answer(InvocationOnMock invocation)
-          throws Throwable {
-        return executor_b;
-      }
-    });
-    when(executor_a.executeQuery(any(TimeSeriesQuery.class), any(Span.class)))
-      .thenAnswer(new Answer<QueryExecution<?>>() {
-        @Override
-        public QueryExecution<?> answer(InvocationOnMock invocation)
-            throws Throwable {
-          final MockDownstream downstream = 
-              new MockDownstream((TimeSeriesQuery) invocation.getArguments()[0]);
-          downstreams.add(downstream);
-          return downstream;
-        }
-      });
-    when(executor_b.executeQuery(any(TimeSeriesQuery.class), any(Span.class)))
-      .thenAnswer(new Answer<QueryExecution<?>>() {
-        @Override
-        public QueryExecution<?> answer(InvocationOnMock invocation)
-            throws Throwable {
-          final MockDownstream downstream = 
-              new MockDownstream((TimeSeriesQuery) invocation.getArguments()[0]);
-          downstreams.add(downstream);
-          return downstream;
-        }
-      });
-    when(executor_a.close()).thenReturn(Deferred.fromResult(null));
-    when(executor_b.close()).thenReturn(Deferred.fromResult(null));
+    when(executor.close()).thenReturn(Deferred.fromResult(null));
     when(merger.merge((List<Long>) any(List.class), eq(context), any(Span.class)))
       .thenAnswer(new Answer<Long>() {
       @Override
       public Long answer(InvocationOnMock invocation) throws Throwable {
         return 42L;
       }
+    });
+    when(executor.executeQuery(eq(context), any(TimeSeriesQuery.class), 
+        any(Span.class))).thenAnswer(new Answer<QueryExecution<?>>() {
+          @Override
+          public QueryExecution<?> answer(InvocationOnMock invocation)
+              throws Throwable {
+            final MockDownstream downstream = new MockDownstream(
+                (TimeSeriesQuery) invocation.getArguments()[1]);
+            downstreams.add(downstream);
+            return downstream;
+          }
     });
     
     q1 = TimeSeriesQuery.newBuilder()
@@ -197,80 +133,50 @@ public class TestMetricShardingExecutor {
   @Test
   public void ctor() throws Exception {
     MetricShardingExecutor<Long> executor = 
-        new MetricShardingExecutor<Long>(context, config);
+        new MetricShardingExecutor<Long>(node);
     assertSame(merger, executor.dataMerger());
     assertTrue(executor.outstandingRequests().isEmpty());
-    assertEquals(2, executor.downstreamExecutors().size());
-    assertSame(executor_a, executor.downstreamExecutors().get(0));
-    assertSame(executor_b, executor.downstreamExecutors().get(1));
-    
-    executor = new MetricShardingExecutor<Long>(context, config);
-    assertSame(merger, executor.dataMerger());
-    assertTrue(executor.outstandingRequests().isEmpty());
-    assertEquals(2, executor.downstreamExecutors().size());
-    assertSame(executor_a, executor.downstreamExecutors().get(0));
-    assertSame(executor_b, executor.downstreamExecutors().get(1));
-    
+    assertEquals(1, executor.downstreamExecutors().size());
+    assertSame(this.executor, executor.downstreamExecutors().get(0));
+
     try {
-      new MetricShardingExecutor<Long>(null, config);
+      new MetricShardingExecutor<Long>(null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
+    when(node.getDefaultConfig()).thenReturn(null);
     try {
-      new MetricShardingExecutor<Long>(context, null);
+      new MetricShardingExecutor<Long>(node);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
+    config = (Config) MetricShardingExecutor.Config.newBuilder()
+        .setParallelExecutors(0)
+        .setExecutorId("UT Executor")
+        .setExecutorType("MetricShardingExecutor")
+        .build();
+    when(node.getDefaultConfig()).thenReturn(config);
     try {
-      new MetricShardingExecutor<Long>(context, Config.<Long>newBuilder()
-          .setType(Long.class)
-          .setParallelExecutors(0)
-          .build());
+      new MetricShardingExecutor<Long>(node);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    when(merger.type()).thenAnswer(new Answer<TypeToken<?>>() {
-      @Override
-      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
-        return TypeToken.of(String.class);
-      }
-    });
+    config = (Config) MetricShardingExecutor.Config.newBuilder()
+        .setParallelExecutors(2)
+        .setExecutorId("UT Executor")
+        .setExecutorType("MetricShardingExecutor")
+        .build();
+    when(node.getDefaultConfig()).thenReturn(config);
+    when(graph.getDownstreamExecutor(anyString()))
+    .thenAnswer(new Answer<QueryExecutor<?>>() {
+    @Override
+    public QueryExecutor<?> answer(InvocationOnMock invocation)
+        throws Throwable {
+      return null;
+    }
+  });
     try {
-      new MetricShardingExecutor<Long>(context, config);
-      fail("Expected IllegalStateException");
-    } catch (IllegalStateException e) { }
-    
-    when(remote_context.dataMerger(any(TypeToken.class))).thenReturn(null);
-    try {
-      new MetricShardingExecutor<Long>(context, config);
-      fail("Expected IllegalStateException");
-    } catch (IllegalStateException e) { }
-    
-    // bad executor factory. Have to restore the merger answers
-    when(remote_context.dataMerger(any(TypeToken.class)))
-      .thenAnswer(new Answer<DataMerger<?>>() {
-      @Override
-      public DataMerger<?> answer(InvocationOnMock invocation) throws Throwable {
-        return merger;
-      }
-    });
-    when(merger.type()).thenAnswer(new Answer<TypeToken<?>>() {
-      @Override
-      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
-        return TypeToken.of(Long.class);
-      }
-    });
-    when(executor_context.newDownstreamExecutor(context, config.getFactory()))
-      .thenReturn(null);
-    try {
-      new MetricShardingExecutor<Long>(context, config);
-      fail("Expected IllegalStateException");
-    } catch (IllegalStateException e) { }
-    
-    when(executor_context.newDownstreamExecutor(context, config.getFactory()))
-      .thenThrow(new IllegalArgumentException("Boo!"));
-    try {
-      new MetricShardingExecutor<Long>(context, config);
+      new MetricShardingExecutor<Long>(node);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -278,20 +184,20 @@ public class TestMetricShardingExecutor {
   @Test
   public void execute() throws Exception {
     final MetricShardingExecutor<Long> executor = 
-        new MetricShardingExecutor<Long>(context, config);
+        new MetricShardingExecutor<Long>(node);
     
-    final QueryExecution<Long> exec = executor.executeQuery(query, span);
+    final QueryExecution<Long> exec = executor.executeQuery(context, query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
-    verify(executor_a, times(1)).executeQuery(q1, null);
-    verify(executor_b, times(1)).executeQuery(q2, null);
-    verify(executor_a, never()).executeQuery(q3, null);
-    verify(executor_b, never()).executeQuery(q3, null);
-    verify(executor_a, never()).executeQuery(q4, null);
-    verify(executor_b, never()).executeQuery(q4, null);
+    verify(this.executor, times(1)).executeQuery(context, q1, null);
+    verify(this.executor, times(1)).executeQuery(context, q2, null);
+    verify(this.executor, never()).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(2, downstreams.size());
@@ -302,16 +208,16 @@ public class TestMetricShardingExecutor {
 
     // callback 1st, next should start
     downstreams.get(0).callback(1L);
-    verify(executor_a, times(1)).executeQuery(q3, null);
-    verify(executor_a, never()).executeQuery(q4, null);
-    verify(executor_b, never()).executeQuery(q4, null);
+    verify(this.executor, times(1)).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(3, downstreams.size());
     
     // callback 2nd, last should start
     downstreams.get(1).callback(2L);
-    verify(executor_b, times(1)).executeQuery(q4, null);
+    verify(this.executor, times(1)).executeQuery(context, q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(4, downstreams.size());
@@ -329,30 +235,81 @@ public class TestMetricShardingExecutor {
     }
   }
   
-  @Test (expected = IllegalStateException.class)
-  public void executNoSubQueries() throws Exception {
-    final MetricShardingExecutor<Long> executor = 
-        new MetricShardingExecutor<Long>(context, config);
-    executor.executeQuery(TimeSeriesQuery.newBuilder().build(), null);
-  }
-  
   @Test
-  public void executeEarlyFail() throws Exception {
+  public void executeOverrideParallels() throws Exception {
+    final Config override = (Config) Config.newBuilder()
+        .setParallelExecutors(3)
+        .setExecutorId("UT Executor")
+        .setExecutorType("MetricShardingExecutor")
+        .build();
+    when(context.getConfigOverride(anyString())).thenReturn(override);
     final MetricShardingExecutor<Long> executor = 
-        new MetricShardingExecutor<Long>(context, config);
+        new MetricShardingExecutor<Long>(node);
     
-    final QueryExecution<Long> exec = executor.executeQuery(query, span);
+    final QueryExecution<Long> exec = executor.executeQuery(context, query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
-    verify(executor_a, times(1)).executeQuery(q1, null);
-    verify(executor_b, times(1)).executeQuery(q2, null);
-    verify(executor_a, never()).executeQuery(q3, null);
-    verify(executor_b, never()).executeQuery(q3, null);
-    verify(executor_a, never()).executeQuery(q4, null);
-    verify(executor_b, never()).executeQuery(q4, null);
+    verify(this.executor, times(1)).executeQuery(context, q1, null);
+    verify(this.executor, times(1)).executeQuery(context, q2, null);
+    verify(this.executor, times(1)).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
+    assertTrue(executor.outstandingRequests().contains(exec));
+    assertFalse(exec.completed());
+    assertEquals(3, downstreams.size());
+    for (final MockDownstream execution : downstreams) {
+      assertFalse(execution.cancelled);
+      assertFalse(execution.completed());
+    }
+
+    // callback 1st, next should start
+    downstreams.get(0).callback(1L);
+    verify(this.executor, times(1)).executeQuery(context, q3, null);
+    verify(this.executor, times(1)).executeQuery(context, q4, null);
+    assertTrue(executor.outstandingRequests().contains(exec));
+    assertFalse(exec.completed());
+    assertEquals(4, downstreams.size());
+    
+    // call the rest back
+    downstreams.get(1).callback(2L);
+    downstreams.get(2).callback(3L);
+    downstreams.get(3).callback(4L);
+    
+    assertEquals(42L, (long) exec.deferred().join(1));
+    assertFalse(executor.outstandingRequests().contains(exec));
+    assertTrue(exec.completed());
+    for (final MockDownstream execution : downstreams) {
+      assertFalse(execution.cancelled);
+      assertTrue(execution.completed());
+    }
+  }
+  
+  @Test (expected = IllegalStateException.class)
+  public void executNoSubQueries() throws Exception {
+    final MetricShardingExecutor<Long> executor = 
+        new MetricShardingExecutor<Long>(node);
+    executor.executeQuery(context, TimeSeriesQuery.newBuilder().build(), null);
+  }
+  
+  @Test
+  public void executeEarlyFail() throws Exception {
+    final MetricShardingExecutor<Long> executor = 
+        new MetricShardingExecutor<Long>(node);
+    
+    final QueryExecution<Long> exec = executor.executeQuery(context, query, span);
+    try {
+      exec.deferred().join(1);
+      fail("Expected TimeoutException");
+    } catch (TimeoutException e) { }
+    
+    verify(this.executor, times(1)).executeQuery(context, q1, null);
+    verify(this.executor, times(1)).executeQuery(context, q2, null);
+    verify(this.executor, never()).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(2, downstreams.size());
@@ -368,9 +325,9 @@ public class TestMetricShardingExecutor {
       exec.deferred().join();
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
-    verify(executor_a, never()).executeQuery(q3, null);
-    verify(executor_a, never()).executeQuery(q4, null);
-    verify(executor_b, never()).executeQuery(q4, null);
+    verify(this.executor, never()).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
     assertFalse(executor.outstandingRequests().contains(exec));
     assertTrue(exec.completed());
     assertEquals(2, downstreams.size());
@@ -381,20 +338,20 @@ public class TestMetricShardingExecutor {
   @Test
   public void executeLateFail() throws Exception {
     final MetricShardingExecutor<Long> executor = 
-        new MetricShardingExecutor<Long>(context, config);
+        new MetricShardingExecutor<Long>(node);
     
-    final QueryExecution<Long> exec = executor.executeQuery(query, span);
+    final QueryExecution<Long> exec = executor.executeQuery(context, query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
-    verify(executor_a, times(1)).executeQuery(q1, null);
-    verify(executor_b, times(1)).executeQuery(q2, null);
-    verify(executor_a, never()).executeQuery(q3, null);
-    verify(executor_b, never()).executeQuery(q3, null);
-    verify(executor_a, never()).executeQuery(q4, null);
-    verify(executor_b, never()).executeQuery(q4, null);
+    verify(this.executor, times(1)).executeQuery(context, q1, null);
+    verify(this.executor, times(1)).executeQuery(context, q2, null);
+    verify(this.executor, never()).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(2, downstreams.size());
@@ -405,16 +362,16 @@ public class TestMetricShardingExecutor {
 
     // callback 1st, next should start
     downstreams.get(0).callback(1L);
-    verify(executor_a, times(1)).executeQuery(q3, null);
-    verify(executor_a, never()).executeQuery(q4, null);
-    verify(executor_b, never()).executeQuery(q4, null);
+    verify(this.executor, times(1)).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(3, downstreams.size());
     
     // callback 2nd, last should start
     downstreams.get(1).callback(2L);
-    verify(executor_b, times(1)).executeQuery(q4, null);
+    verify(this.executor, times(1)).executeQuery(context, q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(4, downstreams.size());
@@ -430,26 +387,25 @@ public class TestMetricShardingExecutor {
     assertFalse(executor.outstandingRequests().contains(exec));
     assertTrue(exec.completed());
     assertEquals(4, downstreams.size());
-    
   }
   
   @Test
   public void executeFailureRace() throws Exception {
     final MetricShardingExecutor<Long> executor = 
-        new MetricShardingExecutor<Long>(context, config);
+        new MetricShardingExecutor<Long>(node);
     
-    final QueryExecution<Long> exec = executor.executeQuery(query, span);
+    final QueryExecution<Long> exec = executor.executeQuery(context, query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
-    verify(executor_a, times(1)).executeQuery(q1, null);
-    verify(executor_b, times(1)).executeQuery(q2, null);
-    verify(executor_a, never()).executeQuery(q3, null);
-    verify(executor_b, never()).executeQuery(q3, null);
-    verify(executor_a, never()).executeQuery(q4, null);
-    verify(executor_b, never()).executeQuery(q4, null);
+    verify(this.executor, times(1)).executeQuery(context, q1, null);
+    verify(this.executor, times(1)).executeQuery(context, q2, null);
+    verify(this.executor, never()).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(2, downstreams.size());
@@ -466,9 +422,9 @@ public class TestMetricShardingExecutor {
       exec.deferred().join();
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
-    verify(executor_a, never()).executeQuery(q3, null);
-    verify(executor_a, never()).executeQuery(q4, null);
-    verify(executor_b, never()).executeQuery(q4, null);
+    verify(this.executor, never()).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
     assertFalse(executor.outstandingRequests().contains(exec));
     assertTrue(exec.completed());
     assertEquals(2, downstreams.size());
@@ -480,20 +436,20 @@ public class TestMetricShardingExecutor {
   @Test
   public void executeCancel() throws Exception {
     final MetricShardingExecutor<Long> executor = 
-        new MetricShardingExecutor<Long>(context, config);
+        new MetricShardingExecutor<Long>(node);
     
-    final QueryExecution<Long> exec = executor.executeQuery(query, span);
+    final QueryExecution<Long> exec = executor.executeQuery(context, query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
-    verify(executor_a, times(1)).executeQuery(q1, null);
-    verify(executor_b, times(1)).executeQuery(q2, null);
-    verify(executor_a, never()).executeQuery(q3, null);
-    verify(executor_b, never()).executeQuery(q3, null);
-    verify(executor_a, never()).executeQuery(q4, null);
-    verify(executor_b, never()).executeQuery(q4, null);
+    verify(this.executor, times(1)).executeQuery(context, q1, null);
+    verify(this.executor, times(1)).executeQuery(context, q2, null);
+    verify(this.executor, never()).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(2, downstreams.size());
@@ -508,9 +464,9 @@ public class TestMetricShardingExecutor {
       exec.deferred().join();
       fail("Expected QueryExecutionException");
     } catch (QueryExecutionException e) { }
-    verify(executor_a, never()).executeQuery(q3, null);
-    verify(executor_a, never()).executeQuery(q4, null);
-    verify(executor_b, never()).executeQuery(q4, null);
+    verify(this.executor, never()).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
     assertFalse(executor.outstandingRequests().contains(exec));
     assertTrue(exec.completed());
     assertEquals(2, downstreams.size());
@@ -522,20 +478,20 @@ public class TestMetricShardingExecutor {
   @Test
   public void close() throws Exception {
     final MetricShardingExecutor<Long> executor = 
-        new MetricShardingExecutor<Long>(context, config);
+        new MetricShardingExecutor<Long>(node);
     
-    final QueryExecution<Long> exec = executor.executeQuery(query, span);
+    final QueryExecution<Long> exec = executor.executeQuery(context, query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
     
-    verify(executor_a, times(1)).executeQuery(q1, null);
-    verify(executor_b, times(1)).executeQuery(q2, null);
-    verify(executor_a, never()).executeQuery(q3, null);
-    verify(executor_b, never()).executeQuery(q3, null);
-    verify(executor_a, never()).executeQuery(q4, null);
-    verify(executor_b, never()).executeQuery(q4, null);
+    verify(this.executor, times(1)).executeQuery(context, q1, null);
+    verify(this.executor, times(1)).executeQuery(context, q2, null);
+    verify(this.executor, never()).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
     assertTrue(executor.outstandingRequests().contains(exec));
     assertFalse(exec.completed());
     assertEquals(2, downstreams.size());
@@ -550,34 +506,104 @@ public class TestMetricShardingExecutor {
       exec.deferred().join();
       fail("Expected QueryExecutionException");
     } catch (QueryExecutionException e) { }
-    verify(executor_a, never()).executeQuery(q3, null);
-    verify(executor_a, never()).executeQuery(q4, null);
-    verify(executor_b, never()).executeQuery(q4, null);
+    verify(this.executor, never()).executeQuery(context, q3, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
+    verify(this.executor, never()).executeQuery(context, q4, null);
     assertFalse(executor.outstandingRequests().contains(exec));
     assertTrue(exec.completed());
     assertEquals(2, downstreams.size());
     
     assertTrue(downstreams.get(0).cancelled);
     assertTrue(downstreams.get(1).cancelled);
-    assertEquals(2, executor.downstreamExecutors().size());
-    assertSame(executor_a, executor.downstreamExecutors().get(0));
-    assertSame(executor_b, executor.downstreamExecutors().get(1));
-    verify(executor_a, times(1)).close();
-    verify(executor_b, times(1)).close();
+    assertEquals(1, executor.downstreamExecutors().size());
+    assertSame(this.executor, executor.downstreamExecutors().get(0));
+    verify(this.executor, times(1)).close();
+  }
+
+  @Test
+  public void builder() throws Exception {
+    String json = JSON.serializeToString(config);
+    assertTrue(json.contains("\"executorType\":\"MetricShardingExecutor\""));
+    assertTrue(json.contains("\"parallelExecutors\":2"));
+    assertTrue(json.contains("\"mergeStrategy\":\"largest\""));
+    assertTrue(json.contains("\"executorId\":\"UT Executor\""));
+    
+    json = "{\"executorType\":\"MetricShardingExecutor\",\"parallelExecutors\":"
+        + "2,\"mergeStrategy\":\"largest\",\"executorId\":\"UT Executor\"}";
+    config = JSON.parseToObject(json, Config.class);
+    assertEquals("MetricShardingExecutor", config.executorType());
+    assertEquals("largest", config.getMergeStrategy());
+    assertEquals("UT Executor", config.getExecutorId());
+    assertEquals(2, config.getParallelExecutors());
   }
   
-  /** Simple implementation to peek into the cancel call. */
-  class MockDownstream extends QueryExecution<Long> {
-    boolean cancelled;
+  @Test
+  public void hashCodeEqualsCompareTo() throws Exception {
+    final Config c1 = (Config) Config.newBuilder()
+        .setParallelExecutors(2)
+        .setMergeStrategy("smallest")
+        .setExecutorId("UT Executor")
+        .setExecutorType("MetricShardingExecutor")
+        .build();
     
-    public MockDownstream(TimeSeriesQuery query) {
-      super(query);
-    }
-
-    @Override
-    public void cancel() {
-      cancelled = true;
-    }
+    Config c2 = (Config) Config.newBuilder()
+        .setParallelExecutors(2)
+        .setMergeStrategy("smallest")
+        .setExecutorId("UT Executor")
+        .setExecutorType("MetricShardingExecutor")
+        .build();
+    assertEquals(c1.hashCode(), c2.hashCode());
+    assertEquals(c1, c2);
+    assertEquals(0, c1.compareTo(c2));
     
+    c2 = (Config) Config.newBuilder()
+        .setParallelExecutors(5)  // <-- Diff
+        .setMergeStrategy("smallest")
+        .setExecutorId("UT Executor")
+        .setExecutorType("MetricShardingExecutor")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(-1, c1.compareTo(c2));
+    
+    c2 = (Config) Config.newBuilder()
+        .setParallelExecutors(2)
+        .setMergeStrategy("rando")  // <-- Diff
+        .setExecutorId("UT Executor")
+        .setExecutorType("MetricShardingExecutor")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(1, c1.compareTo(c2));
+    
+    c2 = (Config) Config.newBuilder()
+        .setParallelExecutors(2)
+        //.setMergeStrategy("smallest")  // <-- Diff
+        .setExecutorId("UT Executor")
+        .setExecutorType("MetricShardingExecutor")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(1, c1.compareTo(c2));
+    
+    c2 = (Config) Config.newBuilder()
+        .setParallelExecutors(2)
+        .setMergeStrategy("smallest")
+        .setExecutorId("UT Executor2")  // <-- Diff
+        .setExecutorType("MetricShardingExecutor")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(-1, c1.compareTo(c2));
+    
+    c2 = (Config) Config.newBuilder()
+        .setParallelExecutors(2)
+        .setMergeStrategy("smallest")
+        .setExecutorId("UT Executor")
+        .setExecutorType("MetricShardingExecutor2")  // <-- Diff
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(-1, c1.compareTo(c2));
   }
 }

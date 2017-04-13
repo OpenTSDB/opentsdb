@@ -14,6 +14,7 @@ package net.opentsdb.query.context;
 
 import io.netty.util.Timer;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
 
 /**
  * Simply allows instantiation of the {@link QueryContext} without overrides.
@@ -22,17 +23,16 @@ import net.opentsdb.core.TSDB;
  */
 public class DefaultQueryContext extends QueryContext {
 
+  /**
+   * Default ctor.
+   * @param tsdb A non-null TSDB this context belongs to.
+   * @param executor_graph A non-null executor to use for running the query.
+   */
   public DefaultQueryContext(final TSDB tsdb, 
-                             final QueryExecutorContext executor_context) {
-    super(tsdb, executor_context);
+                             final ExecutionGraph executor_graph) {
+    super(tsdb, executor_graph);
   }
-
-  @Override
-  public RemoteContext getRemoteContext() {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
+  
   @Override
   public Timer getTimer() {
     // TODO Auto-generated method stub

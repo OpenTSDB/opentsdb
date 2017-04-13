@@ -14,12 +14,16 @@ package net.opentsdb.query.execution;
 
 import java.lang.reflect.Constructor;
 
+import com.google.common.base.Strings;
+import com.google.common.reflect.TypeToken;
+
 import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 
 /**
  * A factory used to generate a {@link QueryExecutor} for a new context. These
  * factories can be instantiated once per JVM and the 
- * {@link #newExecutor(QueryContext)} method must be thread safe.
+ * {@link #newExecutor(ExecutionGraphNode)} method must be thread safe.
  * <p>
  * The constructor must have only the following parameters:
  * Ctor({@link QueryContext}, {@link QueryExecutorConfig}); 
@@ -30,60 +34,80 @@ import net.opentsdb.query.context.QueryContext;
  */
 public abstract class QueryExecutorFactory<T> {
 
+  /** The type this executor handles. */
+  protected final TypeToken<?> type;
+  
   /** The constructor to use. */
   protected final Constructor<QueryExecutor<?>> ctor;
-  
-  /** The config to pass to each instance. */
-  protected final QueryExecutorConfig config;
+
+  /** A unique identifier for the factory within the context. */
+  protected final String id;
   
   /**
    * Default ctor
    * @param ctor A non-null ctor with the parameters {@link QueryContext} and
    * {@link QueryExecutorConfig}.
-   * @param config An optional config. May be null if the executor does not
-   * require a config.
+   * @param type The type of data returned by the executor.
+   * @param id An ID for the executor factory.
    * @throws IllegalArgumentException if the ctor was null or did not have
    * the proper parameters.
    */
-  public QueryExecutorFactory(final Constructor<QueryExecutor<?>> ctor, 
-                              final QueryExecutorConfig config) {
+  public QueryExecutorFactory(final Constructor<QueryExecutor<?>> ctor,
+                              final Class<?> type,
+                              final String id) {
     if (ctor == null) {
       throw new IllegalArgumentException("Constructor cannot be null.");
     }
-    if (ctor.getParameterCount() != 2) {
+    if (ctor.getParameterCount() != 1) {
       throw new IllegalArgumentException("Constructor can only have two types: " 
           + ctor.getParameterCount());
     }
-    if (ctor.getGenericParameterTypes()[0] != QueryContext.class) {
+    if (ctor.getGenericParameterTypes()[0] != ExecutionGraphNode.class) {
       throw new IllegalArgumentException("First constructor parameter must be "
-          + "a QueryContext: " + ctor.getGenericParameterTypes()[0].getTypeName());
+          + "a ExecutionGraphNode: " + 
+          ctor.getGenericParameterTypes()[0].getTypeName());
     }
-    if (ctor.getGenericParameterTypes()[1] != QueryExecutorConfig.class) {
-      throw new IllegalArgumentException("First constructor parameter must be "
-          + "a QueryExecutorConfig: " 
-          + ctor.getGenericParameterTypes()[1].getTypeName());
+    if (Strings.isNullOrEmpty(id)) {
+      throw new IllegalArgumentException("ID cannot be null.");
     }
     this.ctor = ctor;
-    this.config = config;
-    if (config != null) {
-      config.setFactory(this);
-    }
+    this.id = id;
+    this.type = TypeToken.of(type);
+  }
+  
+  /** @return The ID of the executor instantiated by this factory. */
+  public String id() {
+    return id;
+  }
+  
+  /** @return The type of executor instantiated. */
+  public TypeToken<?> type() {
+    return type;
   }
   
   /**
-   * Returns a new instance of a query executor that handles the specified
-   * data type.
-   * @param context A non-null context to pass to the executor's ctor.
-   * @return A non-null query executor.
-   * @throws IllegalStateException if the instance couldn't be constructed.
+   * Returns a new instance of the executor using the config from the
+   * graph node.
+   * @param node A non-null node.
+   * @return An instantiated executor if successful.
+   * @throws IllegalArgumentException if the node was null or the node ID was 
+   * null or empty.
+   * @throws IllegalStateException if the instantiation failed.
    */
   @SuppressWarnings("unchecked")
-  public QueryExecutor<T> newExecutor(final QueryContext context) {
+  public QueryExecutor<T> newExecutor(final ExecutionGraphNode node) {
+    if (node == null) {
+      throw new IllegalArgumentException("Node cannot be null.");
+    }
+    if (Strings.isNullOrEmpty(node.getExecutorId())) {
+      throw new IllegalArgumentException("Node ID cannot be null.");
+    }
     try {
-      return (QueryExecutor<T>) ctor.newInstance(context, config);
+      return (QueryExecutor<T>) ctor.newInstance(node);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to instaniate executor for: " 
           + ctor, e);
     }
   }
+
 }

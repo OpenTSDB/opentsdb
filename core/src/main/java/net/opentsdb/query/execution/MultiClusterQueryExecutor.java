@@ -14,40 +14,52 @@ package net.opentsdb.query.execution;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
+import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.opentracing.Span;
+import net.opentsdb.core.Const;
 import net.opentsdb.data.DataMerger;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.context.RemoteContext;
-import net.opentsdb.query.execution.ClusterConfig;
+import net.opentsdb.query.execution.cluster.ClusterConfig;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.JSON;
 
 /**
- * An executor that uses the {@link RemoteContext#clusters()} config to send
- * the same query to multiple clusters (in dual-write situations) and merges
- * the results using a {@link DataMerger} for the given type.
+ * An executor that uses the {@link ClusterConfig} to send the same query to 
+ * multiple clusters (in dual-write situations) and merges the results using a 
+ * {@link DataMerger} for the given type.
  * <p>
  * For multi-cluster queries, we fire the same query off to each cluster and 
  * wait for a response from every cluster. If at least one cluster returns
  * a valid result, then that result will be returned via 
- * {@link #executeQuery(TimeSeriesQuery, Span)}.
+ * {@link #executeQuery(QueryContext, TimeSeriesQuery, Span)}.
  * However if all clusters return an exception, then the exceptions are
  * packed into a {@link QueryExecutionException} and the highest status
  * code from exceptions (assuming each one returns a QueryExecutionException)
@@ -55,7 +67,7 @@ import net.opentsdb.utils.JSON;
  * 
  * <p>
  * This implementation does not provide timeout handling. Instead, make sure
- * to wrap the {@link ClusterConfig#remoteExecutor()} with a timeout executor
+ * to wrap the {@link #downstreamExecutors()} with a timeout executor
  * if timeout handling is desired.
  * 
  * @param <T>
@@ -65,10 +77,16 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
       MultiClusterQueryExecutor.class);
 
   /** The data merger used to merge results. */
-  private final DataMerger<T> data_merger;
+  private DataMerger<T> default_data_merger;
+  
+  /** The cluster graph used with this executor. */
+  private final ClusterConfig cluster_graph;
+  
+  /** The list of executors keyed on cluster IDs. */
+  private final Map<String, QueryExecutor<T>> executors;
   
   /** Optional timeout in ms for alternate clusters. */
-  private final long timeout;
+  private final long default_timeout;
 
   /**
    * Alternate CTor that sets a timeout that, when the first positive response
@@ -76,51 +94,70 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
    * forward the query results upstream regardless of the state of remaining
    * clusters.
    * 
-   * @param context A non-null context. 
-   * @param config A query executor config.
-   * @throws IllegalArgumentException if the cluster or type were null.
-   * @throws IllegalStateException if the data merger was null or of the wrong
-   * type.
+   * @param node A non null node to pull the ID and config from. 
+   * @throws IllegalArgumentException if a config param was invalid.
    */
   @SuppressWarnings("unchecked")
-  public MultiClusterQueryExecutor(final QueryContext context, 
-                                   final QueryExecutorConfig config) {
-    super(context, config);
-    if (config == null) {
+  public MultiClusterQueryExecutor(final ExecutionGraphNode node) {
+    super(node);
+    if (node.getDefaultConfig() == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    if (((Config<T>) config).type == null) {
-      throw new IllegalArgumentException("Type cannot be null.");
+    if (Strings.isNullOrEmpty(((Config) node.getDefaultConfig()).cluster_config)) {
+      throw new IllegalArgumentException("Cluster config cannot be null.");
     }
-    data_merger = (DataMerger<T>) context.getRemoteContext().dataMerger(
-        TypeToken.of(((Config<T>) config).type));
-    if (data_merger == null) {
-      throw new IllegalStateException("No merger could be found for type " 
-          + ((Config<T>) config).type);
+    cluster_graph = node.graph().tsdb().getRegistry().getClusterConfig(
+        ((Config) node.getDefaultConfig()).cluster_config);
+    if (cluster_graph == null) {
+      throw new IllegalArgumentException("No cluster found for: " 
+          + ((Config) node.getDefaultConfig()).cluster_config);
     }
-    if (!TypeToken.of(((Config<T>) config).type).equals(data_merger.type())) {
-      throw new IllegalStateException("Data merger of type " + data_merger.type() 
-        + " did not match the executor's type: " + ((Config<T>) config).type);
-    }
-    if (((Config<T>) config).timeout < 0) {
+    if (((Config) node.getDefaultConfig()).timeout < 0) {
       throw new IllegalArgumentException("Timeout cannot be negative.");
     }
-    this.timeout = ((Config<T>) config).timeout;
+    if (cluster_graph.clusters().isEmpty()) {
+      throw new IllegalArgumentException("The cluster graph cannot be empty.");
+    }
+    executors = Maps.newHashMapWithExpectedSize(cluster_graph.clusters().size());
+    for (final String cluster_id : cluster_graph.clusters().keySet()) {
+      final QueryExecutor<T> executor = (QueryExecutor<T>) 
+          cluster_graph.getSinkExecutor(cluster_id);
+      if (executor == null) {
+        throw new IllegalArgumentException("Factory returned a null executor "
+            + "for cluster: " + cluster_id);
+      }
+      executors.put(cluster_id, executor);
+      registerDownstreamExecutor(executor);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Instantiated executor sink for cluster: " + cluster_id);
+      }
+    }
+    default_timeout = ((Config) node.getDefaultConfig()).timeout;
+    default_data_merger = (DataMerger<T>) node.graph().tsdb()
+        .getRegistry().getDataMerger(
+            ((Config) node.getDefaultConfig()).merge_strategy);
+    if (default_data_merger == null) {
+      throw new IllegalArgumentException("No data merger found for: " 
+          + ((Config) node.getDefaultConfig()).merge_strategy);
+    }
   }
 
   @SuppressWarnings({ "unchecked", "rawtypes" })
   @Override
-  public QueryExecution<T> executeQuery(final TimeSeriesQuery query, 
+  public QueryExecution<T> executeQuery(final QueryContext context,
+                                        final TimeSeriesQuery query, 
                                         final Span upstream_span) {
     if (completed.get()) {
       return new FailedQueryExecution(query,
           new QueryExecutionException(
           "Executor has been cancelled", 410, query.getOrder()));
     }
+    
     try {
-      final QueryToClusterSplitter executor = new QueryToClusterSplitter(query);
-      outstanding_executions.add(executor);
-      return executor.executeQuery(query, upstream_span);
+      final QueryToClusterSplitter execution = new QueryToClusterSplitter(
+          context, query);
+      outstanding_executions.add(execution);
+      return execution.executeQuery(upstream_span);
     } catch (Exception e) {
       return new FailedQueryExecution(query, new QueryExecutionException(
           "Unexpected exception executing query: " + this, 
@@ -131,15 +168,18 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
   /** State class for a specific query that waits for both clusters to complete
    * and merges the response. */
   class QueryToClusterSplitter extends QueryExecution<T> implements TimerTask {
-    /** The cluster config snapshot to use when sending queries. */
-    private final List<ClusterConfig> clusters;
+    /** The query context. */
+    private final QueryContext context;
+    
+    /** Potential override or the default config. */
+    private final QueryExecutorConfig config;
     
     /** A list of remote exceptions */
     private final Exception[] remote_exceptions;
     
     /** The list of outstanding executions so we can cancel them if needed. */
     @VisibleForTesting
-    final QueryExecution<T>[] executions;
+    private final QueryExecution<T>[] executions;
     
     /** The results populated by the group by. */
     private final List<T> results;
@@ -147,38 +187,61 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
     /** Flag set when starting the timer. */
     private final AtomicBoolean timer_started;
     
+    /** The list of clusters to call into for this particular query. */
+    private final List<String> clusters;
+    
+    /** The potentially overriden timeout in ms. */
+    private final long timeout;
+    
     /** The timeout from the Timer if timeouts are enabled. */ 
     private Timeout timer_timeout;
-    
+        
     /**
      * Default ctor.
      * @param query A non-null query.
      * @throws IllegalStateException if the remote context cluster call fails.
      */
     @SuppressWarnings("unchecked")
-    public QueryToClusterSplitter(final TimeSeriesQuery query) {
+    public QueryToClusterSplitter(final QueryContext context, 
+                                  final TimeSeriesQuery query) {
       super(query);
-      clusters = context.getRemoteContext().clusters();
-      if (clusters == null || clusters.isEmpty()) {
-        throw new IllegalStateException("Remote context returned a null or "
-            + "empty list of clusters.");
+      
+      final QueryExecutorConfig override = 
+          context.getConfigOverride(node.getExecutorId());
+      if (override != null) {
+        config = override;
+      } else {
+        config = node.getDefaultConfig();
       }
+      clusters = cluster_graph.setupQuery(context, 
+          ((Config) config).cluster_override);
+      
+      this.context = context;
       remote_exceptions = new Exception[clusters.size()];
       executions = new QueryExecution[clusters.size()];
       results = Lists.newArrayListWithExpectedSize(clusters.size());
       for (int i = 0; i < clusters.size(); i++) {
         results.add(null);
       }
-      if (timeout > 0) {
+      if (((Config) config).timeout > 0 || default_timeout > 0) {
         timer_started = new AtomicBoolean();
+        if (((Config) config).timeout > 0) {
+          timeout = ((Config) config).timeout;
+        } else {
+          timeout = default_timeout;
+        }
       } else {
         timer_started = null;
+        timeout = 0;
       }
     }
     
-    @SuppressWarnings("unchecked")
-    QueryExecution<T> executeQuery(final TimeSeriesQuery query, 
-        final Span upstream_span) {
+    /**
+     * Executes the query, looking for overrides in the context.
+     * @param upstream_span An optional tracer span.
+     * @return The split query execution.
+     */
+    QueryExecution<T> executeQuery(final Span upstream_span) {
       if (context.getTracer() != null) {
         setSpan(context, 
             MultiClusterQueryExecutor.this.getClass().getSimpleName(), 
@@ -228,17 +291,32 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
         }
         
         // execute the query on each remote and add an ErrCB to capture badness.
-        for (int i = 0; i < clusters.size(); i++) {
-          final QueryExecutor<T> remote_executor = (QueryExecutor<T>) 
-              clusters.get(i).remoteExecutor();
-          registerDownstreamExecutor(remote_executor);
-          executions[i] = (QueryExecution<T>) remote_executor
-              .executeQuery(query, tracer_span);
+        int i = 0;
+        for (final String cluster : clusters) {
+          executions[i] = (QueryExecution<T>) executors.get(cluster)
+              .executeQuery(context, query, tracer_span);
+          if (executions[i] == null) {
+            try {
+              final Exception ex = new QueryExecutionException(
+                  "Cluster " + cluster + " was not found in the cluster map.", 
+                  400, query.getOrder());
+              callback(ex,
+                  TsdbTrace.exceptionTags(ex),
+                  TsdbTrace.exceptionAnnotation(ex));
+            } catch (IllegalArgumentException ex) {
+              // lost race, no prob.
+            } catch (Exception ex) {
+              LOG.warn("Failed to complete callback due to unexepcted "
+                  + "exception: " + this, ex);
+            }
+          }
+          
           deferreds.add(executions[i].deferred()
               .addErrback(new ErrCB(i)));
           if (timeout > 0) {
             executions[i].deferred().addCallback(new TimerStarter(i));
           }
+          i++;
         }
         
         /** Callback that either merges good results and executes the callback or
@@ -274,7 +352,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
               // we have at least one good result so return it.
               if (valid > 0) {
                 try {
-                  callback(data_merger.merge(data, context, tracer_span),
+                  callback(default_data_merger.merge(data, context, tracer_span),
                       TsdbTrace.successfulTags());
                 } catch (IllegalArgumentException e) {
                   if (LOG.isDebugEnabled()) {
@@ -420,7 +498,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
         timer_timeout = null;
       }
       try {
-        callback(data_merger.merge(results, context, tracer_span));
+        callback(default_data_merger.merge(results, context, tracer_span));
       } catch (IllegalArgumentException ex) {
         // lost race, no prob.
       } catch (Exception ex) {
@@ -429,57 +507,191 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
       }
       cancel();
     }
+  
+    @VisibleForTesting
+    QueryExecution<T>[] executions() {
+      return executions;
+    }
   }
 
   @VisibleForTesting
   DataMerger<T> dataMerger() {
-    return data_merger;
+    return default_data_merger;
   }
 
+  @VisibleForTesting
+  Map<String, QueryExecutor<T>> executors() {
+    return executors;
+  }
+  
   /**
    * The config for this executor.
-   * @param <T> The type of data returned by the executor.
    */
-  public static class Config<T> extends QueryExecutorConfig {
-    private Class<T> type;
+  @JsonInclude(Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  @JsonDeserialize(builder = Config.Builder.class)
+  public static class Config extends QueryExecutorConfig {
     private long timeout;
+    private String merge_strategy;
+    private String cluster_config;
+    private String cluster_override;
     
-    private Config(final Builder<T> builder) {
-      type = builder.type;
+    /**
+     * Default ctor.
+     * @param builder A non-null builder.
+     */
+    private Config(final Builder builder) {
+      super(builder);
       timeout = builder.timeout;
+      merge_strategy = builder.mergeStrategy;
+      cluster_config = builder.clusterConfig;
+      cluster_override = builder.clusterOverride;
     }
     
-    public static <T> Builder<T> newBuilder() {
-      return new Builder<T>();
+    /** @return An optional timeout in milliseconds. */
+    public long getTimeout() {
+      return timeout;
     }
     
-    public static class Builder<T> {
-      private Class<T> type;
-      private long timeout;
-      
-      /**
-       * The class of the return type handled by the executor.
-       * @param type A non-null class.
-       * @return The builder.
-       */
-      public Builder<T> setType(final Class<T> type) {
-        this.type = type;
-        return this;
+    /** @return The merge strategy to use for data. */
+    public String getMergeStrategy() {
+      return merge_strategy;
+    }
+    
+    /** @return The cluster config name to pull from the registry. */
+    public String getClusterConfig() {
+      return cluster_config;
+    }
+    
+    /** @return An optional cluster override ID. */
+    public String getClusterOverride() {
+      return cluster_override;
+    }
+    
+    /** @return A new builder. */
+    public static Builder newBuilder() {
+      return new Builder();
+    }
+    
+    /**
+     * @param config A non-null builcer to pull from.
+     * @return A cloned builder.
+     */
+    public static Builder newBuilder(final Config config) {
+      return (Builder) new Builder()
+          .setTimeout(config.timeout)
+          .setMergeStrategy(config.merge_strategy)
+          .setClusterConfig(config.cluster_config)
+          .setClusterOverride(config.cluster_override)
+          .setExecutorId(config.executor_id)
+          .setExecutorType(config.executor_type);
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
       }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      final Config config = (Config) o;
+      return Objects.equal(executor_id, config.executor_id)
+          && Objects.equal(executor_type, config.executor_type)
+          && Objects.equal(timeout, config.timeout)
+          && Objects.equal(merge_strategy, config.merge_strategy)
+          && Objects.equal(cluster_config, config.cluster_config)
+          && Objects.equal(cluster_override, config.cluster_override);
+    }
+
+    @Override
+    public int hashCode() {
+      return buildHashCode().asInt();
+    }
+
+    @Override
+    public HashCode buildHashCode() {
+      return Const.HASH_FUNCTION().newHasher()
+          .putString(Strings.nullToEmpty(executor_id), Const.UTF8_CHARSET)
+          .putString(Strings.nullToEmpty(executor_type), Const.UTF8_CHARSET)
+          .putLong(timeout)
+          .putString(Strings.nullToEmpty(merge_strategy), Const.UTF8_CHARSET)
+          .putString(Strings.nullToEmpty(cluster_config), Const.UTF8_CHARSET)
+          .putString(Strings.nullToEmpty(cluster_override), Const.UTF8_CHARSET)
+          .hash();
+    }
+
+    @Override
+    public int compareTo(QueryExecutorConfig config) {
+      return ComparisonChain.start()
+          .compare(executor_id, config.executor_id, 
+              Ordering.natural().nullsFirst())
+          .compare(executor_type, config.executor_type, 
+              Ordering.natural().nullsFirst())
+          .compare(timeout, ((Config) config).timeout)
+          .compare(merge_strategy, ((Config) config).merge_strategy, 
+              Ordering.natural().nullsFirst())
+          .compare(cluster_config, ((Config) config).cluster_config, 
+              Ordering.natural().nullsFirst())
+          .compare(cluster_override, ((Config) config).cluster_override, 
+              Ordering.natural().nullsFirst())
+          .result();
+    }
+    
+    public static class Builder extends QueryExecutorConfig.Builder {
+      @JsonProperty
+      private long timeout;
+      @JsonProperty
+      private String mergeStrategy = "largest";
+      @JsonProperty
+      private String clusterConfig;
+      @JsonProperty
+      private String clusterOverride;
       
       /**
        * An optional timeout in milliseconds for the alternate clusters.
        * @param timeout A timeout in milliseconds or 0 to disable.
        * @return The builder.
        */
-      public Builder<T> setTimeout(final long timeout) {
+      public Builder setTimeout(final long timeout) {
         this.timeout = timeout;
         return this;
       }
       
-      public Config<T> build() {
-        return new Config<T>(this);
+      /**
+       * The data merge strategy to use for merging data from different clusters.
+       * @param merge_strategy A non-null merge strategy.
+       * @return The builder.
+       */
+      public Builder setMergeStrategy(final String merge_strategy) {
+        this.mergeStrategy = merge_strategy;
+        return this;
+      }
+      
+      /**
+       * @param clusterConfig A non-null cluster config registered with the TSD.
+       * @return The builder.
+       */
+      public Builder setClusterConfig(final String clusterConfig) {
+        this.clusterConfig = clusterConfig;
+        return this;
+      }
+      
+      /**
+       * @param clusterOverride An optional cluster override associated with
+       * the cluster config.
+       * @return The builder.
+       */
+      public Builder setClusterOverride(final String clusterOverride) {
+        this.clusterOverride = clusterOverride;
+        return this;
+      }
+      
+      /** @return An instantiated config. */
+      public Config build() {
+        return new Config(this);
       }
     }
+
   }
 }

@@ -31,17 +31,29 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+import org.apache.http.impl.nio.client.HttpAsyncClients;
+import org.apache.http.impl.nio.reactor.IOReactorConfig;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Objects;
 import com.google.common.base.Strings;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
+import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Callback;
 
 import io.opentracing.Span;
+import net.opentsdb.core.Const;
 import net.opentsdb.data.DataShards;
 import net.opentsdb.data.DataShardsGroup;
 import net.opentsdb.data.DataShardsGroups;
@@ -57,9 +69,9 @@ import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.TSSubQuery;
-import net.opentsdb.query.context.HttpContext;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.QueryExecutor;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
@@ -70,59 +82,53 @@ import net.opentsdb.utils.JSONException;
 
 /**
  * An executor that converts {@link TimeSeriesQuery}s to OpenTSDB v2.x {@link TSQuery}s
- * and sends them over HTTP to a 2.x API via /api/query. The client is fetched
- * from an {@link HttpContext} as are any headers that must be forwarded 
- * downstream.
+ * and sends them over HTTP to a 2.x API via /api/query. 
+ * <p>
+ * Currently a new HTTP async client is instantiated per query (inefficient)
+ * and it will pull headers from the query context session object that should
+ * be forwarded to clients (e.g. Cookies, trace, etc).
  * 
  * @since 3.0
  */
 public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
   private static final Logger LOG = LoggerFactory.getLogger(
       HttpQueryV2Executor.class);
-  
-  /** The root host and port to send data to. E.g. http://localhost:4242. */
-  private final String endpoint;
-  
-  /** A non-null HTTP context to use for fetching a client and headers. */
-  private final HttpContext http_context;
 
+  /** A key for the session object used by this executor. */
+  public final static String SESSION_HEADERS_KEY = "tsdb_http_executor_headers";
+  
+  /** The default endpoint. */
+  private final String default_endpoint;
+  
   /**
    * Default Ctor
-   * @param context A non-null query context.
-   * @param config A config for the executor;
+   * @param node The graph node this executor refers to.
    * @throws IllegalArgumentException if the query context or config were null.
    * @throws IllegalStateException if the remote context was not an instance
    * of HttpContext.
    */
-  @SuppressWarnings("unchecked")
-  public HttpQueryV2Executor(final QueryContext context, 
-      final QueryExecutorConfig config) {
-    super(context, config);
-    if (config == null) {
+  public HttpQueryV2Executor(final ExecutionGraphNode node) {
+    super(node);
+    if (((Config) node.getDefaultConfig()) == null) {
       throw new IllegalArgumentException("Config connot be null.");
     }
-    if (Strings.isNullOrEmpty(((Config<List<DataShardsGroup>>) config).endpoint)) {
-      throw new IllegalArgumentException("Endpoint cannot be null or empty.");
+    if (Strings.isNullOrEmpty(((Config) node.getDefaultConfig()).endpoint)) {
+      default_endpoint = null;
+    } else {
+      default_endpoint = ((Config) node.getDefaultConfig()).endpoint + "/api/query";
     }
-    if (context.getRemoteContext() == null) {
-      throw new IllegalArgumentException("Remote context cannot be null.");
-    }
-    if (!(context.getRemoteContext() instanceof HttpContext)) {
-      throw new IllegalStateException("Remote context was not an HttpContext.");
-    }
-    this.endpoint = ((Config<List<DataShardsGroup>>) config).endpoint + "/api/query";
-    http_context = (HttpContext) context.getRemoteContext();
   }
   
   @Override
   public QueryExecution<DataShardsGroups> executeQuery(
+      final QueryContext context,
       final TimeSeriesQuery query,
       final Span upstream_span) {
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
     }
     
-    final Execution exec = new Execution(query, upstream_span);
+    final Execution exec = new Execution(context, query, upstream_span);
     outstanding_executions.add(exec);
     exec.execute();
     return exec;
@@ -316,15 +322,31 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
 
   /** An implementation that allows for canceling the future. */
   class Execution extends QueryExecution<DataShardsGroups> {
+    final QueryContext context;
+    
     /** The client used for communications. */
     private final CloseableHttpAsyncClient client;
     
     /** The Future returned by the client so we can cancel it if we need to. */
     private Future<HttpResponse> future;
     
-    public Execution(final TimeSeriesQuery query, final Span upstream_span) {
+    /** The endpoint to hit. */
+    private final String endpoint;
+    
+    public Execution(final QueryContext context, 
+        final TimeSeriesQuery query, final Span upstream_span) {
       super(query);
-      client = http_context.getClient();
+      this.context = context;
+      
+      // TODO - tune this sucker and share a bit.
+      client = HttpAsyncClients.custom()
+          .setDefaultIOReactorConfig(IOReactorConfig.custom()
+              .setIoThreadCount(1).build())
+          .setMaxConnTotal(1)
+          .setMaxConnPerRoute(1)
+          .build();
+      client.start();
+      
       deferred.addCallback(new FutureRemover(future))
               .addErrback(new FutureExceptionRemover(future));
       if (context.getTracer() != null) {
@@ -336,8 +358,21 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
                 "query", JSON.serializeToString(query),
                 "startThread", Thread.currentThread().getName()));
       }
+
+      final Config override = 
+          (Config) context.getConfigOverride(node.getExecutorId());
+      if (override != null && !Strings.isNullOrEmpty(override.endpoint)) {
+        endpoint = override.endpoint + "/api/query";
+      } else {
+        endpoint = default_endpoint;
+      }
+      if (Strings.isNullOrEmpty(endpoint)) {
+        throw new IllegalStateException("No endpoint was provided via default "
+            + "or override for: " + this);
+      }
     }
     
+    @SuppressWarnings("unchecked")
     public void execute() {
       final String json;
       try {
@@ -361,9 +396,15 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
       }
       
       final HttpPost post = new HttpPost(endpoint);
-      if (http_context.getHeaders() != null) {
+      final Object session_headers = context.getSessionObject(
+          SESSION_HEADERS_KEY);
+      if (!(session_headers instanceof Map)) {
+        throw new IllegalStateException("Session headers were not a map: " 
+            + session_headers.getClass());
+      }
+      if (session_headers != null) {
         for (final Entry<String, String> header : 
-            http_context.getHeaders().entrySet()) {
+            ((Map<String, String>) session_headers).entrySet()) {
           post.setHeader(header.getKey(), header.getValue());
         }
       }
@@ -712,23 +753,90 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
     ts_query.validateAndSetQuery();
     return ts_query;
   }
-
+  
   /**
    * The config for this executor.
-   * @param <T> The type of data returned by the executor.
    */
-  public static class Config<T> extends QueryExecutorConfig {
+  @JsonInclude(Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  @JsonDeserialize(builder = Config.Builder.class)
+  public static class Config extends QueryExecutorConfig {
     private String endpoint;
     
-    private Config(final Builder<T> builder) {
+    /**
+     * Default ctor.
+     * @param builder A non-null builder.
+     */
+    private Config(final Builder builder) {
+      super(builder);
       endpoint = builder.endpoint;
     }
     
-    public static <T> Builder<T> newBuilder() {
-      return new Builder<T>();
+    /** @return The endpoint to use. */
+    public String getEndpoint() {
+      return endpoint;
     }
     
-    public static class Builder<T> {
+    @Override
+    public String toString() {
+      return new StringBuilder()
+          .append("executorId=")
+          .append(executor_id)
+          .append(", executorType=")
+          .append(executor_type)
+          .append(", endpoint=")
+          .append(endpoint)
+          .toString();
+    }
+    
+    /** @return A new builder. */
+    public static Builder newBuilder() {
+      return new Builder();
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      final Config config = (Config) o;
+      return Objects.equal(executor_id, config.executor_id)
+          && Objects.equal(executor_type, config.executor_type)
+          && Objects.equal(endpoint, config.endpoint);
+    }
+
+    @Override
+    public int hashCode() {
+      return buildHashCode().asInt();
+    }
+
+    @Override
+    public HashCode buildHashCode() {
+      return Const.HASH_FUNCTION().newHasher()
+          .putString(Strings.nullToEmpty(executor_id), Const.UTF8_CHARSET)
+          .putString(Strings.nullToEmpty(executor_type), Const.UTF8_CHARSET)
+          .putString(Strings.nullToEmpty(endpoint), Const.UTF8_CHARSET)
+          .hash();
+    }
+
+    @Override
+    public int compareTo(QueryExecutorConfig config) {
+      return ComparisonChain.start()
+          .compare(executor_id, config.executor_id, 
+              Ordering.natural().nullsFirst())
+          .compare(executor_type, config.executor_type, 
+              Ordering.natural().nullsFirst())
+          .compare(endpoint, ((Config) config).endpoint, 
+              Ordering.natural().nullsFirst())
+          .result();
+    }
+    
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Builder extends QueryExecutorConfig.Builder {
+      @JsonProperty
       private String endpoint;
       
       /**
@@ -736,14 +844,16 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
        * @param endpoint A non-null HTTP endpoint.
        * @return The builder.
        */
-      public Builder<T> setEndpoint(final String endpoint) {
+      public Builder setEndpoint(final String endpoint) {
         this.endpoint = endpoint;
         return this;
       }
       
-      public Config<T> build() {
-        return new Config<T>(this);
+      /** @return An instantiated configuration. */
+      public Config build() {
+        return new Config(this);
       }
     }
+
   }
 }

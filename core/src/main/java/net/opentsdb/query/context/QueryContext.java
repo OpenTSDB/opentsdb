@@ -15,6 +15,7 @@ package net.opentsdb.query.context;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -25,7 +26,9 @@ import org.jgrapht.traverse.DepthFirstIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -38,7 +41,9 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.TimeStampComparator;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
-import net.opentsdb.query.context.QueryExecutorContext;
+import net.opentsdb.query.execution.QueryExecutor;
+import net.opentsdb.query.execution.QueryExecutorConfig;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.processor.TimeSeriesProcessor;
 import net.opentsdb.utils.Deferreds;
 
@@ -94,8 +99,12 @@ public abstract class QueryContext {
   /** The iterator graph. Should just be a parallel list of iterators. */
   protected final DirectedAcyclicGraph<TimeSeriesIterator<?>, DefaultEdge> iterator_graph;
   
-  /** The executor context to use for running queries. */
-  protected final QueryExecutorContext executor_context;
+  protected final ExecutionGraph execution_graph;
+  
+  protected Map<String, QueryExecutorConfig> config_overrides;
+  
+  /** A list of sink executors that will be closed with the context. */
+  protected final List<QueryExecutor<?>> sink_executors;
   
   /** The list of terminal iterators in the iterator graph. Initialization and
    * close methods can be called on these to handle all iterators on the chain.
@@ -110,16 +119,18 @@ public abstract class QueryContext {
   /** A list of zero or more exceptions if something went wrong during operation. */
   protected List<Exception> exceptions;
   
+  protected Map<String, Object> session_objects;
+  
   /**
    * Default ctor initializes the graphs and registers this context to the 
    * context graph.
    * @param tsdb The TSDB to which this context belongs. May not be null.
-   * @param executor_context The non-null executor context to use.
+   * @param executor_graph The non-null executor context to use.
    * @throws IllegalArgumentException if the TSDB was null.
    */
   public QueryContext(final TSDB tsdb, 
-                      final QueryExecutorContext executor_context) {
-    this(tsdb, executor_context, (Tracer) null);
+                      final ExecutionGraph executor_graph) {
+    this(tsdb, executor_graph, (Tracer) null);
   }
   
   /**
@@ -129,16 +140,16 @@ public abstract class QueryContext {
    * @throws IllegalArgumentException if the TSDB was null.
    */
   public QueryContext(final TSDB tsdb, 
-                      final QueryExecutorContext executor_context, 
+                      final ExecutionGraph executor_graph,
                       final Tracer tracer) {
     if (tsdb == null) {
       throw new IllegalArgumentException("TSDB cannot be null.");
     }
-    if (executor_context == null) {
+    if (executor_graph == null) {
       throw new IllegalArgumentException("Executor context cannot be null.");
     }
     this.tsdb = tsdb;
-    this.executor_context = executor_context;
+    this.execution_graph = executor_graph;
     this.tracer = tracer;
     context_graph = new DirectedAcyclicGraph<QueryContext, 
         DefaultEdge>(DefaultEdge.class);
@@ -147,6 +158,7 @@ public abstract class QueryContext {
     iterator_graph = new DirectedAcyclicGraph<TimeSeriesIterator<?>,
         DefaultEdge>(DefaultEdge.class);
     context_graph.addVertex(this);
+    sink_executors = Lists.newArrayListWithExpectedSize(1);
   }
   
   /**
@@ -165,7 +177,8 @@ public abstract class QueryContext {
         DefaultEdge>(DefaultEdge.class);
     iterator_graph = new DirectedAcyclicGraph<TimeSeriesIterator<?>,
         DefaultEdge>(DefaultEdge.class);
-    executor_context = context.executor_context;
+    execution_graph = context.execution_graph;
+    config_overrides = context.config_overrides;
     parent = context;
     context_graph.addVertex(this);
     try {
@@ -176,6 +189,8 @@ public abstract class QueryContext {
       // another context that points back to the same hash.
       throw new IllegalStateException("Context cycle was found", e);
     }
+    // TODO - we shouldn't need to copy these. Leave them with the original.
+    sink_executors = Lists.newArrayListWithExpectedSize(1);
   }
   
   @Override
@@ -452,7 +467,8 @@ public abstract class QueryContext {
   
   /**
    * Executes {@link TimeSeriesIterator#close()} on the terminal iterators
-   * belonging to this context and {@link #close()} on all child contexts.
+   * belonging to this context and {@link #close()} on all child contexts. Also
+   * calls {@link QueryExecutor#close()} on any sink executors.
    * 
    * @return A non-null deferred to wait on that will resolve to null on success
    * or an exception if there was an error.
@@ -460,6 +476,9 @@ public abstract class QueryContext {
   public Deferred<Object> close() {
     final List<Deferred<Object>> deferreds = Lists.newArrayListWithExpectedSize(
         children != null ? children.size() + 1 : 1);
+    for (final QueryExecutor<?> executor : sink_executors) {
+      deferreds.add(executor.close());
+    }
     try {
       next_status = IteratorStatus.END_OF_DATA;
       if (children != null) {
@@ -643,13 +662,6 @@ public abstract class QueryContext {
   }
   
   /**
-   * If the service is configured to execute queries remotely, returns the
-   * remote context used for querying external systems. Otherwise returns null.
-   * @return A remote context or null.
-   */
-  public abstract RemoteContext getRemoteContext();
-  
-  /**
    * Return a non-null timer for scheduling timer related tasks.
    * @return A non-null timer.
    */
@@ -666,8 +678,76 @@ public abstract class QueryContext {
     return tsdb;
   }
   
-  public QueryExecutorContext getQueryExecutorContext() {
-    return executor_context;
+  /**
+   * Adds the given override to the map, overwriting any extant overrides.
+   * @param config A non-null override.
+   * @throws IllegalArgumentException if the config was null or it's executor ID
+   * was null or empty
+   */
+  public void addConfigOverride(final QueryExecutorConfig config) {
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null.");
+    }
+    if (Strings.isNullOrEmpty(config.getExecutorId())) {
+      throw new IllegalArgumentException("Config executor ID cannot be null.");
+    }
+    if (config_overrides == null) {
+      config_overrides = Maps.newHashMapWithExpectedSize(1);
+    }
+    config_overrides.put(config.getExecutorId(), config);
+  }
+  
+  /**
+   * Returns the executor config for an executor's ID if present.
+   * @param executor_id A non-null and non-empty ID for the executor.
+   * @return A config override if present, null if not found.
+   */
+  public QueryExecutorConfig getConfigOverride(final String executor_id) {
+    if (Strings.isNullOrEmpty(executor_id)) {
+      throw new IllegalArgumentException("ID cannot be null.");
+    }
+    if (config_overrides != null) {
+      return config_overrides.get(executor_id);
+    }
+    return null;
+  }
+  
+  /**
+   * Adds the given object to the context for use by executors or other 
+   * processes, overwriting any extant objects.
+   * @param key A non-null and non-empty key to write the object to.
+   * @param obj An object (may be null).
+   * @throws IllegalArgumentException if the key was null or empty.
+   */
+  public void addSessionObject(final String key, final Object obj) {
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null.");
+    }
+    // objct *could* be null.
+    if (session_objects == null) {
+      session_objects = Maps.newHashMap();
+    }
+    session_objects.put(key, obj);
+  }
+  
+  /**
+   * Fetches a session object associated with the given key.
+   * @param key A non-null and non-empty key to fetch.
+   * @return The object or null if not present.
+   * @throws IllegalArgumentException if the key was null or empty.
+   */
+  public Object getSessionObject(final String key) {
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null.");
+    }
+    return session_objects.get(key);
+  }
+  
+  /**
+   * @return The execution graph for use with this context.
+   */
+  public ExecutionGraph executionGraph() {
+    return execution_graph;
   }
   
   /**

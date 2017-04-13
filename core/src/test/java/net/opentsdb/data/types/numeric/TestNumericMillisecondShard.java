@@ -41,7 +41,7 @@ import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.context.DefaultQueryContext;
 import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.context.QueryExecutorContext;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.processor.DefaultTimeSeriesProcessor;
 import net.opentsdb.query.processor.TimeSeriesProcessor;
 
@@ -296,7 +296,7 @@ public class TestNumericMillisecondShard {
     end = new MillisecondTimeStamp(1486045890000L);
     final TSDB tsdb = mock(TSDB.class);
     final QueryContext context = new DefaultQueryContext(tsdb, 
-        mock(QueryExecutorContext.class));
+        mock(ExecutionGraph.class));
     final TimeSeriesProcessor group = new DefaultTimeSeriesProcessor(context);
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
     group.addSeries(new SimpleStringGroupId("a"), shard);

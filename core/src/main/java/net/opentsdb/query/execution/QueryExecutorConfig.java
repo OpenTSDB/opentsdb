@@ -12,19 +12,80 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.execution;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
+import com.google.common.base.Strings;
+import com.google.common.hash.HashCode;
+
 /**
- * Stub interface used to configure a QueryExecutor.
+ * The base class used for configuring an executor. This class must be
+ * serializable via Jackson for use in query overrides. Extend the Builder
+ * class as needed.
+ * <p>
+ * <b>Note:</b> The implementations must include the {@link #executor_id} and
+ * {@link #executor_type} in the {@link #equals(Object)}, {@link #hashCode()},
+ * {@link #buildHashCode()} and {@link #compareTo(QueryExecutorConfig)} 
+ * implementations. These are used to generate hashes.
+ * <p>
+ * <b>Note:</b> Make sure the implementing config calls 
+ * {@code
+ *   JsonDeserialize(builder = Config.Builder.class)
+ * }
  * 
  * @since 3.0
  */
-public abstract class QueryExecutorConfig {
-
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonTypeInfo(use = Id.NAME,
+  include = JsonTypeInfo.As.PROPERTY,
+  property = "executorType",
+  visible = true)
+@JsonTypeIdResolver(QueryExecutorConfigResolver.class)
+public abstract class QueryExecutorConfig implements 
+    Comparable<QueryExecutorConfig> {
+  /** The class type of executor. */
+  protected final String executor_type;
+  
+  /** The executor ID, a unique name within a graph. */
+  protected final String executor_id;
+  
   /** The factory this config is associated with. */
   protected QueryExecutorFactory<?> factory;
   
+  /**
+   * Default ctor.
+   * @param builder A non-null builder for the config.
+   * @throws IllegalArgumentException if the executor type or id were null or
+   * empty.
+   */
+  protected QueryExecutorConfig(final Builder builder) {
+    if (Strings.isNullOrEmpty(builder.executorType)) {
+      throw new IllegalArgumentException("Executor type cannot be null or "
+          + "empty.");
+    }
+    if (Strings.isNullOrEmpty(builder.executorId)) {
+      throw new IllegalArgumentException("Executor id cannot be null or empty.");
+    }
+    this.executor_type = builder.executorType;
+    this.executor_id = builder.executorId;
+  }
+  
   /** @return The factory this config is associated with. */
-  public QueryExecutorFactory<?> getFactory() {
+  public QueryExecutorFactory<?> factory() {
     return factory;
+  }
+  
+  /** @return The class of the executor (may not be fully qualified). 
+   * Purposely not "get" as it conflicts with the Jackson name. */
+  public String executorType() {
+    return executor_type;
+  }
+  
+  /** @return The unique ID of the executor within a graph. */
+  public String getExecutorId() {
+    return executor_id;
   }
   
   /** @param factory A factory to associate this config with. */
@@ -32,4 +93,58 @@ public abstract class QueryExecutorConfig {
     this.factory = factory;
   }
   
+  @Override
+  public String toString() {
+    return new StringBuilder()
+        .append("executorType=")
+        .append(executor_type)
+        .append(", executorId=")
+        .append(executor_id)
+        .append(", factory=")
+        .append(factory)
+        .toString();
+  }
+  
+  @Override
+  public abstract boolean equals(final Object o);
+  
+  @Override
+  public abstract int hashCode();
+  
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public abstract HashCode buildHashCode();
+  
+  @Override
+  public abstract int compareTo(final QueryExecutorConfig config);
+  
+  /** Base builder for QueryExecutorConfigs. */
+  public static abstract class Builder {
+    @JsonProperty
+    protected String executorType;
+    @JsonProperty
+    protected String executorId;
+    
+    /**
+     * @param executorType The class type (full or simple) of the executor
+     * this config pertains to.
+     * @return The builder.
+     */
+    public Builder setExecutorType(final String executorType) {
+      this.executorType = executorType;
+      return this;
+    }
+    
+    /**
+     * @param executorId The unique ID of the executor within an execution
+     * graph.
+     * @return The builder.
+     */
+    public Builder setExecutorId(final String executorId) {
+      this.executorId = executorId;
+      return this;
+    }
+  
+    /** @return A config object or exceptions if the config failed. */
+    public abstract QueryExecutorConfig build();
+  }
 }

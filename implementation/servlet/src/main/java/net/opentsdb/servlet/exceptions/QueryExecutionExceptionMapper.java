@@ -105,7 +105,7 @@ public class QueryExecutionExceptionMapper implements
         }
       }
     } else if (e.getCause() != null) {
-      if (e instanceof QueryExecutionException) {
+      if (e.getCause() instanceof QueryExecutionException) {
         response.put("cause", 
             recursiveExceptions(depth + 1, (QueryExecutionException) e.getCause()));
       } else {

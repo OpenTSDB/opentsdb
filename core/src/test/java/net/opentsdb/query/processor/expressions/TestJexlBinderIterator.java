@@ -48,7 +48,7 @@ import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.context.DefaultQueryContext;
 import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.context.QueryExecutorContext;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.pojo.Expression;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.NumericFillPolicy;
@@ -142,7 +142,7 @@ public class TestJexlBinderIterator {
     it_b.data = data_b;
     
     context = spy(new DefaultQueryContext(tsdb, 
-        mock(QueryExecutorContext.class)));
+        mock(ExecutionGraph.class)));
     
     group = new DefaultTimeSeriesProcessor(context);
     group.addSeries(group_id_a, it_a);
@@ -472,7 +472,7 @@ public class TestJexlBinderIterator {
     assertEquals(2, v.realCount());
     
     final QueryContext ctx2 = 
-        new DefaultQueryContext(tsdb, mock(QueryExecutorContext.class));
+        new DefaultQueryContext(tsdb, mock(ExecutionGraph.class));
     final JexlBinderNumericIterator copy = 
         (JexlBinderNumericIterator) it.getCopy(ctx2);
     

@@ -17,13 +17,24 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Ordering;
+import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Callback;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.opentracing.Span;
+import net.opentsdb.core.Const;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.JSON;
@@ -45,33 +56,39 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
   private final QueryExecutor<T> executor;
   
   /** How long, in milliseconds, we wait for each query. */
-  private final long timeout;
+  private final long default_timeout;
   
   /**
    * Default ctor.
-   * @param context A non-null context to pull the timer from.
-   * @param config A query executor config.
-   * @throws IllegalArgumentException if the context or config were null or
-   * if the timeout was less than 1 millisecond.
+   * @param node The execution graph node with the config and graph.
+   * @throws IllegalArgumentException if the node was null or the default config
+   * was null or if the timeout was less than 1 millisecond.
    */
   @SuppressWarnings("unchecked")
-  public TimedQueryExecutor(final QueryContext context, 
-                            final QueryExecutorConfig config) {
-    super(context, config);
-    if (config == null) {
-      throw new IllegalArgumentException("Config cannot be null.");
+  public TimedQueryExecutor(final ExecutionGraphNode node) {
+    super(node);
+    if (node.getDefaultConfig() == null) {
+      throw new IllegalArgumentException("Default config cannot be null.");
     }
-    if (((Config<T>) config).timeout < 1) {
-      throw new IllegalArgumentException("Timeout must be greater than zero.");
+    if (node.graph() == null) {
+      throw new IllegalStateException("Execution graph cannot be null.");
     }
-    executor = (QueryExecutor<T>) context.getQueryExecutorContext()
-        .newDownstreamExecutor(context, config.getFactory());
+    if (((Config) node.getDefaultConfig()).timeout < 1) {
+      throw new IllegalArgumentException("Default timeout must be greater "
+          + "than zero.");
+    }
+    default_timeout = ((Config) node.getDefaultConfig()).timeout;
+    executor = (QueryExecutor<T>) 
+        node.graph().getDownstreamExecutor(node.getExecutorId());
+    if (executor == null) {
+      throw new IllegalStateException("No downstream executor found: " + this);
+    }
     registerDownstreamExecutor(executor);
-    timeout = ((Config<T>) config).timeout;
   }
 
   @Override
-  public QueryExecution<T> executeQuery(final TimeSeriesQuery query,
+  public QueryExecution<T> executeQuery(final QueryContext context,
+                                        final TimeSeriesQuery query,
                                         final Span upstream_span) {
     if (completed.get()) {
       return new FailedQueryExecution<T>(query, new QueryExecutionException(
@@ -79,7 +96,7 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
             500, query.getOrder()));
     }
     try {
-      final TimedQuery timed_query = new TimedQuery(query);
+      final TimedQuery timed_query = new TimedQuery(context, query);
       timed_query.execute(upstream_span);
       return timed_query;
     } catch (Exception e) {
@@ -99,12 +116,14 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
     /** The downstream execution to wait on (or cancel). */
     protected QueryExecution<T> downstream;
     
+    final QueryContext context;
     /**
      * Default ctor.
      * @param query A non-null query.
      */
-    public TimedQuery(final TimeSeriesQuery query) {
+    public TimedQuery(final QueryContext context,final TimeSeriesQuery query) {
       super(query);
+      this.context = context;
       outstanding_executions.add(this);
     }
     
@@ -153,7 +172,15 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
       
       // run it!
       try {
-        downstream = executor.executeQuery(query, upstream_span);
+        final QueryExecutorConfig override = 
+            context.getConfigOverride(node.getExecutorId());
+        long timeout = default_timeout;
+        if (override != null) {
+          if (override instanceof Config) {
+            timeout = ((Config) override).timeout;
+          }
+        }
+        downstream = executor.executeQuery(context, query, upstream_span);
         downstream.deferred()
           .addCallback(new SuccessCB())
           .addErrback(new ErrCB());
@@ -240,34 +267,101 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
 
   /**
    * The config for this executor.
-   * @param <T> The type of data returned by the executor.
    */
-  public static class Config<T> extends QueryExecutorConfig {
+  @JsonInclude(Include.NON_NULL)
+  @JsonDeserialize(builder = Config.Builder.class)
+  public static class Config extends QueryExecutorConfig {
+    /** The timeout in milliseconds. */
     private long timeout;
     
-    private Config(final Builder<T> builder) {
+    /**
+     * Default ctor.
+     * @param builder A non-null builder.
+     */
+    protected Config(final Builder builder) {
+      super(builder);
       timeout = builder.timeout;
     }
     
-    public static <T> Builder<T> newBuilder() {
-      return new Builder<T>();
+    /** @return The timeout in milliseconds. */ 
+    public long getTimeout() {
+      return timeout;
     }
     
-    public static class Builder<T> {
-      private long timeout;
+    /** @return A new builder. */
+    public static Builder newBuilder() {
+      return new Builder();
+    }
+    
+    /**
+     * A builder that clones the given config.
+     * @param config A non-null config to pull from.
+     * @return A new builder populated with values from the config.
+     */
+    public static Builder newBuilder(final Config config) {
+      return (Builder) new Builder()
+          .setTimeout(config.timeout)
+          .setExecutorId(config.executor_id)
+          .setExecutorType(config.executor_type);
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      final Config config = (Config) o;
+      return Objects.equal(executor_id, config.executor_id)
+          && Objects.equal(executor_type, config.executor_type)
+          && Objects.equal(timeout, config.timeout);
+    }
 
+    @Override
+    public int hashCode() {
+      return buildHashCode().asInt();
+    }
+
+    @Override
+    public HashCode buildHashCode() {
+      return Const.HASH_FUNCTION().newHasher()
+          .putString(Strings.nullToEmpty(executor_id), Const.UTF8_CHARSET)
+          .putString(Strings.nullToEmpty(executor_type), Const.UTF8_CHARSET)
+          .putLong(timeout)
+          .hash();
+    }
+
+    @Override
+    public int compareTo(QueryExecutorConfig config) {
+      return ComparisonChain.start()
+          .compare(executor_id, config.executor_id, 
+              Ordering.natural().nullsFirst())
+          .compare(executor_type, config.executor_type, 
+              Ordering.natural().nullsFirst())
+          .compare(timeout, ((Config) config).timeout)
+          .result();
+    }
+    
+    /** The builder for TimedQueryExecutor configs. */
+    public static class Builder extends QueryExecutorConfig.Builder {
+      @JsonProperty
+      private long timeout;
+      
       /**
        * The timeout in milliseconds for the executor.
        * @param timeout A timeout in milliseconds.
        * @return The builder.
        */
-      public Builder<T> setTimeout(final long timeout) {
+      public Builder setTimeout(final long timeout) {
         this.timeout = timeout;
         return this;
       }
       
-      public Config<T> build() {
-        return new Config<T>(this);
+      /** @return A compiled Config object. */
+      public Config build() {
+        return new Config(this);
       }
     }
   }

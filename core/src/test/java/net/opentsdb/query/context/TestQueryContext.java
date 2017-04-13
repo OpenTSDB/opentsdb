@@ -41,22 +41,25 @@ import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
+import net.opentsdb.query.execution.QueryExecutor;
+import net.opentsdb.query.execution.QueryExecutorConfig;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.processor.TimeSeriesProcessor;
 
 public class TestQueryContext {
   private TSDB tsdb;
-  private QueryExecutorContext executor_context;
+  private ExecutionGraph executor_graph;
   private int order_counter = 0;
   
   @Before
   public void before() throws Exception {
     tsdb = mock(TSDB.class);
-    executor_context = mock(QueryExecutorContext.class);
+    executor_graph = mock(ExecutionGraph.class);
   }
   
   @Test
   public void ctors() throws Exception {
-    final MockContext context = new MockContext(tsdb, executor_context);
+    final MockContext context = new MockContext(tsdb, executor_graph);
     assertTrue(context.context_graph.containsVertex(context));
     assertNotNull(context.iterator_graph);
     assertNotNull(context.processor_graph);
@@ -88,7 +91,7 @@ public class TestQueryContext {
     assertNull(context2.getTracer());
     
     final Tracer tracer = mock(Tracer.class);
-    context2 = new MockContext(tsdb, executor_context, tracer);
+    context2 = new MockContext(tsdb, executor_graph, tracer);
     assertTrue(context2.context_graph.containsVertex(context2));
     assertNotNull(context2.iterator_graph);
     assertNotNull(context2.processor_graph);
@@ -103,7 +106,7 @@ public class TestQueryContext {
     assertSame(tracer, context2.getTracer());
     
     try {
-      new MockContext(null, executor_context);
+      new MockContext(null, executor_graph);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -126,7 +129,7 @@ public class TestQueryContext {
 
     // graph: 1 -> 2 -> 3
     
-    MockContext context = new MockContext(tsdb, executor_context);
+    MockContext context = new MockContext(tsdb, executor_graph);
     context.register(p_1, p_2);
     context.register(p_2, p_3);
     
@@ -146,7 +149,7 @@ public class TestQueryContext {
     p_3 = new MockProcessor(3, ex);
 
     order_counter = 0;
-    context = new MockContext(tsdb, executor_context);
+    context = new MockContext(tsdb, executor_graph);
     context.register(p_1, p_2);
     context.register(p_2, p_3);
     
@@ -172,7 +175,7 @@ public class TestQueryContext {
     p_3 = new MockProcessor(3, null);
 
     order_counter = 0;
-    context = new MockContext(tsdb, executor_context);
+    context = new MockContext(tsdb, executor_graph);
     context.register(p_1, p_2);
     context.register(p_2, p_3);
     
@@ -198,7 +201,7 @@ public class TestQueryContext {
     p_3 = new MockProcessor(3, null);
 
     order_counter = 0;
-    context = new MockContext(tsdb, executor_context);
+    context = new MockContext(tsdb, executor_graph);
     context.register(p_1, p_2);
     context.register(p_2, p_3);
     
@@ -225,7 +228,7 @@ public class TestQueryContext {
     p_1.throw_exception = 1;
 
     order_counter = 0;
-    context = new MockContext(tsdb, executor_context);
+    context = new MockContext(tsdb, executor_graph);
     context.register(p_1, p_2);
     context.register(p_2, p_3);
     
@@ -252,7 +255,7 @@ public class TestQueryContext {
     p_1.throw_exception = 2;
 
     order_counter = 0;
-    context = new MockContext(tsdb, executor_context);
+    context = new MockContext(tsdb, executor_graph);
     context.register(p_1, p_2);
     context.register(p_2, p_3);
     
@@ -279,7 +282,7 @@ public class TestQueryContext {
     p_3.throw_exception = 1;
 
     order_counter = 0;
-    context = new MockContext(tsdb, executor_context);
+    context = new MockContext(tsdb, executor_graph);
     context.register(p_1, p_2);
     context.register(p_2, p_3);
     
@@ -306,7 +309,7 @@ public class TestQueryContext {
     p_2.throw_exception = 2;
 
     order_counter = 0;
-    context = new MockContext(tsdb, executor_context);
+    context = new MockContext(tsdb, executor_graph);
     context.register(p_1, p_2);
     context.register(p_2, p_3);
     
@@ -338,7 +341,7 @@ public class TestQueryContext {
     // graph: 1 -> 2 -> 3
     //        4 -> 5
     
-    MockContext context = new MockContext(tsdb, executor_context);
+    MockContext context = new MockContext(tsdb, executor_graph);
     context.register(p_1, p_2);
     context.register(p_2, p_3);
     context.register(p_4, p_5);
@@ -365,7 +368,7 @@ public class TestQueryContext {
     p_4 = new MockProcessor(4, null);
     p_5 = new MockProcessor(5, null);
     
-    context = new MockContext(tsdb, executor_context);
+    context = new MockContext(tsdb, executor_graph);
     context.register(p_1, p_2);
     context.register(p_2, p_3);
     context.register(p_4, p_5);
@@ -402,7 +405,7 @@ public class TestQueryContext {
     // graph: 1 -> 2 -> 3
     //             |--> 4
     
-    MockContext context = new MockContext(tsdb, executor_context);
+    MockContext context = new MockContext(tsdb, executor_graph);
     context.register(p_1, p_2);
     context.register(p_2, p_3);
     context.register(p_2, p_4);
@@ -427,7 +430,7 @@ public class TestQueryContext {
     p_3 = new MockProcessor(3, ex);
     p_4 = new MockProcessor(4, null);
 
-    context = new MockContext(tsdb, executor_context);
+    context = new MockContext(tsdb, executor_graph);
     context.register(p_1, p_2);
     context.register(p_2, p_3);
     context.register(p_2, p_4);
@@ -463,7 +466,7 @@ public class TestQueryContext {
     // graph: 1 -> 2 -> 3
     //        5 ->^|--> 4
     
-    MockContext context = new MockContext(tsdb, executor_context);
+    MockContext context = new MockContext(tsdb, executor_graph);
     context.register(p_1, p_2);
     context.register(p_2, p_3);
     context.register(p_2, p_4);
@@ -492,7 +495,7 @@ public class TestQueryContext {
     p_4 = new MockProcessor(4, ex);
     p_5 = new MockProcessor(5, null);
 
-    context = new MockContext(tsdb, executor_context);
+    context = new MockContext(tsdb, executor_graph);
     context.register(p_1, p_2);
     context.register(p_2, p_3);
     context.register(p_2, p_4);
@@ -532,7 +535,7 @@ public class TestQueryContext {
     //        5    |--> 4
     //        |--------^
     
-    MockContext context = new MockContext(tsdb, executor_context);
+    MockContext context = new MockContext(tsdb, executor_graph);
     context.register(p_1, p_2);
     context.register(p_2, p_3);
     context.register(p_2, p_4);
@@ -561,7 +564,7 @@ public class TestQueryContext {
     p_4 = new MockProcessor(4, ex);
     p_5 = new MockProcessor(5, null);
 
-    context = new MockContext(tsdb, executor_context);
+    context = new MockContext(tsdb, executor_graph);
     context.register(p_1, p_2);
     context.register(p_2, p_3);
     context.register(p_2, p_4);
@@ -591,7 +594,7 @@ public class TestQueryContext {
   
   @Test
   public void updateContext() throws Exception {
-    final MockContext context = new MockContext(tsdb, executor_context);
+    final MockContext context = new MockContext(tsdb, executor_graph);
     assertEquals(Long.MAX_VALUE, context.syncTimestamp().msEpoch());
     assertEquals(Long.MAX_VALUE, context.nextTimestamp().msEpoch());
     assertEquals(IteratorStatus.END_OF_DATA, context.currentStatus());
@@ -648,7 +651,7 @@ public class TestQueryContext {
 
   @Test
   public void advance() throws Exception {
-    final MockContext context = new MockContext(tsdb, executor_context);
+    final MockContext context = new MockContext(tsdb, executor_graph);
     assertEquals(Long.MAX_VALUE, context.syncTimestamp().msEpoch());
     assertEquals(Long.MAX_VALUE, context.nextTimestamp().msEpoch());
     assertEquals(IteratorStatus.END_OF_DATA, context.currentStatus());
@@ -675,14 +678,14 @@ public class TestQueryContext {
     assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
     assertEquals(IteratorStatus.END_OF_DATA, context.nextStatus());
   }
-  
+
   @Test
   public void registerIterator() throws Exception {
     final TimeSeriesIterator<?> it_1 = mock(TimeSeriesIterator.class);
     final TimeSeriesIterator<?> it_2 = mock(TimeSeriesIterator.class);
     final TimeSeriesIterator<?> it_3 = mock(TimeSeriesIterator.class);
     
-    final MockContext context = new MockContext(tsdb, executor_context);
+    final MockContext context = new MockContext(tsdb, executor_graph);
     assertTrue(context.iterator_sinks.isEmpty());
     assertTrue(context.iterator_graph.vertexSet().isEmpty());
     
@@ -742,7 +745,7 @@ public class TestQueryContext {
     final TimeSeriesProcessor p_2 = mock(TimeSeriesProcessor.class);
     final TimeSeriesProcessor p_3 = mock(TimeSeriesProcessor.class);
     
-    final MockContext context = new MockContext(tsdb, executor_context);
+    final MockContext context = new MockContext(tsdb, executor_graph);
     assertTrue(context.processor_sinks.isEmpty());
     assertTrue(context.processor_graph.vertexSet().isEmpty());
     
@@ -803,7 +806,7 @@ public class TestQueryContext {
     final TimeSeriesProcessor p_3 = mock(TimeSeriesProcessor.class);
     final TimeSeriesProcessor p_4 = mock(TimeSeriesProcessor.class);
     
-    MockContext context = new MockContext(tsdb, executor_context);
+    MockContext context = new MockContext(tsdb, executor_graph);
     MockContext split_context = new MockContext(context);
     
     context.register(p_4, p_3);
@@ -857,8 +860,8 @@ public class TestQueryContext {
     } catch (IllegalStateException e) { }
     
     // reset and test bottom
-    context = new MockContext(tsdb, executor_context);
-    split_context = new MockContext(tsdb, executor_context);
+    context = new MockContext(tsdb, executor_graph);
+    split_context = new MockContext(tsdb, executor_graph);
     
     context.register(p_4, p_3);
     context.register(p_3, p_2);
@@ -871,8 +874,8 @@ public class TestQueryContext {
     assertTrue(split_context.processor_sinks.contains(p_1));
     
     // reset and test top
-    context = new MockContext(tsdb, executor_context);
-    split_context = new MockContext(tsdb, executor_context);
+    context = new MockContext(tsdb, executor_graph);
+    split_context = new MockContext(tsdb, executor_graph);
     
     context.register(p_4, p_3);
     context.register(p_3, p_2);
@@ -930,7 +933,7 @@ public class TestQueryContext {
       }
     });
     
-    final MockContext context = new MockContext(tsdb, executor_context);
+    final MockContext context = new MockContext(tsdb, executor_graph);
     context.next_status = IteratorStatus.END_OF_CHUNK;
     context.register(it_1, it_2);
     context.register(it_3);
@@ -1017,16 +1020,20 @@ public class TestQueryContext {
       }
     });
     
-    final MockContext context = new MockContext(tsdb, executor_context);
+    final MockContext context = new MockContext(tsdb, executor_graph);
     context.next_status = IteratorStatus.END_OF_CHUNK;
     context.register(it_1, it_2);
     context.register(it_3);
+    final QueryExecutor<?> executor = mock(QueryExecutor.class);
+    context.sink_executors.add(executor);
+    when(executor.close()).thenReturn(Deferred.fromResult(null));
     
     Deferred<Object> deferred = context.close();
     assertNull(deferred.join());
     verify(it_1, times(1)).close();
     verify(it_2, never()).close(); // not a sink
     verify(it_3, times(1)).close();
+    verify(executor, times(1)).close();
     assertEquals(IteratorStatus.END_OF_DATA, context.next_status);
     
     // make sure children are called
@@ -1077,30 +1084,109 @@ public class TestQueryContext {
     }
   }
 
+  @Test
+  public void configOverride() throws Exception {
+    final QueryExecutorConfig config_a = mock(QueryExecutorConfig.class);
+    final QueryExecutorConfig config_b = mock(QueryExecutorConfig.class);
+    when(config_a.getExecutorId()).thenReturn("config_a");
+    when(config_b.getExecutorId()).thenReturn("config_b");
+    
+    final MockContext context = new MockContext(tsdb, executor_graph);
+    context.addConfigOverride(config_a);
+    assertSame(config_a, context.getConfigOverride("config_a"));
+    context.addConfigOverride(config_b);
+    assertSame(config_b, context.getConfigOverride("config_b"));
+    
+    final QueryExecutorConfig config_c = mock(QueryExecutorConfig.class);
+    when(config_c.getExecutorId()).thenReturn("config_a");
+    context.addConfigOverride(config_c);
+    assertSame(config_c, context.getConfigOverride("config_a"));
+    
+    try {
+      context.addConfigOverride(null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    when(config_a.getExecutorId()).thenReturn(null);
+    try {
+      context.addConfigOverride(config_a);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    when(config_a.getExecutorId()).thenReturn("");
+    try {
+      context.addConfigOverride(null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      context.getConfigOverride(null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      context.getConfigOverride("");
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void sessionObjects() throws Exception {
+    final Object obj_a = new Object();
+    final Object obj_b = new Object();
+   
+    final MockContext context = new MockContext(tsdb, executor_graph);
+    context.addSessionObject("obj_a", obj_a);
+    assertSame(obj_a, context.getSessionObject("obj_a"));
+    context.addSessionObject("obj_b", obj_b);
+    assertSame(obj_b, context.getSessionObject("obj_b"));
+    
+    final Object obj_c = new Object();
+    context.addSessionObject("obj_a", obj_c);
+    assertSame(obj_c, context.getSessionObject("obj_a"));
+    
+    context.addSessionObject("obj_c", null);
+    assertNull(context.getSessionObject("obj_c"));
+    
+    try {
+      context.addSessionObject(null, obj_a);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      context.addSessionObject("", obj_a);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      context.getSessionObject(null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      context.getSessionObject("");
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
   /**
    * Mock that lets us peek into protected variables.
    */
   class MockContext extends QueryContext {
     
     public MockContext(final TSDB tsdb, 
-                       final QueryExecutorContext executor_context) {
-      super(tsdb, executor_context);
+                       final ExecutionGraph executor_context) {
+      super(tsdb, executor_context, null);
     }
     
     public MockContext(final TSDB tsdb, 
-                       final QueryExecutorContext executor_context, 
+                       final ExecutionGraph executor_context, 
                        final Tracer tracer) {
       super(tsdb, executor_context, tracer);
     }
     
     public MockContext(final QueryContext context) {
       super(context);
-    }
-
-    @Override
-    public RemoteContext getRemoteContext() {
-      // TODO Auto-generated method stub
-      return null;
     }
 
     @Override

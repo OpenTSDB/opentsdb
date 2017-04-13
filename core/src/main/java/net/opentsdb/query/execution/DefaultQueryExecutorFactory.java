@@ -23,9 +23,18 @@ import java.lang.reflect.Constructor;
  */
 public class DefaultQueryExecutorFactory<T> extends QueryExecutorFactory<T> {
 
+  /**
+   * Default ctor
+   * @param ctor A non-null constructor to use when instantiating the executor.
+   * @param type The type of data returned by the executor.
+   * @param id a non-null ID for the factory.
+   * @throws IllegalArgumentException if the ctor was null or did not have
+   * the proper parameters.
+   */
   public DefaultQueryExecutorFactory(final Constructor<QueryExecutor<?>> ctor,
-      final QueryExecutorConfig config) {
-    super(ctor, config);
+                                     final Class<?> type,  
+                                     final String id) {
+    super(ctor, type, id);
   }
   
 }

@@ -12,21 +12,23 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.DataMerger;
 import net.opentsdb.data.DataShardMerger;
-import net.opentsdb.data.DataShardsGroups;
 import net.opentsdb.data.types.numeric.NumericMergeLargest;
-import net.opentsdb.query.context.QueryExecutorContext;
+import net.opentsdb.query.execution.QueryExecutorFactory;
+import net.opentsdb.query.execution.cluster.ClusterConfig;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.stats.TsdbTracer;
 
 /**
@@ -35,15 +37,22 @@ import net.opentsdb.stats.TsdbTracer;
  * @since 3.0
  */
 public class Registry {
+  private static final Logger LOG = LoggerFactory.getLogger(Registry.class);
   
   /** The TSDB to which this registry belongs. Used for reading the config. */
   private final TSDB tsdb;
   
   /** The map of data mergers. */
-  private final Map<TypeToken<?>, DataMerger<?>> data_mergers;
+  private final Map<String, DataMerger<?>> data_mergers;
   
-  /** Executor contexts container. Null key is the default. */
-  private final Map<String, QueryExecutorContext> executor_contexts;
+  /** The map of available executor graphs for query execution. */
+  private final Map<String, ExecutionGraph> executor_graphs;
+  
+  /** The map of executor factories for use in constructing graphs. */
+  private final Map<String, QueryExecutorFactory<?>> factories;
+  
+  /** The map of cluster configurations for multi-cluster queries. */
+  private final Map<String, ClusterConfig> clusters;
   
   /** The thread pool used for cleanup post query or other operations. */
   private final ExecutorService cleanup_pool;
@@ -62,9 +71,11 @@ public class Registry {
     }
     this.tsdb = tsdb;
     data_mergers = 
-        Maps.<TypeToken<?>, DataMerger<?>>newHashMapWithExpectedSize(1);
-    executor_contexts = 
-        Maps.<String, QueryExecutorContext>newHashMapWithExpectedSize(1);
+        Maps.<String, DataMerger<?>>newHashMapWithExpectedSize(1);
+    executor_graphs = 
+        Maps.<String, ExecutionGraph>newHashMapWithExpectedSize(1);
+    factories = Maps.newHashMapWithExpectedSize(1);
+    clusters = Maps.newHashMapWithExpectedSize(1);
     cleanup_pool = Executors.newFixedThreadPool(1);
   }
   
@@ -80,49 +91,130 @@ public class Registry {
     return Deferred.fromResult(null);
   }
   
-  /** @return An unmodifiable map of the data mergers. */
-  public Map<TypeToken<?>, DataMerger<?>> dataMergers() {
-    return Collections.unmodifiableMap(data_mergers);
-  }
-  
   /** @return The cleanup thread pool for post-query or other tasks. */
   public ExecutorService cleanupPool() {
     return cleanup_pool;
   }
   
   /**
-   * Adds the given context to the registry.
-   * @param context A non-null query executor context.
-   * @param is_default Whether or not the context is the default.
-   * @throws IllegalArgumentException if the context was null.
+   * Adds the executor graph to the registry.
+   * <b>WARNING:</b> Not thread safe.
+   * @param graph A non-null execution graph that has been initialized.
+   * @param is_default Whether or not the graph should be used as the default
+   * for queries.
+   * @throws IllegalArgumentException if the graph was null, it's ID was null or
+   * empty, or the graph was already present.
    */
-  public void registerQueryExecutorContext(final QueryExecutorContext context,
-      final boolean is_default) {
-    if (context == null) {
-      throw new IllegalArgumentException("Query executor context cannot "
-          + "be null.");
+  public void registerExecutionGraph(final ExecutionGraph graph,
+                                     final boolean is_default) {
+    if (graph == null) {
+      throw new IllegalArgumentException("Execution graph cannot be null.");
     }
-    if (Strings.isNullOrEmpty(context.id())) {
-      throw new IllegalArgumentException("Query executor context returned a "
+    if (Strings.isNullOrEmpty(graph.getId())) {
+      throw new IllegalArgumentException("Execution graph returned a "
           + "null or empty ID");
     }
     if (is_default) {
-      executor_contexts.put(null, context);
+      if (executor_graphs.get(null) != null) {
+        throw new IllegalArgumentException("Graph already exists for default: " 
+            + executor_graphs.get(null).getId());
+      }
+      executor_graphs.put(null, graph);
+      LOG.info("Registered default execution graph: " + graph.getId());
     }
-    executor_contexts.put(context.id(), context);
+    if (executor_graphs.get(graph.getId()) != null) {
+      throw new IllegalArgumentException("Graph already exists for ID: " 
+          + graph.getId());
+    }
+    executor_graphs.put(graph.getId(), graph);
+    LOG.info("Registered execution graph: " + graph.getId());
   }
   
   /**
-   * Returns the registered query executor context given an id or, if the id is
-   * null or empty, the default.
-   * @param id An optional ID to fetch the context for.
-   * @return A query executor context or null if not found.
+   * Fetches the default graph. May be null if no graphs have been set.
+   * @return An execution graph or null if no graph was set.
    */
-  public QueryExecutorContext getQueryExecutorContext(final String id) {
+  public ExecutionGraph getDefaultExecutionGraph() {
+    return getExecutionGraph(null);
+  }
+  
+  /**
+   * Fetches the execution graph if it exists.
+   * @param id A non-null and non-empty ID.
+   * @return The graph if present.
+   */
+  public ExecutionGraph getExecutionGraph(final String id) {
     if (Strings.isNullOrEmpty(id)) {
-      return executor_contexts.get(null);
+      return executor_graphs.get(null);
     }
-    return executor_contexts.get(id);
+    return executor_graphs.get(id);
+  }
+  
+  /**
+   * Adds the given factory to the registry.
+   * <b>WARNING:</b> Not thread safe.
+   * @param factory A non-null factory to add.
+   * @throws IllegalArgumentException if the factory was null, it's ID was null
+   * or empty, or the factory already exists.
+   */
+  public void registerFactory(final QueryExecutorFactory<?> factory) {
+    if (factory == null) {
+      throw new IllegalArgumentException("Factory cannot be null.");
+    }
+    if (Strings.isNullOrEmpty(factory.id())) {
+      throw new IllegalArgumentException("Factory ID was null or empty.");
+    }
+    if (factories.containsKey(factory.id())) {
+      throw new IllegalArgumentException("Factory already registered: " 
+          + factory.id());
+    }
+    factories.put(factory.id(), factory);
+    LOG.info("Registered factory: " + factory.id());
+  }
+  
+  /**
+   * Returns the factory for the given ID if present.
+   * @param id A non-null and non-empty ID.
+   * @return The factory if present.
+   */
+  public QueryExecutorFactory<?> getFactory(final String id) {
+    if (Strings.isNullOrEmpty(id)) {
+      throw new IllegalArgumentException("ID was null or empty.");
+    }
+    return factories.get(id);
+  }
+  
+  /**
+   * Adds the given cluster config to the registry.
+   * <b>WARNING:</b> Not thread safe.
+   * @param cluster A non-null cluster config to add.
+   * @throws IllegalArgumentException if the cluster was null, it's ID was null
+   * or empty, or the cluster already exists.
+   */
+  public void registerClusterConfig(final ClusterConfig cluster) {
+    if (cluster == null){
+      throw new IllegalArgumentException("Cluster cannot be null.");
+    }
+    if (Strings.isNullOrEmpty(cluster.getId())){
+      throw new IllegalArgumentException("Cluster ID cannot be null or empty.");
+    }
+    if (clusters.containsKey(cluster.getId())) {
+      throw new IllegalArgumentException("Cluster already registered.");
+    }
+    clusters.put(cluster.getId(), cluster);
+    LOG.info("Registered cluster: " + cluster.getId());
+  }
+  
+  /**
+   * Returns the cluster config for the given ID if present.
+   * @param cluster A non-null and non-empty cluster ID.
+   * @return The cluster config if present.
+   */
+  public ClusterConfig getClusterConfig(final String cluster) {
+    if (Strings.isNullOrEmpty(cluster)) {
+      throw new IllegalArgumentException("ID was null or empty.");
+    }
+    return clusters.get(cluster);
   }
   
   /**
@@ -138,6 +230,10 @@ public class Registry {
     return tracer_plugin;
   }
   
+  public DataMerger<?> getDataMerger(final String merger) {
+    return data_mergers.get(merger);
+  }
+  
   /** @return Package private shutdown returning the deferred to wait on. */
   Deferred<Object> shutdown() {
     cleanup_pool.shutdown();
@@ -147,7 +243,9 @@ public class Registry {
   private void initDataMergers() {
     final DataShardMerger shards_merger = new DataShardMerger();
     shards_merger.registerStrategy(new NumericMergeLargest());
-    data_mergers.put(DataShardsGroups.TYPE, shards_merger);
+    data_mergers.put(null, shards_merger);
+    data_mergers.put("default", shards_merger);
+    data_mergers.put("largest", shards_merger);
   }
   
 }

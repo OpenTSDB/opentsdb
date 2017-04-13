@@ -12,16 +12,26 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.execution;
 
-/**
- * TODO
- *
- * @since 3.0
- */
-public interface ClusterConfig {
+import org.junit.Ignore;
 
-  public String id();
+import net.opentsdb.query.pojo.TimeSeriesQuery;
+
+@Ignore
+public class TestQueryExecutor {
+
+  /** Simple implementation to peek into the cancel call. */
+  public static class MockDownstream extends QueryExecution<Long> {
+    public boolean cancelled;
+    
+    public MockDownstream(TimeSeriesQuery query) {
+      super(query);
+    }
+
+    @Override
+    public void cancel() {
+      cancelled = true;
+    }
+    
+  }
   
-  public long timeout();
-  
-  public QueryExecutor<?> remoteExecutor();
 }

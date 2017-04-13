@@ -12,15 +12,10 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.concurrent.ExecutorService;
@@ -33,7 +28,9 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import net.opentsdb.query.context.QueryExecutorContext;
+import net.opentsdb.query.execution.QueryExecutorFactory;
+import net.opentsdb.query.execution.cluster.ClusterConfig;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ Registry.class, Executors.class })
@@ -55,7 +52,6 @@ public class TestRegistry {
   @Test
   public void ctor() throws Exception {
     Registry registry = new Registry(tsdb);
-    assertTrue(registry.dataMergers().isEmpty());
     assertSame(cleanup_pool, registry.cleanupPool());
     assertNull(registry.tracer());
     
@@ -66,44 +62,154 @@ public class TestRegistry {
   }
   
   @Test
-  public void queryExecutorContexts() throws Exception {
-    Registry registry = new Registry(tsdb);
+  public void executionGraphs() throws Exception {
+    final ExecutionGraph graph_a = mock(ExecutionGraph.class);
+    when(graph_a.getId()).thenReturn("graph_a");
+    final ExecutionGraph graph_b = mock(ExecutionGraph.class);
+    when(graph_b.getId()).thenReturn("graph_b");
+    final Registry registry = new Registry(tsdb);
     
-    QueryExecutorContext context = mock(QueryExecutorContext.class);
-    when(context.id()).thenReturn("MyContext");
+    assertNull(registry.getDefaultExecutionGraph());
+    registry.registerExecutionGraph(graph_a, false);
     
-    registry.registerQueryExecutorContext(context, true);
-    assertSame(context, registry.getQueryExecutorContext(null));
-    assertSame(context, registry.getQueryExecutorContext(""));
-    assertSame(context, registry.getQueryExecutorContext("MyContext"));
+    assertNull(registry.getDefaultExecutionGraph());
+    assertSame(graph_a, registry.getExecutionGraph("graph_a"));
     
-    context = mock(QueryExecutorContext.class);
-    when(context.id()).thenReturn("Context2");
-    registry.registerQueryExecutorContext(context, false);
-    assertSame(context, registry.getQueryExecutorContext("Context2"));
-    
-    assertNull(registry.getQueryExecutorContext("doesnotexist"));
-    
-    // clear
-    registry = new Registry(tsdb);
-    assertNull(registry.getQueryExecutorContext(null));
-    assertNull(registry.getQueryExecutorContext(""));
+    registry.registerExecutionGraph(graph_b, true);
+    assertSame(graph_b, registry.getDefaultExecutionGraph());
+    assertSame(graph_a, registry.getExecutionGraph("graph_a"));
+    assertSame(graph_b, registry.getExecutionGraph("graph_b"));
     
     try {
-      registry.registerQueryExecutorContext(null, true);
+      registry.registerExecutionGraph(graph_a, false);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    assertSame(graph_b, registry.getDefaultExecutionGraph());
+    assertSame(graph_a, registry.getExecutionGraph("graph_a"));
+    assertSame(graph_b, registry.getExecutionGraph("graph_b"));
+    
+    try {
+      registry.registerExecutionGraph(graph_a, true);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    assertSame(graph_b, registry.getDefaultExecutionGraph());
+    assertSame(graph_a, registry.getExecutionGraph("graph_a"));
+    assertSame(graph_b, registry.getExecutionGraph("graph_b"));
+    
+    try {
+      registry.registerExecutionGraph(graph_b, true);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    assertSame(graph_b, registry.getDefaultExecutionGraph());
+    assertSame(graph_a, registry.getExecutionGraph("graph_a"));
+    assertSame(graph_b, registry.getExecutionGraph("graph_b"));
+    
+    try {
+      registry.registerExecutionGraph(null, false);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    context = mock(QueryExecutorContext.class);
-    when(context.id()).thenReturn(null);
+    when(graph_a.getId()).thenReturn(null);
     try {
-      registry.registerQueryExecutorContext(context, true);
+      registry.registerExecutionGraph(graph_a, true);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    when(context.id()).thenReturn("");
+    when(graph_a.getId()).thenReturn("");
     try {
-      registry.registerQueryExecutorContext(context, true);
+      registry.registerExecutionGraph(graph_a, true);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+
+  @Test
+  public void factories() throws Exception {
+    final QueryExecutorFactory<?> factory_a = mock(QueryExecutorFactory.class);
+    when(factory_a.id()).thenReturn("factory_a");
+    final QueryExecutorFactory<?> factory_b = mock(QueryExecutorFactory.class);
+    when(factory_b.id()).thenReturn("factory_b");
+    final Registry registry = new Registry(tsdb);
+    
+    registry.registerFactory(factory_a);
+    registry.registerFactory(factory_b);
+    assertSame(factory_a, registry.getFactory("factory_a"));
+    assertSame(factory_b, registry.getFactory("factory_b"));
+    
+    try {
+      registry.registerFactory(factory_a);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      registry.registerFactory(null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    when(factory_a.id()).thenReturn(null);
+    try {
+      registry.registerFactory(factory_a);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    when(factory_a.id()).thenReturn("");
+    try {
+      registry.registerFactory(factory_a);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      registry.getFactory(null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      registry.getFactory("");
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+
+  @Test
+  public void clusterConfigs() throws Exception {
+    final ClusterConfig config_a = mock(ClusterConfig.class);
+    when(config_a.getId()).thenReturn("config_a");
+    final ClusterConfig config_b = mock(ClusterConfig.class);
+    when(config_b.getId()).thenReturn("config_b");
+    final Registry registry = new Registry(tsdb);
+    
+    registry.registerClusterConfig(config_a);
+    registry.registerClusterConfig(config_b);
+    assertSame(config_a, registry.getClusterConfig("config_a"));
+    assertSame(config_b, registry.getClusterConfig("config_b"));
+    
+    try {
+      registry.registerClusterConfig(config_a);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      registry.registerClusterConfig(null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    when(config_a.getId()).thenReturn(null);
+    try {
+      registry.registerClusterConfig(config_a);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    when(config_a.getId()).thenReturn("");
+    try {
+      registry.registerClusterConfig(config_a);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      registry.getClusterConfig(null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      registry.getClusterConfig("");
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

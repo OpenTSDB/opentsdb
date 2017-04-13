@@ -15,14 +15,15 @@ package net.opentsdb.query.execution;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -41,11 +42,18 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
+import org.apache.http.impl.nio.client.HttpAsyncClients;
+import org.apache.http.impl.nio.reactor.IOReactorConfig;
 import org.apache.http.message.BasicHeader;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Maps;
@@ -53,26 +61,19 @@ import com.stumbleupon.async.TimeoutException;
 
 import io.opentracing.Span;
 import net.opentsdb.common.Const;
-import net.opentsdb.core.Registry;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.data.DataShards;
 import net.opentsdb.data.DataShardsGroup;
 import net.opentsdb.data.DataShardsGroups;
 import net.opentsdb.data.DefaultDataShardsGroup;
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.TSQuery;
-import net.opentsdb.query.context.DefaultQueryContext;
-import net.opentsdb.query.context.HttpContext;
-import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.context.QueryExecutorContext;
-import net.opentsdb.query.context.RemoteContext;
 import net.opentsdb.query.execution.HttpQueryV2Executor.Config;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Expression;
@@ -85,13 +86,11 @@ import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.utils.JSON;
 
-public class TestHttpQueryV2Executor {
-  private TSDB tsdb;
-  private Registry registry;
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({ HttpQueryV2Executor.class, HttpAsyncClients.class, 
+  HttpAsyncClientBuilder.class }) 
+public class TestHttpQueryV2Executor extends BaseExecutorTest {
   private ExecutorService cleanup_pool;
-  private TimeSeriesGroupId group_id;
-  private QueryContext context;
-  private HttpContext http_context;
   private String endpoint;
   private FutureCallback<HttpResponse> callback;
   private Future<HttpResponse> future;
@@ -104,26 +103,21 @@ public class TestHttpQueryV2Executor {
   private TimeSeriesQuery query;
   private CloseableHttpAsyncClient client;
   private Span span;
-  private Config<DataShardsGroup> config;
+  private Config config;
   
   @Before
-  public void before() throws Exception {
-    tsdb = mock(TSDB.class);
-    registry = mock(Registry.class);
+  public void beforeLocal() throws Exception {
+    node = mock(ExecutionGraphNode.class);
     cleanup_pool = mock(ExecutorService.class);
-    context = spy(new DefaultQueryContext(tsdb, 
-        mock(QueryExecutorContext.class)));
-    http_context = mock(HttpContext.class);
     endpoint = "http://my.tsd:4242";
-    group_id = new SimpleStringGroupId("a");
     headers = Maps.newHashMap();
     headers.put("X-MyHeader", "Winter Is Coming!");
-    span = mock(Span.class);
-    config = Config.<DataShardsGroup>newBuilder()
+    config = (Config) Config.newBuilder()
         .setEndpoint(endpoint)
+        .setExecutorId("Http")
+        .setExecutorType("HttpQueryV2Executor")
         .build();
     
-    when(tsdb.getRegistry()).thenReturn(registry);
     when(registry.cleanupPool()).thenReturn(cleanup_pool);
     doAnswer(new Answer<Void>() {
       @Override
@@ -132,8 +126,9 @@ public class TestHttpQueryV2Executor {
         return null;
       }
     }).when(cleanup_pool).execute(any(Runnable.class));
-    when(context.getRemoteContext()).thenReturn((RemoteContext) http_context);
-    when(http_context.getHeaders()).thenReturn(headers);
+    when(node.getDefaultConfig()).thenReturn(config);
+    when(context.getSessionObject(HttpQueryV2Executor.SESSION_HEADERS_KEY))
+      .thenReturn(headers);
     
     query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
@@ -143,7 +138,6 @@ public class TestHttpQueryV2Executor {
         .addMetric(Metric.newBuilder().setId("m1").setMetric("sys.cpu.user"))
         .build();
     query.validate();
-    query.groupId(group_id);
     
     response_content = "[{"
         + " \"metric\": \"sys.cpu.user\","
@@ -187,49 +181,32 @@ public class TestHttpQueryV2Executor {
 
   @Test
   public void ctor() throws Exception {
-    new HttpQueryV2Executor(context, config);
+    new HttpQueryV2Executor(node);
     
     try {
-      new HttpQueryV2Executor(null, config);
+      new HttpQueryV2Executor(null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
+    when(node.getDefaultConfig()).thenReturn(null);
     try {
-      new HttpQueryV2Executor(context, null);
+      new HttpQueryV2Executor(node);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    try {
-      new HttpQueryV2Executor(context, Config.<DataShardsGroup>newBuilder()
-          .setEndpoint("")
-          .build());
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      new HttpQueryV2Executor(context, Config.<DataShardsGroup>newBuilder()
-          .build());
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    when(context.getRemoteContext()).thenReturn(null);
-    try {
-      new HttpQueryV2Executor(context, config);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    when(context.getRemoteContext()).thenReturn(mock(RemoteContext.class));
-    try {
-      new HttpQueryV2Executor(context, config);
-      fail("Expected IllegalStateException");
-    } catch (IllegalStateException e) { }
+    config = (Config) Config.newBuilder()
+        //.setEndpoint(endpoint)
+        .setExecutorId("Http")
+        .setExecutorType("HttpQueryV2Executor")
+        .build();
+    when(node.getDefaultConfig()).thenReturn(config);
+    new HttpQueryV2Executor(node);
   }
 
   @SuppressWarnings("unchecked")
   @Test
   public void close() throws Exception {
-    final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, config);
+    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     assertNull(executor.close().join());
     
     QueryExecution<DataShardsGroups> e1 = mock(QueryExecution.class);
@@ -245,12 +222,11 @@ public class TestHttpQueryV2Executor {
   @SuppressWarnings("unchecked")
   @Test
   public void executeQuery() throws Exception {
-    final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, config);
+    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     setupQuery();
     
     QueryExecution<DataShardsGroups> exec = 
-        executor.executeQuery(query, span);
+        executor.executeQuery(context, query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -324,15 +300,13 @@ public class TestHttpQueryV2Executor {
   
   @Test (expected = IllegalArgumentException.class)
   public void executeQueryNullQuery() throws Exception {
-    final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, config);
-    executor.executeQuery(null, span);
+    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
+    executor.executeQuery(context, null, span);
   }
   
   @Test
   public void executeQueryFailToConvert() throws Exception {
-    final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, config);
+    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     setupQuery();
     
     query = TimeSeriesQuery.newBuilder()
@@ -342,28 +316,25 @@ public class TestHttpQueryV2Executor {
             .setAggregator("sum"))
         //.addMetric(Metric.newBuilder().setId("m1").setMetric("sys.cpu.user"))
         .build();
-    query.groupId(group_id);
     
     QueryExecution<DataShardsGroups> exec = 
-        executor.executeQuery(query, span);
+        executor.executeQuery(context, query, span);
     assertNull(callback);
     assertFalse(executor.outstandingRequests().contains(future));
     try {
       exec.deferred().join();
       fail("Expected RejectedExecutionException");
     } catch (RejectedExecutionException e) { }
-    verify(http_context, times(1)).getClient();
     verify(client, times(1)).close();
   }
   
   @Test
   public void executeQueryFutureCancelled() throws Exception {
-    final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, config);
+    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     setupQuery();
     
     QueryExecution<DataShardsGroups> exec = 
-        executor.executeQuery(query, span);
+        executor.executeQuery(context, query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -385,12 +356,11 @@ public class TestHttpQueryV2Executor {
   
   @Test
   public void executeQueryUpstreamCancelled() throws Exception {
-    final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, config);
+    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     setupQuery();
     
     QueryExecution<DataShardsGroups> exec = 
-        executor.executeQuery(query, span);
+        executor.executeQuery(context, query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -413,12 +383,11 @@ public class TestHttpQueryV2Executor {
   
   @Test
   public void executeQueryException() throws Exception {
-    final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, config);
+    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     setupQuery();
     
     QueryExecution<DataShardsGroups> exec = 
-        executor.executeQuery(query, span);
+        executor.executeQuery(context, query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -440,8 +409,7 @@ public class TestHttpQueryV2Executor {
   
   @Test
   public void executeQueryParsingException() throws Exception {
-    final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, config);
+    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     setupQuery();
     
     response_content = "[{"
@@ -457,7 +425,7 @@ public class TestHttpQueryV2Executor {
     when(response.getEntity()).thenReturn(entity);
     
     QueryExecution<DataShardsGroups> exec = 
-        executor.executeQuery(query, span);
+        executor.executeQuery(context, query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -479,13 +447,12 @@ public class TestHttpQueryV2Executor {
   
   @Test
   public void executeQueryRemoteError() throws Exception {
-    final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, config);
+    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     setupQuery();
     when(status.getStatusCode()).thenReturn(404);
     
     QueryExecution<DataShardsGroups> exec = 
-        executor.executeQuery(query, span);
+        executor.executeQuery(context, query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -507,12 +474,11 @@ public class TestHttpQueryV2Executor {
   
   @Test
   public void executeQueryCancelled() throws Exception {
-    final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, config);
+    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     setupQuery();
     
     QueryExecution<DataShardsGroups> exec = 
-        executor.executeQuery(query, span);
+        executor.executeQuery(context, query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
     try {
@@ -922,8 +888,7 @@ public class TestHttpQueryV2Executor {
 
   @Test
   public void parseResponse() throws Exception {
-    final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, config);
+    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     
     entity = new StringEntity("Hello!");
     when(response.getEntity()).thenReturn(entity);
@@ -955,8 +920,7 @@ public class TestHttpQueryV2Executor {
   @SuppressWarnings("unchecked")
   @Test
   public void parseTSQuery() throws Exception {
-    final HttpQueryV2Executor executor = 
-        new HttpQueryV2Executor(context, config);
+    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     final TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1490122900000")
@@ -1097,11 +1061,92 @@ public class TestHttpQueryV2Executor {
     } catch (NoSuchElementException e) { }
   }
 
+  @Test
+  public void builder() throws Exception {
+    String json = JSON.serializeToString(config);
+    assertTrue(json.contains("\"executorType\":\"HttpQueryV2Executor\""));
+    assertTrue(json.contains("\"endpoint\":\"http://my.tsd:4242\""));
+    assertTrue(json.contains("\"executorId\":\"Http\""));
+    
+    json = "{\"executorType\":\"HttpQueryV2Executor\",\"endpoint\":"
+        + "\"http://my.tsd:4242\",\"executorId\":\"Http\"}";
+    config = JSON.parseToObject(json, Config.class);
+    assertEquals("HttpQueryV2Executor", config.executorType());
+    assertEquals("Http", config.getExecutorId());
+    assertEquals("http://my.tsd:4242", config.getEndpoint());
+  }
+  
+  @Test
+  public void hashCodeEqualsCompareTo() throws Exception {
+    final Config c1 = (Config) Config.newBuilder()
+        .setEndpoint(endpoint)
+        .setExecutorId("Http")
+        .setExecutorType("HttpQueryV2Executor")
+        .build();
+    
+    Config c2 = (Config) Config.newBuilder()
+        .setEndpoint(endpoint)
+        .setExecutorId("Http")
+        .setExecutorType("HttpQueryV2Executor")
+        .build();
+    assertEquals(c1.hashCode(), c2.hashCode());
+    assertEquals(c1, c2);
+    assertEquals(0, c1.compareTo(c2));
+    
+    c2 = (Config) Config.newBuilder()
+        .setEndpoint("http://localhost:12345")  // <-- Diff
+        .setExecutorId("Http")
+        .setExecutorType("HttpQueryV2Executor")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(1, c1.compareTo(c2));
+    
+    c2 = (Config) Config.newBuilder()
+        //.setEndpoint(endpoint)  // <-- Diff
+        .setExecutorId("Http")
+        .setExecutorType("HttpQueryV2Executor")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(1, c1.compareTo(c2));
+    
+    c2 = (Config) Config.newBuilder()
+        .setEndpoint(endpoint)
+        .setExecutorId("Http2")  // <-- Diff
+        .setExecutorType("HttpQueryV2Executor")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(-1, c1.compareTo(c2));
+    
+    c2 = (Config) Config.newBuilder()
+        .setEndpoint(endpoint)
+        .setExecutorId("Http")
+        .setExecutorType("HttpQueryV2Executor2")  // <-- Diff
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(-1, c1.compareTo(c2));
+  }
+  
   @SuppressWarnings("unchecked")
   private void setupQuery() {
     client = mock(CloseableHttpAsyncClient.class);
     future = mock(Future.class);
-    when(http_context.getClient()).thenReturn(client);
+    
+    final HttpAsyncClientBuilder builder = 
+        PowerMockito.mock(HttpAsyncClientBuilder.class);
+    PowerMockito.when(builder
+        .setDefaultIOReactorConfig(any(IOReactorConfig.class)))
+          .thenReturn(builder);
+    when(builder.setMaxConnTotal(anyInt())).thenReturn(builder);
+    when(builder.setMaxConnPerRoute(anyInt())).thenReturn(builder);
+    when(builder.build()).thenReturn(client);
+    
+    PowerMockito.mockStatic(HttpAsyncClients.class);
+    when(HttpAsyncClients.custom()).thenReturn(builder);
+    
     when(client.execute(any(HttpPost.class), any(FutureCallback.class)))
       .thenAnswer(new Answer<Future<HttpResponse>>() {
         @Override

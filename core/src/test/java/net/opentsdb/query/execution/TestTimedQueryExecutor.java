@@ -14,12 +14,14 @@ package net.opentsdb.query.execution;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -37,98 +39,113 @@ import org.mockito.stubbing.Answer;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
 
-import io.netty.util.Timeout;
-import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import io.opentracing.Span;
 import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.context.QueryExecutorContext;
+import net.opentsdb.query.execution.TestQueryExecutor.MockDownstream;
 import net.opentsdb.query.execution.TimedQueryExecutor.Config;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.utils.JSON;
 
-public class TestTimedQueryExecutor {
-  private QueryContext context;
+public class TestTimedQueryExecutor extends BaseExecutorTest {
   private QueryExecutor<Long> executor;
-  private QueryExecutorContext executor_context;
-  private Timer timer;
-  private TimeSeriesQuery query;
   private MockDownstream downstream;
-  private Timeout timeout;
-  private Span span;
-  private Config<Long> config;
+  private Config config;
   
   @SuppressWarnings("unchecked")
   @Before
-  public void before() throws Exception {
-    context = mock(QueryContext.class);
+  public void beforeLocal() throws Exception {
     executor = mock(QueryExecutor.class);
-    executor_context = mock(QueryExecutorContext.class);
-    timer = mock(Timer.class);
-    query = mock(TimeSeriesQuery.class);
-    downstream = new MockDownstream(query);
-    timeout = mock(Timeout.class);
-    span = mock(Span.class);
-    config = TimedQueryExecutor.Config.<Long>newBuilder()
+    config = (Config) TimedQueryExecutor.Config.newBuilder()
       .setTimeout(1000)
+      .setExecutorId("UT Executor")
+      .setExecutorType("TimedQueryExecutor")
       .build();
+    query = TimeSeriesQuery.newBuilder()
+        .build();
+    downstream = new MockDownstream(query);
     
     when(context.getTimer()).thenReturn(timer);
-    when(context.getQueryExecutorContext()).thenReturn(executor_context);
-    when(executor_context
-        .newDownstreamExecutor(eq(context), any(QueryExecutorFactory.class)))
-          .thenAnswer(new Answer<QueryExecutor<?>>() {
-      @Override
-      public QueryExecutor<?> answer(InvocationOnMock invocation)
-          throws Throwable {
-        // TODO Auto-generated method stub
-        return executor;
-      }
-    });
-    when(executor.executeQuery(eq(query), any(Span.class))).thenReturn(downstream);
+    when(timer.newTimeout(any(TimerTask.class), anyLong(), 
+        eq(TimeUnit.MILLISECONDS))).thenReturn(timeout);
+    when(executor.executeQuery(eq(context), eq(query), any(Span.class)))
+      .thenReturn(downstream);
     when(executor.close()).thenReturn(Deferred.fromResult(null));
-    when(timer.newTimeout(any(TimerTask.class), anyLong(), eq(TimeUnit.MILLISECONDS)))
-      .thenReturn(timeout);
+    
+    node = ExecutionGraphNode.newBuilder()
+        .setExecutorId("UTExecutor")
+        .setExecutorType("TimedQueryExecutor")
+        .setDefaultConfig(config)
+        .build();
+    node.setExecutionGraph(graph);
+    
+    when(graph.getDownstreamExecutor(anyString()))
+      .thenAnswer(new Answer<QueryExecutor<?>>() {
+        @Override
+        public QueryExecutor<?> answer(InvocationOnMock invocation)
+            throws Throwable {
+          return executor;
+        }
+      });
   }
   
   @Test
   public void ctor() throws Exception {
-    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, TimedQueryExecutor.Config.<Long>newBuilder()
-        .setTimeout(1000)
-        .build());
+    TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(node);
     assertTrue(tqe.outstandingRequests().isEmpty());
     assertEquals(1, tqe.downstreamExecutors().size());
     assertSame(executor, tqe.downstreamExecutors().get(0));
-    
+
     try {
-      new TimedQueryExecutor<Long>(null, 
-          TimedQueryExecutor.Config.<Long>newBuilder()
-          .setTimeout(1000)
-          .build());
+      node = ExecutionGraphNode.newBuilder()
+          .setExecutorId("UTExecutor")
+          .setExecutorType("TimedQueryExecutor")
+          .build();
+      node.setExecutionGraph(graph);
+      new TimedQueryExecutor<Long>(node);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new TimedQueryExecutor<Long>(context, null);
+      node = ExecutionGraphNode.newBuilder()
+          .setExecutorId("UTExecutor")
+          .setExecutorType("TimedQueryExecutor")
+          .setDefaultConfig(TimedQueryExecutor.Config.newBuilder()
+            .setTimeout(0)
+            .setExecutorId("UT Executor")
+            .setExecutorType("TimedQueryExecutor"))
+          .build();
+      node.setExecutionGraph(graph);
+      new TimedQueryExecutor<Long>(node);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new TimedQueryExecutor<Long>(context, 
-          TimedQueryExecutor.Config.<Long>newBuilder()
-          //.setTimeout(1000)
-          .build());
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+      node = ExecutionGraphNode.newBuilder()
+          .setExecutorId("UTExecutor")
+          .setExecutorType("TimedQueryExecutor")
+          .setDefaultConfig(config)
+          .build();
+      node.setExecutionGraph(graph);
+      when(graph.getDownstreamExecutor(anyString()))
+        .thenAnswer(new Answer<QueryExecutor<?>>() {
+          @Override
+          public QueryExecutor<?> answer(InvocationOnMock invocation)
+              throws Throwable {
+            return null;
+          }
+        });
+      new TimedQueryExecutor<Long>(node);
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
   }
   
   @Test
   public void execute() throws Exception {
-    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, config);
+    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(node);
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
+    final QueryExecution<Long> exec = tqe.executeQuery(context, query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
@@ -137,7 +154,7 @@ public class TestTimedQueryExecutor {
     verify(timer, times(1))
       .newTimeout((TimerTask) exec, 1000, TimeUnit.MILLISECONDS);
     verify(timeout, never()).cancel();
-    verify(executor, times(1)).executeQuery(query, span);
+    verify(executor, times(1)).executeQuery(context, query, span);
     assertFalse(downstream.cancelled);
     assertFalse(downstream.completed());
     assertTrue(tqe.outstandingRequests().contains(exec));
@@ -152,11 +169,10 @@ public class TestTimedQueryExecutor {
   
   @Test
   public void executeAlreadyCompleted() throws Exception {
-    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, config);
+    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(node);
     tqe.completed.set(true);
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
+    final QueryExecution<Long> exec = tqe.executeQuery(context, query, span);
     try {
       exec.deferred().join();
       fail("Expected QueryExecutionException");
@@ -164,19 +180,18 @@ public class TestTimedQueryExecutor {
     verify(timer, never())
       .newTimeout(any(TimerTask.class), eq(1000), eq(TimeUnit.MILLISECONDS));
     verify(timeout, never()).cancel();
-    verify(executor, never()).executeQuery(query, span);
+    verify(executor, never()).executeQuery(context, query, span);
     assertNotSame(downstream, exec);
     assertFalse(tqe.outstandingRequests().contains(exec));
   }
   
   @Test
   public void executeThrownException() throws Exception {
-    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, config);
-    when(executor.executeQuery(eq(query), any(Span.class)))
+    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(node);
+    when(executor.executeQuery(eq(context), eq(query), any(Span.class)))
       .thenThrow(new IllegalStateException("Boo!"));
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
+    final QueryExecution<Long> exec = tqe.executeQuery(context, query, span);
     try {
       exec.deferred().join();
       fail("Expected QueryExecutionException");
@@ -184,17 +199,16 @@ public class TestTimedQueryExecutor {
     verify(timer, never())
       .newTimeout(any(TimerTask.class), eq(1000), eq(TimeUnit.MILLISECONDS));
     verify(timeout, never()).cancel();
-    verify(executor, times(1)).executeQuery(query, span);
+    verify(executor, times(1)).executeQuery(context, query, span);
     assertFalse(tqe.outstandingRequests().contains(exec));
   }
   
   @Test
   public void executeNullTimer() throws Exception {
-    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, config);
+    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(node);
     when(context.getTimer()).thenReturn(null);
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
+    final QueryExecution<Long> exec = tqe.executeQuery(context, query, span);
     try {
       exec.deferred().join();
       fail("Expected QueryExecutionException");
@@ -202,16 +216,15 @@ public class TestTimedQueryExecutor {
     verify(timer, never())
       .newTimeout(any(TimerTask.class), eq(1000), eq(TimeUnit.MILLISECONDS));
     verify(timeout, never()).cancel();
-    verify(executor, times(1)).executeQuery(query, span);
+    verify(executor, times(1)).executeQuery(context, query, span);
     assertFalse(tqe.outstandingRequests().contains(exec));
   }
   
   @Test
   public void executeDownstreamException() throws Exception {
-    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, config);
+    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(node);
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
+    final QueryExecution<Long> exec = tqe.executeQuery(context, query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
@@ -220,7 +233,7 @@ public class TestTimedQueryExecutor {
     verify(timer, times(1))
       .newTimeout((TimerTask) exec, 1000, TimeUnit.MILLISECONDS);
     verify(timeout, never()).cancel();
-    verify(executor, times(1)).executeQuery(query, span);
+    verify(executor, times(1)).executeQuery(context, query, span);
     assertFalse(downstream.cancelled);
     assertFalse(downstream.completed());
     assertFalse(exec.completed());
@@ -240,10 +253,9 @@ public class TestTimedQueryExecutor {
   
   @Test
   public void executeTimeout() throws Exception {
-    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, config);
+    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(node);
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
+    final QueryExecution<Long> exec = tqe.executeQuery(context, query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
@@ -252,7 +264,7 @@ public class TestTimedQueryExecutor {
     verify(timer, times(1))
       .newTimeout((TimerTask) exec, 1000, TimeUnit.MILLISECONDS);
     verify(timeout, never()).cancel();
-    verify(executor, times(1)).executeQuery(query, span);
+    verify(executor, times(1)).executeQuery(context, query, span);
     assertFalse(downstream.cancelled);
     assertFalse(downstream.completed());
     assertTrue(tqe.outstandingRequests().contains(exec));
@@ -274,10 +286,9 @@ public class TestTimedQueryExecutor {
   
   @Test
   public void executeTimeoutAfterSuccess() throws Exception {
-    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, config);
+    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(node);
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
+    final QueryExecution<Long> exec = tqe.executeQuery(context, query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
@@ -286,7 +297,7 @@ public class TestTimedQueryExecutor {
     verify(timer, times(1))
       .newTimeout((TimerTask) exec, 1000, TimeUnit.MILLISECONDS);
     verify(timeout, never()).cancel();
-    verify(executor, times(1)).executeQuery(query, span);
+    verify(executor, times(1)).executeQuery(context, query, span);
     assertFalse(downstream.cancelled);
     assertFalse(downstream.completed());
     assertTrue(tqe.outstandingRequests().contains(exec));
@@ -303,10 +314,9 @@ public class TestTimedQueryExecutor {
   
   @Test
   public void executeCancel() throws Exception {
-    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, config);
+    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(node);
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
+    final QueryExecution<Long> exec = tqe.executeQuery(context, query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
@@ -315,7 +325,7 @@ public class TestTimedQueryExecutor {
     verify(timer, times(1))
       .newTimeout((TimerTask) exec, 1000, TimeUnit.MILLISECONDS);
     verify(timeout, never()).cancel();
-    verify(executor, times(1)).executeQuery(query, span);
+    verify(executor, times(1)).executeQuery(context, query, span);
     assertFalse(downstream.cancelled);
     assertFalse(downstream.completed());
     assertTrue(tqe.outstandingRequests().contains(exec));
@@ -333,10 +343,9 @@ public class TestTimedQueryExecutor {
   
   @Test
   public void close() throws Exception {
-    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(
-        context, config);
+    final TimedQueryExecutor<Long> tqe = new TimedQueryExecutor<Long>(node);
     
-    final QueryExecution<Long> exec = tqe.executeQuery(query, span);
+    final QueryExecution<Long> exec = tqe.executeQuery(context, query, span);
     try {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
@@ -350,18 +359,63 @@ public class TestTimedQueryExecutor {
     assertTrue(downstream.cancelled);
   }
   
-  /** Simple implementation to peek into the cancel call. */
-  class MockDownstream extends QueryExecution<Long> {
-    boolean cancelled;
+  @Test
+  public void builder() throws Exception {
+    String json = JSON.serializeToString(config);
+    assertTrue(json.contains("\"executorType\":\"TimedQueryExecutor\""));
+    assertTrue(json.contains("\"timeout\":1000"));
+    assertTrue(json.contains("\"executorId\":\"UT Executor\""));
     
-    public MockDownstream(TimeSeriesQuery query) {
-      super(query);
-    }
-
-    @Override
-    public void cancel() {
-      cancelled = true;
-    }
+    json = "{\"executorType\":\"TimedQueryExecutor\",\"timeout\":1000,"
+        + "\"executorId\":\"UT Executor\"}";
+    config = JSON.parseToObject(json, Config.class);
+    assertEquals("TimedQueryExecutor", config.executorType());
+    assertEquals("UT Executor", config.getExecutorId());
+    assertEquals(1000, config.getTimeout());
+  }
+  
+  @Test
+  public void hashCodeEqualsCompareTo() throws Exception {
+    final Config c1 = (Config) Config.newBuilder()
+        .setTimeout(60000)
+        .setExecutorId("MyID")
+        .setExecutorType("TimedQueryExecutor")
+        .build();
     
+    Config c2 = (Config) Config.newBuilder()
+        .setTimeout(60000)
+        .setExecutorId("MyID")
+        .setExecutorType("TimedQueryExecutor")
+        .build();
+    assertEquals(c1.hashCode(), c2.hashCode());
+    assertEquals(c1, c2);
+    assertEquals(0, c1.compareTo(c2));
+    
+    c2 = (Config) Config.newBuilder()
+        .setTimeout(30000)  // <-- diff
+        .setExecutorId("MyID")
+        .setExecutorType("TimedQueryExecutor")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(1, c1.compareTo(c2));
+    
+    c2 = (Config) Config.newBuilder()
+        .setTimeout(60000)
+        .setExecutorId("MyID2")  // <-- diff
+        .setExecutorType("TimedQueryExecutor")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(-1, c1.compareTo(c2));
+    
+    c2 = (Config) Config.newBuilder()
+        .setTimeout(60000)
+        .setExecutorId("MyID")
+        .setExecutorType("TimedQueryExecutor2")  // <-- diff
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(-1, c1.compareTo(c2));
   }
 }

@@ -29,6 +29,7 @@ import com.stumbleupon.async.Deferred;
 import io.opentracing.Span;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.utils.Deferreds;
 
@@ -42,12 +43,8 @@ import net.opentsdb.utils.Deferreds;
  */
 public abstract class QueryExecutor<T> {
   private static final Logger LOG = LoggerFactory.getLogger(QueryExecutor.class);
-  
-  /** The query context. */
-  protected final QueryContext context;
-  
-  /** An optional config for the exectuor. */
-  protected final QueryExecutorConfig config;
+
+  protected final ExecutionGraphNode node;
   
   /** Set to true when the upstream caller has marked this stream as completed 
    * (or cancelled) */
@@ -61,18 +58,15 @@ public abstract class QueryExecutor<T> {
   
   /**
    * Default ctor.
-   * @param context A non-null stream context for all components of this stream.
-   * @param config An optional config for the executor.
-   * @throws IllegalArgumentException if the context was null.
+   * @param node A node to pull configuration from such as the ID and default
+   * config.
+   * @throws IllegalArgumentException if the node was null.
    */
-  public QueryExecutor(final QueryContext context,
-                       final QueryExecutorConfig config) {
-    if (context == null) {
-      throw new IllegalArgumentException("Context cannot be null for "
-          + "QueryExecutors.");
+  public QueryExecutor(final ExecutionGraphNode node) {
+    if (node == null) {
+      throw new IllegalArgumentException("Node cannot be null.");
     }
-    this.context = context;
-    this.config = config;
+    this.node = node;
     completed = new AtomicBoolean();
     outstanding_executions = Sets.<QueryExecution<T>>newConcurrentHashSet();
   }
@@ -89,7 +83,8 @@ public abstract class QueryExecutor<T> {
    * @throws RemoteQueryExecutionException (in the deferred) if the remote call
    * failed.
    */
-  public abstract QueryExecution<T> executeQuery(final TimeSeriesQuery query,
+  public abstract QueryExecution<T> executeQuery(final QueryContext context,
+                                                 final TimeSeriesQuery query,
                                                  final Span upstream_span);
   
   /**
@@ -115,6 +110,10 @@ public abstract class QueryExecutor<T> {
       return Deferred.group(deferreds).addCallback(Deferreds.NULL_GROUP_CB);
     }
     return Deferred.fromResult(null);
+  }
+  
+  public String id() {
+    return node.getExecutorId();
   }
   
   /**

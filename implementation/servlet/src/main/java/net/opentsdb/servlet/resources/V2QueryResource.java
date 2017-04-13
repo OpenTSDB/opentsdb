@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.stumbleupon.async.Callback;
 
-import io.netty.util.Timer;
 import io.opentracing.Span;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.DataShard;
@@ -52,22 +51,13 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.exceptions.RemoteQueryExecutionException;
 import net.opentsdb.query.TSQuery;
-import net.opentsdb.query.context.HttpContextFactory;
+import net.opentsdb.query.context.DefaultQueryContext;
 import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.context.RemoteContext;
-import net.opentsdb.query.execution.DefaultQueryExecutorFactory;
-import net.opentsdb.query.execution.MetricShardingExecutor;
-import net.opentsdb.query.execution.MultiClusterQueryExecutor;
-import net.opentsdb.query.execution.MultiClusterQueryExecutor.Config;
+import net.opentsdb.query.execution.HttpQueryV2Executor;
 import net.opentsdb.query.execution.QueryExecution;
 import net.opentsdb.query.execution.QueryExecutor;
-import net.opentsdb.query.execution.QueryExecutorConfig;
-import net.opentsdb.query.execution.QueryExecutorFactory;
-import net.opentsdb.query.plan.QueryPlanner;
-import net.opentsdb.query.plan.SplitMetricPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.stats.TsdbTrace;
@@ -86,10 +76,6 @@ public class V2QueryResource {
     final @Context HttpServletRequest request) throws Exception {
     if (request.getAttribute(
         OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE) != null) {
-      final QueryExecutor<DataShardsGroups> executor = 
-          (QueryExecutor<DataShardsGroups>) request.getAttribute("MYEXECUTOR");
-      // TODO - attach callback to log faults.
-      executor.close();
       throw (Exception) request.getAttribute(
               OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE);
     } else if (request.getAttribute(
@@ -97,14 +83,17 @@ public class V2QueryResource {
       
       final DataShardsGroups groups = (DataShardsGroups) request.getAttribute(
           OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE);
-      final MyContext context = (MyContext) request.getAttribute("MYCONTEXT");
+      final QueryContext context = (QueryContext) request.getAttribute("MYCONTEXT");
       final Span serdes_span;
-      if (context.trace != null) {
-        serdes_span = context.trace.tracer().buildSpan("serialization")
-            .asChildOf(context.trace.getFirstSpan())
+      final TsdbTrace trace;
+      if (context.getTracer() != null) {
+        trace = (TsdbTrace) request.getAttribute("TRACE");
+        serdes_span = context.getTracer().buildSpan("serialization")
+            .asChildOf(trace.getFirstSpan())
             .start();
       } else {
         serdes_span = null;
+        trace = null;
       }
 
       StreamingOutput stream = new StreamingOutput() {
@@ -152,8 +141,8 @@ public class V2QueryResource {
               }
             }
             
-            if (context.trace != null) {
-              context.trace.serializeJSON("trace", json);
+            if (trace != null) {
+              trace.serializeJSON("trace", json);
             }
             
           }
@@ -166,17 +155,12 @@ public class V2QueryResource {
         }
       };
       
-      if (context.trace != null) {
-        context.trace.getFirstSpan().finish();
+      if (trace != null) {
+        trace.getFirstSpan().finish();
       }
       if (LOG.isDebugEnabled()) {
         LOG.debug("Query completed!");
       }
-      final QueryExecutor<DataShardsGroups> executor = 
-          (QueryExecutor<DataShardsGroups>) request.getAttribute("MYEXECUTOR");
-      // TODO - attach callback to log faults.
-      executor.close();
-      
       return Response.ok().entity(stream)
           .type( MediaType.APPLICATION_JSON )
           .build();
@@ -195,6 +179,7 @@ public class V2QueryResource {
             .withTag("query", "Hello!")
             .start();
         trace.setFirstSpan(span);
+        request.setAttribute("TRACE", trace);
       } else {
         trace = null;
         span = null;
@@ -222,19 +207,20 @@ public class V2QueryResource {
       query.groupId(new SimpleStringGroupId(""));
       query.validate();
 
-      final MyContext context = new MyContext(tsdb,
-          (HttpContextFactory) servlet_config.getServletContext()
-          .getAttribute(OpenTSDBApplication.HTTP_CONTEXT_FACTORY),
-          headersCopy, trace);
+//      final HttpContext context =  
+//          ((HttpContextFactory) servlet_config.getServletContext()
+//          .getAttribute(OpenTSDBApplication.HTTP_CONTEXT_FACTORY))
+//          .getContext(headersCopy, trace);
+      final QueryContext context = new DefaultQueryContext(tsdb, 
+          tsdb.getRegistry().getExecutionGraph(null));
+      context.addSessionObject(HttpQueryV2Executor.SESSION_HEADERS_KEY, headersCopy);
       request.setAttribute("MYCONTEXT", context);
       
       final QueryExecutor<DataShardsGroups> executor =
-          (QueryExecutor<DataShardsGroups>) 
-          context.getQueryExecutorContext().newSinkExecutor(context);
-      request.setAttribute("MYEXECUTOR", executor);
+          (QueryExecutor<DataShardsGroups>) context.executionGraph().sinkExecutor();
       
       final QueryExecution<DataShardsGroups> execution = 
-          executor.executeQuery(query, span);
+          executor.executeQuery(context, query, span);
       
       class SuccessCB implements Callback<Object, DataShardsGroups> {
 
@@ -284,28 +270,4 @@ public class V2QueryResource {
     return null;
   }
   
-  class MyContext extends QueryContext {
-    final HttpContextFactory ctx;
-    final Map<String, String> headers;
-    final TsdbTrace trace;
-    
-    MyContext(final TSDB tsdb, final HttpContextFactory ctx, 
-        final Map<String, String> headers, final TsdbTrace trace) {
-      super(tsdb, tsdb.getRegistry().getQueryExecutorContext(null), 
-          trace != null ? trace.tracer() : null);
-      this.ctx = ctx;
-      this.headers = headers;
-      this.trace = trace;
-    }
-    @Override
-    public RemoteContext getRemoteContext() {
-      return ctx.getContext(this, headers);
-    }
-
-    @Override
-    public Timer getTimer() {
-      return tsdb.getTimer();
-    }
-    
-  }
 }

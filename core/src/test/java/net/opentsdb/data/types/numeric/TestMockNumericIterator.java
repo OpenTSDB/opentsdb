@@ -37,7 +37,7 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.query.context.DefaultQueryContext;
 import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.context.QueryExecutorContext;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.processor.DefaultTimeSeriesProcessor;
 import net.opentsdb.query.processor.TimeSeriesProcessor;
 
@@ -46,7 +46,7 @@ import net.opentsdb.query.processor.TimeSeriesProcessor;
  */
 public class TestMockNumericIterator {
   private TSDB tsdb;
-  private QueryExecutorContext executor_context;
+  private ExecutionGraph execution_graph;
   private QueryContext context;
   private TimeSeriesProcessor processor;
   private TimeSeriesGroupId group;
@@ -56,7 +56,7 @@ public class TestMockNumericIterator {
   @Before
   public void before() throws Exception {
     tsdb = mock(TSDB.class);
-    executor_context = mock(QueryExecutorContext.class);
+    execution_graph = mock(ExecutionGraph.class);
     id = SimpleStringTimeSeriesId.newBuilder()
         .setAlias("Khalisi")
         .build();
@@ -79,7 +79,7 @@ public class TestMockNumericIterator {
     set.add(new MutableNumericType(id, new MillisecondTimeStamp(7000), 7, 1));
     data.add(set);
     
-    context = new DefaultQueryContext(tsdb, executor_context);
+    context = new DefaultQueryContext(tsdb, execution_graph);
     processor = new DefaultTimeSeriesProcessor(context);
     group = new SimpleStringGroupId("Freys");
   }
@@ -331,7 +331,7 @@ public class TestMockNumericIterator {
     assertEquals(IteratorStatus.END_OF_CHUNK, context.nextStatus());
     // left the parent in an END_OF_CHUNK state to verify the copy starts over.
     
-    final QueryContext ctx2 = new DefaultQueryContext(tsdb, executor_context);
+    final QueryContext ctx2 = new DefaultQueryContext(tsdb, execution_graph);
     final TimeSeriesProcessor processor2 = new DefaultTimeSeriesProcessor(ctx2);
     
     final MockNumericIterator copy = (MockNumericIterator) it.getCopy(ctx2);

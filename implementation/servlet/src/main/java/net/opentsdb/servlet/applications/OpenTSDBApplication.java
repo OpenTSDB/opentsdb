@@ -22,19 +22,20 @@ import org.glassfish.jersey.server.ResourceConfig;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.DataShardsGroups;
-import net.opentsdb.query.context.HttpContextFactory;
-import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.context.QueryExecutorContext;
 import net.opentsdb.query.execution.DefaultQueryExecutorFactory;
+import net.opentsdb.query.execution.HttpQueryV2Executor;
 import net.opentsdb.query.execution.MetricShardingExecutor;
 import net.opentsdb.query.execution.MultiClusterQueryExecutor;
 import net.opentsdb.query.execution.QueryExecutor;
-import net.opentsdb.query.execution.QueryExecutorConfig;
 import net.opentsdb.query.execution.QueryExecutorFactory;
+import net.opentsdb.query.execution.cluster.ClusterConfig;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.exceptions.QueryExecutionExceptionMapper;
 import net.opentsdb.stats.BraveTracer;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.JSON;
 
 @ApplicationPath("/")
 public class OpenTSDBApplication extends ResourceConfig {
@@ -57,11 +58,6 @@ public class OpenTSDBApplication extends ResourceConfig {
       final TSDB tsdb = new TSDB(new Config(true));
       servletConfig.getServletContext().setAttribute(TSD_ATTRIBUTE, tsdb);
       
-      HttpContextFactory f = new HttpContextFactory();
-      f.initialize(tsdb, tsdb.getTimer()).join();
-      
-      servletConfig.getServletContext().setAttribute(HTTP_CONTEXT_FACTORY, f);
-      
       final int asyncTimeout;
       if (tsdb.getConfig().hasProperty("mt.async.timeout")) {
         asyncTimeout = tsdb.getConfig().getInt("mt.async.timeout");
@@ -79,9 +75,8 @@ public class OpenTSDBApplication extends ResourceConfig {
       tsdb.getRegistry().registerTracer(new BraveTracer());
       
       tsdb.initializeRegistry().join();
-      
-      registerDefaultExecutorContexts(tsdb);
-      
+      setupDefaultExecutors(tsdb);
+
       register(GenericExceptionMapper.class);
       register(new QueryExecutionExceptionMapper(false, 1024));
       
@@ -91,30 +86,52 @@ public class OpenTSDBApplication extends ResourceConfig {
   }
   
   @SuppressWarnings("unchecked")
-  private void registerDefaultExecutorContexts(final TSDB tsdb) {
-    final QueryExecutorContext context = new QueryExecutorContext(
-        "MetricShardingAndMultiCluster");
+  public void setupDefaultExecutors(final TSDB tsdb) {
     try {
-      Constructor<?> ctor = MetricShardingExecutor.class.getConstructor(
-              QueryContext.class, QueryExecutorConfig.class);
+      Constructor<?> ctor/* = MetricShardingExecutor.class.getConstructor(
+          ExecutionGraphNode.class);
       QueryExecutorFactory<DataShardsGroups> sink = 
           new DefaultQueryExecutorFactory<DataShardsGroups>(
               (Constructor<QueryExecutor<?>>) ctor,
                 MetricShardingExecutor.Config.<DataShardsGroups>newBuilder()
                 .setParallelExecutors(20)
                 .setType(DataShardsGroups.class)
+                //.setDataMerger((DataMerger<DataShardsGroups>) mergers.get(DataShardsGroups.TYPE))
                 .build());
-      ctor = 
-          MultiClusterQueryExecutor.class.getConstructor(
-              QueryContext.class, QueryExecutorConfig.class);
+      
+      final List<ClusterDescriptor> clusters = 
+          Lists.newArrayListWithExpectedSize(endpoints.getEndpoints(null).size());
+      final List<String> snapshot = endpoints.getEndpoints(null);
+      for (int i = 0; i < snapshot.size(); i++) {
+        clusters.add(new HttpCluster(i, snapshot));
+      }
+      ctor*/  = HttpQueryV2Executor.class.getConstructor(ExecutionGraphNode.class);
+      QueryExecutorFactory<DataShardsGroups> http_factory = 
+              new DefaultQueryExecutorFactory<DataShardsGroups>(
+                  (Constructor<QueryExecutor<?>>) ctor, DataShardsGroups.class, "HttpQueryV2Executor");
+      tsdb.getRegistry().registerFactory(http_factory);
+
+
+      ctor = MultiClusterQueryExecutor.class.getConstructor(
+              ExecutionGraphNode.class);
       QueryExecutorFactory<DataShardsGroups> downstream = 
           new DefaultQueryExecutorFactory<DataShardsGroups>(
-              (Constructor<QueryExecutor<?>>) ctor,
-              MultiClusterQueryExecutor.Config.<DataShardsGroups>newBuilder()
-                .setType(DataShardsGroups.class)
-                .build());
-      context.registerFactory(sink, downstream);
-      tsdb.getRegistry().registerQueryExecutorContext(context, true);
+              (Constructor<QueryExecutor<?>>) ctor, DataShardsGroups.class,
+                "MultiClusterQueryExecutor");
+      tsdb.getRegistry().registerFactory(downstream);
+      
+      //String cluster_conf = "{\"id\":\"http_cluster\",\"executionGraph\":{\"id\":\"http_cluster\",\"nodes\":[{\"executorId\":\"http\",\"dataType\":\"timeseries\",\"upstream\":null,\"executorType\":\"HttpQueryV2Executor\",\"defaultConfig\":{\"executorType\":\"HttpQueryV2Executor\",\"executorId\":\"http\",\"timeout\":6000}}]},\"config\":{\"id\":\"StaticConfig\",\"implementation\":\"StaticClusterConfig\",\"clusters\":[{\"cluster\":\"Primary\",\"description\":\"somethinguseful\",\"executorConfigs\":[{\"executorType\":\"HttpQueryV2Executor\",\"executorId\":\"Primary_http\",\"endpoint\":\"http://data.yamas.ops.yahoo.com:9999\"}]},{\"cluster\":\"Secondary\",\"description\":\"somethinguseful\",\"executorConfigs\":[{\"executorType\":\"HttpQueryV2Executor\",\"executorId\":\"Secondary_http\",\"endpoint\":\"http://bcp-data.yamas.ops.yahoo.com:9999\"}]}],\"overrides\":[{\"id\":\"prod-pri\",\"clusters\":[{\"cluster\":\"Primary\"}]},{\"id\":\"prod-bcp\",\"clusters\":[{\"cluster\":\"Secondary\"}]},{\"id\":\"prod-gq1\",\"clusters\":[{\"cluster\":\"Primary\",\"executorConfigs\":[{\"executorType\":\"HttpQueryV2Executor\",\"executorId\":\"Primary_http\",\"endpoint\":\"http://api-tsdbr-gq1.yamas.ops.yahoo.com:9999/\"}]}]},{\"id\":\"prod-bf1\",\"clusters\":[{\"cluster\":\"Primary\",\"executorConfigs\":[{\"executorType\":\"HttpQueryV2Executor\",\"executorId\":\"Primary_http\",\"endpoint\":\"http://api-tsdbr-bf1.yamas.ops.yahoo.com:9999/\"}]}]},{\"id\":\"hosts\",\"clusters\":[{\"cluster\":\"Primary\",\"executorConfigs\":[{\"executorType\":\"HttpQueryV2Executor\",\"executorId\":\"Primary_http\",\"endpoint\":\"http://ymstsdb-11.ops.gq1.yahoo.com:9999\"}]}]}]}}";
+      String cluster_conf = tsdb.getConfig().getString("tsd.servlet.config.default_cluster");
+      ClusterConfig graph = JSON.parseToObject(cluster_conf, ClusterConfig.class);
+      graph.initialize(tsdb).join(1);
+      tsdb.getRegistry().registerClusterConfig(graph);
+      
+      //String exec_graph = "{\"id\":\"default_executor_context\",\"nodes\":[{\"executorId\":\"HttpMultiCluster\",\"dataType\":\"timeseries\",\"upstream\":null,\"executorType\":\"MultiClusterQueryExecutor\",\"defaultConfig\":{\"executorId\":\"DefaultCluster\",\"executorType\":\"MultiClusterQueryExecutor\",\"clusterConfig\":\"http_cluster\"}}]}";
+      String exec_graph = tsdb.getConfig().getString("tsd.servlet.config.default_execution_graph");
+      ExecutionGraph eg = JSON.parseToObject(exec_graph, ExecutionGraph.class);
+      eg.initialize(tsdb, null).join(1);
+      tsdb.getRegistry().registerExecutionGraph(eg, true);
+      
     } catch (Exception e) {
       throw new RuntimeException("Failed to initialize default query "
           + "executor context", e);

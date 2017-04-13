@@ -18,17 +18,28 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Objects;
+import com.google.common.base.Strings;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
+import com.google.common.collect.Ordering;
+import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Span;
+import net.opentsdb.core.Const;
 import net.opentsdb.data.DataMerger;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.plan.SplitMetricPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.stats.TsdbTrace;
@@ -38,8 +49,8 @@ import net.opentsdb.utils.JSON;
  * An executor that takes {@link TimeSeriesQuery}s that have 1 or more child
  * queries with a single metric each (e.g. one returned by the 
  * {@link SplitMetricPlanner}. Each sub query is sent to an executor up to
- * {@link #parallel_executors}. If there are more sub queries than 
- * {@link #parallel_executors} the executor waits until one of the outstanding
+ * {@link #default_parallel_executors}. If there are more sub queries than 
+ * {@link #default_parallel_executors} the executor waits until one of the outstanding
  * queries has completed before firing off another query to the next executor.
  * <p>
  * If any of the downstream executors return an exception, all sub queries are
@@ -57,65 +68,49 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       MetricShardingExecutor.class);
   
   /** How many queries to fire in parallel for the currently executing query. */
-  protected final int parallel_executors;
+  protected final int default_parallel_executors;
   
   /** The data merger used to merge results. */
-  private final DataMerger<T> data_merger;
+  private DataMerger<T> default_data_merger;
   
-  /** The downstream executors to rotate through. */
-  protected QueryExecutor<T>[] executors;
-  
-  /** The current index in the executors array. */
-  protected int executor_index;
+  /** The downstream executor to pass sharded queries to. */
+  protected QueryExecutor<T> executor;
   
   /**
    * Default ctor.
-   * @param context A non-null context. 
-   * @param config A query executor config.
-   * @throws IllegalArgumentException if the config or type were null or the
-   * parallel executors were set to less than 1.
-   * @throws IllegalStateException if the data merger was null or the wrong type
-   * or if one of the downstream executors was null.
+   * @param node A non null node to pull the ID and config from. 
+   * @throws IllegalArgumentException if a config param was invalid.
    */
   @SuppressWarnings("unchecked")
-  public MetricShardingExecutor(final QueryContext context, 
-                                final QueryExecutorConfig config) {
-    super(context, config);
-    if (config == null) {
+  public MetricShardingExecutor(final ExecutionGraphNode node) {
+    super(node);
+    if (node.getDefaultConfig() == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    if (((Config<T>) config).type == null) {
-      throw new IllegalArgumentException("Type cannot be null.");
-    }
-    if (((Config<T>) config).parallel_executors < 1) {
+    if (((Config) node.getDefaultConfig()).parallel_executors < 1) {
       throw new IllegalArgumentException("Parallel executors must be one or "
           + "greater.");
     }
-    parallel_executors = ((Config<T>) config).parallel_executors;
-    data_merger = (DataMerger<T>) context.getRemoteContext().dataMerger(
-        TypeToken.of(((Config<T>) config).type));
-    if (data_merger == null) {
-      throw new IllegalStateException("No merger could be found for type " 
-          + ((Config<T>) config).type);
-    }
-    if (!TypeToken.of(((Config<T>) config).type).equals(data_merger.type())) {
-      throw new IllegalStateException("Data merger of type " + data_merger.type() 
-        + " did not match the executor's type: " + ((Config<T>) config).type);
+    default_parallel_executors = ((Config) node.getDefaultConfig()).parallel_executors;
+    default_data_merger = (DataMerger<T>) node.graph().tsdb()
+        .getRegistry().getDataMerger(
+            ((Config) node.getDefaultConfig()).merge_strategy);
+    if (default_data_merger == null) {
+      throw new IllegalArgumentException("No data merger found for: " 
+          + ((Config) node.getDefaultConfig()).merge_strategy);
     }
     
-    executors = new QueryExecutor[parallel_executors];
-    for (int i = 0; i < parallel_executors; i++) {
-      executors[i] = (QueryExecutor<T>) context.getQueryExecutorContext()
-          .newDownstreamExecutor(context, config.getFactory());
-      if (executors[i] == null) {
-        throw new IllegalStateException("Downstream executor returned null.");
-      }
-      registerDownstreamExecutor(executors[i]);
+    executor = (QueryExecutor<T>) node.graph()
+        .getDownstreamExecutor(node.getExecutorId());
+    if (executor == null) {
+      throw new IllegalArgumentException("Downstream executor was null: " + this);
     }
+    registerDownstreamExecutor(executor);
   }
 
   @Override
-  public QueryExecution<T> executeQuery(final TimeSeriesQuery query,
+  public QueryExecution<T> executeQuery(final QueryContext context,
+                                        final TimeSeriesQuery query,
                                         final Span upstream_span) {
     final SplitMetricPlanner plan = new SplitMetricPlanner(query);
     if (plan.getPlannedQuery().subQueries() == null || 
@@ -123,13 +118,15 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       throw new IllegalArgumentException("Query didn't have any sub after "
           + "planning: " + plan.getPlannedQuery());
     }
-    final QuerySplitter executor = new QuerySplitter(plan.getPlannedQuery());
+    final QuerySplitter executor = new QuerySplitter(context, plan.getPlannedQuery());
     executor.executeQuery(upstream_span);
     return executor;
   }
 
   /** The execution for a specific query that handles rotating through executors. */
   private class QuerySplitter extends QueryExecution<T> {
+    final QueryContext context;
+    
     /** The parent query to pull sub queries out of. */
     private final TimeSeriesQuery query;
     
@@ -145,14 +142,14 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
      * @param query A non-null query.
      */
     @SuppressWarnings("unchecked")
-    public QuerySplitter(final TimeSeriesQuery query) {
+    public QuerySplitter(final QueryContext context,final TimeSeriesQuery query) {
       super(query);
+      this.context = context;
       outstanding_executions.add(this);
       this.query = query;
       executions = new QueryExecution[query.subQueries().size()];
     }
-
-    @SuppressWarnings("unchecked")
+    
     QueryExecution<T> executeQuery(final Span upstream_span) {
       if (context.getTracer() != null) {
         setSpan(context, MetricShardingExecutor.this.getClass().getSimpleName(), 
@@ -162,14 +159,27 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
                 "query", JSON.serializeToString(query),
                 "startThread", Thread.currentThread().getName()));
       }
+      
+      final int parallels;
+      final Config override = (Config) context.getConfigOverride(
+          node.getExecutorId());
+      if (override != null && override.getParallelExecutors() > 0) {
+        parallels = override.getParallelExecutors();
+      } else {
+        parallels = default_parallel_executors;
+      }
+      
+      // locked here so that a query that returns BEFORE we fire the proper
+      // amount doesn't increment the index on us.
       synchronized (this) {
-        for (int i = 0; i < executions.length && i < parallel_executors; i++) {
+        for (int i = 0; i < executions.length && i < parallels; i++) {
           if (!completed.get()) {
             executions[i] = (QueryExecution<T>) 
-                nextExecutor().executeQuery(query.subQueries().get(i), tracer_span);
+                executor.executeQuery(context, query.subQueries().get(i),
+                    tracer_span);
+            
             executions[i].deferred().addCallback(new DataCB(splits_index))
                                     .addErrback(new ErrCB(splits_index));
-            LOG.debug("Sent query index: " + splits_index);
             ++splits_index;
           } else {
             if (LOG.isDebugEnabled()) {
@@ -189,15 +199,13 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
      * <b>WARNING:</b> Make sure to synchronize on *this* before executing to
      * avoid a race.
      */
-    @SuppressWarnings("unchecked")
     private void launchNext() {
       final TimeSeriesQuery sub_query = query.subQueries().get(splits_index);
       executions[splits_index] = (QueryExecution<T>) 
-          nextExecutor().executeQuery(sub_query, tracer_span);
+          executor.executeQuery(context, sub_query, tracer_span);
       executions[splits_index].deferred()
                               .addCallback(new DataCB(splits_index))
                               .addErrback(new ErrCB(splits_index));
-      LOG.debug("Launched next index: " + splits_index);
       ++splits_index;
       if (splits_index >= query.subQueries().size()) {
         groupEm();
@@ -256,7 +264,8 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       public Object call(final ArrayList<T> data) throws Exception {
         outstanding_executions.remove(QuerySplitter.this);
         try {
-          callback(data_merger.merge(data, context, tracer_span),
+          // TODO - override
+          callback(default_data_merger.merge(data, context, tracer_span),
               TsdbTrace.successfulTags());
         } catch (IllegalStateException e) {
           LOG.warn("Group callback tried to return results despite being "
@@ -340,61 +349,129 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
     
   }
   
-  /**
-   * Fetches the next executor from the executors array. This is higher than the
-   * {@link QueryExecution} level so that if a single parent query is streaming
-   * a lot of queries at this executor we can rotate through the executors for
-   * all of the queries.
-   * @return A non-null query executor to use for the next query.
-   */
-  private synchronized QueryExecutor<?> nextExecutor() {
-    final QueryExecutor<?> executor = executors[executor_index++];
-    if (executor_index >= executors.length) {
-      executor_index = 0;
-    }
-    return executor;
-  }
-  
   @VisibleForTesting
   DataMerger<T> dataMerger() {
-    return data_merger;
+    return default_data_merger;
   }
   
-  public static class Config<T> extends QueryExecutorConfig {
-    private Class<T> type;
+  @JsonInclude(Include.NON_NULL)
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  @JsonDeserialize(builder = Config.Builder.class)
+  public static class Config extends QueryExecutorConfig {
     private int parallel_executors;
-    
-    private Config(final Builder<T> builder) {
-      type = builder.type;
-      parallel_executors = builder.parallel_executors;
+    private String merge_strategy;
+
+    /**
+     * Default ctor.
+     * @param builder A non-null builder.
+     */
+    private Config(final Builder builder) {
+      super(builder);
+      parallel_executors = builder.parallelExecutors;
+      merge_strategy = builder.mergeStrategy;
     }
     
-    public static <T> Builder<T> newBuilder() {
-      return new Builder<T>();
+    /** @return The number of executions to run in parallel. */
+    public int getParallelExecutors() {
+      return parallel_executors;
     }
     
-    public static class Builder<T> {
-      private Class<T> type;
-      private int parallel_executors;
+    /** @return The merge strategy to use for data. */
+    public String getMergeStrategy() {
+      return merge_strategy;
+    }
+    
+    /** @return A new builder. */
+    public static Builder newBuilder() {
+      return new Builder();
+    }
+    
+    /**
+     * @param config A non-null builcer to pull from.
+     * @return A cloned builder.
+     */
+    public static Builder newBuilder(final Config config) {
+      return (Builder) new Builder()
+          .setParallelExecutors(config.parallel_executors)
+          .setMergeStrategy(config.merge_strategy)
+          .setExecutorId(config.executor_id)
+          .setExecutorType(config.executor_type);
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      final Config config = (Config) o;
+      return Objects.equal(executor_id, config.executor_id)
+          && Objects.equal(executor_type, config.executor_type)
+          && Objects.equal(parallel_executors, config.parallel_executors)
+          && Objects.equal(merge_strategy, config.merge_strategy);
+    }
+
+    @Override
+    public int hashCode() {
+      return buildHashCode().asInt();
+    }
+
+    @Override
+    public HashCode buildHashCode() {
+      return Const.HASH_FUNCTION().newHasher()
+        .putString(Strings.nullToEmpty(executor_id), Const.UTF8_CHARSET)
+        .putString(Strings.nullToEmpty(executor_type), Const.UTF8_CHARSET)
+        .putLong(parallel_executors)
+        .putString(Strings.nullToEmpty(merge_strategy), Const.UTF8_CHARSET)
+        .hash();
+    }
+
+    @Override
+    public int compareTo(QueryExecutorConfig config) {
+      return ComparisonChain.start()
+          .compare(executor_id, config.executor_id, 
+              Ordering.natural().nullsFirst())
+          .compare(executor_type, config.executor_type, 
+              Ordering.natural().nullsFirst())
+          .compare(parallel_executors, ((Config) config).parallel_executors)
+          .compare(merge_strategy, ((Config) config).merge_strategy, 
+              Ordering.natural().nullsFirst())
+          .result();
+    }
+    
+    public static class Builder extends QueryExecutorConfig.Builder {
+      @JsonProperty
+      private int parallelExecutors;
+      @JsonProperty
+      private String mergeStrategy = "largest";
       
       /**
-       * The class of the return type handled by the executor.
-       * @param type A non-null class.
+       * How many executors to run in parallel.
+       * @param parallel_executors A value greater than zero.
        * @return The builder.
        */
-      public Builder<T> setType(final Class<T> type) {
-        this.type = type;
+      public Builder setParallelExecutors(final int parallel_executors) {
+        this.parallelExecutors = parallel_executors;
         return this;
       }
       
-      public Builder<T> setParallelExecutors(final int parallel_executors) {
-        this.parallel_executors = parallel_executors;
+      /**
+       * The data merge strategy to use for merging data from different clusters.
+       * @param merge_strategy A non-null merge strategy.
+       * @return The builder.
+       */
+      public Builder setMergeStrategy(final String merge_strategy) {
+        this.mergeStrategy = merge_strategy;
         return this;
       }
       
-      public Config<T> build() {
-        return new Config<T>(this);
+      /** @return An instantiated config if validation passes. */
+      public Config build() {
+        return new Config(this);
       }
     }
+
   }
 }
