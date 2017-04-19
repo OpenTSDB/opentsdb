@@ -24,15 +24,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.eclipse.jetty.util.log.Log;
 import org.hbase.async.Bytes;
+import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
-import org.hbase.async.Bytes.ByteMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.stumbleupon.async.Callback;
@@ -1056,7 +1055,6 @@ final class TsdbQuery implements Query {
     if(tsdb.getConfig().use_otsdb_timestamp()) {
     	long stTime = (getScanStartTimeSeconds() * 1000);
     	long endTime = end_time == UNSET ? -1 : (getScanEndTimeSeconds() * 1000);
-    	Log.debug("Set scanner timestamp filter from: "+ stTime + "  to: " + endTime + " " + getStartTime() + " " + getEndTime());
     	scanner.setTimeRange(stTime, endTime);
     }
     if (tsuids != null && !tsuids.isEmpty()) {

@@ -193,7 +193,8 @@ tsdb_SRC := \
 	src/utils/JSONException.java	\
 	src/utils/Pair.java	\
 	src/utils/PluginLoader.java	\
-	src/utils/Threads.java
+	src/utils/Threads.java \
+	src/core/RequestBuilder.java
 
 tsdb_DEPS = \
 	$(COMMONS_LOGGING)	\
@@ -271,6 +272,7 @@ test_SRC := \
 	test/core/TestTsdbQuerySaltedAppend.java	\
 	test/core/TestTSQuery.java	\
 	test/core/TestTSSubQuery.java	\
+	test/core/TestTsdbTSConfig.java \
 	test/plugin/DummyPlugin.java \
 	test/meta/TestAnnotation.java	\
 	test/meta/TestTSMeta.java	\
