@@ -152,7 +152,9 @@ final class CliOptions {
         config.overrideConfig("tsd.network.async_io", entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--worker-threads")) {
         config.overrideConfig("tsd.network.worker_threads", entry.getValue());
-      } 	  
+      } else if(entry.getKey().toLowerCase().equals("--use-otsdb-ts")) {
+    	config.overrideConfig("tsd.storage.use_otsdb_timestamp", "true");
+      }
     }
   }
   

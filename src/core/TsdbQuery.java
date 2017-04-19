@@ -26,6 +26,7 @@ import java.util.TreeMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.eclipse.jetty.util.log.Log;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.HBaseException;
@@ -1052,6 +1053,12 @@ final class TsdbQuery implements Query {
         (int) getScanStartTimeSeconds(), end_time == UNSET
         ? -1  // Will scan until the end (0xFFF...).
         : (int) getScanEndTimeSeconds(), tsdb.table, TSDB.FAMILY());
+    if(tsdb.getConfig().use_otsdb_timestamp()) {
+    	long stTime = (getScanStartTimeSeconds() * 1000);
+    	long endTime = end_time == UNSET ? -1 : (getScanEndTimeSeconds() * 1000);
+    	Log.debug("Set scanner timestamp filter from: "+ stTime + "  to: " + endTime + " " + getStartTime() + " " + getEndTime());
+    	scanner.setTimeRange(stTime, endTime);
+    }
     if (tsuids != null && !tsuids.isEmpty()) {
       createAndSetTSUIDFilter(scanner);
     } else if (filters.size() > 0) {
@@ -1081,7 +1088,7 @@ final class TsdbQuery implements Query {
     }
 
     // Then snap that timestamp back to its representative value for the
-    // timespan in which it appears.
+    // timespan in which it appears
     final long timespan_offset = interval_aligned_ts % Const.MAX_TIMESPAN;
     final long timespan_aligned_ts = interval_aligned_ts - timespan_offset;
 

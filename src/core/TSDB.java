@@ -988,12 +988,12 @@ public final class TSDB {
         Deferred<Object> result = null;
         if (config.enable_appends()) {
           final AppendDataPoints kv = new AppendDataPoints(qualifier, value);
-          final AppendRequest point = new AppendRequest(table, row, FAMILY, 
-              AppendDataPoints.APPEND_COLUMN_QUALIFIER, kv.getBytes());
+          final AppendRequest point = RequestBuilder.buildAppendRequest(config, table, row, FAMILY, 
+              AppendDataPoints.APPEND_COLUMN_QUALIFIER, kv.getBytes(), timestamp);
           result = client.append(point);
         } else {
           scheduleForCompaction(row, (int) base_time);
-          final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
+          final PutRequest point = RequestBuilder.buildPutRequest(config, table, row, FAMILY, qualifier, value, timestamp);
           result = client.put(point);
         }
 
@@ -1592,8 +1592,9 @@ public final class TSDB {
   /** Puts the given value into the data table. */
   final Deferred<Object> put(final byte[] key,
                              final byte[] qualifier,
-                             final byte[] value) {
-    return client.put(new PutRequest(table, key, FAMILY, qualifier, value));
+                             final byte[] value,
+                             long timestamp) {
+    return client.put(RequestBuilder.buildPutRequest(config, table, key, FAMILY, qualifier, value, timestamp));
   }
 
   /** Deletes the given cells from the data table. */

@@ -86,6 +86,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
   /** If this is X then we'll flush X times faster than we really need.  */
   private final int flush_speed;  // multiplicative factor
+  
+  private long compactedKVTimestamp;
 
   /**
    * Constructor.
@@ -336,6 +338,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         return null;
       }
 
+      compactedKVTimestamp = Long.MIN_VALUE;
       // go through all the columns, process annotations, and
       heap = new PriorityQueue<ColumnDatapointIterator>(nkvs);
       int tot_values = buildHeapProcessAnnotations();
@@ -385,7 +388,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       deleted_cells.addAndGet(to_delete.size());  // We're going to delete this.
       if (write) {
         written_cells.incrementAndGet();
-        Deferred<Object> deferred = tsdb.put(key, compact.qualifier(), compact.value());
+        Deferred<Object> deferred = tsdb.put(key, compact.qualifier(), compact.value(), compactedKVTimestamp);
         if (!to_delete.isEmpty()) {
           deferred = deferred.addCallbacks(new DeleteCompactedCB(to_delete), handle_write_error);
         }
@@ -434,6 +437,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           if (qual[0] == Annotation.PREFIX()) {
             annotations.add(JSON.parseToObject(kv.value(), Annotation.class));
           } else if (qual[0] == AppendDataPoints.APPEND_COLUMN_PREFIX){
+        	compactedKVTimestamp = Math.max(compactedKVTimestamp, kv.timestamp());
             final AppendDataPoints adp = new AppendDataPoints();
             tot_values += adp.parseKeyValue(tsdb, kv).size();
             last_append_column = new KeyValue(kv.key(), kv.family(), 
@@ -461,6 +465,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           longest = kv;
         }
         ColumnDatapointIterator col = new ColumnDatapointIterator(kv);
+        compactedKVTimestamp = Math.max(compactedKVTimestamp, kv.timestamp());
         if (col.hasMoreData()) {
           heap.add(col);
         }
@@ -539,7 +544,10 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       }
 
       final KeyValue first = row.get(0);
-      return new KeyValue(first.key(), first.family(), cq, cv);
+      if(tsdb.getConfig().getBoolean("tsd.storage.use_otsdb_timestamp"))
+    	  return new KeyValue(first.key(), first.family(), cq, compactedKVTimestamp, cv);
+      else
+    	  return new KeyValue(first.key(), first.family(), cq, cv);
     }
 
     /**

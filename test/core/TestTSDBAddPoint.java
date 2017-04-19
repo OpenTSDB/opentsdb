@@ -12,21 +12,23 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.anyShort;
-import static org.mockito.Matchers.eq;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.anyShort;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.HashMap;
+import java.util.Map;
+import java.util.TreeMap;
 
 import org.hbase.async.Bytes;
 import org.junit.Before;
@@ -53,6 +55,34 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
+  }
+  
+  @Test
+  public void addPointWithOTSDBTimeStamp() throws Exception {
+	  long ts = 1356998400;
+	  tsdb.getConfig().overrideConfig("tsd.storage.use_otsdb_timestamp", "true");
+	  tsdb.addPoint(METRIC_STRING, ts, 42, tags).joinUninterruptibly();
+		final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1 };
+		TreeMap<Long, byte[]> result = storage.getFullColumn(tsdb.dataTable(), row, tsdb.FAMILY(), new byte[] { 0, 0 });
+		assert(result != null);
+		for (Map.Entry<Long, byte[]> e : result.entrySet()) {
+			long retrievedTs = e.getKey();
+			assert((ts * 1000) == retrievedTs);
+		}
+  }
+  
+  @Test
+  public void addPointWithoutOTSDBTimeStamp() throws Exception {
+	long ts = 1356998400;
+	tsdb.getConfig().overrideConfig("tsd.storage.use_otsdb_timestamp", "false");
+	tsdb.addPoint(METRIC_STRING, ts, 42, tags).joinUninterruptibly();
+	final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 0, 0, 1, 0, 0, 1 };
+	TreeMap<Long, byte[]> result = storage.getFullColumn(tsdb.dataTable(), row, tsdb.FAMILY(), new byte[] { 0, 0 });
+	assert(result != null);
+	for (Map.Entry<Long, byte[]> e : result.entrySet()) {
+	  long retrievedTs = e.getKey();
+	  assert((ts * 1000) != retrievedTs);
+	}
   }
   
   @Test
