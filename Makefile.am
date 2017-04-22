@@ -214,7 +214,6 @@ tsdb_DEPS = \
 
 if BIGTABLE
 tsdb_DEPS += \
-	$(ALPN_BOOT)	\
 	$(ASYNCBIGTABLE)
 maven_profile_bigtable := true
 maven_profile_hbase := false
