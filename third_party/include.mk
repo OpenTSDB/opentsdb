@@ -38,7 +38,6 @@ include third_party/validation-api/include.mk
 include third_party/apache/include.mk
 
 if BIGTABLE
-include third_party/alpn-boot/include.mk
 include third_party/asyncbigtable/include.mk
 ASYNCCASSANDRA_VERSION = 0.0
 ASYNCHBASE_VERSION = 0.0
