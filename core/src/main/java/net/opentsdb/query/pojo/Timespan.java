@@ -195,6 +195,26 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
     return Hashing.combineOrdered(hashes);
   }
   
+  /** @return A HashCode object for deterministic, non-secure hashing without
+   * the timestamps. */
+  public HashCode buildTimelessHashCode() {
+    final HashCode hc = Const.HASH_FUNCTION().newHasher()
+        .putString(Strings.nullToEmpty(timezone), Const.ASCII_CHARSET)
+        .putString(Strings.nullToEmpty(aggregator), Const.ASCII_CHARSET)
+        .putBoolean(rate)
+        .putString(Strings.nullToEmpty(slice_config), Const.ASCII_CHARSET)
+        .hash();
+    final List<HashCode> hashes = Lists.newArrayListWithCapacity(2);
+    hashes.add(hc);
+    if (downsampler != null) {
+      hashes.add(downsampler.buildHashCode());
+    }
+    if (rate_options != null) {
+      hashes.add(rate_options.buildHashCode());
+    }
+    return Hashing.combineOrdered(hashes);
+  }
+  
   @Override
   public int compareTo(final Timespan o) {
     return ComparisonChain.start()

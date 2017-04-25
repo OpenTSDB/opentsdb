@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.Collections;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotSame;
@@ -305,8 +306,42 @@ public class TestQuery {
         .setOutputs(Arrays.asList(output, o1))
         .build();
     assertEquals(q1.hashCode(), q2.hashCode());
+    assertArrayEquals(q1.buildTimelessHashCode().asBytes(), 
+        q2.buildTimelessHashCode().asBytes());
     assertEquals(q1, q2);
     assertEquals(0, q1.compareTo(q2));
+    
+    time = Timespan.newBuilder()
+        .setStart("2h-ago")  // <-- diff
+        .setEnd("1h-ago")
+        .setAggregator("avg")
+        .setTimezone("UTC").setDownsampler(
+            Downsampler.newBuilder().setInterval("15m").setAggregator("avg")
+            .setFillPolicy(new NumericFillPolicy(FillPolicy.NOT_A_NUMBER)).build())
+        .build();
+    
+    q2 = new TimeSeriesQuery.Builder()
+        .setName("q1")
+        .setTime(time)
+        .setExpressions(Arrays.asList(expression, e1))
+        .setFilters(Arrays.asList(filter, f1))
+        .setMetrics(Arrays.asList(metric, m1))
+        .setOutputs(Arrays.asList(output, o1))
+        .build();
+    assertNotEquals(q1.hashCode(), q2.hashCode());
+    assertArrayEquals(q1.buildTimelessHashCode().asBytes(), 
+        q2.buildTimelessHashCode().asBytes());
+    assertNotEquals(q1, q2);
+    assertEquals(1, q1.compareTo(q2));
+    
+    time = Timespan.newBuilder()
+        .setStart("3h-ago")  // <-- back to normal
+        .setEnd("1h-ago")
+        .setAggregator("avg")
+        .setTimezone("UTC").setDownsampler(
+            Downsampler.newBuilder().setInterval("15m").setAggregator("avg")
+            .setFillPolicy(new NumericFillPolicy(FillPolicy.NOT_A_NUMBER)).build())
+        .build();
     
     q2 = new TimeSeriesQuery.Builder()
         .setName("q1")

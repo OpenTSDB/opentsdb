@@ -336,6 +336,43 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
     return Hashing.combineOrdered(hashes);
   }
   
+  /** @return A HashCode object for deterministic, non-secure hashing  hashing without
+   * the timestamps. */
+  public HashCode buildTimelessHashCode() {
+    final HashCode local_hc = Const.HASH_FUNCTION().newHasher()
+        .putString(Strings.nullToEmpty(name), Const.UTF8_CHARSET)
+        .hash();
+    final List<HashCode> hashes = 
+        Lists.newArrayListWithCapacity(2 + 
+            (filters != null ? filters.size() : 0) + 
+            metrics.size() +
+            (expressions != null ? expressions.size() : 0) +
+            (outputs != null ? outputs.size() : 0));
+    hashes.add(local_hc);
+    if (time != null) {
+      hashes.add(time.buildTimelessHashCode());
+    }
+    if (filters != null) {
+      for (final Filter filter : filters) {
+        hashes.add(filter.buildHashCode());
+      }
+    }
+    for (final Metric metric : metrics) {
+      hashes.add(metric.buildHashCode());
+    }
+    if (expressions != null) {
+      for (final Expression exp : expressions) {
+        hashes.add(exp.buildHashCode());
+      }
+    }
+    if (outputs != null) {
+      for (final Output output : outputs) {
+        hashes.add(output.buildHashCode());
+      }
+    }
+    return Hashing.combineOrdered(hashes);
+  }
+  
   @Override
   public int compareTo(final TimeSeriesQuery o) {
     return ComparisonChain.start()

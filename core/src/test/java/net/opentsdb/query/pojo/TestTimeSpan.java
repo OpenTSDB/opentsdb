@@ -12,11 +12,13 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.pojo;
 
+import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 
 import org.junit.Test;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotSame;
@@ -274,6 +276,8 @@ public class TestTimeSpan {
         .setSliceConfig("50%")
         .build();
     assertEquals(t1.hashCode(), t2.hashCode());
+    assertArrayEquals(t1.buildTimelessHashCode().asBytes(), 
+        t2.buildTimelessHashCode().asBytes());
     assertEquals(t1, t2);
     assertEquals(0, t1.compareTo(t2));
     
@@ -292,6 +296,8 @@ public class TestTimeSpan {
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
+    assertArrayEquals(t1.buildTimelessHashCode().asBytes(), 
+        t2.buildTimelessHashCode().asBytes());
     assertNotEquals(t1, t2);
     assertEquals(1, t1.compareTo(t2));
     
@@ -310,6 +316,8 @@ public class TestTimeSpan {
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
+    assertArrayEquals(t1.buildTimelessHashCode().asBytes(), 
+        t2.buildTimelessHashCode().asBytes());
     assertNotEquals(t1, t2);
     assertEquals(1, t1.compareTo(t2));
     
@@ -328,6 +336,8 @@ public class TestTimeSpan {
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
+    assertArrayEquals(t1.buildTimelessHashCode().asBytes(), 
+        t2.buildTimelessHashCode().asBytes());
     assertNotEquals(t1, t2);
     assertEquals(1, t1.compareTo(t2));
     
@@ -346,6 +356,9 @@ public class TestTimeSpan {
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
+    // wish there was an assertArrayNotEquals...
+    assertTrue(Bytes.memcmp(t1.buildTimelessHashCode().asBytes(), 
+        t2.buildTimelessHashCode().asBytes()) != 0);
     assertNotEquals(t1, t2);
     assertEquals(1, t1.compareTo(t2));
     
