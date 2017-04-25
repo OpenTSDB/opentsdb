@@ -756,4 +756,46 @@ public final class Bytes {
     return buf.toString();
   }
   
+  /** Wrapper around a byte array to override the {@link #equals(Object)} and
+   * {@link #hashCode()} methods so it can be used as the key in a map for
+   * instances where we can't use a {@link ByteMap}. 
+   */
+  public static class ByteArrayKey {
+    /** The key. */
+    final byte[] key;
+    
+    /**
+     * Default Ctor.
+     * @param key A non-null byte array. Empty is ok.
+     * @throws IllegalArgumentException if the key was null.
+     */
+    public ByteArrayKey(final byte[] key) {
+      if (key == null) {
+        throw new IllegalArgumentException("Null keys not allowed.");
+      }
+      this.key = key;
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      final ByteArrayKey other = (ByteArrayKey) o;
+      return memcmp(key, other.key) == 0;
+    }
+    
+    @Override
+    public int hashCode() {
+      return Arrays.hashCode(key);
+    }
+    
+    /** @return The key. */
+    public byte[] key() {
+      return key;
+    }
+  }
 }

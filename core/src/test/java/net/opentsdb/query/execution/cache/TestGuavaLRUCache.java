@@ -1,0 +1,455 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2017  The OpenTSDB Authors.
+//
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or (at your
+// option) any later version.  This program is distributed in the hope that it
+// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+// General Public License for more details.  You should have received a copy
+// of the GNU Lesser General Public License along with this program.  If not,
+// see <http://www.gnu.org/licenses/>.
+package net.opentsdb.query.execution.cache;
+
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.util.concurrent.TimeUnit;
+
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.core.TSDB;
+import net.opentsdb.utils.Config;
+import net.opentsdb.utils.DateTime;
+
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({ DateTime.class, GuavaLRUCache.class })
+public class TestGuavaLRUCache {
+
+  private TSDB tsdb;
+  private Config config;
+  
+  @Before
+  public void before() throws Exception {
+    tsdb = mock(TSDB.class);
+    config = new Config(false);
+    when(tsdb.getConfig()).thenReturn(config);
+  }
+  
+  @Test
+  public void initialize() throws Exception {
+    GuavaLRUCache cache = new GuavaLRUCache();
+    cache.initialize(tsdb).join();
+    assertEquals(GuavaLRUCache.DEFAULT_SIZE_LIMIT, cache.sizeLimit());
+    assertEquals(GuavaLRUCache.DEFAULT_MAX_OBJECTS, cache.maxObjects());
+    assertEquals(0, cache.bytesStored());
+    assertEquals(0, cache.cache().size());
+    
+    config.overrideConfig("tsd.executor.plugin.guava.limit.objects", "42");
+    cache = new GuavaLRUCache();
+    cache.initialize(tsdb).join();
+    assertEquals(GuavaLRUCache.DEFAULT_SIZE_LIMIT, cache.sizeLimit());
+    assertEquals(42, cache.maxObjects());
+    assertEquals(0, cache.bytesStored());
+    assertEquals(0, cache.cache().size());
+    
+    config.overrideConfig("tsd.executor.plugin.guava.limit.bytes", "16");
+    cache = new GuavaLRUCache();
+    cache.initialize(tsdb).join();
+    assertEquals(16, cache.sizeLimit());
+    assertEquals(42, cache.maxObjects());
+    assertEquals(0, cache.bytesStored());
+    assertEquals(0, cache.cache().size());
+    
+    config.overrideConfig("tsd.executor.plugin.guava.limit.bytes", "NotANumber");
+    final Deferred<Object> deferred = cache.initialize(tsdb);
+    try {
+      deferred.join();
+      fail("Expected NumberFormatException");
+    } catch (NumberFormatException e) { }
+  }
+  
+  @Test
+  public void cacheAndFetchSingleEntry() throws Exception {
+    final GuavaLRUCache cache = new GuavaLRUCache();
+    cache.initialize(tsdb).join();
+    assertEquals(0, cache.cache().size());
+    
+    cache.cache(new byte[] { 0, 0, 1 }, new byte[] { 0, 0, 1 }, 60000, 
+        TimeUnit.MILLISECONDS);
+    cache.cache(new byte[] { 0, 0, 2 }, new byte[] { 0, 0, 2 }, 60000, 
+        TimeUnit.MILLISECONDS);
+    cache.cache(new byte[] { 0, 0, 3 }, new byte[] { 0, 0, 3 }, 60000, 
+        TimeUnit.MILLISECONDS);
+    
+    assertEquals(3, cache.cache().size());
+    assertEquals(9, cache.bytesStored());
+    
+    assertArrayEquals(new byte[] { 0, 0, 1 }, 
+        cache.fetch(new byte[] { 0, 0, 1 }).join());
+    assertArrayEquals(new byte[] { 0, 0, 2 }, 
+        cache.fetch(new byte[] { 0, 0, 2 }).join());
+    assertArrayEquals(new byte[] { 0, 0, 3 }, 
+        cache.fetch(new byte[] { 0, 0, 3 }).join());
+    
+    // no expirations
+    assertEquals(3, cache.cache().size());
+    assertEquals(9, cache.bytesStored());
+    assertEquals(3, cache.cache().stats().requestCount());
+    assertEquals(3, cache.cache().stats().hitCount());
+    assertEquals(0, cache.cache().stats().missCount());
+    
+    assertArrayEquals(new byte[] { 0, 0, 1 }, 
+        cache.fetch(new byte[] { 0, 0, 1 }).join());
+    assertArrayEquals(new byte[] { 0, 0, 2 }, 
+        cache.fetch(new byte[] { 0, 0, 2 }).join());
+    assertArrayEquals(new byte[] { 0, 0, 3 }, 
+        cache.fetch(new byte[] { 0, 0, 3 }).join());
+    
+    // no change, just double the hits
+    assertEquals(3, cache.cache().size());
+    assertEquals(9, cache.bytesStored());
+    assertEquals(6, cache.cache().stats().requestCount());
+    assertEquals(6, cache.cache().stats().hitCount());
+    assertEquals(0, cache.cache().stats().missCount());
+    
+    // cache miss
+    assertNull(cache.fetch(new byte[] { 0, 0, 4 }).join());
+    assertEquals(3, cache.cache().size());
+    assertEquals(9, cache.bytesStored());
+    assertEquals(7, cache.cache().stats().requestCount());
+    assertEquals(6, cache.cache().stats().hitCount());
+    assertEquals(1, cache.cache().stats().missCount());
+    
+    // null value
+    cache.cache(new byte[] { 0, 0, 5 }, null, 60000, 
+        TimeUnit.MILLISECONDS);
+    assertNull(cache.fetch(new byte[] { 0, 0, 5 }).join());
+    
+    // empty value
+    cache.cache(new byte[] { 0, 0, 5 }, new byte[] { }, 60000, 
+        TimeUnit.MILLISECONDS);
+    assertEquals(0, cache.fetch(new byte[] { 0, 0, 5 }).join().length);
+  }
+  
+  @Test
+  public void cacheAndFetchSingleEntryExpired() throws Exception {
+    final GuavaLRUCache cache = new GuavaLRUCache();
+    cache.initialize(tsdb).join();
+    assertEquals(0, cache.cache().size());
+    
+    PowerMockito.mockStatic(DateTime.class);
+    when(DateTime.nanoTime())
+      .thenReturn(0L)
+      .thenReturn(30000000000L)
+      .thenReturn(50000000000L)
+      .thenReturn(61000000000L);
+    
+    cache.cache(new byte[] { 0, 0, 1 }, new byte[] { 0, 0, 1 }, 60000, 
+        TimeUnit.MILLISECONDS);
+    
+    assertArrayEquals(new byte[] { 0, 0, 1 }, 
+        cache.fetch(new byte[] { 0, 0, 1 }).join());
+    assertEquals(1, cache.cache().size());
+    assertEquals(3, cache.bytesStored());
+    assertEquals(1, cache.cache().stats().requestCount());
+    assertEquals(1, cache.cache().stats().hitCount());
+    assertEquals(0, cache.cache().stats().missCount());
+    assertEquals(0, cache.cache().stats().evictionCount());
+    assertEquals(0, cache.expired());
+    
+    assertArrayEquals(new byte[] { 0, 0, 1 }, 
+        cache.fetch(new byte[] { 0, 0, 1 }).join());
+    assertEquals(1, cache.cache().size());
+    assertEquals(3, cache.bytesStored());
+    assertEquals(2, cache.cache().stats().requestCount());
+    assertEquals(2, cache.cache().stats().hitCount());
+    assertEquals(0, cache.cache().stats().missCount());
+    assertEquals(0, cache.cache().stats().evictionCount());
+    assertEquals(0, cache.expired());
+    
+    assertNull(cache.fetch(new byte[] { 0, 0, 1 }).join());
+    assertEquals(0, cache.cache().size());
+    assertEquals(0, cache.bytesStored());
+    assertEquals(3, cache.cache().stats().requestCount());
+    assertEquals(3, cache.cache().stats().hitCount());
+    assertEquals(0, cache.cache().stats().missCount());
+    assertEquals(0, cache.cache().stats().evictionCount());
+    assertEquals(1, cache.expired());
+  }
+  
+  @Test
+  public void cacheAndFetchMultiEntry() throws Exception {
+    final GuavaLRUCache cache = new GuavaLRUCache();
+    cache.initialize(tsdb).join();
+    assertEquals(0, cache.cache().size());
+    
+    byte[][] keys = new byte[][] {
+        new byte[] { 0, 0, 1 },
+        new byte[] { 0, 0, 2 },
+        new byte[] { 0, 0, 3 }
+    };
+    
+    final byte[][] values = new byte[][] {
+      new byte[] { 0, 0, 1 },
+      new byte[] { 0, 0, 2 },
+      new byte[] { 0, 0, 3 }
+    };
+    
+    cache.cache(keys, values, 60000, TimeUnit.MILLISECONDS);
+
+    assertEquals(3, cache.cache().size());
+    assertEquals(9, cache.bytesStored());
+    
+    // fetch out via singles
+    assertArrayEquals(new byte[] { 0, 0, 1 }, 
+        cache.fetch(new byte[] { 0, 0, 1 }).join());
+    assertArrayEquals(new byte[] { 0, 0, 2 }, 
+        cache.fetch(new byte[] { 0, 0, 2 }).join());
+    assertArrayEquals(new byte[] { 0, 0, 3 }, 
+        cache.fetch(new byte[] { 0, 0, 3 }).join());
+    // no expirations
+    assertEquals(3, cache.cache().size());
+    assertEquals(9, cache.bytesStored());
+    assertEquals(3, cache.cache().stats().requestCount());
+    assertEquals(3, cache.cache().stats().hitCount());
+    assertEquals(0, cache.cache().stats().missCount());
+    
+    // fetch all
+    byte[][] results = cache.fetch(keys).join();
+    assertEquals(3, results.length);
+    assertArrayEquals(new byte[] { 0, 0, 1 }, results[0]);
+    assertArrayEquals(new byte[] { 0, 0, 2 }, results[1]);
+    assertArrayEquals(new byte[] { 0, 0, 3 }, results[2]);
+    
+    // no change, just double the hits
+    assertEquals(3, cache.cache().size());
+    assertEquals(9, cache.bytesStored());
+    assertEquals(6, cache.cache().stats().requestCount());
+    assertEquals(6, cache.cache().stats().hitCount());
+    assertEquals(0, cache.cache().stats().missCount());
+    
+    // cache miss
+    assertNull(cache.fetch(new byte[] { 0, 0, 4 }).join());
+    assertEquals(3, cache.cache().size());
+    assertEquals(9, cache.bytesStored());
+    assertEquals(7, cache.cache().stats().requestCount());
+    assertEquals(6, cache.cache().stats().hitCount());
+    assertEquals(1, cache.cache().stats().missCount());
+    
+    // multi cache miss
+    keys = new byte[][] {
+      new byte[] { 0, 0, 5 },
+      new byte[] { 0, 0, 2 },
+      new byte[] { 0, 0, 6 }
+    };
+    
+    results = cache.fetch(keys).join();
+    assertEquals(3, results.length);
+    assertNull(results[0]);
+    assertArrayEquals(new byte[] { 0, 0, 2 }, results[1]);
+    assertNull(results[2]);
+    assertEquals(3, cache.cache().size());
+    assertEquals(9, cache.bytesStored());
+    assertEquals(10, cache.cache().stats().requestCount());
+    assertEquals(7, cache.cache().stats().hitCount());
+    assertEquals(3, cache.cache().stats().missCount());
+  }
+  
+  @Test
+  public void cacheAndFetchMultiEntryExpired() throws Exception {
+    final GuavaLRUCache cache = new GuavaLRUCache();
+    cache.initialize(tsdb).join();
+    assertEquals(0, cache.cache().size());
+    
+    PowerMockito.mockStatic(DateTime.class);
+    when(DateTime.nanoTime())
+      .thenReturn(0L)
+      .thenReturn(0L)
+      .thenReturn(30000000000L)
+      .thenReturn(30000000000L)
+      .thenReturn(61000000000L)
+      .thenReturn(61000000000L);
+    
+    byte[][] keys = new byte[][] {
+        new byte[] { 0, 0, 1 },
+        new byte[] { 0, 0, 2 }
+    };
+    
+    byte[][] values = new byte[][] {
+      new byte[] { 0, 0, 1 },
+      new byte[] { 0, 0, 2 }
+    };
+    
+    cache.cache(keys, values, 60000, TimeUnit.MILLISECONDS);
+
+    assertEquals(2, cache.cache().size());
+    assertEquals(6, cache.bytesStored());
+    
+    // fetch all
+    byte[][] results = cache.fetch(keys).join();
+    assertEquals(2, results.length);
+    assertArrayEquals(new byte[] { 0, 0, 1 }, results[0]);
+    assertArrayEquals(new byte[] { 0, 0, 2 }, results[1]);
+    
+    // no expirations
+    assertEquals(2, cache.cache().size());
+    assertEquals(6, cache.bytesStored());
+    assertEquals(2, cache.cache().stats().requestCount());
+    assertEquals(2, cache.cache().stats().hitCount());
+    assertEquals(0, cache.cache().stats().missCount());
+    assertEquals(0, cache.expired());
+    
+    // cache miss
+    results = cache.fetch(keys).join();
+    assertEquals(2, results.length);
+    assertNull(results[0]);
+    assertNull(results[1]);
+    assertEquals(0, cache.cache().size());
+    assertEquals(0, cache.bytesStored());
+    assertEquals(4, cache.cache().stats().requestCount());
+    assertEquals(4, cache.cache().stats().hitCount());
+    assertEquals(0, cache.cache().stats().missCount());
+    assertEquals(2, cache.expired());
+    
+    // null values
+    values = new byte[][] {
+      null,
+      null
+    };
+    cache.cache(keys, values, 60000, TimeUnit.MILLISECONDS);
+    results = cache.fetch(keys).join();
+    assertNull(results[0]);
+    assertNull(results[1]);
+    
+    // empty values
+    values = new byte[][] {
+      new byte[] { },
+      new byte[] { }
+    };
+    cache.cache(keys, values, 60000, TimeUnit.MILLISECONDS);
+    results = cache.fetch(keys).join();
+    assertEquals(0, results[0].length);
+    assertEquals(0, results[1].length);
+  }
+  
+  @Test
+  public void cacheExceptions() throws Exception {
+    byte[][] keys = new byte[][] {
+        new byte[] { 0, 0, 1 },
+        new byte[] { 0, 0, 2 },
+        new byte[] { 0, 0, 3 }
+    };
+    
+    final byte[][] values = new byte[][] {
+      new byte[] { 0, 0, 1 },
+      new byte[] { 0, 0, 2 },
+      new byte[] { 0, 0, 3 }
+    };
+    
+    final GuavaLRUCache cache = new GuavaLRUCache();
+    try {
+      cache.cache(new byte[] { 0, 0, 1 }, new byte[] { 0, 0, 1 }, 60000, 
+          TimeUnit.MILLISECONDS);
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
+    
+    try {
+      cache.cache(keys, values, 60000, TimeUnit.MILLISECONDS);
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
+    
+    cache.initialize(tsdb).join();
+    
+    try {
+      cache.cache(null, new byte[] { 0, 0, 1 }, 60000, TimeUnit.MILLISECONDS);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      cache.cache(new byte[] { }, new byte[] { 0, 0, 1 }, 60000, 
+          TimeUnit.MILLISECONDS);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      cache.cache(null, values, 60000, TimeUnit.MILLISECONDS);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      cache.cache(new byte[][] { }, values, 60000, TimeUnit.MILLISECONDS);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    keys = new byte[][] {
+        new byte[] { 0, 0, 1 },
+        new byte[] { 0, 0, 2 },
+        //new byte[] { 0, 0, 3 }
+    };
+  
+    try {
+      cache.cache(keys, values, 60000, TimeUnit.MILLISECONDS);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      cache.cache(keys, null, 60000, TimeUnit.MILLISECONDS);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+
+  @Test
+  public void fetchExceptions() throws Exception {
+    byte[][] keys = new byte[][] {
+        new byte[] { 0, 0, 1 },
+        new byte[] { 0, 0, 2 },
+        new byte[] { 0, 0, 3 }
+    };
+
+    final GuavaLRUCache cache = new GuavaLRUCache();
+    try {
+      cache.fetch(new byte[] { 0, 0, 1 });
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
+    
+    try {
+      cache.fetch(keys);
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
+    
+    cache.initialize(tsdb).join();
+    
+    try {
+      cache.fetch((byte[]) null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      cache.fetch((byte[][]) null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      cache.fetch(new byte[] { });
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      cache.fetch(new byte[][] { });
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+}

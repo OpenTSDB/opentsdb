@@ -15,7 +15,7 @@ configure
 */target/*
 *.orig
 *.log
-
+*.clover
 #for Intellij
 \.idea
 *.iml
