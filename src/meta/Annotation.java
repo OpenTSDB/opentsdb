@@ -189,6 +189,7 @@ public final class Annotation implements Comparable<Annotation> {
             getRowKey(start_time, tsuid_byte), FAMILY, 
             getQualifier(start_time), 
             Annotation.this.getStorageJSON(), start_time);
+        System.out.println("PUT: " + put.toString());
         return tsdb.getClient().compareAndSet(put, original_note);
       }
       
@@ -276,7 +277,7 @@ public final class Annotation implements Comparable<Annotation> {
         if (row == null || row.isEmpty()) {
           return Deferred.fromResult(null);
         }
-        
+        System.out.println("GET RESULT: " + row);
         Annotation note = JSON.parseToObject(row.get(0).value(),
             Annotation.class);
         return Deferred.fromResult(note);
@@ -288,6 +289,7 @@ public final class Annotation implements Comparable<Annotation> {
         getRowKey(start_time, tsuid));
     get.family(FAMILY);
     get.qualifier(getQualifier(start_time));
+    System.out.println("GET: " + get.toString());
     return tsdb.getClient().get(get).addCallbackDeferring(new GetCB());    
   }
   
