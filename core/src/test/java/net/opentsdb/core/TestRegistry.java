@@ -29,7 +29,10 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.query.execution.QueryExecutorFactory;
+import net.opentsdb.query.execution.cache.CachingQueryExecutorPlugin;
+import net.opentsdb.query.execution.cache.GuavaLRUCache;
 import net.opentsdb.query.execution.cluster.ClusterConfig;
+import net.opentsdb.query.execution.cluster.ClusterConfigPlugin;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 
 @RunWith(PowerMockRunner.class)
@@ -210,6 +213,58 @@ public class TestRegistry {
     
     try {
       registry.getClusterConfig("");
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+
+  @Test
+  public void plugins() throws Exception {
+    final GuavaLRUCache guava_plugin = mock(GuavaLRUCache.class);
+    final Registry registry = new Registry(tsdb);
+    
+    // as default
+    registry.registerPlugin(CachingQueryExecutorPlugin.class, null, 
+        guava_plugin);
+    assertSame(guava_plugin, registry.getPlugin(
+        CachingQueryExecutorPlugin.class, null));
+    
+    // with ID
+    registry.registerPlugin(CachingQueryExecutorPlugin.class, "GuavaLRU", 
+        guava_plugin);
+    assertSame(guava_plugin, registry.getPlugin(
+        CachingQueryExecutorPlugin.class, "GuavaLRU"));
+    
+    // empty ID, allowed for now
+    registry.registerPlugin(CachingQueryExecutorPlugin.class, "", 
+        guava_plugin);
+    assertSame(guava_plugin, registry.getPlugin(
+        CachingQueryExecutorPlugin.class, ""));
+    
+    try {
+      registry.registerPlugin(null, "GuavaLRU", guava_plugin);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      registry.registerPlugin(CachingQueryExecutorPlugin.class, null, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    // wrong type
+    try {
+      registry.registerPlugin(ClusterConfigPlugin.class, null, guava_plugin);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    // already present
+    try {
+      registry.registerPlugin(CachingQueryExecutorPlugin.class, null, 
+          guava_plugin);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      registry.getPlugin(null, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

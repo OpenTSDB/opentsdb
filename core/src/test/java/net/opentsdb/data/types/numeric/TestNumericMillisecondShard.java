@@ -70,7 +70,6 @@ public class TestNumericMillisecondShard {
     assertEquals(3600000, shard.endTime().msEpoch());
     assertEquals(-1, shard.order());
     assertSame(id, shard.id());
-    assertSame(shard, shard.iterator());
     try {
       shard.next();
       fail("Expected NoSuchElementException");
@@ -84,7 +83,6 @@ public class TestNumericMillisecondShard {
     assertEquals(3600000, shard.endTime().msEpoch());
     assertEquals(42, shard.order());
     assertSame(id, shard.id());
-    assertSame(shard, shard.iterator());
     try {
       shard.next();
       fail("Expected NoSuchElementException");
@@ -98,7 +96,6 @@ public class TestNumericMillisecondShard {
     assertEquals(3600000, shard.endTime().msEpoch());
     assertEquals(42, shard.order());
     assertSame(id, shard.id());
-    assertSame(shard, shard.iterator());
     try {
       shard.next();
       fail("Expected NoSuchElementException");
@@ -114,7 +111,6 @@ public class TestNumericMillisecondShard {
     assertEquals(1L, shard.endTime().msEpoch());
     assertEquals(42, shard.order());
     assertSame(id, shard.id());
-    assertSame(shard, shard.iterator());
     try {
       shard.next();
       fail("Expected NoSuchElementException");

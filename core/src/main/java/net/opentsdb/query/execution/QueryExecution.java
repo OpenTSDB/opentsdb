@@ -52,12 +52,8 @@ public abstract class QueryExecution<T> {
   /**
    * Default ctor.
    * @param query A non-null query.
-   * @throws IllegalArgumentException if the query was null.
    */
   public QueryExecution(final TimeSeriesQuery query) {
-    if (query == null) {
-      throw new IllegalArgumentException("Query cannot be null.");
-    }
     this.query = query;
     deferred = new Deferred<T>();
     completed = new AtomicBoolean();

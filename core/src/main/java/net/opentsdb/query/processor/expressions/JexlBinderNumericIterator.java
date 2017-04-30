@@ -32,6 +32,7 @@ import net.opentsdb.data.MergedTimeSeriesId;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MutableNumericType;
@@ -58,6 +59,9 @@ public class JexlBinderNumericIterator extends
   /** The local jexl script. */
   private final Script script;
   
+  /** The ID merger. */
+  private final MergedTimeSeriesId.Builder merger;
+  
   /** Map of variable name to iterators to run through the context. */ 
   private final Map<String, TimeSeriesIterator<?>> iterators;
 
@@ -68,23 +72,23 @@ public class JexlBinderNumericIterator extends
   // TODO - see if this can be shared
   private final JexlContext jexl_context = new MapContext();
   
-  /** The ID of this series. Set by merging the individual series after init. */
-  private TimeSeriesId id;
-  
   /**
    * Default ctor accepting a source and config.
    * @param context The query context this iterator belongs to.
    * @param config A non-null config to pull the expression from.
    * @throws IllegalArgumentException if the config was null.
    */
-  public JexlBinderNumericIterator(final QueryContext context, 
+  public JexlBinderNumericIterator(
+      final QueryContext context, 
       final ExpressionProcessorConfig config) {
-    super(context);
+    super();
+    setContext(context);
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
     this.config = config;
     script = Expression.JEXL_ENGINE.createScript(config.getExpression().getExpr());
+    merger = MergedTimeSeriesId.newBuilder();
     iterators = Maps.newHashMapWithExpectedSize(
         config.getExpression().getVariables().size());
   }
@@ -113,6 +117,7 @@ public class JexlBinderNumericIterator extends
     if (context != null) {
       context.register(this, it);
     }
+    merger.addSeries(it.id());
   }
   
   @Override
@@ -128,14 +133,9 @@ public class JexlBinderNumericIterator extends
         }
       }
     }
-    
-    final MergedTimeSeriesId.Builder merger = MergedTimeSeriesId.newBuilder();
-    for (final TimeSeriesIterator<?> it : iterators.values()) {
-      merger.addSeries(it.id());
+    if (id == null || dp == null) {
+      setId();
     }
-    id = merger.build();
-    dp = new MutableNumericType(id);
-    
     return Deferred.fromResult(null);
   }
   
@@ -222,6 +222,7 @@ public class JexlBinderNumericIterator extends
   @Override
   public TimeSeriesIterator<NumericType> getCopy(final QueryContext context) {
     final JexlBinderNumericIterator copy = new JexlBinderNumericIterator(context, config);
+    copy.id = id;
     for (final Entry<String, TimeSeriesIterator<?>> entry : iterators.entrySet()) {
       copy.addIterator(entry.getKey(), entry.getValue().getCopy(context));
     }
@@ -253,6 +254,18 @@ public class JexlBinderNumericIterator extends
       }
     }
   }
+
+  @Override
+  public TimeStamp startTime() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public TimeStamp endTime() {
+    // TODO Auto-generated method stub
+    return null;
+  }
   
   /**
    * Helper to determine what value to fill with from the config. Individual
@@ -275,5 +288,10 @@ public class JexlBinderNumericIterator extends
     }
     
     return Double.NaN;
+  }
+
+  protected void setId() {
+    id = merger.build();
+    dp = new MutableNumericType(id);
   }
 }

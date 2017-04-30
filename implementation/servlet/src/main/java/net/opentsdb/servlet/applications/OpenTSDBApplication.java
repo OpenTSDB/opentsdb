@@ -21,13 +21,15 @@ import javax.ws.rs.core.Context;
 import org.glassfish.jersey.server.ResourceConfig;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.DataShardsGroups;
+import net.opentsdb.data.iterators.IteratorGroups;
+import net.opentsdb.query.execution.CachingQueryExecutor;
 import net.opentsdb.query.execution.DefaultQueryExecutorFactory;
 import net.opentsdb.query.execution.HttpQueryV2Executor;
 import net.opentsdb.query.execution.MetricShardingExecutor;
 import net.opentsdb.query.execution.MultiClusterQueryExecutor;
 import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.QueryExecutorFactory;
+import net.opentsdb.query.execution.cache.GuavaLRUCache;
 import net.opentsdb.query.execution.cluster.ClusterConfig;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
@@ -87,7 +89,7 @@ public class OpenTSDBApplication extends ResourceConfig {
   
   @SuppressWarnings("unchecked")
   public void setupDefaultExecutors(final TSDB tsdb) {
-    try {
+    try {      
       Constructor<?> ctor/* = MetricShardingExecutor.class.getConstructor(
           ExecutionGraphNode.class);
       QueryExecutorFactory<DataShardsGroups> sink = 
@@ -106,17 +108,22 @@ public class OpenTSDBApplication extends ResourceConfig {
         clusters.add(new HttpCluster(i, snapshot));
       }
       ctor*/  = HttpQueryV2Executor.class.getConstructor(ExecutionGraphNode.class);
-      QueryExecutorFactory<DataShardsGroups> http_factory = 
-              new DefaultQueryExecutorFactory<DataShardsGroups>(
-                  (Constructor<QueryExecutor<?>>) ctor, DataShardsGroups.class, "HttpQueryV2Executor");
+      QueryExecutorFactory<IteratorGroups> http_factory = 
+              new DefaultQueryExecutorFactory<IteratorGroups>(
+                  (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, "HttpQueryV2Executor");
       tsdb.getRegistry().registerFactory(http_factory);
 
+      ctor = CachingQueryExecutor.class.getConstructor(ExecutionGraphNode.class);
+      QueryExecutorFactory<IteratorGroups> cache_factory = 
+          new DefaultQueryExecutorFactory<IteratorGroups>(
+              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, "CachingQueryExecutor");
+      tsdb.getRegistry().registerFactory(cache_factory);
 
       ctor = MultiClusterQueryExecutor.class.getConstructor(
               ExecutionGraphNode.class);
-      QueryExecutorFactory<DataShardsGroups> downstream = 
-          new DefaultQueryExecutorFactory<DataShardsGroups>(
-              (Constructor<QueryExecutor<?>>) ctor, DataShardsGroups.class,
+      QueryExecutorFactory<IteratorGroups> downstream = 
+          new DefaultQueryExecutorFactory<IteratorGroups>(
+              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class,
                 "MultiClusterQueryExecutor");
       tsdb.getRegistry().registerFactory(downstream);
       
@@ -131,6 +138,7 @@ public class OpenTSDBApplication extends ResourceConfig {
       ExecutionGraph eg = JSON.parseToObject(exec_graph, ExecutionGraph.class);
       eg.initialize(tsdb, null).join(1);
       tsdb.getRegistry().registerExecutionGraph(eg, true);
+      
       
     } catch (Exception e) {
       throw new RuntimeException("Failed to initialize default query "

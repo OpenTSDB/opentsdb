@@ -17,7 +17,6 @@ import java.util.List;
 import com.google.common.reflect.TypeToken;
 
 import io.opentracing.Span;
-import net.opentsdb.data.DataShard;
 import net.opentsdb.data.DataShardMergeStrategy;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesId;
@@ -51,8 +50,8 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
 
   @SuppressWarnings("unchecked")
   @Override
-  public DataShard<NumericType> merge(final TimeSeriesId id, 
-                                      final List<DataShard<?>> shards,
+  public TimeSeriesIterator<NumericType> merge(final TimeSeriesId id, 
+                                      final List<TimeSeriesIterator<?>> shards,
                                       final QueryContext context,
                                       final Span tracer_span) {
     if (id == null) {
@@ -83,7 +82,7 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
         throw new IllegalArgumentException("One of the shards had the wrong "
             + "type: " + shards.get(i).type());
       }
-      iterators[i] = (TimeSeriesIterator<NumericType>) shards.get(i).iterator();
+      iterators[i] = (TimeSeriesIterator<NumericType>) shards.get(i);
       if (iterators[i].status() == IteratorStatus.HAS_DATA) {
         values[i] = iterators[i].next();
         if (last_ts == null) {

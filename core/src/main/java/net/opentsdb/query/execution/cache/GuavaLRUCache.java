@@ -26,8 +26,12 @@ import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.stumbleupon.async.Deferred;
 
+import io.opentracing.Span;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.execution.QueryExecution;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.Bytes.ByteArrayKey;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
@@ -124,52 +128,59 @@ public class GuavaLRUCache extends CachingQueryExecutorPlugin {
   }
   
   @Override
-  public Deferred<byte[]> fetch(final byte[] key) {
-    if (cache == null) {
-      throw new IllegalStateException("Cache has not been initialized.");
-    }
-    if (key == null) {
-      throw new IllegalArgumentException("Key cannot be null.");
-    }
-    if (key.length < 1) {
-      throw new IllegalArgumentException("Key must be at least 1 byte long.");
-    }
-    final ByteArrayKey cache_key = new ByteArrayKey(key);
-    final ExpiringValue value = cache.getIfPresent(cache_key);
-    if (value == null) {
-      return Deferred.fromResult(null);
-    }
-    if (value.expired()) {
-      // Note: there is a race condition here where a call to cache() can write
-      // an updated version of the same key with a newer expiration. Since this
-      // isn't a full, solid implementation of an expiring cache yet, this is
-      // a best-effort run and may invalidate new data.
-      cache.invalidate(cache_key);
-      expired.incrementAndGet();
-      return Deferred.fromResult(null);
-    }
-    return Deferred.fromResult(value.value);
-  }
-
-  @Override
-  public Deferred<byte[][]> fetch(final byte[][] keys) {
-    if (cache == null) {
-      throw new IllegalStateException("Cache has not been initialized.");
-    }
-    if (keys == null) {
-      throw new IllegalArgumentException("Keys cannot be null.");
-    }
-    if (keys.length < 1) {
-      throw new IllegalArgumentException("Keys must be at least 1 byte long.");
-    }
-    final byte[][] results = new byte[keys.length][];
-    for (int i = 0; i < keys.length; i++) {
-      if (keys[i] == null) {
-        throw new IllegalArgumentException("Key at index " + i + " was null.");
+  public QueryExecution<byte[]> fetch(final QueryContext context, 
+                                      final byte[] key,
+                                      final Span upstream_span) {
+    /** The execution we'll return. */
+    class LocalExecution extends QueryExecution<byte[]> {
+      public LocalExecution() {
+        super(null);
+        
+        if (context.getTracer() != null) {
+          setSpan(context, 
+              GuavaLRUCache.this.getClass().getSimpleName(), 
+              upstream_span,
+              TsdbTrace.addTags(
+                  "key", Bytes.pretty(key),
+                  "startThread", Thread.currentThread().getName()));
+        }
       }
-      final ByteArrayKey cache_key = new ByteArrayKey(keys[i]);
-      final ExpiringValue value = cache.getIfPresent(cache_key);
-      if (value != null) { 
+      
+      /** Do da work */
+      void execute() {
+        if (cache == null) {
+          final IllegalStateException ex = 
+              new IllegalStateException("Cache has not been initialized.");
+          callback(ex,
+              TsdbTrace.exceptionTags(ex),
+              TsdbTrace.exceptionAnnotation(ex));
+          return;
+        }
+        if (key == null) {
+          final IllegalArgumentException ex = 
+              new IllegalArgumentException("Key cannot be null.");
+          callback(ex,
+              TsdbTrace.exceptionTags(ex),
+              TsdbTrace.exceptionAnnotation(ex));
+          return;
+        }
+        if (key.length < 1) {
+          final IllegalArgumentException ex = 
+              new IllegalArgumentException("Key must be at least 1 byte long.");
+          callback(ex,
+              TsdbTrace.exceptionTags(ex),
+              TsdbTrace.exceptionAnnotation(ex));
+          return;
+        }
+        
+        
+        final ByteArrayKey cache_key = new ByteArrayKey(key);
+        final ExpiringValue value = cache.getIfPresent(cache_key);
+        if (value == null) {
+          callback(null, 
+              TsdbTrace.successfulTags("cacheStatus","miss"));
+          return;
+        }
         if (value.expired()) {
           // Note: there is a race condition here where a call to cache() can write
           // an updated version of the same key with a newer expiration. Since this
@@ -177,14 +188,121 @@ public class GuavaLRUCache extends CachingQueryExecutorPlugin {
           // a best-effort run and may invalidate new data.
           cache.invalidate(cache_key);
           expired.incrementAndGet();
-        } else {
-          results[i] = value.value;
+          callback(null,
+              TsdbTrace.successfulTags("cacheStatus","miss"));
+          return;
         }
+        callback(value.value,
+            TsdbTrace.successfulTags(
+                "cacheStatus","hit",
+                "resultSize", value.value == null 
+                  ? "0" : Integer.toString(value.value.length)));
       }
+
+      @Override
+      public void cancel() {
+        // No-op.
+      }
+      
     }
-    return Deferred.fromResult(results);
+
+    final LocalExecution execution = new LocalExecution();
+    execution.execute();
+    return execution;
   }
 
+  @Override
+  public QueryExecution<byte[][]> fetch(final QueryContext context, 
+                                        final byte[][] keys,
+                                        final Span upstream_span) {
+    class LocalExecution extends QueryExecution<byte[][]> {
+      public LocalExecution() {
+        super(null);
+        
+        final StringBuilder buf = new StringBuilder();
+        if (keys != null) {
+          for (int i = 0; i < keys.length; i++) {
+            if (i > 0) {
+              buf.append(", ");
+            }
+            buf.append(Bytes.pretty(keys[i]));
+          }
+        }
+        
+        setSpan(context, 
+            GuavaLRUCache.this.getClass().getSimpleName(), 
+            upstream_span,
+            TsdbTrace.addTags(
+                "keys", buf.toString(),
+                "startThread", Thread.currentThread().getName()));
+      }
+      
+      /** Do da work */
+      void execute() {
+        if (cache == null) {
+          final IllegalStateException ex = 
+              new IllegalStateException("Cache has not been initialized.");
+          callback(ex,
+              TsdbTrace.exceptionTags(ex),
+              TsdbTrace.exceptionAnnotation(ex));
+          return;
+        }
+        if (keys == null) {
+          final IllegalArgumentException ex = 
+              new IllegalArgumentException("Keys cannot be null.");
+          callback(ex,
+              TsdbTrace.exceptionTags(ex),
+              TsdbTrace.exceptionAnnotation(ex));
+          return;
+        }
+        if (keys.length < 1) {
+          final IllegalArgumentException ex = 
+              new IllegalArgumentException("Keys must have at least 1 value.");
+          callback(ex,
+              TsdbTrace.exceptionTags(ex),
+              TsdbTrace.exceptionAnnotation(ex));
+          return;
+        }
+        final byte[][] results = new byte[keys.length][];
+        for (int i = 0; i < keys.length; i++) {
+          if (keys[i] == null) {
+            final IllegalArgumentException ex = 
+                new IllegalArgumentException("Key at index " + i + " was null.");
+            callback(ex,
+                TsdbTrace.exceptionTags(ex),
+                TsdbTrace.exceptionAnnotation(ex));
+            return;
+          }
+          final ByteArrayKey cache_key = new ByteArrayKey(keys[i]);
+          final ExpiringValue value = cache.getIfPresent(cache_key);
+          if (value != null) { 
+            if (value.expired()) {
+              // Note: there is a race condition here where a call to cache() can write
+              // an updated version of the same key with a newer expiration. Since this
+              // isn't a full, solid implementation of an expiring cache yet, this is
+              // a best-effort run and may invalidate new data.
+              cache.invalidate(cache_key);
+              expired.incrementAndGet();
+            } else {
+              results[i] = value.value;
+            }
+          }
+        }
+        callback(results);
+      }
+
+      @Override
+      public void cancel() {
+        // No-op.
+      }
+      
+    }
+    
+    final LocalExecution execution = new LocalExecution();
+    execution.execute();
+    return execution;
+  }
+  
   @Override
   public void cache(final byte[] key, 
                     final byte[] data, 

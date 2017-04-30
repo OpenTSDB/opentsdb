@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.execution;
 
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -34,7 +35,7 @@ public class TestFailedQueryExecution {
   
   @Test
   public void ctor() throws Exception {
-    final FailedQueryExecution<Long> exec = 
+    FailedQueryExecution<Long> exec = 
         new FailedQueryExecution<Long>(query, ex);
     assertSame(query, exec.query());
     assertTrue(exec.completed());
@@ -46,11 +47,9 @@ public class TestFailedQueryExecution {
       assertSame(ex, e);
     }
     
-    try {
-      new FailedQueryExecution<Long>(null, ex);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
+    exec = new FailedQueryExecution<Long>(null, ex);
+    assertNull(exec.query());
+    assertTrue(exec.completed());
     try {
       new FailedQueryExecution<Long>(query, null);
       fail("Expected IllegalArgumentException");

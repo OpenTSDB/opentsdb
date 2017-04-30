@@ -227,7 +227,7 @@ public abstract class TimeSeriesId implements Comparable<TimeSeriesId> {
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
     return Const.HASH_FUNCTION().newHasher()
-        .putBytes(alias)
+        .putBytes(alias == null ? new byte[]{ } : alias)
         .putObject(namespaces, Bytes.BYTE_LIST_FUNNEL)
         .putObject(metrics, Bytes.BYTE_LIST_FUNNEL)
         .putObject(tags, Bytes.BYTE_MAP_FUNNEL)

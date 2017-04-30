@@ -20,6 +20,7 @@ import java.util.Set;
 import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
 import org.jgrapht.experimental.dag.DirectedAcyclicGraph.CycleFoundException;
 import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.traverse.DepthFirstIterator;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -137,7 +138,10 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
     }
     this.tsdb = tsdb;
     try {
-      final Set<String> unique_ids = Sets.newHashSetWithExpectedSize(nodes.size());
+      final Map<String, ExecutionGraphNode> map = 
+          Maps.newHashMapWithExpectedSize(nodes.size());
+      final Set<String> unique_ids = 
+          Sets.newHashSetWithExpectedSize(nodes.size());
       for (final ExecutionGraphNode node : nodes) {
         node.setExecutionGraph(this);
         
@@ -156,6 +160,7 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
                 + "the graph. It must be unique."));
         }
         unique_ids.add(node.getExecutorId());
+        map.put(node.getExecutorId(), node);
         
         graph.addVertex(node.getExecutorId());
         if (!Strings.isNullOrEmpty(node.getUpstream())) {
@@ -168,42 +173,73 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
                 + "detected adding node: " + node, e));
           }
         }
-        
-        // init an executor
-        final QueryExecutorFactory<?> factory = 
-            tsdb.getRegistry().getFactory(node.getExecutorType());
-        if (factory == null) {
-          return Deferred.<Object>fromResult(
-              new IllegalArgumentException("No factory "
-              + "found for executor: " + node.getExecutorType()));
-        }
-        
-        final QueryExecutor<?> executor = factory.newExecutor(node);
-        if (executor == null) {
-          return Deferred.<Object>fromResult(new IllegalStateException("Factory "
-              + "returned a null executor."));
-        }
-        executors.put(node.getExecutorId(), executor);
-        
-        // find the sink executor
-        if (graph.incomingEdgesOf(node.getExecutorId()).isEmpty()) {
-          // we can't have more than one sink executor.
-          if (sink_executor != null && sink_executor != executor) {
-            if (graph.incomingEdgesOf(sink_executor.id()).isEmpty()) {
-              return Deferred.<Object>fromResult(new IllegalArgumentException(
-                  "Can't replace the existing sink: " + sink_executor 
-                  + " without adding an edge."));
-            }
-          }
-          sink_executor = executor;
-        }
       }
+      
+      // depth first initiation of the executors since we have to init
+      // the ones without any downstream dependencies first.
+      final DepthFirstIterator<String, DefaultEdge> iterator = 
+          new DepthFirstIterator<String, DefaultEdge>(graph);
+      while (iterator.hasNext()) {
+        final String id = iterator.next();
+        recursiveInit(id, map);
+      }
+      System.out.println("Initialized: " + this);
       return Deferred.<Object>fromResult(null);
     } catch (Exception e) {
       return Deferred.<Object>fromResult(e);
     }
   }
 
+  /**
+   * Helper that recursively walks the graph, initializing the deepest executors
+   * first so that parents that depend on downstream executors will find their
+   * children on construction.
+   * @param id A non-null graph node ID.
+   * @param map The map of Ids to nodes to use for lookups.
+   */
+  private void recursiveInit(final String id, 
+                             final Map<String, ExecutionGraphNode> map) {
+    if (executors.containsKey(id)) {
+      return;
+    }
+    
+    final Set<DefaultEdge> outgoing = graph.outgoingEdgesOf(id);
+    for (final DefaultEdge edge : outgoing) {
+      final String downstream = graph.getEdgeTarget(edge);
+      recursiveInit(downstream, map);
+    }
+    
+    final ExecutionGraphNode node = map.get(id);
+    
+    // init an executor
+    final QueryExecutorFactory<?> factory = 
+        tsdb.getRegistry().getFactory(node.getExecutorType());
+    if (factory == null) {
+      throw new IllegalArgumentException("No factory "
+          + "found for executor: " + node.getExecutorType());
+    }
+    
+    final QueryExecutor<?> executor = factory.newExecutor(node);
+    if (executor == null) {
+      throw new IllegalStateException("Factory "
+          + "returned a null executor.");
+    }
+    executors.put(node.getExecutorId(), executor);
+    
+    // find the sink executor
+    if (graph.incomingEdgesOf(node.getExecutorId()).isEmpty()) {
+      // we can't have more than one sink executor.
+      if (sink_executor != null && sink_executor != executor) {
+        if (graph.incomingEdgesOf(sink_executor.id()).isEmpty()) {
+          throw new IllegalArgumentException(
+              "Can't replace the existing sink: " + sink_executor 
+              + " without adding an edge.");
+        }
+      }
+      sink_executor = executor;
+    }
+  }
+  
   /** @return The unique ID of this graph. */
   public String getId() {
     return id;
@@ -243,7 +279,12 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
       throw new IllegalStateException("Executor " + executor_id + " does not "
           + "have any downstream executors in graph: " + this);
     }
-    return executors.get(graph.getEdgeTarget(downstream.iterator().next()));
+    DefaultEdge target = downstream.iterator().next();
+    System.out.println("Target: " + target);
+    String exec = graph.getEdgeTarget(target);
+    System.out.println("EXec: " + exec);
+    System.out.println("Execs: " + executors);
+    return executors.get(exec);
   }
   
   /** The TSDB this graph belongs to. */

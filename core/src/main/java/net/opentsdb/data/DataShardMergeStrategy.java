@@ -17,6 +17,7 @@ import java.util.List;
 import com.google.common.reflect.TypeToken;
 
 import io.opentracing.Span;
+import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.query.context.QueryContext;
 
 /**
@@ -52,8 +53,8 @@ public interface DataShardMergeStrategy<T extends TimeSeriesDataType> {
    * or more of the shards had the wrong time or one or more shards were null
    * in the list.
    */
-  public DataShard<T> merge(final TimeSeriesId id, 
-                            final List<DataShard<?>> shards, 
+  public TimeSeriesIterator<T> merge(final TimeSeriesId id, 
+                            final List<TimeSeriesIterator<?>> shards, 
                             final QueryContext context, 
                             final Span tracer_span);
 }

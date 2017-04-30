@@ -29,7 +29,7 @@ public class DefaultTimeSeriesProcessor extends TimeSeriesProcessor {
   @Override
   public TimeSeriesProcessor getClone(final QueryContext context) {
     final DefaultTimeSeriesProcessor clone = new DefaultTimeSeriesProcessor(context);
-    clone.iterators = iterators.getClone(context);
+    clone.iterators = iterators.getCopy(context);
     return clone;
   }
 

@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.data.iterators;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -34,6 +35,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -56,6 +58,7 @@ public class TestTimeSeriesIterator {
     source_clone = mock(TimeSeriesIterator.class);
     
     when(source.id()).thenReturn(id);
+    when(source.order()).thenReturn(42);
     when(source.initialize()).thenReturn(Deferred.fromResult(null));
     when(source.fetchNext()).thenReturn(Deferred.fromResult(null));
     when(source.close()).thenReturn(Deferred.fromResult(null));
@@ -77,21 +80,28 @@ public class TestTimeSeriesIterator {
   
   @Test
   public void ctor() throws Exception {
-    MockIterator it = new MockIterator();
+    MockIterator it = new MockIterator(id);
+    assertSame(id, it.id());
+    assertEquals(-1, it.order());
     assertNull(it.source);
     assertNull(it.context);
     assertNull(it.parent);
+    
+    try {
+      new MockIterator(null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
   }
   
   @Test
   public void ctorContext() throws Exception {
-    MockIterator it = new MockIterator(context);
+    MockIterator it = new MockIterator(id, context);
     assertNull(it.source);
     assertSame(context, it.context);
     assertNull(it.parent);
     verify(context, times(1)).register(it);
     
-    it = new MockIterator(null);
+    it = new MockIterator(id);
     assertNull(it.source);
     assertNull(it.context);
     assertNull(it.parent);
@@ -99,13 +109,17 @@ public class TestTimeSeriesIterator {
   
   @Test
   public void ctorSource() throws Exception {
-    MockIterator it = new MockIterator(context);
+    MockIterator it = new MockIterator(id, context);
+    assertSame(id, it.id());
+    assertEquals(-1, it.order());
     assertNull(it.source);
     assertSame(context, it.context);
     assertNull(it.parent);
     verify(context, times(1)).register(it);
     
     MockIterator child = new MockIterator(context, it);
+    assertSame(id, child.id());
+    assertEquals(-1, child.order());
     assertSame(it, child.source);
     assertSame(context, child.context);
     assertSame(child, it.parent);
@@ -136,7 +150,7 @@ public class TestTimeSeriesIterator {
     assertNull(deferred.join());
     verify(source, times(1)).initialize();
     
-    it = new MockIterator(null);
+    it = new MockIterator(id);
     deferred = it.initialize();
     try {
       deferred.join();
@@ -145,20 +159,8 @@ public class TestTimeSeriesIterator {
   }
   
   @Test
-  public void id() throws Exception {
-    MockIterator it = new MockIterator(context, source);
-    assertSame(id, it.id());
-    
-    it = new MockIterator(null);
-    try {
-      it.id();
-      fail("Expected UnsupportedOperationException");
-    } catch (UnsupportedOperationException e) { }
-  }
-  
-  @Test
   public void setContext() throws Exception {
-    final MockIterator it = new MockIterator();
+    final MockIterator it = new MockIterator(id);
     final QueryContext ctx2 = mock(QueryContext.class);
     assertNull(it.context);
     verify(context, never()).register(it);
@@ -200,7 +202,7 @@ public class TestTimeSeriesIterator {
     assertNull(deferred.join());
     verify(source, times(1)).fetchNext();
     
-    it = new MockIterator(null);
+    it = new MockIterator(id);
     deferred = it.fetchNext();
     try {
       deferred.join();
@@ -219,7 +221,7 @@ public class TestTimeSeriesIterator {
     verify(context, times(1)).register(it);
     verify(context, times(1)).register(copy);
     
-    it = new MockIterator(context);
+    it = new MockIterator(id, context);
     copy = it.getCopy(context);
     assertNotSame(copy, it);
     assertSame(context, copy.context);
@@ -228,7 +230,7 @@ public class TestTimeSeriesIterator {
     verify(context, times(1)).register(it);
     verify(context, times(1)).register(copy);
     
-    it = new MockIterator();
+    it = new MockIterator(id);
     copy = it.getCopy(context);
     assertNotSame(copy, it);
     assertSame(context, copy.context);
@@ -245,7 +247,7 @@ public class TestTimeSeriesIterator {
     assertNull(deferred.join());
     verify(source, times(1)).close();
     
-    it = new MockIterator(null);
+    it = new MockIterator(id);
     deferred = it.close();
     try {
       deferred.join();
@@ -258,15 +260,16 @@ public class TestTimeSeriesIterator {
    */
   static class MockIterator extends TimeSeriesIterator<NumericType> {
     
-    public MockIterator() {
-      
+    public MockIterator(final TimeSeriesId id) {
+      super(id);
     }
     
-    public MockIterator(final QueryContext context) {
-      super(context);
+    public MockIterator(final TimeSeriesId id, final QueryContext context) {
+      super(id, context);
     }
     
-    public MockIterator(final QueryContext context, final TimeSeriesIterator<?> source) {
+    public MockIterator(final QueryContext context, 
+                        final TimeSeriesIterator<?> source) {
       super(context, source);
     }
     
@@ -288,11 +291,23 @@ public class TestTimeSeriesIterator {
 
     @Override
     public TimeSeriesIterator<NumericType> getCopy(final QueryContext context) {
-      final MockIterator copy = new MockIterator(context);
+      final MockIterator copy = new MockIterator(id, context);
       if (source != null) {
         copy.source = source.getCopy(context);
       }
       return copy;
+    }
+
+    @Override
+    public TimeStamp startTime() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override
+    public TimeStamp endTime() {
+      // TODO Auto-generated method stub
+      return null;
     }
     
   }

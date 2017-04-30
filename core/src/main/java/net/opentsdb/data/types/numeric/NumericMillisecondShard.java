@@ -12,13 +12,15 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.data.types.numeric;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.NoSuchElementException;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.data.DataShard;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
@@ -55,11 +57,7 @@ import net.opentsdb.utils.Bytes;
  * 
  * @since 3.0
  */
-public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> 
-  implements DataShard<NumericType> {
-
-  /** The ID for the series. */
-  private final TimeSeriesId id;
+public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
   
   /** The *width* of the data (in ms) to be stored in this shard so we can 
    * calculate how many bytes are needed to store offsets from the base time. */
@@ -150,6 +148,7 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
                                  final TimeStamp end, 
                                  final int order, 
                                  final int count) {
+    super(id);
     if (id == null) {
       throw new IllegalArgumentException("ID cannot be null.");
     }
@@ -162,7 +161,6 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
     if (count < 0) {
       throw new IllegalArgumentException("Count cannot be less than zero.");
     }
-    this.id = id;
     this.start_timestamp = start;
     this.end_timestamp = end;
     this.order = order;
@@ -297,11 +295,6 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
   }
   
   @Override
-  public TimeSeriesId id() {
-    return id;
-  }
-
-  @Override
   public TimeStamp startTime() {
     return start_timestamp;
   }
@@ -314,16 +307,6 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
   @Override
   public TypeToken<NumericType> type() {
     return NumericType.TYPE;
-  }
-
-  @Override
-  public boolean cached() {
-    return false;
-  }
-
-  @Override
-  public TimeSeriesIterator<NumericType> iterator() {
-    return this;
   }
 
   @Override
@@ -417,6 +400,61 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType>
         timestamp.updateMsEpoch(start_timestamp.msEpoch() + offset);
         context.updateContext(IteratorStatus.HAS_DATA, timestamp);
       }
+    }
+  }
+  
+  public void serialize(final OutputStream stream) {
+    try {
+      stream.write(Bytes.fromInt(order));
+      stream.write(Bytes.fromLong(start_timestamp.msEpoch()));
+      stream.write(Bytes.fromLong(end_timestamp.msEpoch()));
+      stream.write(Bytes.fromInt(write_offset_idx));
+      stream.write(offsets, 0, write_offset_idx);
+      stream.write(Bytes.fromInt(write_value_idx));
+      stream.write(values, 0, write_value_idx);
+    } catch (IOException e) {
+      throw new RuntimeException("WTF?", e);
+    }
+  }
+  
+  public static NumericMillisecondShard parseFrom(final TimeSeriesId id, final InputStream stream) {
+    try {
+      byte[] array = new byte[4];
+      stream.read(array);
+      int order = Bytes.getInt(array);
+      
+      array = new byte[8];
+      stream.read(array);
+      long start_ts = Bytes.getLong(array);
+      
+      array = new byte[8];
+      stream.read(array);
+      long end_ts = Bytes.getLong(array);
+      
+      final NumericMillisecondShard shard = new NumericMillisecondShard(id, 
+          new MillisecondTimeStamp(start_ts), 
+          new MillisecondTimeStamp(end_ts),
+          order);
+      
+      array = new byte[4];
+      stream.read(array);
+      shard.write_offset_idx = Bytes.getInt(array);
+      
+      array = new byte[shard.write_offset_idx];
+      stream.read(array);
+      shard.offsets = array;
+      
+      array = new byte[4];
+      stream.read(array);
+      shard.write_value_idx = Bytes.getInt(array);
+      
+      array = new byte[shard.write_value_idx];
+      stream.read(array);
+      shard.values = array;
+      
+      return shard;
+    } catch (IOException e) {
+      throw new RuntimeException("WTF?", e);
     }
   }
   

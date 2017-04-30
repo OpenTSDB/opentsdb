@@ -30,7 +30,9 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.stumbleupon.async.Deferred;
 
+import io.opentracing.Span;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 
@@ -40,11 +42,15 @@ public class TestGuavaLRUCache {
 
   private TSDB tsdb;
   private Config config;
+  private QueryContext context;
+  private Span span;
   
   @Before
   public void before() throws Exception {
     tsdb = mock(TSDB.class);
     config = new Config(false);
+    context = mock(QueryContext.class);
+    span = mock(Span.class);
     when(tsdb.getConfig()).thenReturn(config);
   }
   
@@ -98,11 +104,11 @@ public class TestGuavaLRUCache {
     assertEquals(9, cache.bytesStored());
     
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        cache.fetch(new byte[] { 0, 0, 1 }).join());
+        cache.fetch(context, new byte[] { 0, 0, 1 }, span).deferred().join());
     assertArrayEquals(new byte[] { 0, 0, 2 }, 
-        cache.fetch(new byte[] { 0, 0, 2 }).join());
+        cache.fetch(context, new byte[] { 0, 0, 2 }, span).deferred().join());
     assertArrayEquals(new byte[] { 0, 0, 3 }, 
-        cache.fetch(new byte[] { 0, 0, 3 }).join());
+        cache.fetch(context, new byte[] { 0, 0, 3 }, span).deferred().join());
     
     // no expirations
     assertEquals(3, cache.cache().size());
@@ -112,11 +118,11 @@ public class TestGuavaLRUCache {
     assertEquals(0, cache.cache().stats().missCount());
     
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        cache.fetch(new byte[] { 0, 0, 1 }).join());
+        cache.fetch(context, new byte[] { 0, 0, 1 }, span).deferred().join());
     assertArrayEquals(new byte[] { 0, 0, 2 }, 
-        cache.fetch(new byte[] { 0, 0, 2 }).join());
+        cache.fetch(context, new byte[] { 0, 0, 2 }, span).deferred().join());
     assertArrayEquals(new byte[] { 0, 0, 3 }, 
-        cache.fetch(new byte[] { 0, 0, 3 }).join());
+        cache.fetch(context, new byte[] { 0, 0, 3 }, span).deferred().join());
     
     // no change, just double the hits
     assertEquals(3, cache.cache().size());
@@ -126,7 +132,8 @@ public class TestGuavaLRUCache {
     assertEquals(0, cache.cache().stats().missCount());
     
     // cache miss
-    assertNull(cache.fetch(new byte[] { 0, 0, 4 }).join());
+    assertNull(cache.fetch(context, new byte[] { 0, 0, 4 }, span)
+        .deferred().join());
     assertEquals(3, cache.cache().size());
     assertEquals(9, cache.bytesStored());
     assertEquals(7, cache.cache().stats().requestCount());
@@ -136,12 +143,14 @@ public class TestGuavaLRUCache {
     // null value
     cache.cache(new byte[] { 0, 0, 5 }, null, 60000, 
         TimeUnit.MILLISECONDS);
-    assertNull(cache.fetch(new byte[] { 0, 0, 5 }).join());
+    assertNull(cache.fetch(context, new byte[] { 0, 0, 5 }, span)
+        .deferred().join());
     
     // empty value
     cache.cache(new byte[] { 0, 0, 5 }, new byte[] { }, 60000, 
         TimeUnit.MILLISECONDS);
-    assertEquals(0, cache.fetch(new byte[] { 0, 0, 5 }).join().length);
+    assertEquals(0, cache.fetch(context, new byte[] { 0, 0, 5 }, span)
+        .deferred().join().length);
   }
   
   @Test
@@ -161,7 +170,7 @@ public class TestGuavaLRUCache {
         TimeUnit.MILLISECONDS);
     
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        cache.fetch(new byte[] { 0, 0, 1 }).join());
+        cache.fetch(context, new byte[] { 0, 0, 1 }, span).deferred().join());
     assertEquals(1, cache.cache().size());
     assertEquals(3, cache.bytesStored());
     assertEquals(1, cache.cache().stats().requestCount());
@@ -171,7 +180,7 @@ public class TestGuavaLRUCache {
     assertEquals(0, cache.expired());
     
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        cache.fetch(new byte[] { 0, 0, 1 }).join());
+        cache.fetch(context, new byte[] { 0, 0, 1 }, span).deferred().join());
     assertEquals(1, cache.cache().size());
     assertEquals(3, cache.bytesStored());
     assertEquals(2, cache.cache().stats().requestCount());
@@ -180,7 +189,8 @@ public class TestGuavaLRUCache {
     assertEquals(0, cache.cache().stats().evictionCount());
     assertEquals(0, cache.expired());
     
-    assertNull(cache.fetch(new byte[] { 0, 0, 1 }).join());
+    assertNull(cache.fetch(context, new byte[] { 0, 0, 1 }, span)
+        .deferred().join());
     assertEquals(0, cache.cache().size());
     assertEquals(0, cache.bytesStored());
     assertEquals(3, cache.cache().stats().requestCount());
@@ -215,11 +225,11 @@ public class TestGuavaLRUCache {
     
     // fetch out via singles
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        cache.fetch(new byte[] { 0, 0, 1 }).join());
+        cache.fetch(context, new byte[] { 0, 0, 1 }, span).deferred().join());
     assertArrayEquals(new byte[] { 0, 0, 2 }, 
-        cache.fetch(new byte[] { 0, 0, 2 }).join());
+        cache.fetch(context, new byte[] { 0, 0, 2 }, span).deferred().join());
     assertArrayEquals(new byte[] { 0, 0, 3 }, 
-        cache.fetch(new byte[] { 0, 0, 3 }).join());
+        cache.fetch(context, new byte[] { 0, 0, 3 }, span).deferred().join());
     // no expirations
     assertEquals(3, cache.cache().size());
     assertEquals(9, cache.bytesStored());
@@ -228,7 +238,7 @@ public class TestGuavaLRUCache {
     assertEquals(0, cache.cache().stats().missCount());
     
     // fetch all
-    byte[][] results = cache.fetch(keys).join();
+    byte[][] results = cache.fetch(context, keys, span).deferred().join();
     assertEquals(3, results.length);
     assertArrayEquals(new byte[] { 0, 0, 1 }, results[0]);
     assertArrayEquals(new byte[] { 0, 0, 2 }, results[1]);
@@ -242,7 +252,8 @@ public class TestGuavaLRUCache {
     assertEquals(0, cache.cache().stats().missCount());
     
     // cache miss
-    assertNull(cache.fetch(new byte[] { 0, 0, 4 }).join());
+    assertNull(cache.fetch(context, new byte[] { 0, 0, 4 }, span)
+        .deferred().join());
     assertEquals(3, cache.cache().size());
     assertEquals(9, cache.bytesStored());
     assertEquals(7, cache.cache().stats().requestCount());
@@ -256,7 +267,7 @@ public class TestGuavaLRUCache {
       new byte[] { 0, 0, 6 }
     };
     
-    results = cache.fetch(keys).join();
+    results = cache.fetch(context, keys, span).deferred().join();
     assertEquals(3, results.length);
     assertNull(results[0]);
     assertArrayEquals(new byte[] { 0, 0, 2 }, results[1]);
@@ -299,7 +310,7 @@ public class TestGuavaLRUCache {
     assertEquals(6, cache.bytesStored());
     
     // fetch all
-    byte[][] results = cache.fetch(keys).join();
+    byte[][] results = cache.fetch(context, keys, span).deferred().join();
     assertEquals(2, results.length);
     assertArrayEquals(new byte[] { 0, 0, 1 }, results[0]);
     assertArrayEquals(new byte[] { 0, 0, 2 }, results[1]);
@@ -313,7 +324,7 @@ public class TestGuavaLRUCache {
     assertEquals(0, cache.expired());
     
     // cache miss
-    results = cache.fetch(keys).join();
+    results = cache.fetch(context, keys, span).deferred().join();
     assertEquals(2, results.length);
     assertNull(results[0]);
     assertNull(results[1]);
@@ -330,7 +341,7 @@ public class TestGuavaLRUCache {
       null
     };
     cache.cache(keys, values, 60000, TimeUnit.MILLISECONDS);
-    results = cache.fetch(keys).join();
+    results = cache.fetch(context, keys, span).deferred().join();
     assertNull(results[0]);
     assertNull(results[1]);
     
@@ -340,7 +351,7 @@ public class TestGuavaLRUCache {
       new byte[] { }
     };
     cache.cache(keys, values, 60000, TimeUnit.MILLISECONDS);
-    results = cache.fetch(keys).join();
+    results = cache.fetch(context, keys, span).deferred().join();
     assertEquals(0, results[0].length);
     assertEquals(0, results[1].length);
   }
@@ -421,34 +432,34 @@ public class TestGuavaLRUCache {
 
     final GuavaLRUCache cache = new GuavaLRUCache();
     try {
-      cache.fetch(new byte[] { 0, 0, 1 });
+      cache.fetch(context, new byte[] { 0, 0, 1 }, span).deferred().join();
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
     try {
-      cache.fetch(keys);
+      cache.fetch(context, keys, span).deferred().join();
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
     cache.initialize(tsdb).join();
     
     try {
-      cache.fetch((byte[]) null);
+      cache.fetch(context, (byte[]) null, span).deferred().join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      cache.fetch((byte[][]) null);
+      cache.fetch(context, (byte[][]) null, span).deferred().join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      cache.fetch(new byte[] { });
+      cache.fetch(context, new byte[] { }, span).deferred().join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      cache.fetch(new byte[][] { });
+      cache.fetch(context, new byte[][] { }, span).deferred().join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

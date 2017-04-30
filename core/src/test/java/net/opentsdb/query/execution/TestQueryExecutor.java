@@ -20,7 +20,7 @@ import net.opentsdb.query.pojo.TimeSeriesQuery;
 public class TestQueryExecutor {
 
   /** Simple implementation to peek into the cancel call. */
-  public static class MockDownstream extends QueryExecution<Long> {
+  public static class MockDownstream<T> extends QueryExecution<T> {
     public boolean cancelled;
     
     public MockDownstream(TimeSeriesQuery query) {

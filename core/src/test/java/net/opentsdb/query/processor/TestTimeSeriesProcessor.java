@@ -19,16 +19,12 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 
-import java.util.List;
-
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
@@ -37,14 +33,16 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-import com.stumbleupon.async.DeferredGroupException;
 import com.stumbleupon.async.TimeoutException;
 
 import net.opentsdb.data.SimpleStringGroupId;
+import net.opentsdb.data.SimpleStringTimeSeriesId;
 import net.opentsdb.data.TimeSeriesGroupId;
-import net.opentsdb.data.iterators.GroupedIterators;
+import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.iterators.DefaultIteratorGroups;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.context.QueryContext;
@@ -52,6 +50,15 @@ import net.opentsdb.query.context.QueryContext;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ TimeSeriesProcessor.class })
 public class TestTimeSeriesProcessor {
+  
+  private TimeSeriesId id;
+  
+  @Before
+  public void before() throws Exception {
+    id = SimpleStringTimeSeriesId.newBuilder()
+        .setMetrics(Lists.newArrayList("sys.cpu.idle"))
+        .build();
+  }
   
   @Test
   public void ctor() throws Exception {
@@ -107,12 +114,13 @@ public class TestTimeSeriesProcessor {
     } catch (TimeoutException e) { }
     assertSame(processor.init_deferred, processor.initializationDeferred());
   }
-
-  @SuppressWarnings("unchecked")
+  
   @Test
   public void initialize() throws Exception {
-    final GroupedIterators mock_iterators = mock(GroupedIterators.class);
-    PowerMockito.whenNew(GroupedIterators.class).withNoArguments()
+    final DefaultIteratorGroups mock_iterators = 
+        mock(DefaultIteratorGroups.class);
+    when(mock_iterators.initialize()).thenReturn(Deferred.fromResult(null));
+    PowerMockito.whenNew(DefaultIteratorGroups.class).withNoArguments()
       .thenReturn(mock_iterators);
     MockImplementation processor = new MockImplementation();
     Deferred<Object> deferred = processor.initializationDeferred();
@@ -124,11 +132,16 @@ public class TestTimeSeriesProcessor {
     deferred = processor.initialize();
     assertSame(deferred, processor.init_deferred);
     assertNull(deferred.join());
-    verify(mock_iterators, times(1)).initializeIterators(any(List.class));
+    verify(mock_iterators, times(1)).initialize();
     
     final RuntimeException ex = new RuntimeException("Boo!");
-    doThrow(ex).when(mock_iterators)
-      .initializeIterators(any(List.class));
+    when(mock_iterators.initialize()).thenAnswer(new Answer<Deferred<Object>>() {
+      @Override
+      public Deferred<Object> answer(InvocationOnMock invocation)
+          throws Throwable {
+        return Deferred.fromError(ex);
+      }
+    });
     processor = new MockImplementation();
     deferred = processor.initialize();
     try {
@@ -137,27 +150,9 @@ public class TestTimeSeriesProcessor {
     } catch (RuntimeException e) {
       assertSame(e, ex);
     }
-    verify(mock_iterators, times(2)).initializeIterators(any(List.class));
-    
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(final InvocationOnMock invocation) throws Throwable {
-        final List<Deferred<Object>> deferreds = 
-            (List<Deferred<Object>>) invocation.getArguments()[0];
-        deferreds.add(Deferred.fromError(ex));
-        return null;
-      }
-    }).when(mock_iterators).initializeIterators(any(List.class));
-    deferred = processor.initialize();
-    try {
-      deferred.join();
-      fail("Expected RuntimeException");
-    } catch (RuntimeException e) {
-      assertSame(e, ex);
-    }
-    verify(mock_iterators, times(3)).initializeIterators(any(List.class));
+    verify(mock_iterators, times(2)).initialize();
   }
-
+  
   @Test
   public void setContext() throws Exception {
     final MockImplementation processor = new MockImplementation();
@@ -180,6 +175,7 @@ public class TestTimeSeriesProcessor {
   public void addSeries() throws Exception {
     final TimeSeriesGroupId group = new SimpleStringGroupId("Freys");
     final TimeSeriesIterator<?> iterator = mock(TimeSeriesIterator.class);
+    when(iterator.id()).thenReturn(id);
     when(iterator.type()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
@@ -209,7 +205,9 @@ public class TestTimeSeriesProcessor {
     final QueryContext context = mock(QueryContext.class);
     final TimeSeriesGroupId group = new SimpleStringGroupId("Freys");
     final TimeSeriesIterator<?> iterator = mock(TimeSeriesIterator.class);
+    when(iterator.id()).thenReturn(id);
     final TimeSeriesIterator<?> iterator_clone = mock(TimeSeriesIterator.class);
+    when(iterator_clone.id()).thenReturn(id);
     when(iterator.type()).thenAnswer(new Answer<TypeToken<?>>() {
       @Override
       public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
@@ -236,19 +234,26 @@ public class TestTimeSeriesProcessor {
     verify(context, times(1)).register(clone);
   }
   
-  @SuppressWarnings("unchecked")
   @Test
   public void close() throws Exception {
-    final GroupedIterators mock_iterators = mock(GroupedIterators.class);
-    PowerMockito.whenNew(GroupedIterators.class).withNoArguments()
+    final DefaultIteratorGroups mock_iterators = 
+        mock(DefaultIteratorGroups.class);
+    when(mock_iterators.close()).thenReturn(Deferred.fromResult(null));
+    PowerMockito.whenNew(DefaultIteratorGroups.class).withNoArguments()
       .thenReturn(mock_iterators);
     MockImplementation processor = new MockImplementation();
     Deferred<Object> deferred = processor.close();
     assertNull(deferred.join());
-    verify(mock_iterators, times(1)).close(any(List.class));
+    verify(mock_iterators, times(1)).close();
     
     final RuntimeException ex = new RuntimeException("Boo!");
-    doThrow(ex).when(mock_iterators).close(any(List.class));
+    when(mock_iterators.close()).thenAnswer(new Answer<Deferred<Object>>() {
+      @Override
+      public Deferred<Object> answer(InvocationOnMock invocation)
+          throws Throwable {
+        return Deferred.fromError(ex);
+      }
+    });
     processor = new MockImplementation();
     deferred = processor.close();
     try {
@@ -257,32 +262,15 @@ public class TestTimeSeriesProcessor {
     } catch (RuntimeException e) {
       assertSame(e, ex);
     }
-    verify(mock_iterators, times(2)).close(any(List.class));
-    
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(final InvocationOnMock invocation) throws Throwable {
-        final List<Deferred<Object>> deferreds = 
-            (List<Deferred<Object>>) invocation.getArguments()[0];
-        deferreds.add(Deferred.fromError(ex));
-        return null;
-      }
-    }).when(mock_iterators).close(any(List.class));
-    deferred = processor.close();
-    try {
-      deferred.join();
-      fail("Expected RuntimeException");
-    } catch (DeferredGroupException e) {
-      assertSame(e.getCause(), ex);
-    }
-    verify(mock_iterators, times(3)).close(any(List.class));
+    verify(mock_iterators, times(2)).close();
   }
   
-  @SuppressWarnings("unchecked")
   @Test
   public void initializationCallback() throws Exception {
-    final GroupedIterators mock_iterators = mock(GroupedIterators.class);
-    PowerMockito.whenNew(GroupedIterators.class).withNoArguments()
+    final DefaultIteratorGroups mock_iterators = 
+        mock(DefaultIteratorGroups.class);
+    when(mock_iterators.initialize()).thenReturn(Deferred.fromResult(null));
+    PowerMockito.whenNew(DefaultIteratorGroups.class).withNoArguments()
       .thenReturn(mock_iterators);
     final MockImplementation processor = new MockImplementation();
     final Deferred<Object> deferred = processor.initializationDeferred();
@@ -293,7 +281,7 @@ public class TestTimeSeriesProcessor {
     
     processor.initializationCallback().call(null);
     assertNull(deferred.join());
-    verify(mock_iterators, times(1)).initializeIterators(any(List.class));
+    verify(mock_iterators, times(1)).initialize();
   }
   
   /**
@@ -321,7 +309,7 @@ public class TestTimeSeriesProcessor {
     @Override
     public TimeSeriesProcessor getClone(final QueryContext context) {
       final MockImplementation clone = new MockImplementation(context, config);
-      clone.iterators = iterators.getClone(context);
+      clone.iterators = iterators.getCopy(context);
       return clone;
     }
     

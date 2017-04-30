@@ -23,6 +23,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.TimeStampComparator;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
@@ -52,10 +53,17 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
   private int outer_index = 0;
   private int inner_index = 0;
   
-  private final TimeSeriesId id;
-  
   public MockNumericIterator(final TimeSeriesId id) {
-    this.id = id;
+    super(id);
+    fill = NumericFillPolicy
+        .newBuilder()
+        .setPolicy(FillPolicy.NOT_A_NUMBER)
+        .build();
+  }
+  
+  public MockNumericIterator(final TimeSeriesId id, final int order) {
+    super(id);
+    this.order = order;
     fill = NumericFillPolicy
         .newBuilder()
         .setPolicy(FillPolicy.NOT_A_NUMBER)
@@ -209,6 +217,18 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
       return Deferred.fromError(ex);
     }
     return close_deferred;
+  }
+
+  @Override
+  public TimeStamp startTime() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public TimeStamp endTime() {
+    // TODO Auto-generated method stub
+    return null;
   }
 
 }

@@ -27,8 +27,12 @@ import net.opentsdb.data.DataMerger;
 import net.opentsdb.data.DataShardMerger;
 import net.opentsdb.data.types.numeric.NumericMergeLargest;
 import net.opentsdb.query.execution.QueryExecutorFactory;
+import net.opentsdb.query.execution.cache.CachingQueryExecutorPlugin;
+import net.opentsdb.query.execution.cache.GuavaLRUCache;
 import net.opentsdb.query.execution.cluster.ClusterConfig;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
+import net.opentsdb.query.execution.serdes.TimeSeriesSerdes;
+import net.opentsdb.query.execution.serdes.UglyByteIteratorGroupsSerdes;
 import net.opentsdb.stats.TsdbTracer;
 
 /**
@@ -54,6 +58,12 @@ public class Registry {
   /** The map of cluster configurations for multi-cluster queries. */
   private final Map<String, ClusterConfig> clusters;
   
+  /** The map of plugins loaded by the TSD. */
+  private final Map<Class<?>, Map<String, TsdbPlugin>> plugins;
+  
+  /** The map of serdes classes. */
+  private final Map<String, TimeSeriesSerdes<?>> serdes;
+  
   /** The thread pool used for cleanup post query or other operations. */
   private final ExecutorService cleanup_pool;
   
@@ -76,6 +86,8 @@ public class Registry {
         Maps.<String, ExecutionGraph>newHashMapWithExpectedSize(1);
     factories = Maps.newHashMapWithExpectedSize(1);
     clusters = Maps.newHashMapWithExpectedSize(1);
+    plugins = Maps.newHashMapWithExpectedSize(1);
+    serdes = Maps.newHashMapWithExpectedSize(1);
     cleanup_pool = Executors.newFixedThreadPool(1);
   }
   
@@ -84,7 +96,7 @@ public class Registry {
    * @return A non-null deferred to wait on for initialization to complete.
    */
   public Deferred<Object> initialize() {
-    initDataMergers();
+    initDefaults();
     if (tracer_plugin != null) {
       return tracer_plugin.initialize(tsdb);
     }
@@ -218,6 +230,60 @@ public class Registry {
   }
   
   /**
+   * Registers the given plugin in the map. If a plugin with the ID is already
+   * present, an exception is thrown.
+   * @param clazz The type of plugin to be stored.
+   * @param id An ID for the plugin (may be null if it's a default).
+   * @param plugin A non-null and initialized plugin to register.
+   * @throws IllegalArgumentException if the class or plugin was null or if
+   * a plugin was already registered with the given ID. Also thrown if the
+   * plugin given is not an instance of the class.
+   */
+  public void registerPlugin(final Class<?> clazz, final String id, 
+      final TsdbPlugin plugin) {
+    if (clazz == null) {
+      throw new IllegalArgumentException("Class cannot be null.");
+    }
+    if (plugin == null) {
+      throw new IllegalArgumentException("Plugin cannot be null.");
+    }
+    if (!(clazz.isAssignableFrom(plugin.getClass()))) {
+      throw new IllegalArgumentException("Plugin " + plugin 
+          + " is not an instance of class " + clazz);
+    }
+    Map<String, TsdbPlugin> class_map = plugins.get(clazz);
+    if (class_map == null) {
+      class_map = Maps.newHashMapWithExpectedSize(1);
+      plugins.put(clazz, class_map);
+    } else {
+      final TsdbPlugin extant = class_map.get(id);
+      if (extant != null) {
+        throw new IllegalArgumentException("Plugin with ID " + id 
+            + " and class " + clazz + " already exists: " + extant);
+      }
+    }
+    class_map.put(id, plugin);
+  }
+  
+  /**
+   * Retrieves the plugin with the given class type and ID.
+   * @param clazz The type of plugin to be fetched.
+   * @param id An optional ID, may be null if the default is fetched.
+   * @return An instantiated plugin if found, null if not.
+   * @throws IllegalArgumentException if the clazz was null.
+   */
+  public TsdbPlugin getPlugin(final Class<?> clazz, final String id) {
+    if (clazz == null) {
+      throw new IllegalArgumentException("Class cannot be null.");
+    }
+    final Map<String, TsdbPlugin> class_map = plugins.get(clazz);
+    if (class_map == null) {
+      return null;
+    }
+    return class_map.get(id);
+  }
+  
+  /**
    * Add the tracer implementation. Note that it must already be initialized.
    * @param tracer The tracer to pass to operations. May be null.
    */
@@ -234,18 +300,37 @@ public class Registry {
     return data_mergers.get(merger);
   }
   
+  public TimeSeriesSerdes<?> getSerdes(final String id) {
+    return serdes.get(id);
+  }
+  
   /** @return Package private shutdown returning the deferred to wait on. */
   Deferred<Object> shutdown() {
     cleanup_pool.shutdown();
     return Deferred.fromResult(null);
   }
   
-  private void initDataMergers() {
+  /** Sets up default objects in the registry. */
+  private void initDefaults() {
     final DataShardMerger shards_merger = new DataShardMerger();
     shards_merger.registerStrategy(new NumericMergeLargest());
     data_mergers.put(null, shards_merger);
     data_mergers.put("default", shards_merger);
     data_mergers.put("largest", shards_merger);
+    
+    final GuavaLRUCache query_cache = new GuavaLRUCache();
+    try {
+      query_cache.initialize(tsdb).join();
+    } catch (Exception e) {
+      throw new RuntimeException("Unexpected exception initializing Guava cache.");
+    }
+    
+    registerPlugin(CachingQueryExecutorPlugin.class, null, query_cache);
+    registerPlugin(CachingQueryExecutorPlugin.class, "GuavaLRUCache", query_cache);
+    
+    final UglyByteIteratorGroupsSerdes ugly = new UglyByteIteratorGroupsSerdes();
+    serdes.put(null, ugly);
+    serdes.put("UglyByteSerdes", ugly);
   }
   
 }

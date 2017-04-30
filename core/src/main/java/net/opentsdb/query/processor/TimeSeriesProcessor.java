@@ -12,20 +12,17 @@
 // see <http://www.gnu.org/licenses/>.package net.opentsdb.data;
 package net.opentsdb.query.processor;
 
-import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.TimeSeriesGroupId;
-import net.opentsdb.data.iterators.GroupedIterators;
+import net.opentsdb.data.iterators.DefaultIteratorGroups;
+import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.utils.Deferreds;
 
 /**
  * A time series data processor that iterates over one or more time series
@@ -44,13 +41,14 @@ import net.opentsdb.utils.Deferreds;
  * @since 3.0
  */
 public abstract class TimeSeriesProcessor {
-  private static final Logger LOG = LoggerFactory.getLogger(TimeSeriesProcessor.class);
+  private static final Logger LOG = 
+      LoggerFactory.getLogger(TimeSeriesProcessor.class);
   
   /** An optional config for the implementing processor. */
   protected final TimeSeriesProcessorConfig<?> config;
   
   /** The local group of iterators, likely extending another set. */
-  protected GroupedIterators iterators;
+  protected IteratorGroups iterators;
   
   /** A query context this processor is associated with. */
   protected QueryContext context;
@@ -91,7 +89,7 @@ public abstract class TimeSeriesProcessor {
   public TimeSeriesProcessor(final QueryContext context, 
       final TimeSeriesProcessorConfig<?> config) {
     this.config = config;
-    iterators = new GroupedIterators();
+    iterators = new DefaultIteratorGroups();
     init_deferred = new Deferred<Object>();
     setContext(context);
   }
@@ -111,15 +109,30 @@ public abstract class TimeSeriesProcessor {
    * initialization failed.
    */
   public Deferred<Object> initialize() {
-    final List<Deferred<Object>> deferreds = Lists.newArrayList();
     try {
-      iterators.initializeIterators(deferreds);
+      class InitCB implements Callback<Object, Object> {
+        @Override
+        public Object call(final Object arg) throws Exception {
+          init_deferred.callback(null);
+          return null;
+        }
+      }
+      
+      class ErrCB implements Callback<Object, Exception> {
+        @Override
+        public Object call(final Exception ex) throws Exception {
+          init_deferred.callback(ex);
+          return null;
+        }
+      }
+      
+      iterators.initialize()
+        .addCallback(new InitCB())
+        .addErrback(new ErrCB());
     } catch (Exception e) {
       init_deferred.callback(e);
       return init_deferred;
     }
-    Deferred.group(deferreds)
-      .addBoth(new Deferreds.NullGroupCB(init_deferred));
     return init_deferred;
   }
   
@@ -127,7 +140,7 @@ public abstract class TimeSeriesProcessor {
    * The set of iterators for use upstream by another processor or a sink.
    * @return A non-null grouped iterator set.
    */
-  public GroupedIterators iterators() {
+  public IteratorGroups iterators() {
     return iterators;
   }
   
@@ -192,13 +205,7 @@ public abstract class TimeSeriesProcessor {
    * @return A deferred resolving to a null on success, an exception on failure.
    */
   public Deferred<Object> close() {
-    final List<Deferred<Object>> deferreds = Lists.newArrayList();
-    try {
-      iterators.close(deferreds);
-    } catch (Exception e) {
-      return Deferred.fromError(e);
-    }
-    return Deferred.group(deferreds).addCallback(Deferreds.NULL_GROUP_CB);
+    return iterators.close();
   }
   
   /** @return A callback class that will execute {@link #initialize()} when triggered. */

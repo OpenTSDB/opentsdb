@@ -13,24 +13,34 @@
 package net.opentsdb.query.execution.cache;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.anyString;
 
 import java.util.Arrays;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
+import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.utils.Bytes;
+import net.opentsdb.utils.DateTime;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({ DateTime.class, TimeSeriesQuery.class, Timespan.class })
 public class TestDefaultTimeSeriesCacheKeyGenerator {
 
   @Test
   public void generate() throws Exception {
     final DefaultTimeSeriesCacheKeyGenerator generator = 
-        new DefaultTimeSeriesCacheKeyGenerator();
+        new DefaultTimeSeriesCacheKeyGenerator(60000, 120000);
     
     TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
@@ -62,5 +72,52 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
       generator.generate(null, true);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void expiration() throws Exception {
+    PowerMockito.mockStatic(DateTime.class);
+    PowerMockito.when(DateTime.parseDuration(anyString())).thenReturn(60000L);
+    final DefaultTimeSeriesCacheKeyGenerator generator = 
+        new DefaultTimeSeriesCacheKeyGenerator(60000, 120000);
+    
+    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago")
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("sum")
+                .setInterval("1m")))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
+    
+    PowerMockito.when(DateTime.currentTimeMillis())
+      .thenReturn(1493514769084L);
+    PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
+      .thenReturn(1493514769000L);
+    assertEquals(49084, generator.expiration(query, -1));
+    
+    // old so it's cached at the max
+    PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
+      .thenReturn(1493414769000L);
+    assertEquals(120000, generator.expiration(query, -1));
+    
+    PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
+      .thenReturn(1493514769000L);
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
+    assertEquals(60000, generator.expiration(query, -1));
+    
+    // regular
+    assertEquals(0, generator.expiration(query, 0));
+    assertEquals(30000, generator.expiration(query, 30000));
+    
+    assertEquals(60000, generator.expiration(null, -1));
   }
 }

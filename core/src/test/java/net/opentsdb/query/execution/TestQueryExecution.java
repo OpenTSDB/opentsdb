@@ -74,11 +74,6 @@ public class TestQueryExecution {
       exec.deferred().join(1);
       fail("Expected TimeoutException");
     } catch (TimeoutException e) { }
-    
-    try {
-      new TestImp(null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
   }
   
   @Test

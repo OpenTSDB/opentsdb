@@ -312,7 +312,7 @@ public class TestJexlBinderProcessor {
     processor.addProcessor(group);
     assertNull(context.initialize().join());
     
-    assertEquals(2, processor.iterators().getGroup(
+    assertEquals(2, processor.iterators().group(
         new SimpleStringGroupId("e1")).flattenedIterators().size());
     final List<TimeSeriesIterator<?>> its = processor.iterators().flattenedIterators();
     assertEquals(2, its.size());
@@ -449,7 +449,7 @@ public class TestJexlBinderProcessor {
     processor.addProcessor(group);
     assertNull(context.initialize().join());
     
-    assertEquals(2, processor.iterators().getGroup(
+    assertEquals(2, processor.iterators().group(
         new SimpleStringGroupId("e1")).flattenedIterators().size());
     final List<TimeSeriesIterator<?>> its = processor.iterators().flattenedIterators();
     assertEquals(2, its.size());
@@ -547,7 +547,7 @@ public class TestJexlBinderProcessor {
     
     assertNull(context.initialize().join());
 
-    assertEquals(2, processor.iterators().getGroup(
+    assertEquals(2, processor.iterators().group(
         new SimpleStringGroupId("e3")).flattenedIterators().size());
     final List<TimeSeriesIterator<?>> its = processor.iterators().flattenedIterators();
     assertEquals(2, its.size());
@@ -609,7 +609,7 @@ public class TestJexlBinderProcessor {
     
     assertNull(context.initialize().join());
 
-    assertEquals(2, processor.iterators().getGroup(
+    assertEquals(2, processor.iterators().group(
         new SimpleStringGroupId("e2")).flattenedIterators().size());
     final List<TimeSeriesIterator<?>> its = processor.iterators().flattenedIterators();
     assertEquals(2, its.size());

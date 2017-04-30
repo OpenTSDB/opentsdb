@@ -14,9 +14,10 @@ package net.opentsdb.query.execution.cache;
 
 import java.util.concurrent.TimeUnit;
 
-import com.stumbleupon.async.Deferred;
-
+import io.opentracing.Span;
 import net.opentsdb.core.TsdbPlugin;
+import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.execution.QueryExecution;
 
 /**
  * An executor plugin that allows for various caching implementations, either
@@ -39,13 +40,17 @@ public abstract class CachingQueryExecutorPlugin extends TsdbPlugin {
    * Attempts to fetch a key from the cache. If no results were found, the 
    * deferred should resolve to a null. Note that temporary cache exceptions
    * should be logged and not returned upstream.
+   * @param context A non-null query context used for tracing.
    * @param key A non-null and non-empty byte array key.
-   * @return A deferred resolving to a null on cache miss, a value on cache hit
-   * or an exception if something went terribly wrong.
+   * @param upstream_span An optional span for tracing.
+   * @return A QueryExecution resolving to a null on cache miss, a value on 
+   * cache hit or an exception if something went terribly wrong.
    * @throws IllegalStateException of the cache has not been initialized.
    * @throws IllegalArgumentException if the key was null or empty.
    */
-  public abstract Deferred<byte[]> fetch(final byte[] key);
+  public abstract QueryExecution<byte[]> fetch(final QueryContext context, 
+                                               final byte[] key,
+                                               final Span upstream_span);
   
   /**
    * Attempts to fetch multiple keys from the cache in a single call. The 
@@ -53,14 +58,19 @@ public abstract class CachingQueryExecutorPlugin extends TsdbPlugin {
    * keys array and may not be null. Results must appear in the same order as
    * the given keys. Note that temporary cache exceptions should be logged and
    * not returned upstream.
+   * @param context A non-null query context used for tracing.
    * @param keys A non-null and non-empty array of non-null and non-empty
    * byte arrays representing keys in the cache.
-   * @return A deferred resolving to an array with nulls or values depending
-   * on key hits and misses or an exception if something went terribly wrong.
+   * @param upstream_span An optional span for tracing.
+   * @return A QueryExecution resolving to an array with nulls or values 
+   * depending on key hits and misses or an exception if something went 
+   * terribly wrong.
    * @throws IllegalStateException of the cache has not been initialized.
    * @throws IllegalArgumentException if the keys were null or empty.
    */
-  public abstract Deferred<byte[][]> fetch(final byte[][] keys);
+  public abstract QueryExecution<byte[][]> fetch(final QueryContext context,
+                                                 final byte[][] keys,
+                                                 final Span upstream_span);
   
   /**
    * Adds the given data to the cache using the given key. For expiring caches

@@ -14,6 +14,12 @@ package net.opentsdb.query.execution.cache;
 
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 
+/**
+ * A class used to generate cache keys and expirations for a time series
+ * query result.
+ * 
+ * @since 3.0
+ */
 public abstract class TimeSeriesCacheKeyGenerator {
 
   /**
@@ -26,5 +32,16 @@ public abstract class TimeSeriesCacheKeyGenerator {
    */
   public abstract byte[] generate(final TimeSeriesQuery query, 
                                   final boolean with_timestamps);
+  
+  /**
+   * Generates an expiration duration (not timestamp) in milliseconds when the
+   * cache should expire this query result.
+   * @param query A query (if null, defaults are used).
+   * @param expiration An expiration in milliseconds. 0 == do not cache, returns
+   * 0. &lt; 0 returns expiration and nothing is calculated. &lt; 0 determines the
+   * cache expiration using the query and current timestamp.
+   * @return An expiration duration.
+   */
+  public abstract long expiration(final TimeSeriesQuery query, long expiration);
   
 }

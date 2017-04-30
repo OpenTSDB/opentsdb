@@ -54,14 +54,12 @@ import com.stumbleupon.async.Callback;
 
 import io.opentracing.Span;
 import net.opentsdb.core.Const;
-import net.opentsdb.data.DataShards;
-import net.opentsdb.data.DataShardsGroup;
-import net.opentsdb.data.DataShardsGroups;
-import net.opentsdb.data.DefaultDataShards;
-import net.opentsdb.data.DefaultDataShardsGroup;
-import net.opentsdb.data.DefaultDataShardsGroups;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.iterators.DefaultIteratorGroup;
+import net.opentsdb.data.iterators.DefaultIteratorGroups;
+import net.opentsdb.data.iterators.IteratorGroup;
+import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
@@ -90,7 +88,7 @@ import net.opentsdb.utils.JSONException;
  * 
  * @since 3.0
  */
-public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
+public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
   private static final Logger LOG = LoggerFactory.getLogger(
       HttpQueryV2Executor.class);
 
@@ -120,7 +118,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
   }
   
   @Override
-  public QueryExecution<DataShardsGroups> executeQuery(
+  public QueryExecution<IteratorGroups> executeQuery(
       final QueryContext context,
       final TimeSeriesQuery query,
       final Span upstream_span) {
@@ -204,7 +202,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
   void parseTSQuery(final TimeSeriesQuery query, 
                           final JsonNode node,
                           final Span tracer_span,
-                          final Map<String, DataShardsGroup> groups) {
+                          final Map<String, IteratorGroup> groups) {
     if (query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
     }
@@ -224,7 +222,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
     } else {
       throw new JSONException("No metric found for the series: " + node);
     }
-    DataShardsGroup group = null;
+    IteratorGroup group = null;
     for (final Metric m : query.getMetrics()) {
       if (m.getMetric().equals(metric)) {
         group = groups.get(m.getId());
@@ -276,9 +274,8 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
       tracer_span.setTag("nonFiniteValues", nans);
       tracer_span.setTag("totalValues", values);
     }
-    final DataShards shards = new DefaultDataShards(id.build());
-    shards.addShard(shard);
-    group.addShards(shards);
+    
+    group.addIterator(shard);
   }
   
   /**
@@ -321,7 +318,7 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
   }
 
   /** An implementation that allows for canceling the future. */
-  class Execution extends QueryExecution<DataShardsGroups> {
+  class Execution extends QueryExecution<IteratorGroups> {
     final QueryContext context;
     
     /** The client used for communications. */
@@ -475,17 +472,19 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
           try {
             final String json = parseResponse(response, query.getOrder(), host);
             final JsonNode root = JSON.getMapper().readTree(json);
-            final Map<String, DataShardsGroup> groups = 
+            final Map<String, IteratorGroup> groups = 
                 Maps.newHashMapWithExpectedSize(query.getMetrics().size());
             for (final Metric metric : query.getMetrics()) {
-              groups.put(metric.getId(), new DefaultDataShardsGroup(
+              groups.put(metric.getId(), new DefaultIteratorGroup(
                   new SimpleStringGroupId(metric.getId())));
             }
             for (final JsonNode node : root) {
               parseTSQuery(query, node, tracer_span, groups);
             }
-            final DataShardsGroups results = new DefaultDataShardsGroups();
-            results.addGroups(groups.values());
+            final IteratorGroups results = new DefaultIteratorGroups();
+            for (final IteratorGroup group : groups.values()) {
+              results.addGroup(group);
+            }
             callback(results, 
                 TsdbTrace.successfulTags("remoteHost", host));
           } catch (IllegalStateException caught) {
@@ -599,13 +598,13 @@ public class HttpQueryV2Executor extends QueryExecutor<DataShardsGroups> {
     }
     
     /** Helper to remove the future once it's complete. */
-    class FutureRemover implements Callback<Object, DataShardsGroups> {
+    class FutureRemover implements Callback<Object, IteratorGroups> {
       final Future<HttpResponse> future;
       public FutureRemover(final Future<HttpResponse> future) {
         this.future = future;
       }
       @Override
-      public Object call(final DataShardsGroups results) throws Exception {
+      public Object call(final IteratorGroups results) throws Exception {
         cleanup();
         return results;
       }

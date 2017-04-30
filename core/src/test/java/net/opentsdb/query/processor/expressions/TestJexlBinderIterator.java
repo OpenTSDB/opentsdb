@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.processor.expressions;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
@@ -34,6 +35,7 @@ import org.mockito.internal.util.reflection.Whitebox;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
@@ -104,9 +106,11 @@ public class TestJexlBinderIterator {
     
     id_a = SimpleStringTimeSeriesId.newBuilder()
         .setAlias("Khaleesi")
+        .addMetric("system.cpu.user")
         .build();
     id_b = SimpleStringTimeSeriesId.newBuilder()
         .setAlias("Khalasar")
+        .addMetric("system.cpu.idle")
         .build();
     
     data_a = Lists.newArrayListWithCapacity(2);
@@ -151,7 +155,8 @@ public class TestJexlBinderIterator {
   
   @Test
   public void ctor() throws Exception {
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     verify(context, times(1)).register(it);
     
     new JexlBinderNumericIterator(null, config);
@@ -164,7 +169,8 @@ public class TestJexlBinderIterator {
   
   @Test
   public void addIterator() throws Exception {
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
     
@@ -198,8 +204,27 @@ public class TestJexlBinderIterator {
   }
   
   @Test
+  public void initialize() throws Exception {
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
+    it.addIterator("a", it_a);
+    it.addIterator("b", it_b);
+    
+    assertNull(it.id());
+    assertNull(it.initialize().join());
+    
+    assertEquals(2, it.id().metrics().size());
+    assertArrayEquals("system.cpu.idle".getBytes(Const.UTF8_CHARSET), 
+        it.id().metrics().get(0));
+    assertArrayEquals("system.cpu.user".getBytes(Const.UTF8_CHARSET), 
+        it.id().metrics().get(1));
+    assertNull(it.id().alias());
+  }
+  
+  @Test
   public void nextOK() throws Exception {
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
     
@@ -265,7 +290,8 @@ public class TestJexlBinderIterator {
         .setExpression(expression)
         .build();
     
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
  
@@ -324,7 +350,8 @@ public class TestJexlBinderIterator {
         .setExpression(expression)
         .build();
     
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
     
@@ -375,7 +402,8 @@ public class TestJexlBinderIterator {
 
   @Test
   public void exceptionStatusOnNext() throws Exception {
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
 
@@ -398,7 +426,8 @@ public class TestJexlBinderIterator {
   
   @Test
   public void exceptionThrowOnNext() throws Exception {
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
  
@@ -438,7 +467,8 @@ public class TestJexlBinderIterator {
         .setExpression(expression)
         .build();
     
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
 
     // since we're not part of a binder we have to manually initialize the it
@@ -446,7 +476,8 @@ public class TestJexlBinderIterator {
   }
   
   public void missingVariableHasFill() throws Exception {
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     
     // since we're not part of a binder we have to manually initialize the it
@@ -497,7 +528,8 @@ public class TestJexlBinderIterator {
   @Test
   public void state1() throws Exception {
     ProcessorTestsHelpers.setState1(it_a, it_b);
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
     
@@ -533,7 +565,8 @@ public class TestJexlBinderIterator {
   @Test
   public void state2() throws Exception {
     ProcessorTestsHelpers.setState2(it_a, it_b);
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
  
@@ -569,7 +602,8 @@ public class TestJexlBinderIterator {
   @Test
   public void state3() throws Exception {
     ProcessorTestsHelpers.setState3(it_a, it_b);
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
 
@@ -605,7 +639,8 @@ public class TestJexlBinderIterator {
   @Test
   public void state4() throws Exception {
     ProcessorTestsHelpers.setState4(it_a, it_b);
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
 
@@ -641,7 +676,8 @@ public class TestJexlBinderIterator {
   @Test
   public void state5() throws Exception {
     ProcessorTestsHelpers.setState5(it_a, it_b);
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
 
@@ -677,7 +713,8 @@ public class TestJexlBinderIterator {
   @Test
   public void state6() throws Exception {
     ProcessorTestsHelpers.setState6(it_a, it_b);
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
 
@@ -707,7 +744,8 @@ public class TestJexlBinderIterator {
   @Test
   public void state7() throws Exception {
     ProcessorTestsHelpers.setState7(it_a, it_b);
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
 
@@ -731,7 +769,8 @@ public class TestJexlBinderIterator {
   @Test
   public void state8() throws Exception {
     ProcessorTestsHelpers.setState8(it_a, it_b);
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
 
@@ -755,7 +794,8 @@ public class TestJexlBinderIterator {
   @Test
   public void state9() throws Exception {
     ProcessorTestsHelpers.setState9(it_a, it_b);
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
 
@@ -780,7 +820,8 @@ public class TestJexlBinderIterator {
   @Test
   public void state10() throws Exception {
     ProcessorTestsHelpers.setState10(it_a, it_b);
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
 
@@ -816,7 +857,8 @@ public class TestJexlBinderIterator {
   @Test
   public void state11() throws Exception {
     ProcessorTestsHelpers.setState11(it_a, it_b);
-    JexlBinderNumericIterator it = new JexlBinderNumericIterator(context, config);
+    JexlBinderNumericIterator it = 
+        new JexlBinderNumericIterator(context, config);
     it.addIterator("a", it_a);
     it.addIterator("b", it_b);
 

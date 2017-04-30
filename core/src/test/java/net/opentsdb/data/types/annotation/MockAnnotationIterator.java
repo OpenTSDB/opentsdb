@@ -35,7 +35,6 @@ public class MockAnnotationIterator extends
   public RuntimeException ex;
   public boolean throw_ex;
   
-  private final TimeSeriesId id;
   private MockNumericIterator parent;
   
   @Override
@@ -47,7 +46,12 @@ public class MockAnnotationIterator extends
   }
   
   public MockAnnotationIterator(final TimeSeriesId id) {
-    this.id = id;
+    super(id);
+  }
+  
+  public MockAnnotationIterator(final TimeSeriesId id, final int order) {
+    super(id);
+    this.order = order;
   }
 
   @Override
@@ -96,6 +100,18 @@ public class MockAnnotationIterator extends
       return Deferred.fromError(ex);
     }
     return close_deferred;
+  }
+
+  @Override
+  public TimeStamp startTime() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public TimeStamp endTime() {
+    // TODO Auto-generated method stub
+    return null;
   }
 
 }

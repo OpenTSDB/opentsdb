@@ -20,6 +20,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.context.QueryContext;
 
 /**
@@ -44,6 +45,11 @@ import net.opentsdb.query.context.QueryContext;
  * @since 3.0
  */
 public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
+  /** The ID of the time series represented by this iterator. */
+  protected TimeSeriesId id;
+
+  /** An order if iterator is part of a slice config. */
+  protected int order;
   
   /** The context this iterator belongs to. May be null. */
   protected QueryContext context;
@@ -56,17 +62,39 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
    * Purposely wildcarded so we can write type converters.*/
   protected TimeSeriesIterator<? extends TimeSeriesDataType> parent;
   
-  /** Default ctor with everything initialized to null. */
-  public TimeSeriesIterator() {
-    
+  /**
+   * Protected ctor that sets the order to -1 and allows an implementing class
+   * to set the ID later on.
+   */
+  protected TimeSeriesIterator() {
+    order = -1;
+  }
+  
+  /** Default ctor with everything initialized to null.
+   * @param id A non-null time series ID.
+   * @throws IllegalArgumentException if the ID was null.
+   */
+  public TimeSeriesIterator(final TimeSeriesId id) {
+    if (id == null) {
+      throw new IllegalArgumentException("ID cannot be null.");
+    }
+    this.id = id;
+    order = -1;
   }
   
   /** 
    * Ctor for setting the context and registering with it.
+   * @param id A non-null time series ID. 
    * @param context A context to register with.
+   * @throws IllegalArgumentException if the ID was null.
    */
-  public TimeSeriesIterator(final QueryContext context) {
+  public TimeSeriesIterator(final TimeSeriesId id, final QueryContext context) {
+    if (id == null) {
+      throw new IllegalArgumentException("ID cannot be null.");
+    }
+    this.id = id;
     setContext(context);
+    order = -1;
   }
   
   /**
@@ -84,7 +112,9 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
       throw new IllegalArgumentException("Source type [" + source.type() 
         + "] is not the same as our type [" + type() + "]");
     }
+    this.id = source.id();
     setContext(context);
+    order = source.order();
     this.source = source;
     source.setParent(this);
   }
@@ -103,11 +133,24 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
       Deferred.fromError(new UnsupportedOperationException("Not implemented"));
   }
   
+  /** @return An optional order within a slice config. -1 by default. */
+  public int order() {
+    return order;
+  }
+  
   /**
    * The {@link TimeSeriesDataType} data type of this data returned by this iterator.
    * @return A non-null type token.
    */
   public abstract TypeToken<? extends TimeSeriesDataType> type();
+  
+  /** @return A non-null base time stamp shared by all values in this set. 
+   * Usually set to the query start time or some offset of it. */
+  public abstract TimeStamp startTime();
+  
+  /** @return A non-null final inclusive timestamp of the shard for which there 
+   * may be data. Usually set to to the query end time. */ 
+  public abstract TimeStamp endTime();
   
   /**
    * A reference to the time series ID associated with all data points returned
@@ -115,10 +158,7 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
    * @return A non-null {@link TimeSeriesId}.
    */
   public TimeSeriesId id() {
-    if (source != null) {
-      return source.id();
-    }
-    throw new UnsupportedOperationException("Not implemented");
+    return id;
   }
   
   /**
@@ -211,4 +251,5 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
     return source != null ? source.close() : 
       Deferred.fromError(new UnsupportedOperationException("Not implemented"));
   }
+  
 }

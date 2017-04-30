@@ -42,12 +42,9 @@ import com.stumbleupon.async.Callback;
 
 import io.opentracing.Span;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.DataShard;
-import net.opentsdb.data.DataShards;
-import net.opentsdb.data.DataShardsGroup;
-import net.opentsdb.data.DataShardsGroups;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -58,6 +55,7 @@ import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.HttpQueryV2Executor;
 import net.opentsdb.query.execution.QueryExecution;
 import net.opentsdb.query.execution.QueryExecutor;
+import net.opentsdb.query.execution.serdes.JsonV2QuerySerdes;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.stats.TsdbTrace;
@@ -81,7 +79,7 @@ public class V2QueryResource {
     } else if (request.getAttribute(
         OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE) != null) {
       
-      final DataShardsGroups groups = (DataShardsGroups) request.getAttribute(
+      final IteratorGroups groups = (IteratorGroups) request.getAttribute(
           OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE);
       final QueryContext context = (QueryContext) request.getAttribute("MYCONTEXT");
       final Span serdes_span;
@@ -101,57 +99,60 @@ public class V2QueryResource {
         @Override
         public void write(OutputStream output)
             throws IOException, WebApplicationException {
-          JsonGenerator json = JSON.getFactory().createGenerator(output);
-          json.writeStartArray();
-          
-          for (final DataShardsGroup group : groups.data()) {
-            for (final DataShards shards : group.data()) {
-              for (final DataShard shard : shards.data()) {
-                json.writeStartObject();
-                
-                json.writeStringField("metric", new String(shard.id().metrics().get(0)));
-                json.writeObjectFieldStart("tags");
-                for (final Entry<byte[], byte[]> entry : shard.id().tags().entrySet()) {
-                  json.writeStringField(new String(entry.getKey()), new String(entry.getValue()));
-                }
-                json.writeArrayFieldStart("aggregateTags");
-                for (final byte[] tag : shard.id().aggregatedTags()) {
-                  json.writeString(new String(tag));
-                }
-                json.writeEndArray();
-                json.writeEndObject();
-                json.writeObjectFieldStart("dps");
-                
-                @SuppressWarnings("unchecked")
-                TimeSeriesIterator<NumericType> it = shard.iterator();
-                while (it.status() == IteratorStatus.HAS_DATA) {
-                  TimeSeriesValue<NumericType> v = it.next();
-                  if (v.value().isInteger()) {
-                    json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
-                        v.value().longValue());
-                  } else {
-                    json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
-                        v.value().doubleValue());
-                  }
-                }
-                
-                json.writeEndObject();
-                json.writeEndObject();
-                json.flush();
-              }
-            }
-            
-            if (trace != null) {
-              trace.serializeJSON("trace", json);
-            }
-            
-          }
-          json.writeEndArray();
-          json.flush();
-          json.close();
-          if (serdes_span != null) {
-            serdes_span.finish();
-          }
+          final JsonGenerator json = JSON.getFactory().createGenerator(output);
+          final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(json);
+          serdes.serialize(output, groups);
+//          JsonGenerator json = JSON.getFactory().createGenerator(output);
+//          json.writeStartArray();
+//          
+//          for (final DataShardsGroup group : groups.data()) {
+//            for (final DataShards shards : group.data()) {
+//              for (final DataShard shard : shards.data()) {
+//                json.writeStartObject();
+//                
+//                json.writeStringField("metric", new String(shard.id().metrics().get(0)));
+//                json.writeObjectFieldStart("tags");
+//                for (final Entry<byte[], byte[]> entry : shard.id().tags().entrySet()) {
+//                  json.writeStringField(new String(entry.getKey()), new String(entry.getValue()));
+//                }
+//                json.writeArrayFieldStart("aggregateTags");
+//                for (final byte[] tag : shard.id().aggregatedTags()) {
+//                  json.writeString(new String(tag));
+//                }
+//                json.writeEndArray();
+//                json.writeEndObject();
+//                json.writeObjectFieldStart("dps");
+//                
+//                @SuppressWarnings("unchecked")
+//                TimeSeriesIterator<NumericType> it = shard.iterator();
+//                while (it.status() == IteratorStatus.HAS_DATA) {
+//                  TimeSeriesValue<NumericType> v = it.next();
+//                  if (v.value().isInteger()) {
+//                    json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
+//                        v.value().longValue());
+//                  } else {
+//                    json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
+//                        v.value().doubleValue());
+//                  }
+//                }
+//                
+//                json.writeEndObject();
+//                json.writeEndObject();
+//                json.flush();
+//              }
+//            }
+//            
+//            if (trace != null) {
+//              trace.serializeJSON("trace", json);
+//            }
+//            
+//          }
+//          json.writeEndArray();
+//          json.flush();
+//          json.close();
+//          if (serdes_span != null) {
+//            serdes_span.finish();
+//          }
         }
       };
       
@@ -216,16 +217,16 @@ public class V2QueryResource {
       context.addSessionObject(HttpQueryV2Executor.SESSION_HEADERS_KEY, headersCopy);
       request.setAttribute("MYCONTEXT", context);
       
-      final QueryExecutor<DataShardsGroups> executor =
-          (QueryExecutor<DataShardsGroups>) context.executionGraph().sinkExecutor();
+      final QueryExecutor<IteratorGroups> executor =
+          (QueryExecutor<IteratorGroups>) context.executionGraph().sinkExecutor();
       
-      final QueryExecution<DataShardsGroups> execution = 
+      final QueryExecution<IteratorGroups> execution = 
           executor.executeQuery(context, query, span);
       
-      class SuccessCB implements Callback<Object, DataShardsGroups> {
+      class SuccessCB implements Callback<Object, IteratorGroups> {
 
         @Override
-        public Object call(final DataShardsGroups groups) throws Exception {
+        public Object call(final IteratorGroups groups) throws Exception {
           if (LOG.isDebugEnabled()) {
             LOG.debug("Query responded. Setting async to serialize.");
           }

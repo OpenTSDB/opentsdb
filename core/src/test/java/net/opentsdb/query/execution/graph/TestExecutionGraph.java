@@ -377,9 +377,7 @@ public class TestExecutionGraph {
     // partial init
     assertSame(tsdb, graph.tsdb());
     
-    assertEquals(2, graph.executors.size());
-    assertSame(executor_a, graph.executors.get("Node1"));
-    assertSame(executor_b, graph.executors.get("Node2"));
+    assertEquals(0, graph.executors.size());
     
     assertTrue(graph.graph.containsVertex("Node1"));
     assertTrue(graph.graph.containsVertex("Node2"));
@@ -387,7 +385,7 @@ public class TestExecutionGraph {
     assertTrue(graph.graph.containsEdge("Node1", "Node2"));
     assertFalse(graph.graph.containsEdge("Node1", "Node3"));
     
-    assertSame(executor_a, graph.sinkExecutor());
+    assertNull(graph.sinkExecutor());
     assertSame(graph, graph.nodes.get(0).graph());
     assertSame(graph, graph.nodes.get(1).graph());
     assertSame(graph, graph.nodes.get(2).graph());
@@ -415,8 +413,7 @@ public class TestExecutionGraph {
     // partial init
     assertSame(tsdb, graph.tsdb());
     
-    assertEquals(1, graph.executors.size());
-    assertSame(executor_a, graph.executors.get("Node1"));
+    assertEquals(0, graph.executors.size());
     
     assertTrue(graph.graph.containsVertex("Node1"));
     assertTrue(graph.graph.containsVertex("Node2"));
@@ -448,14 +445,13 @@ public class TestExecutionGraph {
     // partial init
     assertSame(tsdb, graph.tsdb());
     
-    assertEquals(1, graph.executors.size());
-    assertSame(executor_a, graph.executors.get("Node1"));
+    assertEquals(0, graph.executors.size());
     
     assertTrue(graph.graph.containsVertex("Node1"));
     assertTrue(graph.graph.containsVertex("Node2"));
     assertTrue(graph.graph.containsEdge("Node1", "Node2"));
     
-    assertSame(executor_a, graph.sinkExecutor());
+    assertNull(graph.sinkExecutor());
     assertSame(graph, graph.nodes.get(0).graph());
     assertSame(graph, graph.nodes.get(1).graph());
   }
@@ -482,14 +478,13 @@ public class TestExecutionGraph {
     assertSame(tsdb, graph.tsdb());
     assertEquals("Node4", graph.nodes.get(1).getExecutorId());
     
-    assertEquals(1, graph.executors.size());
-    assertSame(executor_a, graph.executors.get("Node1"));
+    assertEquals(0, graph.executors.size());
     
     assertTrue(graph.graph.containsVertex("Node1"));
     assertTrue(graph.graph.containsVertex("Node4"));
     assertTrue(graph.graph.containsEdge("Node1", "Node4"));
     
-    assertSame(executor_a, graph.sinkExecutor());
+    assertNull(graph.sinkExecutor());
     assertSame(graph, graph.nodes.get(0).graph());
     assertSame(graph, graph.nodes.get(1).graph());
   }
@@ -545,12 +540,12 @@ public class TestExecutionGraph {
     assertEquals(0, graph.executors.size());
     
     assertTrue(graph.graph.containsVertex("Node1"));
-    assertFalse(graph.graph.containsVertex("Node2"));
-    assertFalse(graph.graph.containsEdge("Node1", "Node2"));
+    assertTrue(graph.graph.containsVertex("Node2"));
+    assertTrue(graph.graph.containsEdge("Node1", "Node2"));
     
     assertNull(graph.sinkExecutor());
     assertSame(graph, graph.nodes.get(0).graph());
-    assertNull(graph.nodes.get(1).graph());
+    assertSame(graph, graph.nodes.get(1).graph());
   }
   
   @Test

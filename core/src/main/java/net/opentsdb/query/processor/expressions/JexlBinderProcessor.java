@@ -21,8 +21,9 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.TimeSeriesGroupId;
-import net.opentsdb.data.iterators.GroupedAndTypedIteratorLists;
-import net.opentsdb.data.iterators.GroupedIterators;
+import net.opentsdb.data.iterators.DefaultIteratorGroups;
+import net.opentsdb.data.iterators.IteratorGroup;
+import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.context.QueryContext;
@@ -42,7 +43,7 @@ import net.opentsdb.utils.Bytes.ByteMap;
 public class JexlBinderProcessor extends TimeSeriesProcessor {
   
   /** A holding location for iterators as we compile from one or more sources. */
-  private GroupedIterators source_iterators;
+  private IteratorGroups source_iterators;
   
   /** A list of source processors to read from after initialization. */
   private final List<TimeSeriesProcessor> source_processors;
@@ -60,7 +61,7 @@ public class JexlBinderProcessor extends TimeSeriesProcessor {
       throw new IllegalArgumentException("Config cannot be null for "
           + "expression processors.");
     }
-    source_iterators = new GroupedIterators();
+    source_iterators = new DefaultIteratorGroups();
     source_processors = Lists.newArrayListWithExpectedSize(1);
   }
   
@@ -99,15 +100,15 @@ public class JexlBinderProcessor extends TimeSeriesProcessor {
           return init_deferred;
         }
         
-        final GroupedIterators iterators_to_join = new GroupedIterators();
+        final IteratorGroups iterators_to_join = new DefaultIteratorGroups();
         try {
-          for (final Entry<TimeSeriesGroupId, GroupedAndTypedIteratorLists> group : 
+          for (final Entry<TimeSeriesGroupId, IteratorGroup> group : 
               source_iterators) {
             iterators_to_join.addGroup(group.getValue());
           }
           // add the processor iterators now that they've been initialized
           for (final TimeSeriesProcessor processor : source_processors) {
-            for (final Entry<TimeSeriesGroupId, GroupedAndTypedIteratorLists> group : 
+            for (final Entry<TimeSeriesGroupId, IteratorGroup> group : 
                 processor.iterators()) {
               iterators_to_join.addGroup(group.getValue());
             }
@@ -117,16 +118,17 @@ public class JexlBinderProcessor extends TimeSeriesProcessor {
               ((ExpressionProcessorConfig) config).getExpression().getId());
           
           final Joiner joiner = new Joiner((ExpressionProcessorConfig) config);        
-          final ByteMap<GroupedIterators> joins = joiner.join(iterators_to_join);
+          final ByteMap<IteratorGroups> joins = joiner.join(iterators_to_join);
           
           final List<Deferred<Object>> deferreds = 
               Lists.newArrayListWithExpectedSize(joins.size());
-          for (final GroupedIterators join : joins.values()) {
-            final JexlBinderNumericIterator binder_iterator = 
-                new JexlBinderNumericIterator(context, (ExpressionProcessorConfig) config);
+          for (final IteratorGroups join : joins.values()) {
+            final JexlBinderNumericIterator binder_iterator =
+                new JexlBinderNumericIterator(context, 
+                    (ExpressionProcessorConfig) config);
             int numerics = 0;
-            for (final Entry<TimeSeriesGroupId, 
-                  GroupedAndTypedIteratorLists> group : join) {
+            
+            for (final Entry<TimeSeriesGroupId, IteratorGroup> group : join) {
               for (final TimeSeriesIterator<?> it : 
                   group.getValue().flattenedIterators()) {
                 if (it.type().equals(NumericType.TYPE)) {
@@ -137,6 +139,7 @@ public class JexlBinderProcessor extends TimeSeriesProcessor {
             }
             
             if (numerics > 0) {
+              binder_iterator.setId();
               iterators.addIterator(id, binder_iterator);
               deferreds.add(binder_iterator.initialize());
             }
@@ -200,7 +203,7 @@ public class JexlBinderProcessor extends TimeSeriesProcessor {
   public TimeSeriesProcessor getClone(final QueryContext context) {
     final JexlBinderProcessor clone = new JexlBinderProcessor(context, 
         (TimeSeriesProcessorConfig<JexlBinderProcessor>) config);
-    clone.source_iterators = source_iterators.getClone(context);
+    clone.source_iterators = source_iterators.getCopy(context);
     for (final TimeSeriesProcessor processor : source_processors) {
       clone.addProcessor(processor.getClone(context));
     }

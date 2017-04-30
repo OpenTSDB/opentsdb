@@ -14,6 +14,7 @@ package net.opentsdb.query.processor;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -24,8 +25,9 @@ import net.opentsdb.common.Const;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.SimpleStringTimeSeriesId;
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.data.iterators.GroupedAndTypedIteratorLists;
-import net.opentsdb.data.iterators.GroupedIterators;
+import net.opentsdb.data.iterators.DefaultIteratorGroups;
+import net.opentsdb.data.iterators.IteratorGroup;
+import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.annotation.MockAnnotationIterator;
 import net.opentsdb.data.types.numeric.MockNumericIterator;
@@ -56,7 +58,7 @@ public class TestJoiner {
   public void joinUnionNullId() throws Exception {
     setConfig();
     final Joiner joiner = new Joiner(config);
-    final GroupedIterators group = new GroupedIterators();
+    final IteratorGroups group = new DefaultIteratorGroups();
     group.addIterator(new SimpleStringGroupId("a"), new MockNumericIterator(null));
     joiner.join(group);
   }
@@ -66,7 +68,7 @@ public class TestJoiner {
     setConfig();
     final Joiner joiner = new Joiner(config);
     
-    final GroupedIterators group = new GroupedIterators();
+    final IteratorGroups group = new DefaultIteratorGroups();
     TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
@@ -94,45 +96,45 @@ public class TestJoiner {
     group.addIterator(new SimpleStringGroupId("b"), new MockNumericIterator(id));
     //group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
 
-    final ByteMap<GroupedIterators> joins = joiner.join(group);
+    final ByteMap<IteratorGroups> joins = joiner.join(group);
     
     assertEquals(3, joins.size());
     byte[] key = "cololaxhostweb01".getBytes(Const.UTF8_CHARSET);
-    GroupedIterators join_group = joins.get(key);
+    IteratorGroups join_group = joins.get(key);
     assertEquals(3, join_group.flattenedIterators().size());
-    GroupedAndTypedIteratorLists join_types = 
-        join_group.getGroup(new SimpleStringGroupId("a"));
-    assertEquals(1, join_types.flattenedIterators().size());
-    assertEquals(1, join_types.iterators(AnnotationType.TYPE).iterators().size());
-    assertNull(join_types.iterators(NumericType.TYPE));
-    join_types = join_group.getGroup(new SimpleStringGroupId("b"));
-    assertEquals(2, join_types.flattenedIterators().size());
-    assertEquals(1, join_types.iterators(AnnotationType.TYPE).iterators().size());
-    assertEquals(1, join_types.iterators(NumericType.TYPE).iterators().size());
+    IteratorGroup its = 
+        join_group.group(new SimpleStringGroupId("a"));
+    assertEquals(1, its.flattenedIterators().size());
+    assertEquals(1, its.iterators(AnnotationType.TYPE).size());
+    assertTrue(its.iterators(NumericType.TYPE).isEmpty());
+    its = join_group.group(new SimpleStringGroupId("b"));
+    assertEquals(2, its.flattenedIterators().size());
+    assertEquals(1, its.iterators(AnnotationType.TYPE).size());
+    assertEquals(1, its.iterators(NumericType.TYPE).size());
     
     key = "cololaxhostweb02".getBytes(Const.UTF8_CHARSET);
     join_group = joins.get(key);
     assertEquals(4, join_group.flattenedIterators().size());
-    join_types = join_group.getGroup(new SimpleStringGroupId("a"));
-    assertEquals(2, join_types.flattenedIterators().size());
-    assertEquals(1, join_types.iterators(AnnotationType.TYPE).iterators().size());
-    assertEquals(1, join_types.iterators(NumericType.TYPE).iterators().size());
-    join_types = join_group.getGroup(new SimpleStringGroupId("b"));
-    assertEquals(2, join_types.flattenedIterators().size());
-    assertEquals(1, join_types.iterators(AnnotationType.TYPE).iterators().size());
-    assertEquals(1, join_types.iterators(NumericType.TYPE).iterators().size());
+    its = join_group.group(new SimpleStringGroupId("a"));
+    assertEquals(2, its.flattenedIterators().size());
+    assertEquals(1, its.iterators(AnnotationType.TYPE).size());
+    assertEquals(1, its.iterators(NumericType.TYPE).size());
+    its = join_group.group(new SimpleStringGroupId("b"));
+    assertEquals(2, its.flattenedIterators().size());
+    assertEquals(1, its.iterators(AnnotationType.TYPE).size());
+    assertEquals(1, its.iterators(NumericType.TYPE).size());
     
     key = "colophxhostweb01".getBytes(Const.UTF8_CHARSET);
     join_group = joins.get(key);
     assertEquals(3, join_group.flattenedIterators().size());
-    join_types = join_group.getGroup(new SimpleStringGroupId("a"));
-    assertEquals(2, join_types.flattenedIterators().size());
-    assertEquals(1, join_types.iterators(AnnotationType.TYPE).iterators().size());
-    assertEquals(1, join_types.iterators(NumericType.TYPE).iterators().size());
-    join_types = join_group.getGroup(new SimpleStringGroupId("b"));
-    assertEquals(1, join_types.flattenedIterators().size());
-    assertNull(join_types.iterators(AnnotationType.TYPE));
-    assertEquals(1, join_types.iterators(NumericType.TYPE).iterators().size());
+    its = join_group.group(new SimpleStringGroupId("a"));
+    assertEquals(2, its.flattenedIterators().size());
+    assertEquals(1, its.iterators(AnnotationType.TYPE).size());
+    assertEquals(1, its.iterators(NumericType.TYPE).size());
+    its = join_group.group(new SimpleStringGroupId("b"));
+    assertEquals(1, its.flattenedIterators().size());
+    assertTrue(its.iterators(AnnotationType.TYPE).isEmpty());
+    assertEquals(1, its.iterators(NumericType.TYPE).size());
   }
   
   @Test
@@ -140,25 +142,25 @@ public class TestJoiner {
     setConfig();
     final Joiner joiner = new Joiner(config);
     
-    final GroupedIterators group = new GroupedIterators();
+    final IteratorGroups group = new DefaultIteratorGroups();
     TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .build();
     group.addIterator(new SimpleStringGroupId("a"), new MockNumericIterator(id));
     
-    final ByteMap<GroupedIterators> joins = joiner.join(group);
+    final ByteMap<IteratorGroups> joins = joiner.join(group);
     
     assertEquals(1, joins.size());
     byte[] key = "cololaxhostweb01".getBytes(Const.UTF8_CHARSET);
-    GroupedIterators join_group = joins.get(key);
+    IteratorGroups join_group = joins.get(key);
     assertEquals(1, join_group.flattenedIterators().size());
-    GroupedAndTypedIteratorLists join_types = 
-        join_group.getGroup(new SimpleStringGroupId("a"));
+    IteratorGroup join_types = 
+        join_group.group(new SimpleStringGroupId("a"));
     assertEquals(1, join_types.flattenedIterators().size());
-    assertNull(join_types.iterators(AnnotationType.TYPE));
-    assertEquals(1, join_types.iterators(NumericType.TYPE).iterators().size());
-    assertNull(join_group.getGroup(new SimpleStringGroupId("b")));
+    assertTrue(join_types.iterators(AnnotationType.TYPE).isEmpty());
+    assertEquals(1, join_types.iterators(NumericType.TYPE).size());
+    assertNull(join_group.group(new SimpleStringGroupId("b")));
   }
   
   @Test
@@ -167,7 +169,7 @@ public class TestJoiner {
     setConfig();
     final Joiner joiner = new Joiner(config);
     
-    final GroupedIterators group = new GroupedIterators();
+    final IteratorGroups group = new DefaultIteratorGroups();
     TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
@@ -195,45 +197,45 @@ public class TestJoiner {
     group.addIterator(new SimpleStringGroupId("b"), new MockNumericIterator(id));
     //group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
 
-    final ByteMap<GroupedIterators> joins = joiner.join(group);
+    final ByteMap<IteratorGroups> joins = joiner.join(group);
     
     assertEquals(3, joins.size());
     byte[] key = "cololaxhostweb01".getBytes(Const.UTF8_CHARSET);
-    GroupedIterators join_group = joins.get(key);
+    IteratorGroups join_group = joins.get(key);
     assertEquals(2, join_group.flattenedIterators().size());
-    GroupedAndTypedIteratorLists join_types = 
-        join_group.getGroup(new SimpleStringGroupId("a"));
+    IteratorGroup join_types = 
+        join_group.group(new SimpleStringGroupId("a"));
     assertEquals(1, join_types.flattenedIterators().size());
-    assertEquals(1, join_types.iterators(AnnotationType.TYPE).iterators().size());
-    assertNull(join_types.iterators(NumericType.TYPE));
-    join_types = join_group.getGroup(new SimpleStringGroupId("b"));
+    assertEquals(1, join_types.iterators(AnnotationType.TYPE).size());
+    assertTrue(join_types.iterators(NumericType.TYPE).isEmpty());
+    join_types = join_group.group(new SimpleStringGroupId("b"));
     assertEquals(1, join_types.flattenedIterators().size());
-    assertEquals(1, join_types.iterators(AnnotationType.TYPE).iterators().size());
-    assertNull(join_types.iterators(NumericType.TYPE));
+    assertEquals(1, join_types.iterators(AnnotationType.TYPE).size());
+    assertTrue(join_types.iterators(NumericType.TYPE).isEmpty());
     
     key = "cololaxhostweb02".getBytes(Const.UTF8_CHARSET);
     join_group = joins.get(key);
     assertEquals(4, join_group.flattenedIterators().size());
-    join_types = join_group.getGroup(new SimpleStringGroupId("a"));
+    join_types = join_group.group(new SimpleStringGroupId("a"));
     assertEquals(2, join_types.flattenedIterators().size());
-    assertEquals(1, join_types.iterators(AnnotationType.TYPE).iterators().size());
-    assertEquals(1, join_types.iterators(NumericType.TYPE).iterators().size());
-    join_types = join_group.getGroup(new SimpleStringGroupId("b"));
+    assertEquals(1, join_types.iterators(AnnotationType.TYPE).size());
+    assertEquals(1, join_types.iterators(NumericType.TYPE).size());
+    join_types = join_group.group(new SimpleStringGroupId("b"));
     assertEquals(2, join_types.flattenedIterators().size());
-    assertEquals(1, join_types.iterators(AnnotationType.TYPE).iterators().size());
-    assertEquals(1, join_types.iterators(NumericType.TYPE).iterators().size());
+    assertEquals(1, join_types.iterators(AnnotationType.TYPE).size());
+    assertEquals(1, join_types.iterators(NumericType.TYPE).size());
     
     key = "colophxhostweb01".getBytes(Const.UTF8_CHARSET);
     join_group = joins.get(key);
     assertEquals(2, join_group.flattenedIterators().size());
-    join_types = join_group.getGroup(new SimpleStringGroupId("a"));
+    join_types = join_group.group(new SimpleStringGroupId("a"));
     assertEquals(1, join_types.flattenedIterators().size());
-    assertNull(join_types.iterators(AnnotationType.TYPE));
-    assertEquals(1, join_types.iterators(NumericType.TYPE).iterators().size());
-    join_types = join_group.getGroup(new SimpleStringGroupId("b"));
+    assertTrue(join_types.iterators(AnnotationType.TYPE).isEmpty());
+    assertEquals(1, join_types.iterators(NumericType.TYPE).size());
+    join_types = join_group.group(new SimpleStringGroupId("b"));
     assertEquals(1, join_types.flattenedIterators().size());
-    assertNull(join_types.iterators(AnnotationType.TYPE));
-    assertEquals(1, join_types.iterators(NumericType.TYPE).iterators().size());
+    assertTrue(join_types.iterators(AnnotationType.TYPE).isEmpty());
+    assertEquals(1, join_types.iterators(NumericType.TYPE).size());
   }
   
   @Test (expected = UnsupportedOperationException.class)
@@ -242,7 +244,7 @@ public class TestJoiner {
     setConfig();
     final Joiner joiner = new Joiner(config);
     
-    final GroupedIterators group = new GroupedIterators();
+    final IteratorGroups group = new DefaultIteratorGroups();
     TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")

@@ -574,7 +574,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
     }
     
     /**
-     * @param config A non-null builcer to pull from.
+     * @param config A non-null builder to pull from.
      * @return A cloned builder.
      */
     public static Builder newBuilder(final Config config) {

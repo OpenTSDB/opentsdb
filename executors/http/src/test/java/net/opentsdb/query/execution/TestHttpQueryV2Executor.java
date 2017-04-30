@@ -61,12 +61,11 @@ import com.stumbleupon.async.TimeoutException;
 
 import io.opentracing.Span;
 import net.opentsdb.common.Const;
-import net.opentsdb.data.DataShards;
-import net.opentsdb.data.DataShardsGroup;
-import net.opentsdb.data.DataShardsGroups;
-import net.opentsdb.data.DefaultDataShardsGroup;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.iterators.DefaultIteratorGroup;
+import net.opentsdb.data.iterators.IteratorGroups;
+import net.opentsdb.data.iterators.IteratorGroup;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionException;
@@ -209,8 +208,8 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     assertNull(executor.close().join());
     
-    QueryExecution<DataShardsGroups> e1 = mock(QueryExecution.class);
-    QueryExecution<DataShardsGroups> e2 = mock(QueryExecution.class);
+    QueryExecution<IteratorGroups> e1 = mock(QueryExecution.class);
+    QueryExecution<IteratorGroups> e2 = mock(QueryExecution.class);
     executor.outstandingRequests().add(e1);
     executor.outstandingRequests().add(e2);
     
@@ -225,7 +224,7 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     setupQuery();
     
-    QueryExecution<DataShardsGroups> exec = 
+    QueryExecution<IteratorGroups> exec = 
         executor.executeQuery(context, query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
@@ -238,11 +237,12 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     
     assertEquals("Winter Is Coming!", 
         post_request.getFirstHeader("X-MyHeader").getValue());
-    final DataShardsGroups groups = exec.deferred().join();
-    assertEquals(1, groups.data().size());
-    DataShardsGroup data = groups.data().get(0);
+    final IteratorGroups groups = (IteratorGroups) exec.deferred().join();
+    System.out.println("Result: " + groups);
+    assertEquals(1, groups.groups().size());
+    IteratorGroup data = groups.groups().iterator().next();
     TimeSeriesIterator<NumericType> it_a = (TimeSeriesIterator<NumericType>) 
-        data.data().get(0).data().get(0);
+        data.flattenedIterators().get(0);
     assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
         it_a.id().metrics().get(0));
     assertArrayEquals("group_b".getBytes(Const.UTF8_CHARSET), 
@@ -252,7 +252,7 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     assertTrue(it_a.id().aggregatedTags().isEmpty());
     
     TimeSeriesIterator<NumericType> it_b = (TimeSeriesIterator<NumericType>) 
-        data.data().get(1).data().get(0);
+        data.iterators().get(1).iterators().get(0);
     assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
         it_b.id().metrics().get(0));
     assertArrayEquals("group_a".getBytes(Const.UTF8_CHARSET), 
@@ -317,7 +317,7 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
         //.addMetric(Metric.newBuilder().setId("m1").setMetric("sys.cpu.user"))
         .build();
     
-    QueryExecution<DataShardsGroups> exec = 
+    QueryExecution<IteratorGroups> exec = 
         executor.executeQuery(context, query, span);
     assertNull(callback);
     assertFalse(executor.outstandingRequests().contains(future));
@@ -333,7 +333,7 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     setupQuery();
     
-    QueryExecution<DataShardsGroups> exec = 
+    QueryExecution<IteratorGroups> exec = 
         executor.executeQuery(context, query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
@@ -359,7 +359,7 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     setupQuery();
     
-    QueryExecution<DataShardsGroups> exec = 
+    QueryExecution<IteratorGroups> exec = 
         executor.executeQuery(context, query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
@@ -386,7 +386,7 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     setupQuery();
     
-    QueryExecution<DataShardsGroups> exec = 
+    QueryExecution<IteratorGroups> exec = 
         executor.executeQuery(context, query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
@@ -424,7 +424,7 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     entity = new StringEntity(response_content);
     when(response.getEntity()).thenReturn(entity);
     
-    QueryExecution<DataShardsGroups> exec = 
+    QueryExecution<IteratorGroups> exec = 
         executor.executeQuery(context, query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
@@ -451,7 +451,7 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     setupQuery();
     when(status.getStatusCode()).thenReturn(404);
     
-    QueryExecution<DataShardsGroups> exec = 
+    QueryExecution<IteratorGroups> exec = 
         executor.executeQuery(context, query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
@@ -477,7 +477,7 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
     setupQuery();
     
-    QueryExecution<DataShardsGroups> exec = 
+    QueryExecution<IteratorGroups> exec = 
         executor.executeQuery(context, query, span);
     assertNotNull(callback);
     assertTrue(executor.outstandingRequests().contains(exec));
@@ -931,24 +931,23 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     query.validate();
     JsonNode root = JSON.getMapper().readTree(response_content);
     
-    final Map<String, DataShardsGroup> groups = Maps.newHashMapWithExpectedSize(1);
-    groups.put("m1", new DefaultDataShardsGroup(new SimpleStringGroupId("m1")));
+    final Map<String, IteratorGroup> groups = Maps.newHashMapWithExpectedSize(1);
+    groups.put("m1", new DefaultIteratorGroup(new SimpleStringGroupId("m1")));
     executor.parseTSQuery(query, root.get(0), span, groups);
-    DataShards shards = groups.get("m1").data().get(0);
+    TimeSeriesIterator<NumericType> it = (TimeSeriesIterator<NumericType>) 
+        groups.get("m1").iterators().get(0).iterators().get(0);
     assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
-        shards.id().metrics().get(0));
+        it.id().metrics().get(0));
     assertArrayEquals("group_b".getBytes(Const.UTF8_CHARSET), 
-        shards.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
+        it.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("SUM".getBytes(Const.UTF8_CHARSET), 
-        shards.id().tags().get("_aggregate".getBytes(Const.UTF8_CHARSET)));
-    assertTrue(shards.id().aggregatedTags().isEmpty());
-    assertNull(shards.id().alias());
-    assertTrue(shards.id().namespaces().isEmpty());
-    assertTrue(shards.id().uniqueIds().isEmpty());
+        it.id().tags().get("_aggregate".getBytes(Const.UTF8_CHARSET)));
+    assertTrue(it.id().aggregatedTags().isEmpty());
+    assertNull(it.id().alias());
+    assertTrue(it.id().namespaces().isEmpty());
+    assertTrue(it.id().uniqueIds().isEmpty());
     
-    assertEquals(1, shards.data().size());
-    TimeSeriesIterator<NumericType> it = 
-        (TimeSeriesIterator<NumericType>) shards.data().get(0);
+    assertEquals(1, groups.get("m1").iterators().get(0).iterators().size());
     TimeSeriesValue<NumericType> v = it.next();
     assertEquals(1490122920000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
@@ -965,22 +964,22 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     assertEquals(23737.69921875, v.value().doubleValue(), 0.000000001);
     
     executor.parseTSQuery(query, root.get(1), span, groups);
-    shards = groups.get("m1").data().get(1);
+    it = (TimeSeriesIterator<NumericType>) 
+        groups.get("m1").iterators().get(1).iterators().get(0);
     assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
-        shards.id().metrics().get(0));
+        it.id().metrics().get(0));
     assertArrayEquals("group_a".getBytes(Const.UTF8_CHARSET), 
-        shards.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
+        it.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("SUM".getBytes(Const.UTF8_CHARSET), 
-        shards.id().tags().get("_aggregate".getBytes(Const.UTF8_CHARSET)));
-    assertEquals(1, shards.id().aggregatedTags().size());
+        it.id().tags().get("_aggregate".getBytes(Const.UTF8_CHARSET)));
+    assertEquals(1, it.id().aggregatedTags().size());
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        shards.id().aggregatedTags().get(0));
-    assertNull(shards.id().alias());
-    assertTrue(shards.id().namespaces().isEmpty());
-    assertTrue(shards.id().uniqueIds().isEmpty());
+        it.id().aggregatedTags().get(0));
+    assertNull(it.id().alias());
+    assertTrue(it.id().namespaces().isEmpty());
+    assertTrue(it.id().uniqueIds().isEmpty());
     
-    assertEquals(1, shards.data().size());
-    it = (TimeSeriesIterator<NumericType>) shards.data().get(0);
+    assertEquals(1, groups.get("m1").iterators().get(1).iterators().size());
     v = it.next();
     assertEquals(1490122920000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
@@ -995,6 +994,23 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     assertEquals(1490123040000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(1498.576171875, v.value().doubleValue(), 0.000000001);
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  public void parseTSQueryNoResponse() throws Exception {
+    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
+    final TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("1490122900000")
+            .setEnd("1490123050000")
+            .setAggregator("sum"))
+        .addMetric(Metric.newBuilder().setId("m1").setMetric("sys.cpu.user"))
+        .build();
+    query.validate();
+    JsonNode root = JSON.getMapper().readTree(response_content);
+    
+    final Map<String, IteratorGroup> groups = Maps.newHashMapWithExpectedSize(1);
     
     // no data points
     response_content = "[{"
@@ -1016,51 +1032,52 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
         + "}]";
     root = JSON.getMapper().readTree(response_content);
     groups.clear();
-    groups.put("m1", new DefaultDataShardsGroup(new SimpleStringGroupId("m1")));
+    groups.put("m1", new DefaultIteratorGroup(new SimpleStringGroupId("m1")));
     
     executor.parseTSQuery(query, root.get(0), span, groups);
-    shards = groups.get("m1").data().get(0);
-    assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
-        shards.id().metrics().get(0));
-    assertArrayEquals("group_b".getBytes(Const.UTF8_CHARSET), 
-        shards.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("SUM".getBytes(Const.UTF8_CHARSET), 
-        shards.id().tags().get("_aggregate".getBytes(Const.UTF8_CHARSET)));
-    assertTrue(shards.id().aggregatedTags().isEmpty());
-    assertNull(shards.id().alias());
-    assertTrue(shards.id().namespaces().isEmpty());
-    assertTrue(shards.id().uniqueIds().isEmpty());
     
-    assertEquals(1, shards.data().size());
-    it = (TimeSeriesIterator<NumericType>) shards.data().get(0);
+    TimeSeriesIterator<NumericType> it = (TimeSeriesIterator<NumericType>) 
+        groups.get("m1").iterators().get(0).iterators().get(0);
+    assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
+        it.id().metrics().get(0));
+    assertArrayEquals("group_b".getBytes(Const.UTF8_CHARSET), 
+        it.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
+    assertArrayEquals("SUM".getBytes(Const.UTF8_CHARSET), 
+        it.id().tags().get("_aggregate".getBytes(Const.UTF8_CHARSET)));
+    assertTrue(it.id().aggregatedTags().isEmpty());
+    assertNull(it.id().alias());
+    assertTrue(it.id().namespaces().isEmpty());
+    assertTrue(it.id().uniqueIds().isEmpty());
+    
+    assertEquals(1, groups.get("m1").iterators().get(0).iterators().size());
     try {
       it.next();
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
     executor.parseTSQuery(query, root.get(1), span, groups);
-    shards = groups.get("m1").data().get(1);
+    it = (TimeSeriesIterator<NumericType>) 
+        groups.get("m1").iterators().get(1).iterators().get(0);
     assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
-        shards.id().metrics().get(0));
+        it.id().metrics().get(0));
     assertArrayEquals("group_a".getBytes(Const.UTF8_CHARSET), 
-        shards.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
+        it.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
     assertArrayEquals("SUM".getBytes(Const.UTF8_CHARSET), 
-        shards.id().tags().get("_aggregate".getBytes(Const.UTF8_CHARSET)));
-    assertEquals(1, shards.id().aggregatedTags().size());
+        it.id().tags().get("_aggregate".getBytes(Const.UTF8_CHARSET)));
+    assertEquals(1, it.id().aggregatedTags().size());
     assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        shards.id().aggregatedTags().get(0));
-    assertNull(shards.id().alias());
-    assertTrue(shards.id().namespaces().isEmpty());
-    assertTrue(shards.id().uniqueIds().isEmpty());
+        it.id().aggregatedTags().get(0));
+    assertNull(it.id().alias());
+    assertTrue(it.id().namespaces().isEmpty());
+    assertTrue(it.id().uniqueIds().isEmpty());
     
-    assertEquals(1, shards.data().size());
-    it = (TimeSeriesIterator<NumericType>) shards.data().get(0);
+    assertEquals(1, groups.get("m1").iterators().get(1).iterators().size());
     try {
       it.next();
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
   }
-
+  
   @Test
   public void builder() throws Exception {
     String json = JSON.serializeToString(config);

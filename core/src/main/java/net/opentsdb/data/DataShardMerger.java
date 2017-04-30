@@ -26,6 +26,13 @@ import com.google.common.reflect.TypeToken;
 
 import io.opentracing.Span;
 import io.opentracing.Tracer.SpanBuilder;
+import net.opentsdb.data.iterators.DefaultIteratorGroup;
+import net.opentsdb.data.iterators.DefaultIteratorGroups;
+import net.opentsdb.data.iterators.DefaultTimeSeriesIterators;
+import net.opentsdb.data.iterators.IteratorGroup;
+import net.opentsdb.data.iterators.IteratorGroups;
+import net.opentsdb.data.iterators.TimeSeriesIterators;
+import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
@@ -36,7 +43,7 @@ import net.opentsdb.utils.Bytes;
  * 
  * @since 3.0
  */
-public class DataShardMerger implements DataMerger<DataShardsGroups> {
+public class DataShardMerger implements DataMerger<IteratorGroups> {
   private static final Logger LOG = LoggerFactory.getLogger(
       DataShardMerger.class);
   
@@ -52,7 +59,7 @@ public class DataShardMerger implements DataMerger<DataShardsGroups> {
   
   @Override
   public TypeToken<?> type()  {
-    return DataShardsGroups.TYPE;
+    return IteratorGroups.TYPE;
   }
   
   /**
@@ -82,7 +89,7 @@ public class DataShardMerger implements DataMerger<DataShardsGroups> {
    * @throws IllegalArgumentException if the context or groups were null.
    */
   @Override
-  public DataShardsGroups merge(final List<DataShardsGroups> groups, 
+  public IteratorGroups merge(final List<IteratorGroups> groups, 
                                      final QueryContext context, 
                                      final Span tracer_span) {
     if (context == null) {
@@ -104,11 +111,11 @@ public class DataShardMerger implements DataMerger<DataShardsGroups> {
       local_span = null;
     }
     
-    final List<DataShardsGroup> unpacked = Lists.newArrayList();
-    for (final DataShardsGroups set : groups) {
-      unpacked.addAll(set.data());
+    final List<IteratorGroup> unpacked = Lists.newArrayList();
+    for (final IteratorGroups set : groups) {
+      unpacked.addAll(set.groups());
     }
-    final DataShardsGroups results = new DefaultDataShardsGroups();
+    final IteratorGroups results = new DefaultIteratorGroups();
     
     // first, join by the Group ID.
     final boolean[] completed = new boolean[unpacked.size()];
@@ -117,12 +124,12 @@ public class DataShardMerger implements DataMerger<DataShardsGroups> {
         continue;
       }
       
-      final DataShardsGroup group = unpacked.get(i);
+      final IteratorGroup group = unpacked.get(i);
       completed[i] = true;
-      if (group.data() == null || group.data().isEmpty()) {
+      if (group.iterators() == null || group.iterators().isEmpty()) {
         continue;
       }
-      final List<DataShardsGroup> same_group = 
+      final List<IteratorGroup> same_group = 
           Lists.newArrayListWithExpectedSize(2);
       same_group.add(group);
       for (int y = i + 1; y < unpacked.size(); y++) {
@@ -151,25 +158,24 @@ public class DataShardMerger implements DataMerger<DataShardsGroups> {
    * @return A non-null group with the merged results.
    */
   @VisibleForTesting
-  DataShardsGroup mergeGroups(final TimeSeriesGroupId group_id, 
-                              final List<DataShardsGroup> groups, 
+  IteratorGroup mergeGroups(final TimeSeriesGroupId group_id, 
+                              final List<IteratorGroup> groups, 
                               final QueryContext context, 
                               final Span tracer_span) {
-    final DataShardsGroup group = new DefaultDataShardsGroup(group_id);
+    final IteratorGroup group = new DefaultIteratorGroup(group_id);
     
     /** Holds the list of matched shard objects to merge */
-    DataShards[] merged = new DataShards[groups.size()];
+    TimeSeriesIterators[] merged = new TimeSeriesIterators[groups.size()];
     
     /** An array of arrays to track when we've matched a shard so we can avoid
      * dupe processing and speed things up as we go along. */
     final boolean[][] processed = new boolean[groups.size()][];
     int order = -1;
-    TimeStamp base_time = null;
     for (int i = 0; i < groups.size(); i++) {
-      if (groups.get(i) == null || groups.get(i).data() == null) {
+      if (groups.get(i) == null || groups.get(i).iterators() == null) {
         processed[i] = new boolean[0];
       } else {
-        processed[i] = new boolean[groups.get(i).data().size()];
+        processed[i] = new boolean[groups.get(i).iterators().size()];
         if (order < 0) {
           order = groups.get(i).order();
         } else {
@@ -178,9 +184,6 @@ public class DataShardMerger implements DataMerger<DataShardsGroups> {
                 + "for a different order. Expected: " + order + " but got: " 
                 + groups.get(i));
           }
-        }
-        if (base_time == null) {
-          base_time = groups.get(i).baseTime();
         }
       }
     }
@@ -195,20 +198,20 @@ public class DataShardMerger implements DataMerger<DataShardsGroups> {
       }
       
       // inner loop start for iterating over each shard in each set
-      for (int x = 0; x < groups.get(i).data().size(); x++) {
+      for (int x = 0; x < groups.get(i).iterators().size(); x++) {
         if (processed[i][x]) {
           continue;
         }
         id = MergedTimeSeriesId.newBuilder();
         
         // NOTE: Make sure to reset the shards array here
-        merged = new DataShards[groups.size()];
-        merged[i] = groups.get(i).data().get(x);
+        merged = new TimeSeriesIterators[groups.size()];
+        merged[i] = groups.get(i).iterators().get(x);
         
-        if (groups.get(i).data().get(x).id().alias() != null) {
-          id.setAlias(groups.get(i).data().get(x).id().alias());
+        if (groups.get(i).iterators().get(x).id().alias() != null) {
+          id.setAlias(groups.get(i).iterators().get(x).id().alias());
         }
-        id.addSeries(groups.get(i).data().get(x).id());
+        id.addSeries(groups.get(i).iterators().get(x).id());
         processed[i][x] = true;
                 
         // nested outer loop to start searching the other shard groups
@@ -222,13 +225,13 @@ public class DataShardMerger implements DataMerger<DataShardsGroups> {
           }
           
           // nexted inner loop to match against a shard in another group
-          for (int z = 0; z < groups.get(y).data().size(); z++) {
+          for (int z = 0; z < groups.get(y).iterators().size(); z++) {
             if (processed[y][z]) {
               continue;
             }
             // temp build
             final TimeSeriesId temp_id = id.build();
-            final TimeSeriesId local_id = groups.get(y).data().get(z).id();
+            final TimeSeriesId local_id = groups.get(y).iterators().get(z).id();
             
             // alias check first
             if (temp_id.alias() != null && temp_id.alias().length > 0) {
@@ -339,13 +342,13 @@ public class DataShardMerger implements DataMerger<DataShardsGroups> {
             }
             
             // matched!!           
-            merged[y] = groups.get(y).data().get(z);
-            id.addSeries(groups.get(y).data().get(z).id());
+            merged[y] = groups.get(y).iterators().get(z);
+            id.addSeries(groups.get(y).iterators().get(z).id());
             processed[y][z] = true;
           } // end dupe inner data shard loop
         } // end dupe outer shards loop
 
-        group.addShards(mergeData(merged, id.build(), context, tracer_span));
+        group.addIterators(mergeData(merged, id.build(), context, tracer_span));
       } // end inner data shard loop
     } // end outer shards loop
 
@@ -363,7 +366,8 @@ public class DataShardMerger implements DataMerger<DataShardsGroups> {
    * @throws IllegalArgumentException if the shard array, id or context were
    * null.
    */
-  protected DataShards mergeData(final DataShards[] to_merge, 
+  protected TimeSeriesIterators mergeData(
+                            final TimeSeriesIterators[] to_merge, 
                                  final TimeSeriesId id, 
                                  final QueryContext context, 
                                  final Span tracer_span) {
@@ -376,15 +380,15 @@ public class DataShardMerger implements DataMerger<DataShardsGroups> {
     if (id == null) {
       throw new IllegalArgumentException("ID cannot be null.");
     }
-    final DataShards merged = new DefaultDataShards(id);
-    final Map<TypeToken<?>, List<DataShard<?>>> types = 
+    final TimeSeriesIterators merged = new DefaultTimeSeriesIterators(id);
+    final Map<TypeToken<?>, List<TimeSeriesIterator<?>>> types = 
         Maps.newHashMapWithExpectedSize(1);
-    for (final DataShards shards : to_merge) {
+    for (final TimeSeriesIterators shards : to_merge) {
       if (shards == null) {
         continue;
       }
-      for (final DataShard<?> shard : shards.data()) {
-        List<DataShard<?>> list = types.get(shard.type());
+      for (final TimeSeriesIterator<?> shard : shards.iterators()) {
+        List<TimeSeriesIterator<?>> list = types.get(shard.type());
         if (list == null) {
           list = Lists.newArrayListWithExpectedSize(1);
           types.put(shard.type(), list);
@@ -394,9 +398,9 @@ public class DataShardMerger implements DataMerger<DataShardsGroups> {
     }
     
     int dropped_types = 0;
-    for (final Entry<TypeToken<?>, List<DataShard<?>>> entry : types.entrySet()) {
+    for (final Entry<TypeToken<?>, List<TimeSeriesIterator<?>>> entry : types.entrySet()) {
       if (entry.getValue().size() == 1) {
-        merged.addShard(entry.getValue().get(0));
+        merged.addIterator(entry.getValue().get(0));
       } else {
         final DataShardMergeStrategy<?> strategy = strategies.get(entry.getKey());
         if (strategy == null) {
@@ -406,7 +410,7 @@ public class DataShardMerger implements DataMerger<DataShardsGroups> {
           }
           ++dropped_types;
         } else {
-          merged.addShard(
+          merged.addIterator(
               strategy.merge(id, entry.getValue(), context, tracer_span));
         }
       }
