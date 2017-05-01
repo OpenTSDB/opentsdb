@@ -54,9 +54,9 @@ public abstract class TimeSeriesDataStore extends TsdbPlugin {
   
   /**
    * Executes the given query against the data store.
-   * @oaram context A non-null query context.
+   * @param context A non-null query context.
    * @param query A non-null query to execute.
-   * @param span An optional tracer span.
+   * @param upstream_span An optional tracer span.
    * @return A query execution with a deferred containing the results or an
    * exception.
    */

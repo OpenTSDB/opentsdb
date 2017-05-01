@@ -91,6 +91,7 @@
     <module>executors/http</module>
     <module>implementation/tracer-brave</module>
     <module>implementation/servlet</module>
+    <module>storage/asynchbase</module>
   </modules>
 
   <!-- Dependencies shared by all modules in the OpenTSDB project. -->
