@@ -386,6 +386,9 @@ public abstract class AbstractHttpQuery {
    */
   public void sendStatusOnly(final HttpResponseStatus status) {
     if (!chan.isConnected()) {
+      if(stats != null) {
+        stats.markSendFailed();
+      }
       done();
       return;
     }
@@ -414,6 +417,9 @@ public abstract class AbstractHttpQuery {
                           final ChannelBuffer buf,
                           final String contentType) {
     if (!chan.isConnected()) {
+      if(stats != null) {
+        stats.markSendFailed();
+      }
       done();
       return;
     }
@@ -442,7 +448,10 @@ public abstract class AbstractHttpQuery {
   private class SendSuccess implements ChannelFutureListener {
     @Override
     public void operationComplete(final ChannelFuture future) throws Exception {
-      stats.markSent();
+      if(future.isSuccess()) {
+        stats.markSent();}
+      else
+        stats.markSendFailed();
     }
   }
   
