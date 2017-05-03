@@ -34,9 +34,14 @@ import net.opentsdb.query.processor.TimeSeriesProcessor;
 
 /**
  * Simple little class for mocking out a source.
+ * <p>
  * Set the individual deferreds with exceptions or just leave them as nulls.
  * If you set an exception, it will be thrown or returned in the appropriate 
  * calls.
+ * <p>
+ * To use this mock, add lists of 1 or more data points, sorted in time order,
+ * to the {@link #data} list. At the end of each list, the status is set to
+ * return {@link IteratorStatus#END_OF_CHUNK}.
  */
 @Ignore
 public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
@@ -91,10 +96,6 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
 
   @Override
   public IteratorStatus status() {
-    if (context != null) {
-      throw new IllegalStateException("Cannot call while iterator is "
-          + "part of a context.");
-    }
     if (ex != null) {
       return IteratorStatus.EXCEPTION;
     }
@@ -114,34 +115,58 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
   @Override
   public TimeSeriesValue<NumericType> next() {
     if (ex != null) {
-      context.updateContext(IteratorStatus.EXCEPTION, null);
+      if (context != null) {
+        context.updateContext(IteratorStatus.EXCEPTION, null);
+      }
       if (throw_ex) {
         throw ex;
       }
       return null;
     }
     TimeSeriesValue<NumericType> result = null;
-    if (outer_index < data.size() && 
-        inner_index < data.get(outer_index).size()) {
-      boolean end = false;
-      while (data.get(outer_index).get(inner_index).timestamp().compare(
-          TimeStampComparator.LT, context.syncTimestamp())) {
-        if (inner_index >= data.get(outer_index).size()) {
-          outer_index++;
-          inner_index = 0;
-        } else {
-          inner_index++;
+    
+    if (context != null) {
+      if (outer_index < data.size() && 
+          inner_index < data.get(outer_index).size()) {
+        boolean end = false;
+        while (data.get(outer_index).get(inner_index).timestamp().compare(
+            TimeStampComparator.LT, context.syncTimestamp())) {
+          if (inner_index >= data.get(outer_index).size()) {
+            outer_index++;
+            inner_index = 0;
+          } else {
+            inner_index++;
+          }
+          
+          if (outer_index >= data.size() || 
+              inner_index >= data.get(outer_index).size()) {
+            end = true;
+            break;
+          }
         }
         
-        if (outer_index >= data.size() || 
-            inner_index >= data.get(outer_index).size()) {
-          end = true;
-          break;
+        if (!end && data.get(outer_index).get(inner_index).timestamp().compare(
+            TimeStampComparator.EQ, context.syncTimestamp())) {
+          result = data.get(outer_index).get(inner_index);
+          if (inner_index >= data.get(outer_index).size()) {
+            outer_index++;
+            inner_index = 0;
+          } else {
+            inner_index++;
+          }
+        } else {
+          result = new MutableNumericType(id, context.syncTimestamp(), 
+            fill.getValue());
         }
+      } else {
+        result = new MutableNumericType(id, context.syncTimestamp(), 
+            fill.getValue());
       }
       
-      if (!end && data.get(outer_index).get(inner_index).timestamp().compare(
-          TimeStampComparator.EQ, context.syncTimestamp())) {
+      updateContext();
+    } else {
+      if (outer_index < data.size() && 
+          inner_index < data.get(outer_index).size()) {
         result = data.get(outer_index).get(inner_index);
         if (inner_index >= data.get(outer_index).size()) {
           outer_index++;
@@ -149,21 +174,25 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
         } else {
           inner_index++;
         }
-      } else {
-        result = new MutableNumericType(id, context.syncTimestamp(), 
-          fill.getValue());
       }
-    } else {
-      result = new MutableNumericType(id, context.syncTimestamp(), 
-          fill.getValue());
     }
-    
-    updateContext();
     //System.out.println("   outer: " + outer_index + "  inner: " + inner_index);
     return result;
   }
 
-  private void updateContext() {
+  @Override
+  public TimeSeriesValue<NumericType> peek() {
+    if (outer_index >= data.size()) {
+      return null;
+    }
+    if (inner_index >= data.get(outer_index).size()) {
+      // end of chunk
+      return null;
+    }
+    return data.get(outer_index).get(outer_index);
+  }
+  
+  protected void updateContext() {
     if (outer_index >= data.size()) {
       context.updateContext(IteratorStatus.END_OF_DATA, null);
     } else if (inner_index >= data.get(outer_index).size()) {
@@ -181,7 +210,9 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
   @Override
   public Deferred<Object> fetchNext() {
     if (ex != null) {
-      context.updateContext(IteratorStatus.EXCEPTION, null);
+      if (context != null) {
+        context.updateContext(IteratorStatus.EXCEPTION, null);
+      }
       if (throw_ex) {
         throw ex;
       }
@@ -195,7 +226,9 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
     } else {
       inner_index++;
     }
-    updateContext();
+    if (context != null) {
+      updateContext();
+    }
     return fetch_next_deferred;
   }
 
@@ -221,13 +254,25 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
 
   @Override
   public TimeStamp startTime() {
-    // TODO Auto-generated method stub
+    if (data.isEmpty()) {
+      return null;
+    }
+    // iterate to find the first.
+    for (final List<MutableNumericType> data_set : data) {
+      for (final MutableNumericType value : data_set) {
+        return value.timestamp();
+      }
+    }
     return null;
   }
 
   @Override
   public TimeStamp endTime() {
-    // TODO Auto-generated method stub
+    for (int i = data.size() - 1; i >= 0; i--) {
+      for (int x = data.get(i).size() - 1; x >= 0; x--) {
+        return data.get(i).get(x).timestamp();
+      }
+    }
     return null;
   }
 

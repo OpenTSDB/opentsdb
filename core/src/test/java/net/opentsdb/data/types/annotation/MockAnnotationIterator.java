@@ -114,4 +114,16 @@ public class MockAnnotationIterator extends
     return null;
   }
 
+  @Override
+  protected void updateContext() {
+    // TODO Auto-generated method stub
+    
+  }
+
+  @Override
+  public TimeSeriesValue<AnnotationType> peek() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
 }

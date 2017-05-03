@@ -311,9 +311,6 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
 
   @Override
   public IteratorStatus status() {
-    if (context != null) {
-      throw new IllegalStateException("Iterator is a part of a context.");
-    }
     if (read_offset_idx >= write_offset_idx || read_value_idx >= write_value_idx) {
       return IteratorStatus.END_OF_DATA;
     }
@@ -341,7 +338,6 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
     final byte vlen = (byte) ((flags & NumericType.VALUE_LENGTH_MASK) + 1);
     timestamp.updateMsEpoch(start_timestamp.msEpoch() + offset);
     
-    
     if (context != null && 
         context.syncTimestamp().compare(TimeStampComparator.NE, timestamp)) {
       dp.reset(context.syncTimestamp(), Double.NaN, 0);
@@ -368,9 +364,40 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
   }
 
   @Override
+  public TimeSeriesValue<NumericType> peek() {
+    if (read_offset_idx >= write_offset_idx || read_value_idx >= write_value_idx) {
+      return null;
+    }
+    
+    final byte[] offset_copy = new byte[8];
+    System.arraycopy(offsets, read_offset_idx, offset_copy, 8 - encode_on, encode_on);
+    long offset = Bytes.getLong(offset_copy);
+    final byte flags = (byte) offset;
+    offset = offset >> NumericType.TOTAL_FLAG_BITS;
+
+    final byte reals_length = (byte) ((flags & NumericType.REALS_LENGTH_MASK) 
+        >> NumericType.VALUE_FLAG_BITS);
+    final TimeStamp timestamp = 
+        new MillisecondTimeStamp(start_timestamp.msEpoch() + offset);
+    
+    final MutableNumericType value = new MutableNumericType(id);
+    final int reals = (int) NumericType.extractIntegerValue(values, 
+        read_value_idx, reals_length);
+    
+    if ((flags & NumericType.FLAG_FLOAT) == 0x0) {
+      value.reset(timestamp, NumericType.extractIntegerValue(values, 
+          read_value_idx + reals_length + 1, flags), reals);
+    } else {
+      value.reset(timestamp, NumericType.extractFloatingPointValue(values, 
+          read_value_idx + reals_length + 1, flags), reals);
+    }
+    return value;
+  }
+  
+  @Override
   public TimeSeriesIterator<NumericType> getCopy(QueryContext context) {
     final NumericMillisecondShard shard = 
-        new NumericMillisecondShard(id, start_timestamp, end_timestamp);
+        new NumericMillisecondShard(id, start_timestamp, end_timestamp, order);
     shard.start_timestamp = start_timestamp;
     shard.last_timestamp = last_timestamp;
     shard.read_offset_idx = 0;
@@ -388,7 +415,7 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
   /**
    * If the context is not null, updates it with the status and timestamp.
    */
-  private void updateContext() {
+  protected void updateContext() {
     if (context != null) {
       if (read_offset_idx >= write_offset_idx) {
         context.updateContext(IteratorStatus.END_OF_DATA, null);
@@ -403,6 +430,10 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
     }
   }
   
+  /**
+   * Writes the raw values and offsets to the stream. Does NOT write the ID.
+   * @param stream A non-null stream to write to.
+   */
   public void serialize(final OutputStream stream) {
     try {
       stream.write(Bytes.fromInt(order));
@@ -417,7 +448,14 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
     }
   }
   
-  public static NumericMillisecondShard parseFrom(final TimeSeriesId id, final InputStream stream) {
+  /**
+   * Helper to parse the raw arrays from a cache.
+   * @param id A non-null ID to associate with the newly created shard.
+   * @param stream A non-null input stream.
+   * @return An instantiated shard.
+   */
+  public static NumericMillisecondShard parseFrom(final TimeSeriesId id, 
+                                                  final InputStream stream) {
     try {
       byte[] array = new byte[4];
       stream.read(array);

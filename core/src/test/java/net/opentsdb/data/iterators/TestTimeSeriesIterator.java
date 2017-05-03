@@ -309,6 +309,18 @@ public class TestTimeSeriesIterator {
       // TODO Auto-generated method stub
       return null;
     }
+
+    @Override
+    protected void updateContext() {
+      // TODO Auto-generated method stub
+      
+    }
+
+    @Override
+    public TimeSeriesValue<NumericType> peek() {
+      // TODO Auto-generated method stub
+      return null;
+    }
     
   }
 }

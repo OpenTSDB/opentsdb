@@ -294,4 +294,16 @@ public class JexlBinderNumericIterator extends
     id = merger.build();
     dp = new MutableNumericType(id);
   }
+  
+  @Override
+  public TimeSeriesValue<NumericType> peek() {
+    // TODO fill this out
+    return null;
+  }
+  
+  @Override
+  protected void updateContext() {
+    // TODO Auto-generated method stub
+    
+  }
 }

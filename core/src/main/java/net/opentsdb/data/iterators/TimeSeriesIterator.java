@@ -199,6 +199,15 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
   public abstract TimeSeriesValue<T> next();
   
   /**
+   * Returns the current value (the result of calling {@link #next()}) without
+   * advancing the iterator. If the iterator is empty, has reached the end of
+   * it's data or needs to fetch another chunk, the value returned should be
+   * {@code null}.
+   * @return The next value to be read or null if no value is present.
+   */
+  public abstract TimeSeriesValue<T> peek();
+  
+  /**
    * If {@link IteratorStatus#END_OF_CHUNK} was returned via the last 
    * context advance call, this method will fetch the next set of data 
    * asynchronously. The following status may have data, be end of stream
@@ -251,5 +260,11 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
     return source != null ? source.close() : 
       Deferred.fromError(new UnsupportedOperationException("Not implemented"));
   }
+  
+  /**
+   * A package private method that all iterators must implement that will update
+   * the context (if not null) with the next sync time and status.
+   */
+  protected abstract void updateContext();
   
 }

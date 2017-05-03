@@ -143,6 +143,22 @@ public class TestNumericMillisecondShard {
   }
   
   @Test
+  public void peek() throws Exception {
+    start = new MillisecondTimeStamp(1486045800000L);
+    end = new MillisecondTimeStamp(1486045900000L);
+    NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
+    
+    assertNull(shard.peek());
+
+    shard.add(1486045801000L, 42, 1);
+    
+    TimeSeriesValue<NumericType> v = shard.peek();
+    assertEquals(1486045801000L, v.timestamp().msEpoch());
+    assertEquals(42, v.value().longValue());
+    assertEquals(1, v.realCount());
+  }
+  
+  @Test
   public void add() throws Exception {
     start = new MillisecondTimeStamp(1486045800000L);
     end = new MillisecondTimeStamp(1486045900000L);
@@ -150,6 +166,8 @@ public class TestNumericMillisecondShard {
     assertEquals(3, shard.encodeOn());
     assertEquals(3, shard.offsets().length);
     assertEquals(4, shard.values().length);
+    assertEquals(1486045800000L, shard.startTime().msEpoch());
+    assertEquals(1486045900000L, shard.endTime().msEpoch());
     
     assertArrayEquals(new byte[] { 0, 0, 0 }, shard.offsets());
     assertArrayEquals(new byte[] { 0, 0, 0, 0 }, shard.values());

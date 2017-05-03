@@ -272,6 +272,35 @@ public class TestMockNumericIterator {
   }
 
   @Test
+  public void iteratorWithoutContext() throws Exception {
+    final MockNumericIterator it = new MockNumericIterator(id, 0);
+    it.data = data;
+    
+    int fetched = 0;
+    int iterations = 0;
+    long timestamp = 1000L;
+    int value = 1;
+    
+    while (it.status() != IteratorStatus.END_OF_DATA) {
+      while (it.status() == IteratorStatus.HAS_DATA) {
+        TimeSeriesValue<NumericType> v = it.next();
+        assertEquals(timestamp, v.timestamp().msEpoch());
+        assertEquals(value++, v.value().longValue());
+        timestamp += 1000;
+        ++iterations;
+      }
+      if (it.status() == IteratorStatus.END_OF_CHUNK) {
+        assertNull(it.fetchNext().join());
+        ++fetched;
+      } else {
+        break;
+      }
+    }
+    assertEquals(7, iterations);
+    assertEquals(2, fetched);
+  }
+  
+  @Test
   public void initializeException() throws Exception {
     final MockNumericIterator it = new MockNumericIterator(id);
     it.data = data;
@@ -287,6 +316,7 @@ public class TestMockNumericIterator {
     final MockNumericIterator it = new MockNumericIterator(id);
     it.data = data;
     it.ex = new RuntimeException("Boo!");
+    it.throw_ex = true;
     try {
       it.next();
       fail("Expected RuntimeException");
