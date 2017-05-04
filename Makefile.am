@@ -40,6 +40,7 @@ tsdb_SRC := \
 	src/core/ColumnDatapointIterator.java	\
 	src/core/CompactionQueue.java	\
 	src/core/Const.java	\
+	src/core/Configuration.java	\
 	src/core/DataPoint.java	\
 	src/core/DataPoints.java	\
 	src/core/DataPointsIterator.java	\
