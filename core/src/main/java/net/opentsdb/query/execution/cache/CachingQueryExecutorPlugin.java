@@ -94,16 +94,16 @@ public abstract class CachingQueryExecutorPlugin extends TsdbPlugin {
    * should be set, otherwise they can be 0 and null. 
    * @param keys A non-null and non-empty array of non-null and non-empty keys.
    * @param data A non-null and non-empty array of values matching the keys.
-   * @param expiration A zero or positive integer indicating when the value
-   * should expire in the future.
-   * @param units The optional time units for the expiration.
+   * @param expirations A non-null and non-empty array of zero or positive 
+   * integers indicating when the value should expire in the future.
+   * @param units The optional time units for the expirations.
    * @throws IllegalStateException of the cache has not been initialized.
    * @throws IllegalArgumentException if the keys were null or empty or the
    * key and data arrays differed in length.
    */
   public abstract void cache(final byte[][] keys, 
                              final byte[][] data, 
-                             final long expiration, 
+                             final long[] expirations, 
                              final TimeUnit units);
   
 }

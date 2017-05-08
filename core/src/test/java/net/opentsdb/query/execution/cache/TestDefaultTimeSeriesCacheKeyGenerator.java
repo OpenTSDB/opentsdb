@@ -14,7 +14,6 @@ package net.opentsdb.query.execution.cache;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.anyString;
 
@@ -26,6 +25,8 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
@@ -57,19 +58,112 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
     byte[] hash = Arrays.copyOfRange(key, 
         DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length, key.length);
 
-    assertTrue(Bytes.memcmp(key, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX, 
-        0, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length) == 0);
+    assertEquals(0, Bytes.memcmp(key, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX, 
+        0, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length));
     assertArrayEquals(hash, timed_hash);
     
     key = generator.generate(query, false);
     hash = Arrays.copyOfRange(key, 
         DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length, key.length);
-    assertTrue(Bytes.memcmp(key, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX, 
-        0, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length) == 0);
+    assertEquals(0, Bytes.memcmp(key, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX, 
+        0, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length));
     assertArrayEquals(hash, timeless_hash);
     
     try {
       generator.generate(null, true);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void generateMulti() throws Exception {
+    final DefaultTimeSeriesCacheKeyGenerator generator = 
+        new DefaultTimeSeriesCacheKeyGenerator(60000, 120000);
+    
+    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
+    
+    byte[] timeless_hash = query.buildTimelessHashCode().asBytes();
+    
+    TimeStamp[][] time_ranges = new TimeStamp[3][];
+    time_ranges[0] = new TimeStamp[2];
+    time_ranges[0][0] = new MillisecondTimeStamp(1493942400000L);
+    time_ranges[0][1] = new MillisecondTimeStamp(1493946000000L);
+    time_ranges[1] = new TimeStamp[2];
+    time_ranges[1][0] = new MillisecondTimeStamp(1493946000000L);
+    time_ranges[1][1] = new MillisecondTimeStamp(1493949600000L);
+    time_ranges[2] = new TimeStamp[2];
+    time_ranges[2][0] = new MillisecondTimeStamp(1493949600000L);
+    time_ranges[2][0] = new MillisecondTimeStamp(1493953200000L);
+    
+    byte[][] keys = generator.generate(query, time_ranges);
+    assertEquals(3, keys.length);
+    
+    // prefix
+    assertEquals(0, Bytes.memcmp(keys[0], 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX, 
+        0, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length));
+    
+    // hash
+    byte[] hash = Arrays.copyOfRange(keys[0], 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length, 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + timeless_hash.length);
+    assertEquals(0, Bytes.memcmp(hash, timeless_hash));
+    
+    hash = Arrays.copyOfRange(keys[0], 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + timeless_hash.length, 
+        keys[0].length);
+    assertEquals(0, Bytes.memcmp(hash, Bytes.fromLong(time_ranges[0][0].msEpoch())));
+    
+    // prefix
+    assertEquals(0, Bytes.memcmp(keys[1], 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX, 
+        0, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length));
+    
+    // hash
+    hash = Arrays.copyOfRange(keys[1], 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length, 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + timeless_hash.length);
+    assertEquals(0, Bytes.memcmp(hash, timeless_hash));
+    
+    hash = Arrays.copyOfRange(keys[1], 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + timeless_hash.length, 
+        keys[0].length);
+    assertEquals(0, Bytes.memcmp(hash, Bytes.fromLong(time_ranges[1][0].msEpoch())));
+    
+    // prefix
+    assertEquals(0, Bytes.memcmp(keys[2], 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX, 
+        0, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length));
+    
+    // hash
+    hash = Arrays.copyOfRange(keys[2], 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length, 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + timeless_hash.length);
+    assertEquals(0, Bytes.memcmp(hash, timeless_hash));
+    
+    hash = Arrays.copyOfRange(keys[2], 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + timeless_hash.length, 
+        keys[0].length);
+    assertEquals(0, Bytes.memcmp(hash, Bytes.fromLong(time_ranges[2][0].msEpoch())));
+    
+    try {
+      generator.generate(null, time_ranges);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      generator.generate(query, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      generator.generate(null, new TimeStamp[0][]);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

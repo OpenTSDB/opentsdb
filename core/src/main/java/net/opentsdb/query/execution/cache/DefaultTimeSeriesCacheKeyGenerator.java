@@ -12,8 +12,11 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.execution.cache;
 
+import java.util.Arrays;
+
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -63,6 +66,33 @@ public class DefaultTimeSeriesCacheKeyGenerator
     return key;
   }
 
+  @Override
+  public byte[][] generate(final TimeSeriesQuery query, 
+                           final TimeStamp[][] time_ranges) {
+    if (query == null) {
+      throw new IllegalArgumentException("Query cannot be null.");
+    }
+    if (time_ranges == null) {
+      throw new IllegalArgumentException("Time ranges cannot be null.");
+    }
+    if (time_ranges.length < 1) {
+      throw new IllegalArgumentException("Time ranges cannot be empty.");
+    }
+    final byte[] hash = query.buildTimelessHashCode().asBytes();
+    final byte[] key = new byte[hash.length + CACHE_PREFIX.length + 8];
+    System.arraycopy(CACHE_PREFIX, 0, key, 0, CACHE_PREFIX.length);
+    System.arraycopy(hash, 0, key, CACHE_PREFIX.length, hash.length);
+    
+    final byte[][] keys = new byte[time_ranges.length][];
+    for (int i = 0; i < time_ranges.length; i++) {
+      final byte[] copy = Arrays.copyOf(key, key.length);
+      System.arraycopy(Bytes.fromLong(time_ranges[i][0].msEpoch()), 0, 
+          copy, hash.length + CACHE_PREFIX.length, 8);
+      keys[i] = copy;
+    }
+    return keys;
+  }
+  
   @Override
   public long expiration(final TimeSeriesQuery query, final long expiration) {
     if (expiration == 0) {

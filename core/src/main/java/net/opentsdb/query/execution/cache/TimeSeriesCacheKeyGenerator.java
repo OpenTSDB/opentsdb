@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.execution.cache;
 
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 /**
@@ -32,6 +33,17 @@ public abstract class TimeSeriesCacheKeyGenerator {
    */
   public abstract byte[] generate(final TimeSeriesQuery query, 
                                   final boolean with_timestamps);
+  
+  /**
+   * Generates an array of cache keys based on the given query and time ranges.
+   * This is used for sliced queries where the same query is cut up into smaller
+   * time slices.
+   * @param query A non-null query to generate the hashes from.
+   * @param time_ranges A non-null list of time ranges to generate keys from.
+   * @return A non-null and non-empty array of keys.
+   */
+  public abstract byte[][] generate(final TimeSeriesQuery query, 
+                                    final TimeStamp[][] time_ranges);
   
   /**
    * Generates an expiration duration (not timestamp) in milliseconds when the

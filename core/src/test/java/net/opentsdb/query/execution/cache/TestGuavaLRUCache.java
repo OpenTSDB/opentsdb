@@ -218,7 +218,8 @@ public class TestGuavaLRUCache {
       new byte[] { 0, 0, 3 }
     };
     
-    cache.cache(keys, values, 60000, TimeUnit.MILLISECONDS);
+    cache.cache(keys, values, new long[] { 60000, 60000, 60000 }, 
+        TimeUnit.MILLISECONDS);
 
     assertEquals(3, cache.cache().size());
     assertEquals(9, cache.bytesStored());
@@ -304,7 +305,8 @@ public class TestGuavaLRUCache {
       new byte[] { 0, 0, 2 }
     };
     
-    cache.cache(keys, values, 60000, TimeUnit.MILLISECONDS);
+    cache.cache(keys, values, new long[] { 60000, 60000 }, 
+        TimeUnit.MILLISECONDS);
 
     assertEquals(2, cache.cache().size());
     assertEquals(6, cache.bytesStored());
@@ -340,7 +342,8 @@ public class TestGuavaLRUCache {
       null,
       null
     };
-    cache.cache(keys, values, 60000, TimeUnit.MILLISECONDS);
+    cache.cache(keys, values, new long[] { 60000, 60000 }, 
+        TimeUnit.MILLISECONDS);
     results = cache.fetch(context, keys, span).deferred().join();
     assertNull(results[0]);
     assertNull(results[1]);
@@ -350,7 +353,8 @@ public class TestGuavaLRUCache {
       new byte[] { },
       new byte[] { }
     };
-    cache.cache(keys, values, 60000, TimeUnit.MILLISECONDS);
+    cache.cache(keys, values, new long[] { 60000, 60000 }, 
+        TimeUnit.MILLISECONDS);
     results = cache.fetch(context, keys, span).deferred().join();
     assertEquals(0, results[0].length);
     assertEquals(0, results[1].length);
@@ -378,7 +382,8 @@ public class TestGuavaLRUCache {
     } catch (IllegalStateException e) { }
     
     try {
-      cache.cache(keys, values, 60000, TimeUnit.MILLISECONDS);
+      cache.cache(keys, values, new long[] { 60000, 60000, 6000 }, 
+          TimeUnit.MILLISECONDS);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
@@ -396,12 +401,14 @@ public class TestGuavaLRUCache {
     } catch (IllegalArgumentException e) { }
     
     try {
-      cache.cache(null, values, 60000, TimeUnit.MILLISECONDS);
+      cache.cache(null, values, new long[] { 60000, 60000, 60000 }, 
+          TimeUnit.MILLISECONDS);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      cache.cache(new byte[][] { }, values, 60000, TimeUnit.MILLISECONDS);
+      cache.cache(new byte[][] { }, values, new long[] { 60000, 60000, 60000 }, 
+          TimeUnit.MILLISECONDS);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -412,12 +419,32 @@ public class TestGuavaLRUCache {
     };
   
     try {
-      cache.cache(keys, values, 60000, TimeUnit.MILLISECONDS);
+      cache.cache(keys, values, new long[] { 60000, 60000, 60000 }, 
+          TimeUnit.MILLISECONDS);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    keys = new byte[][] {
+        new byte[] { 0, 0, 1 },
+        new byte[] { 0, 0, 2 },
+        new byte[] { 0, 0, 3 }
+    };
+  
+    try {
+      cache.cache(keys, null, new long[] { 60000, 60000, 60000 }, 
+          TimeUnit.MILLISECONDS);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      cache.cache(keys, null, 60000, TimeUnit.MILLISECONDS);
+      cache.cache(keys, keys, null, TimeUnit.MILLISECONDS);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    // wrong expirations length
+    try {
+      cache.cache(keys, keys, new long[] { 60000, 60000 }, 
+          TimeUnit.MILLISECONDS);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

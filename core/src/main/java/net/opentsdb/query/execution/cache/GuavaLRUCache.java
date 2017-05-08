@@ -320,6 +320,7 @@ public class GuavaLRUCache extends CachingQueryExecutorPlugin {
     if (expiration < 1) {
       return;
     }
+
     // best effort
     if (size.get() + (data == null ? 0  : data.length) >= size_limit) {
       if (LOG.isDebugEnabled()) {
@@ -337,7 +338,7 @@ public class GuavaLRUCache extends CachingQueryExecutorPlugin {
   @Override
   public void cache(final byte[][] keys, 
                     final byte[][] data, 
-                    final long expiration,
+                    final long[] expirations,
                     final TimeUnit units) {
     if (cache == null) {
       throw new IllegalStateException("Cache has not been initialized.");
@@ -352,13 +353,20 @@ public class GuavaLRUCache extends CachingQueryExecutorPlugin {
       throw new IllegalArgumentException("Key and data arrays must be of the "
           + "same length.");
     }
-    if (expiration < 1) {
-      return;
+    if (expirations == null) {
+      throw new IllegalArgumentException("Expirations cannot be null.");
+    }
+    if (expirations.length != data.length) {
+      throw new IllegalArgumentException("Expirations and data arrays must be "
+          + "of the same length.");
     }
     for (int i = 0; i < keys.length; i++) {
       if (keys[i] == null) {
         throw new IllegalArgumentException("Key at index " + i + " was null "
             + "and cannot be.");
+      }
+      if (expirations[i] < 1) {
+        continue;
       }
       // best effort
       if (size.get() + (data == null ? 0  : data.length) >= size_limit) {
@@ -369,7 +377,7 @@ public class GuavaLRUCache extends CachingQueryExecutorPlugin {
         continue;
       }
       cache.put(new ByteArrayKey(keys[i]), 
-          new ExpiringValue(data[i], expiration, units));
+          new ExpiringValue(data[i], expirations[i], units));
       if (data[i] != null) {
         size.addAndGet(data[i].length);
       }

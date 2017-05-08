@@ -199,16 +199,16 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
           + "been copied.");
     }
     if (timestamp <= last_timestamp) {
-      throw new IllegalArgumentException("Timestamp must be greater than "
-          + "last time: " + last_timestamp);
+      throw new IllegalArgumentException("Timestamp " + timestamp + " must be "
+          + "greater than last time: " + last_timestamp);
     }
     if (timestamp < start_timestamp.msEpoch()) {
-      throw new IllegalArgumentException("Timestamp must be greater than or equal "
-          + "to the start time: " + start_timestamp);
+      throw new IllegalArgumentException("Timestamp " + timestamp + " must be "
+          + "greater than or equal to the start time: " + start_timestamp);
     }
     if (timestamp > end_timestamp.msEpoch()) {
-      throw new IllegalArgumentException("Timestamp must be less than or equal "
-          + "to the end time: " + end_timestamp);
+      throw new IllegalArgumentException("Timestamp " + timestamp + " must be "
+          + "less than or equal to the end time: " + end_timestamp);
     }
     last_timestamp = timestamp;
     final byte[] real_bytes = NumericType.vleEncodeLong(reals);
@@ -241,16 +241,16 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
           + "been copied.");
     }
     if (timestamp <= last_timestamp) {
-      throw new IllegalArgumentException("Timestamp must be greater than "
-          + "last time: " + last_timestamp);
+      throw new IllegalArgumentException("Timestamp " + timestamp + " must be "
+          + "greater than last time: " + last_timestamp);
     }
     if (timestamp < start_timestamp.msEpoch()) {
-      throw new IllegalArgumentException("Timestamp must be greater than or equal "
-          + "to the start time: " + start_timestamp);
+      throw new IllegalArgumentException("Timestamp " + timestamp + " must be "
+          + "greater than or equal to the start time: " + start_timestamp);
     }
     if (timestamp > end_timestamp.msEpoch()) {
-      throw new IllegalArgumentException("Timestamp must be less than or equal "
-          + "to the end time: " + end_timestamp);
+      throw new IllegalArgumentException("Timestamp " + timestamp + " must be "
+          + "less than or equal  to the end time: " + end_timestamp);
     }
     last_timestamp = timestamp;
     final byte[] real_bytes = NumericType.vleEncodeLong(reals);
