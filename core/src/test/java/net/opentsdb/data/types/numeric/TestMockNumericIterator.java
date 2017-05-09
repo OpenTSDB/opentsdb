@@ -364,7 +364,7 @@ public class TestMockNumericIterator {
     final QueryContext ctx2 = new DefaultQueryContext(tsdb, execution_graph);
     final TimeSeriesProcessor processor2 = new DefaultTimeSeriesProcessor(ctx2);
     
-    final MockNumericIterator copy = (MockNumericIterator) it.getCopy(ctx2);
+    final MockNumericIterator copy = (MockNumericIterator) it.getShallowCopy(ctx2);
     processor2.addSeries(group, copy);
     
     assertNull(ctx2.initialize().join());

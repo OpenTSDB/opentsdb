@@ -133,7 +133,7 @@ public class DefaultTimeSeriesIterators extends TimeSeriesIterators {
   public TimeSeriesIterators getCopy(final QueryContext context) {
     final DefaultTimeSeriesIterators clone = new DefaultTimeSeriesIterators(id);
     for (final TimeSeriesIterator<?> it : iterators) {
-      clone.addIterator(it.getCopy(context));
+      clone.addIterator(it.getShallowCopy(context));
     }
     return clone;
   }

@@ -68,7 +68,7 @@ public class TestTimeSeriesIterator {
         return type;
       }
     });
-    when(source.getCopy(any(QueryContext.class)))
+    when(source.getShallowCopy(any(QueryContext.class)))
       .thenAnswer(new Answer<TimeSeriesIterator<?>>() {
         @Override
         public TimeSeriesIterator<?> answer(InvocationOnMock invocation)
@@ -213,7 +213,7 @@ public class TestTimeSeriesIterator {
   @Test
   public void getCopy() throws Exception {
     MockIterator it = new MockIterator(context, source);
-    TimeSeriesIterator<?> copy = it.getCopy(context);
+    TimeSeriesIterator<?> copy = it.getShallowCopy(context);
     assertNotSame(copy, it);
     assertSame(context, copy.context);
     assertSame(source_clone, copy.source);
@@ -222,7 +222,7 @@ public class TestTimeSeriesIterator {
     verify(context, times(1)).register(copy);
     
     it = new MockIterator(id, context);
-    copy = it.getCopy(context);
+    copy = it.getShallowCopy(context);
     assertNotSame(copy, it);
     assertSame(context, copy.context);
     assertNull(copy.source);
@@ -231,7 +231,7 @@ public class TestTimeSeriesIterator {
     verify(context, times(1)).register(copy);
     
     it = new MockIterator(id);
-    copy = it.getCopy(context);
+    copy = it.getShallowCopy(context);
     assertNotSame(copy, it);
     assertSame(context, copy.context);
     assertNull(copy.source);
@@ -290,16 +290,16 @@ public class TestTimeSeriesIterator {
     }
 
     @Override
-    public TimeSeriesIterator<NumericType> getCopy(final QueryContext context) {
+    public TimeSeriesIterator<NumericType> getShallowCopy(final QueryContext context) {
       final MockIterator copy = new MockIterator(id, context);
       if (source != null) {
-        copy.source = source.getCopy(context);
+        copy.source = source.getShallowCopy(context);
       }
       return copy;
     }
 
     @Override
-    public TimeSeriesIterator<NumericType> getCopy(QueryContext context,
+    public TimeSeriesIterator<NumericType> getDeepCopy(QueryContext context,
         TimeStamp start, TimeStamp end) {
       // TODO Auto-generated method stub
       return null;

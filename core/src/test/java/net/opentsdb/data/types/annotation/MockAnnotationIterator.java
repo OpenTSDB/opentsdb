@@ -90,13 +90,13 @@ public class MockAnnotationIterator extends
   }
 
   @Override
-  public TimeSeriesIterator<AnnotationType> getCopy(final QueryContext context) {
+  public TimeSeriesIterator<AnnotationType> getShallowCopy(final QueryContext context) {
     // TODO Auto-generated method stub
     return null;
   }
 
   @Override
-  public TimeSeriesIterator<AnnotationType> getCopy(final QueryContext context, 
+  public TimeSeriesIterator<AnnotationType> getDeepCopy(final QueryContext context, 
                                                  final TimeStamp start, 
                                                  final TimeStamp end) {
     throw new UnsupportedOperationException("Not supported yet.");

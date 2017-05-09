@@ -182,7 +182,7 @@ public class TestSlicedTimeSeriesIterator {
     assertEquals(1, v.value().longValue());
     assertEquals(1, v.realCount());
     
-    TimeSeriesIterator<NumericType> clone = iterator.getCopy(null);
+    TimeSeriesIterator<NumericType> clone = iterator.getShallowCopy(null);
     assertNotSame(clone, iterator);
     
     assertEquals(IteratorStatus.HAS_DATA, clone.status());

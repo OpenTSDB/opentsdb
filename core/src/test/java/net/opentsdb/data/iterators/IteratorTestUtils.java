@@ -60,7 +60,7 @@ public class IteratorTestUtils {
     }
     
     groups.addIterator(GROUP_A, shard);
-    groups.addIterator(GROUP_B, shard.getCopy(null));
+    groups.addIterator(GROUP_B, shard.getShallowCopy(null));
     
     shard = new NumericMillisecondShard(ID_B, 
         new MillisecondTimeStamp(start), new MillisecondTimeStamp(end), order);
@@ -69,7 +69,7 @@ public class IteratorTestUtils {
     }
     
     groups.addIterator(GROUP_A, shard);
-    groups.addIterator(GROUP_B, shard.getCopy(null));
+    groups.addIterator(GROUP_B, shard.getShallowCopy(null));
     
     return groups;
   }

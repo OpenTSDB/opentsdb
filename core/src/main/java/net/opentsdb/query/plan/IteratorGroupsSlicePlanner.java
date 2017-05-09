@@ -126,7 +126,7 @@ public class IteratorGroupsSlicePlanner extends
           for (final TimeSeriesIterator<?> iterator : 
             entry.getValue().flattenedIterators()) {
             for_cache.addIterator(entry.getKey(), 
-                iterator.getCopy(null, query_time_ranges[i][0], 
+                iterator.getDeepCopy(null, query_time_ranges[i][0], 
                     query_time_ranges[i][1]));
           }
         }

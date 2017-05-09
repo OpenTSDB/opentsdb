@@ -239,16 +239,16 @@ public class SlicedTimeSeriesIterator<T extends TimeSeriesDataType>
   }
   
   @Override
-  public TimeSeriesIterator<T> getCopy(final QueryContext context) {
+  public TimeSeriesIterator<T> getShallowCopy(final QueryContext context) {
     final SlicedTimeSeriesIterator<T> clone = new SlicedTimeSeriesIterator<T>();
     for (final TimeSeriesIterator<T> iterator : iterators) {
-      clone.addIterator(iterator.getCopy(context));
+      clone.addIterator(iterator.getShallowCopy(context));
     }
     return clone;
   }
   
   @Override
-  public TimeSeriesIterator<T> getCopy(final QueryContext context, 
+  public TimeSeriesIterator<T> getDeepCopy(final QueryContext context, 
                                                  final TimeStamp start, 
                                                  final TimeStamp end) {
     throw new UnsupportedOperationException("Not supported yet.");

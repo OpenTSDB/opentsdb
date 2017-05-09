@@ -505,7 +505,7 @@ public class TestJexlBinderIterator {
     final QueryContext ctx2 = 
         new DefaultQueryContext(tsdb, mock(ExecutionGraph.class));
     final JexlBinderNumericIterator copy = 
-        (JexlBinderNumericIterator) it.getCopy(ctx2);
+        (JexlBinderNumericIterator) it.getShallowCopy(ctx2);
     
     // manual hack needed to initialize the cloned iterators since they're not
     // a part of a binder.

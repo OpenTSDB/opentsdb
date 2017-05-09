@@ -240,7 +240,7 @@ public class TestDefaultTimeSeriesIterators {
     });
     when(num_it.id()).thenReturn(id);
     when(num_it_clone.id()).thenReturn(id);
-    when(num_it.getCopy(context)).thenAnswer(new Answer<TimeSeriesIterator<?>>() {
+    when(num_it.getShallowCopy(context)).thenAnswer(new Answer<TimeSeriesIterator<?>>() {
       @Override
       public TimeSeriesIterator<?> answer(InvocationOnMock invocation)
           throws Throwable {
@@ -266,7 +266,7 @@ public class TestDefaultTimeSeriesIterators {
     });
     when(note_it.id()).thenReturn(id);
     when(note_it_clone.id()).thenReturn(id);
-    when(note_it.getCopy(context)).thenAnswer(new Answer<TimeSeriesIterator<?>>() {
+    when(note_it.getShallowCopy(context)).thenAnswer(new Answer<TimeSeriesIterator<?>>() {
       @Override
       public TimeSeriesIterator<?> answer(InvocationOnMock invocation)
           throws Throwable {

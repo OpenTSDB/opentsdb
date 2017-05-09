@@ -233,7 +233,7 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
   }
 
   @Override
-  public TimeSeriesIterator<NumericType> getCopy(final QueryContext context) {
+  public TimeSeriesIterator<NumericType> getShallowCopy(final QueryContext context) {
     final MockNumericIterator it = new MockNumericIterator(id);
     it.data = data;
     it.parent = this;
@@ -245,7 +245,7 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
   }
 
   @Override
-  public TimeSeriesIterator<NumericType> getCopy(final QueryContext context, 
+  public TimeSeriesIterator<NumericType> getDeepCopy(final QueryContext context, 
                                                  final TimeStamp start, 
                                                  final TimeStamp end) {
     throw new UnsupportedOperationException("Not supported yet.");

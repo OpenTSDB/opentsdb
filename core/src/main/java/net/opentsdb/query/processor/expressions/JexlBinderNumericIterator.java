@@ -220,17 +220,17 @@ public class JexlBinderNumericIterator extends
   }
   
   @Override
-  public TimeSeriesIterator<NumericType> getCopy(final QueryContext context) {
+  public TimeSeriesIterator<NumericType> getShallowCopy(final QueryContext context) {
     final JexlBinderNumericIterator copy = new JexlBinderNumericIterator(context, config);
     copy.id = id;
     for (final Entry<String, TimeSeriesIterator<?>> entry : iterators.entrySet()) {
-      copy.addIterator(entry.getKey(), entry.getValue().getCopy(context));
+      copy.addIterator(entry.getKey(), entry.getValue().getShallowCopy(context));
     }
     return copy;
   }
 
   @Override
-  public TimeSeriesIterator<NumericType> getCopy(final QueryContext context, 
+  public TimeSeriesIterator<NumericType> getDeepCopy(final QueryContext context, 
                                                  final TimeStamp start, 
                                                  final TimeStamp end) {
     throw new UnsupportedOperationException("Not supported yet.");

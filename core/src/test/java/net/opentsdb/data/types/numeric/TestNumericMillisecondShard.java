@@ -435,7 +435,7 @@ public class TestNumericMillisecondShard {
     assertEquals(42, v.value().longValue());
     assertEquals(1, v.realCount());
     
-    NumericMillisecondShard clone = (NumericMillisecondShard) shard.getCopy(null);
+    NumericMillisecondShard clone = (NumericMillisecondShard) shard.getShallowCopy(null);
     v = clone.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
@@ -476,7 +476,7 @@ public class TestNumericMillisecondShard {
     TimeStamp end = new MillisecondTimeStamp(1486045800900L);
     
     // range before the start of shard
-    NumericMillisecondShard clone = (NumericMillisecondShard) shard.getCopy(null,
+    NumericMillisecondShard clone = (NumericMillisecondShard) shard.getDeepCopy(null,
         start, end);
     assertEquals(IteratorStatus.END_OF_DATA, clone.status());
     // no movement in the original
@@ -485,7 +485,7 @@ public class TestNumericMillisecondShard {
     
     // range includes some data
     end = new MillisecondTimeStamp(1486045871000L);
-    clone = (NumericMillisecondShard) shard.getCopy(null, start, end);
+    clone = (NumericMillisecondShard) shard.getDeepCopy(null, start, end);
     assertEquals(IteratorStatus.HAS_DATA, clone.status());
     v = clone.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
@@ -506,7 +506,7 @@ public class TestNumericMillisecondShard {
     // empty middle
     start = new MillisecondTimeStamp(1486045801100L);
     end = new MillisecondTimeStamp(1486045870900L);
-    clone = (NumericMillisecondShard) shard.getCopy(null, start, end);
+    clone = (NumericMillisecondShard) shard.getDeepCopy(null, start, end);
     assertEquals(IteratorStatus.END_OF_DATA, clone.status());
     // no movement in the original
     assertEquals(IteratorStatus.HAS_DATA, shard.status());
@@ -516,7 +516,7 @@ public class TestNumericMillisecondShard {
     start = new MillisecondTimeStamp(1486045871000L);
     end = new MillisecondTimeStamp(1486045882000L);
     
-    clone = (NumericMillisecondShard) shard.getCopy(null, start, end);
+    clone = (NumericMillisecondShard) shard.getDeepCopy(null, start, end);
     assertEquals(IteratorStatus.HAS_DATA, clone.status());
     v = clone.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
@@ -537,7 +537,7 @@ public class TestNumericMillisecondShard {
     // past the end
     start = new MillisecondTimeStamp(1486045882000L);
     end = new MillisecondTimeStamp(1486045884000L);
-    clone = (NumericMillisecondShard) shard.getCopy(null, start, end);
+    clone = (NumericMillisecondShard) shard.getDeepCopy(null, start, end);
     assertEquals(IteratorStatus.END_OF_DATA, clone.status());
     // no movement in the original
     assertEquals(IteratorStatus.HAS_DATA, shard.status());
@@ -547,22 +547,22 @@ public class TestNumericMillisecondShard {
     start = new MillisecondTimeStamp(1486045800000L);
     end = new MillisecondTimeStamp(1486045890000L);
     shard = new NumericMillisecondShard(id, start, end);
-    clone = (NumericMillisecondShard) shard.getCopy(null, start, end);
+    clone = (NumericMillisecondShard) shard.getDeepCopy(null, start, end);
     assertEquals(IteratorStatus.END_OF_DATA, clone.status());
     assertEquals(IteratorStatus.END_OF_DATA, shard.status());
     
     try {
-      clone = (NumericMillisecondShard) shard.getCopy(null, null, end);
+      clone = (NumericMillisecondShard) shard.getDeepCopy(null, null, end);
       fail("Expected IllegalArgumentException");
     } catch(IllegalArgumentException e) { }
     
     try {
-      clone = (NumericMillisecondShard) shard.getCopy(null, start, null);
+      clone = (NumericMillisecondShard) shard.getDeepCopy(null, start, null);
       fail("Expected IllegalArgumentException");
     } catch(IllegalArgumentException e) { }
     
     try {
-      clone = (NumericMillisecondShard) shard.getCopy(null, end, start);
+      clone = (NumericMillisecondShard) shard.getDeepCopy(null, end, start);
       fail("Expected IllegalArgumentException");
     } catch(IllegalArgumentException e) { }
   }

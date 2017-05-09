@@ -32,7 +32,7 @@ import net.opentsdb.query.context.QueryContext;
  * <p>
  * <b>Thread-Safety:</b> This iterator is <i>not</i> thread safe. Do not call 
  * methods on iterators across multiple threads. If multiple threads require a
- * view into the same data, use {@link #getCopy(QueryContext)} to retrieve a 
+ * view into the same data, use {@link #getShallowCopy(QueryContext)} to retrieve a 
  * separate view of the same data that may be iterated separately on a different 
  * thread.
  * <p>
@@ -241,7 +241,7 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
    * @param context A context for the iterator to associate with.
    * @return A non-null copy of the iterator.
    */
-  public abstract TimeSeriesIterator<T> getCopy(final QueryContext context);
+  public abstract TimeSeriesIterator<T> getShallowCopy(final QueryContext context);
 
   /**
    * Creates and returns a deep copy of the iterator containing data only within
@@ -254,7 +254,7 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
    * @throws IllegalArgumentException if either timestamp is null or the end
    * time was greater or equal to the start time.
    */
-  public abstract TimeSeriesIterator<T> getCopy(final QueryContext context, 
+  public abstract TimeSeriesIterator<T> getDeepCopy(final QueryContext context, 
                                                 final TimeStamp start, 
                                                 final TimeStamp end);
   

@@ -395,7 +395,7 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
   }
   
   @Override
-  public TimeSeriesIterator<NumericType> getCopy(final QueryContext context) {
+  public TimeSeriesIterator<NumericType> getShallowCopy(final QueryContext context) {
     final NumericMillisecondShard shard = 
         new NumericMillisecondShard(id, start_timestamp, end_timestamp, order);
     shard.start_timestamp = start_timestamp;
@@ -413,7 +413,7 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
   }
 
   @Override
-  public TimeSeriesIterator<NumericType> getCopy(final QueryContext context, 
+  public TimeSeriesIterator<NumericType> getDeepCopy(final QueryContext context, 
                                                  final TimeStamp start, 
                                                  final TimeStamp end) {
     if (start == null) {

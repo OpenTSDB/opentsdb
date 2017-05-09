@@ -214,7 +214,7 @@ public class TestTimeSeriesProcessor {
         return NumericType.TYPE;
       }
     });
-    when(iterator.getCopy(context)).thenAnswer(new Answer<TimeSeriesIterator<?>>() {
+    when(iterator.getShallowCopy(context)).thenAnswer(new Answer<TimeSeriesIterator<?>>() {
       @Override
       public TimeSeriesIterator<?> answer(InvocationOnMock invocation)
           throws Throwable {
