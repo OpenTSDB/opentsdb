@@ -221,7 +221,7 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
   }
   
   /**
-   * Creates and returns a deep copy of this iterator for another view on the 
+   * Creates and returns a shallow copy of this iterator for another view on the 
    * time series. This allows for multi-pass operations over data by associating
    * iterators with a separate context and iterating over them without effecting
    * the parent context.
@@ -243,6 +243,21 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
    */
   public abstract TimeSeriesIterator<T> getCopy(final QueryContext context);
 
+  /**
+   * Creates and returns a deep copy of the iterator containing data only within
+   * the given time range. This is used for serialization and slicing purposes. 
+   * @param context An optional context if required.
+   * @param start A non-null start timestamp.
+   * @param end A non-null end timestamp.
+   * @return A deep copy of the data within the time boundary. May be empty if
+   * no data is within the range.
+   * @throws IllegalArgumentException if either timestamp is null or the end
+   * time was greater or equal to the start time.
+   */
+  public abstract TimeSeriesIterator<T> getCopy(final QueryContext context, 
+                                                final TimeStamp start, 
+                                                final TimeStamp end);
+  
   /**
    * Sets the parent for this iterator.
    * @param parent A parent iterator. May be null if uncoupling.

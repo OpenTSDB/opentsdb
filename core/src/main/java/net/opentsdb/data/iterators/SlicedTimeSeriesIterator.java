@@ -39,11 +39,9 @@ import net.opentsdb.query.context.QueryContext;
  * <ol>
  * <li>The {@link #startTime()} of the inserting iterator must be equal to or
  * greater than the {@link #endTime()} of the previous iterator.</li>
- * <li>The {@link #order()} of the inserting iterator must be greater than
- * the order of the previous iterator.</li>
- * <li>The first iterator's order must be 0 or greater.</li>
  * </ol>
- *
+ * <b>Note:</b> The order of chunks is not validated (since some of them may
+ * come from cache).
  * @param <T> The type of data stored by the iterators.
  */
 public class SlicedTimeSeriesIterator<T extends TimeSeriesDataType> 
@@ -71,17 +69,13 @@ public class SlicedTimeSeriesIterator<T extends TimeSeriesDataType>
   /**
    * Adds an iterator to the set in order. Must have the same ID as the previous
    * iterators and a greater or equivalent start timestamp to the end timestamp
-   * of the previous iterator. Also must have a greater order than the previous.
+   * of the previous iterator. 
    * <b>Note:</b> The first iterator inserted sets the ID for the set.
    * @param iterator A non-null iterator to add.
    */
   public void addIterator(final TimeSeriesIterator<T> iterator) {
     if (iterator == null) {
       throw new IllegalArgumentException("Iterator cannot be null.");
-    }
-    if (iterator.order() < 0) {
-      throw new IllegalArgumentException("Iterator must have an order "
-          + "set starting at 0.");
     }
     if (iterators.isEmpty()) {
       iterators.add(iterator);
@@ -91,10 +85,6 @@ public class SlicedTimeSeriesIterator<T extends TimeSeriesDataType>
     
     // validate
     final TimeSeriesIterator<T> previous = iterators.get(iterators.size() - 1);
-    if (iterator.order() <= previous.order()) {
-      throw new IllegalArgumentException("Iterator must have a later order "
-          + "than the previous iterator. Previous order; " + previous.order());
-    }
     if (iterator.startTime().compare(TimeStampComparator.LT, previous.endTime())) {
       throw new IllegalArgumentException("Iterator must start at or after the "
           + "previous iterator's end time. Previous end: " + previous.endTime());
@@ -255,6 +245,13 @@ public class SlicedTimeSeriesIterator<T extends TimeSeriesDataType>
       clone.addIterator(iterator.getCopy(context));
     }
     return clone;
+  }
+  
+  @Override
+  public TimeSeriesIterator<T> getCopy(final QueryContext context, 
+                                                 final TimeStamp start, 
+                                                 final TimeStamp end) {
+    throw new UnsupportedOperationException("Not supported yet.");
   }
   
   @Override

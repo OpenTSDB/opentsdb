@@ -456,4 +456,114 @@ public class TestNumericMillisecondShard {
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
   }
+  
+  @Test
+  public void getCopyTimeRange() throws Exception {
+    start = new MillisecondTimeStamp(1486045800000L);
+    end = new MillisecondTimeStamp(1486045890000L);
+    NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
+    shard.add(1486045801000L, 42, 1);
+    shard.add(1486045871000L, 9866.854, 0);
+    shard.add(1486045881000L, -128, 1024);
+    
+    TimeSeriesValue<NumericType> v = shard.next();
+    assertEquals(1486045801000L, v.timestamp().msEpoch());
+    assertTrue(v.value().isInteger());
+    assertEquals(42, v.value().longValue());
+    assertEquals(1, v.realCount());
+    
+    TimeStamp start = new MillisecondTimeStamp(1486045800000L);
+    TimeStamp end = new MillisecondTimeStamp(1486045800900L);
+    
+    // range before the start of shard
+    NumericMillisecondShard clone = (NumericMillisecondShard) shard.getCopy(null,
+        start, end);
+    assertEquals(IteratorStatus.END_OF_DATA, clone.status());
+    // no movement in the original
+    assertEquals(IteratorStatus.HAS_DATA, shard.status());
+    assertEquals(1486045871000L, shard.peek().timestamp().msEpoch());
+    
+    // range includes some data
+    end = new MillisecondTimeStamp(1486045871000L);
+    clone = (NumericMillisecondShard) shard.getCopy(null, start, end);
+    assertEquals(IteratorStatus.HAS_DATA, clone.status());
+    v = clone.next();
+    assertEquals(1486045801000L, v.timestamp().msEpoch());
+    assertEquals(42, v.value().longValue());
+    assertEquals(1, v.realCount());
+    
+    assertEquals(IteratorStatus.HAS_DATA, clone.status());
+    v = clone.next();
+    assertEquals(1486045871000L, v.timestamp().msEpoch());
+    assertEquals(9866.854, v.value().doubleValue(), 0.001);
+    assertEquals(0, v.realCount());
+    
+    assertEquals(IteratorStatus.END_OF_DATA, clone.status());
+    // no movement in the original
+    assertEquals(IteratorStatus.HAS_DATA, shard.status());
+    assertEquals(1486045871000L, shard.peek().timestamp().msEpoch());
+    
+    // empty middle
+    start = new MillisecondTimeStamp(1486045801100L);
+    end = new MillisecondTimeStamp(1486045870900L);
+    clone = (NumericMillisecondShard) shard.getCopy(null, start, end);
+    assertEquals(IteratorStatus.END_OF_DATA, clone.status());
+    // no movement in the original
+    assertEquals(IteratorStatus.HAS_DATA, shard.status());
+    assertEquals(1486045871000L, shard.peek().timestamp().msEpoch());
+    
+    // range overlaps end
+    start = new MillisecondTimeStamp(1486045871000L);
+    end = new MillisecondTimeStamp(1486045882000L);
+    
+    clone = (NumericMillisecondShard) shard.getCopy(null, start, end);
+    assertEquals(IteratorStatus.HAS_DATA, clone.status());
+    v = clone.next();
+    assertEquals(1486045871000L, v.timestamp().msEpoch());
+    assertEquals(9866.854, v.value().doubleValue(), 0.001);
+    assertEquals(0, v.realCount());
+    
+    assertEquals(IteratorStatus.HAS_DATA, clone.status());
+    v = clone.next();
+    assertEquals(1486045881000L, v.timestamp().msEpoch());
+    assertEquals(-128, v.value().longValue());
+    assertEquals(1024, v.realCount());
+    
+    assertEquals(IteratorStatus.END_OF_DATA, clone.status());
+    // no movement in the original
+    assertEquals(IteratorStatus.HAS_DATA, shard.status());
+    assertEquals(1486045871000L, shard.peek().timestamp().msEpoch());
+    
+    // past the end
+    start = new MillisecondTimeStamp(1486045882000L);
+    end = new MillisecondTimeStamp(1486045884000L);
+    clone = (NumericMillisecondShard) shard.getCopy(null, start, end);
+    assertEquals(IteratorStatus.END_OF_DATA, clone.status());
+    // no movement in the original
+    assertEquals(IteratorStatus.HAS_DATA, shard.status());
+    assertEquals(1486045871000L, shard.peek().timestamp().msEpoch());
+    
+    // empty source
+    start = new MillisecondTimeStamp(1486045800000L);
+    end = new MillisecondTimeStamp(1486045890000L);
+    shard = new NumericMillisecondShard(id, start, end);
+    clone = (NumericMillisecondShard) shard.getCopy(null, start, end);
+    assertEquals(IteratorStatus.END_OF_DATA, clone.status());
+    assertEquals(IteratorStatus.END_OF_DATA, shard.status());
+    
+    try {
+      clone = (NumericMillisecondShard) shard.getCopy(null, null, end);
+      fail("Expected IllegalArgumentException");
+    } catch(IllegalArgumentException e) { }
+    
+    try {
+      clone = (NumericMillisecondShard) shard.getCopy(null, start, null);
+      fail("Expected IllegalArgumentException");
+    } catch(IllegalArgumentException e) { }
+    
+    try {
+      clone = (NumericMillisecondShard) shard.getCopy(null, end, start);
+      fail("Expected IllegalArgumentException");
+    } catch(IllegalArgumentException e) { }
+  }
 }

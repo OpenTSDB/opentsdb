@@ -245,6 +245,13 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
   }
 
   @Override
+  public TimeSeriesIterator<NumericType> getCopy(final QueryContext context, 
+                                                 final TimeStamp start, 
+                                                 final TimeStamp end) {
+    throw new UnsupportedOperationException("Not supported yet.");
+  }
+  
+  @Override
   public Deferred<Object> close() {
     if (ex != null) {
       return Deferred.fromError(ex);

@@ -230,6 +230,13 @@ public class JexlBinderNumericIterator extends
   }
 
   @Override
+  public TimeSeriesIterator<NumericType> getCopy(final QueryContext context, 
+                                                 final TimeStamp start, 
+                                                 final TimeStamp end) {
+    throw new UnsupportedOperationException("Not supported yet.");
+  }
+  
+  @Override
   public Deferred<Object> fetchNext() {
     final List<Deferred<Object>> deferreds = 
         Lists.newArrayListWithExpectedSize(iterators.size());

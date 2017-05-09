@@ -395,7 +395,7 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
   }
   
   @Override
-  public TimeSeriesIterator<NumericType> getCopy(QueryContext context) {
+  public TimeSeriesIterator<NumericType> getCopy(final QueryContext context) {
     final NumericMillisecondShard shard = 
         new NumericMillisecondShard(id, start_timestamp, end_timestamp, order);
     shard.start_timestamp = start_timestamp;
@@ -412,6 +412,71 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
     return shard;
   }
 
+  @Override
+  public TimeSeriesIterator<NumericType> getCopy(final QueryContext context, 
+                                                 final TimeStamp start, 
+                                                 final TimeStamp end) {
+    if (start == null) {
+      throw new IllegalArgumentException("Start cannot be null.");
+    }
+    if (end == null) {
+      throw new IllegalArgumentException("End cannot be null.");
+    }
+    if (end.compare(TimeStampComparator.LTE, start)) {
+      throw new IllegalArgumentException("End time cannot be less than or "
+          + "equal to start time.");
+    }
+    
+    final NumericMillisecondShard shard = 
+        new NumericMillisecondShard(id, start, end, -1);
+    shard.setContext(context);
+    // shortcut for the empty case
+    if (this.write_offset_idx < 1) {
+      return shard;
+    }
+    
+    int off_idx = 0;
+    int value_idx = 0;
+    final TimeStamp ts = new MillisecondTimeStamp(Long.MIN_VALUE);
+    final byte[] offset_copy = new byte[8];
+    
+    while (off_idx < write_offset_idx) {
+      System.arraycopy(offsets, off_idx, offset_copy, 8 - encode_on, encode_on);
+      long offset = Bytes.getLong(offset_copy);
+      byte flags = (byte) offset;
+      offset = offset >> NumericType.TOTAL_FLAG_BITS;
+
+      byte reals_length = (byte) ((flags & NumericType.REALS_LENGTH_MASK) 
+          >> NumericType.VALUE_FLAG_BITS);
+      byte vlen = (byte) ((flags & NumericType.VALUE_LENGTH_MASK) + 1);
+      ts.updateMsEpoch(start_timestamp.msEpoch() + offset);
+      
+      if (ts.compare(TimeStampComparator.GTE, start) && 
+          ts.compare(TimeStampComparator.LTE, end)) {
+        // we're decoding and re-encoding here as we may save a fair amount
+        // of space with the offset encoding.
+        // TODO - change reals to a long. *could* happen.
+        final int reals = (int) NumericType.extractIntegerValue(values, 
+            value_idx, reals_length);
+        
+        if ((flags & NumericType.FLAG_FLOAT) == 0x0) {
+          shard.add(start_timestamp.msEpoch() + offset, 
+              NumericType.extractIntegerValue(values, 
+                  value_idx + reals_length + 1, flags), reals);
+        } else {
+          shard.add(start_timestamp.msEpoch() + offset, 
+              NumericType.extractFloatingPointValue(values, 
+                  value_idx + reals_length + 1, flags), reals);
+        }
+      }
+      
+      off_idx += encode_on;
+      value_idx += vlen + reals_length + 1;
+    }
+    
+    return shard;
+  }
+  
   /**
    * If the context is not null, updates it with the status and timestamp.
    */
@@ -431,12 +496,12 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
   }
   
   /**
-   * Writes the raw values and offsets to the stream. Does NOT write the ID.
+   * Writes the raw values and offsets to the stream. Does NOT write the ID or 
+   * order.
    * @param stream A non-null stream to write to.
    */
   public void serialize(final OutputStream stream) {
     try {
-      stream.write(Bytes.fromInt(order));
       stream.write(Bytes.fromLong(start_timestamp.msEpoch()));
       stream.write(Bytes.fromLong(end_timestamp.msEpoch()));
       stream.write(Bytes.fromInt(write_offset_idx));
@@ -450,6 +515,7 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
   
   /**
    * Helper to parse the raw arrays from a cache.
+   * <b>Note:</b> The order is always -1 coming from cache.
    * @param id A non-null ID to associate with the newly created shard.
    * @param stream A non-null input stream.
    * @return An instantiated shard.
@@ -457,11 +523,7 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
   public static NumericMillisecondShard parseFrom(final TimeSeriesId id, 
                                                   final InputStream stream) {
     try {
-      byte[] array = new byte[4];
-      stream.read(array);
-      int order = Bytes.getInt(array);
-      
-      array = new byte[8];
+      byte[] array = new byte[8];
       stream.read(array);
       long start_ts = Bytes.getLong(array);
       
@@ -472,7 +534,7 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
       final NumericMillisecondShard shard = new NumericMillisecondShard(id, 
           new MillisecondTimeStamp(start_ts), 
           new MillisecondTimeStamp(end_ts),
-          order);
+          -1);
       
       array = new byte[4];
       stream.read(array);

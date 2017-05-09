@@ -23,6 +23,7 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MockNumericIterator;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.processor.TimeSeriesProcessor;
 
@@ -94,6 +95,13 @@ public class MockAnnotationIterator extends
     return null;
   }
 
+  @Override
+  public TimeSeriesIterator<AnnotationType> getCopy(final QueryContext context, 
+                                                 final TimeStamp start, 
+                                                 final TimeStamp end) {
+    throw new UnsupportedOperationException("Not supported yet.");
+  }
+  
   @Override
   public Deferred<Object> close() {
     if (ex != null) {

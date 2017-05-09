@@ -299,6 +299,13 @@ public class TestTimeSeriesIterator {
     }
 
     @Override
+    public TimeSeriesIterator<NumericType> getCopy(QueryContext context,
+        TimeStamp start, TimeStamp end) {
+      // TODO Auto-generated method stub
+      return null;
+    }
+    
+    @Override
     public TimeStamp startTime() {
       // TODO Auto-generated method stub
       return null;
@@ -321,6 +328,7 @@ public class TestTimeSeriesIterator {
       // TODO Auto-generated method stub
       return null;
     }
+
     
   }
 }
