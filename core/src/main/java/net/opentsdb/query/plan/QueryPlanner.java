@@ -26,9 +26,11 @@ import net.opentsdb.utils.DateTime;
  * A base class for query planners.
  * TODO - a lot more work on this.
  * 
+ * @param <T> The data type returned from the query.
+ * 
  * @since 3.0
  */
-public abstract class QueryPlanner {
+public abstract class QueryPlanner<T> {
   /** TEMP raw interval in seconds */
   private static final int RAW_INTERVAL = 3600;
   
