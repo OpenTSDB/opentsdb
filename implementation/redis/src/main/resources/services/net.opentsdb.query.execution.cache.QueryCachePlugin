@@ -1,0 +1,2 @@
+net.opentsdb.query.execution.cache.RedisQueryCache
+net.opentsdb.query.execution.cache.RedisClusterQueryCache

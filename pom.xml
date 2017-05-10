@@ -90,6 +90,7 @@
     <module>core</module>
     <module>executors/http</module>
     <module>implementation/tracer-brave</module>
+    <module>implementation/redis</module>
     <module>implementation/servlet</module>
     <module>storage/asynchbase</module>
   </modules>
@@ -193,6 +194,15 @@
             <argLine>-Xmx1024m -XX:MaxPermSize=256m</argLine>
             <reportsDirectory>../target/surefire-reports</reportsDirectory>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.6.1</version>
+        <configuration>
+          <source>1.8</source>
+          <target>1.8</target>
         </configuration>
       </plugin>
     </plugins>
