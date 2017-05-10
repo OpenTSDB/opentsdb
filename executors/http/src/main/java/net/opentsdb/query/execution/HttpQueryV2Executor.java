@@ -252,7 +252,10 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
         }
         // Jackson's canConvertToLong() doesn't work well.
         final String v = value.getValue().asText();
-        if (NumericType.looksLikeInteger(v)) {
+        if (v.startsWith("N") || v.startsWith("n")) {
+          // nulls and NaNs.
+          shard.add(Long.parseLong(value.getKey()), Double.NaN, 0);
+        } else if (NumericType.looksLikeInteger(v)) {
           shard.add(Long.parseLong(value.getKey()), NumericType.parseLong(v), 1);
         } else {
           final double parsed = Double.parseDouble(v);

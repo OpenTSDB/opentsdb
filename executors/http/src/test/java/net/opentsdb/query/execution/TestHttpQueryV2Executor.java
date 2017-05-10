@@ -160,7 +160,7 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
         + " \"aggregateTags\": [\"host\"],"
         + " \"dps\": {"
         + "   \"1490122920000\": 1301.65673828125,"
-        + "   \"1490122980000\": 1285,"
+        + "   \"1490122980000\": \"NaN\","
         + "   \"1490123040000\": 1498.576171875"
         + " },"
         + " \"stats\":{}"
@@ -280,8 +280,8 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     
     v = it_b.next();
     assertEquals(1490122980000L, v.timestamp().msEpoch());
-    assertTrue(v.value().isInteger());
-    assertEquals(1285, v.value().longValue());
+    assertFalse(v.value().isInteger());
+    assertTrue(Double.isNaN(v.value().doubleValue()));
     
     v = it_a.next();
     assertEquals(1490123040000L, v.timestamp().msEpoch());
@@ -987,8 +987,8 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     
     v = it.next();
     assertEquals(1490122980000L, v.timestamp().msEpoch());
-    assertTrue(v.value().isInteger());
-    assertEquals(1285, v.value().longValue());
+    assertFalse(v.value().isInteger());
+    assertTrue(Double.isNaN(v.value().doubleValue()));
     
     v = it.next();
     assertEquals(1490123040000L, v.timestamp().msEpoch());
