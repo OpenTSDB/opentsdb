@@ -70,7 +70,7 @@ import net.opentsdb.utils.DateTime;
  * 
  * @since 3.0
  */
-public class GuavaLRUCache extends CachingQueryExecutorPlugin {
+public class GuavaLRUCache extends QueryCachePlugin {
   private static final Logger LOG = LoggerFactory.getLogger(GuavaLRUCache.class);
   
   /** The default size limit in bytes. 128MB. */

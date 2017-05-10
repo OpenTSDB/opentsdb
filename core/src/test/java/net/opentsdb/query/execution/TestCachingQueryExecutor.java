@@ -44,7 +44,7 @@ import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.CachingQueryExecutor.Config;
 import net.opentsdb.query.execution.TestQueryExecutor.MockDownstream;
-import net.opentsdb.query.execution.cache.CachingQueryExecutorPlugin;
+import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.execution.serdes.TimeSeriesSerdes;
@@ -58,7 +58,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   private QueryExecutor<IteratorGroups> executor;
   private MockDownstream<IteratorGroups> cache_execution;
   private Config config;
-  private CachingQueryExecutorPlugin plugin;
+  private QueryCachePlugin plugin;
   private TimeSeriesSerdes<IteratorGroups> serdes;
   private MockDownstream<IteratorGroups> downstream;
   
@@ -67,7 +67,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void beforeLocal() throws Exception {
     node = mock(ExecutionGraphNode.class);
     executor = mock(QueryExecutor.class);
-    plugin = mock(CachingQueryExecutorPlugin.class);
+    plugin = mock(QueryCachePlugin.class);
     serdes = new UglyByteIteratorGroupsSerdes();
     config = (Config) Config.newBuilder()
         .setExpiration(60000)

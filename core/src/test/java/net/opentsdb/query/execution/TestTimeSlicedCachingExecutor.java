@@ -59,7 +59,7 @@ import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.TimeSlicedCachingExecutor.Config;
 import net.opentsdb.query.execution.TestQueryExecutor.MockDownstream;
-import net.opentsdb.query.execution.cache.CachingQueryExecutorPlugin;
+import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
@@ -80,7 +80,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
   private QueryExecutor<IteratorGroups> executor;
   private MockDownstream<IteratorGroups> cache_execution;
   private Config config;
-  private CachingQueryExecutorPlugin plugin;
+  private QueryCachePlugin plugin;
   private TimeSeriesSerdes<IteratorGroups> serdes;
   private List<MockDownstream<IteratorGroups>> downstreams;
   private IteratorGroupsSlicePlanner planner;
@@ -96,7 +96,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
   public void beforeLocal() throws Exception {
     node = mock(ExecutionGraphNode.class);
     executor = mock(QueryExecutor.class);
-    plugin = mock(CachingQueryExecutorPlugin.class);
+    plugin = mock(QueryCachePlugin.class);
     serdes = new UglyByteIteratorGroupsSerdes();
     config = (Config) Config.newBuilder()
         .setExpiration(60000)
@@ -1052,7 +1052,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
 
   @Test
   public void executeCacheExceptionThrow() throws Exception {
-    plugin = mock(CachingQueryExecutorPlugin.class);
+    plugin = mock(QueryCachePlugin.class);
     when(registry.getPlugin(any(Class.class), anyString())).thenReturn(plugin);
     when(plugin.fetch(any(QueryContext.class), any(byte[][].class), any(Span.class)))
       .thenThrow(new IllegalArgumentException("Boo!"));

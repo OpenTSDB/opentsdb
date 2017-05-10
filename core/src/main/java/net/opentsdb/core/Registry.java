@@ -29,7 +29,7 @@ import net.opentsdb.data.DataShardMerger;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.types.numeric.NumericMergeLargest;
 import net.opentsdb.query.execution.QueryExecutorFactory;
-import net.opentsdb.query.execution.cache.CachingQueryExecutorPlugin;
+import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.GuavaLRUCache;
 import net.opentsdb.query.execution.cluster.ClusterConfig;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
@@ -74,6 +74,10 @@ public class Registry {
   /** The map of query plans. */
   private final Map<String, QueryPlannnerFactory<?>> query_plans;
   
+  /** A concurrent map of shared objects used by various plugins such as 
+   * connection pools, etc. */
+  private final Map<String, Object> shared_objects;
+  
   /** The thread pool used for cleanup post query or other operations. */
   private final ExecutorService cleanup_pool;
   
@@ -99,6 +103,7 @@ public class Registry {
     plugins = Maps.newHashMapWithExpectedSize(1);
     serdes = Maps.newHashMapWithExpectedSize(1);
     query_plans = Maps.newHashMapWithExpectedSize(1);
+    shared_objects = Maps.newConcurrentMap();
     cleanup_pool = Executors.newFixedThreadPool(1);
   }
   
@@ -328,6 +333,38 @@ public class Registry {
   }
   
   /**
+   * Registers a shared object in the concurrent map if the object was not
+   * present. If an object was already present, the existing object is returned.
+   * @param id A non-null and non-empty ID for the shared object.
+   * @param obj A non-null object.
+   * @return Null if the object was inserted successfully, a non-null object
+   * if something with the given ID was already present.
+   * @throws IllegalArgumentException if the ID was null or empty or the
+   * object was null.
+   */
+  public Object registerSharedObject(final String id, final Object obj) {
+    if (Strings.isNullOrEmpty(id)) {
+      throw new IllegalArgumentException("ID cannot be null or empty.");
+    }
+    if (obj == null) {
+      throw new IllegalArgumentException("Shared object may not be null.");
+    }
+    return shared_objects.putIfAbsent(id, obj);
+  }
+  
+  /**
+   * Returns the shared object for this Id if it exists.
+   * @param id A non-null and non-empty ID.
+   * @return The object if present, null if not.
+   */
+  public Object getSharedObject(final String id) {
+    if (Strings.isNullOrEmpty(id)) {
+      throw new IllegalArgumentException("ID cannot be null or empty.");
+    }
+    return shared_objects.get(id);
+  }
+  
+  /**
    * Add the tracer implementation. Note that it must already be initialized.
    * @param tracer The tracer to pass to operations. May be null.
    */
@@ -370,8 +407,8 @@ public class Registry {
       throw new RuntimeException("Unexpected exception initializing Guava cache.");
     }
     
-    registerPlugin(CachingQueryExecutorPlugin.class, null, query_cache);
-    registerPlugin(CachingQueryExecutorPlugin.class, "GuavaLRUCache", query_cache);
+    registerPlugin(QueryCachePlugin.class, null, query_cache);
+    registerPlugin(QueryCachePlugin.class, "GuavaLRUCache", query_cache);
     
     final UglyByteIteratorGroupsSerdes ugly = new UglyByteIteratorGroupsSerdes();
     serdes.put(null, ugly);

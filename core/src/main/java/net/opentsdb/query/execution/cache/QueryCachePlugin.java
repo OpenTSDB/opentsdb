@@ -34,7 +34,7 @@ import net.opentsdb.query.execution.QueryExecution;
  * </ul>
  * @since 3.0
  */
-public abstract class CachingQueryExecutorPlugin extends TsdbPlugin {
+public abstract class QueryCachePlugin extends TsdbPlugin {
 
   /**
    * Attempts to fetch a key from the cache. If no results were found, the 

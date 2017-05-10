@@ -37,7 +37,7 @@ import io.opentracing.Span;
 import net.opentsdb.core.Const;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.execution.cache.CachingQueryExecutorPlugin;
+import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
@@ -70,7 +70,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
   private final QueryExecutor<T> executor;
   
   /** The cache plugin to use. */
-  private final CachingQueryExecutorPlugin plugin;
+  private final QueryCachePlugin plugin;
   
   /** The serdes class to use. */
   private final TimeSeriesSerdes<T> serdes;
@@ -85,9 +85,9 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
       throw new IllegalArgumentException("Config cannot be null.");
     }
     
-    plugin = (CachingQueryExecutorPlugin) 
+    plugin = (QueryCachePlugin) 
         node.graph().tsdb().getRegistry().getPlugin(
-            CachingQueryExecutorPlugin.class, 
+            QueryCachePlugin.class, 
             ((Config) node.getDefaultConfig()).cache_id);
     if (plugin == null) {
       throw new IllegalArgumentException("Unable to find a caching plugin "
@@ -601,7 +601,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
   }
   
   @VisibleForTesting
-  CachingQueryExecutorPlugin plugin() {
+  QueryCachePlugin plugin() {
     return plugin;
   }
   
