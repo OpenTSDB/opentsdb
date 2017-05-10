@@ -139,5 +139,5 @@ public class IteratorGroupsSlicePlanner extends
   protected void generatePlan() {
     query_time_ranges = getTimeRanges(query);
   }
-
+  
 }

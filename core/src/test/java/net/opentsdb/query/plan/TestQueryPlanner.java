@@ -25,6 +25,7 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
@@ -185,13 +186,13 @@ public class TestQueryPlanner {
         .build();
     query.validate();
     final TimeStamp[][] times = QueryPlanner.getTimeRanges(query);
-    assertEquals(61, times.length);
+    assertEquals(60, times.length);
     assertEquals(1311022860000L, times[0][0].msEpoch());
     assertEquals(1311022920000L, times[0][1].msEpoch());
     assertEquals(1311022920000L, times[1][0].msEpoch());
     assertEquals(1311022980000L, times[1][1].msEpoch());
-    assertEquals(1311026460000L, times[60][0].msEpoch());
-    assertEquals(1311026520000L, times[60][1].msEpoch());
+    assertEquals(1311026400000L, times[59][0].msEpoch());
+    assertEquals(1311026460000L, times[59][1].msEpoch());
   }
   
   @Test
@@ -554,8 +555,33 @@ public class TestQueryPlanner {
         .build(), 0);
   }
 
+  @Test
+  public void getTimeRangesOnBoundary() {
+    TimeStamp[][] times = QueryPlanner.getTimeRanges(
+        TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Long.toString(1311022860000L)) // Mon, 18 Jul 2011 21:01:00 GMT
+            .setEnd(Long.toString(1311026400000L))  // Mon, 18 Jul 2011 22:00:00 GMT
+            .build())
+        .build());
+    assertEquals(1, times.length);
+    assertEquals(1311022800000L, times[0][0].msEpoch());
+    assertEquals(1311026400000L, times[0][1].msEpoch());
+    
+    times = QueryPlanner.getTimeRanges(
+        TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Long.toString(1311022800000L)) // Mon, 18 Jul 2011 21:00:00 GMT
+            .setEnd(Long.toString(1311026400000L))  // Mon, 18 Jul 2011 22:00:00 GMT
+            .build())
+        .build());
+    assertEquals(1, times.length);
+    assertEquals(1311022800000L, times[0][0].msEpoch());
+    assertEquals(1311026400000L, times[0][1].msEpoch());
+  }
+  
   /** Dummy implementation for testing */
-  class TestImplementation extends QueryPlanner {
+  class TestImplementation extends QueryPlanner<IteratorGroups> {
     public boolean generated_plan = false;
     
     public TestImplementation(final TimeSeriesQuery query) {

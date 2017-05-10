@@ -86,7 +86,8 @@ public class SlicedTimeSeriesIterator<T extends TimeSeriesDataType>
     // validate
     final TimeSeriesIterator<T> previous = iterators.get(iterators.size() - 1);
     if (iterator.startTime().compare(TimeStampComparator.LT, previous.endTime())) {
-      throw new IllegalArgumentException("Iterator must start at or after the "
+      throw new IllegalArgumentException("Iterator must start " 
+          + iterator.startTime() + " at or after the "
           + "previous iterator's end time. Previous end: " + previous.endTime());
     }
     iterators.add(iterator);

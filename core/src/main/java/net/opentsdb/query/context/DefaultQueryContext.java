@@ -13,6 +13,7 @@
 package net.opentsdb.query.context;
 
 import io.netty.util.Timer;
+import io.opentracing.Tracer;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 
@@ -31,6 +32,18 @@ public class DefaultQueryContext extends QueryContext {
   public DefaultQueryContext(final TSDB tsdb, 
                              final ExecutionGraph executor_graph) {
     super(tsdb, executor_graph);
+  }
+  
+  /**
+   * Ctor that stores a tracer.
+   * @param tsdb The TSDB to which this context belongs. May not be null.
+   * @param tracer An optional tracer to use for tracking queries.
+   * @throws IllegalArgumentException if the TSDB was null.
+   */
+  public DefaultQueryContext(final TSDB tsdb, 
+                             final ExecutionGraph executor_graph,
+                             final Tracer tracer) {
+    super(tsdb, executor_graph, tracer);
   }
   
   @Override

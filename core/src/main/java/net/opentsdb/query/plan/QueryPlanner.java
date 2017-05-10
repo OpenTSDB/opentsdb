@@ -81,7 +81,12 @@ public abstract class QueryPlanner<T> {
   /**
    * Attempts to split the given query on time so that blocks of time can be
    * cached and/or fetched separately. Queries without downsampling will split
-   * into raw data chunks of 1 hour each.
+   * into raw data chunks of 1 hour each. 
+   * <p>
+   * Ranges returned are meant to be inclusive of the start and end times (i.e. 
+   * if the range is from T1 to T2, the results of a query using that range 
+   * should include T1 and T2). Consumers of the data must de-dupe values in 
+   * adjacent time ranges.
    * <p>
    * If a slice config is supplied in the query, that will take precedence over
    * all other configs.
@@ -123,6 +128,11 @@ public abstract class QueryPlanner<T> {
    * cached and/or fetched separately. Queries without downsampling will split
    * into raw data chunks of 1 hour each.
    * <p>
+   * Ranges returned are meant to be inclusive of the start and end times (i.e. 
+   * if the range is from T1 to T2, the results of a query using that range 
+   * should include T1 and T2). Consumers of the data must de-dupe values in 
+   * adjacent time ranges.
+   * <p>
    * If a downsampler is supplied, then the splits can be set based on the 
    * downsampling interval. If the interval is less than an hour and on 
    * boundaries that can be satisfied by data within an hour chunk (e.g. 1m, 5m,
@@ -144,9 +154,12 @@ public abstract class QueryPlanner<T> {
    * @param query A non null query to parse.
    * @param metric_index An optional metric index to use for overriding the
    * {@code Time} downsampler. When not used, supply a negative value.
+   * 
    * @return An array of zero or more {@link TimeStamp} arrays in milliseconds.
+   * 
    * @throws IllegalArgumentException if the query is null, the query time hasn't
    * been set or the optional metric index is greater than the metric count.
+   * 
    * @throws IllegalStateException if the number of intervals overflows. This
    * would only happen if someone asked for hundreds of thousands of years of
    * data. (and if that does happen, wtf?)
@@ -156,7 +169,8 @@ public abstract class QueryPlanner<T> {
    * TODO - handle Percent slices
    * TODO - handle calendar based DS
    */
-  public static TimeStamp[][] getTimeRanges(final TimeSeriesQuery query, final int metric_index) {
+  public static TimeStamp[][] getTimeRanges(final TimeSeriesQuery query, 
+                                            final int metric_index) {
     if (query == null) {
       throw new IllegalArgumentException("The query hasn't been set.");
     }
@@ -177,8 +191,8 @@ public abstract class QueryPlanner<T> {
     }
     
     // TODO - offsets on a per metric basis once we support those
-    long start = query.getTime().startTime().msEpoch() / 1000;
-    long end = query.getTime().endTime().msEpoch() / 1000;
+    final long start = query.getTime().startTime().msEpoch() / 1000;
+    final long end = query.getTime().endTime().msEpoch() / 1000;
     
     // figure out the interval based on either the row width or downsampling
     long interval = RAW_INTERVAL; // 1 hour by default unless we're overridden by ds or rollups
@@ -265,7 +279,7 @@ public abstract class QueryPlanner<T> {
     long snap_end = end - (end % interval) + interval;
     
     // NOTE - possible rollover if someone asks for around 200,000 years of data.
-    int intervals = (int)((snap_end - snap_start) / interval);
+    int intervals = (int) ((snap_end - snap_start) / interval);
     
     if (slice_config != null && slice_config.getSliceType() == SliceType.PERCENT) {
       // TODO - handle percent.
@@ -279,7 +293,16 @@ public abstract class QueryPlanner<T> {
       throw new IllegalStateException("The query interval is too wide for sharding");
     }
     
-    final TimeStamp[][] ranges = new TimeStamp[intervals][];
+    final TimeStamp[][] ranges;
+    if ((snap_end == end || snap_end - interval == end) && intervals > 1) {
+      // if the query end aligns nicely with the end of an interval then we
+      // don't want to spill over and fetch another set of data when we don't
+      // need it. Ranges are inclusive end-to-end.
+      ranges = new TimeStamp[intervals - 1][];
+    } else {
+      ranges = new TimeStamp[intervals][];
+    }
+    
     int idx = 0;
     while (snap_start < snap_end) {
       ranges[idx++] = new TimeStamp[] { 
@@ -287,6 +310,9 @@ public abstract class QueryPlanner<T> {
           new MillisecondTimeStamp((snap_start + interval) * 1000) 
       };
       snap_start += interval;
+      if (idx >= ranges.length) {
+        break;
+      }
     }
     return ranges;
   }

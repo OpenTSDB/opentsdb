@@ -221,19 +221,19 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
             final byte[] data = output.toByteArray();
             plugin.cache(key, data, expiration, TimeUnit.MILLISECONDS);
             if (cache_span != null) {
-              cache_span.finish();
               cache_span.setTag("status", "OK");
               cache_span.setTag("finalThread", Thread.currentThread().getName());
               cache_span.setTag("bytes", Integer.toString(data.length));
+              cache_span.finish();
             }
           } catch (Exception e) {
             LOG.error("WTF?", e);
             if (cache_span != null) {
-              cache_span.finish();
               cache_span.setTag("status", "Error");
               cache_span.setTag("finalThread", Thread.currentThread().getName());
               cache_span.setTag("error", e != null ? e.getMessage() : "Unknown");
               cache_span.log(TsdbTrace.exceptionAnnotation(e));
+              cache_span.finish();
             }
           }
           

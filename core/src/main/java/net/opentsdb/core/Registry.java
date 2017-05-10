@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.lang.reflect.Constructor;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -25,6 +26,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.DataMerger;
 import net.opentsdb.data.DataShardMerger;
+import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.types.numeric.NumericMergeLargest;
 import net.opentsdb.query.execution.QueryExecutorFactory;
 import net.opentsdb.query.execution.cache.CachingQueryExecutorPlugin;
@@ -33,6 +35,11 @@ import net.opentsdb.query.execution.cluster.ClusterConfig;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.serdes.TimeSeriesSerdes;
 import net.opentsdb.query.execution.serdes.UglyByteIteratorGroupsSerdes;
+import net.opentsdb.query.plan.DefaultQueryPlannerFactory;
+import net.opentsdb.query.plan.IteratorGroupsSlicePlanner;
+import net.opentsdb.query.plan.QueryPlannnerFactory;
+import net.opentsdb.query.plan.QueryPlanner;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.stats.TsdbTracer;
 
 /**
@@ -64,6 +71,9 @@ public class Registry {
   /** The map of serdes classes. */
   private final Map<String, TimeSeriesSerdes<?>> serdes;
   
+  /** The map of query plans. */
+  private final Map<String, QueryPlannnerFactory<?>> query_plans;
+  
   /** The thread pool used for cleanup post query or other operations. */
   private final ExecutorService cleanup_pool;
   
@@ -88,6 +98,7 @@ public class Registry {
     clusters = Maps.newHashMapWithExpectedSize(1);
     plugins = Maps.newHashMapWithExpectedSize(1);
     serdes = Maps.newHashMapWithExpectedSize(1);
+    query_plans = Maps.newHashMapWithExpectedSize(1);
     cleanup_pool = Executors.newFixedThreadPool(1);
   }
   
@@ -185,6 +196,27 @@ public class Registry {
   }
   
   /**
+   * Registers a query plan factory.
+   * @param factory A non-null factory to register.
+   * @throws IllegalArgumentException if the factory was null, it's ID was null
+   * or empty, or the factory already exists.
+   */
+  public void registerFactory(final QueryPlannnerFactory<?> factory) {
+    if (factory == null) {
+      throw new IllegalArgumentException("Factory cannot be null.");
+    }
+    if (Strings.isNullOrEmpty(factory.id())) {
+      throw new IllegalArgumentException("Factory ID was null or empty.");
+    }
+    if (query_plans.containsKey(factory.id())) {
+      throw new IllegalArgumentException("Factory already registered: " 
+          + factory.id());
+    }
+    query_plans.put(factory.id(), factory);
+    LOG.info("Registered query plan factory: " + factory.id());
+  }
+  
+  /**
    * Returns the factory for the given ID if present.
    * @param id A non-null and non-empty ID.
    * @return The factory if present.
@@ -194,6 +226,18 @@ public class Registry {
       throw new IllegalArgumentException("ID was null or empty.");
     }
     return factories.get(id);
+  }
+  
+  /**
+   * Returns the factory for a given ID if present.
+   * @param id A non-null and non-empty ID.
+   * @return The factory if present.
+   */
+  public QueryPlannnerFactory<?> getQueryPlanner(final String id) {
+    if (Strings.isNullOrEmpty(id)) {
+      throw new IllegalArgumentException("ID was null or empty.");
+    }
+    return query_plans.get(id);
   }
   
   /**
@@ -289,6 +333,7 @@ public class Registry {
    */
   public void registerTracer(final TsdbTracer tracer) {
     this.tracer_plugin = tracer;
+    LOG.info("Registered tracer: " + tracer);
   }
   
   /** @return The tracer for use with operaitons. May be null. */
@@ -331,6 +376,20 @@ public class Registry {
     final UglyByteIteratorGroupsSerdes ugly = new UglyByteIteratorGroupsSerdes();
     serdes.put(null, ugly);
     serdes.put("UglyByteSerdes", ugly);
+    
+    try {
+      Constructor<?> ctor = IteratorGroupsSlicePlanner.class
+          .getDeclaredConstructor(TimeSeriesQuery.class);
+      final QueryPlannnerFactory<?> factory = 
+          new DefaultQueryPlannerFactory<IteratorGroups>(
+              (Constructor<QueryPlanner<?>>) ctor,
+              IteratorGroups.class,
+              "IteratorGroupsSlicePlanner");
+      registerFactory(factory);
+    } catch (Exception e) {
+      LOG.error("Failed setting default sliced query planner factory", e);
+    }
+    LOG.info("Completed initializing registry defaults.");
   }
   
 }

@@ -144,7 +144,7 @@ public class TestRegistry {
     } catch (IllegalArgumentException e) { }
     
     try {
-      registry.registerFactory(null);
+      registry.registerFactory((QueryExecutorFactory<?>) null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     

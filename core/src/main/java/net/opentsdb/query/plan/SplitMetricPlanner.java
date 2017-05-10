@@ -14,6 +14,7 @@ package net.opentsdb.query.plan;
 
 import com.google.common.base.Strings;
 
+import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
@@ -25,7 +26,7 @@ import net.opentsdb.query.pojo.TimeSeriesQuery;
  * 
  * @since 3.0
  */
-public class SplitMetricPlanner extends QueryPlanner {
+public class SplitMetricPlanner extends QueryPlanner<IteratorGroups> {
 
   /**
    * Default ctor.
@@ -66,5 +67,5 @@ public class SplitMetricPlanner extends QueryPlanner {
       planned_query.addSubQuery(builder.build());
     }
   }
-
+  
 }

@@ -29,6 +29,7 @@ import net.opentsdb.query.execution.MetricShardingExecutor;
 import net.opentsdb.query.execution.MultiClusterQueryExecutor;
 import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.QueryExecutorFactory;
+import net.opentsdb.query.execution.TimeSlicedCachingExecutor;
 import net.opentsdb.query.execution.cache.GuavaLRUCache;
 import net.opentsdb.query.execution.cluster.ClusterConfig;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
@@ -117,6 +118,12 @@ public class OpenTSDBApplication extends ResourceConfig {
       QueryExecutorFactory<IteratorGroups> cache_factory = 
           new DefaultQueryExecutorFactory<IteratorGroups>(
               (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, "CachingQueryExecutor");
+      tsdb.getRegistry().registerFactory(cache_factory);
+      
+      ctor = TimeSlicedCachingExecutor.class.getConstructor(ExecutionGraphNode.class);
+      cache_factory = 
+          new DefaultQueryExecutorFactory<IteratorGroups>(
+              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, "TimeSlicedCachingExecutor");
       tsdb.getRegistry().registerFactory(cache_factory);
 
       ctor = MultiClusterQueryExecutor.class.getConstructor(

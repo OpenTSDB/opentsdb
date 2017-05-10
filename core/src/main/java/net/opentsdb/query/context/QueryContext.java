@@ -136,6 +136,7 @@ public abstract class QueryContext {
   /**
    * Ctor that stores a tracer.
    * @param tsdb The TSDB to which this context belongs. May not be null.
+   * @param executor_graph The non-null executor context to use.
    * @param tracer An optional tracer to use for tracking queries.
    * @throws IllegalArgumentException if the TSDB was null.
    */

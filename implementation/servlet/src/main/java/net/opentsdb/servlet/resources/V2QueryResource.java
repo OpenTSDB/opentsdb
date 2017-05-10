@@ -24,6 +24,7 @@ import java.util.Map.Entry;
 import javax.servlet.AsyncContext;
 import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServletRequest;
+import javax.swing.plaf.synth.SynthScrollBarUI;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -102,57 +103,11 @@ public class V2QueryResource {
           final JsonGenerator json = JSON.getFactory().createGenerator(output);
           final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(json);
           serdes.serialize(output, groups);
-//          JsonGenerator json = JSON.getFactory().createGenerator(output);
-//          json.writeStartArray();
-//          
-//          for (final DataShardsGroup group : groups.data()) {
-//            for (final DataShards shards : group.data()) {
-//              for (final DataShard shard : shards.data()) {
-//                json.writeStartObject();
-//                
-//                json.writeStringField("metric", new String(shard.id().metrics().get(0)));
-//                json.writeObjectFieldStart("tags");
-//                for (final Entry<byte[], byte[]> entry : shard.id().tags().entrySet()) {
-//                  json.writeStringField(new String(entry.getKey()), new String(entry.getValue()));
-//                }
-//                json.writeArrayFieldStart("aggregateTags");
-//                for (final byte[] tag : shard.id().aggregatedTags()) {
-//                  json.writeString(new String(tag));
-//                }
-//                json.writeEndArray();
-//                json.writeEndObject();
-//                json.writeObjectFieldStart("dps");
-//                
-//                @SuppressWarnings("unchecked")
-//                TimeSeriesIterator<NumericType> it = shard.iterator();
-//                while (it.status() == IteratorStatus.HAS_DATA) {
-//                  TimeSeriesValue<NumericType> v = it.next();
-//                  if (v.value().isInteger()) {
-//                    json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
-//                        v.value().longValue());
-//                  } else {
-//                    json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
-//                        v.value().doubleValue());
-//                  }
-//                }
-//                
-//                json.writeEndObject();
-//                json.writeEndObject();
-//                json.flush();
-//              }
-//            }
-//            
-//            if (trace != null) {
-//              trace.serializeJSON("trace", json);
-//            }
-//            
-//          }
-//          json.writeEndArray();
-//          json.flush();
-//          json.close();
-//          if (serdes_span != null) {
-//            serdes_span.finish();
-//          }
+          
+          // TODO - trace, other bits.
+          if (serdes_span != null) {
+            serdes_span.finish();
+          }
         }
       };
       
@@ -207,13 +162,9 @@ public class V2QueryResource {
       final TimeSeriesQuery query = TSQuery.convertQuery(ts_query);
       query.groupId(new SimpleStringGroupId(""));
       query.validate();
-
-//      final HttpContext context =  
-//          ((HttpContextFactory) servlet_config.getServletContext()
-//          .getAttribute(OpenTSDBApplication.HTTP_CONTEXT_FACTORY))
-//          .getContext(headersCopy, trace);
+      
       final QueryContext context = new DefaultQueryContext(tsdb, 
-          tsdb.getRegistry().getExecutionGraph(null));
+          tsdb.getRegistry().getExecutionGraph(null), trace.tracer());
       context.addSessionObject(HttpQueryV2Executor.SESSION_HEADERS_KEY, headersCopy);
       request.setAttribute("MYCONTEXT", context);
       
