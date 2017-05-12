@@ -25,18 +25,15 @@ import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.query.execution.CachingQueryExecutor;
 import net.opentsdb.query.execution.DefaultQueryExecutorFactory;
 import net.opentsdb.query.execution.HttpQueryV2Executor;
-import net.opentsdb.query.execution.MetricShardingExecutor;
 import net.opentsdb.query.execution.MultiClusterQueryExecutor;
 import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.QueryExecutorFactory;
 import net.opentsdb.query.execution.TimeSlicedCachingExecutor;
-import net.opentsdb.query.execution.cache.GuavaLRUCache;
 import net.opentsdb.query.execution.cluster.ClusterConfig;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.exceptions.QueryExecutionExceptionMapper;
-import net.opentsdb.stats.BraveTracer;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
@@ -69,15 +66,7 @@ public class OpenTSDBApplication extends ResourceConfig {
       }
       servletConfig.getServletContext().setAttribute(ASYNC_TIMEOUT_ATTRIBUTE, 
           asyncTimeout);
-      
-      // TEMP
-      tsdb.getConfig().overrideConfig("tsdb.tracer.service_name", "OpenTSDBServlet");
-      tsdb.getConfig().overrideConfig("tracer.brave.zipkin.endpoint", 
-          "http://127.0.0.1:9411/api/v1/spans");
-      
-      tsdb.getRegistry().registerTracer(new BraveTracer());
-      
-      tsdb.initializeRegistry().join();
+      tsdb.initializeRegistry(true).join();
       setupDefaultExecutors(tsdb);
 
       register(GenericExceptionMapper.class);

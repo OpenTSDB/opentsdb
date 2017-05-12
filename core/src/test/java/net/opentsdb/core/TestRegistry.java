@@ -14,6 +14,7 @@ package net.opentsdb.core;
 
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -28,25 +29,27 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import net.opentsdb.core.TestPluginsConfig.MockPluginBase;
 import net.opentsdb.query.execution.QueryExecutorFactory;
-import net.opentsdb.query.execution.cache.QueryCachePlugin;
-import net.opentsdb.query.execution.cache.GuavaLRUCache;
 import net.opentsdb.query.execution.cluster.ClusterConfig;
-import net.opentsdb.query.execution.cluster.ClusterConfigPlugin;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
+import net.opentsdb.utils.Config;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ Registry.class, Executors.class })
 public class TestRegistry {
 
   private TSDB tsdb;
+  private Config config;
   private ExecutorService cleanup_pool;
   
   @Before
   public void before() throws Exception {
     tsdb = mock(TSDB.class);
+    config = new Config(false);
     cleanup_pool = mock(ExecutorService.class);
     
+    when(tsdb.getConfig()).thenReturn(config);
     PowerMockito.mockStatic(Executors.class);
     PowerMockito.when(Executors.newFixedThreadPool(1))
       .thenReturn(cleanup_pool);
@@ -56,7 +59,6 @@ public class TestRegistry {
   public void ctor() throws Exception {
     Registry registry = new Registry(tsdb);
     assertSame(cleanup_pool, registry.cleanupPool());
-    assertNull(registry.tracer());
     
     try {
       new Registry(null);
@@ -218,54 +220,19 @@ public class TestRegistry {
   }
 
   @Test
-  public void plugins() throws Exception {
-    final GuavaLRUCache guava_plugin = mock(GuavaLRUCache.class);
+  public void loadPlugins() throws Exception {
+    String json = "{\"configs\": [{\"plugin\": "
+        + "\"net.opentsdb.core.TestPluginsConfig$MockPluginA\",\"id\": "
+        + "\"MockTest\",\"type\": "
+        + "\"net.opentsdb.core.TestPluginsConfig$MockPluginBase\"}],"
+        + "\"pluginLocations\": [],\"continueOnError\": false,"
+        + "\"shutdownReverse\": true}";
+    config.overrideConfig("tsd.plugin.config", json);
+    
     final Registry registry = new Registry(tsdb);
+    assertNull(registry.loadPlugins().join(1));
     
-    // as default
-    registry.registerPlugin(QueryCachePlugin.class, null, 
-        guava_plugin);
-    assertSame(guava_plugin, registry.getPlugin(
-        QueryCachePlugin.class, null));
-    
-    // with ID
-    registry.registerPlugin(QueryCachePlugin.class, "GuavaLRU", 
-        guava_plugin);
-    assertSame(guava_plugin, registry.getPlugin(
-        QueryCachePlugin.class, "GuavaLRU"));
-    
-    // empty ID, allowed for now
-    registry.registerPlugin(QueryCachePlugin.class, "", 
-        guava_plugin);
-    assertSame(guava_plugin, registry.getPlugin(
-        QueryCachePlugin.class, ""));
-    
-    try {
-      registry.registerPlugin(null, "GuavaLRU", guava_plugin);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      registry.registerPlugin(QueryCachePlugin.class, null, null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    // wrong type
-    try {
-      registry.registerPlugin(ClusterConfigPlugin.class, null, guava_plugin);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    // already present
-    try {
-      registry.registerPlugin(QueryCachePlugin.class, null, 
-          guava_plugin);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      registry.getPlugin(null, null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+    assertTrue(registry.getPlugin(MockPluginBase.class, "MockTest") 
+        instanceof MockPluginBase);
   }
 }

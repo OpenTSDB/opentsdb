@@ -27,24 +27,34 @@ import java.util.ServiceLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.reflect.ClassPath;
+
 /**
- * Super simple ServiceLoader based plugin framework for OpenTSDB that lets us
- * add files or directories to the class path after startup and then search for
- * a specific plugin type or any plugins that match a given class. This isn't 
- * meant to be a rich plugin manager, it only handles the basics of searching
- * and instantiating a given class.
+ * Super simple ServiceLoader and class path based plugin framework for OpenTSDB 
+ * that lets us add files or directories to the class path after startup and 
+ * then search for a specific plugin type or any plugins that match a given 
+ * class. This isn't meant to be a rich plugin manager, it only handles the 
+ * basics of searching and instantiating a given class.
  * <p>
- * Before attempting any of the plugin loader calls, users should call one or 
+ * If plugins were not compiled into a fat jar or included on the class path, 
+ * before attempting any of the plugin loader calls, users should call one or 
  * more of the jar loader methods to append files to the class path that may
  * have not been loaded on startup. This is particularly useful for plugins that
- * have dependencies not included by OpenTSDB. 
+ * have dependencies not included by OpenTSDB.
+ * <p>
+ * The {@link #loadSpecificPlugin(String, Class)} and {@link #loadPlugins(Class)}
+ * calls will search both the {@link ServiceLoader} and local class loader for
+ * plugins. In the case of the specific loader, the ServiceLoader is checked
+ * first and will override the class path.   
  * <p>
  * For example, a typical process may be:
  * <ul>
- * <li>loadJARs(&lt;plugin_path&gt;) where &lt;plugin_path&gt; contains JARs of 
- * the plugins and their dependencies</li>
+ * <li>{@link #loadJAR(String)} where "plugin_path" contains JARs of the 
+ * plugins and their dependencies</li>
  * <li>loadSpecificPlugin() or loadPlugins() to instantiate the proper plugin
- * types</li>
+ * types.</li>
  * </ul>     
  * <p>   
  * Plugin creation is pretty simple, just implement the abstract plugin class,
@@ -71,7 +81,13 @@ public final class PluginLoader {
   };
   
   /**
-   * Searches the class path for the specific plugin of a given type
+   * Attempts to instantiate a plugin of the given class type with the given
+   * class name by searching the loaded JARs first, then the local class path.
+   * <p>
+   * <b>Note:</b> As of 3.0, we also search the class path. The 
+   * {@link ServiceLoader} maintains precedence so that if a plugin is found 
+   * there first, it will be instantiated and returned. But if the plugin
+   * was not found, the local class loader is searched.
    * <p>
    * <b>Note:</b> If you want to load JARs dynamically, you need to call 
    * {@link #loadJAR} or {@link #loadJARs} methods with the proper file
@@ -82,42 +98,67 @@ public final class PluginLoader {
    * class path, only one will be returned, so check the logs to see that the
    * correct version was loaded.
    * 
-   * @param name The specific name of a plugin to search for, e.g. 
+   * @param plugin_name The specific name of a plugin to search for, e.g. 
    *   net.opentsdb.search.ElasticSearch
-   * @param type The class type to search for
+   * @param type The base plugin type to search for, e.g. 
+   *   net.opentsdb.search.SearchPlugin.
    * @return An instantiated object of the given type if found, null if the
    * class could not be found
-   * @throws java.util.ServiceConfigurationError if the plugin cannot be instantiated
-   * @throws IllegalArgumentException if the plugin name is null or empty
+   * @throws java.util.ServiceConfigurationError if the plugin cannot be 
+   * instantiated
+   * @throws IllegalArgumentException if the plugin name is null or empty or the
+   * class type was null.
    * @param <T> The type of plugin to load.
    */
-  public static <T> T loadSpecificPlugin(final String name, 
-      final Class<T> type) {
-    if (name.isEmpty()) {
-      throw new IllegalArgumentException("Missing plugin name");
+  @SuppressWarnings("unchecked")
+  public static <T> T loadSpecificPlugin(final String plugin_name, 
+                                         final Class<T> type) {
+    if (Strings.isNullOrEmpty(plugin_name)) {
+      throw new IllegalArgumentException("Plugin name cannot be null or empty.");
     }
-    ServiceLoader<T> serviceLoader = ServiceLoader.load(type);
+    if (type == null) {
+      throw new IllegalArgumentException("Type annot be null.");
+    }
+    final ServiceLoader<T> serviceLoader = ServiceLoader.load(type);
     Iterator<T> it = serviceLoader.iterator();
     if (!it.hasNext()) {
+      
+      try {
+        final Class<?> clazz = Class.forName(plugin_name);
+        return (T) clazz.newInstance();
+      } catch (ClassNotFoundException e) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Nothing on the class path for " + plugin_name);
+        }
+      } catch (InstantiationException e) {
+        LOG.warn("Found an instance of " + plugin_name 
+            + " but failed to instantiate it.", e);
+      } catch (IllegalAccessException e) {
+        LOG.warn("Found an instance of " + plugin_name 
+            + " but failed to instantiate it.", e);
+      }
+      
       LOG.warn("Unable to locate any plugins of the type: " + type.getName());
       return null;
     }
     
     while(it.hasNext()) {
       T plugin = it.next();
-      if (plugin.getClass().getName().equals(name) || 
-          plugin.getClass().getSuperclass().getName().equals(name)) {
+      if (plugin.getClass().getName().equals(plugin_name)) {
         return plugin;
       }
     }
     
-    LOG.warn("Unable to locate plugin: " + name);
+    LOG.warn("Unable to locate plugin: " + plugin_name);
     return null;
   }
   
   /**
-   * Searches the class path for implementations of the given type, returning a 
-   * list of all plugins that were found
+   * Searches the {@link ServiceLoader} and class path for implementations of 
+   * the given type, returning a list of all plugins that were found.
+   * <p>
+   * <b>Note:</b> As of 3.0 both ServiceLoader and local class loader are 
+   * searched and the results merged.
    * <p>
    * <b>Note:</b> If you want to load JARs dynamically, you need to call 
    * {@link #loadJAR} or {@link #loadJARs} methods with the proper file
@@ -135,18 +176,44 @@ public final class PluginLoader {
    * instantiated
    * @param <T> The type of plugin to load.
    */
+  @SuppressWarnings("unchecked")
   public static <T> List<T> loadPlugins(final Class<T> type) {
-    ServiceLoader<T> serviceLoader = ServiceLoader.load(type);
-    Iterator<T> it = serviceLoader.iterator();
-    if (!it.hasNext()) {
-      LOG.warn("Unable to locate any plugins of the type: " + type.getName());
-      return null;
-    }
+    final ServiceLoader<T> serviceLoader = ServiceLoader.load(type);
+    final Iterator<T> it = serviceLoader.iterator();
     
-    ArrayList<T> plugins = new ArrayList<T>();
+    final List<T> plugins = Lists.newArrayList();
     while(it.hasNext()) {
       plugins.add(it.next());
     }
+    
+    final List<Class<?>> matches = Lists.newArrayList();
+    final ClassPath classpath;
+    try {
+      classpath = ClassPath.from(
+          Thread.currentThread().getContextClassLoader());
+      for (final ClassPath.ClassInfo info : 
+        classpath.getTopLevelClasses(type.getPackage().getName())) {
+        recursiveSearch(matches, info.load(), type);
+      }
+      
+      if (!matches.isEmpty()) {
+        for (final Class<?> clazz : matches) {
+          try {
+            plugins.add((T) clazz.newInstance());
+          }  catch (InstantiationException e) {
+            LOG.warn("Found an instance of " + clazz 
+                + " but failed to instantiate it.", e);
+          } catch (IllegalAccessException e) {
+            LOG.warn("Found an instance of " + clazz 
+                + " but failed to instantiate it.", e);
+          }
+        }
+        return plugins;
+      }
+    } catch (IOException e) {
+      LOG.warn("Unexpected exception searching class path for: " + type, e);
+    }
+    
     if (plugins.size() > 0) {
       return plugins;
     }
@@ -284,5 +351,28 @@ public final class PluginLoader {
     method.setAccessible(true);
     method.invoke(sysloader, new Object[]{ url }); 
     LOG.debug("Successfully added JAR to class loader: " + url.getFile());
+  }
+
+  /**
+   * A helper method for searching for multiple implementations of a plugin 
+   * type. Plugins can be declared inside a class (not recommended) and this
+   * method will ferret them out.
+   * @param matches A non-null list of classes that will be populated with
+   * matches.
+   * @param haystack The current class being searched.
+   * @param needle The type of plugin to search for.
+   */
+  private static void recursiveSearch(final List<Class<?>> matches,
+                                      final Class<?> haystack,
+                                      final Class<?> needle) {
+    final Class<?> superclass = haystack.getSuperclass();
+    if (superclass != null && superclass.equals(needle)) {
+      matches.add(haystack);
+    }
+    
+    final Class<?>[] nested_classes = haystack.getDeclaredClasses();
+    for (final Class<?> nested_class : nested_classes) {
+      recursiveSearch(matches, nested_class, needle);
+    }
   }
 }

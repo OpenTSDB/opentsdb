@@ -43,6 +43,7 @@ import com.stumbleupon.async.Callback;
 
 import io.opentracing.Span;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbPlugin;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.IteratorGroups;
@@ -60,6 +61,7 @@ import net.opentsdb.query.execution.serdes.JsonV2QuerySerdes;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.stats.TsdbTrace;
+import net.opentsdb.stats.TsdbTracer;
 import net.opentsdb.utils.JSON;
 
 @Path("query/v2")
@@ -129,8 +131,9 @@ public class V2QueryResource {
       }
       final TsdbTrace trace;
       final Span span;
-      if (tsdb.getRegistry().tracer() != null) {
-        trace = tsdb.getRegistry().tracer().getTracer(true);
+      final TsdbPlugin tracer = tsdb.getRegistry().getDefaultPlugin(TsdbTracer.class);
+      if (tracer != null) {
+        trace = ((TsdbTracer) tracer).getTracer(true);
         span = trace.tracer().buildSpan(this.getClass().getSimpleName())
             .withTag("query", "Hello!")
             .start();
@@ -164,7 +167,8 @@ public class V2QueryResource {
       query.validate();
       
       final QueryContext context = new DefaultQueryContext(tsdb, 
-          tsdb.getRegistry().getExecutionGraph(null), trace.tracer());
+          tsdb.getRegistry().getExecutionGraph(null), 
+          trace == null ? null : trace.tracer());
       context.addSessionObject(HttpQueryV2Executor.SESSION_HEADERS_KEY, headersCopy);
       request.setAttribute("MYCONTEXT", context);
       

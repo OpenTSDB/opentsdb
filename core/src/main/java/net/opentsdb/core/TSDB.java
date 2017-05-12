@@ -315,8 +315,14 @@ public class TSDB {
     timer = Threads.newTimer("MainTSDBTimer");
   }
   
-  public Deferred<Object> initializeRegistry() {
-    return registry.initialize();
+  /**
+   * Initializes the registry for use.
+   * @param load_plugins Whether or not to load plugins.
+   * @return A deferred to wait on resolving to a null on success or an
+   * exception on failure.
+   */
+  public Deferred<Object> initializeRegistry(final boolean load_plugins) {
+    return registry.initialize(load_plugins);
   }
   
 //  /** @return The data point column family name */

@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -22,6 +24,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
+import com.google.common.io.Files;
+import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.DataMerger;
@@ -40,7 +44,7 @@ import net.opentsdb.query.plan.IteratorGroupsSlicePlanner;
 import net.opentsdb.query.plan.QueryPlannnerFactory;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.stats.TsdbTracer;
+import net.opentsdb.utils.JSON;
 
 /**
  * A shared location for registering context, mergers, plugins, etc.
@@ -64,10 +68,7 @@ public class Registry {
   
   /** The map of cluster configurations for multi-cluster queries. */
   private final Map<String, ClusterConfig> clusters;
-  
-  /** The map of plugins loaded by the TSD. */
-  private final Map<Class<?>, Map<String, TsdbPlugin>> plugins;
-  
+    
   /** The map of serdes classes. */
   private final Map<String, TimeSeriesSerdes<?>> serdes;
   
@@ -81,8 +82,8 @@ public class Registry {
   /** The thread pool used for cleanup post query or other operations. */
   private final ExecutorService cleanup_pool;
   
-  /** The loaded tracer plugin or null if disabled. */
-  private TsdbTracer tracer_plugin;
+  /** The plugins loaded by this TSD. */
+  private PluginsConfig plugins;
   
   /**
    * Default Ctor. Sets up containers and initializes a cleanup pool but that's
@@ -100,7 +101,6 @@ public class Registry {
         Maps.<String, ExecutionGraph>newHashMapWithExpectedSize(1);
     factories = Maps.newHashMapWithExpectedSize(1);
     clusters = Maps.newHashMapWithExpectedSize(1);
-    plugins = Maps.newHashMapWithExpectedSize(1);
     serdes = Maps.newHashMapWithExpectedSize(1);
     query_plans = Maps.newHashMapWithExpectedSize(1);
     shared_objects = Maps.newConcurrentMap();
@@ -108,15 +108,24 @@ public class Registry {
   }
   
   /**
-   * Initializes plugins and registry types.
+   * Initializes the registry including loading the plugins if specified.
+   * @param load_plugins Whether or not to load plugins.
    * @return A non-null deferred to wait on for initialization to complete.
    */
-  public Deferred<Object> initialize() {
-    initDefaults();
-    if (tracer_plugin != null) {
-      return tracer_plugin.initialize(tsdb);
+  public Deferred<Object> initialize(final boolean load_plugins) {
+    if (!load_plugins) {
+      return Deferred.fromResult(null);
     }
-    return Deferred.fromResult(null);
+    
+    class LoadedCB implements Callback<Deferred<Object>, Object> {
+      @Override
+      public Deferred<Object> call(final Object ignored) throws Exception {
+        initDefaults();
+        return Deferred.fromResult(null);
+      }
+    }
+    
+    return loadPlugins().addCallbackDeferring(new LoadedCB());
   }
   
   /** @return The cleanup thread pool for post-query or other tasks. */
@@ -288,30 +297,25 @@ public class Registry {
    * a plugin was already registered with the given ID. Also thrown if the
    * plugin given is not an instance of the class.
    */
-  public void registerPlugin(final Class<?> clazz, final String id, 
-      final TsdbPlugin plugin) {
-    if (clazz == null) {
-      throw new IllegalArgumentException("Class cannot be null.");
+  public void registerPlugin(final Class<?> clazz, 
+                             final String id, 
+                             final TsdbPlugin plugin) {
+    if (plugins == null) {
+      throw new IllegalStateException("Plugins have not been loaded. "
+          + "Call loadPlugins();");
     }
-    if (plugin == null) {
-      throw new IllegalArgumentException("Plugin cannot be null.");
-    }
-    if (!(clazz.isAssignableFrom(plugin.getClass()))) {
-      throw new IllegalArgumentException("Plugin " + plugin 
-          + " is not an instance of class " + clazz);
-    }
-    Map<String, TsdbPlugin> class_map = plugins.get(clazz);
-    if (class_map == null) {
-      class_map = Maps.newHashMapWithExpectedSize(1);
-      plugins.put(clazz, class_map);
-    } else {
-      final TsdbPlugin extant = class_map.get(id);
-      if (extant != null) {
-        throw new IllegalArgumentException("Plugin with ID " + id 
-            + " and class " + clazz + " already exists: " + extant);
-      }
-    }
-    class_map.put(id, plugin);
+    plugins.registerPlugin(clazz, id, plugin);
+  }
+  
+  /**
+   * Retrieves the default plugin of the given type (i.e. the ID was null when
+   * registered).
+   * @param clazz The type of plugin to be fetched.
+   * @return An instantiated plugin if found, null if not.
+   * @throws IllegalArgumentException if the clazz was null.
+   */
+  public TsdbPlugin getDefaultPlugin(final Class<?> clazz) {
+    return getPlugin(clazz, null);
   }
   
   /**
@@ -322,14 +326,11 @@ public class Registry {
    * @throws IllegalArgumentException if the clazz was null.
    */
   public TsdbPlugin getPlugin(final Class<?> clazz, final String id) {
-    if (clazz == null) {
-      throw new IllegalArgumentException("Class cannot be null.");
+    if (plugins == null) {
+      throw new IllegalStateException("Plugins have not been loaded. "
+          + "Call loadPlugins();");
     }
-    final Map<String, TsdbPlugin> class_map = plugins.get(clazz);
-    if (class_map == null) {
-      return null;
-    }
-    return class_map.get(id);
+    return plugins.getPlugin(clazz, id);
   }
   
   /**
@@ -364,26 +365,43 @@ public class Registry {
     return shared_objects.get(id);
   }
   
-  /**
-   * Add the tracer implementation. Note that it must already be initialized.
-   * @param tracer The tracer to pass to operations. May be null.
-   */
-  public void registerTracer(final TsdbTracer tracer) {
-    this.tracer_plugin = tracer;
-    LOG.info("Registered tracer: " + tracer);
-  }
-  
-  /** @return The tracer for use with operaitons. May be null. */
-  public TsdbTracer tracer() {
-    return tracer_plugin;
-  }
-  
   public DataMerger<?> getDataMerger(final String merger) {
     return data_mergers.get(merger);
   }
   
   public TimeSeriesSerdes<?> getSerdes(final String id) {
     return serdes.get(id);
+  }
+  
+  /**
+   * Loads plugins using the 'tsd.plugin.config' property.
+   * @return A deferred to wait on for results.
+   */
+  public Deferred<Object> loadPlugins() {
+    final String config = tsdb.getConfig().getString("tsd.plugin.config");
+    if (Strings.isNullOrEmpty(config)) {
+      if (plugins == null) {
+        LOG.info("No plugin config provided. Instantiating empty plugin config.");
+        plugins = new PluginsConfig();
+      }
+    } else {
+      if (config.toLowerCase().endsWith(".json")) {
+        LOG.info("Loading plugin config from file: " + config);
+        final String json;
+        try {
+          json = Files.toString(new File(config), Const.UTF8_CHARSET);
+        } catch (IOException e) {
+          throw new RuntimeException("Unable to open plugin configfile: " 
+              + config, e);
+        }
+        plugins = JSON.parseToObject(json, PluginsConfig.class);
+      } else {
+        LOG.info("Loading plugin config from JSON");
+        plugins = JSON.parseToObject(config, PluginsConfig.class);
+      }
+    }
+    
+    return plugins.initialize(tsdb);
   }
   
   /** @return Package private shutdown returning the deferred to wait on. */

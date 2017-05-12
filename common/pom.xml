@@ -65,6 +65,36 @@
     </dependencies>
     
     <build>
-  
+      <plugins>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>exec-maven-plugin</artifactId>
+          <version>1.2.1</version>
+          <executions>
+            <execution>
+              <id>create-plugin-test-jar</id>
+              <!-- TODO: Put the jar in the target dir and fix surefire conf. -->
+              <configuration>
+                <executable>jar</executable>
+                  <arguments>
+                  <argument>cvfm</argument>
+                  <argument>plugin_test.jar</argument>
+                  <argument>src/test/java/META-INF/MANIFEST.MF</argument>
+                  <argument>-C</argument>
+                  <argument>target/test-classes</argument>
+                  <argument>net/opentsdb/utils/DummyPluginA.class</argument>
+                  <argument>-C</argument>
+                  <argument>target/test-classes</argument>
+                  <argument>net/opentsdb/utils/DummyPluginB.class</argument>
+                </arguments>
+              </configuration>
+            <phase>test-compile</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+          </execution>
+          </executions>
+        </plugin>
+      </plugins>
     </build>
 </project>
