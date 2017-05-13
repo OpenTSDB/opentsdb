@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
+// Copyright (C) 2010-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.tools;
+package net.opentsdb.utils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,6 +42,8 @@ import java.util.HashMap;
  * "stop parsing options".
  * <p>
  * This class is not thread-safe.
+ * 
+ * @since 1.0
  */
 public final class ArgP {
 
