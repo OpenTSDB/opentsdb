@@ -9,15 +9,15 @@
       <relativePath>../../pom.xml</relativePath>
     </parent>
     
-    <artifactId>opentsdb-servlet</artifactId>
-    <name>opentsdb-servlet</name>
+    <artifactId>opentsdb-server-undertow</artifactId>
+    <name>opentsdb-server-undertow</name>
     
-    <description>An OpenTSDB implementation as a servlet for hosting via Jetty, Tomcat, etc.</description>
+    <description>A package that launches an embedded Undertow server to load the OpenTSDB Servlet.</description>
     
     <packaging>jar</packaging>
     
     <properties>
-
+      <undertow.version>1.4.14.Final</undertow.version>
     </properties>
     
     <dependencyManagement>
@@ -39,32 +39,21 @@
         </dependency>
         <dependency>
           <groupId>net.opentsdb</groupId>
-          <artifactId>opentsdb-tracer-brave</artifactId>
+          <artifactId>opentsdb-servlet</artifactId>
           <version>${project.version}</version>
         </dependency>
         
         <dependency>
-          <groupId>javax.servlet</groupId>
-          <artifactId>javax.servlet-api</artifactId>
-          <version>3.1.0</version>
-        </dependency>
-        
-        <dependency>
-          <groupId>org.glassfish.jersey.core</groupId>
-          <artifactId>jersey-common</artifactId>
-          <version>2.13</version>
+          <groupId>io.undertow</groupId>
+          <artifactId>undertow-core</artifactId>
+          <version>${undertow.version}</version>
         </dependency>
         <dependency>
-          <groupId>org.glassfish.jersey.core</groupId>
-          <artifactId>jersey-server</artifactId>
-          <version>2.13</version>
+          <groupId>io.undertow</groupId>
+          <artifactId>undertow-servlet</artifactId>
+          <version>${undertow.version}</version>
         </dependency>
-        <dependency>
-          <groupId>org.glassfish.jersey.containers</groupId>
-          <artifactId>jersey-container-servlet-core</artifactId>
-          <version>2.13</version>
-        </dependency>
-        
+ 
       </dependencies>
     </dependencyManagement>
     
@@ -83,25 +72,16 @@
       </dependency>
       <dependency>
         <groupId>net.opentsdb</groupId>
-        <artifactId>opentsdb-tracer-brave</artifactId>
+        <artifactId>opentsdb-servlet</artifactId>
       </dependency>
       
       <dependency>
-        <groupId>javax.servlet</groupId>
-        <artifactId>javax.servlet-api</artifactId>
-      </dependency>
-      
-      <dependency>
-        <groupId>org.glassfish.jersey.core</groupId>
-        <artifactId>jersey-common</artifactId>
+        <groupId>io.undertow</groupId>
+        <artifactId>undertow-core</artifactId>
       </dependency>
       <dependency>
-        <groupId>org.glassfish.jersey.core</groupId>
-        <artifactId>jersey-server</artifactId>
-      </dependency>
-      <dependency>
-        <groupId>org.glassfish.jersey.containers</groupId>
-        <artifactId>jersey-container-servlet-core</artifactId>
+        <groupId>io.undertow</groupId>
+        <artifactId>undertow-servlet</artifactId>
       </dependency>
       
       <dependency>
@@ -144,6 +124,6 @@
     </dependencies>
     
     <build>
-  
+    
     </build>
 </project>

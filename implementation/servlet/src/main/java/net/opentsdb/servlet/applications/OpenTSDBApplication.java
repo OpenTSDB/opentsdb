@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.servlet.applications;
 
+import java.io.File;
 import java.lang.reflect.Constructor;
 
 import javax.servlet.ServletConfig;
@@ -20,11 +21,16 @@ import javax.ws.rs.core.Context;
 
 import org.glassfish.jersey.server.ResourceConfig;
 
+import com.google.common.base.Strings;
+import com.google.common.io.Files;
+
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.query.execution.CachingQueryExecutor;
 import net.opentsdb.query.execution.DefaultQueryExecutorFactory;
 import net.opentsdb.query.execution.HttpQueryV2Executor;
+import net.opentsdb.query.execution.MetricShardingExecutor;
 import net.opentsdb.query.execution.MultiClusterQueryExecutor;
 import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.QueryExecutorFactory;
@@ -52,22 +58,27 @@ public class OpenTSDBApplication extends ResourceConfig {
   public static final String QUERY_EXCEPTION_ATTRIBUTE = "QUERYEX";
   public static final String QUERY_RESULT_ATTRIBUTE = "QUERYRESULT";
   
-  public static final String HTTP_CONTEXT_FACTORY = "HTTPCTXFACTORY";
-  
   public OpenTSDBApplication(@Context ServletConfig servletConfig) {
     try {
-      final TSDB tsdb = new TSDB(new Config(true));
-      servletConfig.getServletContext().setAttribute(TSD_ATTRIBUTE, tsdb);
+      final Object pre_instantiated_tsd = servletConfig.getServletContext()
+          .getAttribute(TSD_ATTRIBUTE);
+      final TSDB tsdb;
+      if (pre_instantiated_tsd != null && pre_instantiated_tsd instanceof TSDB) {
+        tsdb = (TSDB) pre_instantiated_tsd;
+      } else {
+        tsdb = new TSDB(new Config(true)); 
+        servletConfig.getServletContext().setAttribute(TSD_ATTRIBUTE, tsdb);
+      }
       
       final int asyncTimeout;
-      if (tsdb.getConfig().hasProperty("mt.async.timeout")) {
-        asyncTimeout = tsdb.getConfig().getInt("mt.async.timeout");
+      if (tsdb.getConfig().hasProperty("tsd.http.async.timeout")) {
+        asyncTimeout = tsdb.getConfig().getInt("tsd.http.async.timeout");
       } else {
         asyncTimeout = DEFAULT_ASYNC_TIMEOUT;
       }
       servletConfig.getServletContext().setAttribute(ASYNC_TIMEOUT_ATTRIBUTE, 
           asyncTimeout);
-      tsdb.initializeRegistry(true).join();
+      
       setupDefaultExecutors(tsdb);
 
       register(V2QueryResource.class);
@@ -100,22 +111,28 @@ public class OpenTSDBApplication extends ResourceConfig {
         clusters.add(new HttpCluster(i, snapshot));
       }
       ctor*/  = HttpQueryV2Executor.class.getConstructor(ExecutionGraphNode.class);
-      QueryExecutorFactory<IteratorGroups> http_factory = 
+      QueryExecutorFactory<IteratorGroups> factory = 
               new DefaultQueryExecutorFactory<IteratorGroups>(
                   (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, "HttpQueryV2Executor");
-      tsdb.getRegistry().registerFactory(http_factory);
+      tsdb.getRegistry().registerFactory(factory);
 
       ctor = CachingQueryExecutor.class.getConstructor(ExecutionGraphNode.class);
-      QueryExecutorFactory<IteratorGroups> cache_factory = 
+      factory = 
           new DefaultQueryExecutorFactory<IteratorGroups>(
               (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, "CachingQueryExecutor");
-      tsdb.getRegistry().registerFactory(cache_factory);
+      tsdb.getRegistry().registerFactory(factory);
       
       ctor = TimeSlicedCachingExecutor.class.getConstructor(ExecutionGraphNode.class);
-      cache_factory = 
+      factory = 
           new DefaultQueryExecutorFactory<IteratorGroups>(
               (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, "TimeSlicedCachingExecutor");
-      tsdb.getRegistry().registerFactory(cache_factory);
+      tsdb.getRegistry().registerFactory(factory);
+      
+      ctor = MetricShardingExecutor.class.getConstructor(ExecutionGraphNode.class);
+      factory = 
+          new DefaultQueryExecutorFactory<IteratorGroups>(
+              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, "MetricShardingExecutor");
+      tsdb.getRegistry().registerFactory(factory);
 
       ctor = MultiClusterQueryExecutor.class.getConstructor(
               ExecutionGraphNode.class);
@@ -125,18 +142,22 @@ public class OpenTSDBApplication extends ResourceConfig {
                 "MultiClusterQueryExecutor");
       tsdb.getRegistry().registerFactory(downstream);
       
-      //String cluster_conf = "{\"id\":\"http_cluster\",\"executionGraph\":{\"id\":\"http_cluster\",\"nodes\":[{\"executorId\":\"http\",\"dataType\":\"timeseries\",\"upstream\":null,\"executorType\":\"HttpQueryV2Executor\",\"defaultConfig\":{\"executorType\":\"HttpQueryV2Executor\",\"executorId\":\"http\",\"timeout\":6000}}]},\"config\":{\"id\":\"StaticConfig\",\"implementation\":\"StaticClusterConfig\",\"clusters\":[{\"cluster\":\"Primary\",\"description\":\"somethinguseful\",\"executorConfigs\":[{\"executorType\":\"HttpQueryV2Executor\",\"executorId\":\"Primary_http\",\"endpoint\":\"http://data.yamas.ops.yahoo.com:9999\"}]},{\"cluster\":\"Secondary\",\"description\":\"somethinguseful\",\"executorConfigs\":[{\"executorType\":\"HttpQueryV2Executor\",\"executorId\":\"Secondary_http\",\"endpoint\":\"http://bcp-data.yamas.ops.yahoo.com:9999\"}]}],\"overrides\":[{\"id\":\"prod-pri\",\"clusters\":[{\"cluster\":\"Primary\"}]},{\"id\":\"prod-bcp\",\"clusters\":[{\"cluster\":\"Secondary\"}]},{\"id\":\"prod-gq1\",\"clusters\":[{\"cluster\":\"Primary\",\"executorConfigs\":[{\"executorType\":\"HttpQueryV2Executor\",\"executorId\":\"Primary_http\",\"endpoint\":\"http://api-tsdbr-gq1.yamas.ops.yahoo.com:9999/\"}]}]},{\"id\":\"prod-bf1\",\"clusters\":[{\"cluster\":\"Primary\",\"executorConfigs\":[{\"executorType\":\"HttpQueryV2Executor\",\"executorId\":\"Primary_http\",\"endpoint\":\"http://api-tsdbr-bf1.yamas.ops.yahoo.com:9999/\"}]}]},{\"id\":\"hosts\",\"clusters\":[{\"cluster\":\"Primary\",\"executorConfigs\":[{\"executorType\":\"HttpQueryV2Executor\",\"executorId\":\"Primary_http\",\"endpoint\":\"http://ymstsdb-11.ops.gq1.yahoo.com:9999\"}]}]}]}}";
       String cluster_conf = tsdb.getConfig().getString("tsd.servlet.config.default_cluster");
-      ClusterConfig graph = JSON.parseToObject(cluster_conf, ClusterConfig.class);
-      graph.initialize(tsdb).join(1);
-      tsdb.getRegistry().registerClusterConfig(graph);
+      if (!Strings.isNullOrEmpty(cluster_conf)) {
+        ClusterConfig graph = JSON.parseToObject(cluster_conf, ClusterConfig.class);
+        graph.initialize(tsdb).join(1);
+        tsdb.getRegistry().registerClusterConfig(graph);
+      }
       
-      //String exec_graph = "{\"id\":\"default_executor_context\",\"nodes\":[{\"executorId\":\"HttpMultiCluster\",\"dataType\":\"timeseries\",\"upstream\":null,\"executorType\":\"MultiClusterQueryExecutor\",\"defaultConfig\":{\"executorId\":\"DefaultCluster\",\"executorType\":\"MultiClusterQueryExecutor\",\"clusterConfig\":\"http_cluster\"}}]}";
       String exec_graph = tsdb.getConfig().getString("tsd.servlet.config.default_execution_graph");
-      ExecutionGraph eg = JSON.parseToObject(exec_graph, ExecutionGraph.class);
-      eg.initialize(tsdb, null).join(1);
-      tsdb.getRegistry().registerExecutionGraph(eg, true);
-      
+      if (!Strings.isNullOrEmpty(exec_graph)) {
+        if (exec_graph.endsWith(".json")) {
+          exec_graph = Files.toString(new File(exec_graph), Const.UTF8_CHARSET);
+        }
+        ExecutionGraph eg = JSON.parseToObject(exec_graph, ExecutionGraph.class);
+        eg.initialize(tsdb, null).join(1);
+        tsdb.getRegistry().registerExecutionGraph(eg, true);
+      }
       
     } catch (Exception e) {
       throw new RuntimeException("Failed to initialize default query "

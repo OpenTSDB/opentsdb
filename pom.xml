@@ -92,6 +92,7 @@
     <module>implementation/tracer-brave</module>
     <module>implementation/redis</module>
     <module>implementation/servlet</module>
+    <module>implementation/server-undertow</module>
     <module>storage/asynchbase</module>
   </modules>
 
