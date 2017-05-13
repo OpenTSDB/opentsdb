@@ -42,26 +42,29 @@
           <artifactId>opentsdb-tracer-brave</artifactId>
           <version>${project.version}</version>
         </dependency>
-      
+        
         <dependency>
           <groupId>javax.servlet</groupId>
           <artifactId>javax.servlet-api</artifactId>
           <version>3.1.0</version>
         </dependency>
-        <dependency>
-          <groupId>javax.validation</groupId>
-          <artifactId>validation-api</artifactId>
-          <version>1.1.0.Final</version>
-        </dependency>
         
         <dependency>
-          <groupId>org.glassfish.jersey</groupId>
-          <artifactId>jersey-bom</artifactId>
+          <groupId>org.glassfish.jersey.core</groupId>
+          <artifactId>jersey-common</artifactId>
           <version>2.13</version>
-          <type>pom</type>
-          <scope>import</scope>
         </dependency>
-                
+        <dependency>
+          <groupId>org.glassfish.jersey.core</groupId>
+          <artifactId>jersey-server</artifactId>
+          <version>2.13</version>
+        </dependency>
+        <dependency>
+          <groupId>org.glassfish.jersey.containers</groupId>
+          <artifactId>jersey-container-servlet-core</artifactId>
+          <version>2.13</version>
+        </dependency>
+        
       </dependencies>
     </dependencyManagement>
     
@@ -87,10 +90,18 @@
         <groupId>javax.servlet</groupId>
         <artifactId>javax.servlet-api</artifactId>
       </dependency>
-
+      
+      <dependency>
+        <groupId>org.glassfish.jersey.core</groupId>
+        <artifactId>jersey-common</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>org.glassfish.jersey.core</groupId>
+        <artifactId>jersey-server</artifactId>
+      </dependency>
       <dependency>
         <groupId>org.glassfish.jersey.containers</groupId>
-        <artifactId>jersey-container-servlet</artifactId>
+        <artifactId>jersey-container-servlet-core</artifactId>
       </dependency>
       
       <dependency>

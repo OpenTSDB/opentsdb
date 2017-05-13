@@ -34,6 +34,7 @@ import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.exceptions.QueryExecutionExceptionMapper;
+import net.opentsdb.servlet.resources.V2QueryResource;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
@@ -69,6 +70,7 @@ public class OpenTSDBApplication extends ResourceConfig {
       tsdb.initializeRegistry(true).join();
       setupDefaultExecutors(tsdb);
 
+      register(V2QueryResource.class);
       register(GenericExceptionMapper.class);
       register(new QueryExecutionExceptionMapper(false, 1024));
       
