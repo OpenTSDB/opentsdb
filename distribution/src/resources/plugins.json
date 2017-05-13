@@ -1,0 +1,9 @@
+{
+  "configs": [{
+    "plugin": "net.opentsdb.stats.BraveTracer",
+    "default": true,
+    "type": "net.opentsdb.stats.TsdbTracer"
+  }],
+  "pluginLocations": [],
+  "continueOnError": false
+}

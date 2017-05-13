@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <parent>
+      <groupId>net.opentsdb</groupId>
+      <artifactId>opentsdb</artifactId>
+      <version>3.0.55-SNAPSHOT</version>
+      <relativePath>../pom.xml</relativePath>
+    </parent>
+    
+    <artifactId>opentsdb-distribution</artifactId>
+    <name>opentsdb-distribution</name>
+    
+    <description>The module for assembling different OpenTSDB packages.</description>
+    
+    <packaging>pom</packaging>
+    
+    <dependencies>
+      <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-common</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-core</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-executors-http</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-servlet</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-server-undertow</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+  
+    <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <executions>
+            <execution>
+                <id>distro-assembly</id>
+                <phase>package</phase>
+                <goals>
+                    <goal>single</goal>
+                </goals>
+                <configuration>
+                    <descriptors>
+                        <descriptor>src/main/assembly/default.xml</descriptor>
+                    </descriptors>
+                    <appendAssemblyId>false</appendAssemblyId>
+                    <finalName>opentsdb-${project.version}</finalName>
+                    <tarLongFileMode>gnu</tarLongFileMode>
+                </configuration>
+            </execution>
+        </executions>
+    </plugin>
+    </plugins>
+    </build>
+</project>

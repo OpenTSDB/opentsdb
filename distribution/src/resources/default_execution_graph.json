@@ -1,0 +1,27 @@
+{
+  "id": "default_executor_context",
+  "nodes": [{
+    "executorId": "LocalCache",
+    "dataType": "timeseries",
+    "upstream": null,
+    "executorType": "TimeSlicedCachingExecutor",
+    "defaultConfig": {
+      "executorId": "LocalCache",
+      "executorType": "TimeSlicedCachingExecutor",
+      "plannerId": "IteratorGroupsSlicePlanner",
+      "expiration": 60000,
+      "maxExpiration": 86400000
+    }
+  }, {
+    "executorId": "http",
+    "dataType": "timeseries",
+    "upstream": "LocalCache",
+    "executorType": "HttpQueryV2Executor",
+    "defaultConfig": {
+      "executorType": "HttpQueryV2Executor",
+      "executorId": "http",
+      "endpoint": "**** YOUR TSD ROTATION HERE ****",
+      "timeout": 60000
+    }
+  }]
+}

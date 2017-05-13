@@ -94,6 +94,7 @@
     <module>implementation/servlet</module>
     <module>implementation/server-undertow</module>
     <module>storage/asynchbase</module>
+    <module>distribution</module>
   </modules>
 
   <!-- Dependencies shared by all modules in the OpenTSDB project. -->
