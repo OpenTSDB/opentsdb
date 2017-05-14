@@ -40,6 +40,7 @@ import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.Internal.Cell;
 import net.opentsdb.core.Query;
+import net.opentsdb.core.RequestBuilder;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
@@ -572,6 +573,7 @@ final class Fsck {
       boolean has_milliseconds = false;
       boolean has_duplicates = false;
       boolean has_uncorrected_value_error = false;
+      long timestamp = Long.MIN_VALUE;
       
       for (final Map.Entry<Long, ArrayList<DP>> time_map : datapoints.entrySet()) {
         if (key == null) {
@@ -629,6 +631,7 @@ final class Fsck {
         }
 
         unique_columns.put(dp_to_keep.kv.qualifier(), dp_to_keep.kv.value());
+        timestamp = Math.max(timestamp, dp_to_keep.kv.timestamp());
         valid_datapoints.getAndIncrement();
         has_uncorrected_value_error |= Internal.isFloat(dp_to_keep.qualifier()) ?
             fsckFloat(dp_to_keep) : fsckInteger(dp_to_keep);
@@ -712,8 +715,8 @@ final class Fsck {
             qualifier_index);
         final byte[] new_value = Arrays.copyOfRange(compact_value, 0, 
             value_index);
-        final PutRequest put = new PutRequest(tsdb.dataTable(), key, 
-            TSDB.FAMILY(), new_qualifier, new_value);
+        final PutRequest put = RequestBuilder.buildPutRequest(tsdb.getConfig(), tsdb.dataTable(), key, 
+            TSDB.FAMILY(), new_qualifier, new_value, timestamp);
         
         // it's *possible* that the hash of our new compacted qualifier is in
         // the delete list so double check before we delete everything
@@ -810,8 +813,8 @@ final class Fsck {
             if (compact_row || options.compact()) {
               appendDP(qual, value, 4);
             } else if (!dp.compacted){
-              final PutRequest put = new PutRequest(tsdb.dataTable(), 
-                  dp.kv.key(), dp.kv.family(), qual, value);
+              final PutRequest put = RequestBuilder.buildPutRequest(tsdb.getConfig(), tsdb.dataTable(), 
+                  dp.kv.key(), dp.kv.family(), qual, value, dp.kv.timestamp());
               tsdb.getClient().put(put);
             } else {
               LOG.error("SHOULDN'T be here as we didn't compact or fix a "
@@ -973,8 +976,8 @@ final class Fsck {
             appendDP(new_qualifier, value, value.length);
           } else {
             // put the new value, THEN delete the old
-            final PutRequest put = new PutRequest(tsdb.dataTable(), 
-                dp.kv.key(), dp.kv.family(), new_qualifier, value);
+            final PutRequest put = RequestBuilder.buildPutRequest(tsdb.getConfig(), tsdb.dataTable(), 
+                dp.kv.key(), dp.kv.family(), new_qualifier, value, dp.kv.timestamp());
             tsdb.getClient().put(put).joinUninterruptibly();
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
                 dp.kv.key(), dp.kv.family(), qual);

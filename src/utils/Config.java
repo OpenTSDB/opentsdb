@@ -106,6 +106,9 @@ public class Config {
   /** tsd.storage.hbase.scanner.maxNumRows */
   private int scanner_max_num_rows = 128;
   
+  /** tsd.storage.use_otsdb_timestamp */
+  private boolean use_otsdb_timestamp = true;
+  
   /**
    * The list of properties configured to their defaults or modified by users
    */
@@ -251,6 +254,10 @@ public class Config {
   /** @return whether or not to process new or updated TSMetas through trees */
   public boolean enable_tree_processing() {
     return enable_tree_processing;
+  }
+  
+  public boolean use_otsdb_timestamp() {
+	  return use_otsdb_timestamp;
   }
   
   /**
@@ -542,6 +549,7 @@ public class Config {
       + "Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, "
       + "X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since");
     default_map.put("tsd.query.timeout", "0");
+    default_map.put("tsd.storage.use_otsdb_timestamp", "true");
 
     for (Map.Entry<String, String> entry : default_map.entrySet()) {
       if (!properties.containsKey(entry.getKey()))
@@ -655,6 +663,7 @@ public class Config {
     enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
     fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
     scanner_max_num_rows = this.getInt("tsd.storage.hbase.scanner.maxNumRows");
+    use_otsdb_timestamp = this.getBoolean("tsd.storage.use_otsdb_timestamp");
   }
   
   /**

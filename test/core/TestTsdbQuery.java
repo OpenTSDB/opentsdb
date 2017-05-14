@@ -24,21 +24,25 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.hbase.async.HBaseClient;
+import org.hbase.async.Scanner;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mockito;
+import org.mockito.internal.util.MockUtil;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+
+import com.stumbleupon.async.DeferredGroupException;
+
 import net.opentsdb.core.TsdbQuery.ForTesting;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.filter.TagVWildcardFilter;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.DateTime;
-
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import com.stumbleupon.async.DeferredGroupException;
 
 /**
  * This class is for unit testing the TsdbQuery class. Pretty much making sure
@@ -236,6 +240,7 @@ public final class TestTsdbQuery extends BaseTsdbTest {
   
   @Test
   public void configureFromQueryNoTags() throws Exception {
+	  
     setDataPointStorage();
     final TSQuery ts_query = getTSQuery();
     ts_query.getQueries().get(0).setTags(Collections.EMPTY_MAP);

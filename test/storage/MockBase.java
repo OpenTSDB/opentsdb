@@ -235,6 +235,23 @@ public final class MockBase {
     return current_timestamp;
   }
   
+
+  /**
+   * Add a column to the hash table using the default column family. 
+   * The proper row will be created if it doesn't exist. If the column already 
+   * exists, the original value will be overwritten with the new data.
+   * Uses the default table and family
+   * @param key The row key
+   * @param qualifier The qualifier
+   * @param value The value to store
+   * @param timestamp The timestamp of cell
+   */
+  public void addColumn(final byte[] key, final byte[] qualifier, 
+      final byte[] value, final long timestamp) {
+    addColumn(default_table, key, default_family, qualifier, value, 
+        timestamp);
+  }
+ 
   /**
    * Add a column to the hash table using the default column family. 
    * The proper row will be created if it doesn't exist. If the column already 
@@ -1030,6 +1047,8 @@ public final class MockBase {
         
         column.put(put.timestamp() != Long.MAX_VALUE ? put.timestamp() : 
           current_timestamp++, put.values()[i]);
+        assert column.size() == 1 : "Since max versions allowed is 1, there can never be two entries at similar timestamp. To resolve change the code to only keep the entry with higher timestamp";
+        
       }
       
       return Deferred.fromResult(true);
@@ -1173,11 +1192,13 @@ public final class MockBase {
       if (column == null && (expected != null && expected.length > 0)) {
         return Deferred.fromResult(false);
       }
-      // if a timestamp was specified, maybe we're CASing against a specific 
-      // cell. Otherwise we deal with the latest value
-      final byte[] stored = column == null ? null : 
-        put.timestamp() != Long.MAX_VALUE ? column.get(put.timestamp()) :
-        column.firstEntry().getValue();
+      
+      // HBase CAS doesn't use Timestamps for comparison
+      // Since OpenTSDB uses an HBase Table with single version, the final TreeMap 'column' should always
+      // contain a single entry, the one with higher timestamp
+
+      final byte[] stored = column == null ? null : column.firstEntry().getValue();
+        
       if (stored == null && (expected != null && expected.length > 0)) {
         return Deferred.fromResult(false);
       }
@@ -1193,9 +1214,22 @@ public final class MockBase {
       if (column == null) {
         column = new TreeMap<Long, byte[]>(Collections.reverseOrder());
         row.put(put.qualifiers()[0], column);
+      } else {
+    	long storedTs = column.firstKey();
+    	System.out.println("Stored TS: " + storedTs + " " + put.timestamp());
+    	if(put.timestamp() >= storedTs) {
+    	  column.clear();
+    	} else {
+    		System.out.println("MOCK CAS Passed but no changes performed");
+    	  return Deferred.fromResult(true);	
+    	}
       }
+      
       column.put(put.timestamp() != Long.MAX_VALUE ? put.timestamp() : 
         current_timestamp++, put.value());
+      
+      System.out.println("MOCK CAS Passed: " + (put.timestamp() != Long.MAX_VALUE ? put.timestamp() : current_timestamp++));
+      assert column.size() == 1 : "MockBase is designed to store only a single version of cell since OpenTSDB table schema for HBase is designed in that manner";
       return Deferred.fromResult(true);
     }
     
