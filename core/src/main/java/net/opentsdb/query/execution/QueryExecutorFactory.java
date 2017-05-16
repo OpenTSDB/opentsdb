@@ -12,11 +12,9 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.execution;
 
-import java.lang.reflect.Constructor;
-
-import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.TsdbPlugin;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 
@@ -32,57 +30,13 @@ import net.opentsdb.query.execution.graph.ExecutionGraphNode;
  * 
  * @since 3.0
  */
-public abstract class QueryExecutorFactory<T> {
+public abstract class QueryExecutorFactory<T> extends TsdbPlugin {
 
-  /** The type this executor handles. */
-  protected final TypeToken<?> type;
-  
-  /** The constructor to use. */
-  protected final Constructor<QueryExecutor<?>> ctor;
-
-  /** A unique identifier for the factory within the context. */
-  protected final String id;
-  
-  /**
-   * Default ctor
-   * @param ctor A non-null ctor with the parameter {@link ExecutionGraphNode}.
-   * @param type The type of data returned by the executor.
-   * @param id An ID for the executor factory.
-   * @throws IllegalArgumentException if the ctor was null or did not have
-   * the proper parameters.
-   */
-  public QueryExecutorFactory(final Constructor<QueryExecutor<?>> ctor,
-                              final Class<?> type,
-                              final String id) {
-    if (ctor == null) {
-      throw new IllegalArgumentException("Constructor cannot be null.");
-    }
-    if (ctor.getParameterCount() != 1) {
-      throw new IllegalArgumentException("Constructor can only have one type: " 
-          + ctor.getParameterCount());
-    }
-    if (ctor.getGenericParameterTypes()[0] != ExecutionGraphNode.class) {
-      throw new IllegalArgumentException("First constructor parameter must be "
-          + "a ExecutionGraphNode: " + 
-          ctor.getGenericParameterTypes()[0].getTypeName());
-    }
-    if (Strings.isNullOrEmpty(id)) {
-      throw new IllegalArgumentException("ID cannot be null.");
-    }
-    this.ctor = ctor;
-    this.id = id;
-    this.type = TypeToken.of(type);
-  }
-  
   /** @return The ID of the executor instantiated by this factory. */
-  public String id() {
-    return id;
-  }
+  public abstract String id();
   
   /** @return The type of executor instantiated. */
-  public TypeToken<?> type() {
-    return type;
-  }
+  public abstract TypeToken<?> type();
   
   /**
    * Returns a new instance of the executor using the config from the
@@ -93,20 +47,6 @@ public abstract class QueryExecutorFactory<T> {
    * null or empty.
    * @throws IllegalStateException if the instantiation failed.
    */
-  @SuppressWarnings("unchecked")
-  public QueryExecutor<T> newExecutor(final ExecutionGraphNode node) {
-    if (node == null) {
-      throw new IllegalArgumentException("Node cannot be null.");
-    }
-    if (Strings.isNullOrEmpty(node.getExecutorId())) {
-      throw new IllegalArgumentException("Node ID cannot be null.");
-    }
-    try {
-      return (QueryExecutor<T>) ctor.newInstance(node);
-    } catch (Exception e) {
-      throw new IllegalStateException("Failed to instaniate executor for: " 
-          + ctor, e);
-    }
-  }
+  public abstract QueryExecutor<T> newExecutor(final ExecutionGraphNode node);
 
 }

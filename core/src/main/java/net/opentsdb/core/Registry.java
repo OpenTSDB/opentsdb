@@ -15,15 +15,20 @@ package net.opentsdb.core;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -32,11 +37,18 @@ import net.opentsdb.data.DataMerger;
 import net.opentsdb.data.DataShardMerger;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.types.numeric.NumericMergeLargest;
+import net.opentsdb.query.execution.CachingQueryExecutor;
+import net.opentsdb.query.execution.DefaultQueryExecutorFactory;
+import net.opentsdb.query.execution.MetricShardingExecutor;
+import net.opentsdb.query.execution.MultiClusterQueryExecutor;
+import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.QueryExecutorFactory;
+import net.opentsdb.query.execution.TimeSlicedCachingExecutor;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.GuavaLRUCache;
 import net.opentsdb.query.execution.cluster.ClusterConfig;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.execution.serdes.TimeSeriesSerdes;
 import net.opentsdb.query.execution.serdes.UglyByteIteratorGroupsSerdes;
 import net.opentsdb.query.plan.DefaultQueryPlannerFactory;
@@ -44,6 +56,7 @@ import net.opentsdb.query.plan.IteratorGroupsSlicePlanner;
 import net.opentsdb.query.plan.QueryPlannnerFactory;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.utils.Deferreds;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -120,8 +133,7 @@ public class Registry {
     class LoadedCB implements Callback<Deferred<Object>, Object> {
       @Override
       public Deferred<Object> call(final Object ignored) throws Exception {
-        initDefaults();
-        return Deferred.fromResult(null);
+        return initDefaults();
       }
     }
     
@@ -147,24 +159,32 @@ public class Registry {
     if (graph == null) {
       throw new IllegalArgumentException("Execution graph cannot be null.");
     }
-    if (Strings.isNullOrEmpty(graph.getId())) {
-      throw new IllegalArgumentException("Execution graph returned a "
-          + "null or empty ID");
-    }
     if (is_default) {
       if (executor_graphs.get(null) != null) {
         throw new IllegalArgumentException("Graph already exists for default: " 
             + executor_graphs.get(null).getId());
       }
+      if (executor_graphs.get(null) != null) {
+        throw new IllegalArgumentException("Default execution graph "
+            + "already exists.");
+      }
       executor_graphs.put(null, graph);
-      LOG.info("Registered default execution graph: " + graph.getId());
+      LOG.info("Registered default execution graph: " + graph);
+    } else {
+      if (Strings.isNullOrEmpty(graph.getId())) {
+        throw new IllegalArgumentException("Execution graph returned a "
+            + "null or empty ID");
+      }
     }
-    if (executor_graphs.get(graph.getId()) != null) {
-      throw new IllegalArgumentException("Graph already exists for ID: " 
-          + graph.getId());
+    if (!Strings.isNullOrEmpty(graph.getId())) {
+      if (executor_graphs.get(graph.getId()) != null) {
+        throw new IllegalArgumentException("Graph already exists for ID: " 
+            + graph.getId());
+      }
+      executor_graphs.put(graph.getId(), graph);
     }
-    executor_graphs.put(graph.getId(), graph);
-    LOG.info("Registered execution graph: " + graph.getId());
+    LOG.info("Registered execution graph: " + 
+        (is_default ? "(default)" : graph.getId()));
   }
   
   /**
@@ -411,19 +431,18 @@ public class Registry {
   }
   
   /** Sets up default objects in the registry. */
-  private void initDefaults() {
+  @SuppressWarnings("unchecked")
+  private Deferred<Object> initDefaults() {
     final DataShardMerger shards_merger = new DataShardMerger();
     shards_merger.registerStrategy(new NumericMergeLargest());
     data_mergers.put(null, shards_merger);
     data_mergers.put("default", shards_merger);
     data_mergers.put("largest", shards_merger);
     
+    List<Deferred<Object>> deferreds = Lists.newArrayList();
+    
     final GuavaLRUCache query_cache = new GuavaLRUCache();
-    try {
-      query_cache.initialize(tsdb).join();
-    } catch (Exception e) {
-      throw new RuntimeException("Unexpected exception initializing Guava cache.");
-    }
+    deferreds.add(query_cache.initialize(tsdb));
     
     registerPlugin(QueryCachePlugin.class, null, query_cache);
     registerPlugin(QueryCachePlugin.class, "GuavaLRUCache", query_cache);
@@ -435,16 +454,130 @@ public class Registry {
     try {
       Constructor<?> ctor = IteratorGroupsSlicePlanner.class
           .getDeclaredConstructor(TimeSeriesQuery.class);
-      final QueryPlannnerFactory<?> factory = 
+      final QueryPlannnerFactory<?> planner_factory = 
           new DefaultQueryPlannerFactory<IteratorGroups>(
               (Constructor<QueryPlanner<?>>) ctor,
               IteratorGroups.class,
               "IteratorGroupsSlicePlanner");
-      registerFactory(factory);
+      registerFactory(planner_factory);
+      
+      ctor = CachingQueryExecutor.class.getConstructor(ExecutionGraphNode.class);
+      QueryExecutorFactory<IteratorGroups> executor_factory =
+          new DefaultQueryExecutorFactory<IteratorGroups>(
+              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, 
+              "CachingQueryExecutor");
+      tsdb.getRegistry().registerFactory(executor_factory);
+      
+      ctor = TimeSlicedCachingExecutor.class.getConstructor(ExecutionGraphNode.class);
+      executor_factory = 
+          new DefaultQueryExecutorFactory<IteratorGroups>(
+              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, 
+              "TimeSlicedCachingExecutor");
+      tsdb.getRegistry().registerFactory(executor_factory);
+      
+      ctor = MetricShardingExecutor.class.getConstructor(ExecutionGraphNode.class);
+      executor_factory = 
+          new DefaultQueryExecutorFactory<IteratorGroups>(
+              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, 
+              "MetricShardingExecutor");
+      tsdb.getRegistry().registerFactory(executor_factory);
+
+      ctor = MultiClusterQueryExecutor.class.getConstructor(
+              ExecutionGraphNode.class);
+      executor_factory = 
+          new DefaultQueryExecutorFactory<IteratorGroups>(
+              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class,
+                "MultiClusterQueryExecutor");
+      tsdb.getRegistry().registerFactory(executor_factory);
+      
     } catch (Exception e) {
-      LOG.error("Failed setting default sliced query planner factory", e);
+      LOG.error("Failed setting up one or more default executors or planners", e);
+      return Deferred.fromError(new RuntimeException(
+          "Unexpected exception initializing defaults", e));
+    }
+    
+    try {
+      // load default cluster BEFORE execution graphs as they may depend on
+      // cluster configs.
+      String clusters = tsdb.getConfig().getString("tsd.query.default_clusters");
+      if (!Strings.isNullOrEmpty(clusters)) {
+        if (clusters.toLowerCase().endsWith(".json") ||
+            clusters.toLowerCase().endsWith(".conf")) {
+          clusters = Files.toString(new File(clusters), Const.UTF8_CHARSET);
+        }
+        // double check in case the file was empty.
+        if (!Strings.isNullOrEmpty(clusters)) {
+          final TypeReference<List<ClusterConfig>> typeref = 
+              new TypeReference<List<ClusterConfig>>() {};
+          final List<ClusterConfig> configs = 
+              (List<ClusterConfig>) JSON.parseToObject(clusters, typeref);
+          
+          // validation before adding them to the registry
+          final Set<String> ids = Sets.newHashSet();
+          for (final ClusterConfig cluster : configs) {
+            if (ids.contains(cluster.getId())) {
+              return Deferred.fromError(new IllegalArgumentException(
+                  "More than one cluster had the same ID: " + cluster));
+            }
+          }
+          
+          for (final ClusterConfig cluster : configs) {
+            deferreds.add(cluster.initialize(tsdb));
+            registerClusterConfig(cluster);
+          }
+        }
+      }
+      
+      // load default execution graphs
+      String exec_graphs = tsdb.getConfig().getString(
+          "tsd.query.default_execution_graphs");
+      if (!Strings.isNullOrEmpty(exec_graphs)) {
+        if (exec_graphs.toLowerCase().endsWith(".json") || 
+            exec_graphs.toLowerCase().endsWith(".conf")) {
+          exec_graphs = Files.toString(new File(exec_graphs), Const.UTF8_CHARSET);
+        }
+        // double check in case the file was empty.
+        if (!Strings.isNullOrEmpty(exec_graphs)){
+          final TypeReference<List<ExecutionGraph>> typeref = 
+              new TypeReference<List<ExecutionGraph>>() {};
+          final List<ExecutionGraph> graphs = 
+              (List<ExecutionGraph>) JSON.parseToObject(exec_graphs, typeref);
+          
+          // validation before adding them to the registry
+          final Set<String> ids = Sets.newHashSet();
+          boolean had_null = false;
+          for (final ExecutionGraph graph : graphs) {
+            if (Strings.isNullOrEmpty(graph.getId())) {
+              if (had_null) {
+                return Deferred.fromError(new IllegalArgumentException(
+                    "More than one graph was configured as the default. "
+                    + "There can be only one: " + graph));
+              }
+              had_null = true;
+            } else {
+              if (ids.contains(graph.getId())) {
+                return Deferred.fromError(new IllegalArgumentException(
+                    "More than one graph had the same ID: " + graph));
+              }
+              ids.add(graph.getId());
+            }
+          }
+          
+          for (final ExecutionGraph graph : graphs) {
+            deferreds.add(graph.initialize(tsdb));
+            registerExecutionGraph(graph, 
+                Strings.isNullOrEmpty(graph.getId()) ? true : false);
+          }
+        }
+      }
+      
+    } catch (Exception e) {
+      LOG.error("Failed loading default execution graphs and cluster configs", e);
+      return Deferred.fromError(new RuntimeException("Unexpected exception "
+          + "initializing defaults", e));
     }
     LOG.info("Completed initializing registry defaults.");
+    return Deferred.group(deferreds).addCallback(Deferreds.NULL_GROUP_CB);
   }
   
 }

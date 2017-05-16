@@ -97,9 +97,6 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
    * @param builder A non-null builder.
    */
   protected ExecutionGraph(final Builder builder) {
-    if (Strings.isNullOrEmpty(builder.id)) {
-      throw new IllegalArgumentException("ID cannot be null or empty.");
-    }
     if (builder.nodes == null || builder.nodes.isEmpty()) {
       throw new IllegalArgumentException("Executors cannot be null or empty.");
     }

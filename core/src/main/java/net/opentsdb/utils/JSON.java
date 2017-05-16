@@ -75,6 +75,7 @@ public final class JSON {
     // for incoming data points with multiple points per put so that we can
     // toss only the bad ones but keep the good
     jsonMapper.configure(JsonParser.Feature.ALLOW_NON_NUMERIC_NUMBERS, true);
+    jsonMapper.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
   }
 
   /**

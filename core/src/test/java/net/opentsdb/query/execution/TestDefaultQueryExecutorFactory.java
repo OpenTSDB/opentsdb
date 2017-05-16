@@ -36,8 +36,8 @@ import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ Constructor.class, QueryExecutorFactory.class })
-public class TestQueryExecutorFactory {
+@PrepareForTest({ Constructor.class, DefaultQueryExecutorFactory.class })
+public class TestDefaultQueryExecutorFactory {
   
   private ExecutionGraphNode node;
   

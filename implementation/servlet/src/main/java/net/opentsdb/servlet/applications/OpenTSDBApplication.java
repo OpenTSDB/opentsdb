@@ -12,37 +12,17 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.servlet.applications;
 
-import java.io.File;
-import java.lang.reflect.Constructor;
-
 import javax.servlet.ServletConfig;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Context;
 
 import org.glassfish.jersey.server.ResourceConfig;
 
-import com.google.common.base.Strings;
-import com.google.common.io.Files;
-
-import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.iterators.IteratorGroups;
-import net.opentsdb.query.execution.CachingQueryExecutor;
-import net.opentsdb.query.execution.DefaultQueryExecutorFactory;
-import net.opentsdb.query.execution.HttpQueryV2Executor;
-import net.opentsdb.query.execution.MetricShardingExecutor;
-import net.opentsdb.query.execution.MultiClusterQueryExecutor;
-import net.opentsdb.query.execution.QueryExecutor;
-import net.opentsdb.query.execution.QueryExecutorFactory;
-import net.opentsdb.query.execution.TimeSlicedCachingExecutor;
-import net.opentsdb.query.execution.cluster.ClusterConfig;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.exceptions.QueryExecutionExceptionMapper;
 import net.opentsdb.servlet.resources.V2QueryResource;
 import net.opentsdb.utils.Config;
-import net.opentsdb.utils.JSON;
 
 @ApplicationPath("/")
 public class OpenTSDBApplication extends ResourceConfig {
@@ -79,8 +59,6 @@ public class OpenTSDBApplication extends ResourceConfig {
       }
       servletConfig.getServletContext().setAttribute(ASYNC_TIMEOUT_ATTRIBUTE, 
           asyncTimeout);
-      
-      setupDefaultExecutors(tsdb);
 
       register(V2QueryResource.class);
       register(GenericExceptionMapper.class);
@@ -91,78 +69,4 @@ public class OpenTSDBApplication extends ResourceConfig {
     }
   }
   
-  @SuppressWarnings("unchecked")
-  public void setupDefaultExecutors(final TSDB tsdb) {
-    try {      
-      Constructor<?> ctor/* = MetricShardingExecutor.class.getConstructor(
-          ExecutionGraphNode.class);
-      QueryExecutorFactory<DataShardsGroups> sink = 
-          new DefaultQueryExecutorFactory<DataShardsGroups>(
-              (Constructor<QueryExecutor<?>>) ctor,
-                MetricShardingExecutor.Config.<DataShardsGroups>newBuilder()
-                .setParallelExecutors(20)
-                .setType(DataShardsGroups.class)
-                //.setDataMerger((DataMerger<DataShardsGroups>) mergers.get(DataShardsGroups.TYPE))
-                .build());
-      
-      final List<ClusterDescriptor> clusters = 
-          Lists.newArrayListWithExpectedSize(endpoints.getEndpoints(null).size());
-      final List<String> snapshot = endpoints.getEndpoints(null);
-      for (int i = 0; i < snapshot.size(); i++) {
-        clusters.add(new HttpCluster(i, snapshot));
-      }
-      ctor*/  = HttpQueryV2Executor.class.getConstructor(ExecutionGraphNode.class);
-      QueryExecutorFactory<IteratorGroups> factory = 
-              new DefaultQueryExecutorFactory<IteratorGroups>(
-                  (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, "HttpQueryV2Executor");
-      tsdb.getRegistry().registerFactory(factory);
-
-      ctor = CachingQueryExecutor.class.getConstructor(ExecutionGraphNode.class);
-      factory = 
-          new DefaultQueryExecutorFactory<IteratorGroups>(
-              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, "CachingQueryExecutor");
-      tsdb.getRegistry().registerFactory(factory);
-      
-      ctor = TimeSlicedCachingExecutor.class.getConstructor(ExecutionGraphNode.class);
-      factory = 
-          new DefaultQueryExecutorFactory<IteratorGroups>(
-              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, "TimeSlicedCachingExecutor");
-      tsdb.getRegistry().registerFactory(factory);
-      
-      ctor = MetricShardingExecutor.class.getConstructor(ExecutionGraphNode.class);
-      factory = 
-          new DefaultQueryExecutorFactory<IteratorGroups>(
-              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, "MetricShardingExecutor");
-      tsdb.getRegistry().registerFactory(factory);
-
-      ctor = MultiClusterQueryExecutor.class.getConstructor(
-              ExecutionGraphNode.class);
-      QueryExecutorFactory<IteratorGroups> downstream = 
-          new DefaultQueryExecutorFactory<IteratorGroups>(
-              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class,
-                "MultiClusterQueryExecutor");
-      tsdb.getRegistry().registerFactory(downstream);
-      
-      String cluster_conf = tsdb.getConfig().getString("tsd.servlet.config.default_cluster");
-      if (!Strings.isNullOrEmpty(cluster_conf)) {
-        ClusterConfig graph = JSON.parseToObject(cluster_conf, ClusterConfig.class);
-        graph.initialize(tsdb).join(1);
-        tsdb.getRegistry().registerClusterConfig(graph);
-      }
-      
-      String exec_graph = tsdb.getConfig().getString("tsd.servlet.config.default_execution_graph");
-      if (!Strings.isNullOrEmpty(exec_graph)) {
-        if (exec_graph.endsWith(".json")) {
-          exec_graph = Files.toString(new File(exec_graph), Const.UTF8_CHARSET);
-        }
-        ExecutionGraph eg = JSON.parseToObject(exec_graph, ExecutionGraph.class);
-        eg.initialize(tsdb, null).join(1);
-        tsdb.getRegistry().registerExecutionGraph(eg, true);
-      }
-      
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to initialize default query "
-          + "executor context", e);
-    } 
-  }
 }

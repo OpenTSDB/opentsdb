@@ -97,6 +97,11 @@ public final class PluginLoader {
    * <b>WARNING:</b> If there are multiple versions of the request plugin in the
    * class path, only one will be returned, so check the logs to see that the
    * correct version was loaded.
+   * <p>
+   * <b>WARNING:</b> This method may bubble up {@link java.lang.Error}s, 
+   * particularly {@link java.lang.NoClassDefFoundError} errors if a plugin
+   * was initializing and couldn't find a class it needed due to it not being
+   * on the class path or fat-jar'd.
    * 
    * @param plugin_name The specific name of a plugin to search for, e.g. 
    *   net.opentsdb.search.ElasticSearch
@@ -168,6 +173,11 @@ public final class PluginLoader {
    * <b>WARNING:</b> If there are multiple versions of the request plugin in the 
    * class path, only one will be returned, so check the logs to see that the
    * correct version was loaded.
+   * <p>
+   * <b>WARNING:</b> This method may bubble up {@link java.lang.Error}s, 
+   * particularly {@link java.lang.NoClassDefFoundError} errors if a plugin
+   * was initializing and couldn't find a class it needed due to it not being
+   * on the class path or fat-jar'd. 
    * 
    * @param type The class type to search for
    * @return An instantiated list of objects of the given type if found, null 

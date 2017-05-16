@@ -334,7 +334,9 @@ public class PluginsConfig extends Validatable {
           deferred.callback(null);
         } else {
           final PluginConfig plugin_config = configs.get(index);
-          
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Loading plugin config: " + plugin_config);
+          }
           try {
             if (!(Strings.isNullOrEmpty(plugin_config.getId())) || 
                 plugin_config.isDefault()) {
@@ -403,7 +405,7 @@ public class PluginsConfig extends Validatable {
           } catch (Exception e) {
             final PluginLoadException ex = new PluginLoadException(
                 "Unable to find instances of plugin " 
-                + plugin_config.getPlugin(), 
+                + plugin_config.getPlugin() + " for type " + plugin_config.getType(), 
                   plugin_config.getPlugin(),
                   e);
             if (continue_on_error) {

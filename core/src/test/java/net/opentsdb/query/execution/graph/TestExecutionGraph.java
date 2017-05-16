@@ -143,33 +143,28 @@ public class TestExecutionGraph {
     assertNotSame(clone.nodes.get(0), graph.nodes.get(0));
     assertNotSame(clone.nodes.get(1), graph.nodes.get(1));
     
-    try {
-      ExecutionGraph.newBuilder()
-        //.setId("Graph1")
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setExecutorId("Node1")
-          .setExecutorType("TimedQueryExecutor"))
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setExecutorId("Node2")
-            .setExecutorType("TimedQueryExecutor")
-            .setUpstream("Node1"))
-        .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+    // null or empty ID is ok.
+    graph = ExecutionGraph.newBuilder()
+    //.setId("Graph1")
+    .addNode(ExecutionGraphNode.newBuilder()
+      .setExecutorId("Node1")
+      .setExecutorType("TimedQueryExecutor"))
+    .addNode(ExecutionGraphNode.newBuilder()
+        .setExecutorId("Node2")
+        .setExecutorType("TimedQueryExecutor")
+        .setUpstream("Node1"))
+    .build();
     
-    try {
-      ExecutionGraph.newBuilder()
-        .setId("")
-        .addNode(ExecutionGraphNode.newBuilder()
-          .setExecutorId("Node1")
-          .setExecutorType("TimedQueryExecutor"))
-        .addNode(ExecutionGraphNode.newBuilder()
-            .setExecutorId("Node2")
-            .setExecutorType("TimedQueryExecutor")
-            .setUpstream("Node1"))
-        .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+    graph = ExecutionGraph.newBuilder()
+    .setId("")
+    .addNode(ExecutionGraphNode.newBuilder()
+      .setExecutorId("Node1")
+      .setExecutorType("TimedQueryExecutor"))
+    .addNode(ExecutionGraphNode.newBuilder()
+        .setExecutorId("Node2")
+        .setExecutorType("TimedQueryExecutor")
+        .setUpstream("Node1"))
+    .build();
     
     try {
       ExecutionGraph.newBuilder()

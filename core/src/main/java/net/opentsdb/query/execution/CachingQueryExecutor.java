@@ -120,7 +120,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
     ex.execute();
     return ex;
   }
-
+  
   /** Local execution class. */
   class LocalExecution extends QueryExecution<T> {
     /** The default or overridden config. */
@@ -614,5 +614,6 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
   TimeSeriesCacheKeyGenerator keyGenerator() {
     return key_generator;
   }
+
   
 }
