@@ -22,6 +22,7 @@ import net.opentsdb.data.SimpleStringTimeSeriesId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.query.execution.serdes.TimeSeriesSerdes;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.utils.Bytes;
 
 /**
@@ -38,7 +39,8 @@ public class UglyByteNumericSerdes extends
   TimeSeriesSerdes<TimeSeriesIterator<NumericType>> {
 
   @Override
-  public void serialize(final OutputStream stream,
+  public void serialize(final TimeSeriesQuery query,
+                        final OutputStream stream,
                         final TimeSeriesIterator<NumericType> data) {
     if (stream == null) {
       throw new IllegalArgumentException("Output stream may not be null.");

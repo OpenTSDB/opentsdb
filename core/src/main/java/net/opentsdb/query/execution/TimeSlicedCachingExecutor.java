@@ -508,7 +508,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
           final long[] expirations = new long[slices.size()];
           for (int i = 0; i < slices.size(); i++) {
             final ByteArrayOutputStream output = new ByteArrayOutputStream();
-            serdes.serialize(output, slices.get(i));
+            serdes.serialize(query, output, slices.get(i));
             output.close();
             data[i] = output.toByteArray();
             bytes += data[i].length;

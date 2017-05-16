@@ -62,7 +62,7 @@ public class TestUglyByteNumericSerdes {
     
     final UglyByteNumericSerdes serdes = new UglyByteNumericSerdes();
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(output, shard);
+    serdes.serialize(null, output, shard);
     output.close();
     byte[] data = output.toByteArray();
     
@@ -108,7 +108,7 @@ public class TestUglyByteNumericSerdes {
     
     final UglyByteNumericSerdes serdes = new UglyByteNumericSerdes();
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(output, shard);
+    serdes.serialize(null, output, shard);
     output.close();
     byte[] data = output.toByteArray();
     
@@ -134,18 +134,18 @@ public class TestUglyByteNumericSerdes {
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     
     try {
-      serdes.serialize(null, shard);
+      serdes.serialize(null, null, shard);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      serdes.serialize(output, null);
+      serdes.serialize(null, output, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     NumericMillisecondShard mock = mock(NumericMillisecondShard.class);
     try {
-      serdes.serialize(output, mock);
+      serdes.serialize(null, output, mock);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     

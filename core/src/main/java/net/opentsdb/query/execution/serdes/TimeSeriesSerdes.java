@@ -15,6 +15,8 @@ package net.opentsdb.query.execution.serdes;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import net.opentsdb.query.pojo.TimeSeriesQuery;
+
 /**
  * TODO - better description and docs
  * 
@@ -26,10 +28,12 @@ public abstract class TimeSeriesSerdes<T> {
 
   /**
    * Writes the given data to the stream.
+   * @param query A non-null query.
    * @param stream A non-null stream to write to.
    * @param data A non-null data set.
    */
-  public abstract void serialize(final OutputStream stream, 
+  public abstract void serialize(final TimeSeriesQuery query,
+                                 final OutputStream stream, 
                                  final T data);
   
   /**

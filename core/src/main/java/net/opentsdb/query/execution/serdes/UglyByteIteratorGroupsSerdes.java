@@ -26,6 +26,7 @@ import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.UglyByteNumericSerdes;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.utils.Bytes;
 
 /**
@@ -49,7 +50,9 @@ public class UglyByteIteratorGroupsSerdes extends
   
   @SuppressWarnings("unchecked")
   @Override
-  public void serialize(final OutputStream stream, final IteratorGroups data) {
+  public void serialize(final TimeSeriesQuery query, 
+                        final OutputStream stream, 
+                        final IteratorGroups data) {
     if (stream == null) {
       throw new IllegalArgumentException("Output stream may not be null.");
     }
@@ -74,7 +77,7 @@ public class UglyByteIteratorGroupsSerdes extends
             stream.write(type);
             
             if (it.type().equals(NumericType.TYPE)) {
-              nums.serialize(stream, (TimeSeriesIterator<NumericType>) it);
+              nums.serialize(query, stream, (TimeSeriesIterator<NumericType>) it);
             }
           }
         }

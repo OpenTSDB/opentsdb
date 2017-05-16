@@ -97,7 +97,7 @@ public class TestUglyByteCacheSerdes {
     final UglyByteIteratorGroupsSerdes serdes = 
         new UglyByteIteratorGroupsSerdes();
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(output, results);
+    serdes.serialize(null, output, results);
     
     output.close();
     byte[] data = output.toByteArray();
@@ -235,7 +235,7 @@ public class TestUglyByteCacheSerdes {
     final UglyByteIteratorGroupsSerdes serdes = 
         new UglyByteIteratorGroupsSerdes();
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(output, results);
+    serdes.serialize(null, output, results);
     
     output.close();
     byte[] data = output.toByteArray();
@@ -254,12 +254,12 @@ public class TestUglyByteCacheSerdes {
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     
     try {
-      serdes.serialize(null, results);
+      serdes.serialize(null, null, results);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      serdes.serialize(output, null);
+      serdes.serialize(null, output, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     

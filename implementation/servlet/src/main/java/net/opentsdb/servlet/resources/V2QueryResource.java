@@ -86,6 +86,7 @@ public class V2QueryResource {
       final IteratorGroups groups = (IteratorGroups) request.getAttribute(
           OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE);
       final QueryContext context = (QueryContext) request.getAttribute("MYCONTEXT");
+      final TimeSeriesQuery query = (TimeSeriesQuery) request.getAttribute("MYQUERY");
       final Span serdes_span;
       final TsdbTrace trace;
       if (context.getTracer() != null) {
@@ -104,9 +105,17 @@ public class V2QueryResource {
         public void write(OutputStream output)
             throws IOException, WebApplicationException {
           final JsonGenerator json = JSON.getFactory().createGenerator(output);
-          final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(json);
-          serdes.serialize(output, groups);
+          json.writeStartArray();
           
+          final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(json);
+          serdes.serialize(query, output, groups);
+          
+          json.writeObjectFieldStart("stats");
+          trace.serializeJSON("trace", json);
+          json.writeEndObject();
+          
+          json.writeEndArray();
+          json.close();
           // TODO - trace, other bits.
           if (serdes_span != null) {
             serdes_span.finish();
@@ -166,6 +175,7 @@ public class V2QueryResource {
       final TimeSeriesQuery query = TSQuery.convertQuery(ts_query);
       query.groupId(new SimpleStringGroupId(""));
       query.validate();
+      request.setAttribute("MYQUERY", query);
       
       final QueryContext context = new DefaultQueryContext(tsdb, 
           tsdb.getRegistry().getExecutionGraph(null), 

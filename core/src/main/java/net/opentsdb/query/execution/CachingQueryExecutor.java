@@ -215,7 +215,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
             // TODO - run this in another thread pool. Would let us hit cache
             // quicker if someone's firing off the same query.
             final ByteArrayOutputStream output = new ByteArrayOutputStream();
-            serdes.serialize(output, results);
+            serdes.serialize(query, output, results);
             output.close();
             
             final byte[] data = output.toByteArray();
