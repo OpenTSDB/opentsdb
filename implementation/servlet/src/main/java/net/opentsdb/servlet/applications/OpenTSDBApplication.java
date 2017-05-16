@@ -68,6 +68,7 @@ public class OpenTSDBApplication extends ResourceConfig {
       } else {
         tsdb = new TSDB(new Config(true)); 
         servletConfig.getServletContext().setAttribute(TSD_ATTRIBUTE, tsdb);
+        tsdb.initializeRegistry(true).join();
       }
       
       final int asyncTimeout;

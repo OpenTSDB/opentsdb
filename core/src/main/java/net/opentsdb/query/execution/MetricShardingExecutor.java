@@ -174,22 +174,14 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       synchronized (this) {
         for (int i = 0; i < executions.length && i < parallels; i++) {
           if (!completed.get()) {
-            executions[i] = (QueryExecution<T>) 
-                executor.executeQuery(context, query.subQueries().get(i),
-                    tracer_span);
-            
-            executions[i].deferred().addCallback(new DataCB(splits_index))
-                                    .addErrback(new ErrCB(splits_index));
-            ++splits_index;
+            launchNext();
           } else {
             if (LOG.isDebugEnabled()) {
-              LOG.debug("Canceled during initial execution. Bailing out.");
+              LOG.debug("Possibly canceled or executed in a single thread. "
+                  + "Exiting initial launch path.");
             }
             return this;
           }
-        }
-        if (splits_index >= executions.length) {
-          groupEm();
         }
       }
       return this;
@@ -200,14 +192,14 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
      * avoid a race.
      */
     private void launchNext() {
-      final TimeSeriesQuery sub_query = query.subQueries().get(splits_index);
-      executions[splits_index] = (QueryExecution<T>) 
+      int idx = splits_index++;
+      final TimeSeriesQuery sub_query = query.subQueries().get(idx);
+      executions[idx] = (QueryExecution<T>) 
           executor.executeQuery(context, sub_query, tracer_span);
-      executions[splits_index].deferred()
-                              .addCallback(new DataCB(splits_index))
-                              .addErrback(new ErrCB(splits_index));
-      ++splits_index;
-      if (splits_index >= query.subQueries().size()) {
+      executions[idx].deferred()
+                              .addCallback(new DataCB(idx))
+                              .addErrback(new ErrCB(idx));
+      if (idx + 1 >= query.subQueries().size()) {
         groupEm();
       }
     }
