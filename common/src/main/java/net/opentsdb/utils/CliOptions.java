@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.utils;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Map;
 
@@ -30,7 +31,7 @@ final public class CliOptions {
   
   /**
    * Parse the command line arguments with the given options.
-   * @param options Options to parse in the given args.
+   * @param argp Options to parse in the given args.
    * @param args Command line arguments to parse.
    * @return The remainder of the command line or
    * {@code null} if {@code args} were invalid and couldn't be parsed.
@@ -48,6 +49,7 @@ final public class CliOptions {
   /**
    * Attempts to load a configuration given a file or default files
    * and overrides with command line arguments
+   * @param argp Options to parse in the given args.
    * @return A config object with user settings or defaults
    * @throws IOException If there was an error opening any of the config files
    * @throws FileNotFoundException If the user provided config file was not found
@@ -72,6 +74,7 @@ final public class CliOptions {
   
   /**
    * Copies the parsed command line options to the {@link Config} class
+   * @param argp Options to parse in the given args.
    * @param config Configuration instance to override
    * @since 2.0
    */
