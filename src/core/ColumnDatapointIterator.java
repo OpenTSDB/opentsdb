@@ -12,14 +12,18 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
+
 import org.hbase.async.KeyValue;
+
+import net.opentsdb.utils.Pair;
 
 /**
 * Internal implementation detail for {@link net.opentsdb.core.CompactionQueue}.  This
 * allows iterating over the datapoints in a column without creating objects for each
 * datapoint.
-* 
+*
 * @since 2.1
 */
 final class ColumnDatapointIterator implements Comparable<ColumnDatapointIterator> {
@@ -116,6 +120,19 @@ final class ColumnDatapointIterator implements Comparable<ColumnDatapointIterato
     compValue.add(value, value_offset, current_val_length);
   }
 
+  public void writeToBuffersFromOffset(ByteBufferList compQualifier, ByteBufferList compValue, Pair<Integer, Integer> offsets, Pair<Integer, Integer> offsetLengths) {
+    compQualifier.add(qualifier, offsets.getKey(), offsetLengths.getKey());
+	compValue.add(value, offsets.getValue(), offsetLengths.getValue());
+  }
+
+  public Pair<Integer, Integer> getOffsets() {
+	return new Pair<Integer, Integer>(qualifier_offset, value_offset);
+  }
+
+  public Pair<Integer, Integer> getOffsetLengths() {
+	return new Pair<Integer, Integer>(current_qual_length, current_val_length);
+  }
+
   /**
    * @return the length of the qualifier for the current datapoint.
    */
@@ -136,8 +153,15 @@ final class ColumnDatapointIterator implements Comparable<ColumnDatapointIterato
   }
 
   /**
+   * @return a copy of the Qualifier of the current datapoint, after any fixups.
+   */
+  public byte[] getCopyOfCurrentQualifier() {
+    return Arrays.copyOfRange(qualifier, qualifier_offset, qualifier_offset + current_qual_length);
+  }
+
+  /**
    * Advance to the next datapoint.
-   * 
+   *
    * @return true if there is at least one more datapoint after advancing
    */
   public boolean advance() {
@@ -172,6 +196,18 @@ final class ColumnDatapointIterator implements Comparable<ColumnDatapointIterato
       c = Long.signum(o.column_timestamp - column_timestamp);
     }
     return c;
+  }
+
+  public double getCellValueAsDouble() {
+    byte[] copy = this.getCopyOfCurrentValue();
+    byte[] qual = this.getCopyOfCurrentQualifier();
+    ByteBuffer bb = ByteBuffer.wrap(copy);
+    if (Internal.isFloat(qual)) {
+      return copy.length == 4 ? bb.getFloat() : bb.getDouble();
+    } else {
+      return ((copy.length == 1) ? bb.get()
+          : ((copy.length == 2) ? bb.getShort() : ((copy.length == 4) ? bb.getInt() : bb.getLong())));
+    }
   }
 
   @Override

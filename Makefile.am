@@ -204,6 +204,7 @@ tsdb_SRC := \
 	src/utils/PluginLoader.java	\
 	src/utils/Threads.java \
 	src/core/iRowSeq.java \
+	src/core/RequestBuilder.java
 	src/rollup/NoSuchRollupForIntervalException.java \
 	src/rollup/NoSuchRollupForTableException.java \
 	src/rollup/RollUpDataPoint.java \
@@ -289,6 +290,7 @@ test_SRC := \
 	test/core/TestTsdbQuerySaltedAppend.java	\
 	test/core/TestTSQuery.java	\
 	test/core/TestTSSubQuery.java	\
+	test/core/TestTsdbTSConfig.java \
 	test/plugin/DummyPlugin.java \
 	test/meta/TestAnnotation.java	\
 	test/meta/TestTSMeta.java	\

@@ -138,7 +138,7 @@ final class BatchedDataPoints implements WritableDataPoints {
     final byte[] v = Arrays.copyOfRange(batched_value, 0, value_index);
     final byte[] r = Arrays.copyOfRange(row_key, 0, row_key.length);
     reset();
-    return tsdb.put(r, q, v);
+    return tsdb.put(r, q, v, base_time);
   }
 
   @Override
