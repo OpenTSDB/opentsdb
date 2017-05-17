@@ -103,6 +103,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         .setMaxExpiration(120000)
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Default")
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
@@ -111,6 +112,9 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     
     plan_factory = mock(QueryPlannnerFactory.class);
     
+    when(tsdb.getConfig()).thenReturn(new net.opentsdb.utils.Config(false));
+    key_generator = new DefaultTimeSeriesCacheKeyGenerator();
+    key_generator.initialize(tsdb).join();
     when(node.graph()).thenReturn(graph);
     when(node.getDefaultConfig()).thenReturn(config);
     when(graph.getDownstreamExecutor(anyString()))
@@ -122,7 +126,10 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       }
     });
     when(executor.close()).thenReturn(Deferred.fromResult(null));
-    when(registry.getPlugin(any(Class.class), anyString())).thenReturn(plugin);
+    when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
+      .thenReturn(plugin);
+    when(registry.getPlugin(eq(TimeSeriesCacheKeyGenerator.class), anyString()))
+      .thenReturn(key_generator);
     when(registry.getQueryPlanner(anyString()))
       .thenAnswer(new Answer<QueryPlannnerFactory<?>>() {
       @Override
@@ -184,9 +191,6 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       }
     }).when(plugin).cache(any(byte[][].class), any(byte[][].class), 
         any(long[].class), eq(TimeUnit.MILLISECONDS));
-    key_generator = new DefaultTimeSeriesCacheKeyGenerator(
-        60000,
-        86400000);
   }
   
   @Test
@@ -227,14 +231,31 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         return ex;
       }
     });
-    when(registry.getPlugin(any(Class.class), anyString())).thenReturn(null);
+    when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
+      .thenReturn(null);
     try {
       new TimeSlicedCachingExecutor<IteratorGroups>(node);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    when(registry.getPlugin(any(Class.class), anyString())).thenReturn(plugin);
+    when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
+      .thenReturn(plugin);
     when(registry.getSerdes(anyString())).thenReturn(null);
+    try {
+      new TimeSlicedCachingExecutor<IteratorGroups>(node);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    when(registry.getSerdes(anyString()))
+      .thenAnswer(new Answer<TimeSeriesSerdes<IteratorGroups>>() {
+      @Override
+      public TimeSeriesSerdes<IteratorGroups> answer(
+          final InvocationOnMock invocation) throws Throwable {
+        return serdes;
+      }
+    });
+    when(registry.getPlugin(eq(TimeSeriesCacheKeyGenerator.class), anyString()))
+      .thenReturn(null);
     try {
       new TimeSlicedCachingExecutor<IteratorGroups>(node);
       fail("Expected IllegalArgumentException");
@@ -1053,7 +1074,10 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
   @Test
   public void executeCacheExceptionThrow() throws Exception {
     plugin = mock(QueryCachePlugin.class);
-    when(registry.getPlugin(any(Class.class), anyString())).thenReturn(plugin);
+    when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
+      .thenReturn(plugin);
+    when(registry.getPlugin(eq(TimeSeriesCacheKeyGenerator.class), anyString()))
+      .thenReturn(key_generator);
     when(plugin.fetch(any(QueryContext.class), any(byte[][].class), any(Span.class)))
       .thenThrow(new IllegalArgumentException("Boo!"));
     
@@ -1743,11 +1767,12 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     assertTrue(json.contains("\"executorId\":\"LocalCache\""));
     assertTrue(json.contains("\"maxExpiration\":120000"));
     assertTrue(json.contains("\"plannerId\":\"IteratorGroupsSlicePlanner\""));
+    assertTrue(json.contains("\"keyGeneratorId\":\"MyKeyGen\""));
 
     json = "{\"executorType\":\"TimeSlicedCachingExecutor\",\"expiration\":"
         + "60000,\"serdesId\":\"Default\",\"plannerId\":"
-        + "\"IteratorGroupsSlicePlanner\",\"maxExpiration\":120000,"
-        + "\"executorId\":\"LocalCache\"}";
+        + "\"IteratorGroupsSlicePlanner\",\"keyGeneratorId\":\"MyKeyGen\","
+        + "\"maxExpiration\":120000,\"executorId\":\"LocalCache\"}";
     config = JSON.parseToObject(json, Config.class);
     assertEquals("TimeSlicedCachingExecutor", config.executorType());
     assertEquals("LocalCache", config.getExecutorId());
@@ -1755,6 +1780,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     assertEquals(60000, config.getExpiration());
     assertEquals(120000, config.getMaxExpiration());
     assertEquals("IteratorGroupsSlicePlanner", config.getPlannerId());
+    assertEquals("MyKeyGen", config.getKeyGeneratorId());
   }
   
   @Test
@@ -1764,6 +1790,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         .setMaxExpiration(120000)
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Default")
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
@@ -1773,6 +1800,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         .setMaxExpiration(120000)
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Default")
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
@@ -1785,6 +1813,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         .setMaxExpiration(120000)
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Default")
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
@@ -1797,6 +1826,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         .setMaxExpiration(60000) // <-- Diff
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Default")
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
@@ -1809,6 +1839,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         .setMaxExpiration(120000)
         .setPlannerId("IteratorGroupsSlicePlanner2") // <-- Diff
         .setSerdesId("Default")
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
@@ -1821,6 +1852,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         .setMaxExpiration(120000)
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Somethingelse") // <-- Diff
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
@@ -1833,6 +1865,33 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         .setMaxExpiration(120000)
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Default")
+        .setKeyGeneratorId("MyKeyGen2") // <-- Diff
+        .setExecutorId("LocalCache")
+        .setExecutorType("CachingQueryExecutor")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(-1, c1.compareTo(c2));
+    
+    c2 = (Config) Config.newBuilder()
+        .setExpiration(60000)
+        .setMaxExpiration(120000)
+        .setPlannerId("IteratorGroupsSlicePlanner")
+        .setSerdesId("Default")
+        //.setKeyGeneratorId("MyKeyGen") // <-- Diff
+        .setExecutorId("LocalCache")
+        .setExecutorType("CachingQueryExecutor")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(1, c1.compareTo(c2));
+    
+    c2 = (Config) Config.newBuilder()
+        .setExpiration(60000)
+        .setMaxExpiration(120000)
+        .setPlannerId("IteratorGroupsSlicePlanner")
+        .setSerdesId("Default")
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache2") // <-- Diff
         .setExecutorType("CachingQueryExecutor")
         .build();
@@ -1845,6 +1904,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         .setMaxExpiration(120000)
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Default")
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor2") // <-- Diff
         .build();

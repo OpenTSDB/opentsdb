@@ -45,6 +45,8 @@ import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.QueryExecutorFactory;
 import net.opentsdb.query.execution.TimeSlicedCachingExecutor;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
+import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
+import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.GuavaLRUCache;
 import net.opentsdb.query.execution.cluster.ClusterConfig;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
@@ -450,6 +452,11 @@ public class Registry {
     final UglyByteIteratorGroupsSerdes ugly = new UglyByteIteratorGroupsSerdes();
     serdes.put(null, ugly);
     serdes.put("UglyByteSerdes", ugly);
+    
+    final TimeSeriesCacheKeyGenerator key_gen = 
+        new DefaultTimeSeriesCacheKeyGenerator();
+    deferreds.add(key_gen.initialize(tsdb));
+    registerPlugin(TimeSeriesCacheKeyGenerator.class, null, key_gen);
     
     try {
       Constructor<?> ctor = IteratorGroupsSlicePlanner.class

@@ -21,6 +21,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -45,6 +46,7 @@ import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.CachingQueryExecutor.Config;
 import net.opentsdb.query.execution.TestQueryExecutor.MockDownstream;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
+import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.execution.serdes.TimeSeriesSerdes;
@@ -60,6 +62,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   private Config config;
   private QueryCachePlugin plugin;
   private TimeSeriesSerdes<IteratorGroups> serdes;
+  private TimeSeriesCacheKeyGenerator key_generator;
   private MockDownstream<IteratorGroups> downstream;
   
   @SuppressWarnings("unchecked")
@@ -72,10 +75,14 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     config = (Config) Config.newBuilder()
         .setExpiration(60000)
         .setMaxExpiration(120000)
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
     
+    when(tsdb.getConfig()).thenReturn(new net.opentsdb.utils.Config(false));
+    key_generator = new DefaultTimeSeriesCacheKeyGenerator();
+    key_generator.initialize(tsdb).join();
     when(node.graph()).thenReturn(graph);
     when(node.getDefaultConfig()).thenReturn(config);
     when(graph.getDownstreamExecutor(anyString()))
@@ -87,7 +94,10 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
       }
     });
     when(executor.close()).thenReturn(Deferred.fromResult(null));
-    when(registry.getPlugin(any(Class.class), anyString())).thenReturn(plugin);
+    when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
+      .thenReturn(plugin);
+    when(registry.getPlugin(eq(TimeSeriesCacheKeyGenerator.class), anyString()))
+      .thenReturn(key_generator);
     when(registry.getSerdes(anyString()))
       .thenAnswer(new Answer<TimeSeriesSerdes<IteratorGroups>>() {
       @Override
@@ -160,14 +170,31 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         return ex;
       }
     });
-    when(registry.getPlugin(any(Class.class), anyString())).thenReturn(null);
+    when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
+      .thenReturn(null);
     try {
       new CachingQueryExecutor<IteratorGroups>(node);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    when(registry.getPlugin(any(Class.class), anyString())).thenReturn(plugin);
+    when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
+      .thenReturn(plugin);
     when(registry.getSerdes(anyString())).thenReturn(null);
+    try {
+      new CachingQueryExecutor<IteratorGroups>(node);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    when(registry.getSerdes(anyString()))
+      .thenAnswer(new Answer<TimeSeriesSerdes<IteratorGroups>>() {
+      @Override
+      public TimeSeriesSerdes<IteratorGroups> answer(
+          final InvocationOnMock invocation) throws Throwable {
+        return serdes;
+      }
+    });
+    when(registry.getPlugin(eq(TimeSeriesCacheKeyGenerator.class), anyString()))
+      .thenReturn(null);
     try {
       new CachingQueryExecutor<IteratorGroups>(node);
       fail("Expected IllegalArgumentException");
@@ -637,9 +664,10 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     assertTrue(json.contains("\"executorId\":\"LocalCache\""));
     assertTrue(json.contains("\"maxExpiration\":120000"));
     assertTrue(json.contains("\"useTimestamps\":false"));
+    assertTrue(json.contains("\"keyGeneratorId\":\"MyKeyGen\""));
     
     json = "{\"executorType\":\"CachingQueryExecutor\",\"simultaneous\":false,"
-        + "\"expiration\":60000,\"maxExpiration\":120000,"
+        + "\"expiration\":60000,\"maxExpiration\":120000,\"keyGeneratorId\":\"MyKeyGen\","
         + "\"useTimestamps\":false,\"executorId\":\"LocalCache\"}";
     config = JSON.parseToObject(json, Config.class);
     assertEquals("CachingQueryExecutor", config.executorType());
@@ -648,6 +676,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     assertEquals(60000, config.getExpiration());
     assertEquals(120000, config.getMaxExpiration());
     assertFalse(config.getUseTimestamps());
+    assertEquals("MyKeyGen", config.getKeyGeneratorId());
   }
   
   @Test
@@ -657,6 +686,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setMaxExpiration(120000)
         .setSimultaneous(true)
         .setUseTimestamps(true)
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
@@ -666,6 +696,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setMaxExpiration(120000)
         .setSimultaneous(true)
         .setUseTimestamps(true)
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
@@ -678,6 +709,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setMaxExpiration(120000)
         .setSimultaneous(true)
         .setUseTimestamps(true)
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
@@ -690,6 +722,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setMaxExpiration(100000)  // <-- Diff
         .setSimultaneous(true)
         .setUseTimestamps(true)
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
@@ -702,6 +735,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setMaxExpiration(120000)
         //.setSimultaneous(true)  // <-- Diff
         .setUseTimestamps(true)
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
@@ -714,6 +748,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setMaxExpiration(120000)
         .setSimultaneous(true)
         //.setUseTimestamps(true)  // <-- Diff
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
@@ -726,6 +761,33 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setMaxExpiration(120000)
         .setSimultaneous(true)
         .setUseTimestamps(true)
+        .setKeyGeneratorId("MyKeyGen2")  // <-- Diff
+        .setExecutorId("LocalCache")
+        .setExecutorType("CachingQueryExecutor")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(-1, c1.compareTo(c2));
+    
+    c2 = (Config) Config.newBuilder()
+        .setExpiration(60000)
+        .setMaxExpiration(120000)
+        .setSimultaneous(true)
+        .setUseTimestamps(true)
+        //.setKeyGeneratorId("MyKeyGen")  // <-- Diff
+        .setExecutorId("LocalCache")
+        .setExecutorType("CachingQueryExecutor")
+        .build();
+    assertNotEquals(c1.hashCode(), c2.hashCode());
+    assertNotEquals(c1, c2);
+    assertEquals(1, c1.compareTo(c2));
+    
+    c2 = (Config) Config.newBuilder()
+        .setExpiration(60000)
+        .setMaxExpiration(120000)
+        .setSimultaneous(true)
+        .setUseTimestamps(true)
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("TestCache")  // <-- Diff
         .setExecutorType("CachingQueryExecutor")
         .build();
@@ -738,6 +800,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setMaxExpiration(120000)
         .setSimultaneous(true)
         .setUseTimestamps(true)
+        .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor2")  // <-- Diff
         .build();

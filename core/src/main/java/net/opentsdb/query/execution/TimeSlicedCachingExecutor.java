@@ -44,7 +44,6 @@ import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
-import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.execution.serdes.TimeSeriesSerdes;
@@ -139,10 +138,14 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
       throw new IllegalArgumentException("Unable to find a downstream executor.");
     }
     registerDownstreamExecutor(executor);
-    // TODO - load a keygen from registry.
-    key_generator = new DefaultTimeSeriesCacheKeyGenerator(
-        ((Config) node.getDefaultConfig()).expiration,
-        ((Config) node.getDefaultConfig()).max_expiration);
+    key_generator = (TimeSeriesCacheKeyGenerator) 
+        node.graph().tsdb().getRegistry().getPlugin(
+            TimeSeriesCacheKeyGenerator.class, 
+            ((Config) node.getDefaultConfig()).getKeyGeneratorId());
+    if (key_generator == null) {
+      throw new IllegalArgumentException("Unable to find a key generator "
+          + "for ID: " + ((Config) node.getDefaultConfig()).getKeyGeneratorId());
+    }
   }
 
   @Override
@@ -600,6 +603,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
     private final String cache_id;
     private final String serdes_id;
     private final String planner_id;
+    private final String key_generator_id;
     private final long expiration;
     private final long max_expiration;
     
@@ -612,6 +616,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
       cache_id = builder.cacheId;
       serdes_id = builder.serdesId;
       planner_id = builder.plannerId;
+      key_generator_id = builder.keyGeneratorId;
       expiration = builder.expiration;
       max_expiration = builder.maxExpiration;
     }
@@ -629,6 +634,11 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
     /** @return A query planner ID used for slicing the query. */
     public String getPlannerId() {
       return planner_id;
+    }
+    
+    /** @return An optional key generator id, null for the default. */
+    public String getKeyGeneratorId() {
+      return key_generator_id;
     }
     
     /** @return How long, in milliseconds, to keep the data in cache. 0 = don't
@@ -657,6 +667,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
           && Objects.equal(cache_id, config.cache_id)
           && Objects.equal(serdes_id, config.serdes_id)
           && Objects.equal(planner_id, config.planner_id)
+          && Objects.equal(key_generator_id, config.key_generator_id)
           && Objects.equal(expiration, config.expiration)
           && Objects.equal(max_expiration, config.max_expiration);
     }
@@ -674,6 +685,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
           .putString(Strings.nullToEmpty(cache_id), Const.UTF8_CHARSET)
           .putString(Strings.nullToEmpty(serdes_id), Const.UTF8_CHARSET)
           .putString(Strings.nullToEmpty(planner_id), Const.UTF8_CHARSET)
+          .putString(Strings.nullToEmpty(key_generator_id), Const.UTF8_CHARSET)
           .putLong(expiration)
           .putLong(max_expiration)
           .hash();
@@ -691,6 +703,8 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
           .compare(serdes_id, ((Config) config).serdes_id, 
               Ordering.natural().nullsFirst())
           .compare(planner_id, ((Config) config).planner_id, 
+              Ordering.natural().nullsFirst())
+          .compare(key_generator_id, ((Config) config).key_generator_id, 
               Ordering.natural().nullsFirst())
           .compare(expiration, ((Config) config).expiration)
           .compare(max_expiration, ((Config) config).max_expiration)
@@ -711,6 +725,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
           .setCacheId(config.cache_id)
           .setSerdesId(config.serdes_id)
           .setPlannerId(config.planner_id)
+          .setKeyGeneratorId(config.key_generator_id)
           .setExpiration(config.expiration)
           .setExecutorId(config.executor_id)
           .setExecutorType(config.executor_type);
@@ -723,6 +738,8 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
       private String serdesId;
       @JsonProperty
       private String plannerId;
+      @JsonProperty
+      private String keyGeneratorId;
       @JsonProperty
       private long expiration;
       @JsonProperty
@@ -752,6 +769,16 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
        */
       public Builder setPlannerId(final String plannerId) {
         this.plannerId = plannerId;
+        return this;
+      }
+      
+      /**
+       * @param keyGeneratorId An optional key generator Id. If null, the default
+       * is used.
+       * @return The builder.
+       */
+      public Builder setKeyGeneratorId(final String keyGeneratorId) {
+        this.keyGeneratorId = keyGeneratorId;
         return this;
       }
       

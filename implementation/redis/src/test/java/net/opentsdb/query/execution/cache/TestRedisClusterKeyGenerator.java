@@ -15,7 +15,6 @@ package net.opentsdb.query.execution.cache;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -24,14 +23,12 @@ import java.util.Arrays;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
@@ -41,7 +38,7 @@ import net.opentsdb.utils.DateTime;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ DateTime.class, TimeSeriesQuery.class, Timespan.class })
-public class TestDefaultTimeSeriesCacheKeyGenerator {
+public class TestRedisClusterKeyGenerator {
 
   private TSDB tsdb;
   private Config config;
@@ -55,8 +52,7 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
   
   @Test
   public void generate() throws Exception {
-    final DefaultTimeSeriesCacheKeyGenerator generator = 
-        new DefaultTimeSeriesCacheKeyGenerator();
+    final RedisClusterKeyGenerator generator = new RedisClusterKeyGenerator();
     generator.initialize(tsdb).join(1);
     
     TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
@@ -71,30 +67,37 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
     byte[] timeless_hash = query.buildTimelessHashCode().asBytes();
     
     byte[] key = generator.generate(query, true);
-    byte[] hash = Arrays.copyOfRange(key, 
-        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length, key.length);
+    byte[] hash = Arrays.copyOfRange(key, 1, 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + 1);
 
-    assertEquals(0, Bytes.memcmp(key, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX, 
-        0, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length));
-    assertArrayEquals(hash, timed_hash);
+    assertEquals('{', key[0]);
+    assertArrayEquals(DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX, hash);
+    hash = Arrays.copyOfRange(key, 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + 1, 
+        key.length - 1);
+    assertArrayEquals(timed_hash, hash);
+    assertEquals('}', key[key.length - 1]);
     
     key = generator.generate(query, false);
+    assertEquals('{', key[0]);
+    hash = Arrays.copyOfRange(key, 1, 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + 1);
+    assertArrayEquals(DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX, hash);
     hash = Arrays.copyOfRange(key, 
-        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length, key.length);
-    assertEquals(0, Bytes.memcmp(key, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX, 
-        0, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length));
-    assertArrayEquals(hash, timeless_hash);
-    
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + 1, 
+        key.length - 1);
+    assertArrayEquals(timeless_hash, hash);
+    assertEquals('}', key[key.length - 1]);
+    System.out.println(Arrays.toString(key));
     try {
       generator.generate(null, true);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
-  
+
   @Test
   public void generateMulti() throws Exception {
-    final DefaultTimeSeriesCacheKeyGenerator generator = 
-        new DefaultTimeSeriesCacheKeyGenerator();
+    final RedisClusterKeyGenerator generator = new RedisClusterKeyGenerator();
     generator.initialize(tsdb).join(1);
     
     TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
@@ -120,53 +123,77 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
     
     byte[][] keys = generator.generate(query, time_ranges);
     assertEquals(3, keys.length);
-    
+    System.out.println(Arrays.toString(keys[0]));
     // prefix
-    assertEquals(0, Bytes.memcmp(keys[0], 
-        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX, 
-        0, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length));
+    assertEquals('{', keys[0][0]);
+    byte[] hash = Arrays.copyOfRange(keys[0], 1, 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + 1);
+    assertArrayEquals(DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX, hash);
     
     // hash
-    byte[] hash = Arrays.copyOfRange(keys[0], 
-        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length, 
-        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + timeless_hash.length);
-    assertEquals(0, Bytes.memcmp(hash, timeless_hash));
-    
     hash = Arrays.copyOfRange(keys[0], 
-        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + timeless_hash.length, 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + 1,
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + 1 
+          + timeless_hash.length);
+    assertArrayEquals(timeless_hash, hash);
+    assertEquals('}', keys[0][DefaultTimeSeriesCacheKeyGenerator
+                              .CACHE_PREFIX.length + 1 + timeless_hash.length]);
+    
+    // timestamp
+    hash = Arrays.copyOfRange(keys[0], 
+        DefaultTimeSeriesCacheKeyGenerator
+        .CACHE_PREFIX.length + 2 + timeless_hash.length, 
         keys[0].length);
     assertEquals(0, Bytes.memcmp(hash, Bytes.fromLong(time_ranges[0][0].msEpoch())));
     
     // prefix
-    assertEquals(0, Bytes.memcmp(keys[1], 
-        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX, 
-        0, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length));
+    hash = Arrays.copyOfRange(keys[1], 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + 1,
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + 1 
+          + timeless_hash.length);
+    assertArrayEquals(timeless_hash, hash);
+    assertEquals('}', keys[1][DefaultTimeSeriesCacheKeyGenerator
+                              .CACHE_PREFIX.length + 1 + timeless_hash.length]);
     
     // hash
     hash = Arrays.copyOfRange(keys[1], 
-        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length, 
-        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + timeless_hash.length);
-    assertEquals(0, Bytes.memcmp(hash, timeless_hash));
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + 1,
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + 1 
+          + timeless_hash.length);
+    assertArrayEquals(timeless_hash, hash);
+    assertEquals('}', keys[1][DefaultTimeSeriesCacheKeyGenerator
+                              .CACHE_PREFIX.length + 1 + timeless_hash.length]);
     
+    // timestamp
     hash = Arrays.copyOfRange(keys[1], 
-        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + timeless_hash.length, 
-        keys[0].length);
+        DefaultTimeSeriesCacheKeyGenerator
+        .CACHE_PREFIX.length + 2 + timeless_hash.length, 
+        keys[1].length);
     assertEquals(0, Bytes.memcmp(hash, Bytes.fromLong(time_ranges[1][0].msEpoch())));
     
     // prefix
-    assertEquals(0, Bytes.memcmp(keys[2], 
-        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX, 
-        0, DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length));
+    hash = Arrays.copyOfRange(keys[2], 
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + 1,
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + 1 
+          + timeless_hash.length);
+    assertArrayEquals(timeless_hash, hash);
+    assertEquals('}', keys[2][DefaultTimeSeriesCacheKeyGenerator
+                              .CACHE_PREFIX.length + 1 + timeless_hash.length]);
     
     // hash
     hash = Arrays.copyOfRange(keys[2], 
-        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length, 
-        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + timeless_hash.length);
-    assertEquals(0, Bytes.memcmp(hash, timeless_hash));
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + 1,
+        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + 1 
+          + timeless_hash.length);
+    assertArrayEquals(timeless_hash, hash);
+    assertEquals('}', keys[2][DefaultTimeSeriesCacheKeyGenerator
+                              .CACHE_PREFIX.length + 1 + timeless_hash.length]);
     
+    // timestamp
     hash = Arrays.copyOfRange(keys[2], 
-        DefaultTimeSeriesCacheKeyGenerator.CACHE_PREFIX.length + timeless_hash.length, 
-        keys[0].length);
+        DefaultTimeSeriesCacheKeyGenerator
+        .CACHE_PREFIX.length + 2 + timeless_hash.length, 
+        keys[2].length);
     assertEquals(0, Bytes.memcmp(hash, Bytes.fromLong(time_ranges[2][0].msEpoch())));
     
     try {
@@ -183,54 +210,5 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
       generator.generate(null, new TimeStamp[0][]);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
-  }
-  
-  @Test
-  public void expiration() throws Exception {
-    PowerMockito.mockStatic(DateTime.class);
-    PowerMockito.when(DateTime.parseDuration(anyString())).thenReturn(60000L);
-    config.overrideConfig("tsd.query.cache.max_expiration", "120000");
-    final DefaultTimeSeriesCacheKeyGenerator generator = 
-        new DefaultTimeSeriesCacheKeyGenerator();
-    generator.initialize(tsdb).join(1);
-    
-    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("3h-ago")
-            .setEnd("1h-ago")
-            .setDownsampler(Downsampler.newBuilder()
-                .setAggregator("sum")
-                .setInterval("1m")))
-        .addMetric(Metric.newBuilder()
-            .setMetric("sys.cpu.user"))
-        .build();
-    
-    PowerMockito.when(DateTime.currentTimeMillis())
-      .thenReturn(1493514769084L);
-    PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
-      .thenReturn(1493514769000L);
-    assertEquals(49084, generator.expiration(query, -1));
-    
-    // old so it's cached at the max
-    PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
-      .thenReturn(1493414769000L);
-    assertEquals(120000, generator.expiration(query, -1));
-    
-    PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
-      .thenReturn(1493514769000L);
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("3h-ago")
-            .setEnd("1h-ago"))
-        .addMetric(Metric.newBuilder()
-            .setMetric("sys.cpu.user"))
-        .build();
-    assertEquals(60000, generator.expiration(query, -1));
-    
-    // regular
-    assertEquals(0, generator.expiration(query, 0));
-    assertEquals(30000, generator.expiration(query, 30000));
-    
-    assertEquals(60000, generator.expiration(null, -1));
   }
 }

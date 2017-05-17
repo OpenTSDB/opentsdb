@@ -367,6 +367,7 @@ public class PluginsConfig extends Validatable {
                   .addErrback(new ErrorCB(-1, null));
               }
             } else {
+              // load all plugins of a type.
               final Class<?> type = Class.forName(plugin_config.getType());
               final List<TsdbPlugin> plugins = 
                   (List<TsdbPlugin>) PluginLoader.loadPlugins(type);
@@ -384,7 +385,9 @@ public class PluginsConfig extends Validatable {
                 for (final TsdbPlugin plugin : plugins) {
                   deferreds.add(plugin.initialize(tsdb));
                   final PluginConfig waiting = new PluginConfig();
-                  waiting.setPlugin(plugin_config.getPlugin());
+                  waiting.setPlugin(plugin.getClass().getCanonicalName());
+                  waiting.setType(type.getCanonicalName());
+                  waiting.setId(plugin.getClass().getCanonicalName());
                   waiting.clazz = type;
                   waiting.instantiated_plugin = plugin;
                   waiting_on_init.add(waiting);

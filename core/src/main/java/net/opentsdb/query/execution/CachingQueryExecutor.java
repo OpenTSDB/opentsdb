@@ -38,7 +38,6 @@ import net.opentsdb.core.Const;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
-import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.execution.serdes.TimeSeriesSerdes;
@@ -106,10 +105,14 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
       throw new IllegalArgumentException("Unable to find a downstream executor.");
     }
     registerDownstreamExecutor(executor);
-    // TODO - load a keygen from registry.
-    key_generator = new DefaultTimeSeriesCacheKeyGenerator(
-        ((Config) node.getDefaultConfig()).expiration,
-        ((Config) node.getDefaultConfig()).max_expiration);
+    key_generator = (TimeSeriesCacheKeyGenerator) 
+        node.graph().tsdb().getRegistry().getPlugin(
+            TimeSeriesCacheKeyGenerator.class, 
+            ((Config) node.getDefaultConfig()).getKeyGeneratorId());
+    if (key_generator == null) {
+      throw new IllegalArgumentException("Unable to find a key generator "
+          + "for ID: " + ((Config) node.getDefaultConfig()).getKeyGeneratorId());
+    }
   }
 
   @Override
@@ -390,6 +393,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
     private final String cache_id;
     private final String serdes_id;
     private final boolean simultaneous;
+    private final String key_generator_id;
     private final long expiration;
     private final long max_expiration;
     private final boolean use_timestamps;
@@ -403,6 +407,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
       cache_id = builder.cacheId;
       serdes_id = builder.serdesId;
       simultaneous = builder.simultaneous;
+      key_generator_id = builder.keyGeneratorId;
       expiration = builder.expiration;
       max_expiration = builder.maxExpiration;
       use_timestamps = builder.useTimestamps;
@@ -422,6 +427,11 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
       * at the same time (true) or wait for the cache to return before sending */
     public boolean getSimultaneous() {
       return simultaneous;
+    }
+    
+    /** @return An optional key generator id, null for the default. */
+    public String getKeyGeneratorId() {
+      return key_generator_id;
     }
     
     /** @return How long, in milliseconds, to keep the data in cache. 0 = don't
@@ -456,6 +466,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
           && Objects.equal(cache_id, config.cache_id)
           && Objects.equal(serdes_id, config.serdes_id)
           && Objects.equal(simultaneous, config.simultaneous)
+          && Objects.equal(key_generator_id, config.key_generator_id)
           && Objects.equal(expiration, config.expiration)
           && Objects.equal(max_expiration, config.max_expiration)
           && Objects.equal(use_timestamps, config.use_timestamps);
@@ -474,6 +485,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
           .putString(Strings.nullToEmpty(cache_id), Const.UTF8_CHARSET)
           .putString(Strings.nullToEmpty(serdes_id), Const.UTF8_CHARSET)
           .putBoolean(simultaneous)
+          .putString(Strings.nullToEmpty(key_generator_id), Const.UTF8_CHARSET)
           .putLong(expiration)
           .putLong(max_expiration)
           .putBoolean(use_timestamps)
@@ -492,6 +504,8 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
           .compare(serdes_id, ((Config) config).serdes_id, 
               Ordering.natural().nullsFirst())
           .compareTrueFirst(simultaneous, ((Config) config).simultaneous)
+          .compare(key_generator_id, ((Config) config).key_generator_id, 
+              Ordering.natural().nullsFirst())
           .compare(expiration, ((Config) config).expiration)
           .compare(max_expiration, ((Config) config).max_expiration)
           .compareTrueFirst(use_timestamps, (((Config) config).use_timestamps))
@@ -512,6 +526,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
           .setCacheId(config.cache_id)
           .setSerdesId(config.serdes_id)
           .setSimultaneous(config.simultaneous)
+          .setKeyGeneratorId(config.key_generator_id)
           .setExpiration(config.expiration)
           .setUseTimestamps(config.use_timestamps)
           .setExecutorId(config.executor_id)
@@ -525,6 +540,8 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
       private String serdesId;
       @JsonProperty
       private boolean simultaneous;
+      @JsonProperty
+      private String keyGeneratorId;
       @JsonProperty
       private long expiration;
       @JsonProperty
@@ -558,6 +575,16 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
        */
       public Builder setSimultaneous(final boolean simultaneous) {
         this.simultaneous = simultaneous;
+        return this;
+      }
+      
+      /**
+       * @param keyGeneratorId An optional key generator Id. If null, the default
+       * is used.
+       * @return The builder.
+       */
+      public Builder setKeyGeneratorId(final String keyGeneratorId) {
+        this.keyGeneratorId = keyGeneratorId;
         return this;
       }
       

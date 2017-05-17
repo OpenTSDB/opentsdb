@@ -14,6 +14,9 @@ package net.opentsdb.query.execution.cache;
 
 import java.util.Arrays;
 
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.utils.Bytes;
@@ -23,6 +26,14 @@ import net.opentsdb.utils.DateTime;
  * Simple implementation of the key generator that prepends keys with
  * "TSDBQ".
  * 
+ * Two properties are read from the config:
+ * <ul>
+ * <li>tsd.query.cache.expiration - The default min expiration for the current
+ * block in milliseconds.</li>
+ * <li>tsd.query.cache.max_expiration - The default max expiration for older 
+ * blocks.</li>
+ * </ul>
+ * 
  * TODO - a stepdown function.
  * 
  * @since 3.0
@@ -30,25 +41,37 @@ import net.opentsdb.utils.DateTime;
 public class DefaultTimeSeriesCacheKeyGenerator 
   extends TimeSeriesCacheKeyGenerator {
   
+  /** Default minimum expiration for current block in ms. */
+  public static final long DEFAULT_EXPIRATION = 60000;
+  
+  /** Defautl maximum expiration for older blocks in ms. */
+  public static final long DEFAULT_MAX_EXPIRATION = 86400000;
+  
   /** The prefix to prepend */
   public static final byte[] CACHE_PREFIX = 
       new byte[] { 'T', 'S', 'D', 'B', 'Q' };
 
   /** The default expiration in milliseconds if no expiration was given. */
-  private final long default_expiration;
+  private long default_expiration;
   
   /** The default max expiration for old data. */
-  private final long default_max_expiration;
-  
-  /**
-   * Default ctor.
-   * @param default_expiration The default expiration in milliseconds.
-   * @param default_max_expiration The default max expiration for old data.
-   */
-  public DefaultTimeSeriesCacheKeyGenerator(final long default_expiration,
-                                            final long default_max_expiration) {
-    this.default_expiration = default_expiration;
-    this.default_max_expiration = default_max_expiration;
+  private long default_max_expiration;
+    
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb) {
+    if (tsdb.getConfig().hasProperty("tsd.query.cache.expiration")) {
+      default_expiration = tsdb.getConfig().getLong("tsd.query.cache.expiration");
+    } else {
+      default_expiration = DEFAULT_EXPIRATION;
+    }
+    if (tsdb.getConfig().hasProperty("tsd.query.cache.max_expiration")) {
+      default_max_expiration = 
+          tsdb.getConfig().getLong("tsd.query.cache.max_expiration");
+    } else {
+      default_max_expiration = DEFAULT_MAX_EXPIRATION;
+    }
+    
+    return Deferred.fromResult(null);
   }
   
   @Override
@@ -123,6 +146,16 @@ public class DefaultTimeSeriesCacheKeyGenerator
         query.getTime().getDownsampler().getInterval());
     final long result = (timestamp - (timestamp - (timestamp % interval)));
     return result > default_max_expiration ? default_max_expiration : result;
+  }
+
+  @Override
+  public String id() {
+    return "DefaultTimeSeriesCacheKeyGenerator";
+  }
+
+  @Override
+  public String version() {
+    return "3.0.0";
   }
 
 }
