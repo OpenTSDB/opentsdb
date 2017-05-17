@@ -70,12 +70,12 @@ public final class TestAnnotationRpc {
         new byte[] { 1, 0, 0 }, 
         ("{\"startTime\":1328140800,\"endTime\":1328140801,\"description\":" + 
             "\"Description\",\"notes\":\"Notes\",\"custom\":{\"owner\":" + 
-            "\"ops\"}}").getBytes(MockBase.ASCII()));
+            "\"ops\"}}").getBytes(MockBase.ASCII()), 1328140799972L);
     
     storage.addColumn(global_row_key, 
         new byte[] { 1, 0, 1 }, 
         ("{\"startTime\":1328140801,\"endTime\":1328140803,\"description\":" + 
-            "\"Global 2\",\"notes\":\"Nothing\"}").getBytes(MockBase.ASCII()));
+            "\"Global 2\",\"notes\":\"Nothing\"}").getBytes(MockBase.ASCII()), 1328140799973L);
     
     // add a local
     storage.addColumn(tsuid_row_key, 
@@ -83,21 +83,21 @@ public final class TestAnnotationRpc {
         ("{\"tsuid\":\"000001000001000001\",\"startTime\":1388450562," +
             "\"endTime\":1419984000,\"description\":\"Hello!\",\"notes\":" + 
             "\"My Notes\",\"custom\":{\"owner\":\"ops\"}}")
-            .getBytes(MockBase.ASCII()));
+            .getBytes(MockBase.ASCII()), 1388448000003L);
     
     storage.addColumn(tsuid_row_key, 
         new byte[] { 1, 0x0A, 0x03 }, 
         ("{\"tsuid\":\"000001000001000001\",\"startTime\":1388450563," +
             "\"endTime\":1419984000,\"description\":\"Note2\",\"notes\":" + 
             "\"Nothing\"}")
-            .getBytes(MockBase.ASCII()));
+            .getBytes(MockBase.ASCII()), 1388448000004L);
     
     // add some data points too
     storage.addColumn(tsuid_row_key, 
-        new byte[] { 0x50, 0x10 }, new byte[] { 1 });
+        new byte[] { 0x50, 0x10 }, new byte[] { 1 }, 1388448000005L);
     
     storage.addColumn(tsuid_row_key, 
-        new byte[] { 0x50, 0x18 }, new byte[] { 2 });
+        new byte[] { 0x50, 0x18 }, new byte[] { 2 }, 1388448000006L);
   }
   
   @Test

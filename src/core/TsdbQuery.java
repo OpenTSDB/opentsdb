@@ -1052,6 +1052,11 @@ final class TsdbQuery implements Query {
         (int) getScanStartTimeSeconds(), end_time == UNSET
         ? -1  // Will scan until the end (0xFFF...).
         : (int) getScanEndTimeSeconds(), tsdb.table, TSDB.FAMILY());
+    if(tsdb.getConfig().use_otsdb_timestamp()) {
+      long stTime = (getScanStartTimeSeconds() * 1000);
+      long endTime = end_time == UNSET ? -1 : (getScanEndTimeSeconds() * 1000);
+      scanner.setTimeRange(stTime, endTime);
+    }
     if (tsuids != null && !tsuids.isEmpty()) {
       createAndSetTSUIDFilter(scanner);
     } else if (filters.size() > 0) {

@@ -56,43 +56,43 @@ import com.stumbleupon.async.Deferred;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
+@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class,
   HashedWheelTimer.class, Scanner.class, Const.class })
 public class BaseTsdbTest {
   /** A list of UIDs from A to Z for unit testing UIDs values */
-  public static final Map<String, byte[]> METRIC_UIDS = 
+  public static final Map<String, byte[]> METRIC_UIDS =
       new HashMap<String, byte[]>(26);
-  public static final Map<String, byte[]> TAGK_UIDS = 
+  public static final Map<String, byte[]> TAGK_UIDS =
       new HashMap<String, byte[]>(26);
-  public static final Map<String, byte[]> TAGV_UIDS = 
+  public static final Map<String, byte[]> TAGV_UIDS =
       new HashMap<String, byte[]>(26);
   static {
     char letter = 'A';
     int uid = 10;
     for (int i = 0; i < 26; i++) {
-      METRIC_UIDS.put(Character.toString(letter), 
+      METRIC_UIDS.put(Character.toString(letter),
           UniqueId.longToUID(uid, TSDB.metrics_width()));
-      TAGK_UIDS.put(Character.toString(letter), 
+      TAGK_UIDS.put(Character.toString(letter),
           UniqueId.longToUID(uid, TSDB.tagk_width()));
-      TAGV_UIDS.put(Character.toString(letter++), 
+      TAGV_UIDS.put(Character.toString(letter++),
           UniqueId.longToUID(uid++, TSDB.tagv_width()));
     }
   }
-  
+
   public static final String METRIC_STRING = "sys.cpu.user";
   public static final byte[] METRIC_BYTES = new byte[] { 0, 0, 1 };
   public static final String METRIC_B_STRING = "sys.cpu.system";
   public static final byte[] METRIC_B_BYTES = new byte[] { 0, 0, 2 };
   public static final String NSUN_METRIC = "sys.cpu.nice";
   public static final byte[] NSUI_METRIC = new byte[] { 0, 0, 3 };
-  
+
   public static final String TAGK_STRING = "host";
   public static final byte[] TAGK_BYTES = new byte[] { 0, 0, 1 };
   public static final String TAGK_B_STRING = "owner";
   public static final byte[] TAGK_B_BYTES = new byte[] { 0, 0, 3 };
   public static final String NSUN_TAGK = "dc";
   public static final byte[] NSUI_TAGK = new byte[] { 0, 0, 4 };
-  
+
   public static final String TAGV_STRING = "web01";
   public static final byte[] TAGV_BYTES = new byte[] { 0, 0, 1 };
   public static final String TAGV_B_STRING = "web02";
@@ -102,7 +102,7 @@ public class BaseTsdbTest {
 
   static final String NOTE_DESCRIPTION = "Hello DiscWorld!";
   static final String NOTE_NOTES = "Millenium hand and shrimp";
-  
+
   protected HashedWheelTimer timer;
   protected Config config;
   protected TSDB tsdb;
@@ -112,7 +112,7 @@ public class BaseTsdbTest {
   protected UniqueId tag_values = mock(UniqueId.class);
   protected Map<String, String> tags = new HashMap<String, String>(1);
   protected MockBase storage;
-  
+
   @Before
   public void before() throws Exception {
     timer = mock(HashedWheelTimer.class);
@@ -121,13 +121,13 @@ public class BaseTsdbTest {
       .thenReturn(timer);
     PowerMockito.whenNew(HBaseClient.class).withAnyArguments()
       .thenReturn(client);
-    
+
     config = new Config(false);
     config.overrideConfig("tsd.storage.enable_compaction", "false");
     tsdb = PowerMockito.spy(new TSDB(config));
 
     config.setAutoMetric(true);
-    
+
     Whitebox.setInternalState(tsdb, "metrics", metrics);
     Whitebox.setInternalState(tsdb, "tag_names", tag_names);
     Whitebox.setInternalState(tsdb, "tag_values", tag_values);
@@ -135,14 +135,14 @@ public class BaseTsdbTest {
     setupMetricMaps();
     setupTagkMaps();
     setupTagvMaps();
-    
+
     when(metrics.width()).thenReturn((short)3);
     when(tag_names.width()).thenReturn((short)3);
     when(tag_values.width()).thenReturn((short)3);
-    
+
     tags.put(TAGK_STRING, TAGV_STRING);
   }
-  
+
   /** Adds the static UIDs to the metrics UID mock object */
   void setupMetricMaps() {
     when(metrics.getId(METRIC_STRING)).thenReturn(METRIC_BYTES);
@@ -156,7 +156,7 @@ public class BaseTsdbTest {
       });
     when(metrics.getOrCreateId(METRIC_STRING))
       .thenReturn(METRIC_BYTES);
-    
+
     when(metrics.getId(METRIC_B_STRING)).thenReturn(METRIC_B_BYTES);
     when(metrics.getIdAsync(METRIC_B_STRING))
       .thenAnswer(new Answer<Deferred<byte[]>>() {
@@ -168,7 +168,7 @@ public class BaseTsdbTest {
       });
     when(metrics.getOrCreateId(METRIC_B_STRING))
       .thenReturn(METRIC_B_BYTES);
-    
+
     when(metrics.getNameAsync(METRIC_BYTES))
       .thenAnswer(new Answer<Deferred<String>>() {
           @Override
@@ -187,14 +187,14 @@ public class BaseTsdbTest {
         });
     when(metrics.getNameAsync(NSUI_METRIC))
       .thenThrow(new NoSuchUniqueId("metrics", NSUI_METRIC));
-    
+
     final NoSuchUniqueName nsun = new NoSuchUniqueName(NSUN_METRIC, "metrics");
-    
+
     when(metrics.getId(NSUN_METRIC)).thenThrow(nsun);
     when(metrics.getIdAsync(NSUN_METRIC))
       .thenReturn(Deferred.<byte[]>fromError(nsun));
     when(metrics.getOrCreateId(NSUN_METRIC)).thenThrow(nsun);
-    
+
     // Iterate over the metric UIDs and handle both forward and reverse
     for (final Map.Entry<String, byte[]> uid : METRIC_UIDS.entrySet()) {
       when(metrics.getId(uid.getKey())).thenReturn(uid.getValue());
@@ -218,7 +218,7 @@ public class BaseTsdbTest {
         });
     }
   }
-  
+
   /** Adds the static UIDs to the tag keys UID mock object */
   void setupTagkMaps() {
     when(tag_names.getId(TAGK_STRING)).thenReturn(TAGK_BYTES);
@@ -233,7 +233,7 @@ public class BaseTsdbTest {
         });
     when(tag_names.getOrCreateIdAsync(TAGK_STRING))
       .thenReturn(Deferred.fromResult(TAGK_BYTES));
-    
+
     when(tag_names.getId(TAGK_B_STRING)).thenReturn(TAGK_B_BYTES);
     when(tag_names.getOrCreateId(TAGK_B_STRING)).thenReturn(TAGK_B_BYTES);
     when(tag_names.getIdAsync(TAGK_B_STRING))
@@ -246,7 +246,7 @@ public class BaseTsdbTest {
         });
     when(tag_names.getOrCreateIdAsync(TAGK_B_STRING))
       .thenReturn(Deferred.fromResult(TAGK_B_BYTES));
-    
+
     when(tag_names.getNameAsync(TAGK_BYTES))
       .thenAnswer(new Answer<Deferred<String>>() {
             @Override
@@ -265,14 +265,14 @@ public class BaseTsdbTest {
         });
     when(tag_names.getNameAsync(NSUI_TAGK))
       .thenThrow(new NoSuchUniqueId("tagk", NSUI_TAGK));
-    
+
     final NoSuchUniqueName nsun = new NoSuchUniqueName(NSUN_TAGK, "tagk");
-    
+
     when(tag_names.getId(NSUN_TAGK))
       .thenThrow(nsun);
     when(tag_names.getIdAsync(NSUN_TAGK))
       .thenReturn(Deferred.<byte[]>fromError(nsun));
-    
+
     // Iterate over the tagk UIDs and handle both forward and reverse
     for (final Map.Entry<String, byte[]> uid : TAGK_UIDS.entrySet()) {
       when(tag_names.getId(uid.getKey())).thenReturn(uid.getValue());
@@ -296,7 +296,7 @@ public class BaseTsdbTest {
         });
     }
   }
-  
+
   /** Adds the static UIDs to the tag values UID mock object */
   void setupTagvMaps() {
     when(tag_values.getId(TAGV_STRING)).thenReturn(TAGV_BYTES);
@@ -311,7 +311,7 @@ public class BaseTsdbTest {
       });
     when(tag_values.getOrCreateIdAsync(TAGV_STRING))
       .thenReturn(Deferred.fromResult(TAGV_BYTES));
-  
+
     when(tag_values.getId(TAGV_B_STRING)).thenReturn(TAGV_B_BYTES);
     when(tag_values.getOrCreateId(TAGV_B_STRING)).thenReturn(TAGV_B_BYTES);
     when(tag_values.getIdAsync(TAGV_B_STRING))
@@ -324,20 +324,20 @@ public class BaseTsdbTest {
         });
     when(tag_values.getOrCreateIdAsync(TAGV_B_STRING))
       .thenReturn(Deferred.fromResult(TAGV_B_BYTES));
-    
+
     when(tag_values.getNameAsync(TAGV_BYTES))
       .thenReturn(Deferred.fromResult(TAGV_STRING));
     when(tag_values.getNameAsync(TAGV_B_BYTES))
       .thenReturn(Deferred.fromResult(TAGV_B_STRING));
     when(tag_values.getNameAsync(NSUI_TAGV))
       .thenThrow(new NoSuchUniqueId("tagv", NSUI_TAGV));
-    
+
     final NoSuchUniqueName nsun = new NoSuchUniqueName(NSUN_TAGV, "tagv");
-    
+
     when(tag_values.getId(NSUN_TAGV)).thenThrow(nsun);
     when(tag_values.getIdAsync(NSUN_TAGV))
       .thenReturn(Deferred.<byte[]>fromError(nsun));
-    
+
     // Iterate over the tagv UIDs and handle both forward and reverse
     for (final Map.Entry<String, byte[]> uid : TAGV_UIDS.entrySet()) {
       when(tag_values.getId(uid.getKey())).thenReturn(uid.getValue());
@@ -365,21 +365,21 @@ public class BaseTsdbTest {
   // ----------------- //
   // Helper functions. //
   // ----------------- //
-  
+
   /** @return a row key template with the default metric and tags */
   protected byte[] getRowKeyTemplate() {
     return IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags);
   }
-  
+
   protected void setDataPointStorage() throws Exception {
     storage = new MockBase(tsdb, client, true, true, true, true);
     storage.setFamily("t".getBytes(MockBase.ASCII()));
   }
-  
-  protected void storeLongTimeSeriesSeconds(final boolean two_metrics, 
+
+  protected void storeLongTimeSeriesSeconds(final boolean two_metrics,
       final boolean offset) throws Exception {
     setDataPointStorage();
-    
+
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
     HashMap<String, String> tags_local = new HashMap<String, String>(tags);
@@ -406,7 +406,7 @@ public class BaseTsdbTest {
       }
     }
   }
- 
+
   protected void storeLongTimeSeriesMs() throws Exception {
     setDataPointStorage();
     // dump a bunch of rows of two metrics so that we can test filtering out
@@ -431,7 +431,7 @@ public class BaseTsdbTest {
         .joinUninterruptibly();
     }
   }
-  
+
   /**
    * Create two metrics with same name, skipping every third point in host=web01
    * and every other point in host=web02. To wit:
@@ -468,8 +468,8 @@ public class BaseTsdbTest {
       timestamp += 10L;
     }
   }
-  
-  protected void storeFloatTimeSeriesSeconds(final boolean two_metrics, 
+
+  protected void storeFloatTimeSeriesSeconds(final boolean two_metrics,
       final boolean offset) throws Exception {
     setDataPointStorage();
     // dump a bunch of rows of two metrics so that we can test filtering out
@@ -498,7 +498,7 @@ public class BaseTsdbTest {
       }
     }
   }
-  
+
   protected void storeFloatTimeSeriesMs() throws Exception {
     setDataPointStorage();
     // dump a bunch of rows of two metrics so that we can test filtering out
@@ -523,7 +523,7 @@ public class BaseTsdbTest {
         .joinUninterruptibly();
     }
   }
-  
+
   protected void storeMixedTimeSeriesSeconds() throws Exception {
     setDataPointStorage();
     HashMap<String, String> tags_local = new HashMap<String, String>(tags);
@@ -538,7 +538,7 @@ public class BaseTsdbTest {
       }
     }
   }
-  
+
   // dumps ints, floats, seconds and ms
   protected void storeMixedTimeSeriesMsAndS() throws Exception {
     setDataPointStorage();
@@ -563,11 +563,11 @@ public class BaseTsdbTest {
    * @param index The index to peek into the array
    * @param agged_tags Whether or not the tags were aggregated out
    */
-  protected void assertMeta(final DataPoints[] dps, final int index, 
+  protected void assertMeta(final DataPoints[] dps, final int index,
       final boolean agged_tags) {
     assertMeta(dps, index, agged_tags, false);
   }
-  
+
   /**
    * Validates the metric name, tags and annotations
    * @param dps The datapoints array returned from the query
@@ -575,11 +575,11 @@ public class BaseTsdbTest {
    * @param agged_tags Whether or not the tags were aggregated out
    * @param annotation Whether we're expecting a note or not
    */
-  protected void assertMeta(final DataPoints[] dps, final int index, 
+  protected void assertMeta(final DataPoints[] dps, final int index,
       final boolean agged_tags, final boolean annotation) {
     assertNotNull(dps);
     assertEquals(METRIC_STRING, dps[index].metricName());
-    
+
     if (agged_tags) {
       assertTrue(dps[index].getTags().isEmpty());
       assertEquals(TAGK_STRING, dps[index].getAggregatedTags().get(0));
@@ -591,7 +591,7 @@ public class BaseTsdbTest {
         assertEquals(TAGV_B_STRING, dps[index].getTags().get(TAGK_STRING));
       }
     }
-    
+
     if (annotation) {
       assertEquals(1, dps[index].getAnnotations().size());
       assertEquals(NOTE_DESCRIPTION, dps[index].getAnnotations().get(0)
