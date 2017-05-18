@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.Map.Entry;
 
+import javax.xml.bind.DatatypeConverter;
+
 import com.google.common.hash.Funnel;
 import com.google.common.hash.PrimitiveSink;
 
@@ -292,6 +294,44 @@ public final class Bytes {
       }
     }
     return false;
+  }
+  
+  /**
+   * Converts the given byte array to a hex encoded string using 
+   * {@link DatatypeConverter#printHexBinary(byte[])}.
+   * @param array A non-null array. May be empty, returning an empty string.
+   * @return A non-null string that may be empty.
+   * @throws IllegalArgumentException if the array was null.
+   */
+  public static String byteArrayToString(final byte[] array) {
+    if (array == null) {
+      throw new IllegalArgumentException("Array cannot be null.");
+    }
+    if (array.length == 0) {
+      return "";
+    }
+    return DatatypeConverter.printHexBinary(array);
+  }
+  
+  /**
+   * Converts the given string into a byte array using 
+   * {@link DatatypeConverter#parseHexBinary(String)}.
+   * @param hex A non-null string. If empty returns a zero-length byte array.
+   * @return A non-null byte array.
+   * @throws IllegalArgumentException if the hex string was null or if the 
+   * string length was not a multiple of 2.
+   */
+  public static byte[] stringToByteArray(final String hex) {
+    if (hex == null) {
+      throw new IllegalArgumentException("Hex value cannot be null.");
+    }
+    if (hex.isEmpty()) {
+      return new byte[0];
+    }
+    if (hex.length() % 2 != 0) {
+      throw new IllegalArgumentException("Hex length must be a multiple of 2.");
+    }
+    return DatatypeConverter.parseHexBinary(hex);
   }
   
   // ---------------------------- //

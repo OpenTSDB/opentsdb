@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.utils;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -80,5 +81,33 @@ public class TestBytes {
       Bytes.memcmp(array_b, array_a, 0, array_a.length);
       fail("Expected NullPointerException");
     } catch (NullPointerException e) { }
+  }
+
+  @Test
+  public void arrayToStringToBytes() throws Exception {
+    byte[] data = new byte[] { 42, -128, 24, 0 };
+    String hex = Bytes.byteArrayToString(data);
+    assertEquals("2A801800", hex);
+    assertArrayEquals(data, Bytes.stringToByteArray(hex));
+    
+    data = new byte[] { };
+    hex = Bytes.byteArrayToString(data);
+    assertEquals("", hex);
+    assertArrayEquals(data, Bytes.stringToByteArray(hex));
+    
+    try {
+      Bytes.byteArrayToString(null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      Bytes.stringToByteArray(null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      Bytes.stringToByteArray("2A80180");
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
   }
 }
