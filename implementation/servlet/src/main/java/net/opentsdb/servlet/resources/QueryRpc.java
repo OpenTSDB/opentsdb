@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2013-2017 The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.tsd;
+package net.opentsdb.servlet.resources;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -23,34 +23,16 @@ import java.util.Set;
 import java.util.LinkedHashSet;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.hbase.async.HBaseException;
-import org.hbase.async.RpcTimedOutException;
-import org.hbase.async.Bytes.ByteMap;
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.handler.codec.http.HttpMethod;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import javax.ws.rs.Path;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
-
-import net.opentsdb.core.DataPoints;
-import net.opentsdb.core.IncomingDataPoint;
-import net.opentsdb.core.Query;
-import net.opentsdb.core.QueryException;
-import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSQuery;
-import net.opentsdb.core.TSSubQuery;
-import net.opentsdb.core.Tags;
-import net.opentsdb.meta.Annotation;
-import net.opentsdb.meta.TSUIDQuery;
-import net.opentsdb.query.expression.ExpressionTree;
-import net.opentsdb.query.expression.Expressions;
 import net.opentsdb.query.filter.TagVFilter;
-import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
@@ -68,7 +50,8 @@ import net.opentsdb.utils.JSON;
  * TSQuery object.
  * @since 2.0
  */
-final class QueryRpc implements HttpRpc {
+@Path("api/query")
+final class QueryRpc {
   private static final Logger LOG = LoggerFactory.getLogger(QueryRpc.class);
   
   /** Various counters and metrics for reporting query stats */
