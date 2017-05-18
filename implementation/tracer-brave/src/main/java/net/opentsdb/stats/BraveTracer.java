@@ -150,9 +150,11 @@ public class BraveTracer extends TsdbTracer {
 
     @Override
     public void serializeJSON(final String name, final JsonGenerator json) {
+      Span last_span = null;
       try {
         json.writeArrayFieldStart(name);
         for (final Span span : catcher.spans) {
+          last_span = span;
           json.writeStartObject();
           json.writeStringField("traceId", Long.toHexString(span.traceId));
           json.writeStringField("id", Long.toHexString(span.id));
@@ -162,8 +164,11 @@ public class BraveTracer extends TsdbTracer {
           } else {
             json.writeStringField("parentId", Long.toHexString(span.parentId));
           }
-          json.writeNumberField("timestamp", span.timestamp);
-          json.writeNumberField("duration", span.duration);
+          // span timestamps could potentially be null.
+          if (span.timestamp != null) {
+            json.writeNumberField("timestamp", span.timestamp);
+            json.writeNumberField("duration", span.duration);
+          }
           // TODO - binary annotations, etc.
           if (span.binaryAnnotations != null) {
             json.writeObjectFieldStart("tags");
@@ -183,6 +188,8 @@ public class BraveTracer extends TsdbTracer {
           json.writeEndObject();
         }
         json.writeEndArray();
+      } catch (NullPointerException e) {
+        LOG.error("WTF? NPE?: " + last_span);
       } catch (IOException e) {
         throw new RuntimeException("Unexpected exception", e);
       }
@@ -203,6 +210,25 @@ public class BraveTracer extends TsdbTracer {
       return buf.toString();
     }
     
+    @Override
+    protected String extractTraceId(final io.opentracing.Span span) {
+      if (span == null) {
+        throw new IllegalArgumentException("Span cannot be null.");
+      }
+      if (!(span instanceof brave.opentracing.BraveSpan)) {
+        throw new IllegalArgumentException("Span was not a Brave span. Make "
+            + "sure you're using the proper tracing plugins");
+      }
+      if (span.context() == null) {
+        throw new IllegalStateException("WTF? Span context was null.");
+      }
+      if (!(span.context() instanceof brave.opentracing.BraveSpanContext)) {
+        throw new IllegalArgumentException("Span context was not a Brave span "
+            + "context. Make sure you're using the proper tracing plugins");
+      }
+      return ((brave.opentracing.BraveSpanContext) span.context())
+          .unwrap().traceIdString();
+    }
   }
   
   /**

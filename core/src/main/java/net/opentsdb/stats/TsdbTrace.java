@@ -40,6 +40,9 @@ public abstract class TsdbTrace {
   /** The first span in the (local) trace. */
   private Span first_span;
   
+  /** The trace ID, set when the first span is recorded. */
+  private String trace_id;
+  
   /**
    * Default ctor that stores the tracer.
    * @param tracer A non-null tracer.
@@ -60,11 +63,20 @@ public abstract class TsdbTrace {
   /** @param span The first span of the trace. */
   public void setFirstSpan(final Span span) {
     this.first_span = span;
+    trace_id = extractTraceId(span);
   }
   
   /** @return The first span of the trace if set. */
   public Span getFirstSpan() {
     return first_span;
+  }
+  
+  /**
+   * @return The trace ID after {@link #setFirstSpan(Span)} has been called. Null
+   * otherwise.
+   */
+  public String getTraceId() {
+    return trace_id;
   }
   
   /**
@@ -77,6 +89,17 @@ public abstract class TsdbTrace {
   
   /** @return The trace as a string. */
   public abstract String serializeToString();
+  
+  /**
+   * Casts the span back to the proper implementation so the trace ID can be
+   * extracted.
+   * @param span A non-null span.
+   * @return A non-null trace ID in hex.
+   * @throws IllegalArgumentException if the span was null or the span/context
+   * were of the wrong implementation.
+   * @throws IllegalStateException if the context was null. Shouldn't happen.
+   */
+  protected abstract String extractTraceId(final Span span);
   
   /**
    * Sets the default successful span tags including "status=OK" and 
