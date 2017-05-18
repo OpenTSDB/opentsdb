@@ -18,9 +18,12 @@ import javax.ws.rs.core.Context;
 
 import org.glassfish.jersey.server.ResourceConfig;
 
+import com.google.common.collect.ImmutableMap;
+
 import net.opentsdb.core.TSDB;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.exceptions.QueryExecutionExceptionMapper;
+import net.opentsdb.servlet.resources.JMXResource;
 import net.opentsdb.servlet.resources.V2QueryResource;
 import net.opentsdb.utils.Config;
 
@@ -61,8 +64,12 @@ public class OpenTSDBApplication extends ResourceConfig {
           asyncTimeout);
 
       register(V2QueryResource.class);
+      register(JMXResource.class);
       register(GenericExceptionMapper.class);
       register(new QueryExecutionExceptionMapper(false, 1024));
+      
+      addProperties(ImmutableMap.of(
+          "jersey.config.server.monitoring.statistics.mbeans.enabled", "true"));
       
     } catch (Exception e) {
       throw new RuntimeException("Unable to initialize OpenTSDB app!", e);
