@@ -206,7 +206,12 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
           } else {
             cache_span = null;
           }
-          
+          if (config.bypass) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Bypassing cache write.");
+            }
+            return null;
+          }
           try {
             final long expiration = key_generator.expiration(query, 
                 config.expiration);
@@ -335,22 +340,45 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
         }
       }
       
-      if (config.simultaneous) {
-        // fire both before attaching callbacks to avoid a race on canceling
-        // the executors.
-        cache_execution = plugin.fetch(context, key, null);
-        downstream = executor.executeQuery(context, query, tracer_span);
-      } else {
-        cache_execution = plugin.fetch(context, key, null);
-      }
-      
-      cache_execution.deferred()
-        .addCallback(new CacheCB())
-        .addErrback(new ErrorCB(false));
-      if (config.simultaneous) {
-        downstream.deferred()
-          .addCallback(new DownstreamCB())
-          .addErrback(new ErrorCB(true));
+      try {
+        if (config.getBypass()) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Bypassing cache query.");
+          }
+          downstream = executor.executeQuery(context, query, tracer_span);
+          downstream.deferred()
+            .addCallback(new DownstreamCB())
+            .addErrback(new ErrorCB(true));
+        } else {
+          if (config.simultaneous) {
+            // fire both before attaching callbacks to avoid a race on canceling
+            // the executors.
+            cache_execution = plugin.fetch(context, key, null);
+            downstream = executor.executeQuery(context, query, tracer_span);
+          } else {
+            cache_execution = plugin.fetch(context, key, null);
+          }
+          cache_execution.deferred()
+            .addCallback(new CacheCB())
+            .addErrback(new ErrorCB(false));
+          if (config.simultaneous) {
+            downstream.deferred()
+              .addCallback(new DownstreamCB())
+              .addErrback(new ErrorCB(true));
+          }
+        }
+      } catch (Exception e) {
+        try {
+          final Exception ex = new QueryExecutionCanceled(
+              "Unexpected exception initiating query: " + this, 500, query.getOrder());
+          callback(e, TsdbTrace.exceptionTags(ex),
+                      TsdbTrace.exceptionAnnotation(ex));
+        } catch (IllegalArgumentException ex) {
+          // lost race, no prob.
+        } catch (Exception ex) {
+          LOG.warn("Failed to complete callback due to unexepcted "
+              + "exception: " + this, ex);
+        }
       }
     }
 
@@ -395,7 +423,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
     private final boolean simultaneous;
     private final String key_generator_id;
     private final long expiration;
-    private final long max_expiration;
+    private final boolean bypass;
     private final boolean use_timestamps;
     
     /**
@@ -409,7 +437,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
       simultaneous = builder.simultaneous;
       key_generator_id = builder.keyGeneratorId;
       expiration = builder.expiration;
-      max_expiration = builder.maxExpiration;
+      bypass = builder.bypass;
       use_timestamps = builder.useTimestamps;
     }
 
@@ -440,10 +468,9 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
       return expiration;
     }
     
-    /** @return HThe maximum amount of time, in milliseconds, to keep the data 
-     * in cache. 0 = don't write, -1 means use query end-time and downsampling.  */
-    public long getMaxExpiration() {
-      return max_expiration;
+    /** @return Whether or not to bypass the cache query and write.  */
+    public boolean getBypass() {
+      return bypass;
     }
     
     /** @return Whether or not to use the timestamps of the query when generating
@@ -468,7 +495,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
           && Objects.equal(simultaneous, config.simultaneous)
           && Objects.equal(key_generator_id, config.key_generator_id)
           && Objects.equal(expiration, config.expiration)
-          && Objects.equal(max_expiration, config.max_expiration)
+          && Objects.equal(bypass, config.bypass)
           && Objects.equal(use_timestamps, config.use_timestamps);
     }
 
@@ -487,7 +514,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
           .putBoolean(simultaneous)
           .putString(Strings.nullToEmpty(key_generator_id), Const.UTF8_CHARSET)
           .putLong(expiration)
-          .putLong(max_expiration)
+          .putBoolean(bypass)
           .putBoolean(use_timestamps)
           .hash();
     }
@@ -507,7 +534,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
           .compare(key_generator_id, ((Config) config).key_generator_id, 
               Ordering.natural().nullsFirst())
           .compare(expiration, ((Config) config).expiration)
-          .compare(max_expiration, ((Config) config).max_expiration)
+          .compareTrueFirst(bypass, ((Config) config).bypass)
           .compareTrueFirst(use_timestamps, (((Config) config).use_timestamps))
           .result();
     }
@@ -543,9 +570,9 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
       @JsonProperty
       private String keyGeneratorId;
       @JsonProperty
-      private long expiration;
+      private long expiration = -1;
       @JsonProperty
-      private long maxExpiration;
+      private boolean bypass;
       @JsonProperty
       private boolean useTimestamps;
       
@@ -599,13 +626,11 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
       }
       
       /**
-       * @param maxExpiration The maximum amount of time, in milliseconds, to 
-       * keep the data in cache. 0 = don't write, -1 means use query end-time 
-       * and downsampling. 
+       * @param bypass Whether or not to bypass the cache query and write.
        * @return The builder.
        */
-      public Builder setMaxExpiration(final long maxExpiration) {
-        this.maxExpiration = maxExpiration;
+      public Builder setBypass(final boolean bypass) {
+        this.bypass = bypass;
         return this;
       }
       

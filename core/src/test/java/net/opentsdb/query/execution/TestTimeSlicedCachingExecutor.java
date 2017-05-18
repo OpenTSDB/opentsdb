@@ -100,7 +100,6 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     serdes = new UglyByteIteratorGroupsSerdes();
     config = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Default")
         .setKeyGeneratorId("MyKeyGen")
@@ -1593,6 +1592,244 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     assertEquals(0, cache.size());
   }
 
+  @SuppressWarnings("unchecked")
+  @Test
+  public void executeBypassDefault() throws Exception {
+    config = (Config) Config.newBuilder()
+        .setExpiration(60000)
+        .setPlannerId("IteratorGroupsSlicePlanner")
+        .setSerdesId("Default")
+        .setBypass(true)
+        .setKeyGeneratorId("MyKeyGen")
+        .setExecutorId("LocalCache")
+        .setExecutorType("CachingQueryExecutor")
+        .build();
+    when(node.getDefaultConfig()).thenReturn(config);
+    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+    final QueryExecution<IteratorGroups> exec = 
+        executor.executeQuery(context, query, span);
+    try {
+      exec.deferred().join(1);
+      fail("Expected TimeoutException");
+    } catch (TimeoutException e) { }
+    verify(plugin, never())
+      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+    verify(this.executor, times(1)).executeQuery(context, query, null);
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class));
+    assertTrue(executor.outstandingRequests().contains(exec));
+
+    final IteratorGroups data = 
+        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000);
+    downstreams.get(0).callback(data);
+    final IteratorGroups results = exec.deferred().join(1);
+    assertEquals(4, results.flattenedIterators().size());
+    
+    // validate data returned
+    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
+    assertEquals(2, group.flattenedIterators().size());
+    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+    
+    TimeSeriesIterator<NumericType> iterator = 
+        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+    long ts = ts_start;
+    int count = 0;
+    while (iterator.status() == IteratorStatus.HAS_DATA) {
+      TimeSeriesValue<NumericType> v = iterator.next();
+      assertEquals(ts, v.timestamp().msEpoch());
+      assertEquals(ts, v.value().longValue());
+      assertEquals(1, v.realCount());
+      ts += 300000;
+      ++count;
+    }
+    assertEquals(49, count);
+    
+    iterator = 
+        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+    ts = ts_start;
+    count = 0;
+    while (iterator.status() == IteratorStatus.HAS_DATA) {
+      TimeSeriesValue<NumericType> v = iterator.next();
+      assertEquals(ts, v.timestamp().msEpoch());
+      assertEquals(ts, v.value().longValue());
+      assertEquals(1, v.realCount());
+      ts += 300000;
+      ++count;
+    }
+    assertEquals(49, count);
+    
+    group = results.group(IteratorTestUtils.GROUP_B);
+    assertEquals(2, group.flattenedIterators().size());
+    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+    
+    iterator = 
+        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+    ts = ts_start;
+    count = 0;
+    while (iterator.status() == IteratorStatus.HAS_DATA) {
+      TimeSeriesValue<NumericType> v = iterator.next();
+      assertEquals(ts, v.timestamp().msEpoch());
+      assertEquals(ts, v.value().longValue());
+      assertEquals(1, v.realCount());
+      ts += 300000;
+      ++count;
+    }
+    assertEquals(49, count);
+    
+    iterator = 
+        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+    ts = ts_start;
+    count = 0;
+    while (iterator.status() == IteratorStatus.HAS_DATA) {
+      TimeSeriesValue<NumericType> v = iterator.next();
+      assertEquals(ts, v.timestamp().msEpoch());
+      assertEquals(ts, v.value().longValue());
+      assertEquals(1, v.realCount());
+      ts += 300000;
+      ++count;
+    }
+    assertEquals(49, count);
+    
+    verify(this.executor, times(1)).executeQuery(eq(context), 
+        any(TimeSeriesQuery.class), any(Span.class));
+    verify(plugin, never()).fetch(eq(context), any(byte[][].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[][].class), any(byte[][].class), 
+        any(long[].class), any(TimeUnit.class));
+    assertFalse(executor.outstandingRequests().contains(exec));
+    assertFalse(downstreams.get(0).cancelled);
+    assertFalse(cache_execution.cancelled);
+  }
+  
+  @SuppressWarnings("unchecked")
+  @Test
+  public void executeBypassOverride() throws Exception {
+    config = (Config) Config.newBuilder()
+        .setExpiration(60000)
+        .setPlannerId("IteratorGroupsSlicePlanner")
+        .setSerdesId("Default")
+        .setBypass(true)
+        .setKeyGeneratorId("MyKeyGen")
+        .setExecutorId("LocalCache")
+        .setExecutorType("CachingQueryExecutor")
+        .build();
+    when(context.getConfigOverride(anyString())).thenReturn(config);
+    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+    final QueryExecution<IteratorGroups> exec = 
+        executor.executeQuery(context, query, span);
+    try {
+      exec.deferred().join(1);
+      fail("Expected TimeoutException");
+    } catch (TimeoutException e) { }
+    verify(plugin, never())
+      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+    verify(this.executor, times(1)).executeQuery(context, query, null);
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class));
+    assertTrue(executor.outstandingRequests().contains(exec));
+
+    final IteratorGroups data = 
+        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000);
+    downstreams.get(0).callback(data);
+    final IteratorGroups results = exec.deferred().join(1);
+    assertEquals(4, results.flattenedIterators().size());
+    
+    // validate data returned
+    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
+    assertEquals(2, group.flattenedIterators().size());
+    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+    
+    TimeSeriesIterator<NumericType> iterator = 
+        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+    long ts = ts_start;
+    int count = 0;
+    while (iterator.status() == IteratorStatus.HAS_DATA) {
+      TimeSeriesValue<NumericType> v = iterator.next();
+      assertEquals(ts, v.timestamp().msEpoch());
+      assertEquals(ts, v.value().longValue());
+      assertEquals(1, v.realCount());
+      ts += 300000;
+      ++count;
+    }
+    assertEquals(49, count);
+    
+    iterator = 
+        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+    ts = ts_start;
+    count = 0;
+    while (iterator.status() == IteratorStatus.HAS_DATA) {
+      TimeSeriesValue<NumericType> v = iterator.next();
+      assertEquals(ts, v.timestamp().msEpoch());
+      assertEquals(ts, v.value().longValue());
+      assertEquals(1, v.realCount());
+      ts += 300000;
+      ++count;
+    }
+    assertEquals(49, count);
+    
+    group = results.group(IteratorTestUtils.GROUP_B);
+    assertEquals(2, group.flattenedIterators().size());
+    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+    
+    iterator = 
+        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+    ts = ts_start;
+    count = 0;
+    while (iterator.status() == IteratorStatus.HAS_DATA) {
+      TimeSeriesValue<NumericType> v = iterator.next();
+      assertEquals(ts, v.timestamp().msEpoch());
+      assertEquals(ts, v.value().longValue());
+      assertEquals(1, v.realCount());
+      ts += 300000;
+      ++count;
+    }
+    assertEquals(49, count);
+    
+    iterator = 
+        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+    ts = ts_start;
+    count = 0;
+    while (iterator.status() == IteratorStatus.HAS_DATA) {
+      TimeSeriesValue<NumericType> v = iterator.next();
+      assertEquals(ts, v.timestamp().msEpoch());
+      assertEquals(ts, v.value().longValue());
+      assertEquals(1, v.realCount());
+      ts += 300000;
+      ++count;
+    }
+    assertEquals(49, count);
+    
+    verify(this.executor, times(1)).executeQuery(eq(context), 
+        any(TimeSeriesQuery.class), any(Span.class));
+    verify(plugin, never()).fetch(eq(context), any(byte[][].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[][].class), any(byte[][].class), 
+        any(long[].class), any(TimeUnit.class));
+    assertFalse(executor.outstandingRequests().contains(exec));
+    assertFalse(downstreams.get(0).cancelled);
+    assertFalse(cache_execution.cancelled);
+  }
+  
   @Test
   public void executeCancel() throws Exception {
     final TimeSlicedCachingExecutor<IteratorGroups> executor = 
@@ -1765,20 +2002,19 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     assertTrue(json.contains("\"serdesId\":\"Default\""));
     assertTrue(json.contains("\"expiration\":60000"));
     assertTrue(json.contains("\"executorId\":\"LocalCache\""));
-    assertTrue(json.contains("\"maxExpiration\":120000"));
     assertTrue(json.contains("\"plannerId\":\"IteratorGroupsSlicePlanner\""));
     assertTrue(json.contains("\"keyGeneratorId\":\"MyKeyGen\""));
 
     json = "{\"executorType\":\"TimeSlicedCachingExecutor\",\"expiration\":"
         + "60000,\"serdesId\":\"Default\",\"plannerId\":"
         + "\"IteratorGroupsSlicePlanner\",\"keyGeneratorId\":\"MyKeyGen\","
-        + "\"maxExpiration\":120000,\"executorId\":\"LocalCache\"}";
+        + "\"bypass\":true,\"executorId\":\"LocalCache\"}";
     config = JSON.parseToObject(json, Config.class);
     assertEquals("TimeSlicedCachingExecutor", config.executorType());
     assertEquals("LocalCache", config.getExecutorId());
     assertEquals("Default", config.getSerdesId());
     assertEquals(60000, config.getExpiration());
-    assertEquals(120000, config.getMaxExpiration());
+    assertTrue(config.getBypass());
     assertEquals("IteratorGroupsSlicePlanner", config.getPlannerId());
     assertEquals("MyKeyGen", config.getKeyGeneratorId());
   }
@@ -1787,7 +2023,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
   public void hashCodeEqualsCompareTo() throws Exception {
     final Config c1 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Default")
         .setKeyGeneratorId("MyKeyGen")
@@ -1797,7 +2033,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     
     Config c2 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Default")
         .setKeyGeneratorId("MyKeyGen")
@@ -1810,7 +2046,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     
     c2 = (Config) Config.newBuilder()
         .setExpiration(30000) // <-- Diff
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Default")
         .setKeyGeneratorId("MyKeyGen")
@@ -1823,7 +2059,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     
     c2 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(60000) // <-- Diff
+        //.setBypass(true) // <-- Diff
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Default")
         .setKeyGeneratorId("MyKeyGen")
@@ -1832,11 +2068,11 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
     assertNotEquals(c1, c2);
-    assertEquals(1, c1.compareTo(c2));
+    assertEquals(-1, c1.compareTo(c2));
     
     c2 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setPlannerId("IteratorGroupsSlicePlanner2") // <-- Diff
         .setSerdesId("Default")
         .setKeyGeneratorId("MyKeyGen")
@@ -1849,7 +2085,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     
     c2 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Somethingelse") // <-- Diff
         .setKeyGeneratorId("MyKeyGen")
@@ -1862,7 +2098,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     
     c2 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Default")
         .setKeyGeneratorId("MyKeyGen2") // <-- Diff
@@ -1875,7 +2111,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     
     c2 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Default")
         //.setKeyGeneratorId("MyKeyGen") // <-- Diff
@@ -1888,7 +2124,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     
     c2 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Default")
         .setKeyGeneratorId("MyKeyGen")
@@ -1901,7 +2137,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     
     c2 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setPlannerId("IteratorGroupsSlicePlanner")
         .setSerdesId("Default")
         .setKeyGeneratorId("MyKeyGen")

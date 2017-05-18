@@ -56,7 +56,7 @@ import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.stats.TsdbTracer;
 import net.opentsdb.utils.JSON;
 
-@Path("query/v2")
+@Path("api/query")
 public class V2QueryResource {
   private static final Logger LOG = LoggerFactory.getLogger(
       V2QueryResource.class);

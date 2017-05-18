@@ -53,6 +53,7 @@ import net.opentsdb.query.plan.TimeSlicedQueryPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.stats.TsdbTrace;
+import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -325,16 +326,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
         }
       }
       
-      // start the callback chain by fetching from the cache first. If an exception
-      // is thrown immediately, catch and continue downstream.
-      try {
-        cache_execution = plugin.fetch(context, keys, tracer_span);
-        cache_execution.deferred()
-          .addCallback(new CacheCB())
-          .addErrback(new ErrorCB(false));
-      } catch (Exception e) {
-        LOG.error("Unexpected cache exception. Falling back downstream: " 
-            + this, e);
+      if (config.getBypass()) {
         try {
           new CacheCB().call(new byte[planner.getTimeRanges().length][]);
         } catch (Exception e1) {
@@ -342,6 +334,26 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
             "Unexpected exception calling cache callback after "
                 + "cache failure: " + this, 500, query.getOrder(), e1);
           handleException(ex);
+        }
+      } else {
+        // start the callback chain by fetching from the cache first. If an exception
+        // is thrown immediately, catch and continue downstream.
+        try {
+          cache_execution = plugin.fetch(context, keys, tracer_span);
+          cache_execution.deferred()
+            .addCallback(new CacheCB())
+            .addErrback(new ErrorCB(false));
+        } catch (Exception e) {
+          LOG.error("Unexpected cache exception. Falling back downstream: " 
+              + this, e);
+          try {
+            new CacheCB().call(new byte[planner.getTimeRanges().length][]);
+          } catch (Exception e1) {
+            final Exception ex = new QueryExecutionException(
+              "Unexpected exception calling cache callback after "
+                  + "cache failure: " + this, 500, query.getOrder(), e1);
+            handleException(ex);
+          }
         }
       }
     }
@@ -499,8 +511,10 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
           cache_span = null;
         }
         
+        if (config.getBypass()) {
+          return null;
+        }
         try {
-          
           // TODO - split this out into a separate thread. Otherwise we're delaying
           // the query while we slice and store the data.
           final List<T> slices = 
@@ -536,6 +550,18 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
           }
           plugin.cache(cache_keys, data, expirations, TimeUnit.MILLISECONDS);
           if (cache_span != null) {
+            final List<Map<String, Object>> cache_details = 
+                Lists.newArrayListWithCapacity(data.length);
+            for (int i = 0; i < data.length; i++) {
+              final Map<String, Object> map = Maps.newHashMap();
+              cache_details.add(map);
+              map.put("range", planner.getTimeRanges()[i][0] + "-" 
+                  + planner.getTimeRanges()[i][1]);
+              map.put("bytes", data[i].length);
+              map.put("key", Bytes.pretty(cache_keys[i]));
+              map.put("expiration", expirations[i]);
+            }
+            cache_span.setTag("cacheDetails", JSON.serializeToString(cache_details));
             cache_span.setTag("status", "OK");
             cache_span.setTag("finalThread", Thread.currentThread().getName());
             cache_span.setTag("bytes", Long.toString(bytes));
@@ -605,7 +631,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
     private final String planner_id;
     private final String key_generator_id;
     private final long expiration;
-    private final long max_expiration;
+    private final boolean bypass;
     
     /**
      * Default ctor.
@@ -618,7 +644,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
       planner_id = builder.plannerId;
       key_generator_id = builder.keyGeneratorId;
       expiration = builder.expiration;
-      max_expiration = builder.maxExpiration;
+      bypass = builder.bypass;
     }
 
     /** @return A cache ID representing a plugin in the registry. */
@@ -647,10 +673,9 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
       return expiration;
     }
     
-    /** @return HThe maximum amount of time, in milliseconds, to keep the data 
-     * in cache. 0 = don't write, -1 means use query end-time and downsampling.  */
-    public long getMaxExpiration() {
-      return max_expiration;
+    /** @return Whether or not to bypass the cache query and write. */
+    public boolean getBypass() {
+      return bypass;
     }
     
     @Override
@@ -669,7 +694,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
           && Objects.equal(planner_id, config.planner_id)
           && Objects.equal(key_generator_id, config.key_generator_id)
           && Objects.equal(expiration, config.expiration)
-          && Objects.equal(max_expiration, config.max_expiration);
+          && Objects.equal(bypass, config.bypass);
     }
 
     @Override
@@ -687,7 +712,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
           .putString(Strings.nullToEmpty(planner_id), Const.UTF8_CHARSET)
           .putString(Strings.nullToEmpty(key_generator_id), Const.UTF8_CHARSET)
           .putLong(expiration)
-          .putLong(max_expiration)
+          .putBoolean(bypass)
           .hash();
     }
 
@@ -707,7 +732,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
           .compare(key_generator_id, ((Config) config).key_generator_id, 
               Ordering.natural().nullsFirst())
           .compare(expiration, ((Config) config).expiration)
-          .compare(max_expiration, ((Config) config).max_expiration)
+          .compareTrueFirst(bypass, ((Config) config).bypass)
           .result();
     }
     
@@ -727,6 +752,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
           .setPlannerId(config.planner_id)
           .setKeyGeneratorId(config.key_generator_id)
           .setExpiration(config.expiration)
+          .setBypass(config.bypass)
           .setExecutorId(config.executor_id)
           .setExecutorType(config.executor_type);
     }
@@ -741,9 +767,9 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
       @JsonProperty
       private String keyGeneratorId;
       @JsonProperty
-      private long expiration;
+      private long expiration = -1;
       @JsonProperty
-      private long maxExpiration;
+      private boolean bypass;
       
       /**
        * @param cacheId A non-null and non-empty cache ID.
@@ -793,13 +819,11 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
       }
       
       /**
-       * @param maxExpiration The maximum amount of time, in milliseconds, to 
-       * keep the data in cache. 0 = don't write, -1 means use query end-time 
-       * and downsampling. 
+       * @param bypass Whether or not to bypass the cache query and write.
        * @return The builder.
        */
-      public Builder setMaxExpiration(final long maxExpiration) {
-        this.maxExpiration = maxExpiration;
+      public Builder setBypass(final boolean bypass) {
+        this.bypass = bypass;
         return this;
       }
       

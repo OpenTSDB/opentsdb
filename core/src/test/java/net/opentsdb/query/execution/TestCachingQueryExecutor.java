@@ -74,7 +74,6 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     serdes = new UglyByteIteratorGroupsSerdes();
     config = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
         .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
@@ -276,7 +275,6 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void executeCacheMissNoCaching() throws Exception {
     config = (Config) Config.newBuilder()
         .setExpiration(0)
-        .setMaxExpiration(120000)
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
@@ -320,7 +318,6 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void executeSimultaneousCacheFirst() throws Exception {
     config = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
         .setSimultaneous(true)
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
@@ -364,7 +361,6 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void executeSimultaneousDownstreamFirst() throws Exception {
     config = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
         .setSimultaneous(true)
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
@@ -478,7 +474,6 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void executeSimultaneousCacheException() throws Exception {
     config = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
         .setSimultaneous(true)
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
@@ -524,7 +519,6 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void executeSimultaneousDownstreamException() throws Exception {
     config = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
         .setSimultaneous(true)
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
@@ -625,6 +619,79 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   }
 
   @Test
+  public void executeBypassDefault() throws Exception {
+    config = (Config) Config.newBuilder()
+        .setExpiration(60000)
+        .setBypass(true)
+        .setKeyGeneratorId("MyKeyGen")
+        .setExecutorId("LocalCache")
+        .setExecutorType("CachingQueryExecutor")
+        .build();
+    when(node.getDefaultConfig()).thenReturn(config);
+    
+    final CachingQueryExecutor<IteratorGroups> executor = 
+        new CachingQueryExecutor<IteratorGroups>(node);
+    final QueryExecution<IteratorGroups> exec = 
+        executor.executeQuery(context, query, span);
+    try {
+      exec.deferred().join(1);
+      fail("Expected TimeoutException");
+    } catch (TimeoutException e) { }
+    verify(plugin, never())
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(this.executor, times(1)).executeQuery(context, query, null);
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class));
+    assertTrue(executor.outstandingRequests().contains(exec));
+
+    final IteratorGroups results = new DefaultIteratorGroups();
+    downstream.callback(results);
+    assertSame(results, exec.deferred().join());
+    verify(this.executor, times(1)).executeQuery(context, query, null);
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class));
+    assertFalse(executor.outstandingRequests().contains(exec));
+    assertFalse(downstream.cancelled);
+    assertFalse(cache_execution.cancelled);
+  }
+  
+  @Test
+  public void executeBypassOverride() throws Exception {
+    config = (Config) Config.newBuilder()
+        .setBypass(true)
+        .setExecutorId("LocalCache")
+        .setExecutorType("CachingQueryExecutor")
+        .build();
+    when(context.getConfigOverride(anyString()))
+      .thenReturn(config);
+    
+    final CachingQueryExecutor<IteratorGroups> executor = 
+        new CachingQueryExecutor<IteratorGroups>(node);
+    final QueryExecution<IteratorGroups> exec = 
+        executor.executeQuery(context, query, span);
+    try {
+      exec.deferred().join(1);
+      fail("Expected TimeoutException");
+    } catch (TimeoutException e) { }
+    verify(plugin, never())
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(this.executor, times(1)).executeQuery(context, query, null);
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class));
+    assertTrue(executor.outstandingRequests().contains(exec));
+
+    final IteratorGroups results = new DefaultIteratorGroups();
+    downstream.callback(results);
+    assertSame(results, exec.deferred().join());
+    verify(this.executor, times(1)).executeQuery(context, query, null);
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class));
+    assertFalse(executor.outstandingRequests().contains(exec));
+    assertFalse(downstream.cancelled);
+    assertFalse(cache_execution.cancelled);
+  }
+  
+  @Test
   public void close() throws Exception {
     final CachingQueryExecutor<IteratorGroups> executor = 
         new CachingQueryExecutor<IteratorGroups>(node);
@@ -662,19 +729,18 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     assertTrue(json.contains("\"simultaneous\":false"));
     assertTrue(json.contains("\"expiration\":60000"));
     assertTrue(json.contains("\"executorId\":\"LocalCache\""));
-    assertTrue(json.contains("\"maxExpiration\":120000"));
     assertTrue(json.contains("\"useTimestamps\":false"));
     assertTrue(json.contains("\"keyGeneratorId\":\"MyKeyGen\""));
     
     json = "{\"executorType\":\"CachingQueryExecutor\",\"simultaneous\":false,"
-        + "\"expiration\":60000,\"maxExpiration\":120000,\"keyGeneratorId\":\"MyKeyGen\","
+        + "\"expiration\":60000,\"bypass\":true,\"keyGeneratorId\":\"MyKeyGen\","
         + "\"useTimestamps\":false,\"executorId\":\"LocalCache\"}";
     config = JSON.parseToObject(json, Config.class);
     assertEquals("CachingQueryExecutor", config.executorType());
     assertEquals("LocalCache", config.getExecutorId());
     assertFalse(config.getSimultaneous());
     assertEquals(60000, config.getExpiration());
-    assertEquals(120000, config.getMaxExpiration());
+    assertTrue(config.getBypass());
     assertFalse(config.getUseTimestamps());
     assertEquals("MyKeyGen", config.getKeyGeneratorId());
   }
@@ -683,7 +749,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void hashCodeEqualsCompareTo() throws Exception {
     final Config c1 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setSimultaneous(true)
         .setUseTimestamps(true)
         .setKeyGeneratorId("MyKeyGen")
@@ -693,7 +759,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     
     Config c2 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setSimultaneous(true)
         .setUseTimestamps(true)
         .setKeyGeneratorId("MyKeyGen")
@@ -706,7 +772,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     
     c2 = (Config) Config.newBuilder()
         .setExpiration(30000)  // <-- Diff
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setSimultaneous(true)
         .setUseTimestamps(true)
         .setKeyGeneratorId("MyKeyGen")
@@ -719,7 +785,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     
     c2 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(100000)  // <-- Diff
+        //.setBypass(true)  // <-- Diff
         .setSimultaneous(true)
         .setUseTimestamps(true)
         .setKeyGeneratorId("MyKeyGen")
@@ -728,11 +794,11 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .build();
     assertNotEquals(c1.hashCode(), c2.hashCode());
     assertNotEquals(c1, c2);
-    assertEquals(1, c1.compareTo(c2));
+    assertEquals(-1, c1.compareTo(c2));
     
     c2 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
+        .setBypass(true)
         //.setSimultaneous(true)  // <-- Diff
         .setUseTimestamps(true)
         .setKeyGeneratorId("MyKeyGen")
@@ -745,7 +811,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     
     c2 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setSimultaneous(true)
         //.setUseTimestamps(true)  // <-- Diff
         .setKeyGeneratorId("MyKeyGen")
@@ -758,7 +824,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     
     c2 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setSimultaneous(true)
         .setUseTimestamps(true)
         .setKeyGeneratorId("MyKeyGen2")  // <-- Diff
@@ -771,7 +837,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     
     c2 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setSimultaneous(true)
         .setUseTimestamps(true)
         //.setKeyGeneratorId("MyKeyGen")  // <-- Diff
@@ -784,7 +850,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     
     c2 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setSimultaneous(true)
         .setUseTimestamps(true)
         .setKeyGeneratorId("MyKeyGen")
@@ -797,7 +863,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     
     c2 = (Config) Config.newBuilder()
         .setExpiration(60000)
-        .setMaxExpiration(120000)
+        .setBypass(true)
         .setSimultaneous(true)
         .setUseTimestamps(true)
         .setKeyGeneratorId("MyKeyGen")
