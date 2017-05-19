@@ -490,10 +490,11 @@ public final class TSQuery {
     }
     q.setTime(time);
     
+    int metric_idx = 1;
     int filter_idx = 1;
     for (final TSSubQuery sub : query.getQueries()) {
       final Metric.Builder metric = Metric.newBuilder()
-          .setId("m" + filter_idx)
+          .setId("m" + metric_idx++)
           .setMetric(sub.getMetric())
           .setAggregator(sub.getAggregator());
       if (sub.getDownsample() != null) {
