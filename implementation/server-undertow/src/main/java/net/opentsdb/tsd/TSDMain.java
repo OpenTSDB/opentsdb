@@ -12,8 +12,20 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
 import javax.servlet.ServletException;
 
 import org.slf4j.Logger;
@@ -23,6 +35,7 @@ import com.google.common.base.Strings;
 
 import io.undertow.Handlers;
 import io.undertow.Undertow;
+import io.undertow.Undertow.Builder;
 import io.undertow.server.handlers.PathHandler;
 import io.undertow.servlet.Servlets;
 import io.undertow.servlet.api.DeploymentInfo;
@@ -78,11 +91,19 @@ public class TSDMain {
       return; // returns in usage but this makes IDEs happy.
     }
     
-    int port = 4242;
+    int port = 0;
+    int ssl_port = 0;
     try {
-      if (!config.hasProperty("tsd.network.port"))
-        usage(argp, "Missing network port", 1);
-      port = config.getInt("tsd.network.port");
+      if (!config.hasProperty("tsd.network.port") && 
+          !config.hasProperty("tsd.network.ssl_port"))
+        usage(argp, "Missing network port and ssl port. Add one.", 1);
+      if (config.hasProperty("tsd.network.port")) {
+        port = config.getInt("tsd.network.port");
+      }
+      if (config.hasProperty("tsd.network.ssl_port")) {
+        ssl_port = config.getInt("tsd.network.ssl_port");
+      }
+      
     } catch (NumberFormatException nfe) {
       usage(argp, "Invalid network port setting", 1);
     }
@@ -115,7 +136,7 @@ public class TSDMain {
     final DeploymentInfo servletBuilder = Servlets.deployment()
         .setClassLoader(TSDMain.class.getClassLoader())
         .setContextPath(root)
-        .setDeploymentName("tsd.war")
+        .setDeploymentName("tsd.war") // just a name
         .addServletContextAttribute(OpenTSDBApplication.TSD_ATTRIBUTE, tsdb)
         .addServlets(
           Servlets.servlet("OpenTSDB", 
@@ -130,18 +151,81 @@ public class TSDMain {
         .addDeployment(servletBuilder);
     manager.deploy();
     
+    String keystore_location = null;
     try {
       final PathHandler path = Handlers.path(Handlers.redirect(root))
               .addPrefixPath(root, manager.start());
+      
+      final Builder builder = Undertow.builder()
+          .setHandler(path);
+      if (port > 0) {
+        builder.addHttpListener(port, bind);
+      }
+      
+      // SSL/TLS setup
+      if (ssl_port > 0) {
+        keystore_location = config.getString("tsd.network.keystore.location");
+        if (Strings.isNullOrEmpty(keystore_location)) {
+          throw new IllegalArgumentException("Cannot enable SSL without a "
+              + "keystore. Set 'tsd.network.keystore.location'");
+        }
+        // TODO - ugly ugly ugly! And not secure too!
+        final String key = config.getString("tsd.network.keystore.password");
+        if (Strings.isNullOrEmpty(key)) {
+          throw new IllegalArgumentException("Cannot enable SSL without a "
+              + "keystore password. Set 'tsd.network.keystore.password'");
+        }
+        
+        // load an initialize the keystore.
+        final FileInputStream file = new FileInputStream(keystore_location);
+        final KeyStore keystore = KeyStore.getInstance(KeyStore.getDefaultType());
+        keystore.load(file, key.toCharArray());
+        
+        // initialize a key manager to pass to the SSL context using the keystore.
+        final KeyManagerFactory key_factory = KeyManagerFactory.getInstance(
+            KeyManagerFactory.getDefaultAlgorithm());
+        key_factory.init(keystore, key.toCharArray());
 
-      server = Undertow.builder()
-              .addHttpListener(port, bind)
-              .setHandler(path)
-              .build();
+        // init a trust manager so we can use the public cert.
+        final TrustManagerFactory trust_factory = 
+            TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+          trust_factory.init(keystore);
+        final TrustManager[] trustManagers = trust_factory.getTrustManagers();
+        
+        final SSLContext sslContext = SSLContext.getInstance("TLS"); 
+        sslContext.init(key_factory.getKeyManagers(), trustManagers, null);
+        builder.addHttpsListener(4443, bind, sslContext);
+      }
+      
+      server = builder.build();
       server.start();
+      LOG.info("Undertow server successfully started.");
+      return;
     } catch (ServletException e) {
       LOG.error("Unable to start due to servlet exception", e);
+    } catch (FileNotFoundException e) {
+      LOG.error("Unable to open keystore file: " + keystore_location, e);
+    } catch (NoSuchAlgorithmException e) {
+      LOG.error("Missing a required algorithm for TLS?", e);
+    } catch (CertificateException e) {
+      LOG.error("Invalid certificate in keystore: " + keystore_location, e);
+    } catch (IOException e) {
+      LOG.error("WTF? Something went pear shaped unexpectedly", e);
+    } catch (KeyManagementException e) {
+      LOG.error("Something was wrong with the key in the keystore: " 
+          + keystore_location, e);
+    } catch (UnrecoverableKeyException e) {
+      LOG.error("Possibly corrupted key in file: " + keystore_location, e);
+    } catch (KeyStoreException e) {
+      LOG.error("WTF! Unexpected exception in keystore: " + keystore_location, e);
+    } catch (IllegalArgumentException e) {
+      LOG.error("Invalid configuration", e);
+      usage(argp, "Invalid configuration: " + e.getMessage(), 1);
+    } catch (Exception e) {
+      LOG.error("WTF! Unexpected exception starting server", e);
     }
+    usage(argp, "Unable to start the server. Check log, stdout and stderr "
+        + "for details.", 1);
   }
   
   /** Prints usage and exits with the given retval. */
