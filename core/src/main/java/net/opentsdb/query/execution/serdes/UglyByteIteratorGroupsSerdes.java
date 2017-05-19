@@ -41,7 +41,7 @@ import net.opentsdb.utils.Bytes;
  * 
  * @since 3.0
  */
-public class UglyByteIteratorGroupsSerdes extends
+public class UglyByteIteratorGroupsSerdes implements
     TimeSeriesSerdes<IteratorGroups> {
 
   // TODO - registry :)
@@ -51,6 +51,7 @@ public class UglyByteIteratorGroupsSerdes extends
   @SuppressWarnings("unchecked")
   @Override
   public void serialize(final TimeSeriesQuery query, 
+                        final SerdesOptions options,
                         final OutputStream stream, 
                         final IteratorGroups data) {
     if (stream == null) {
@@ -77,7 +78,8 @@ public class UglyByteIteratorGroupsSerdes extends
             stream.write(type);
             
             if (it.type().equals(NumericType.TYPE)) {
-              nums.serialize(query, stream, (TimeSeriesIterator<NumericType>) it);
+              nums.serialize(query, options, stream, 
+                  (TimeSeriesIterator<NumericType>) it);
             }
           }
         }
@@ -89,7 +91,8 @@ public class UglyByteIteratorGroupsSerdes extends
   }
 
   @Override
-  public IteratorGroups deserialize(final InputStream stream) {
+  public IteratorGroups deserialize(final SerdesOptions options,
+                                    final InputStream stream) {
     if (stream == null) {
       throw new IllegalArgumentException("Stream cannot be null.");
     }
@@ -131,7 +134,7 @@ public class UglyByteIteratorGroupsSerdes extends
             Class<?> clazz = Class.forName(new String(buf));
             TypeToken<?> type = TypeToken.of(clazz);
             if (type.equals(NumericType.TYPE)) {
-              results.addIterator(group_id, nums.deserialize(stream));
+              results.addIterator(group_id, nums.deserialize(options, stream));
             }
           }
         }

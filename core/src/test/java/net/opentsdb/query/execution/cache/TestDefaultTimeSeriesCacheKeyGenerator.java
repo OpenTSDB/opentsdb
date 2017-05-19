@@ -283,6 +283,10 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
         new DefaultTimeSeriesCacheKeyGenerator();
     generator.initialize(tsdb).join(1);
     
+    PowerMockito.when(DateTime.currentTimeMillis())
+      .thenReturn(1493514769084L);
+    PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
+      .thenReturn(1493514769000L);
     TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("3h-ago")
@@ -294,16 +298,21 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
             .setMetric("sys.cpu.user"))
         .build();
     
-    
-    PowerMockito.when(DateTime.currentTimeMillis())
-      .thenReturn(1493514769084L);
-    PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
-      .thenReturn(1493514769000L);
     assertEquals(10916, generator.expiration(query, -1));
     
     // old so it's cached at the max
     PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
       .thenReturn(1493414769000L);
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago")
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("sum")
+                .setInterval("1m")))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
     assertEquals(120000, generator.expiration(query, -1));
   }
   
@@ -404,6 +413,11 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
     generator.initialize(tsdb).join(1);
     
     PowerMockito.mockStatic(DateTime.class);
+    PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
+      .thenReturn(1493514000000L); // Sun, 30 Apr 2017 01:00:00 GMT  BLOCK TIME
+    
+    PowerMockito.when(DateTime.currentTimeMillis())
+      .thenReturn(1493511663000L); //Sun, 30 Apr 2017 00:21:03 GMT 
     TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("3h-ago")
@@ -412,42 +426,86 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
             .setMetric("sys.cpu.user"))
         .build();
     
-    PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
-      .thenReturn(1493514000000L); // Sun, 30 Apr 2017 01:00:00 GMT  BLOCK TIME
-    
     // present block
-    PowerMockito.when(DateTime.currentTimeMillis())
-      .thenReturn(1493511663000L); //Sun, 30 Apr 2017 00:21:03 GMT 
     assertEquals(57000, generator.expiration(query, -1));
    
     // present block aligned
     PowerMockito.when(DateTime.currentTimeMillis())
       .thenReturn(1493511660000L); //Sun, 30 Apr 2017 00:21:00 GMT 
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
     assertEquals(60000, generator.expiration(query, -1));
     
     PowerMockito.when(DateTime.currentTimeMillis())
       .thenReturn(1493515260000L); //Sun, 30 Apr 2017 01:21:00 GMT adjacent block 1
       // isn't cached for long
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
     assertEquals(60000, generator.expiration(query, -1));
     
     PowerMockito.when(DateTime.currentTimeMillis())
       .thenReturn(1493518860000L); // Sun, 30 Apr 2017 02:21:00 GMT  block 2
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
     assertEquals(600000, generator.expiration(query, -1));
     
     PowerMockito.when(DateTime.currentTimeMillis())
       .thenReturn(1493522460000L); // Sun, 30 Apr 2017 03:21:00 GMT  block 3
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
     assertEquals(1200000, generator.expiration(query, -1));
     
     PowerMockito.when(DateTime.currentTimeMillis())
       .thenReturn(1493529660000L); // Sun, 30 Apr 2017 05:21:00 GMT  block 5
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
     assertEquals(2400000, generator.expiration(query, -1));
     
     PowerMockito.when(DateTime.currentTimeMillis())
       .thenReturn(1493533260000L); // Sun, 30 Apr 2017 06:21:00 GMT  block 6
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
     assertEquals(3000000, generator.expiration(query, -1));
     
     PowerMockito.when(DateTime.currentTimeMillis())
       .thenReturn(1493536860000L); // Sun, 30 Apr 2017 07:21:00 GMT  block 7 hits max
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
     assertEquals(86400000, generator.expiration(query, -1));
   }
   
@@ -463,6 +521,10 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
     generator.initialize(tsdb).join(1);
     
     PowerMockito.mockStatic(DateTime.class);
+    PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
+      .thenReturn(1493514000000L); // Sun, 30 Apr 2017 01:00:00 GMT  BLOCK TIME
+    PowerMockito.when(DateTime.currentTimeMillis())
+    .thenReturn(1493514000000L); //Sun, 30 Apr 2017 01:00:00 GMT 
     TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("3h-ago")
@@ -471,36 +533,73 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
             .setMetric("sys.cpu.user"))
         .build();
     
-    PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
-      .thenReturn(1493514000000L); // Sun, 30 Apr 2017 01:00:00 GMT  BLOCK TIME
-    
     // present block
-    PowerMockito.when(DateTime.currentTimeMillis())
-      .thenReturn(1493514000000L); //Sun, 30 Apr 2017 01:00:00 GMT 
     assertEquals(60000, generator.expiration(query, -1));
 
     PowerMockito.when(DateTime.currentTimeMillis())
       .thenReturn(1493517600000L); //Sun, 30 Apr 2017 02:00:00 GMT adjacent block 1
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
     assertEquals(600000, generator.expiration(query, -1));
     
     PowerMockito.when(DateTime.currentTimeMillis())
       .thenReturn(1493521200000L); // Sun, 30 Apr 2017 03:00:00 GMT  block 2
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
     assertEquals(1200000, generator.expiration(query, -1));
     
     PowerMockito.when(DateTime.currentTimeMillis())
       .thenReturn(1493528400000L); // Sun, 30 Apr 2017 05:00:00 GMT  block 4
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
     assertEquals(2400000, generator.expiration(query, -1));
     
     PowerMockito.when(DateTime.currentTimeMillis())
       .thenReturn(1493532000000L); // Sun, 30 Apr 2017 06:00:00 GMT  block 5
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
     assertEquals(3000000, generator.expiration(query, -1));
     
     PowerMockito.when(DateTime.currentTimeMillis())
       .thenReturn(1493535600000L); // Sun, 30 Apr 2017 07:00:00 GMT  block 6 
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
     assertEquals(3600000, generator.expiration(query, -1));
     
     PowerMockito.when(DateTime.currentTimeMillis())
-    .thenReturn(1493539200000L); // Sun, 30 Apr 2017 08:00:00 GMT  block 7 hits max 
-  assertEquals(86400000, generator.expiration(query, -1));
+      .thenReturn(1493539200000L); // Sun, 30 Apr 2017 08:00:00 GMT  block 7 hits max 
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
+    assertEquals(86400000, generator.expiration(query, -1));
   }
 }

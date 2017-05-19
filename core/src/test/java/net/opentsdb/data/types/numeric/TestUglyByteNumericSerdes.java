@@ -62,12 +62,12 @@ public class TestUglyByteNumericSerdes {
     
     final UglyByteNumericSerdes serdes = new UglyByteNumericSerdes();
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(null, output, shard);
+    serdes.serialize(null, null, output, shard);
     output.close();
     byte[] data = output.toByteArray();
     
     final ByteArrayInputStream input = new ByteArrayInputStream(data);
-    final TimeSeriesIterator<?> iterator = serdes.deserialize(input);
+    final TimeSeriesIterator<?> iterator = serdes.deserialize(null, input);
     assertEquals(id, iterator.id());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
@@ -108,12 +108,12 @@ public class TestUglyByteNumericSerdes {
     
     final UglyByteNumericSerdes serdes = new UglyByteNumericSerdes();
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(null, output, shard);
+    serdes.serialize(null, null, output, shard);
     output.close();
     byte[] data = output.toByteArray();
     
     final ByteArrayInputStream input = new ByteArrayInputStream(data);
-    final TimeSeriesIterator<?> iterator = serdes.deserialize(input);
+    final TimeSeriesIterator<?> iterator = serdes.deserialize(null, input);
     assertEquals(id, iterator.id());
     
     assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
@@ -134,30 +134,30 @@ public class TestUglyByteNumericSerdes {
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     
     try {
-      serdes.serialize(null, null, shard);
+      serdes.serialize(null, null, null, shard);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      serdes.serialize(null, output, null);
+      serdes.serialize(null, null, output, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     NumericMillisecondShard mock = mock(NumericMillisecondShard.class);
     try {
-      serdes.serialize(null, output, mock);
+      serdes.serialize(null, null, output, mock);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      serdes.deserialize(null);
+      serdes.deserialize(null, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     final ByteArrayInputStream input = new ByteArrayInputStream(new byte[] { });
     try {
       // thrown by NumericType "Span cannot be negative."
-      serdes.deserialize(input);
+      serdes.deserialize(null, input);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

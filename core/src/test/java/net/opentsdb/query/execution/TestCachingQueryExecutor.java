@@ -256,7 +256,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     // cache hit
     IteratorGroups results = new DefaultIteratorGroups();
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(query, output, results);
+    serdes.serialize(query, null, output, results);
     output.close();
     
     cache_execution.callback(output.toByteArray());
@@ -342,7 +342,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     // cache hit
     IteratorGroups results = new DefaultIteratorGroups();
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(query, output, results);
+    serdes.serialize(query, null, output, results);
     output.close();
     
     cache_execution.callback(output.toByteArray());

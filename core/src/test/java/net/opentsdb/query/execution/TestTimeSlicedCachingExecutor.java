@@ -409,7 +409,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000), 0, 3);
     for (int i = 0; i < slices.size(); i++) {
       final ByteArrayOutputStream output = new ByteArrayOutputStream();
-      serdes.serialize(query, output, slices.get(i));
+      serdes.serialize(query, null, output, slices.get(i));
       output.close();
       cache_results[i] = output.toByteArray();
     }
@@ -528,7 +528,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         IteratorTestUtils.generateData(ts_start, 1493949600000L, 0, 300000), 0, 3);
     for (int i = 0; i < 2; i++) {
       final ByteArrayOutputStream output = new ByteArrayOutputStream();
-      serdes.serialize(query, output, slices.get(i));
+      serdes.serialize(query, null, output, slices.get(i));
       output.close();
       cache_results[i] = output.toByteArray();
     }
@@ -662,7 +662,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         IteratorTestUtils.generateData(1493949600000L, ts_end, 0, 300000), 2, 3);
     for (int i = 2; i < 4; i++) {
       final ByteArrayOutputStream output = new ByteArrayOutputStream();
-      serdes.serialize(query, output, slices.get(i - 2));
+      serdes.serialize(query, null, output, slices.get(i - 2));
       output.close();
       cache_results[i] = output.toByteArray();
     }
@@ -795,14 +795,14 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     List<IteratorGroups> slices = planner.sliceResult(
         IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000), 1, 1);
     ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(query, output, slices.get(0));
+    serdes.serialize(query, null, output, slices.get(0));
     output.close();
     cache_results[1] = output.toByteArray();
     
     slices = planner.sliceResult(
         IteratorTestUtils.generateData(1493953200000L, ts_end, 0, 300000), 3, 3);
     output = new ByteArrayOutputStream();
-    serdes.serialize(query, output, slices.get(0));
+    serdes.serialize(query, null, output, slices.get(0));
     output.close();
     cache_results[3] = output.toByteArray();
     
@@ -944,14 +944,14 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     List<IteratorGroups> slices = planner.sliceResult(
         IteratorTestUtils.generateData(ts_start, 1493946000000L, 0, 300000), 0, 0);
     ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(query, output, slices.get(0));
+    serdes.serialize(query, null, output, slices.get(0));
     output.close();
     cache_results[0] = output.toByteArray();
     
     slices = planner.sliceResult(
         IteratorTestUtils.generateData(1493949600000L, 1493953200000L, 0, 300000), 2, 2);
     output = new ByteArrayOutputStream();
-    serdes.serialize(query, output, slices.get(0));
+    serdes.serialize(query, null, output, slices.get(0));
     output.close();
     cache_results[2] = output.toByteArray();
     
@@ -1182,7 +1182,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         return serdes;
       }
     });
-    when(serdes.deserialize(any(InputStream.class)))
+    when(serdes.deserialize(any(), any(InputStream.class)))
       .thenReturn(slices.get(0))
       .thenReturn(slices.get(1))
       .thenThrow(new IllegalStateException("Boo!"))
@@ -1205,7 +1205,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     
     for (int i = 0; i < slices.size(); i++) {
       final ByteArrayOutputStream output = new ByteArrayOutputStream();
-      serdes.serialize(query, output, slices.get(i));
+      serdes.serialize(query, null, output, slices.get(i));
       output.close();
       cache_results[i] = output.toByteArray();
     }
@@ -1339,14 +1339,14 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     List<IteratorGroups> slices = planner.sliceResult(
         IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000), 1, 1);
     ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(query, output, slices.get(0));
+    serdes.serialize(query, null, output, slices.get(0));
     output.close();
     cache_results[1] = output.toByteArray();
     
     slices = planner.sliceResult(
         IteratorTestUtils.generateData(1493953200000L, ts_end, 0, 300000), 3, 3);
     output = new ByteArrayOutputStream();
-    serdes.serialize(query, output, slices.get(0));
+    serdes.serialize(query, null, output, slices.get(0));
     output.close();
     cache_results[3] = output.toByteArray();
     
@@ -1391,14 +1391,14 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     List<IteratorGroups> slices = planner.sliceResult(
         IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000), 1, 1);
     ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(query, output, slices.get(0));
+    serdes.serialize(query, null, output, slices.get(0));
     output.close();
     cache_results[1] = output.toByteArray();
     
     slices = planner.sliceResult(
         IteratorTestUtils.generateData(1493953200000L, ts_end, 0, 300000), 3, 3);
     output = new ByteArrayOutputStream();
-    serdes.serialize(query, output, slices.get(0));
+    serdes.serialize(query, null, output, slices.get(0));
     output.close();
     cache_results[3] = output.toByteArray();
     
@@ -1458,7 +1458,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000), 0, 3);
     for (int i = 0; i < slices.size(); i++) {
       final ByteArrayOutputStream output = new ByteArrayOutputStream();
-      serdes.serialize(query, output, slices.get(i));
+      serdes.serialize(query, null, output, slices.get(i));
       output.close();
       cache_results[i] = output.toByteArray();
     }
@@ -1852,14 +1852,14 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     List<IteratorGroups> slices = planner.sliceResult(
         IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000), 1, 1);
     ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(query, output, slices.get(0));
+    serdes.serialize(query, null, output, slices.get(0));
     output.close();
     cache_results[1] = output.toByteArray();
     
     slices = planner.sliceResult(
         IteratorTestUtils.generateData(1493953200000L, ts_end, 0, 300000), 3, 3);
     output = new ByteArrayOutputStream();
-    serdes.serialize(query, output, slices.get(0));
+    serdes.serialize(query, null, output, slices.get(0));
     output.close();
     cache_results[3] = output.toByteArray();
     
@@ -1914,14 +1914,14 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     List<IteratorGroups> slices = planner.sliceResult(
         IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000), 1, 1);
     ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(query, output, slices.get(0));
+    serdes.serialize(query, null, output, slices.get(0));
     output.close();
     cache_results[1] = output.toByteArray();
     
     slices = planner.sliceResult(
         IteratorTestUtils.generateData(1493953200000L, ts_end, 0, 300000), 3, 3);
     output = new ByteArrayOutputStream();
-    serdes.serialize(query, output, slices.get(0));
+    serdes.serialize(query, null, output, slices.get(0));
     output.close();
     cache_results[3] = output.toByteArray();
     

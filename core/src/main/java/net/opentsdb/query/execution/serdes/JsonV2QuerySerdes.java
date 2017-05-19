@@ -36,7 +36,7 @@ import net.opentsdb.query.pojo.TimeSeriesQuery;
  * 
  * @since 3.0
  */
-public class JsonV2QuerySerdes extends TimeSeriesSerdes<IteratorGroups> {
+public class JsonV2QuerySerdes implements TimeSeriesSerdes<IteratorGroups> {
 
   /** The JSON generator used for writing. */
   private final JsonGenerator json;
@@ -55,6 +55,7 @@ public class JsonV2QuerySerdes extends TimeSeriesSerdes<IteratorGroups> {
   @SuppressWarnings("unchecked")
   @Override
   public void serialize(final TimeSeriesQuery query, 
+                        final SerdesOptions options,
                         final OutputStream stream, 
                         final IteratorGroups data) {
     if (stream == null) {
@@ -62,6 +63,16 @@ public class JsonV2QuerySerdes extends TimeSeriesSerdes<IteratorGroups> {
     }
     if (data == null) {
       throw new IllegalArgumentException("Data may not be null.");
+    }
+    final JsonV2QuerySerdesOptions opts;
+    if (options != null) {
+      if (!(options instanceof JsonV2QuerySerdesOptions)) {
+        throw new IllegalArgumentException("Options were of the wrong type: " 
+            + options.getClass());
+      }
+      opts = (JsonV2QuerySerdesOptions) options;
+    } else {
+      opts = null;
     }
     try {
       for (final TimeSeriesIterator<?> it : data.flattenedIterators()) {
@@ -81,6 +92,7 @@ public class JsonV2QuerySerdes extends TimeSeriesSerdes<IteratorGroups> {
         json.writeEndObject();
         json.writeObjectFieldStart("dps");
         
+        long ts = 0;
         while (it.status() == IteratorStatus.HAS_DATA) {
           final TimeSeriesValue<NumericType> v = 
               (TimeSeriesValue<NumericType>) it.next();
@@ -88,12 +100,16 @@ public class JsonV2QuerySerdes extends TimeSeriesSerdes<IteratorGroups> {
               v.timestamp().compare(TimeStampComparator.GT, query.getTime().endTime())) {
             continue;
           }
-            
+          
+          ts = (opts != null && opts.msResolution()) 
+              ? v.timestamp().msEpoch() 
+              : v.timestamp().msEpoch() / 1000;
+          
           if (v.value().isInteger()) {
-            json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
+            json.writeNumberField(Long.toString(ts), 
                 v.value().longValue());
           } else {
-            json.writeNumberField(Long.toString(v.timestamp().msEpoch()), 
+            json.writeNumberField(Long.toString(ts), 
                 v.value().doubleValue());
           }
         }
@@ -110,7 +126,8 @@ public class JsonV2QuerySerdes extends TimeSeriesSerdes<IteratorGroups> {
   }
 
   @Override
-  public IteratorGroups deserialize(InputStream stream) {
+  public IteratorGroups deserialize(final SerdesOptions options,
+                                    final InputStream stream) {
     throw new UnsupportedOperationException("Not implemented for this "
         + "class: " + getClass().getCanonicalName());
   }

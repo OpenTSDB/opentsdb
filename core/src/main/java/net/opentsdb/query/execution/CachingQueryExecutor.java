@@ -223,7 +223,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
             // TODO - run this in another thread pool. Would let us hit cache
             // quicker if someone's firing off the same query.
             final ByteArrayOutputStream output = new ByteArrayOutputStream();
-            serdes.serialize(query, output, results);
+            serdes.serialize(query, null, output, results);
             output.close();
             
             final byte[] data = output.toByteArray();
@@ -333,7 +333,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
                     + downstream, e);
               }
             }
-            callback(serdes.deserialize(new ByteArrayInputStream(cache_data)),
+            callback(serdes.deserialize(null, new ByteArrayInputStream(cache_data)),
                 TsdbTrace.successfulTags());
           }
           return null;

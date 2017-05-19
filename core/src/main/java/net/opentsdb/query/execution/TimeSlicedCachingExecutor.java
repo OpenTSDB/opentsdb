@@ -268,7 +268,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
                 bytes += cache_data[i].length;
                 try {
                   results.set(i, 
-                      serdes.deserialize(new ByteArrayInputStream(cache_data[i])));
+                      serdes.deserialize(null, new ByteArrayInputStream(cache_data[i])));
                 } catch (Exception e) {
                   LOG.warn("Exception deserializing cache object at index: " + i, e);
                   fireDownstream(deferreds, i, i);
@@ -525,7 +525,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
           final long[] expirations = new long[slices.size()];
           for (int i = 0; i < slices.size(); i++) {
             final ByteArrayOutputStream output = new ByteArrayOutputStream();
-            serdes.serialize(query, output, slices.get(i));
+            serdes.serialize(query, null, output, slices.get(i));
             output.close();
             data[i] = output.toByteArray();
             bytes += data[i].length;

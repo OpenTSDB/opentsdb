@@ -290,7 +290,8 @@ public abstract class QueryPlanner<T> {
     // here as a safety.
     intervals += ((snap_end - snap_start) - (intervals * interval)) > 0 ? 1 : 0;
     if (intervals < 0) {
-      throw new IllegalStateException("The query interval is too wide for sharding");
+      throw new IllegalStateException("The query interval is too narrow for "
+          + "sharding: " + intervals);
     }
     
     final TimeStamp[][] ranges;

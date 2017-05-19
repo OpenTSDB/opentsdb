@@ -24,22 +24,25 @@ import net.opentsdb.query.pojo.TimeSeriesQuery;
  * 
  * @since 3.0
  */
-public abstract class TimeSeriesSerdes<T> {
+public interface TimeSeriesSerdes<T> {
 
   /**
    * Writes the given data to the stream.
    * @param query A non-null query.
+   * @param options Options for serialization.
    * @param stream A non-null stream to write to.
    * @param data A non-null data set.
    */
-  public abstract void serialize(final TimeSeriesQuery query,
-                                 final OutputStream stream, 
-                                 final T data);
+  public void serialize(final TimeSeriesQuery query,
+                        final SerdesOptions options,
+                        final OutputStream stream, 
+                        final T data);
   
   /**
    * Parses the given stream into the proper data object.
+   * @param options Options for deserialization.
    * @param stream A non-null stream. May be empty.
    * @return A non-null data object.
    */
-  public abstract T deserialize(final InputStream stream);
+  public T deserialize(final SerdesOptions options, final InputStream stream);
 }

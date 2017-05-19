@@ -24,7 +24,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.exceptions.QueryExecutionExceptionMapper;
 import net.opentsdb.servlet.resources.JMXResource;
-import net.opentsdb.servlet.resources.V2QueryResource;
+import net.opentsdb.servlet.resources.QueryRpc;
 import net.opentsdb.utils.Config;
 
 @ApplicationPath("/")
@@ -63,7 +63,7 @@ public class OpenTSDBApplication extends ResourceConfig {
       servletConfig.getServletContext().setAttribute(ASYNC_TIMEOUT_ATTRIBUTE, 
           asyncTimeout);
 
-      register(V2QueryResource.class);
+      register(QueryRpc.class);
       register(JMXResource.class);
       register(GenericExceptionMapper.class);
       register(new QueryExecutionExceptionMapper(false, 1024));

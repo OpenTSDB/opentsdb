@@ -21,6 +21,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.data.SimpleStringTimeSeriesId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
+import net.opentsdb.query.execution.serdes.SerdesOptions;
 import net.opentsdb.query.execution.serdes.TimeSeriesSerdes;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.utils.Bytes;
@@ -35,11 +36,12 @@ import net.opentsdb.utils.Bytes;
  * TODO - Handle ID serdes outside of this class. Since it's shared by all types.
  * @since 3.0
  */
-public class UglyByteNumericSerdes extends 
+public class UglyByteNumericSerdes implements 
   TimeSeriesSerdes<TimeSeriesIterator<NumericType>> {
 
   @Override
   public void serialize(final TimeSeriesQuery query,
+                        final SerdesOptions options,
                         final OutputStream stream,
                         final TimeSeriesIterator<NumericType> data) {
     if (stream == null) {
@@ -106,7 +108,8 @@ public class UglyByteNumericSerdes extends
   }
 
   @Override
-  public TimeSeriesIterator<NumericType> deserialize(final InputStream stream) {
+  public TimeSeriesIterator<NumericType> deserialize(final SerdesOptions options,
+                                                     final InputStream stream) {
     if (stream == null) {
       throw new IllegalArgumentException("Input stream may not be null.");
     }
