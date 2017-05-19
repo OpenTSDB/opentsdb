@@ -122,6 +122,7 @@ public class DateTime {
             throw new IllegalArgumentException("Invalid absolute date: " 
                 + datetime);
         }
+        // TODO - WTF? Need to fix this. Can't set it statically!
         if (tz != null && !tz.isEmpty())
           setTimeZone(fmt, tz);
         return fmt.parse(datetime).getTime();

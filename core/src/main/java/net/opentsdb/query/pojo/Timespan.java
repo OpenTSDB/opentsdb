@@ -47,9 +47,11 @@ import net.opentsdb.utils.DateTime;
 public class Timespan extends Validatable implements Comparable<Timespan> {
   /** User given start date/time, could be relative or absolute */
   private String start;
+  private TimeStamp start_ts;
   
   /** User given end date/time, could be relative, absolute or empty */
   private String end;
+  private TimeStamp end_ts;
   
   /** User's timezone used for converting absolute human readable dates */
   private String timezone;
@@ -85,6 +87,24 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
     rate = builder.rate;
     rate_options = builder.rateOptions;
     slice_config = builder.sliceConfig;
+    
+    if (builder.start_ts != null) {
+      start_ts = builder.start_ts;
+    } else {
+      start_ts = new MillisecondTimeStamp(
+          DateTime.parseDateTimeString(start, timezone));
+    }
+    
+    if (builder.end_ts != null) {
+      end_ts = builder.end_ts;
+    } else {
+      if (Strings.isNullOrEmpty(end)) {
+        end_ts = new MillisecondTimeStamp(DateTime.currentTimeMillis());
+      } else {
+        end_ts = new MillisecondTimeStamp(
+            DateTime.parseDateTimeString(end, timezone));
+      }
+    }
   }
   
   /** @return user given start date/time, could be relative or absolute */
@@ -132,22 +152,16 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
     return slice_config;
   }
   
-  /** @return Parses the start time and converts it to a {@link TimeStamp}. 
+  /** @return Returns the parsed start time. 
    * @see DateTime#parseDateTimeString(String, String) */
   public TimeStamp startTime() {
-    return new MillisecondTimeStamp(
-        DateTime.parseDateTimeString(start, timezone));
+    return start_ts;
   }
   
-  /** @return Parses the end time and converts it to a {@link TimeStamp} if set.
-   * If the time was not set, uses {@link DateTime#currentTimeMillis()}. 
+  /** @return Returns the parsed end time. 
    * @see DateTime#parseDateTimeString(String, String) */
   public TimeStamp endTime() {
-    if (Strings.isNullOrEmpty(end)) {
-      return new MillisecondTimeStamp(DateTime.currentTimeMillis());
-    }
-    return new MillisecondTimeStamp(
-        DateTime.parseDateTimeString(end, timezone));
+    return end_ts;
   }
   
   @Override
@@ -245,7 +259,7 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
     if (timespan == null) {
       throw new IllegalArgumentException("Timespan cannot be null.");
     }
-    return new Builder()
+    final Builder builder = new Builder()
         .setAggregator(timespan.aggregator)
         .setDownsampler(timespan.downsampler)
         .setEnd(timespan.end)
@@ -254,6 +268,9 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
         .setRateOptions(timespan.rate_options)
         .setSliceConfig(timespan.slice_config)
         .setTimezone(timespan.timezone);
+    builder.start_ts = timespan.start_ts;
+    builder.end_ts = timespan.end_ts;
+    return builder;
   }
 
   /** Validates the timespan
@@ -314,14 +331,19 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
     private RateOptions rateOptions;
     @JsonProperty
     private String sliceConfig;
+    // not publicly serdes'able. Only for copy builders.
+    private TimeStamp start_ts;
+    private TimeStamp end_ts;
     
     public Builder setStart(final String start) {
       this.start = start;
+      start_ts = null;
       return this;
     }
 
     public Builder setEnd(final String end) {
       this.end = end;
+      end_ts = null;
       return this;
     }
 
@@ -367,6 +389,12 @@ public class Timespan extends Validatable implements Comparable<Timespan> {
       return this;
     }
     
+    /**
+     * Compiles and validates the timespan.
+     * @return An instantiated timespan if successful.
+     * @throws IllegalArgumentException if one of the parameters was 
+     * missconfigured.
+     */
     public Timespan build() {
       return new Timespan(this);
     }

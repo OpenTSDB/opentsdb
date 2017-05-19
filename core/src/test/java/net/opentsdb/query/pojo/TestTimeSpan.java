@@ -130,21 +130,19 @@ public class TestTimeSpan {
         .build();
     assertEquals(1486017001000L, timespan.startTime().msEpoch());
     
-    timespan = Timespan.newBuilder()
+    try {
+      Timespan.newBuilder()
         .setStart("not a real time")
         .setTimezone("UTC")
         .build();
-    try {
-      timespan.startTime();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    timespan = Timespan.newBuilder()
+    try {
+      Timespan.newBuilder()
         .setStart("2017/02/02 06:30:01")
         .setTimezone("unknown tz")
         .build();
-    try {
-      timespan.startTime();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -163,21 +161,19 @@ public class TestTimeSpan {
         .build();
     assertEquals(1486017001000L, timespan.endTime().msEpoch());
     
-    timespan = Timespan.newBuilder()
+    try {
+      Timespan.newBuilder()
         .setEnd("not a real time")
         .setTimezone("UTC")
         .build();
-    try {
-      timespan.endTime();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    timespan = Timespan.newBuilder()
+    try {
+      Timespan.newBuilder()
         .setEnd("2017/02/02 06:30:01")
         .setTimezone("unknown tz")
         .build();
-    try {
-      timespan.endTime();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -232,7 +228,12 @@ public class TestTimeSpan {
             .setInterval(30000))
         .setSliceConfig("50%")
         .build();
-    final Timespan clone = Timespan.newBuilder(timespan).build();
+    
+    // capture
+    long start = timespan.startTime().msEpoch();
+    long end = timespan.endTime().msEpoch();
+    
+    Timespan clone = Timespan.newBuilder(timespan).build();
     assertNotSame(clone, timespan);
     assertEquals("1h-ago", clone.getStart());
     assertEquals("1m-ago", clone.getEnd());
@@ -242,6 +243,24 @@ public class TestTimeSpan {
     assertTrue(clone.isRate());
     assertEquals(30000, clone.getRateOptions().getInterval());
     assertEquals("50%", clone.getSliceConfig());
+    assertEquals(start, clone.startTime().msEpoch());
+    assertEquals(end, clone.endTime().msEpoch());
+    
+    // override end time
+    clone = Timespan.newBuilder(timespan)
+        .setEnd("30m-ago")
+        .build();
+    assertNotSame(clone, timespan);
+    assertEquals("1h-ago", clone.getStart());
+    assertEquals("30m-ago", clone.getEnd());
+    assertEquals("sum", clone.getAggregator());
+    assertEquals("UTC", clone.getTimezone());
+    assertEquals("1h", clone.getDownsampler().getInterval());
+    assertTrue(clone.isRate());
+    assertEquals(30000, clone.getRateOptions().getInterval());
+    assertEquals("50%", clone.getSliceConfig());
+    assertEquals(start, clone.startTime().msEpoch());
+    assertNotEquals(end, clone.endTime().msEpoch());
   }
   
   @Test
