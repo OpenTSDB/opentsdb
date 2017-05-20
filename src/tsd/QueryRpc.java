@@ -571,22 +571,27 @@ final class QueryRpc implements HttpRpc {
   public static TSQuery parseQuery(final TSDB tsdb, final HttpQuery query,
       final List<ExpressionTree> expressions) {
     final TSQuery data_query = new TSQuery();
-    
+    final disableAnnotations = tsdb.getConfig().getString("tsd.core.enable_annotations").equals("false");
     data_query.setStart(query.getRequiredQueryStringParam("start"));
     data_query.setEnd(query.getQueryStringParam("end"));
     
     if (query.hasQueryStringParam("padding")) {
       data_query.setPadding(true);
     }
-    
-    if (query.hasQueryStringParam("no_annotations")) {
+
+    if (disableAnnotations) {
       data_query.setNoAnnotations(true);
+      data_query.setGlobalAnnotations(false);
+    } else {
+      if (query.hasQueryStringParam("no_annotations") || disableAnnotations) {
+        data_query.setNoAnnotations(true);
+      }
+
+      if (query.hasQueryStringParam("global_annotations") || disableAnnotations) {
+        data_query.setGlobalAnnotations(true);
+      }
     }
-    
-    if (query.hasQueryStringParam("global_annotations")) {
-      data_query.setGlobalAnnotations(true);
-    }
-    
+
     if (query.hasQueryStringParam("show_tsuids")) {
       data_query.setShowTSUIDs(true);
     }
