@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
@@ -986,4 +987,60 @@ public final class Internal {
 
     return true;
   }
+
+  /**
+   * Get timestamp from base time and quantifier for non datapoints. The returned time
+   * will always be in ms.
+   * @param base_time the base time of the point
+   * @param quantifier the quantifier of the point, it is expected to be either length of
+   *                   3 or length of 5 (the first byte represents the type of the point)
+   * @return The timestamp in ms
+   */
+  public static long getTimeStampFromNonDP(final long base_time, byte[] quantifier) {
+    long ret = base_time;
+    if (quantifier.length == 3) {
+      ret += quantifier[1] << 8 | (quantifier[2] & 0xFF);
+      ret *= 1000;
+    } else if (quantifier.length == 5) {
+      ret *= 1000;
+      ret += (quantifier[1] & 0xFF) << 24 | (quantifier[2] & 0xFF) << 16
+              | (quantifier[3] & 0xFF) << 8 | quantifier[4] & 0xFF;
+    } else {
+      throw new IllegalArgumentException("Quantifier is not valid: " + Bytes.pretty(quantifier));
+    }
+
+    return ret;
+
+  }
+
+  /**
+   * Decode the histogram point from the given key value
+   * @param kv the key value that contains a histogram
+   * @param config config object of TSDB, will use {@code "tsd.core.hist_decoder"}
+   *               to get the decoder
+   * @return the decoded {@code HistogramDataPoint}
+     */
+  public static HistogramDataPoint decodeHistogramDataPoint(final KeyValue kv, final Config config) {
+    long timestamp = Internal.baseTime(kv.key());
+    return decodeHistogramDataPoint(timestamp, kv.qualifier(), kv.value(), config);
+  }
+
+  /**
+   * Decode the histogram point from the given key and values
+   * @param base_time the base time of the histogram
+   * @param qualifier the qualifier used to store the histogram
+   * @param value the encoded value of the histogram
+   * @param config config object of TSDB, will use {@code "tsd.core.hist_decoder"}
+   *               to get the decoder
+   * @return the decoded {@code HistogramDataPoint}
+   */
+  public static HistogramDataPoint decodeHistogramDataPoint(final long base_time, final byte[] qualifier,
+                                                            final byte[] value, final Config config) {
+    final String decoder_name = config.hist_decoder_name();
+    final HistogramDataPointDecoder decoder =
+            HistogramDataPointDecoderManager.getDecoder(decoder_name);
+    long timestamp = getTimeStampFromNonDP(base_time, qualifier);
+    return decoder.decode(value, timestamp);
+  }
+
 }
