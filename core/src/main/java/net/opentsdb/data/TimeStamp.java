@@ -12,9 +12,14 @@
 // see <http://www.gnu.org/licenses/>.package net.opentsdb.data;
 package net.opentsdb.data;
 
+import java.time.temporal.ChronoUnit;
+
 /**
  * Provides common methods for interacting with timestamps. Implementations can
  * provide as high or low resolution as desired.
+ * <p>
+ * The {@link #units()} describes what resolution this timestamps is encoded at.
+ * Possible values range from {@link ChronoUnit#SECONDS} to {@link ChronoUnit#NANOS}.
  * 
  * @since 3.0
  */
@@ -97,4 +102,10 @@ public interface TimeStamp {
    * timestamps value.
    */
   public void setMax();
+  
+  /** @return The base units of time this timestamp was encoded with. */
+  public ChronoUnit units();
+  
+  /** @return The raw timestamp in {@link #units()}. */
+  public long timestamp();
 }

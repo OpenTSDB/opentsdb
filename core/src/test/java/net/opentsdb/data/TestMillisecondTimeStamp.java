@@ -18,6 +18,8 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.time.temporal.ChronoUnit;
+
 import org.junit.Test;
 
 import net.opentsdb.data.TimeStamp.TimeStampComparator;
@@ -29,10 +31,12 @@ public class TestMillisecondTimeStamp {
     TimeStamp ts = new MillisecondTimeStamp(1000);
     assertEquals(1000, ts.msEpoch());
     assertEquals(1, ts.epoch());
+    assertEquals(ChronoUnit.MILLIS, ts.units());
     
     ts = new MillisecondTimeStamp(-1000);
     assertEquals(-1000, ts.msEpoch());
     assertEquals(-1, ts.epoch());
+    assertEquals(ChronoUnit.MILLIS, ts.units());
   }
   
   @Test
@@ -95,6 +99,7 @@ public class TestMillisecondTimeStamp {
   
   @Test
   public void setMax() throws Exception {
+    
     TimeStamp ts = new MillisecondTimeStamp(1000);
     assertEquals(1000, ts.msEpoch());
     assertEquals(1, ts.epoch());

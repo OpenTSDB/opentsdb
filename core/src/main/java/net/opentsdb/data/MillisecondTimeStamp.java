@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.data;
 
+import java.time.temporal.ChronoUnit;
+
 /**
  * Simple implementation of a timestamp that is stored as a {@link Long} in
  * millisecond Unix Epoch.
@@ -103,4 +105,15 @@ public class MillisecondTimeStamp  implements TimeStamp {
   public String toString() {
     return Long.toString(timestamp);
   }
+
+  @Override
+  public ChronoUnit units() {
+    return ChronoUnit.MILLIS;
+  }
+
+  @Override
+  public long timestamp() {
+    return timestamp;
+  }
+  
 }
