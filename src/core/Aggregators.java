@@ -39,6 +39,10 @@ public final class Aggregators {
     MIN     /* Returns the <type>.MinValue when a data point is missing */
   }
   
+  /** Returns the number of data points stored in the series or range.  */
+  public static final Aggregator COUNT = new Count(
+      Interpolation.ZIM, "count");
+  
   /** Aggregator that sums up all the data points. */
   public static final Aggregator SUM = new Sum(
       Interpolation.LERP, "sum");
@@ -150,7 +154,8 @@ public final class Aggregators {
       new PercentileAgg(50d, "ep50r7", EstimationType.R_7);
 
   static {
-    aggregators = new HashMap<String, Aggregator>(8);
+    aggregators = new HashMap<String, Aggregator>(9);
+    aggregators.put("count", COUNT);
     aggregators.put("sum", SUM);
     aggregators.put("min", MIN);
     aggregators.put("max", MAX);
@@ -198,6 +203,83 @@ public final class Aggregators {
       return agg;
     }
     throw new NoSuchElementException("No such aggregator: " + name);
+  }
+  
+ private static final class Percentile implements Aggregator {
+	    private final Interpolation method;
+	    private final String name;
+	    private DescriptiveStatistics stats;
+	    
+	    public Percentile(final Interpolation method, final String name) {
+	      this.method = method;
+	      this.name = name;
+	      this.stats = new DescriptiveStatistics();
+	    }
+	    
+	    public long runLong(final Longs values) {
+	    	
+	      while (values.hasNextValue()) {
+	        stats.addValue(values.nextLongValue());
+	      }
+	      return (long) stats.getPercentile(50);
+	    }
+
+	    public double runDouble(final Doubles values) {
+
+	      while (values.hasNextValue()) {
+		        stats.addValue(values.nextDoubleValue());
+		      }
+		  return (long) stats.getPercentile(50);
+
+	    }
+
+	    public String toString() {
+	      return name;
+	    }
+
+		@Override
+		public Interpolation interpolationMethod() {
+			return method;
+		}
+
+	    
+	  }
+  
+    private static final class Count implements Aggregator {
+    private final Interpolation method;
+    private final String name;
+    
+    public Count(final Interpolation method, final String name) {
+      this.method = method;
+      this.name = name;
+    }
+    
+    public long runLong(final Longs values) {
+      long result = 1;
+      while (values.hasNextValue()) {
+        values.nextLongValue();
+        result ++;
+      }
+      return result;
+    }
+
+    public double runDouble(final Doubles values) {
+      double result = 1;
+      while (values.hasNextValue()) {
+        values.nextDoubleValue();
+        result ++;
+      }
+      return result;
+    }
+
+    public String toString() {
+      return name;
+    }
+
+    public Interpolation interpolationMethod() {
+      return method;
+    }
+    
   }
 
 
