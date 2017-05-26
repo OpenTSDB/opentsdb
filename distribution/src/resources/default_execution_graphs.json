@@ -1,5 +1,5 @@
-{
-  "id": "default_executor_context",
+[{
+  "id": null,
   "nodes": [{
     "executorId": "LocalCache",
     "dataType": "timeseries",
@@ -9,8 +9,7 @@
       "executorId": "LocalCache",
       "executorType": "TimeSlicedCachingExecutor",
       "plannerId": "IteratorGroupsSlicePlanner",
-      "expiration": 60000,
-      "maxExpiration": 86400000
+      "expiration": 60000
     }
   }, {
     "executorId": "http",
@@ -24,4 +23,4 @@
       "timeout": 60000
     }
   }]
-}
+}]

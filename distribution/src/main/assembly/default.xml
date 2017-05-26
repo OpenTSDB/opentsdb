@@ -4,6 +4,8 @@
   
   <id>binary-release</id>
   
+  <baseDirectory>opentsdb</baseDirectory>
+  
   <formats>
     <format>tar.gz</format>
     <format>dir</format>
@@ -57,7 +59,7 @@
       <outputDirectory>conf</outputDirectory>
     </file>
     <file>
-      <source>src/resources/default_execution_graph.json</source>
+      <source>src/resources/default_execution_graphs.json</source>
       <fileMode>0755</fileMode>
       <outputDirectory>conf</outputDirectory>
     </file>

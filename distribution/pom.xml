@@ -45,27 +45,78 @@
     </dependencies>
   
     <build>
-    <plugins>
-      <plugin>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <executions>
-            <execution>
-                <id>distro-assembly</id>
-                <phase>package</phase>
-                <goals>
-                    <goal>single</goal>
-                </goals>
-                <configuration>
-                    <descriptors>
-                        <descriptor>src/main/assembly/default.xml</descriptor>
-                    </descriptors>
-                    <appendAssemblyId>false</appendAssemblyId>
-                    <finalName>opentsdb-${project.version}</finalName>
-                    <tarLongFileMode>gnu</tarLongFileMode>
-                </configuration>
-            </execution>
-        </executions>
-    </plugin>
-    </plugins>
+      <plugins>
+        <plugin>
+          <artifactId>maven-assembly-plugin</artifactId>
+          <executions>
+              <execution>
+                  <id>distro-assembly</id>
+                  <phase>package</phase>
+                  <goals>
+                      <goal>single</goal>
+                  </goals>
+                  <configuration>
+                      <descriptors>
+                          <descriptor>src/main/assembly/default.xml</descriptor>
+                      </descriptors>
+                      <appendAssemblyId>false</appendAssemblyId>
+                      <finalName>opentsdb-${project.version}</finalName>
+                      <tarLongFileMode>gnu</tarLongFileMode>
+                  </configuration>
+              </execution>
+          </executions>
+        </plugin>
+      </plugins>
     </build>
+    
+    <profiles>
+      <!-- Build a docker image -->
+      <profile>
+        <id>docker</id>
+        <build>
+          <plugins>
+            <plugin>
+              <groupId>com.spotify</groupId>
+              <artifactId>docker-maven-plugin</artifactId>
+              <version>0.4.14</version>
+              
+              <configuration>
+                <dockerDirectory>${basedir}/src/resources/docker</dockerDirectory>
+                <imageName>opentsdb</imageName>
+                <imageTags>
+                  <imageTag>${project.version}</imageTag>
+                  <imageTag>latest</imageTag>
+                </imageTags>
+                <buildArgs>
+                  <projectVersion>${project.version}</projectVersion>
+                </buildArgs>
+                <!-- copies files to the target/docker directory so the Dockerfile can find them. -->
+                <resources>
+                 <resource>
+                   <targetPath>/</targetPath>
+                   <directory>${project.build.directory}</directory>
+                   <include>opentsdb-${project.version}.tar.gz</include>
+                 </resource>
+                 <resource>
+                   <targetPath>/</targetPath>
+                   <directory>${basedir}/src/resources/docker</directory>
+                   <include>*.*</include>
+                 </resource>
+                </resources>
+              </configuration>
+              
+              <executions>
+                <execution>
+                  <id>build-image</id>
+                  <phase>package</phase>
+                  <goals>
+                    <goal>build</goal>
+                  </goals>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+        </build>
+      </profile>
+    </profiles>
 </project>

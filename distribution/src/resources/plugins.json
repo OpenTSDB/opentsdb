@@ -1,9 +1,12 @@
 {
-  "configs": [{
+  "configs": [
+  {
+    "type": "net.opentsdb.query.execution.QueryExecutorFactory"
+  },{
     "plugin": "net.opentsdb.stats.BraveTracer",
     "default": true,
     "type": "net.opentsdb.stats.TsdbTracer"
   }],
   "pluginLocations": [],
-  "continueOnError": false
+  "continueOnError": true
 }
