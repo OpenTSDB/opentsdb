@@ -145,4 +145,22 @@ public abstract class RTPublisher {
    */
   public abstract Deferred<Object> publishAnnotation(Annotation annotation);
   
+  /**
+   * Called any time a new histogram point is published
+   * @param metric The name of the metric associated with the data point
+   * @param timestamp Timestamp as a Unix epoch in seconds or milliseconds
+   * (depending on the TSD's configuration)
+   * @param value Encoded raw data blob for the histogram point
+   * @param tags Tagk/v pairs
+   * @param tsuid Time series UID for the value
+   * @return A deferred without special meaning to wait on if necessary. The
+   * value may be null but a Deferred must be returned.
+   */
+  public Deferred<Object> publishHistogramPoint(final String metric,
+                                                   final long timestamp, final byte[] value,
+                                                   final Map<String, String> tags,
+                                                   final byte[] tsuid) {
+    throw new UnsupportedOperationException("Not yet implemented");
+  }
+  
 }

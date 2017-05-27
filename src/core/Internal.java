@@ -989,6 +989,42 @@ public final class Internal {
   }
 
   /**
+   * Calculates and returns the column qualifier. The qualifier is the offset
+   * of the {@code #timestamp} from the row key's base time stamp in seconds
+   * with a prefix of {@code #PREFIX}. Thus if the offset is 0 and the prefix is
+   * 1 and the timestamp is in seconds, the qualifier would be [1, 0, 0].
+   * Millisecond timestamps will have a 5 byte qualifier.
+   * @param timestamp The base timestamp.
+   * @param prefix The prefix to set at the start of the array.
+   * @return The column qualifier as a byte array
+   * @throws IllegalArgumentException if the start_time has not been set
+   * @since 2.4
+   */
+  public static byte[] getQualifier(final long timestamp, final byte prefix) {
+    if (timestamp < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
+    }
+
+    final long base_time;
+    final byte[] qualifier;
+    if ((timestamp & Const.SECOND_MASK) != 0) {
+      // drop the ms timestamp to seconds to calculate the base timestamp
+      base_time = ((timestamp / 1000) -
+              ((timestamp / 1000) % Const.MAX_TIMESPAN));
+      qualifier = new byte[5];
+      final int offset = (int) (timestamp - (base_time * 1000));
+      System.arraycopy(Bytes.fromInt(offset), 0, qualifier, 1, 4);
+    } else {
+      base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+      qualifier = new byte[3];
+      final short offset = (short) (timestamp - base_time);
+      System.arraycopy(Bytes.fromShort(offset), 0, qualifier, 1, 2);
+    }
+    qualifier[0] = prefix;
+    return qualifier;
+  }
+  
+  /**
    * Get timestamp from base time and quantifier for non datapoints. The returned time
    * will always be in ms.
    * @param base_time the base time of the point
