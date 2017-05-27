@@ -371,16 +371,23 @@ public class BaseTsdbTest {
    * @param tags A non-null list of tag key/value pairs as UIDs.
    * @return A row key to check mock storage for.
    */
-  protected byte[] getRowKey(final byte[] metric, final int base_time, 
-      final byte[] tags) {
+  public static byte[] getRowKey(final byte[] metric, final int base_time, 
+      final byte[]... tags) {
+    int tags_length = 0;
+    for (final byte[] tag : tags) {
+      tags_length += tag.length;
+    }
     final byte[] key = new byte[Const.SALT_WIDTH() + metric.length + 
-                                Const.TIMESTAMP_BYTES + tags.length];
+                                Const.TIMESTAMP_BYTES + tags_length];
     
     System.arraycopy(metric, 0, key, Const.SALT_WIDTH(), metric.length);
     System.arraycopy(Bytes.fromInt(base_time), 0, key, 
         Const.SALT_WIDTH() + metric.length, Const.TIMESTAMP_BYTES);
-    System.arraycopy(tags, 0, key, Const.SALT_WIDTH() + metric.length + 
-        Const.TIMESTAMP_BYTES, tags.length);
+    int offset = Const.SALT_WIDTH() + metric.length + Const.TIMESTAMP_BYTES;
+    for (final byte[] tag : tags) {
+      System.arraycopy(tag, 0, key, offset, tag.length);
+      offset += tag.length;
+    }
     RowKey.prefixKeyWithSalt(key);
     return key;
   }
@@ -444,6 +451,133 @@ public class BaseTsdbTest {
     
     RowKey.prefixKeyWithSalt(key);
     return key;
+  }
+  
+  /**
+   * Generates a TSUID given the metric and tag UIDs.
+   * @param metric A metric UID.
+   * @param tags A set of UIDs
+   * @return A TSUID byte array
+   */
+  public static byte[] getTSUID(final byte[] metric, final byte[]... tags) {
+    int tags_length = 0;
+    for (final byte[] tag : tags) {
+      tags_length += tag.length;
+    }
+    final byte[] tsuid = new byte[metric.length + tags_length];
+    System.arraycopy(metric, 0, tsuid, 0, metric.length);
+    int offset = metric.length;
+    for (final byte[] tag : tags) {
+      System.arraycopy(tag, 0, tsuid, offset, tag.length);
+      offset += tag.length;
+    }
+    RowKey.prefixKeyWithSalt(tsuid);
+    return tsuid;
+  }
+  
+  /**
+   * Generates a UID of the proper length given a type and ID. 
+   * @param type The type of UID.
+   * @param id The ID to set (just tweaks the last byte)
+   * @return A Unique ID of the proper width.
+   */
+  public static byte[] generateUID(final UniqueIdType type, byte id) {
+    final byte[] uid;
+    switch (type) {
+    case METRIC:
+      uid = new byte[TSDB.metrics_width()];
+      break;
+    case TAGK:
+      uid = new byte[TSDB.tagk_width()];
+      break;
+    case TAGV:
+      uid = new byte[TSDB.tagv_width()];
+      break;
+    default:
+      throw new IllegalArgumentException("Yo! You have to mock out " + type + "!");
+    }
+    uid[uid.length - 1] = id;
+    return uid;
+  }
+  
+  /**
+   * Generates a UID of the proper length given a type and ID. 
+   * @param type The type of UID.
+   * @param id The ID to set (just tweaks the last byte)
+   * @return A Unique ID of the proper width.
+   */
+  public static String generateUIDString(final UniqueIdType type, byte id) {
+    return UniqueId.uidToString(generateUID(type, id));
+  }
+  
+  /**
+   * Generates a TSUID given the metric and tag UIDs.
+   * @param metric A metric UID.
+   * @param tags A set of UIDs
+   * @return A TSUID as a hex string
+   */
+  public static String getTSUIDString(final byte[] metric, final byte[]... tags) {
+    return UniqueId.uidToString(getTSUID(metric, tags));
+  }
+  
+  /**
+   * Generates a TSUID given the mocked UID strings.
+   * @param metric A mocked metric name.
+   * @param tags A set of mocked tag key and values.
+   * @return A TSUID byte array
+   */
+  protected byte[] getTSUID(final String metric, final String... tags) {
+    final int m = TSDB.metrics_width();
+    final int tk = TSDB.tagk_width();
+    final int tv = TSDB.tagv_width();
+    
+    final byte[] tsuid = new byte[m + (tags.length / 2) * tk + (tags.length / 2) * tv];
+    byte[] uid = uid_map.get(metric);
+    
+    // metrics first
+    if (uid != null) {
+      System.arraycopy(uid, 0, tsuid, 0, m);
+    } else {
+      throw new IllegalArgumentException("No METRIC UID was mocked for: " + metric);
+    }
+    
+    int ctr = 0;
+    int offset = 0;
+    for (final String tag : tags) {
+      uid = uid_map.get(tag);
+      
+      if (ctr % 2 == 0) {
+        // TAGK
+        if (uid != null) {
+          System.arraycopy(uid, 0, tsuid, m + offset, tk);
+        } else {
+          throw new IllegalArgumentException("No TAGK UID was mocked for: " + tag);
+        }
+        offset += tk;
+      } else {
+        // TAGV
+        if (uid != null) {
+          System.arraycopy(uid, 0, tsuid, m + offset, tv);
+        } else {
+          throw new IllegalArgumentException("No TAGK UID was mocked for: " + tag);
+        }
+        offset += tv;
+      }
+      
+      ctr++;
+    }
+    
+    return tsuid;
+  }
+  
+  /**
+   * Generates a TSUID given the mocked UID strings.
+   * @param metric A mocked metric name.
+   * @param tags A set of mocked tag key and values.
+   * @return A TSUID hex string.
+   */
+  protected String getTSUIDString(final String metric, final String... tags) {
+    return UniqueId.uidToString(getTSUID(metric, tags));
   }
   
   protected void setDataPointStorage() throws Exception {
