@@ -592,7 +592,17 @@ final class SpanGroup implements DataPoints {
   public int getQueryIndex() {
     return query_index;
   }
+  
+  @Override
+  public boolean isPercentile() {
+    return false;
+  }
 
+  @Override
+  public float getPercentile() {
+    throw new UnsupportedOperationException("getPercentile not supported");
+  }
+  
   /**
    * Resolves the set of tag keys to their string names.
    * @param tagks The set of unique tag names

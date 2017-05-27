@@ -461,6 +461,16 @@ public final class RollupSeq implements iRowSeq {
     return new RollupIterator();
   }
   
+  @Override
+  public boolean isPercentile() {
+    return false;
+  }
+
+  @Override
+  public float getPercentile() {
+    throw new UnsupportedOperationException("getPercentile not supported");
+  }
+  
   /** Iterator for {@link RowSeq}s.  */
   public final class RollupIterator implements iRowSeq.Iterator {
 

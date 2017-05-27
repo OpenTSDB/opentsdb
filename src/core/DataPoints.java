@@ -218,4 +218,21 @@ public interface DataPoints extends Iterable<DataPoint> {
    * @since 2.2
    */
   int getQueryIndex();
+  
+  /**
+   * Return whether these data points are the result of the percentile calculation 
+   * on the histogram data points. The client can call {@code getPercentile} to get
+   * the percentile calculation parameter.
+   * 
+   * @return true or false
+   */
+  boolean isPercentile();
+  
+  /**
+   * Return the percentile calculation parameter. This interface and {@code isPercentile} are used 
+   * to convert {@code HistogramDataPoints} to {@code DataPoints}
+   * 
+   * @return the percentile parameter
+   */
+  float getPercentile();
 }

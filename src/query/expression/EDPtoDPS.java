@@ -212,6 +212,16 @@ public class EDPtoDPS implements DataPoints {
     return 0;
   }
   
+  @Override
+  public boolean isPercentile() {
+    return false;
+  }
+
+  @Override
+  public float getPercentile() {
+    throw new UnsupportedOperationException("getPercentile not supported");
+  }
+  
   /**
    * Simple class that fills the local data point while iterating through the 
    * expression data points at the proper index.

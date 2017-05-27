@@ -604,4 +604,14 @@ final class IncomingDataPoints implements WritableDataPoints {
   public int getQueryIndex() {
     throw new UnsupportedOperationException("Not mapped to a query");
   }
+
+  @Override
+  public boolean isPercentile() {
+    return false;
+  }
+
+  @Override
+  public float getPercentile() {
+    throw new UnsupportedOperationException("getPercentile not supported");
+  }
 }
