@@ -713,7 +713,8 @@ public final class MockBase {
           row.remove(k);
         }
         final KeyValue compacted =
-            Whitebox.invokeMethod(tsdb, "compact", kvs, Collections.EMPTY_LIST);
+            Whitebox.invokeMethod(tsdb, "compact", kvs, Collections.EMPTY_LIST,
+                Collections.EMPTY_LIST);
         final TreeMap<Long, byte[]> compacted_value = new TreeMap<Long, byte[]>();
         compacted_value.put(current_timestamp++, compacted.value());
         row.put(compacted.qualifier(), compacted_value);

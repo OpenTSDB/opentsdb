@@ -2067,8 +2067,9 @@ public final class TSDB {
   // ------------------ //
 
   final KeyValue compact(final ArrayList<KeyValue> row,
-      List<Annotation> annotations) {
-    return compactionq.compact(row, annotations);
+      List<Annotation> annotations,
+      List<HistogramDataPoint> histograms) {
+    return compactionq.compact(row, annotations, histograms);
   }
 
   /**

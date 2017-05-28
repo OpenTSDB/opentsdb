@@ -123,7 +123,7 @@ public final class TestCompactionQueue {
 	    kvs.add(makekvWithTs(qual3, ts3, val3));
 
 	    when(tsdb.getConfig().getBoolean("tsd.storage.use_otsdb_timestamp")).thenReturn(true);
-	    final KeyValue kv = compactionq.compact(kvs, annotations);
+	    final KeyValue kv = compactionq.compact(kvs, annotations, null);
 	    assertArrayEquals(MockBase.concatByteArrays(qual1, qual2, qual3), kv.qualifier());
 	    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, ZERO), kv.value());
 	    assert(kv.timestamp() == Math.max(ts1, Math.max(ts2, ts3)));
@@ -133,7 +133,7 @@ public final class TestCompactionQueue {
   public void emptyRow() throws Exception {
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(0);
     ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertNull(kv);
 
     // We had nothing to do so...
@@ -150,7 +150,7 @@ public final class TestCompactionQueue {
     final byte[] qual = { 0x00, 0x07 };
     final byte[] val = Bytes.fromLong(42L);
     kvs.add(makekv(qual, val));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(qual, kv.qualifier());
     assertArrayEquals(val, kv.value());
 
@@ -169,7 +169,7 @@ public final class TestCompactionQueue {
     final byte[] val = Bytes.fromLong(42L);
     kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER,
         MockBase.concatByteArrays(qual, val)));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(qual, kv.qualifier());
     assertArrayEquals(val, kv.value());
 
@@ -188,7 +188,7 @@ public final class TestCompactionQueue {
     final byte[] qual = { 0x00, 0x07 };
     final byte[] val = Bytes.fromLong(42L);
     kvs.add(makekv(qual, val));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(qual, kv.qualifier());
     assertArrayEquals(val, kv.value());
     assertEquals(1, annotations.size());
@@ -209,7 +209,7 @@ public final class TestCompactionQueue {
     final byte[] val = Bytes.fromLong(42L);
     kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER,
         MockBase.concatByteArrays(qual, val)));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(qual, kv.qualifier());
     assertArrayEquals(val, kv.value());
     assertEquals(1, annotations.size());
@@ -229,7 +229,7 @@ public final class TestCompactionQueue {
     final byte[] qual = { 0x00, 0x07 };
     final byte[] val = Bytes.fromLong(42L);
     kvs.add(makekv(qual, val));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(qual, kv.qualifier());
     assertArrayEquals(val, kv.value());
     assertEquals(1, annotations.size());
@@ -249,7 +249,7 @@ public final class TestCompactionQueue {
     final byte[] cqual = { 0x00, 0x07 };
     byte[] val = Bytes.fromLong(42L);
     kvs.add(makekv(qual, val));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(cqual, kv.qualifier());
     assertArrayEquals(val, kv.value());
 
@@ -266,7 +266,7 @@ public final class TestCompactionQueue {
     final byte[] qual = { (byte) 0xF0, 0x00, 0x00, 0x07 };
     byte[] val = Bytes.fromLong(42L);
     kvs.add(makekv(qual, val));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(qual, kv.qualifier());
     assertArrayEquals(val, kv.value());
 
@@ -288,7 +288,7 @@ public final class TestCompactionQueue {
     final byte[] val2 = Bytes.fromLong(5L);
     kvs.add(makekv(qual2, val2));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual1, qual2), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val1, val2, ZERO), kv.value());
 
@@ -309,7 +309,7 @@ public final class TestCompactionQueue {
     final byte[] val2 = Bytes.fromLong(5L);
     kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER,
         MockBase.concatByteArrays(qual, val, qual2, val2)));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual, qual2), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val, val2, ZERO), kv.value());
 
@@ -332,7 +332,7 @@ public final class TestCompactionQueue {
     final byte[] val2 = Bytes.fromLong(5L);
     kvs.add(makekv(qual2, val2));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual1, qual2), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val1, val2, ZERO), kv.value());
     assertEquals(1, annotations.size());
@@ -355,7 +355,7 @@ public final class TestCompactionQueue {
     final byte[] val2 = Bytes.fromLong(5L);
     kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER,
         MockBase.concatByteArrays(qual, val, qual2, val2)));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual, qual2), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val, val2, ZERO), kv.value());
     assertEquals(1, annotations.size());
@@ -383,7 +383,7 @@ public final class TestCompactionQueue {
       values = MockBase.concatByteArrays(values, Bytes.fromLong(i));
     }
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qualifiers), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(values, ZERO), kv.value());
 
@@ -409,7 +409,7 @@ public final class TestCompactionQueue {
       values = MockBase.concatByteArrays(values, Bytes.fromLong(i));
       i += 100;
     }
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qualifiers), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(values, ZERO), kv.value());
 
@@ -431,7 +431,7 @@ public final class TestCompactionQueue {
     final byte[] val2 = Bytes.fromLong(5L);
     kvs.add(makekv(qual2, val2));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual1, qual2), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val1, val2, ZERO), kv.value());
 
@@ -456,7 +456,7 @@ public final class TestCompactionQueue {
     final byte[] val3 = Bytes.fromLong(5L);
     kvs.add(makekv(qual3, val3));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual1, qual3, qual2),
         kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val1, val3, val2,
@@ -484,7 +484,7 @@ public final class TestCompactionQueue {
     final byte[] val3 = Bytes.fromLong(6L);
     kvs.add(makekv(qual3, val3));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual2, qual3, qual1),
         kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val2, val3, val1, ZERO),
@@ -514,7 +514,7 @@ public final class TestCompactionQueue {
     final byte[] val3 = Bytes.fromLong(6L);
     kvs.add(makekv(qual3, val3));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual2, qual3, qual1),
         kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val2, val3, val1, ZERO),
@@ -538,7 +538,7 @@ public final class TestCompactionQueue {
     final byte[] val2 = Bytes.fromLong(5L);
     kvs.add(makekv(qual2, val2));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual1, qual2), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 1 }),
         kv.value());
@@ -562,7 +562,7 @@ public final class TestCompactionQueue {
     final byte[] val2 = Bytes.fromLong(5L);
     kvs.add(makekv(qual2, val2));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual1, qual2), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 1 }),
         kv.value());
@@ -587,7 +587,7 @@ public final class TestCompactionQueue {
     final byte[] val2 = Bytes.fromLong(5L);
     kvs.add(makekv(qual2, val2));
 
-    compactionq.compact(kvs, annotations);
+    compactionq.compact(kvs, annotations, null);
   }
 
   @Test
@@ -601,7 +601,7 @@ public final class TestCompactionQueue {
     final byte[] val2 = Bytes.fromLong(5L);
     kvs.add(makekv(qual2, val2));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(qual2, kv.qualifier());
     assertArrayEquals(val2, kv.value());
 
@@ -625,7 +625,7 @@ public final class TestCompactionQueue {
     final byte[] val2 = Bytes.fromLong(5L);
     kvs.add(makekv(qual2, val2));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(cqual1, qual2), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val1, val2, ZERO), kv.value());
 
@@ -652,7 +652,7 @@ public final class TestCompactionQueue {
     final byte[] cval2 = Bytes.fromInt(Float.floatToRawIntBits(4.2F));
     kvs.add(makekv(qual2, val2));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual1, qual2), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val1, cval2, ZERO), kv.value());
 
@@ -676,7 +676,7 @@ public final class TestCompactionQueue {
     final byte[] val2 = Bytes.fromInt(4);
     kvs.add(makekv(qual2, val2));
 
-    compactionq.compact(kvs, annotations);
+    compactionq.compact(kvs, annotations, null);
   }
 
   @Test
@@ -691,7 +691,7 @@ public final class TestCompactionQueue {
     final byte[] val2 = Bytes.fromInt(4);
     kvs.add(makekv(qual2, val2));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(qual2, kv.qualifier());
     assertArrayEquals(val2, kv.value());
 
@@ -718,7 +718,7 @@ public final class TestCompactionQueue {
     final byte[] valcompact = MockBase.concatByteArrays(val1, val2, ZERO);
     kvs.add(makekv(qualcompact, valcompact));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(qualcompact, kv.qualifier());
     assertArrayEquals(valcompact, kv.value());
 
@@ -734,7 +734,7 @@ public final class TestCompactionQueue {
     ArrayList<Annotation> annotations = new ArrayList<Annotation>(1);
     kvs.add(makekv(note_qual, note));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertNull(kv);
     assertEquals(1, annotations.size());
 
@@ -753,7 +753,7 @@ public final class TestCompactionQueue {
     kvs.add(makekv(note_qual, note));
     kvs.add(makekv(new byte[] { 1, 0, 1 }, note));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertNull(kv);
     assertEquals(2, annotations.size());
 
@@ -782,7 +782,7 @@ public final class TestCompactionQueue {
     final byte[] val3 = Bytes.fromLong(6L);
     kvs.add(makekv(qual3, val3));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual1, qual3, qual2),
         kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val1, val3, val2, ZERO),
@@ -815,7 +815,7 @@ public final class TestCompactionQueue {
     final byte[] val3 = Bytes.fromLong(6L);
     kvs.add(makekv(qual3, val3));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual1, qual3, qual2),
         kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val1, val3, val2, ZERO),
@@ -848,7 +848,7 @@ public final class TestCompactionQueue {
     final byte[] val3 = Bytes.fromLong(6L);
     kvs.add(makekv(qual3, val3));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual1, qual3, qual2),
         kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val1, val3, val2, ZERO),
@@ -881,7 +881,7 @@ public final class TestCompactionQueue {
     final byte[] val3 = Bytes.fromLong(6L);
     kvs.add(makekv(qual3, val3));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual1, qual3, qual2),
         kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val1, val3, val2,
@@ -915,7 +915,7 @@ public final class TestCompactionQueue {
     final byte[] val3 = Bytes.fromLong(6L);
     kvs.add(makekv(qual3, val3));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual1, qual3, qual2),
         kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val1, val3, val2,
@@ -950,7 +950,7 @@ public final class TestCompactionQueue {
     final byte[] val3 = Bytes.fromLong(6L);
     kvs.add(makekv(qual3, val3));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual3, qual1, qual2),
         kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val3, val1, val2,
@@ -984,7 +984,7 @@ public final class TestCompactionQueue {
     final byte[] val3 = Bytes.fromLong(6L);
     kvs.add(makekv(qual3, val3));
 
-    compactionq.compact(kvs, annotations);
+    compactionq.compact(kvs, annotations, null);
   }
 
   @Test
@@ -1006,7 +1006,7 @@ public final class TestCompactionQueue {
     final byte[] val3 = Bytes.fromLong(6L);
     kvs.add(makekv(qual3, val3));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual3, qual2),
         kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val3, val2, new byte[] { 0 }),
@@ -1046,7 +1046,7 @@ public final class TestCompactionQueue {
     kvs.add(makekv(qual3, val3));
     kvs.add(makekv(qual2, val2));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(qual132, kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val1, val3, val2, ZERO),
         kv.value());
@@ -1084,7 +1084,7 @@ public final class TestCompactionQueue {
     kvs.add(makekv(qual3, val3));
     kvs.add(makekv(qual2, val2));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual1, qual3, qual2),
         kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val1, val3, val2, ZERO),
@@ -1126,7 +1126,7 @@ public final class TestCompactionQueue {
     kvs.add(makekv(qual34, MockBase.concatByteArrays(val3, val4, ZERO)));
     kvs.add(makekv(qual56, MockBase.concatByteArrays(val5, val6, ZERO)));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(
         MockBase.concatByteArrays(qual12, qual34, qual56), kv.qualifier());
     assertArrayEquals(
@@ -1169,7 +1169,7 @@ public final class TestCompactionQueue {
     kvs.add(makekv(qual56, MockBase.concatByteArrays(val5, val6, ZERO)));
     kvs.add(makekv(qual34, MockBase.concatByteArrays(val3, val4, ZERO)));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(
         MockBase.concatByteArrays(qual12, qual34, qual56), kv.qualifier());
     assertArrayEquals(
@@ -1213,7 +1213,7 @@ public final class TestCompactionQueue {
     kvs.add(makekv(qual34, MockBase.concatByteArrays(val3, val4, ZERO)));
     kvs.add(makekv(qual56, MockBase.concatByteArrays(val5, val6, ZERO)));
 
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(
         MockBase.concatByteArrays(qual12, qual34, qual56), kv.qualifier());
     // TODO(jat): metadata byte should be 0x01?
@@ -1245,7 +1245,7 @@ public final class TestCompactionQueue {
         MockBase.concatByteArrays(qual, val, qual2, val2)));
     kvs.add(makekv(qual3, val3));
     kvs.add(makekv(qual4, val4));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual, qual2, qual3, qual4),
         kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val, val2, val3, val4, ZERO),
@@ -1274,7 +1274,7 @@ public final class TestCompactionQueue {
     kvs.add(makekv(qual2, val2));
     kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER,
         MockBase.concatByteArrays(qual3, val3, qual4, val4)));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual, qual2, qual3, qual4),
         kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val, val2, val3, val4, ZERO),
@@ -1303,7 +1303,7 @@ public final class TestCompactionQueue {
     kvs.add(makekv(qual3, val3));
     kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER,
         MockBase.concatByteArrays(qual2, val2, qual4, val4)));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual, qual2, qual3, qual4),
         kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val, val2, val3, val4, ZERO),
@@ -1332,7 +1332,7 @@ public final class TestCompactionQueue {
         MockBase.concatByteArrays(qual, val, qual2, val2)));
     kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER,
         MockBase.concatByteArrays(qual3, val3, qual4, val4)));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual, qual2, qual3, qual4),
         kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val, val2, val3, val4, ZERO),
@@ -1367,7 +1367,7 @@ public final class TestCompactionQueue {
         MockBase.concatByteArrays(qual3, val3, qual4, val4)));
     kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER,
         MockBase.concatByteArrays(qual5, val5, qual6, val6)));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(
         qual, qual2, qual3, qual4, qual5, qual6), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(
@@ -1402,7 +1402,7 @@ public final class TestCompactionQueue {
     kvs.add(makekv(qual4, val4));
     kvs.add(makekv(AppendDataPoints.APPEND_COLUMN_QUALIFIER,
         MockBase.concatByteArrays(qual5, val5, qual6, val6)));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(
         qual, qual2, qual3, qual4, qual5, qual6), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(
@@ -1431,7 +1431,7 @@ public final class TestCompactionQueue {
         MockBase.concatByteArrays(qual, val, qual2, val2)));
     kvs.add(makekv(MockBase.concatByteArrays(qual3, qual4),
         MockBase.concatByteArrays(val3, val4, ZERO)));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual, qual2, qual3, qual4),
         kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val, val2, val3, val4, ZERO),
@@ -1466,7 +1466,7 @@ public final class TestCompactionQueue {
         MockBase.concatByteArrays(val3, val4, ZERO)));
     kvs.add(makekv(qual5, val5));
     kvs.add(makekv(qual6, val6));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(
         qual, qual2, qual3, qual4, qual5, qual6), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(
@@ -1491,7 +1491,7 @@ public final class TestCompactionQueue {
         MockBase.concatByteArrays(qual, val, qual2, val2)));
     kvs.add(makekv(qual, val));
     kvs.add(makekv(qual2, val2));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual, qual2), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val, val2, ZERO), kv.value());
 
@@ -1514,7 +1514,7 @@ public final class TestCompactionQueue {
         MockBase.concatByteArrays(qual, val, qual2, val2)));
     kvs.add(makekv(MockBase.concatByteArrays(qual, qual2),
         MockBase.concatByteArrays(val, val2, ZERO)));
-    final KeyValue kv = compactionq.compact(kvs, annotations);
+    final KeyValue kv = compactionq.compact(kvs, annotations, null);
     assertArrayEquals(MockBase.concatByteArrays(qual, qual2), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(val, val2, ZERO), kv.value());
 

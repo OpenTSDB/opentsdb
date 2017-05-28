@@ -92,6 +92,10 @@ public class BaseTsdbTest {
   static final String NOTE_DESCRIPTION = "Hello DiscWorld!";
   static final String NOTE_NOTES = "Millenium hand and shrimp";
   
+  //histgoram metric
+  public static final String HISTOGRAM_METRIC_STRING = "msg.end2end.latency";
+  public static final byte[] HISTOGRAM_METRIC_BYTES = new byte[] { 0, 0, 5 };
+  
   public static final Map<String, byte[]> UIDS = new HashMap<String, byte[]>(26);
   static {
     char letter = 'A';
@@ -140,10 +144,13 @@ public class BaseTsdbTest {
     setupTagkMaps();
     setupTagvMaps();
     
+    mockUID(UniqueIdType.METRIC, HISTOGRAM_METRIC_STRING, HISTOGRAM_METRIC_BYTES);
+    
     // add metrics and tags to the UIDs list for other functions to share
     uid_map.put(METRIC_STRING, METRIC_BYTES);
     uid_map.put(METRIC_B_STRING, METRIC_B_BYTES);
     uid_map.put(NSUN_METRIC, NSUI_METRIC);
+    uid_map.put(HISTOGRAM_METRIC_STRING, HISTOGRAM_METRIC_BYTES);
     
     uid_map.put(TAGK_STRING, TAGK_BYTES);
     uid_map.put(TAGK_B_STRING, TAGK_B_BYTES);
@@ -766,6 +773,57 @@ public class BaseTsdbTest {
     }
   }
 
+
+  //store histogram data points of {@link LongHistogramDataPointForTest} with second timestamp
+  protected void storeTestHistogramTimeSeriesSeconds(final boolean offset) throws Exception {
+    setDataPointStorage();
+     
+    // dump a bunch of rows of two metrics so that we can test filtering out
+    // on the metric
+    HashMap<String, String> tags_local = new HashMap<String, String>();
+    tags_local.put("host", "web01");
+    
+    long timestamp = 1356998400;
+    for (int i = 1; i <= 300; i++) {
+      LongHistogramDataPointForTest hdp = new LongHistogramDataPointForTest(timestamp, Bytes.fromLong(i));
+      tsdb.addHistogramPoint(HISTOGRAM_METRIC_STRING, timestamp += 30, hdp.getRawData(), tags_local).joinUninterruptibly();
+    }
+  
+    // dump a parallel set but invert the values
+    tags_local.clear();
+    tags_local.put("host", "web02");
+    timestamp = offset ? 1356998415 : 1356998400;
+    for (int i = 300; i > 0; i--) {
+      LongHistogramDataPointForTest hdp = new LongHistogramDataPointForTest(timestamp, Bytes.fromLong(i));
+      tsdb.addHistogramPoint(HISTOGRAM_METRIC_STRING, timestamp += 30, hdp.getRawData(), tags_local).joinUninterruptibly();
+    }
+  }
+   
+  // store histogram data points of {@link LongHistogramDataPointForTest} with ms timestamp
+  protected void storeTestHistogramTimeSeriesMs() throws Exception {
+    setDataPointStorage();
+    // dump a bunch of rows of two metrics so that we can test filtering out
+    // on the metric
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    long timestamp = 1356998400000L;
+    for (int i = 1; i <= 300; i++) {
+      timestamp += 500;
+      LongHistogramDataPointForTest hdp = new LongHistogramDataPointForTest(timestamp, Bytes.fromLong(i));
+      tsdb.addHistogramPoint("msg.end2end.latency", timestamp, hdp.getRawData(), tags).joinUninterruptibly();
+    } // end for
+   
+    // dump a parallel set but invert the values
+    tags.clear();
+    tags.put("host", "web02");
+    timestamp = 1356998400000L;
+    for (int i = 300; i > 0; i--) {
+      timestamp += 500;
+      LongHistogramDataPointForTest hdp = new LongHistogramDataPointForTest(timestamp, Bytes.fromLong(i));
+      tsdb.addHistogramPoint("msg.end2end.latency", timestamp, hdp.getRawData(), tags).joinUninterruptibly();
+    } // end for
+  }
+  
   /**
    * Validates the metric name, tags and annotations
    * @param dps The datapoints array returned from the query

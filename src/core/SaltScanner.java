@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -66,6 +67,8 @@ public class SaltScanner {
    * WARNING: The salted row comparator should be applied to this map. */
   private final TreeMap<byte[], Span> spans;
   
+  private final TreeMap<byte[], HistogramSpan> histSpans;
+  
   /** The list of pre-configured scanners. One scanner should be created per
    * salt bucket. */
   private final List<Scanner> scanners;
@@ -80,9 +83,15 @@ public class SaltScanner {
           Collections.synchronizedMap(
               new TreeMap<byte[], List<Annotation>>(new RowKey.SaltCmp()));
   
+  private final Map<Integer, List<SimpleEntry<byte[], List<HistogramDataPoint>>>> 
+    histMap = new ConcurrentHashMap<Integer, List<SimpleEntry<byte[], List<HistogramDataPoint>>>>();
+  
   /** A deferred to call with the spans on completion */
   private final Deferred<TreeMap<byte[], Span>> results = 
           new Deferred<TreeMap<byte[], Span>>();
+  
+  private final Deferred<TreeMap<byte[], HistogramSpan>> histogramResults =
+      new Deferred<TreeMap<byte[], HistogramSpan>>();
   
   /** The metric this scanner set is dealing with. If a row comes in with a 
    * different metric we toss an exception. This shouldn't happen though. */
@@ -134,7 +143,7 @@ public class SaltScanner {
                                       final List<Scanner> scanners, 
                                       final TreeMap<byte[], Span> spans,
                                       final List<TagVFilter> filters) {
-    this(tsdb, metric, scanners, spans, filters, false, null, null, 0);
+    this(tsdb, metric, scanners, spans, filters, false, null, null, 0, null);
   }
   
   /**
@@ -149,6 +158,7 @@ public class SaltScanner {
    * @param filters A list of filters for processing
    * @param query_stats A stats object for tracking timing
    * @param query_index The index of the sub query in the main query list
+   * @param histogramSpans The histo map to populate.
    * @throws IllegalArgumentException if any required data was missing or
    * we had invalid parameters.
    */
@@ -159,7 +169,8 @@ public class SaltScanner {
                                       final boolean delete,
                                       final RollupQuery rollup_query,
                                       final QueryStats query_stats,
-                                      final int query_index) {
+                                      final int query_index,
+                                      final TreeMap<byte[], HistogramSpan> histogramSpans) {
     if (Const.SALT_WIDTH() < 1) {
       throw new IllegalArgumentException(
           "Salting is disabled. Use the regular scanner");
@@ -167,17 +178,20 @@ public class SaltScanner {
     if (tsdb == null) {
       throw new IllegalArgumentException("The TSDB argument was null.");
     }
-    if (spans == null) {
-      throw new IllegalArgumentException("Span map cannot be null.");
+    if (spans == null && histogramSpans == null) {
+      throw new IllegalArgumentException("Both Span map and HistogramSpan map were null.");
     }
-    if (!spans.isEmpty()) {
+    if (spans != null && !spans.isEmpty()) {
       throw new IllegalArgumentException("The span map should be empty.");
+    }
+    if (histogramSpans != null && !histogramSpans.isEmpty()) {
+      throw new IllegalArgumentException("The histogram span map should be empty.");
     }
     if (scanners == null || scanners.isEmpty()) {
       throw new IllegalArgumentException("Missing or empty scanners list. "
           + "Please provide a list of scanners for each salt.");
     }
-    if (scanners.size() != Const.SALT_BUCKETS()) {
+    if (Const.SALT_WIDTH() > 0 && scanners.size() != Const.SALT_BUCKETS()) {
       throw new IllegalArgumentException("Not enough or too many scanners " + 
           scanners.size() + " when the salt bucket count is " + 
           Const.SALT_BUCKETS());
@@ -192,6 +206,7 @@ public class SaltScanner {
     
     this.scanners = scanners;
     this.spans = spans;
+    this.histSpans = histogramSpans;
     this.metric = metric;
     this.tsdb = tsdb;
     this.filters = filters;
@@ -217,16 +232,27 @@ public class SaltScanner {
     return results; 
   }
 
+  public Deferred<TreeMap<byte[], HistogramSpan>> scanHistogram() {
+    start_time = DateTime.currentTimeMillis();
+
+    int index = 0;
+    for (Scanner scanner: scanners) {
+      ScannerCB scnr = new ScannerCB(scanner, index++);
+      scnr.scan();
+    }
+
+    return histogramResults;
+  }
+  
   /**
    * Called once all of the scanners have reported back in to record our
    * latency and merge the results into the spans map. If there was an exception
    * stored then we'll return that instead.
    */
   private void mergeAndReturnResults() {
-    final long hbase_time = System.currentTimeMillis();
+    final long hbase_time = DateTime.currentTimeMillis();
     TsdbQuery.scanlatency.add((int)(hbase_time - start_time));
-    long rows = 0;
-
+    
     if (exception != null) {
       LOG.error("After all of the scanners finished, at "
           + "least one threw an exception", exception);
@@ -234,6 +260,99 @@ public class SaltScanner {
       return;
     }
     
+    final long merge_start = DateTime.nanoTime();
+    //Merge sorted spans together
+    if (!isHistogramScan()) {
+      mergeDataPoints();
+    } else {
+      // Merge histogram data points
+      mergeHistogramDataPoints();
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("It took " + (DateTime.currentTimeMillis() - hbase_time) + " ms, "
+            + " to merge and sort the rows into a tree map");
+    }
+
+    if (query_stats != null) {
+      query_stats.addStat(query_index, QueryStat.SCANNER_MERGE_TIME, 
+          (DateTime.nanoTime() - merge_start));
+    }
+
+    if (!isHistogramScan()) {
+      results.callback(spans);
+    } else {
+      histogramResults.callback(histSpans);
+    }
+  }
+  
+  private boolean isHistogramScan() {
+    return histSpans != null;
+  }
+
+  private void mergeHistogramDataPoints() {
+    if (histSpans != null) {
+      for (List<SimpleEntry<byte[], List<HistogramDataPoint>>> rows : histMap.values()) {
+        if (null == rows || rows.isEmpty()) {
+          LOG.error("Found a histogram rows list that was null or empty");
+          continue;
+        }
+        
+        // for all the rows with the same salt in the scann order - timestamp order
+        for (final SimpleEntry<byte[], List<HistogramDataPoint>> row : rows) {
+          if (null == row) {
+            LOG.error("Found a histogram row item that was null");
+            continue;
+          }
+          
+          HistogramSpan histSpan = null;
+          try {
+            histSpan = histSpans.get(row.getKey());
+          } catch (RuntimeException e) {
+            LOG.error("Failed to fetch the histogram span", e);
+          }
+          
+          if (histSpan == null) {
+            histSpan = new HistogramSpan(tsdb);
+            histSpans.put(row.getKey(), histSpan);
+          }
+
+          if (annotation_map.containsKey(row.getKey())) {
+            histSpan.getAnnotations().addAll(annotation_map.get(row.getKey()));
+            annotation_map.remove(row.getKey());
+          }
+          
+          try {
+            histSpan.addRow(row.getKey(), row.getValue());
+          } catch (RuntimeException e) {
+            LOG.error("Exception adding row to histogram span", e);
+          }
+        } // end for
+      } // end for
+      
+      histMap.clear();
+
+      for (byte[] key : annotation_map.keySet()) {
+        HistogramSpan histSpan = histSpans.get(key);
+
+        if (histSpan == null) {
+          histSpan = new HistogramSpan(tsdb);
+          histSpans.put(key, histSpan);
+        }
+
+        histSpan.getAnnotations().addAll(annotation_map.get(key));
+      }
+
+      annotation_map.clear();
+    }
+  }
+  
+  /**
+   * Called once all of the scanners have reported back in to record our
+   * latency and merge the results into the spans map. If there was an exception
+   * stored then we'll return that instead.
+   */
+  private void mergeDataPoints() {
     // Merge sorted spans together
     final long merge_start = DateTime.nanoTime();
     for (final List<KeyValue> kvs : kv_map.values()) {
@@ -267,7 +386,6 @@ public class SaltScanner {
         }
         try {  
           datapoints.addRow(kv);
-          rows++;
         } catch (RuntimeException e) {
           LOG.error("Exception adding row to span", e);
           throw e;
@@ -288,19 +406,8 @@ public class SaltScanner {
         datapoints.getAnnotations().add(note);
       }
     }
-
-    if (query_stats != null) {
-      query_stats.addStat(query_index, QueryStat.SCANNER_MERGE_TIME, 
-          (DateTime.nanoTime() - merge_start));
-    }
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Scanning completed in " + (hbase_time - start_time) + " ms, " +
-            rows + " rows, and stored in " + spans.size() + " spans");
-      LOG.debug("It took " + (System.currentTimeMillis() - hbase_time) + " ms, "
-            + " to merge and sort the rows into a tree map");
-    }
-
-    results.callback(spans);
+    
+    annotation_map.clear();
   }
 
   /**
@@ -321,6 +428,12 @@ public class SaltScanner {
         new ConcurrentHashMap<String, Boolean>());
     private final Set<String> keepers = Collections.newSetFromMap(
         new ConcurrentHashMap<String, Boolean>());
+ 
+    // use list here because we want to keep the rows in the scan order - timestamp order.
+    // i don't want to define an additional class to store the information of the row key and 
+    // the histogram data points in the row, then use {@link SimpleEntry}
+    private List<SimpleEntry<byte[], List<HistogramDataPoint>>> histograms = 
+        Collections.synchronizedList(Lists.<SimpleEntry<byte[], List<HistogramDataPoint>>>newArrayList());
     
     private long scanner_start = -1;
     /** nanosecond timestamps */
@@ -538,6 +651,8 @@ public class SaltScanner {
         tsdb.getClient().delete(del);
       }
       
+      List<HistogramDataPoint> hists = new ArrayList<HistogramDataPoint>();
+      
       //TODO rollup doesn't use the column qualifier prefix right now
       //Please move this logic to @CompactionQueue.compact API, if the 
       //qualifier prefix is set for rollup. Right now there is no way to
@@ -566,6 +681,13 @@ public class SaltScanner {
                 }
                 map_notes.add(note);
               }
+            } else if (qual[0] == HistogramDataPoint.PREFIX) {
+              try {
+                HistogramDataPoint histogram = Internal.decodeHistogramDataPoint(kv, tsdb.getConfig());
+                hists.add(histogram);
+              } catch (Throwable t) {
+                LOG.error("Failed to decode histogram data point", t);
+              }
             } else {
               if (rollup_query.getGroupBy() == Aggregators.AVG || 
                   rollup_query.getGroupBy() == Aggregators.DEV) {
@@ -580,6 +702,11 @@ public class SaltScanner {
             }
           }
         } // end for
+        
+        // histogram row
+        if (hists.size() > 0) {
+          this.histograms.add(new SimpleEntry<byte[], List<HistogramDataPoint>>(key, hists));
+        }
       } else {
         // calculate estimated data point count. We don't want to deserialize
         // the byte arrays so we'll just get a rough estimate of compacted
@@ -617,7 +744,13 @@ public class SaltScanner {
         final long compaction_start = DateTime.nanoTime();
         try {
           final List<Annotation> notes = Lists.newArrayList();
-          compacted = tsdb.compact(row, notes);
+          compacted = tsdb.compact(row, notes, hists);
+          
+          // histogram row
+          if (hists.size() > 0) {
+            this.histograms.add(new SimpleEntry<byte[], List<HistogramDataPoint>>(key, hists));
+          }
+          
           if (!notes.isEmpty()) {
             synchronized (annotations) {
               List<Annotation> map_notes = annotations.get(key);
@@ -685,7 +818,7 @@ public class SaltScanner {
       }
       
       if (ok && exception == null) {
-        validateAndTriggerCallback(kvs, annotations);
+        validateAndTriggerCallback(kvs, annotations, histograms);
       } else {
         completed_tasks.incrementAndGet();
       }
@@ -698,7 +831,8 @@ public class SaltScanner {
    * @param annotations The annotations fetched by the scanners
    */
   private void validateAndTriggerCallback(final List<KeyValue> kvs, 
-          final Map<byte[], List<Annotation>> annotations) {
+          final Map<byte[], List<Annotation>> annotations,
+          final List<SimpleEntry<byte[], List<HistogramDataPoint>>> histograms) {
 
     final int tasks = completed_tasks.incrementAndGet();
     if (kvs.size() > 0) {
@@ -711,6 +845,10 @@ public class SaltScanner {
         // Optimistic write, expecting unique row keys
         annotation_map.put(key, notes);
       }
+    }
+    
+    if (histograms.size() > 0) {
+      histMap.put(tasks, histograms);
     }
     
     if (tasks >= Const.SALT_BUCKETS()) {

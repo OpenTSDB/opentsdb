@@ -347,7 +347,7 @@ public class SaltMultiGetter {
       KeyValue compacted = null;
       try {
         final long compaction_start = DateTime.nanoTime();
-        compacted = tsdb.compact(row, notes);
+        compacted = tsdb.compact(row, notes, null);
 
         mul_get_compaction_time += (DateTime.nanoTime() - compaction_start);
         if (compacted != null) {

@@ -212,6 +212,19 @@ public interface Query {
   DataPoints[] run() throws HBaseException;
 
   /**
+   * Runs this query.
+   * @return The data points matched by this query and applied with percentile calculation
+   * <p>
+   * Each element in the non-{@code null} but possibly empty array returned
+   * corresponds to one time series for which some data points have been
+   * matched by the query.
+   * @throws HBaseException if there was a problem communicating with HBase to
+   * perform the search.
+   * @throws IllegalStateException if the query is not a histogram query
+   */
+  DataPoints[] runHistogram() throws HBaseException;
+  
+  /**
    * Executes the query asynchronously
    * @return The data points matched by this query.
    * <p>
@@ -225,9 +238,36 @@ public interface Query {
   public Deferred<DataPoints[]> runAsync() throws HBaseException;
 
   /**
+   * Runs this query asynchronously.
+   * @return The data points matched by this query and applied with percentile calculation
+   * <p>
+   * Each element in the non-{@code null} but possibly empty array returned
+   * corresponds to one time series for which some data points have been
+   * matched by the query.
+   * @throws HBaseException if there was a problem communicating with HBase to
+   * perform the search.
+   * @throws IllegalStateException if the query is not a histogram query
+   */
+  Deferred<DataPoints[]> runHistogramAsync() throws HBaseException;
+  
+  /**
    * Returns an index for this sub-query in the original set of queries.
    * @return A zero based index.
    * @since 2.4 
    */
   public int getQueryIdx();
+
+  /**
+   * Check this is a histogram query or not
+   * @return
+   */
+  public boolean isHistogramQuery();
+  
+  /**
+   * Set the percentile calculation parameters for this query if this is 
+   * a histogram query
+   * 
+   * @param percentiles
+   */
+  public void setPercentiles(List<Float> percentiles);
 }

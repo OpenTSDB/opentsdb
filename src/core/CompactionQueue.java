@@ -235,7 +235,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   private final class CompactCB implements Callback<Object, ArrayList<KeyValue>> {
     @Override
     public Object call(final ArrayList<KeyValue> row) {
-      return compact(row, null);
+      return compact(row, null, null, null);
     }
     @Override
     public String toString() {
@@ -250,9 +250,10 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    * @return A compacted version of this row.
    */
   KeyValue compact(final ArrayList<KeyValue> row,
-      List<Annotation> annotations) {
+      List<Annotation> annotations,
+      List<HistogramDataPoint> histograms) {
     final KeyValue[] compacted = { null };
-    compact(row, compacted, annotations);
+    compact(row, compacted, annotations, histograms);
     return compacted[0];
   }
 
@@ -269,6 +270,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     private final ArrayList<KeyValue> row;
     private final KeyValue[] compacted;
     private final List<Annotation> annotations;
+    private final List<HistogramDataPoint> histograms;
     private long compactedKVTimestamp;
 
     private final int nkvs;
@@ -293,11 +295,12 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     // and if we only had a single column with a single value, we return this.
     private KeyValue last_append_column;
 
-    public Compaction(ArrayList<KeyValue> row, KeyValue[] compacted, List<Annotation> annotations) {
+    public Compaction(ArrayList<KeyValue> row, KeyValue[] compacted, List<Annotation> annotations, List<HistogramDataPoint> histograms) {
       nkvs = row.size();
       this.row = row;
       this.compacted = compacted;
       this.annotations = annotations;
+      this.histograms = histograms;
       to_delete = new ArrayList<KeyValue>(nkvs);
       compactedKVTimestamp = Long.MIN_VALUE;
     }
@@ -439,6 +442,13 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           // process annotations and other extended formats
           if (qual[0] == Annotation.PREFIX()) {
             annotations.add(JSON.parseToObject(kv.value(), Annotation.class));
+          } else if (qual[0] == HistogramDataPoint.PREFIX) {
+            try {
+              HistogramDataPoint histogram = Internal.decodeHistogramDataPoint(kv, tsdb.getConfig());
+              histograms.add(histogram);
+            } catch (Throwable t) {
+              LOG.error("Failed to decode histogram data point", t);
+            }
           } else if (qual[0] == AppendDataPoints.APPEND_COLUMN_PREFIX){
             compactedKVTimestamp = Math.max(compactedKVTimestamp, kv.timestamp());
             final AppendDataPoints adp = new AppendDataPoints();
@@ -669,8 +679,9 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    */
   Deferred<Object> compact(final ArrayList<KeyValue> row,
       final KeyValue[] compacted,
-      List<Annotation> annotations) {
-    return new Compaction(row, compacted, annotations).compact();
+      List<Annotation> annotations,
+      List<HistogramDataPoint> histograms) {
+    return new Compaction(row, compacted, annotations, histograms).compact();
   }
 
   /**

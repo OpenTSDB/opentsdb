@@ -400,7 +400,7 @@ public class TestSaltScanner extends BaseTsdbTest {
     setupMockScanners(false);
     
     doThrow(new IllegalDataException("Boo!")).when(
-        tsdb).compact(any(ArrayList.class), any(List.class));
+        tsdb).compact(any(ArrayList.class), any(List.class), any(List.class));
     
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         spans, filters);
@@ -413,7 +413,7 @@ public class TestSaltScanner extends BaseTsdbTest {
     setupMockScanners(false);
     
     doThrow(new RuntimeException("Boo!")).when(
-        tsdb).compact(any(ArrayList.class), any(List.class));
+        tsdb).compact(any(ArrayList.class), any(List.class), any(List.class));
     
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         spans, filters);
