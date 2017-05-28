@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2014  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -15,11 +15,18 @@ package net.opentsdb.core;
 
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.core.HistogramDataPoint.HistogramBucket;
 import net.opentsdb.meta.Annotation;
-import org.hbase.async.Bytes;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+
+import org.hbase.async.Bytes;
 
 /**
  * Represents a read-only sequence of continuous HBase rows.
@@ -28,6 +35,8 @@ import java.util.*;
  * a given time series. To consolidate memory, the data points are stored in two
  * byte arrays: one for the time offsets/flags and another for the values.
  * Access is granted via pointers.
+ * 
+ * @since 3.0
  */
 public class HistogramRowSeq implements iHistogramRowSeq {
 
@@ -61,7 +70,8 @@ public class HistogramRowSeq implements iHistogramRowSeq {
 
     int index_local = 0;
     int index_remote = 0;
-    List<HistogramDataPoint> combinedRows = new ArrayList<HistogramDataPoint>(this.rowSeq.size() + row.size());
+    List<HistogramDataPoint> combinedRows = 
+        new ArrayList<HistogramDataPoint>(this.rowSeq.size() + row.size());
     while (index_local < this.rowSeq.size() && index_remote < row.size()) {
       HistogramDataPoint hdp_local = this.rowSeq.get(index_local);
       HistogramDataPoint hdp_remote = row.get(index_remote);
@@ -132,7 +142,8 @@ public class HistogramRowSeq implements iHistogramRowSeq {
 
   @Override
   public byte[] metricUID() {
-    return Arrays.copyOfRange(key, Const.SALT_WIDTH(), Const.SALT_WIDTH() + TSDB.metrics_width());
+    return Arrays.copyOfRange(key, Const.SALT_WIDTH(), Const.SALT_WIDTH() 
+        + TSDB.metrics_width());
   }
 
   @Override
@@ -222,10 +233,12 @@ public class HistogramRowSeq implements iHistogramRowSeq {
    */
   private void checkIndex(final int i) {
     if (i >= size()) {
-      throw new IndexOutOfBoundsException("index " + i + " >= " + size() + " for this=" + this);
+      throw new IndexOutOfBoundsException("index " + i + " >= " + size() 
+        + " for this=" + this);
     }
     if (i < 0) {
-      throw new IndexOutOfBoundsException("negative index " + i + " for this=" + this);
+      throw new IndexOutOfBoundsException("negative index " + i 
+          + " for this=" + this);
     }
   }
   
@@ -267,7 +280,8 @@ public class HistogramRowSeq implements iHistogramRowSeq {
    * 
    * @since 2.0
    */
-  public static final class HistogramRowSeqComparator implements Comparator<iHistogramRowSeq> {
+  public static final class HistogramRowSeqComparator implements 
+      Comparator<iHistogramRowSeq> {
     public int compare(final iHistogramRowSeq a, final iHistogramRowSeq b) {
       if (null == a || null == b) {
         if (a == b) {
@@ -347,7 +361,8 @@ public class HistogramRowSeq implements iHistogramRowSeq {
 
       // TODO: this can be optimized to O(nlogn)
       next_index = 0;
-      while (next_index < rowSeq.size() && rowSeq.get(next_index).timestamp() < timestamp) {
+      while (next_index < rowSeq.size() && 
+          rowSeq.get(next_index).timestamp() < timestamp) {
         ++next_index;
       }
     }

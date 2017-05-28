@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -16,10 +16,8 @@ package net.opentsdb.core;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.hbase.async.Bytes;
-import net.opentsdb.core.HistogramDataPoint.HistogramBucket;
 
 public class LongHistogramDataPointForTest implements HistogramDataPoint {
   private long timestamp;
@@ -35,7 +33,8 @@ public class LongHistogramDataPointForTest implements HistogramDataPoint {
     this.data = rhs.data;
   }
   
-  protected LongHistogramDataPointForTest(final LongHistogramDataPointForTest rhs, final long timestamp) {
+  protected LongHistogramDataPointForTest(final LongHistogramDataPointForTest rhs, 
+      final long timestamp) {
     this.data = rhs.data;
     this.timestamp = timestamp;
   }
@@ -81,7 +80,8 @@ public class LongHistogramDataPointForTest implements HistogramDataPoint {
   @Override
   public void aggregate(HistogramDataPoint histo, HistogramAggregation func) {
     if (!(histo instanceof LongHistogramDataPointForTest)) {
-      throw new IllegalArgumentException("The object must be an instance of the " + "LongHistogramDataPointForTest");
+      throw new IllegalArgumentException("The object must be an instance of the " 
+          + "LongHistogramDataPointForTest");
     }
     
     long agg = this.data + Bytes.getLong(histo.getRawData());

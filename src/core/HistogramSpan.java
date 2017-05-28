@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2014  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -25,6 +25,8 @@ import java.util.*;
  * Represents a read-only sequence of continuous histogram data points.
  * <p>
  * This class stores a continuous sequence of {@link HistogramRowSeq}s in memory.
+ * 
+ * @since 2.4
  */
 public class HistogramSpan implements HistogramDataPoints {
 
@@ -181,7 +183,8 @@ public class HistogramSpan implements HistogramDataPoints {
     if (rows.size() < 1) {
       return null;
     }
-    final byte[] tsuid = UniqueId.getTSUIDFromKey(rows.get(0).key(), TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
+    final byte[] tsuid = UniqueId.getTSUIDFromKey(rows.get(0).key(), 
+        TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     final List<String> tsuids = new ArrayList<String>(1);
     tsuids.add(UniqueId.uidToString(tsuid));
     return tsuids;
@@ -222,8 +225,9 @@ public class HistogramSpan implements HistogramDataPoints {
    * |-------|       |-------|
    * </pre>
    * 
-   * This method expects the caller adds the rows from the same salt in the timestamp order. 
-   * When the caller adds the rows from salt A, the result rows will be as below:
+   * This method expects the caller adds the rows from the same salt in the 
+   * timestamp order. When the caller adds the rows from salt A, the result 
+   * rows will be as below:
    * <pre>
    * |-------|       
    * |  T0   |      
@@ -250,8 +254,8 @@ public class HistogramSpan implements HistogramDataPoints {
    * |  T5   |
    * |-------|
    * </pre>
-   * When the caller iterates the data points in the Span, the Span will firstly sort the rows.
-   * Then the final result rows will be as below:
+   * When the caller iterates the data points in the Span, the Span will firstly 
+   * sort the rows. Then the final result rows will be as below:
    * <pre>
    * |-------|       
    * |  T0   |      
@@ -270,11 +274,14 @@ public class HistogramSpan implements HistogramDataPoints {
    * <p>
    * @param key The row key of the row that want to add in the span
    * @param data_points histogram data points in the row
-   * @throws IllegalArgumentException if the argument and this span are for two different time series.
+   * @throws IllegalArgumentException if the argument and this span are for 
+   * two different time series.
    */
-  protected void addRow(final byte[] key, final List<HistogramDataPoint> data_points) {
+  protected void addRow(final byte[] key, 
+                        final List<HistogramDataPoint> data_points) {
     if (null == key || null == data_points) {
-      throw new NullPointerException("row key and histogram data points can't be null");
+      throw new NullPointerException("row key and histogram data points "
+          + "can't be null");
     }
     
     long last_ts = 0;
@@ -282,7 +289,8 @@ public class HistogramSpan implements HistogramDataPoints {
       // Verify that we have the same metric id and tags.
       final iHistogramRowSeq last = rows.get(rows.size() - 1);
       final short metric_width = tsdb.metrics.width();
-      final short tags_offset = (short) (Const.SALT_WIDTH() + metric_width + Const.TIMESTAMP_BYTES);
+      final short tags_offset = (short) (Const.SALT_WIDTH() + metric_width + 
+          Const.TIMESTAMP_BYTES);
       final short tags_bytes = (short) (key.length - tags_offset);
       String error = null;
       if (key.length != last.key().length) {
@@ -293,8 +301,10 @@ public class HistogramSpan implements HistogramDataPoints {
         error = "tags mismatch";
       }
       if (error != null) {
-        throw new IllegalArgumentException(error + ". " + "This Span's last row key is " + Arrays.toString(last.key())
-            + " whereas the row key being added is " + Arrays.toString(key) + " and metric_width=" + metric_width);
+        throw new IllegalArgumentException(error + ". " 
+            + "This Span's last row key is " + Arrays.toString(last.key())
+            + " whereas the row key being added is " + Arrays.toString(key) 
+            + " and metric_width=" + metric_width);
       }
       last_ts = last.timestamp(last.size() - 1); // O(n)
     }
@@ -306,7 +316,8 @@ public class HistogramSpan implements HistogramDataPoints {
       // scan to see if we need to merge into an existing row
       for (final iHistogramRowSeq rs : rows) {
         if ((rs.key().length == key.length)
-            && (Bytes.memcmp(rs.key(), key, Const.SALT_WIDTH(), (rs.key().length - Const.SALT_WIDTH())) == 0)) {
+            && (Bytes.memcmp(rs.key(), key, Const.SALT_WIDTH(), 
+                (rs.key().length - Const.SALT_WIDTH())) == 0)) {
           rs.addRow(data_points);
           return;
         }
@@ -522,7 +533,8 @@ public class HistogramSpan implements HistogramDataPoints {
 
     @Override
     public String toString() {
-      return "HistogramSpan.Iterator(row_index=" + row_index + ", current_row=" + current_row + ", span="
+      return "HistogramSpan.Iterator(row_index=" + row_index 
+          + ", current_row=" + current_row + ", span="
           + HistogramSpan.this + ')';
     }
 
@@ -546,7 +558,8 @@ public class HistogramSpan implements HistogramDataPoints {
                                    final long query_start,
                                    final long query_end) {
     // ignore the fill policy 
-    return new HistogramDownsampler(spanIterator(), downsampler, query_start, query_end);
+    return new HistogramDownsampler(spanIterator(), downsampler, query_start, 
+        query_end);
   }
 
   /**
@@ -555,7 +568,8 @@ public class HistogramSpan implements HistogramDataPoints {
    * @return index of the query in the TSQuery class
    */
   public int getQueryIndex() {
-    throw new UnsupportedOperationException("Span.java: getQueryIndex not supported");
+    throw new UnsupportedOperationException("Span.java: getQueryIndex not "
+        + "supported");
   }
 
   /**

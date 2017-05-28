@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -12,19 +12,18 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import net.opentsdb.core.HistogramDataPoint.HistogramBucket;
 import net.opentsdb.utils.DateTime;
 
 import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Set;
-
 
 /**
  * Iterator that downsamples histogram data points using an
  * {@link HistogramAggregation}.
+ * 
+ * @since 2.4
  */
 public class HistogramDownsampler implements HistogramSeekableView, HistogramDataPoint {
 
@@ -137,7 +136,8 @@ public class HistogramDownsampler implements HistogramSeekableView, HistogramDat
       value = values_in_interval.nextHistogramValue();
       while (values_in_interval.hasNextValue()) {
         // this call will change the data in @{code value}
-        value.aggregate(values_in_interval.nextHistogramValue(), specification.getHistogramAggregation());
+        value.aggregate(values_in_interval.nextHistogramValue(), 
+            specification.getHistogramAggregation());
       }
       timestamp = values_in_interval.getIntervalTimestamp();
       
@@ -161,9 +161,17 @@ public class HistogramDownsampler implements HistogramSeekableView, HistogramDat
   @Override
   public String toString() {
     final StringBuilder buf = new StringBuilder();
-    buf.append("HistogramDownsampler: ").append(", downsampler=").append(specification).append(", query_start=")
-        .append(query_start).append(", current data=(timestamp=").append(timestamp).append(", value=").append(value)
-        .append("), values_in_interval=").append(values_in_interval);
+    buf.append("HistogramDownsampler: ")
+        .append(", downsampler=")
+        .append(specification)
+        .append(", query_start=")
+        .append(query_start)
+        .append(", current data=(timestamp=")
+        .append(timestamp)
+        .append(", value=")
+        .append(value)
+        .append("), values_in_interval=")
+        .append(values_in_interval);
     return buf.toString();
   }
   
@@ -213,9 +221,11 @@ public class HistogramDownsampler implements HistogramSeekableView, HistogramDat
           moveToNextValue();
           if (!run_all) {
             if (specification.useCalendar()) {
-              previous_calendar = DateTime.previousInterval(next_dp.timestamp(), interval, unit,
+              previous_calendar = 
+                  DateTime.previousInterval(next_dp.timestamp(), interval, unit,
                   specification.getTimezone());
-              next_calendar = DateTime.previousInterval(next_dp.timestamp(), interval, unit,
+              next_calendar = 
+                  DateTime.previousInterval(next_dp.timestamp(), interval, unit,
                   specification.getTimezone());
               if (unit == WEEK_UNIT) {
                 next_calendar.add(DAY_UNIT, interval * WEEK_LENGTH);
@@ -224,7 +234,8 @@ public class HistogramDownsampler implements HistogramSeekableView, HistogramDat
               }
               timestamp_end_interval = next_calendar.getTimeInMillis();
             } else {
-              timestamp_end_interval = alignTimestamp(next_dp.timestamp()) + specification.getInterval();
+              timestamp_end_interval = alignTimestamp(next_dp.timestamp()) 
+                  + specification.getInterval();
             }
           }
         }
@@ -277,7 +288,8 @@ public class HistogramDownsampler implements HistogramSeekableView, HistogramDat
             timestamp_end_interval = next_calendar.getTimeInMillis();
           }
         } else {
-          timestamp_end_interval = alignTimestamp(next_dp.timestamp()) + specification.getInterval();
+          timestamp_end_interval = alignTimestamp(next_dp.timestamp()) 
+              + specification.getInterval();
         }
       }
     }
@@ -297,8 +309,8 @@ public class HistogramDownsampler implements HistogramSeekableView, HistogramDat
       if (run_all) {
         source.seek(timestamp);
       } else if (specification.useCalendar()) {
-        final Calendar seek_calendar = DateTime.previousInterval(timestamp, interval, unit,
-            specification.getTimezone());
+        final Calendar seek_calendar = DateTime.previousInterval(timestamp, 
+            interval, unit, specification.getTimezone());
         if (timestamp > seek_calendar.getTimeInMillis()) {
           if (unit == WEEK_UNIT) {
             seek_calendar.add(DAY_UNIT, interval * WEEK_LENGTH);
@@ -338,7 +350,8 @@ public class HistogramDownsampler implements HistogramSeekableView, HistogramDat
       if (run_all) {
         return has_next_value_from_source;
       }
-      return has_next_value_from_source && next_dp.timestamp() < timestamp_end_interval;
+      return has_next_value_from_source && next_dp.timestamp() < 
+          timestamp_end_interval;
     }
 
     @Override
@@ -346,22 +359,30 @@ public class HistogramDownsampler implements HistogramSeekableView, HistogramDat
       if (hasNextValue()) {
         if (next_dp != null) {
           HistogramDataPoint value = null;
-          // we have to clone the object, else when moveToNextValue in the next step will
-          // also change the @{code next_dp} and @{code value} here
+          // we have to clone the object, else when moveToNextValue in the 
+          // next step will also change the @{code next_dp} and @{code value} 
+          // here
           value = next_dp.clone();
           moveToNextValue();
           return value;
         }
       }
-      throw new NoSuchElementException("no more values in interval of " + timestamp_end_interval);
+      throw new NoSuchElementException("no more values in interval of " 
+          + timestamp_end_interval);
     }
 
     @Override
     public String toString() {
       final StringBuilder buf = new StringBuilder();
-      buf.append("ValuesInInterval{").append(", timestamp_end_interval=").append(timestamp_end_interval)
-          .append(", unit=").append(unit).append(", interval=").append(interval).append(", has_next_value_from_source=")
-          .append(has_next_value_from_source);
+      buf.append("ValuesInInterval{")
+         .append(", timestamp_end_interval=")
+         .append(timestamp_end_interval)
+         .append(", unit=")
+         .append(unit)
+         .append(", interval=")
+         .append(interval)
+         .append(", has_next_value_from_source=")
+         .append(has_next_value_from_source);
       if (has_next_value_from_source) {
         buf.append(", nextValue=(").append(next_dp).append(')');
       }

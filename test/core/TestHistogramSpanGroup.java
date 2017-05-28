@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -56,11 +56,14 @@ public final class TestHistogramSpanGroup {
     final HistogramSpan span = mock(HistogramSpan.class);
     when(span.getTagUids()).thenReturn(uids);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
         end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, null));
     
-    final ArrayList<HistogramSpan> spans = Whitebox.getInternalState(group, "spans");
+    final ArrayList<HistogramSpan> spans = 
+        Whitebox.getInternalState(group, "spans");
     spans.add(span);
     
     final ByteMap<byte[]> uids_read = group.getTagUids();
@@ -82,11 +85,14 @@ public final class TestHistogramSpanGroup {
     final HistogramSpan span2 = mock(HistogramSpan.class);
     when(span2.getTagUids()).thenReturn(uids2);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
         end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, null));
     
-    final ArrayList<HistogramSpan> spans = Whitebox.getInternalState(group, "spans");
+    final ArrayList<HistogramSpan> spans = 
+        Whitebox.getInternalState(group, "spans");
     spans.add(span);
     spans.add(span2);
     
@@ -96,8 +102,10 @@ public final class TestHistogramSpanGroup {
   
   @Test
   public void getTagUidsNoSpans() throws Exception {
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
         end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, null));
     
     final ByteMap<byte[]> uids_read = group.getTagUids();
@@ -111,11 +119,14 @@ public final class TestHistogramSpanGroup {
     final HistogramSpan span = mock(HistogramSpan.class);
     when(span.getTagUids()).thenReturn(uids);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
         end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, null));
     
-    final ArrayList<HistogramSpan> spans = Whitebox.getInternalState(group, "spans");
+    final ArrayList<HistogramSpan> spans = 
+        Whitebox.getInternalState(group, "spans");
     spans.add(span);
     
     final List<byte[]> uids_read = group.getAggregatedTagUids();
@@ -134,11 +145,14 @@ public final class TestHistogramSpanGroup {
     final HistogramSpan span2 = mock(HistogramSpan.class);
     when(span2.getTagUids()).thenReturn(uids2);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
         end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, null));
     
-    final ArrayList<HistogramSpan> spans = Whitebox.getInternalState(group, "spans");
+    final ArrayList<HistogramSpan> spans = 
+        Whitebox.getInternalState(group, "spans");
     spans.add(span);
     spans.add(span2);
     
@@ -149,8 +163,10 @@ public final class TestHistogramSpanGroup {
   
   @Test
   public void getAggregatedTagUidsNoSpans() throws Exception {
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
         end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, null));
     
     final List<byte[]> uids_read = group.getAggregatedTagUids();
@@ -167,11 +183,15 @@ public final class TestHistogramSpanGroup {
     final HistogramSpan span = mock(HistogramSpan.class);
     when(span.getTagUids()).thenReturn(uids);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
-        end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, query_tags));
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
+        end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, 
+        query_tags));
     
-    final ArrayList<HistogramSpan> spans = Whitebox.getInternalState(group, "spans");
+    final ArrayList<HistogramSpan> spans = 
+        Whitebox.getInternalState(group, "spans");
     spans.add(span);
     
     final ByteMap<byte[]> uids_read = group.getTagUids();
@@ -191,11 +211,15 @@ public final class TestHistogramSpanGroup {
     final HistogramSpan span = mock(HistogramSpan.class);
     when(span.getTagUids()).thenReturn(uids);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
-        end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, query_tags));
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
+        end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, 
+        query_tags));
     
-    final ArrayList<HistogramSpan> spans = Whitebox.getInternalState(group, "spans");
+    final ArrayList<HistogramSpan> spans = 
+        Whitebox.getInternalState(group, "spans");
     spans.add(span);
     
     final ByteMap<byte[]> uids_read = group.getTagUids();
@@ -213,11 +237,14 @@ public final class TestHistogramSpanGroup {
     final HistogramSpan span = mock(HistogramSpan.class);
     when(span.getTagUids()).thenReturn(uids);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
         end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, null));
     
-    final ArrayList<HistogramSpan> spans = Whitebox.getInternalState(group, "spans");
+    final ArrayList<HistogramSpan> spans = 
+        Whitebox.getInternalState(group, "spans");
     spans.add(span);
     
     final ByteMap<byte[]> uids_read = group.getTagUids();

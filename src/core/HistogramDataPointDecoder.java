@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2011-2012  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -17,14 +17,16 @@ package net.opentsdb.core;
  *
  * NOTE: Implementation of this interface should be thread safe.
  * @see HistogramDataPointDecoderManager
+ * 
+ * @since 2.4
  */
 public interface HistogramDataPointDecoder {
 
-    /**
-     * Creates {@code HistogramDataPoint} from raw data and timestamp.
-     * @param raw_data The encoded byte array of the histogram data
-     * @param timestamp The timestamp of this data point
-     * @return The decoded histogram data point instance
-     */
-    HistogramDataPoint decode(final byte[] raw_data, final long timestamp);
+  /**
+   * Creates {@code HistogramDataPoint} from raw data and timestamp.
+   * @param raw_data The encoded byte array of the histogram data
+   * @param timestamp The timestamp of this data point
+   * @return The decoded histogram data point instance
+   */
+  HistogramDataPoint decode(final byte[] raw_data, final long timestamp);
 }

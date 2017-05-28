@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2014  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -14,19 +14,53 @@ package net.opentsdb.core;
 
 import java.util.List;
 
-
+/**
+ * Clone of the {@link iRowSeq} interface but for histograms.
+ *  
+ * @since 2.4
+ */
 public interface iHistogramRowSeq extends HistogramDataPoints {
-    void setRow(final byte[] key, final List<HistogramDataPoint> row);
+  
+  /**
+   * Sets the initial column in the sequence. The key cannot be empty.
+   * @param key The row key.
+   * @param row A non-null list of histogram points.
+   * @throws IllegalStateException if {@link #setRow(byte[], List)} or 
+   * {@link #addRow(List)} has already been called.
+   */
+  public void setRow(final byte[] key, final List<HistogramDataPoint> row);
 
-    void addRow(final List<HistogramDataPoint> row);
+  /**
+   * Adds a column in the proper sequence in the row. Must be called after
+   * {@link #setRow(byte[], List)} has been called.
+   * @param row A non-null list of histogram points.
+   * @throws IllegalStateException if {@link #setRow(byte[], List)} has not been
+   * called first.
+   */
+  public void addRow(final List<HistogramDataPoint> row);
 
-    byte[] key();
+  /**
+   * Returns the row key this sequence represents. May be null if 
+   * {@link #setRow(byte[], List)} has not been called.
+   * @return The row key for this sequence.
+   */
+  public byte[] key();
 
-    long baseTime();
+  /**
+   * Returns the base time for the row in Unix epoch seconds.
+   * @return The base time for the row.
+   * @throws NullPointerException if {@link #setRow(byte[], List)} has not been 
+   * called.
+   */
+  public long baseTime();
 
-    Iterator internalIterator();
+  /** @return an internal iterator for this row sequence. */
+  public Iterator internalIterator();
 
-    interface Iterator extends HistogramSeekableView, HistogramDataPoint {
+  /**
+   * An interface for an iterator that all row sequences must implement.
+   */
+  public interface Iterator extends HistogramSeekableView, HistogramDataPoint {
 
-    }
+  }
 }

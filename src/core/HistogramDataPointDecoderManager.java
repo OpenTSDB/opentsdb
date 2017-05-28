@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2011-2012  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -20,15 +20,17 @@ import java.util.Map;
  * Manages the histogram decoder singletons.
  * </p>
  * <p>
- * This manage accepts the full class name of the decoder, use reflection to create the decoder,
- * and it ensures each type of the decoder will be created only once, after that, the cached decoder
- * instance will be returned.
+ * This manage accepts the full class name of the decoder, use reflection to 
+ * create the decoder, and it ensures each type of the decoder will be created 
+ * only once, after that, the cached decoder instance will be returned.
  * </p>
  * <p>
  * This behavior actually makes each decoder a singleton.
  * </p>
  *
  * <p>This class is thread safe</p>
+ * 
+ * @since 2.4
  */
 public class HistogramDataPointDecoderManager {
 
@@ -59,7 +61,7 @@ public class HistogramDataPointDecoderManager {
 
     private static HistogramDataPointDecoder createInstance(final String decoder_name) {
         try {
-            Class c = Class.forName(decoder_name);
+            Class<?> c = Class.forName(decoder_name);
             return (HistogramDataPointDecoder) c.newInstance();
         } catch (Exception exp) {
             throw new RuntimeException("Failed to create the decoder instance of "

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2014  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -16,17 +16,15 @@ package net.opentsdb.core;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.opentsdb.core.HistogramDataPoint.HistogramBucket;
-
 /**
  * 
- * This is where the real business of @{link HistogramSpanGroup}. It provides a merged and aggregated 
- * view of the data points. It will apply the following processing:
+ * This is where the real business of @{link HistogramSpanGroup}. It provides a 
+ * merged and aggregated view of the data points. It will apply the following 
+ * processing:
  * <ul>
  *    <li> Down sampling
  *    <li> Aggregation
@@ -38,11 +36,15 @@ import net.opentsdb.core.HistogramDataPoint.HistogramBucket;
  *    <li> Rate Calculation
  * </ul>
  * 
+ * @since 2.4
  */
-public class HistogramAggregationIterator implements HistogramSeekableView, HistogramDataPoint {
-  private static final Logger LOG = LoggerFactory.getLogger(HistogramAggregationIterator.class);
+public class HistogramAggregationIterator implements 
+    HistogramSeekableView, HistogramDataPoint {
+  private static final Logger LOG = LoggerFactory.getLogger(
+      HistogramAggregationIterator.class);
 
-  /** Aggregator to use to aggregate histogram data points from different HistogramSpans. */
+  /** Aggregator to use to aggregate histogram data points from different 
+   * HistogramSpans. */
   private final HistogramAggregation aggregation;
 
   /**
@@ -101,11 +103,13 @@ public class HistogramAggregationIterator implements HistogramSeekableView, Hist
       if (downsampler == DownsamplingSpecification.NO_DOWNSAMPLER) {
         it = spans.get(i).spanIterator();
       } else {
-        it = spans.get(i).downsampler(start_time, end_time, downsampler, is_rollup, query_start, query_end);
+        it = spans.get(i).downsampler(start_time, end_time, downsampler, 
+            is_rollup, query_start, query_end);
       }
       iterators[i] = it;
     }
-    return new HistogramAggregationIterator(iterators, start_time, end_time, aggregation);
+    return new HistogramAggregationIterator(iterators, start_time, 
+        end_time, aggregation);
   }
 
   private HistogramAggregationIterator(final HistogramSeekableView[] iterators, 
@@ -139,7 +143,8 @@ public class HistogramAggregationIterator implements HistogramSeekableView, Hist
         putDataPoint(i, dp);
       } else {
         if (LOG.isDebugEnabled()) {
-          LOG.debug(String.format("No DP in range for #%d: %d < %d", i, dp.timestamp(), start_time));
+          LOG.debug(String.format("No DP in range for #%d: %d < %d", i, 
+              dp.timestamp(), start_time));
         }
         endReached(i);
         continue;
@@ -148,7 +153,8 @@ public class HistogramAggregationIterator implements HistogramSeekableView, Hist
 
     if (num_empty_spans > 0) {
       if (LOG.isDebugEnabled()) {
-        LOG.debug(String.format("%d out of %d spans are empty!", num_empty_spans, this.iterators.length));
+        LOG.debug(String.format("%d out of %d spans are empty!", 
+            num_empty_spans, this.iterators.length));
       }
     }
   }

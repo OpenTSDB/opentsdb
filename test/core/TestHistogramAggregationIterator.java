@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2014  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -13,11 +13,11 @@
 
 package net.opentsdb.core;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import org.hbase.async.Bytes;
@@ -34,8 +34,10 @@ import net.opentsdb.utils.Config;
 @RunWith(PowerMockRunner.class)
 //"Classloader hell"... It's real. Tell PowerMock to ignore these classes
 //because they fiddle with the class loader. We don't test them anyway.
-@PowerMockIgnore({ "javax.management.*", "javax.xml.*", "ch.qos.*", "org.slf4j.*", "com.sum.*", "org.xml.*" })
-@PrepareForTest({ HistogramSpan.class, HistogramRowSeq.class, TSDB.class, UniqueId.class, KeyValue.class, Config.class,
+@PowerMockIgnore({ "javax.management.*", "javax.xml.*", "ch.qos.*", 
+  "org.slf4j.*", "com.sum.*", "org.xml.*" })
+@PrepareForTest({ HistogramSpan.class, HistogramRowSeq.class, TSDB.class, 
+  UniqueId.class, KeyValue.class, Config.class,
  RowKey.class })
 
 public class TestHistogramAggregationIterator {
@@ -48,7 +50,8 @@ public class TestHistogramAggregationIterator {
   public void testOneHistogramSpanWithNoDownsampler() {
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
@@ -57,8 +60,10 @@ public class TestHistogramAggregationIterator {
     List<HistogramSpan> spans = new ArrayList<HistogramSpan>();
     spans.add(hspan);
 
-    HistogramAggregationIterator histAggIt = HistogramAggregationIterator.create(spans, BASE_TIME,
-        BASE_TIME + 5000L * 10, HistogramAggregation.SUM, DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
+    HistogramAggregationIterator histAggIt = 
+        HistogramAggregationIterator.create(spans, BASE_TIME,
+        BASE_TIME + 5000L * 10, HistogramAggregation.SUM, 
+        DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
     
     List<Long> values = new ArrayList<Long>();
     List<Long> timestamps = new ArrayList<Long>();
@@ -79,7 +84,8 @@ public class TestHistogramAggregationIterator {
   public void testOneHistogramSpanWithDownsampler_10secs() {
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
@@ -88,9 +94,12 @@ public class TestHistogramAggregationIterator {
     List<HistogramSpan> spans = new ArrayList<HistogramSpan>();
     spans.add(hspan);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("10s-sum");
-    HistogramAggregationIterator histAggIt = HistogramAggregationIterator.create(spans, BASE_TIME,
-        BASE_TIME + 5000L * 10, HistogramAggregation.SUM, specification, 0, 0, false);
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("10s-sum");
+    HistogramAggregationIterator histAggIt = 
+        HistogramAggregationIterator.create(spans, BASE_TIME,
+        BASE_TIME + 5000L * 10, HistogramAggregation.SUM, specification, 0, 0, 
+        false);
    
     List<Long> values = new ArrayList<Long>();
     List<Long> timestamps_in_millis = new ArrayList<Long>();
@@ -126,7 +135,8 @@ public class TestHistogramAggregationIterator {
   public void testOneHistogramSpanNoDownSamplerSkipEarlyDataPoints() {
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
@@ -135,8 +145,10 @@ public class TestHistogramAggregationIterator {
     List<HistogramSpan> spans = new ArrayList<HistogramSpan>();
     spans.add(hspan);
     
-    HistogramAggregationIterator histAggIt = HistogramAggregationIterator.create(spans, BASE_TIME + 5000L,
-        BASE_TIME + 5000L * 10, HistogramAggregation.SUM, DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
+    HistogramAggregationIterator histAggIt = 
+        HistogramAggregationIterator.create(spans, BASE_TIME + 5000L,
+        BASE_TIME + 5000L * 10, HistogramAggregation.SUM, 
+        DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
    
     List<Long> values = new ArrayList<Long>();
     List<Long> timestamps_in_millis = new ArrayList<Long>();
@@ -149,7 +161,8 @@ public class TestHistogramAggregationIterator {
     assertEquals(9, values.size());
     for (int i = 0; i < values.size(); ++i) {
       assertEquals(i + 1, values.get(i).longValue());
-      assertEquals(BASE_TIME + 5000L * (i + 1), timestamps_in_millis.get(i).longValue());
+      assertEquals(BASE_TIME + 5000L * (i + 1), 
+          timestamps_in_millis.get(i).longValue());
     }
   } // end testOneHistogramSpanNoDownSamplerSkipEarlyDataPoints()
   
@@ -157,7 +170,8 @@ public class TestHistogramAggregationIterator {
   public void testOneHistogramSpanNoDownSamplerOutofRange() {
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
@@ -166,8 +180,10 @@ public class TestHistogramAggregationIterator {
     List<HistogramSpan> spans = new ArrayList<HistogramSpan>();
     spans.add(hspan);
     
-    HistogramAggregationIterator histAggIt = HistogramAggregationIterator.create(spans, BASE_TIME + 5000L * 10,
-        BASE_TIME + 5000L * 20, HistogramAggregation.SUM, DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
+    HistogramAggregationIterator histAggIt = 
+        HistogramAggregationIterator.create(spans, BASE_TIME + 5000L * 10,
+        BASE_TIME + 5000L * 20, HistogramAggregation.SUM, 
+        DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
     assertFalse(histAggIt.hasNext());
   } // end testOneHistogramSpanNoDownSamplerOutofRange()
   
@@ -175,7 +191,8 @@ public class TestHistogramAggregationIterator {
   public void testOneHistogramSpanNoDownSamplerLaterDataPoints() {
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
@@ -184,8 +201,10 @@ public class TestHistogramAggregationIterator {
     List<HistogramSpan> spans = new ArrayList<HistogramSpan>();
     spans.add(hspan);
     
-    HistogramAggregationIterator histAggIt = HistogramAggregationIterator.create(spans, BASE_TIME,
-        BASE_TIME + 5000L * 5, HistogramAggregation.SUM, DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
+    HistogramAggregationIterator histAggIt = 
+        HistogramAggregationIterator.create(spans, BASE_TIME,
+        BASE_TIME + 5000L * 5, HistogramAggregation.SUM,
+        DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
    
     List<Long> values = new ArrayList<Long>();
     List<Long> timestamps_in_millis = new ArrayList<Long>();
@@ -206,7 +225,8 @@ public class TestHistogramAggregationIterator {
   public void testOneHistogramSpanDownSamplerLaterDataPoints() {
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
@@ -215,8 +235,10 @@ public class TestHistogramAggregationIterator {
     List<HistogramSpan> spans = new ArrayList<HistogramSpan>();
     spans.add(hspan);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("10s-sum");
-    HistogramAggregationIterator histAggIt = HistogramAggregationIterator.create(spans, BASE_TIME,
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("10s-sum");
+    HistogramAggregationIterator histAggIt = 
+        HistogramAggregationIterator.create(spans, BASE_TIME,
         BASE_TIME + 5000L * 5, HistogramAggregation.SUM, specification, 0, 0, false);
     
     List<Long> values = new ArrayList<Long>();
@@ -245,7 +267,8 @@ public class TestHistogramAggregationIterator {
   public void testTwoHistogramSpanNoDownSamplerSameTimestamp() {
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
@@ -256,15 +279,18 @@ public class TestHistogramAggregationIterator {
     
     List<HistogramDataPoint> row2 = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row2.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row2.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
     
     final HistogramSpan hspan2 = new HistogramSpan(tsdb);
     hspan2.addRow(KEY, row2);
     spans.add(hspan2);
     
-    HistogramAggregationIterator histAggIt = HistogramAggregationIterator.create(spans, BASE_TIME,
-        BASE_TIME + 5000L * 10, HistogramAggregation.SUM, DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
+    HistogramAggregationIterator histAggIt = 
+        HistogramAggregationIterator.create(spans, BASE_TIME,
+        BASE_TIME + 5000L * 10, HistogramAggregation.SUM, 
+        DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
     
     List<Long> values = new ArrayList<Long>();
     List<Long> timestamps_in_millis = new ArrayList<Long>();
@@ -285,7 +311,8 @@ public class TestHistogramAggregationIterator {
   public void testTwoHistogramSpanDownSamplerSameTimestamp() {
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
@@ -296,15 +323,18 @@ public class TestHistogramAggregationIterator {
     
     List<HistogramDataPoint> row2 = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row2.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row2.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
     
     final HistogramSpan hspan2 = new HistogramSpan(tsdb);
     hspan2.addRow(KEY, row2);
     spans.add(hspan2);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("10s-sum");
-    HistogramAggregationIterator histAggIt = HistogramAggregationIterator.create(spans, BASE_TIME,
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("10s-sum");
+    HistogramAggregationIterator histAggIt = 
+        HistogramAggregationIterator.create(spans, BASE_TIME,
         BASE_TIME + 5000L * 10, HistogramAggregation.SUM, specification, 0, 0, false);
     
     List<Long> values = new ArrayList<Long>();
@@ -327,7 +357,8 @@ public class TestHistogramAggregationIterator {
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     // 0, 2, 4...
     for (int i = 0; i < 10; ) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
       i += 2;
     }
     
@@ -340,7 +371,8 @@ public class TestHistogramAggregationIterator {
     List<HistogramDataPoint> row2 = new ArrayList<HistogramDataPoint>();
     // 1, 3, 5...
     for (int i = 1; i < 10; ) {
-      row2.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row2.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
       i += 2;
     }
     
@@ -348,8 +380,10 @@ public class TestHistogramAggregationIterator {
     hspan2.addRow(KEY, row2);
     spans.add(hspan2);
    
-    HistogramAggregationIterator histAggIt = HistogramAggregationIterator.create(spans, BASE_TIME,
-        BASE_TIME + 5000L * 10, HistogramAggregation.SUM, DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
+    HistogramAggregationIterator histAggIt = 
+        HistogramAggregationIterator.create(spans, BASE_TIME,
+        BASE_TIME + 5000L * 10, HistogramAggregation.SUM, 
+        DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
     
     List<Long> values = new ArrayList<Long>();
     List<Long> timestamps_in_millis = new ArrayList<Long>();
@@ -370,7 +404,8 @@ public class TestHistogramAggregationIterator {
   public void testTwoHistogramSpanNoDownSamplerMergeSome() {
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
@@ -381,11 +416,13 @@ public class TestHistogramAggregationIterator {
     
     List<HistogramDataPoint> row2 = new ArrayList<HistogramDataPoint>();
     for (int i = 1; i < 5; ++i) {
-      row2.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row2.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
     
     for (int i = 5; i < 10; ++i) {
-      row2.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L *  (5 + i), Bytes.fromLong(5 + i)));
+      row2.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * (5 + i), 
+          Bytes.fromLong(5 + i)));
     }
     
     final HistogramSpan hspan2 = new HistogramSpan(tsdb);
@@ -393,8 +430,10 @@ public class TestHistogramAggregationIterator {
     spans.add(hspan2);
     
     
-    HistogramAggregationIterator histAggIt = HistogramAggregationIterator.create(spans, BASE_TIME,
-        BASE_TIME + 5000L * 20, HistogramAggregation.SUM, DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
+    HistogramAggregationIterator histAggIt = 
+        HistogramAggregationIterator.create(spans, BASE_TIME,
+        BASE_TIME + 5000L * 20, HistogramAggregation.SUM, 
+        DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
     
     List<Long> values = new ArrayList<Long>();
     List<Long> timestamps_in_millis = new ArrayList<Long>();
@@ -426,7 +465,8 @@ public class TestHistogramAggregationIterator {
     // span 1 has 10 data points
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
@@ -438,15 +478,18 @@ public class TestHistogramAggregationIterator {
     // span 2 has 5 data points
     List<HistogramDataPoint> row2 = new ArrayList<HistogramDataPoint>();
     for (int i = 1; i < 5; ++i) {
-      row2.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row2.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
     
     final HistogramSpan hspan2 = new HistogramSpan(tsdb);
     hspan2.addRow(KEY, row2);
     spans.add(hspan2);
     
-    HistogramAggregationIterator histAggIt = HistogramAggregationIterator.create(spans, BASE_TIME,
-        BASE_TIME + 5000L * 20, HistogramAggregation.SUM, DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
+    HistogramAggregationIterator histAggIt = 
+        HistogramAggregationIterator.create(spans, BASE_TIME,
+        BASE_TIME + 5000L * 20, HistogramAggregation.SUM, 
+        DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
     
     List<Long> values = new ArrayList<Long>();
     List<Long> timestamps_in_millis = new ArrayList<Long>();
@@ -473,7 +516,8 @@ public class TestHistogramAggregationIterator {
     // span1 has 10 data points
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
@@ -485,15 +529,18 @@ public class TestHistogramAggregationIterator {
     // span 2 has 5 data points
     List<HistogramDataPoint> row2 = new ArrayList<HistogramDataPoint>();
     for (int i = 1; i < 5; ++i) {
-      row2.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row2.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
     
     final HistogramSpan hspan2 = new HistogramSpan(tsdb);
     hspan2.addRow(KEY, row2);
     spans.add(hspan2);
     
-    HistogramAggregationIterator histAggIt = HistogramAggregationIterator.create(spans, BASE_TIME + 5000L * 5,
-        BASE_TIME + 5000L * 10, HistogramAggregation.SUM, DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
+    HistogramAggregationIterator histAggIt = 
+        HistogramAggregationIterator.create(spans, BASE_TIME + 5000L * 5,
+        BASE_TIME + 5000L * 10, HistogramAggregation.SUM, 
+        DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, false);
     
     List<Long> values = new ArrayList<Long>();
     List<Long> timestamps_in_millis = new ArrayList<Long>();
@@ -506,7 +553,8 @@ public class TestHistogramAggregationIterator {
     assertEquals(5, values.size());
     for (int i = 0; i < values.size(); ++i) {
       assertEquals(5 + i, values.get(i).longValue());
-      assertEquals(BASE_TIME + 5000L * (5 + i), timestamps_in_millis.get(i).longValue());
+      assertEquals(BASE_TIME + 5000L * (5 + i), 
+          timestamps_in_millis.get(i).longValue());
     } // end for
   } // end testTwoHistogramSpanNoDownSamplerOneOutofRange()
 }

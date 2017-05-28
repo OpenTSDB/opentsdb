@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -44,8 +44,8 @@ import java.util.List;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
              "ch.qos.*", "org.slf4j.*",
              "com.sum.*", "org.xml.*"})
-@PrepareForTest({ HistogramSpan.class, HistogramRowSeq.class, TSDB.class, UniqueId.class, KeyValue.class, 
-Config.class, RowKey.class })
+@PrepareForTest({ HistogramSpan.class, HistogramRowSeq.class, TSDB.class, 
+  UniqueId.class, KeyValue.class, Config.class, RowKey.class })
 public final class TestHistogramSpan {
   protected TSDB tsdb = mock(TSDB.class);
   protected Config config = mock(Config.class);
@@ -117,7 +117,8 @@ public final class TestHistogramSpan {
     row2.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
     row2.add(new LongHistogramDataPointForTest(115L, Bytes.fromLong(3)));
     
-    final byte[] bad_key = new byte[] { 0, 0, 0, 1, 0x50, (byte)0xE2, 0x43, 0x20, 0, 0, 0, 1 };
+    final byte[] bad_key = new byte[] { 0, 0, 0, 1, 0x50, (byte)0xE2, 0x43, 
+        0x20, 0, 0, 0, 1 };
     histSpan.addRow(bad_key, row2);
   }
   
@@ -134,7 +135,8 @@ public final class TestHistogramSpan {
     row2.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
     row2.add(new LongHistogramDataPointForTest(115L, Bytes.fromLong(3)));
     
-    final byte[] not_matched_mitric_key = new byte[] { 0, 0, 0, 2, 0x50, (byte)0xE2, 0x35, 0x10, 0, 0, 0, 1, 0, 0, 0, 2 };
+    final byte[] not_matched_mitric_key = new byte[] { 0, 0, 0, 2, 0x50, 
+        (byte)0xE2, 0x35, 0x10, 0, 0, 0, 1, 0, 0, 0, 2 };
     histSpan.addRow(not_matched_mitric_key, row2);
   }
   
@@ -151,7 +153,8 @@ public final class TestHistogramSpan {
     row2.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
     row2.add(new LongHistogramDataPointForTest(115L, Bytes.fromLong(3)));
     
-    final byte[] not_matched_tagk_key = new byte[] { 0, 0, 0, 1, 0x50, (byte)0xE2, 0x35, 0x10, 0, 0, 0, 2, 0, 0, 0, 2 };
+    final byte[] not_matched_tagk_key = new byte[] { 0, 0, 0, 1, 0x50, 
+        (byte)0xE2, 0x35, 0x10, 0, 0, 0, 2, 0, 0, 0, 2 };
     histSpan.addRow(not_matched_tagk_key, row2);
   }
   
@@ -168,7 +171,8 @@ public final class TestHistogramSpan {
     row2.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
     row2.add(new LongHistogramDataPointForTest(115L, Bytes.fromLong(3)));
     
-    final byte[] not_matched_tagv_key = new byte[] { 0, 0, 0, 1, 0x50, (byte)0xE2, 0x35, 0x10, 0, 0, 0, 1, 0, 0, 0, 3 };
+    final byte[] not_matched_tagv_key = new byte[] { 0, 0, 0, 1, 0x50, 
+        (byte)0xE2, 0x35, 0x10, 0, 0, 0, 1, 0, 0, 0, 3 };
     histSpan.addRow(not_matched_tagv_key, row2);
   }
   

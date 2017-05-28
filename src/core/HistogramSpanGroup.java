@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2014  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -10,7 +10,6 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-
 package net.opentsdb.core;
 
 import java.util.ArrayList;
@@ -31,6 +30,11 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.utils.ByteSet;
 
+/**
+ * Clone of the regular SpanGroup but handles histogram data points.
+ * 
+ * @since 2.4
+ */
 final class HistogramSpanGroup implements HistogramDataPoints {
   
   /** Annotations */
@@ -90,7 +94,6 @@ final class HistogramSpanGroup implements HistogramDataPoints {
   /** whether we are handling rollup data points*/
   private final boolean is_rollup;
   
-  
   /**
    * Ctor.
    * @param tsdb The TSDB we belong to.
@@ -116,8 +119,10 @@ final class HistogramSpanGroup implements HistogramDataPoints {
                      final boolean is_rollup,
                      final ByteSet query_tags) {
     annotations = new ArrayList<Annotation>();
-    this.start_time = (start_time & Const.SECOND_MASK) == 0 ? start_time * 1000 : start_time;
-    this.end_time = (end_time & Const.SECOND_MASK) == 0 ? end_time * 1000 : end_time;
+    this.start_time = (start_time & Const.SECOND_MASK) == 0 ? 
+        start_time * 1000 : start_time;
+    this.end_time = (end_time & Const.SECOND_MASK) == 0 ? 
+        end_time * 1000 : end_time;
     if (spans != null) {
       for (final HistogramSpan span : spans) {
         add(span);
@@ -154,12 +159,15 @@ final class HistogramSpanGroup implements HistogramDataPoints {
    */
   void add(final HistogramSpan span) {
     if (tags != null) {
-      throw new AssertionError("The set of tags has already been computed" + ", you can't add more Spans to " + this);
+      throw new AssertionError("The set of tags has already been computed" 
+    + ", you can't add more Spans to " + this);
     }
 
     // normalize timestamps to milliseconds for proper comparison
-    final long start = (start_time & Const.SECOND_MASK) == 0 ? start_time * 1000 : start_time;
-    final long end = (end_time & Const.SECOND_MASK) == 0 ? end_time * 1000 : end_time;
+    final long start = (start_time & Const.SECOND_MASK) == 0 ? 
+        start_time * 1000 : start_time;
+    final long end = (end_time & Const.SECOND_MASK) == 0 ? 
+        end_time * 1000 : end_time;
 
     if (span.size() == 0) {
       // copy annotations that are in the time range
@@ -337,8 +345,8 @@ final class HistogramSpanGroup implements HistogramDataPoints {
   }
 
   public HistogramSeekableView iterator() {
-    return HistogramAggregationIterator.create(this.spans, this.start_time, this.end_time, this.aggregation,
-        this.downsampler, this.query_start, this.query_end, this.is_rollup);
+    return HistogramAggregationIterator.create(spans, start_time, 
+        end_time, aggregation, downsampler, query_start, query_end, is_rollup);
   }
 
   /**

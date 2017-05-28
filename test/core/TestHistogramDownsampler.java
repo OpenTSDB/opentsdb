@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2014  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -21,15 +21,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.TimeZone;
 
 import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.core.SeekableViewsForTest.MockSeekableView;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.core.HistogramSeekableViewForTest.MockHistogramSeekableView;
 import net.opentsdb.utils.Config;
@@ -48,8 +45,10 @@ import org.powermock.reflect.Whitebox;
 @RunWith(PowerMockRunner.class)
 // "Classloader hell"... It's real. Tell PowerMock to ignore these classes
 // because they fiddle with the class loader. We don't test them anyway.
-@PowerMockIgnore({ "javax.management.*", "javax.xml.*", "ch.qos.*", "org.slf4j.*", "com.sum.*", "org.xml.*" })
-@PrepareForTest({ HistogramSpan.class, HistogramRowSeq.class, TSDB.class, UniqueId.class, KeyValue.class, Config.class,
+@PowerMockIgnore({ "javax.management.*", "javax.xml.*", "ch.qos.*", 
+  "org.slf4j.*", "com.sum.*", "org.xml.*" })
+@PrepareForTest({ HistogramSpan.class, HistogramRowSeq.class, TSDB.class, 
+  UniqueId.class, KeyValue.class, Config.class,
     RowKey.class })
 public class TestHistogramDownsampler {
   private TSDB tsdb = mock(TSDB.class);
@@ -58,26 +57,25 @@ public class TestHistogramDownsampler {
   
   private static final long BASE_TIME = 1356998400000L;
   
-  private static final HistogramDataPoint[] HIST_DATA_POINTS = new HistogramDataPoint[] {
-      // timestamp = 1,356,998,400,000 ms
-      new LongHistogramDataPointForTest(BASE_TIME, Bytes.fromLong(40L)),
-      // timestamp = 1,357,000,400,000 ms
-      new LongHistogramDataPointForTest(BASE_TIME + 2000000, Bytes.fromLong(50L)),
-      // timestamp = 1,357,002,000,000 ms
-      new LongHistogramDataPointForTest(BASE_TIME + 3600000, Bytes.fromLong(40L)),
-      // timestamp = 1,357,002,005,000 ms
-      new LongHistogramDataPointForTest(BASE_TIME + 3605000, Bytes.fromLong(50L)),
-      // timestamp = 1,357,005,600,000 ms
-      new LongHistogramDataPointForTest(BASE_TIME + 7200000, Bytes.fromLong(40L)),
-      // timestamp = 1,357,007,600,000 ms
-      new LongHistogramDataPointForTest(BASE_TIME + 9200000, Bytes.fromLong(50L)) };
+  private static final HistogramDataPoint[] HIST_DATA_POINTS = 
+      new HistogramDataPoint[] {
+    // timestamp = 1,356,998,400,000 ms
+    new LongHistogramDataPointForTest(BASE_TIME, Bytes.fromLong(40L)),
+    // timestamp = 1,357,000,400,000 ms
+    new LongHistogramDataPointForTest(BASE_TIME + 2000000, Bytes.fromLong(50L)),
+    // timestamp = 1,357,002,000,000 ms
+    new LongHistogramDataPointForTest(BASE_TIME + 3600000, Bytes.fromLong(40L)),
+    // timestamp = 1,357,002,005,000 ms
+    new LongHistogramDataPointForTest(BASE_TIME + 3605000, Bytes.fromLong(50L)),
+    // timestamp = 1,357,005,600,000 ms
+    new LongHistogramDataPointForTest(BASE_TIME + 7200000, Bytes.fromLong(40L)),
+    // timestamp = 1,357,007,600,000 ms
+    new LongHistogramDataPointForTest(BASE_TIME + 9200000, Bytes.fromLong(50L)) 
+  };
   
   public static final byte[] KEY = 
       new byte[] { 0, 0, 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 0, 1, 0, 0, 0, 2 };
-
-  private static final int THOUSAND_SEC_INTERVAL = (int) DateTime.parseDuration("1000s");
-  private static final int TEN_SEC_INTERVAL = (int) DateTime.parseDuration("10s");
-
+  
   // 30 minute offset
   final static TimeZone AF = DateTime.timezones.get("Asia/Kabul");
 
@@ -135,17 +133,18 @@ public class TestHistogramDownsampler {
   public void testDownsampler_10seconds() {
     source = spy(HistogramSeekableViewForTest
         .fromArray(new HistogramDataPoint[] { 
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L * 0, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L * 1, Bytes.fromLong(2L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L * 2, Bytes.fromLong(4L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L * 3, Bytes.fromLong(8L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L * 4, Bytes.fromLong(16L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L * 5, Bytes.fromLong(32L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L * 6, Bytes.fromLong(64L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L * 7, Bytes.fromLong(128L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L * 8, Bytes.fromLong(256L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L * 9, Bytes.fromLong(512L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L * 10, Bytes.fromLong(1024L)) }));
+    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 0, Bytes.fromLong(1L)),
+    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 1, Bytes.fromLong(2L)),
+    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 2, Bytes.fromLong(4L)),
+    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 3, Bytes.fromLong(8L)),
+    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 4, Bytes.fromLong(16L)),
+    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 5, Bytes.fromLong(32L)),
+    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 6, Bytes.fromLong(64L)),
+    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 7, Bytes.fromLong(128L)),
+    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 8, Bytes.fromLong(256L)),
+    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 9, Bytes.fromLong(512L)),
+    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 10, Bytes.fromLong(1024L)) 
+    }));
 
     specification = new DownsamplingSpecification("10s-sum");
     downsampler = new HistogramDownsampler(source, specification, 0, 0);
@@ -862,21 +861,26 @@ public class TestHistogramDownsampler {
     assertEquals("seek(1356998400000)", 400, Bytes.getLong(first_dp.getRawData()));
 
     // No seeks but the last one is aligned by the downsampling window.
-    for (long seek_timestamp = BASE_TIME + 1000L; seek_timestamp < BASE_TIME + 10100L; seek_timestamp += 1000) {
+    for (long seek_timestamp = BASE_TIME + 1000L; seek_timestamp < BASE_TIME 
+        + 10100L; seek_timestamp += 1000) {
       downsampler.seek(seek_timestamp);
       assertTrue("ts = " + seek_timestamp, downsampler.hasNext());
       HistogramDataPoint dp = downsampler.next();
       // Timestamp should be greater than or equal to the seek timestamp.
-      assertTrue(String.format("%d >= %d", dp.timestamp(), seek_timestamp), dp.timestamp() >= seek_timestamp);
-      assertEquals(String.format("seek(%d)", seek_timestamp), BASE_TIME + 10000L, dp.timestamp());
-      assertEquals(String.format("seek(%d)", seek_timestamp), 40, Bytes.getLong(dp.getRawData()));
+      assertTrue(String.format("%d >= %d", dp.timestamp(), seek_timestamp), 
+          dp.timestamp() >= seek_timestamp);
+      assertEquals(String.format("seek(%d)", seek_timestamp), 
+          BASE_TIME + 10000L, dp.timestamp());
+      assertEquals(String.format("seek(%d)", seek_timestamp), 
+          40, Bytes.getLong(dp.getRawData()));
     }
   }
 
   @Test
   public void testSeek_useCalendar() {
     source = spy(HistogramSeekableViewForTest
-        .fromArray(new HistogramDataPoint[] { new LongHistogramDataPointForTest(1356998400000L, Bytes.fromLong(1L)),
+        .fromArray(new HistogramDataPoint[] { new LongHistogramDataPointForTest(
+            1356998400000L, Bytes.fromLong(1L)),
             new LongHistogramDataPointForTest(1388534400000L, Bytes.fromLong(2L)),
             new LongHistogramDataPointForTest(1420070400000L, Bytes.fromLong(4L)),
             new LongHistogramDataPointForTest(1451606400000L, Bytes.fromLong(8L)) }));

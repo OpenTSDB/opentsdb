@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -84,7 +84,8 @@ public class SaltScanner {
               new TreeMap<byte[], List<Annotation>>(new RowKey.SaltCmp()));
   
   private final Map<Integer, List<SimpleEntry<byte[], List<HistogramDataPoint>>>> 
-    histMap = new ConcurrentHashMap<Integer, List<SimpleEntry<byte[], List<HistogramDataPoint>>>>();
+    histMap = new ConcurrentHashMap<Integer, List<SimpleEntry<byte[], 
+    List<HistogramDataPoint>>>>();
   
   /** A deferred to call with the spans on completion */
   private final Deferred<TreeMap<byte[], Span>> results = 
@@ -429,11 +430,13 @@ public class SaltScanner {
     private final Set<String> keepers = Collections.newSetFromMap(
         new ConcurrentHashMap<String, Boolean>());
  
-    // use list here because we want to keep the rows in the scan order - timestamp order.
-    // i don't want to define an additional class to store the information of the row key and 
-    // the histogram data points in the row, then use {@link SimpleEntry}
+    // use list here because we want to keep the rows in the scan order - 
+    // timestamp order. I don't want to define an additional class to store the 
+    // information of the row key and the histogram data points in the row, 
+    // then use {@link SimpleEntry}
     private List<SimpleEntry<byte[], List<HistogramDataPoint>>> histograms = 
-        Collections.synchronizedList(Lists.<SimpleEntry<byte[], List<HistogramDataPoint>>>newArrayList());
+        Collections.synchronizedList(Lists.<SimpleEntry<byte[], 
+            List<HistogramDataPoint>>>newArrayList());
     
     private long scanner_start = -1;
     /** nanosecond timestamps */
@@ -667,8 +670,9 @@ public class SaltScanner {
           final byte[] qual = kv.qualifier();
           
           if (qual.length > 0) {
-            // Todo: Bug! Here we shouldn't use the first byte to check the type of this row
-            // Instead should parse the byte array to find the suffix and determine the actual type
+            // TODO: Bug! Here we shouldn't use the first byte to check the 
+            // type of this row. Instead should parse the byte array to find 
+            // the suffix and determine the actual type
             if (qual[0] == Annotation.PREFIX()) {
               // This could be a row with only an annotation in it
               final Annotation note = JSON.parseToObject(kv.value(),
@@ -683,7 +687,8 @@ public class SaltScanner {
               }
             } else if (qual[0] == HistogramDataPoint.PREFIX) {
               try {
-                HistogramDataPoint histogram = Internal.decodeHistogramDataPoint(kv, tsdb.getConfig());
+                HistogramDataPoint histogram = 
+                    Internal.decodeHistogramDataPoint(kv, tsdb.getConfig());
                 hists.add(histogram);
               } catch (Throwable t) {
                 LOG.error("Failed to decode histogram data point", t);

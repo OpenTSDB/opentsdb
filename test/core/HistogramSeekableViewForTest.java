@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2014  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -27,16 +27,19 @@ import org.junit.Test;
 public class HistogramSeekableViewForTest {
 
   /**
-   * Creates a {@link HistogramSeekableView} object to iterate the given data points.
+   * Creates a {@link HistogramSeekableView} object to iterate the given data 
+   * points.
    * @param data_points Test data.
    * @return A {@link HistogramSeekableView} object
    */
-  public static HistogramSeekableView fromArray(final HistogramDataPoint[] data_points) {
+  public static HistogramSeekableView fromArray(
+      final HistogramDataPoint[] data_points) {
     return new MockHistogramSeekableView(data_points);
   }
 
   /**
-   * Creates a {@link HistogramSeekableView} that generates a sequence of data points.
+   * Creates a {@link HistogramSeekableView} that generates a sequence of data 
+   * points.
    * @param start_time Starting timestamp
    * @param sample_period Average sample period of data points
    * @param num_data_points Total number of data points to generate
@@ -96,7 +99,8 @@ public class HistogramSeekableViewForTest {
     private final long start_time_ms;
     private final long sample_period_ms;
     private final int num_data_points;
-    private final LongHistogramDataPointForTest current_data = new LongHistogramDataPointForTest(100L, Bytes.fromLong(0L));
+    private final LongHistogramDataPointForTest current_data = 
+        new LongHistogramDataPointForTest(100L, Bytes.fromLong(0L));
     private int current = 0;
 
     DataPointGenerator(final long start_time_ms, final long sample_period_ms,
@@ -169,7 +173,8 @@ public class HistogramSeekableViewForTest {
       assertTrue(hdpg.hasNext());
       HistogramDataPoint dp = hdpg.next();
       assertEquals(expected.timestamp(), dp.timestamp());
-      assertEquals(Bytes.getLong(expected.getRawData()), Bytes.getLong(dp.getRawData()));
+      assertEquals(Bytes.getLong(expected.getRawData()), 
+          Bytes.getLong(dp.getRawData()));
     }
     assertFalse(hdpg.hasNext());
   }
@@ -187,7 +192,8 @@ public class HistogramSeekableViewForTest {
       assertTrue(hdpg.hasNext());
       HistogramDataPoint hdp = hdpg.next();
       assertEquals(expected.timestamp(), hdp.timestamp());
-      assertEquals(Bytes.getLong(expected.getRawData()), Bytes.getLong(hdp.getRawData()));
+      assertEquals(Bytes.getLong(expected.getRawData()), 
+          Bytes.getLong(hdp.getRawData()));
     }
     assertFalse(hdpg.hasNext());
   }
@@ -206,7 +212,8 @@ public class HistogramSeekableViewForTest {
       assertTrue(hdpg.hasNext());
       HistogramDataPoint hdp = hdpg.next();
       assertEquals(expected.timestamp(), hdp.timestamp());
-      assertEquals(Bytes.getLong(expected.getRawData()), Bytes.getLong(hdp.getRawData()));
+      assertEquals(Bytes.getLong(expected.getRawData()), 
+          Bytes.getLong(hdp.getRawData()));
     }
     assertFalse(hdpg.hasNext());
   }
@@ -225,7 +232,8 @@ public class HistogramSeekableViewForTest {
       assertTrue(hdpg.hasNext());
       HistogramDataPoint hdp = hdpg.next();
       assertEquals(expected.timestamp(), hdp.timestamp());
-      assertEquals(Bytes.getLong(expected.getRawData()), Bytes.getLong(hdp.getRawData()));
+      assertEquals(Bytes.getLong(expected.getRawData()), 
+          Bytes.getLong(hdp.getRawData()));
     }
     assertFalse(hdpg.hasNext());
   }

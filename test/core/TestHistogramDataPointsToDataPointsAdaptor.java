@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -42,8 +42,9 @@ import net.opentsdb.utils.Config;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
              "ch.qos.*", "org.slf4j.*",
              "com.sum.*", "org.xml.*"})
-@PrepareForTest({ HistogramSpanGroup.class, HistogramSpan.class, HistogramRowSeq.class, TSDB.class, UniqueId.class, KeyValue.class, 
-Config.class, RowKey.class })
+@PrepareForTest({ HistogramSpanGroup.class, HistogramSpan.class, 
+  HistogramRowSeq.class, TSDB.class, UniqueId.class, KeyValue.class, 
+  Config.class, RowKey.class })
 public final class TestHistogramDataPointsToDataPointsAdaptor {
   private static final long BASE_TIME = 1356998400000L;
   public static final byte[] KEY = 
@@ -66,14 +67,17 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
     final HistogramSpan span = mock(HistogramSpan.class);
     when(span.getTagUids()).thenReturn(uids);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
         end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, null));
     
     final ArrayList<HistogramSpan> spans = Whitebox.getInternalState(group, "spans");
     spans.add(span);
     
-    HistogramDataPointsToDataPointsAdaptor dps_ada = new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
+    HistogramDataPointsToDataPointsAdaptor dps_ada = 
+        new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
     final ByteMap<byte[]> uids_read = dps_ada.getTagUids();
     
     assertEquals(1, uids_read.size());
@@ -94,15 +98,18 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
     final HistogramSpan span2 = mock(HistogramSpan.class);
     when(span2.getTagUids()).thenReturn(uids2);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
         end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, null));
     
     final ArrayList<HistogramSpan> spans = Whitebox.getInternalState(group, "spans");
     spans.add(span);
     spans.add(span2);
     
-    HistogramDataPointsToDataPointsAdaptor dps_ada = new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
+    HistogramDataPointsToDataPointsAdaptor dps_ada = 
+        new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
     final ByteMap<byte[]> uids_read = dps_ada.getTagUids();
     
     assertEquals(0, uids_read.size());
@@ -110,11 +117,14 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
   
   @Test
   public void getTagUidsNoSpans() throws Exception {
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
         end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, null));
     
-    HistogramDataPointsToDataPointsAdaptor dps_ada = new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
+    HistogramDataPointsToDataPointsAdaptor dps_ada = 
+        new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
     final ByteMap<byte[]> uids_read = dps_ada.getTagUids();
     assertEquals(0, uids_read.size());
   }
@@ -126,14 +136,18 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
     final HistogramSpan span = mock(HistogramSpan.class);
     when(span.getTagUids()).thenReturn(uids);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
         end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, null));
     
-    final ArrayList<HistogramSpan> spans = Whitebox.getInternalState(group, "spans");
+    final ArrayList<HistogramSpan> spans = 
+        Whitebox.getInternalState(group, "spans");
     spans.add(span);
     
-    HistogramDataPointsToDataPointsAdaptor dps_ada = new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
+    HistogramDataPointsToDataPointsAdaptor dps_ada = 
+        new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
     final List<byte[]> uids_read = dps_ada.getAggregatedTagUids();
     
     assertEquals(0, uids_read.size());
@@ -151,15 +165,18 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
     final HistogramSpan span2 = mock(HistogramSpan.class);
     when(span2.getTagUids()).thenReturn(uids2);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
         end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, null));
     
     final ArrayList<HistogramSpan> spans = Whitebox.getInternalState(group, "spans");
     spans.add(span);
     spans.add(span2);
     
-    HistogramDataPointsToDataPointsAdaptor dps_ada = new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
+    HistogramDataPointsToDataPointsAdaptor dps_ada = 
+        new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
     final List<byte[]> uids_read = dps_ada.getAggregatedTagUids();
     
     assertEquals(1, uids_read.size());
@@ -168,11 +185,14 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
   
   @Test
   public void getAggregatedTagUidsNoSpans() throws Exception {
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
+    DownsamplingSpecification specification = new 
+        DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
         end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, null));
     
-    HistogramDataPointsToDataPointsAdaptor dps_ada = new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
+    HistogramDataPointsToDataPointsAdaptor dps_ada = 
+        new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
     final List<byte[]> uids_read = dps_ada.getAggregatedTagUids();
     
     assertEquals(0, uids_read.size());
@@ -188,14 +208,19 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
     final HistogramSpan span = mock(HistogramSpan.class);
     when(span.getTagUids()).thenReturn(uids);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
-        end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, query_tags));
+    DownsamplingSpecification specification = new 
+        DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
+        end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, 
+        query_tags));
     
-    final ArrayList<HistogramSpan> spans = Whitebox.getInternalState(group, "spans");
+    final ArrayList<HistogramSpan> spans = 
+        Whitebox.getInternalState(group, "spans");
     spans.add(span);
     
-    HistogramDataPointsToDataPointsAdaptor dps_ada = new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
+    HistogramDataPointsToDataPointsAdaptor dps_ada = 
+        new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
     final ByteMap<byte[]> uids_read = dps_ada.getTagUids();
     assertEquals(0, uids_read.size());
     
@@ -214,14 +239,19 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
     final HistogramSpan span = mock(HistogramSpan.class);
     when(span.getTagUids()).thenReturn(uids);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
-        end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, query_tags));
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
+        end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, 
+        query_tags));
     
-    final ArrayList<HistogramSpan> spans = Whitebox.getInternalState(group, "spans");
+    final ArrayList<HistogramSpan> spans = 
+        Whitebox.getInternalState(group, "spans");
     spans.add(span);
     
-    HistogramDataPointsToDataPointsAdaptor dps_ada = new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
+    HistogramDataPointsToDataPointsAdaptor dps_ada = 
+        new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
     final ByteMap<byte[]> uids_read = dps_ada.getTagUids();
     assertEquals(1, uids_read.size());
     assertEquals(0, Bytes.memcmp(new byte[] {0, 0, 0, 1 }, uids_read.firstKey()));
@@ -237,14 +267,18 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
     final HistogramSpan span = mock(HistogramSpan.class);
     when(span.getTagUids()).thenReturn(uids);
     
-    DownsamplingSpecification specification = new DownsamplingSpecification("1dc-sum");
-    final HistogramSpanGroup group = PowerMockito.spy(new HistogramSpanGroup(tsdb, start_ts, 
+    DownsamplingSpecification specification = 
+        new DownsamplingSpecification("1dc-sum");
+    final HistogramSpanGroup group = PowerMockito.spy(
+        new HistogramSpanGroup(tsdb, start_ts, 
         end_ts, null, HistogramAggregation.SUM, specification, 0, 0, 0, false, null));
     
-    final ArrayList<HistogramSpan> spans = Whitebox.getInternalState(group, "spans");
+    final ArrayList<HistogramSpan> spans = 
+        Whitebox.getInternalState(group, "spans");
     spans.add(span);
     
-    HistogramDataPointsToDataPointsAdaptor dps_ada = new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
+    HistogramDataPointsToDataPointsAdaptor dps_ada = 
+        new HistogramDataPointsToDataPointsAdaptor(group, 0.98f);
     final ByteMap<byte[]> uids_read = dps_ada.getTagUids();
     assertEquals(1, uids_read.size());
     assertEquals(0, Bytes.memcmp(new byte[] {0, 0, 0, 1 }, uids_read.firstKey()));
@@ -257,7 +291,8 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
   public void iteratorAllItems() {
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
 
     final HistogramSpan hspan = new HistogramSpan(tsdb);
@@ -268,10 +303,13 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
 
     final ByteSet query_tags = new ByteSet();
     query_tags.add(new byte[] { 0, 0, 0, 1 });
-    HistogramSpanGroup hist_span_group = new HistogramSpanGroup(tsdb, BASE_TIME, BASE_TIME + 5000L * 10, spans,
-        HistogramAggregation.SUM, DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, 0, false, query_tags);
+    HistogramSpanGroup hist_span_group = 
+        new HistogramSpanGroup(tsdb, BASE_TIME, BASE_TIME + 5000L * 10, spans,
+        HistogramAggregation.SUM, 
+        DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, 0, false, query_tags);
     
-    HistogramDataPointsToDataPointsAdaptor dps_ada = new HistogramDataPointsToDataPointsAdaptor(hist_span_group, 0.98f);
+    HistogramDataPointsToDataPointsAdaptor dps_ada = 
+        new HistogramDataPointsToDataPointsAdaptor(hist_span_group, 0.98f);
     List<Double> values = new ArrayList<Double>();
     List<Long> timestamp_in_ms = new ArrayList<Long>();
     for (DataPoint dp : dps_ada) {
@@ -288,7 +326,8 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
     
     assertEquals(values.size(), to_checks.size());
     for (int i = 0; i < values.size(); ++i) {
-      assertEquals(values.get(i).doubleValue(), to_checks.get(i).doubleValue(), 0.0001);
+      assertEquals(values.get(i).doubleValue(), to_checks.get(i).doubleValue(), 
+          0.0001);
       assertEquals(timestamp_in_ms.get(i).longValue(), BASE_TIME + 5000L * i);
     } // end for
   }
@@ -297,7 +336,8 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
   public void doubleIteratorAllItems() {
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
 
     final HistogramSpan hspan = new HistogramSpan(tsdb);
@@ -308,10 +348,13 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
 
     final ByteSet query_tags = new ByteSet();
     query_tags.add(new byte[] { 0, 0, 0, 1 });
-    HistogramSpanGroup hist_span_group = new HistogramSpanGroup(tsdb, BASE_TIME, BASE_TIME + 5000L * 10, spans,
-        HistogramAggregation.SUM, DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, 0, false, query_tags);
+    HistogramSpanGroup hist_span_group = 
+        new HistogramSpanGroup(tsdb, BASE_TIME, BASE_TIME + 5000L * 10, spans,
+        HistogramAggregation.SUM, DownsamplingSpecification.NO_DOWNSAMPLER, 
+        0, 0, 0, false, query_tags);
     
-    HistogramDataPointsToDataPointsAdaptor dps_ada = new HistogramDataPointsToDataPointsAdaptor(hist_span_group, 0.98f);
+    HistogramDataPointsToDataPointsAdaptor dps_ada = 
+        new HistogramDataPointsToDataPointsAdaptor(hist_span_group, 0.98f);
     List<Double> values = new ArrayList<Double>();
     for (DataPoint dp : dps_ada) {
       assertFalse(dp.isInteger());
@@ -331,8 +374,10 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
     
     assertEquals(values.size(), to_checks.size());
     for (int i = 0; i < values.size(); ++i) {
-      assertEquals(values.get(i).doubleValue(), to_checks.get(i).doubleValue(), 0.0001);
-      assertEquals(values.get(i).doubleValue(), values2.get(i).doubleValue(), 0.0001);
+      assertEquals(values.get(i).doubleValue(), to_checks.get(i).doubleValue(), 
+          0.0001);
+      assertEquals(values.get(i).doubleValue(), values2.get(i).doubleValue(), 
+          0.0001);
     } // end for
   }
   
@@ -340,7 +385,8 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
   public void iteratorAllItemsWithDiffPercentile() {
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, Bytes.fromLong(i)));
+      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
+          Bytes.fromLong(i)));
     }
 
     final HistogramSpan hspan = new HistogramSpan(tsdb);
@@ -351,11 +397,14 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
 
     final ByteSet query_tags = new ByteSet();
     query_tags.add(new byte[] { 0, 0, 0, 1 });
-    HistogramSpanGroup hist_span_group = new HistogramSpanGroup(tsdb, BASE_TIME, BASE_TIME + 5000L * 10, spans,
-        HistogramAggregation.SUM, DownsamplingSpecification.NO_DOWNSAMPLER, 0, 0, 0, false, query_tags);
+    HistogramSpanGroup hist_span_group = 
+        new HistogramSpanGroup(tsdb, BASE_TIME, BASE_TIME + 5000L * 10, spans,
+        HistogramAggregation.SUM, DownsamplingSpecification.NO_DOWNSAMPLER, 
+        0, 0, 0, false, query_tags);
     
     // 98 percentile
-    HistogramDataPointsToDataPointsAdaptor dps_ada_98 = new HistogramDataPointsToDataPointsAdaptor(hist_span_group, 0.98f);
+    HistogramDataPointsToDataPointsAdaptor dps_ada_98 = 
+        new HistogramDataPointsToDataPointsAdaptor(hist_span_group, 0.98f);
     List<Double> values = new ArrayList<Double>();
     for (DataPoint dp : dps_ada_98) {
       assertFalse(dp.isInteger());
@@ -370,11 +419,13 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
     
     assertEquals(values.size(), to_checks.size());
     for (int i = 0; i < values.size(); ++i) {
-      assertEquals(values.get(i).doubleValue(), to_checks.get(i).doubleValue(), 0.0001);
+      assertEquals(values.get(i).doubleValue(), to_checks.get(i).doubleValue(), 
+          0.0001);
     } // end for
     
     // 95 percentile
-    HistogramDataPointsToDataPointsAdaptor dps_ada_95 = new HistogramDataPointsToDataPointsAdaptor(hist_span_group, 0.95f);
+    HistogramDataPointsToDataPointsAdaptor dps_ada_95 = 
+        new HistogramDataPointsToDataPointsAdaptor(hist_span_group, 0.95f);
     List<Double> values_95 = new ArrayList<Double>();
     for (DataPoint dp : dps_ada_95) {
       assertFalse(dp.isInteger());
@@ -389,7 +440,8 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
     
     assertEquals(values_95.size(), to_checks_95.size());
     for (int i = 0; i < values.size(); ++i) {
-      assertEquals(values_95.get(i).doubleValue(), to_checks_95.get(i).doubleValue(), 0.0001);
+      assertEquals(values_95.get(i).doubleValue(), 
+          to_checks_95.get(i).doubleValue(), 0.0001);
     } // end for
   }
 }
