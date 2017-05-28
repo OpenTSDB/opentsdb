@@ -309,7 +309,12 @@ final class QueryRpc implements HttpRpc {
         final ArrayList<Deferred<DataPoints[]>> deferreds = 
             new ArrayList<Deferred<DataPoints[]>>(queries.length);
         for (final Query query : queries) {
-          deferreds.add(query.runAsync());
+          // call different interfaces basing on whether it is a percentile query
+          if (!query.isHistogramQuery()) {
+            deferreds.add(query.runAsync());
+          } else {
+            deferreds.add(query.runHistogramAsync());
+          }
         }
         return Deferred.groupInOrder(deferreds).addCallback(new QueriesCB());
       }
@@ -705,6 +710,10 @@ final class QueryRpc implements HttpRpc {
         sub_query.setPreAggregate(true);
       } else if (parts[x].toLowerCase().startsWith("rollup_")) {
         sub_query.setRollupUsage(parts[x]);
+      } else if (parts[x].toLowerCase().startsWith("percentiles")) {
+        sub_query.setPercentiles(QueryRpc.parsePercentiles(parts[x]));
+      } else if (parts[x].toLowerCase().startsWith("show-histogram-buckets")) {
+        sub_query.setShowHistogramBuckets(true);
       } else if (parts[x].toLowerCase().startsWith("explicit_tags")) {
         sub_query.setExplicitTags(true);
       }
@@ -760,6 +769,10 @@ final class QueryRpc implements HttpRpc {
         }
       } else if (Character.isDigit(parts[x].charAt(0))) {
         sub_query.setDownsample(parts[x]);
+      } else if (parts[x].toLowerCase().startsWith("percentiles")) {
+        sub_query.setPercentiles(QueryRpc.parsePercentiles(parts[x]));
+      } else if (parts[x].toLowerCase().startsWith("show-histogram-buckets")) {
+        sub_query.setShowHistogramBuckets(true);
       }
     }
     
@@ -869,6 +882,34 @@ final class QueryRpc implements HttpRpc {
     
     query.setQueries(sub_queries);
     return query;
+  }
+  
+  /**
+   * Parse the "percentile" section of the query string and returns an list of
+   * float that contains the percentile calculation paramters
+   * <p>
+   * the format of the section: percentile[xx,yy,zz]
+   * </p>
+   * <p>
+   * xx, yy, zz are the floats
+   * </p>
+   * @param spec
+   * @return
+   */
+  public static final List<Float> parsePercentiles(final String spec) {
+    List<Float> rs = new ArrayList<Float>();
+    int start_pos = spec.indexOf('[');
+    int end_pos = spec.indexOf(']');
+    if (start_pos == -1 || end_pos == -1) {
+      throw new BadRequestException("Malformated percentile query paramater: " + spec);
+    }
+    
+    String [] floats = Tags.splitString(spec.substring(start_pos + 1, end_pos), ',');
+    for (String s : floats) {
+      String trimed = s.trim();
+      rs.add(Float.valueOf(trimed));
+    }
+    return rs;
   }
   
   /** @param collector Populates the collector with statistics */

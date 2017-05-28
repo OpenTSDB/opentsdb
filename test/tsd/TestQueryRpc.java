@@ -24,6 +24,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Method;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.List;
 
 import net.opentsdb.auth.AuthState;
@@ -677,6 +678,61 @@ public final class TestQueryRpc {
     final String json = 
         query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(json.contains("factor"));
+  }
+  
+  @Test
+  public void testParsePercentile() {
+    final String s = "percentile[0.98,0.95,0.99]";
+    final String ss = "percentile [0.98,0.95,0.99]";
+    final String sss = "percentile[ 0.98,0.95,0.99]";
+    final String ssss = "percentile[0.98,0.95,0.99 ]";
+    final String sssss = "percentile[ 0.98, 0.95,0.99]";
+    List<String> strs = new ArrayList<String>();
+    strs.add(sssss);
+    strs.add(ssss);
+    strs.add(sss);
+    strs.add(ss);
+    strs.add(s);
+    
+    for (String str : strs) {
+      List<Float> fs = QueryRpc.parsePercentiles(str);
+      assertEquals(3, fs.size());
+      assertEquals(0.98, fs.get(0), 0.0001);
+      assertEquals(0.95, fs.get(1), 0.0001);
+      assertEquals(0.99, fs.get(2), 0.0001);
+    }
+  }
+  
+  @Test
+  public void parseHistogramQueryMType() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:percentiles[0.98]:msg.end2end.latency");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    assertNotNull(tsq);
+    assertEquals("1h-ago", tsq.getStart());
+    assertNotNull(tsq.getQueries());
+    TSSubQuery sub = tsq.getQueries().get(0);
+    
+    assertNotNull(sub);
+    assertEquals("sum", sub.getAggregator());
+    assertEquals("msg.end2end.latency", sub.getMetric());
+    assertEquals(0.98f, sub.getPercentiles().get(0).floatValue(), 0.0001);
+  }
+  
+  @Test
+  public void parseHistogramQueryTSUIDType() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&tsuid=sum:percentiles[0.98]:010101");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    assertNotNull(tsq);
+    assertEquals("1h-ago", tsq.getStart());
+    assertNotNull(tsq.getQueries());
+    TSSubQuery sub = tsq.getQueries().get(0);
+    assertNotNull(sub);
+    assertEquals("sum", sub.getAggregator());
+    assertEquals(1, sub.getTsuids().size());
+    assertEquals("010101", sub.getTsuids().get(0));
+    assertEquals(0.98f, sub.getPercentiles().get(0).floatValue(), 0.0001);
   }
   
   @Test
