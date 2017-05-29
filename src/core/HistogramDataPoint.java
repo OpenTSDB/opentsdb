@@ -15,6 +15,11 @@ package net.opentsdb.core;
 import java.util.List;
 import java.util.Map;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 /**
  * Represents a single histogram data point, e.g. all of the buckets for a 
  * measurement at a point in time.
@@ -68,22 +73,26 @@ public interface HistogramDataPoint extends Cloneable {
    */
   HistogramDataPoint clone();
   
-  
   HistogramDataPoint cloneAndSetTimestamp(final long timestamp);
-  
   
   ///////////////////////////////////////////////////////////////////////////
   // A nested class to present the bucket information
   ///////////////////////////////////////////////////////////////////////////
-  public class HistogramBucket implements Comparable<HistogramBucket> {
+  public class HistogramBucket implements KryoSerializable, Comparable<HistogramBucket> {
     public enum BucketType {
       UNDERFLOW, REGULAR, OVERFLOW
     }
 
     private final BucketType type;
-    private final float lower_bound;
-    private final float upper_bound;
+    private float lower_bound;
+    private float upper_bound;
 
+    public HistogramBucket() {
+      this.type = BucketType.REGULAR;
+      this.lower_bound = 0;
+      this.upper_bound = 0;
+    }
+    
     public HistogramBucket(final BucketType type, final float lower_bound, 
         final float uper_bound) {
       this.type = type;
@@ -151,6 +160,25 @@ public interface HistogramDataPoint extends Cloneable {
       }
       
       return 0;
+    }
+    
+    public void write(Kryo kryo, Output output) {
+        output.writeFloat(lower_bound);
+        output.writeFloat(upper_bound);
+    }
+    
+    public void read(Kryo kryo, Input input) {
+      lower_bound = input.readFloat();
+      upper_bound = input.readFloat();
+    }
+    
+    @Override
+    public String toString() {
+        if (this.getUpperBound() != Float.NaN) {
+            return this.getLowerBound() + "-" + this.getUpperBound();
+        } else {
+            return this.getLowerBound() + "-";
+        }
     }
   }
   
