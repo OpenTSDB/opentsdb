@@ -21,8 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-import javax.annotation.Generated;
-
+import org.hbase.async.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,13 +30,16 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import net.opentsdb.core.HistogramDataPoint.HistogramBucket;
 import net.opentsdb.core.HistogramDataPoint.HistogramBucket.BucketType;
 
-@JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
-@Generated("org.jsonschema2pojo")
+/**
+ * A simple bucketed histogram with a fixed number of buckets, an underflow 
+ * counter and an overflow counter. 
+ * 
+ * @since 3.0
+ */
 public class SimpleHistogram implements Histogram {
   private static Logger LOG = LoggerFactory.getLogger(SimpleHistogram.class);
   
@@ -85,18 +87,26 @@ public class SimpleHistogram implements Histogram {
   
   public void fromHistogram(byte[] raw) {
     if (raw.length < 6) {
-      LOG.debug("Byte array shorter than 6 bytes detected");
+      LOG.warn("Byte array shorter than 6 bytes detected: " + Bytes.pretty(raw));
       return;
     }
-    Input input = new Input(new ByteArrayInputStream(raw));
-    int bucketCount = input.readShort();
+    Input input = null;
+    try {
+      input = new Input(new ByteArrayInputStream(raw));
+      int bucketCount = input.readShort();
 
-    for (int i = 0; i < bucketCount; i++) {
-      buckets.put(new HistogramBucket(BucketType.REGULAR, input.readFloat(), input.readFloat()), input.readLong(true));
+      for (int i = 0; i < bucketCount; i++) {
+        buckets.put(new HistogramBucket(BucketType.REGULAR, input.readFloat(), 
+            input.readFloat()), input.readLong(true));
+      }
+
+      this.setUnderflow(input.readLong(true));
+      this.setOverflow(input.readLong(true));
+    } finally {
+      if (input != null) {
+        input.close();
+      }
     }
-
-    this.setUnderflow(input.readLong(true));
-    this.setOverflow(input.readLong(true));
   }
   
   private int calcBucketSum () {
@@ -109,193 +119,231 @@ public class SimpleHistogram implements Histogram {
   }
 
   public double percentile(double perc) {
-      if (perc < 1.0 || perc > 100.0) {
-          return -1.0;
+    if (perc < 1.0 || perc > 100.0) {
+      return -1.0;
+    }
+
+    int bucketSum = calcBucketSum();
+
+    long runningCount = 0;
+    double prevBucketArea = 0.0;
+    double percValue = 0.0;
+
+    for (Map.Entry<HistogramBucket, Long> entry : buckets.entrySet()) {
+      runningCount += entry.getValue().intValue();
+      Double currBucketArea = runningCount * 100.0 / bucketSum;
+
+      if (currBucketArea >= perc) {
+        //Find closest ranks
+        //Float currBucketStart = entry.getKey().getLowerBound();
+        //Float nextBucketStart = entry.getKey().getUpperBound();
+
+        //percValue = currBucketStart + ((nextBucketStart - currBucketStart) * 
+        // (perc - prevBucketArea) / (currBucketArea - prevBucketArea));
+        percValue = (entry.getKey().getLowerBound() + 
+            entry.getKey().getUpperBound()) / 2;
+        break;
+      } else {
+        prevBucketArea = runningCount * 100.0 / bucketSum;
       }
+    }
 
-      int bucketSum = calcBucketSum();
-
-      long runningCount = 0;
-      double prevBucketArea = 0.0;
-      double percValue = 0.0;
-
-      for (Map.Entry<HistogramBucket, Long> entry : buckets.entrySet()) {
-          runningCount += entry.getValue().intValue();
-          Double currBucketArea = runningCount * 100.0 / bucketSum;
-
-          if (currBucketArea >= perc) {
-              //Find closest ranks
-              //Float currBucketStart = entry.getKey().getLowerBound();
-              //Float nextBucketStart = entry.getKey().getUpperBound();
-
-              //percValue = currBucketStart + ((nextBucketStart - currBucketStart) * (perc - prevBucketArea) / (currBucketArea - prevBucketArea));
-              percValue = (entry.getKey().getLowerBound() + entry.getKey().getUpperBound())/2;
-              break;
-          } else {
-              prevBucketArea = runningCount * 100.0 / bucketSum;
-          }
-      }
-
-      return percValue;
+    return percValue;
   }
 
   @Override
   public List<Double> percentiles(List<Double> percs) {
-      List<Double> percValues = new ArrayList<Double>();
+    List<Double> percValues = new ArrayList<Double>();
 
-      for (Double perc : percs) {
-          percValues.add(percentile(perc));
-      }
+    for (Double perc : percs) {
+      percValues.add(percentile(perc));
+    }
 
-      return percValues;
+    return percValues;
   }
 
   @JsonIgnore
   @Override
   public Map<HistogramBucket, Long> getHistogram() {
-      return Collections.unmodifiableMap(buckets);
+    return Collections.unmodifiableMap(buckets);
   }
 
   @Override
   public SimpleHistogram clone() {
     SimpleHistogram cloneObj = new SimpleHistogram();
 
-      for (Map.Entry<HistogramBucket, Long> bucket : buckets.entrySet()) {
-          cloneObj.addBucket(bucket.getKey().getLowerBound(), bucket.getKey().getUpperBound(), bucket.getValue());
-      }
-      cloneObj.setUnderflow(underflow);
-      cloneObj.setOverflow(overflow);
+    for (Map.Entry<HistogramBucket, Long> bucket : buckets.entrySet()) {
+      cloneObj.addBucket(bucket.getKey().getLowerBound(), 
+          bucket.getKey().getUpperBound(), bucket.getValue());
+    }
+    cloneObj.setUnderflow(underflow);
+    cloneObj.setOverflow(overflow);
 
-      return cloneObj;
+    return cloneObj;
   }
 
   public Long getBucketCount(Float min, Float max) {
     HistogramBucket qryBucket = new HistogramBucket(BucketType.REGULAR, min, max);
     if (buckets.containsKey(qryBucket)) {
-        Long bucketCount = buckets.get(qryBucket);
-        if (bucketCount == null) {
-            return 0L;
-        } else {
-            return bucketCount;
-        }
+      Long bucketCount = buckets.get(qryBucket);
+      if (bucketCount == null) {
+          return 0L;
+      } else {
+          return bucketCount;
+      }
     } else {
-        return 0L;
+      return 0L;
     }
   }
 
   public void write(Kryo kryo, Output output) {
-      int bucketCount = buckets.size();
-      output.writeShort(bucketCount);
+    int bucketCount = buckets.size();
+    output.writeShort(bucketCount);
 
-      for (Map.Entry<HistogramBucket, Long> bucket : buckets.entrySet()) {
-          bucket.getKey().write(kryo, output);
-          output.writeLong(bucket.getValue(), true);
-      }
+    for (Map.Entry<HistogramBucket, Long> bucket : buckets.entrySet()) {
+      bucket.getKey().write(kryo, output);
+      output.writeLong(bucket.getValue(), true);
+    }
 
-      output.writeLong(this.getUnderflow(), true);
-      output.writeLong(this.getOverflow(), true);
+    output.writeLong(this.getUnderflow(), true);
+    output.writeLong(this.getOverflow(), true);
   }
   
   public void read(Kryo kryo, Input input) {
-      int bucketCount = input.readShort();
-      if (bucketCount < 1) {
-          LOG.debug("Byte array passed has less than 1 histogram entry");
-          return;
-      }
+    int bucketCount = input.readShort();
+    if (bucketCount < 1) {
+      LOG.debug("Byte array passed has less than 1 histogram entry");
+      return;
+    }
 
-      for (int i = 0; i < bucketCount; i++) {
-        HistogramBucket bucket = new HistogramBucket();
-          bucket.read(kryo, input);
-          buckets.put(bucket, input.readLong(true));
-      }
+    for (int i = 0; i < bucketCount; i++) {
+      HistogramBucket bucket = new HistogramBucket();
+        bucket.read(kryo, input);
+        buckets.put(bucket, input.readLong(true));
+    }
 
-      this.setUnderflow(input.readLong(true));
-      this.setOverflow(input.readLong(true));
+    this.setUnderflow(input.readLong(true));
+    this.setOverflow(input.readLong(true));
   }
-
   
   public void aggregate(Histogram histo, HistogramAggregation func) {
-      if (func == HistogramAggregation.SUM) {
-          SimpleHistogram y1Histo = (SimpleHistogram) histo;
-          for (Map.Entry<HistogramBucket, Long> bucket : (Set<Map.Entry<HistogramBucket, Long>>) histo.getHistogram().entrySet()) {
-              Long newCount = this.getBucketCount(bucket.getKey().getLowerBound(), bucket.getKey().getUpperBound()) + bucket.getValue();
-              this.addBucket(bucket.getKey().getLowerBound(), bucket.getKey().getUpperBound(), newCount);
-          }
-          this.setOverflow(y1Histo.getOverflow() + this.getOverflow());
-          this.setUnderflow(y1Histo.getUnderflow() + this.getUnderflow());
-      } else {
-          LOG.debug("Unsupported histogram aggregation used");
+    if (func == HistogramAggregation.SUM) {
+      SimpleHistogram y1Histo = (SimpleHistogram) histo;
+      for (Map.Entry<HistogramBucket, Long> bucket : 
+        (Set<Map.Entry<HistogramBucket, Long>>) histo.getHistogram().entrySet()) {
+        Long newCount = this.getBucketCount(bucket.getKey().getLowerBound(),
+            bucket.getKey().getUpperBound()) + bucket.getValue();
+        this.addBucket(bucket.getKey().getLowerBound(), 
+            bucket.getKey().getUpperBound(), newCount);
       }
+      this.setOverflow(y1Histo.getOverflow() + this.getOverflow());
+      this.setUnderflow(y1Histo.getUnderflow() + this.getUnderflow());
+    } else {
+      LOG.debug("Unsupported histogram aggregation used");
+    }
   }
 
   public void aggregate(List<Histogram> histos, HistogramAggregation func) {
-      if (func == HistogramAggregation.SUM) {
-          for (Histogram histo : histos) {
-              this.aggregate(histo, HistogramAggregation.SUM);
-          }
-      } else {
-          LOG.debug("Unsupported histogram aggregation used");
+    if (func == HistogramAggregation.SUM) {
+      for (Histogram histo : histos) {
+        this.aggregate(histo, HistogramAggregation.SUM);
       }
+    } else {
+      LOG.debug("Unsupported histogram aggregation used");
+    }
   }
 
   public Long getUnderflow() {
-      return underflow;
+    return underflow;
   }
 
   public void setUnderflow(Long underflow) {
-      this.underflow = underflow;
+    this.underflow = underflow;
   }
 
   public Long getOverflow() {
-      return overflow;
+    return overflow;
   }
 
   public void setOverflow(Long overflow) {
-      this.overflow = overflow;
+    this.overflow = overflow;
   }
   
-  public static double[] initializeHistogram (float start, float end, float focusRangeStart, float focusRangeEnd, float errorPct) {
+  /**
+   * Generates an array of bucket lower bounds from {@code start} to {@code end}
+   * with a fixed error interval (i.e. the span of the buckets). Up to 100 
+   * buckets can be created using this method. Additionally, a range of 
+   * measurements can be provided to "focus" on with a smaller bucket span while
+   * the remaining buckets have a wider span. 
+   * @param start The starting bucket measurement (lower bound).
+   * @param end The ending bucket measurement (upper bound).
+   * @param focusRangeStart The focus range start bound. Can be the same as
+   * {@code start}.
+   * @param focusRangeEnd The focus rang end bound. Can be the same as 
+   * {@code end}.
+   * @param errorPct The acceptable error with respect to bucket width. E.g.
+   * 0.05 for 5%.
+   * @return An array of bucket lower bounds.
+   */
+  public static double[] initializeHistogram (final float start, 
+                                              final float end, 
+                                              final float focusRangeStart, 
+                                              final float focusRangeEnd, 
+                                              final float errorPct) {
     if (Float.compare(start, end) >= 0) {
-        throw new RuntimeException("Histogram start (" + start + ") must be less than Histogram end (" + end +")");
+        throw new IllegalArgumentException("Histogram start (" + start + ") must be "
+            + "less than Histogram end (" + end +")");
     } else if (Float.compare(focusRangeStart, focusRangeEnd) >= 0) {
-        throw new RuntimeException("Histogram focus range start (" + focusRangeStart + ") must be less than Histogram focus end (" + focusRangeEnd + ")");
-    } else if (Float.compare(start, focusRangeStart) > 0 || Float.compare(focusRangeStart, end) >= 0 || Float.compare(start, focusRangeEnd) >= 0 || Float.compare(focusRangeEnd, end) > 0) {
-        throw new RuntimeException("Focus range start (" + focusRangeStart + ") and Focus range end (" + focusRangeEnd + ") must be greater than Histogram start (" + start + ") and less than Histogram end (" + end + ")");
+        throw new IllegalArgumentException("Histogram focus range start (" 
+            + focusRangeStart + ") must be less than Histogram focus end (" 
+            + focusRangeEnd + ")");
+    } else if (Float.compare(start, focusRangeStart) > 0 || 
+        Float.compare(focusRangeStart, end) >= 0 || 
+        Float.compare(start, focusRangeEnd) >= 0 || 
+        Float.compare(focusRangeEnd, end) > 0) {
+        throw new IllegalArgumentException("Focus range start (" + focusRangeStart 
+            + ") and Focus range end (" + focusRangeEnd + ") must be greater "
+                + "than Histogram start (" + start + ") and less than "
+                    + "Histogram end (" + end + ")");
     } else if (Float.compare(errorPct, 0.0f) <= 0) {
-        throw new RuntimeException("Error rate (" + errorPct + ") must be greater than zero");
+        throw new IllegalArgumentException("Error rate (" + errorPct + ") must be "
+            + "greater than zero");
     }
     int MAX_BUCKETS = 100;
     float stepSize = (1 + errorPct)/(1 - errorPct);
-    int bucketcount = Double.valueOf(Math.ceil(Math.log(focusRangeEnd/focusRangeStart)/Math.log(stepSize))).intValue() + 1;
+    int bucketcount = Double.valueOf(Math.ceil(
+        Math.log(focusRangeEnd/focusRangeStart) / Math.log(stepSize)))
+          .intValue() + 1;
 
     if (Float.compare(start, focusRangeStart) < 0) {
-        bucketcount++;
+      bucketcount++;
     }
 
     if (Float.compare(focusRangeEnd, end) < 0) {
-        bucketcount++;
+      bucketcount++;
     }
 
     if (bucketcount > MAX_BUCKETS) {
-        throw new RuntimeException("A max of " + MAX_BUCKETS +" buckets are supported. " + bucketcount + " were requested");
+      throw new IllegalArgumentException("A max of " + MAX_BUCKETS 
+          + " buckets are supported. " + bucketcount + " were requested");
     }
 
     double[] retval = new double[bucketcount];
     int j = 0;
     if (Float.compare(start, focusRangeStart) < 0) {
-        retval[j] = start;
-        j++;
+      retval[j] = start;
+      j++;
     }
 
     for (float i = focusRangeStart; i < focusRangeEnd; i*=stepSize, j++) {
-        retval[j] = i;
+      retval[j] = i;
     }
 
     if (Float.compare(focusRangeEnd, end) < 0) {
-        retval[j++] = focusRangeEnd;
+      retval[j++] = focusRangeEnd;
     }
     retval[j] = end;
 
     return retval;
-}
+  }
 }

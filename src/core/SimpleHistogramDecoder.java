@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2011-2012  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -16,7 +16,7 @@ import java.util.Arrays;
 
 /**
  * <p>
- * Histogram decoder for Yamas style histograms.
+ * Histogram decoder for Simple style histograms.
  * </p>
  * <p>
  * It currently checks the first byte of the encoded data and decide the type of
@@ -26,13 +26,14 @@ import java.util.Arrays;
  * <p>
  * This class is thread safe as it has no state.
  * </p>
+ * @since 2.4
  */
 public class SimpleHistogramDecoder implements HistogramDataPointDecoder {
   @Override
   public HistogramDataPoint decode(final byte[] raw_data, final long timestamp) {
     final Histogram histogram;
     switch (raw_data[0]) {
-    case 0x0: // should be 0, refer to core-library/src/test/java/com/yahoo/yamas/metrics/Yamas1HistogramTest.java
+    case 0x0:
     {
       histogram = new SimpleHistogram();
       byte[] hist_raw_data = Arrays.copyOfRange(raw_data, 1, raw_data.length);
@@ -40,7 +41,8 @@ public class SimpleHistogramDecoder implements HistogramDataPointDecoder {
     }
     break;
     default:
-      throw new IllegalDataException("Unknown header of histogram data, the header is: " + raw_data[0]);
+      throw new IllegalDataException("Unknown header of histogram data, "
+          + "the header is: " + raw_data[0]);
     }
 
     return new SimpleHistogramDataPointAdapter(histogram, timestamp);

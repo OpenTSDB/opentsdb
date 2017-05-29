@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2011-2012  The OpenTSDB Authors.
+// Copyright (C) 2016-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -18,7 +18,9 @@ import java.util.TreeMap;
 
 /**
  * An adapter of TSDB's {@code HistogramDataPoint} interface with Yamas's
- * {@code Histogram} interface
+ * {@code Histogram} interface.
+ * 
+ * @since 2.4
  */
 public class SimpleHistogramDataPointAdapter implements HistogramDataPoint {
 
@@ -26,18 +28,22 @@ public class SimpleHistogramDataPointAdapter implements HistogramDataPoint {
 
   private final long timestamp;
 
-  public SimpleHistogramDataPointAdapter(final Histogram histogram, final long timestamp) {
+  public SimpleHistogramDataPointAdapter(final Histogram histogram, 
+                                         final long timestamp) {
     this.histogram = histogram;
     this.timestamp = timestamp;
   }
   
-  protected SimpleHistogramDataPointAdapter(final SimpleHistogramDataPointAdapter rhs) {
-    this.histogram = rhs.histogram.clone();;
-    this.timestamp = rhs.timestamp;
+  protected SimpleHistogramDataPointAdapter(
+      final SimpleHistogramDataPointAdapter rhs) {
+    histogram = rhs.histogram.clone();
+    timestamp = rhs.timestamp;
   }
 
-  protected SimpleHistogramDataPointAdapter(final SimpleHistogramDataPointAdapter rhs, final long timestamp) {
-    this.histogram = rhs.histogram.clone();;
+  protected SimpleHistogramDataPointAdapter(
+      final SimpleHistogramDataPointAdapter rhs, 
+      final long timestamp) {
+    histogram = rhs.histogram.clone();
     this.timestamp = timestamp;
   }
 
@@ -67,11 +73,14 @@ public class SimpleHistogramDataPointAdapter implements HistogramDataPoint {
   }
 
   @Override
-  public void aggregate(HistogramDataPoint histo, HistogramAggregation func) {
+  public void aggregate(final HistogramDataPoint histo, 
+                        final HistogramAggregation func) {
     if (!(histo instanceof SimpleHistogramDataPointAdapter)) {
-      throw new IllegalArgumentException("The object must be an instance of the " + "YamasHistogramDataPointAdapter");
+      throw new IllegalArgumentException("The object must be an instance of the " 
+          + "YamasHistogramDataPointAdapter");
     }
-    histogram.aggregate(((SimpleHistogramDataPointAdapter) histo).histogram, mapAggregation(func));
+    histogram.aggregate(((SimpleHistogramDataPointAdapter) histo).histogram, 
+        mapAggregation(func));
   }
 
   @Override
@@ -84,7 +93,7 @@ public class SimpleHistogramDataPointAdapter implements HistogramDataPoint {
     return new SimpleHistogramDataPointAdapter(this, timestamp);
   }
 
-  private HistogramAggregation mapAggregation(HistogramAggregation func) {
+  private HistogramAggregation mapAggregation(final HistogramAggregation func) {
     switch (func) {
     case SUM:
       return HistogramAggregation.SUM;
@@ -101,20 +110,24 @@ public class SimpleHistogramDataPointAdapter implements HistogramDataPoint {
       if (null != buckets) {
         Map<HistogramBucket, Long> result = new TreeMap<HistogramBucket, Long>();
         for (Map.Entry<HistogramBucket, Long> entry : buckets.entrySet()) {
-          HistogramBucket bucket = new HistogramBucket(HistogramBucket.BucketType.REGULAR,
+          HistogramBucket bucket = new HistogramBucket(
+              HistogramBucket.BucketType.REGULAR,
               entry.getKey().getLowerBound(), entry.getKey().getUpperBound());
           result.put(bucket, entry.getValue());
         }
 
-        HistogramBucket underflow_bucket = new HistogramBucket(HistogramBucket.BucketType.UNDERFLOW, 0.0f, 0.0f);
+        HistogramBucket underflow_bucket = new HistogramBucket(
+            HistogramBucket.BucketType.UNDERFLOW, 0.0f, 0.0f);
         result.put(underflow_bucket, yms1_histogram.getUnderflow());
 
-        HistogramBucket overflow_bucket = new HistogramBucket(HistogramBucket.BucketType.OVERFLOW, 0.0f, 0.0f);
+        HistogramBucket overflow_bucket = new HistogramBucket(
+            HistogramBucket.BucketType.OVERFLOW, 0.0f, 0.0f);
         result.put(overflow_bucket, yms1_histogram.getOverflow());
         return result;
       }
     } else {
-      throw new UnsupportedOperationException("The founding histogram object is not one of class Yamas1Histogram");
+      throw new UnsupportedOperationException("The founding histogram object "
+          + "is not one of class Yamas1Histogram");
     }
     return null;
   }
