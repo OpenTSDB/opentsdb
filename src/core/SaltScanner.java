@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CountDownLatch;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.query.filter.TagVFilter;
@@ -59,6 +59,8 @@ import com.stumbleupon.async.Deferred;
  * 
  * Concurrency is important in this class as the scanners are executing
  * asynchronously and can modify variables at any time.
+ * 
+ * @since 2.2
  */
 public class SaltScanner {
   private static final Logger LOG = LoggerFactory.getLogger(SaltScanner.class);
@@ -108,8 +110,8 @@ public class SaltScanner {
   /** Index of the sub query in the main query list */
   private final int query_index;
   
-  /** A counter used to determine how many scanners are still running */
-  private AtomicInteger completed_tasks = new AtomicInteger();
+  /** A latch used to determine how many scanners are still running */
+  private final CountDownLatch countdown;
   
   /** When the scanning started. We store the scan latency once all scanners
    * are done.*/
@@ -172,10 +174,6 @@ public class SaltScanner {
                                       final QueryStats query_stats,
                                       final int query_index,
                                       final TreeMap<byte[], HistogramSpan> histogramSpans) {
-    if (Const.SALT_WIDTH() < 1) {
-      throw new IllegalArgumentException(
-          "Salting is disabled. Use the regular scanner");
-    }
     if (tsdb == null) {
       throw new IllegalArgumentException("The TSDB argument was null.");
     }
@@ -196,6 +194,9 @@ public class SaltScanner {
       throw new IllegalArgumentException("Not enough or too many scanners " + 
           scanners.size() + " when the salt bucket count is " + 
           Const.SALT_BUCKETS());
+    } else if (Const.SALT_WIDTH() <= 0 && scanners.size() > 1) {
+      throw new IllegalArgumentException("Not enough or too many scanners " + 
+          scanners.size() + " when the salting is disabled.");
     }
     if (metric == null) {
       throw new IllegalArgumentException("The metric array was null.");
@@ -215,6 +216,7 @@ public class SaltScanner {
     this.rollup_query = rollup_query;
     this.query_stats = query_stats;
     this.query_index = query_index;
+    countdown = new CountDownLatch(scanners.size());
   }
 
   /**
@@ -825,7 +827,7 @@ public class SaltScanner {
       if (ok && exception == null) {
         validateAndTriggerCallback(kvs, annotations, histograms);
       } else {
-        completed_tasks.incrementAndGet();
+        countdown.countDown();
       }
     }
   }
@@ -835,13 +837,15 @@ public class SaltScanner {
    * @param kvs The compacted columns fetched by the scanner
    * @param annotations The annotations fetched by the scanners
    */
-  private void validateAndTriggerCallback(final List<KeyValue> kvs, 
-          final Map<byte[], List<Annotation>> annotations,
-          final List<SimpleEntry<byte[], List<HistogramDataPoint>>> histograms) {
+  private void validateAndTriggerCallback(
+      final List<KeyValue> kvs, 
+      final Map<byte[], List<Annotation>> annotations,
+      final List<SimpleEntry<byte[], List<HistogramDataPoint>>> histograms) {
 
-    final int tasks = completed_tasks.incrementAndGet();
+    countdown.countDown();
+    final long count = countdown.getCount();
     if (kvs.size() > 0) {
-      kv_map.put(tasks, kvs);
+      kv_map.put((int) count, kvs);
     }
     
     for (final byte[] key : annotations.keySet()) {
@@ -853,10 +857,10 @@ public class SaltScanner {
     }
     
     if (histograms.size() > 0) {
-      histMap.put(tasks, histograms);
+      histMap.put((int) count, histograms);
     }
     
-    if (tasks >= Const.SALT_BUCKETS()) {
+    if (countdown.getCount() <= 0) {
       try {
         mergeAndReturnResults();
       } catch (final Exception ex) {
@@ -874,7 +878,7 @@ public class SaltScanner {
    */
   private void handleException(final Exception e) {
     // make sure only one scanner can set the exception
-    completed_tasks.incrementAndGet();
+    countdown.countDown();
     if (exception == null) {
       synchronized (this) {
         if (exception == null) {

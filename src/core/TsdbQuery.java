@@ -17,11 +17,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 import org.slf4j.Logger;
@@ -29,10 +27,8 @@ import org.slf4j.LoggerFactory;
 import org.hbase.async.BinaryPrefixComparator;
 import org.hbase.async.Bytes;
 import org.hbase.async.CompareFilter;
-import org.hbase.async.DeleteRequest;
 import org.hbase.async.FilterList;
 import org.hbase.async.HBaseException;
-import org.hbase.async.KeyValue;
 import org.hbase.async.QualifierFilter;
 import org.hbase.async.ScanFilter;
 import org.hbase.async.Scanner;
@@ -45,14 +41,12 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
-import net.opentsdb.meta.Annotation;
 import net.opentsdb.query.QueryUtil;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.filter.TagVLiteralOrFilter;
 import net.opentsdb.rollup.NoSuchRollupForIntervalException;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupQuery;
-import net.opentsdb.rollup.RollupSpan;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.QueryStats;
@@ -62,7 +56,6 @@ import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.DateTime;
-import net.opentsdb.utils.JSON;
 
 /**
  * Non-synchronized implementation of {@link Query}.
@@ -733,373 +726,13 @@ final class TsdbQuery implements Query {
       scan_start_time = DateTime.nanoTime();
       return new SaltScanner(tsdb, metric, scanners, spans, scanner_filters,
           delete, rollup_query, query_stats, query_index, null).scan();
+    } else {
+      final List<Scanner> scanners = new ArrayList<Scanner>(1);
+      scanners.add(getScanner(0));
+      scan_start_time = DateTime.nanoTime();
+      return new SaltScanner(tsdb, metric, scanners, spans, scanner_filters,
+          delete, rollup_query, query_stats, query_index, null).scan();
     }
-    
-    scan_start_time = DateTime.nanoTime();
-    final Scanner scanner = getScanner();
-    if (query_stats != null) {
-      query_stats.addScannerId(query_index, 0, scanner.toString());
-    }
-    final Deferred<TreeMap<byte[], Span>> results =
-      new Deferred<TreeMap<byte[], Span>>();
-    
-    /**
-    * Scanner callback executed recursively each time we get a set of data
-    * from storage. This is responsible for determining what columns are
-    * returned and issuing requests to load leaf objects.
-    * When the scanner returns a null set of rows, the method initiates the
-    * final callback.
-    */
-    final class ScannerCB implements Callback<Object,
-      ArrayList<ArrayList<KeyValue>>> {
-      
-      int nrows = 0;
-      boolean seenAnnotation = false;
-      long scanner_start = DateTime.nanoTime();
-      long timeout = tsdb.getConfig().getLong("tsd.query.timeout");
-      private final Set<String> skips = new HashSet<String>();
-      private final Set<String> keepers = new HashSet<String>();
-      private final int index = 0;       // only used for salted scanners
-      /** nanosecond timestamps */
-      private long fetch_start = 0;      // reset each time we send an RPC to HBase
-      private long fetch_time = 0;       // cumulation of time waiting on HBase
-      private long uid_resolve_time = 0; // cumulation of time resolving UIDs
-      private long uids_resolved = 0; 
-      private long compaction_time = 0;  // cumulation of time compacting
-      private long dps_pre_filter = 0;
-      private long rows_pre_filter = 0;
-      private long dps_post_filter = 0;
-      private long rows_post_filter = 0;
-      
-      /** Error callback that will capture an exception from AsyncHBase and store
-       * it so we can bubble it up to the caller.
-       */
-      class ErrorCB implements Callback<Object, Exception> {
-        @Override
-        public Object call(final Exception e) throws Exception {
-          LOG.error("Scanner " + scanner + " threw an exception", e);
-          close(e);
-          return null;
-        }
-      }
-      
-      /**
-      * Starts the scanner and is called recursively to fetch the next set of
-      * rows from the scanner.
-      * @return The map of spans if loaded successfully, null if no data was
-      * found
-      */
-       public Object scan() {
-         fetch_start = DateTime.nanoTime();
-         return scanner.nextRows().addCallback(this).addErrback(new ErrorCB());
-       }
-  
-      /**
-      * Loops through each row of the scanner results and parses out data
-      * points and optional meta data
-      * @return null if no rows were found, otherwise the TreeMap with spans
-      */
-       @Override
-       public Object call(final ArrayList<ArrayList<KeyValue>> rows)
-         throws Exception {
-         fetch_time += DateTime.nanoTime() - fetch_start;
-         try {
-           if (rows == null) {
-             scanlatency.add((int)DateTime.msFromNano(fetch_time));
-             LOG.info(TsdbQuery.this + " matched " + nrows + " rows in " +
-                 spans.size() + " spans in " + DateTime.msFromNano(fetch_time) + "ms");
-             close(null);
-             return null;
-           }
-           
-           if (timeout > 0 && DateTime.msFromNanoDiff(
-               DateTime.nanoTime(), scanner_start) > timeout) {
-             throw new InterruptedException("Query timeout exceeded!");
-           }
-           
-           rows_pre_filter += rows.size();
-           
-           // used for UID resolution if a filter is involved
-           final List<Deferred<Object>> lookups = 
-               filters != null && !filters.isEmpty() ? 
-                   new ArrayList<Deferred<Object>>(rows.size()) : null;
-               
-           for (final ArrayList<KeyValue> row : rows) {
-             final byte[] key = row.get(0).key();
-             if (Bytes.memcmp(metric, key, 0, metric_width) != 0) {
-               scanner.close();
-               throw new IllegalDataException(
-                   "HBase returned a row that doesn't match"
-                   + " our scanner (" + scanner + ")! " + row + " does not start"
-                   + " with " + Arrays.toString(metric));
-             }
-             
-             // calculate estimated data point count. We don't want to deserialize
-             // the byte arrays so we'll just get a rough estimate of compacted
-             // columns.
-             for (final KeyValue kv : row) {
-               if (kv.qualifier().length % 2 == 0) {
-                 if (kv.qualifier().length == 2 || kv.qualifier().length == 4) {
-                   ++dps_pre_filter;
-                 } else {
-                   // for now we'll assume that all compacted columns are of the 
-                   // same precision. This is likely incorrect.
-                   if (Internal.inMilliseconds(kv.qualifier())) {
-                     dps_pre_filter += (kv.qualifier().length / 4);
-                   } else {
-                     dps_pre_filter += (kv.qualifier().length / 2);
-                   }
-                 }
-               } else if (kv.qualifier()[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
-                 // with appends we don't have a good rough estimate as the length
-                 // can vary widely with the value length variability. Therefore we
-                 // have to iterate.
-                 int idx = 0;
-                 int qlength = 0;
-                 while (idx < kv.value().length) {
-                   qlength = Internal.getQualifierLength(kv.value(), idx);
-                   idx += qlength + Internal.getValueLengthFromQualifier(kv.value(), idx);
-                   ++dps_pre_filter;
-                 }
-               }
-             }
-             
-             // If any filters have made it this far then we need to resolve
-             // the row key UIDs to their names for string comparison. We'll
-             // try to avoid the resolution with some sets but we may dupe
-             // resolve a few times.
-             // TODO - more efficient resolution
-             // TODO - byte set instead of a string for the uid may be faster
-             if (scanner_filters != null && !scanner_filters.isEmpty()) {
-               lookups.clear();
-               final String tsuid = 
-                   UniqueId.uidToString(UniqueId.getTSUIDFromKey(key, 
-                   TSDB.metrics_width(), Const.TIMESTAMP_BYTES));
-               if (skips.contains(tsuid)) {
-                 continue;
-               }
-               if (!keepers.contains(tsuid)) {
-                 final long uid_start = DateTime.nanoTime();
-                 
-                 /** CB to called after all of the UIDs have been resolved */
-                 class MatchCB implements Callback<Object, ArrayList<Boolean>> {
-                   @Override
-                   public Object call(final ArrayList<Boolean> matches) 
-                       throws Exception {
-                     for (final boolean matched : matches) {
-                       if (!matched) {
-                         skips.add(tsuid);
-                         return null;
-                       }
-                     }
-                     // matched all, good data
-                     keepers.add(tsuid);
-                     processRow(key, row);
-                     return null;
-                   }
-                 }
-
-                 /** Resolves all of the row key UIDs to their strings for filtering */
-                 class GetTagsCB implements
-                     Callback<Deferred<ArrayList<Boolean>>, Map<String, String>> {
-                   @Override
-                   public Deferred<ArrayList<Boolean>> call(
-                       final Map<String, String> tags) throws Exception {
-                     uid_resolve_time += (DateTime.nanoTime() - uid_start);
-                     uids_resolved += tags.size();
-                     final List<Deferred<Boolean>> matches =
-                         new ArrayList<Deferred<Boolean>>(scanner_filters.size());
-
-                     for (final TagVFilter filter : scanner_filters) {
-                       matches.add(filter.match(tags));
-                     }
-                     
-                     return Deferred.group(matches);
-                   }
-                 }
-    
-                 lookups.add(Tags.getTagsAsync(tsdb, key)
-                     .addCallbackDeferring(new GetTagsCB())
-                     .addBoth(new MatchCB()));
-               } else {
-                 processRow(key, row);
-               }
-             } else {
-               processRow(key, row);
-             }
-           }
-
-           // either we need to wait on the UID resolutions or we can go ahead
-           // if we don't have filters.
-           if (lookups != null && lookups.size() > 0) {
-             class GroupCB implements Callback<Object, ArrayList<Object>> {
-               @Override
-               public Object call(final ArrayList<Object> group) throws Exception {
-                 return scan();
-               }
-             }
-             return Deferred.group(lookups).addCallback(new GroupCB());
-           } else {
-             return scan();
-           }
-         } catch (Exception e) {
-           close(e);
-           return null;
-         }
-       }
-       
-       /**
-        * Finds or creates the span for this row, compacts it and stores it.
-        * @param key The row key to use for fetching the span
-        * @param row The row to add
-        */
-       void processRow(final byte[] key, final ArrayList<KeyValue> row) {
-         ++rows_post_filter;
-         if (delete) {
-           final DeleteRequest del = new DeleteRequest(tsdb.dataTable(), key);
-           tsdb.getClient().delete(del);
-         }
-         
-         //Please move this logic to @CompactionQueue.compact API, if the 
-         //qualifier prefix is set for rollup. Right now there is no way to
-         //identify whether a cell belong to rollup or default data table
-         //from the KeyValue/Hbase cell object
-         if (RollupQuery.isValidQuery(rollup_query)) {
-           //It is the rollup search result and rollup cells will not be 
-           //compacted, so don't need to worry about complex or trivial 
-           //compactions. It just need to consider the cells are different key 
-           //values
-           
-           Span datapoints = spans.get(key);
-           if (datapoints == null) {
-             datapoints = new RollupSpan(tsdb, rollup_query);
-             spans.put(key, datapoints);
-           }
-           
-           for (KeyValue kv:row) {
-             final byte[] qual = kv.qualifier();
-             
-             if (qual.length > 0) {
-               // Todo: Bug! Here we shouldn't use the first byte to check the type of this row
-               // Instead should parse the byte array to find the suffix and determine the actual type
-               if (qual[0] == Annotation.PREFIX()) {
-                 // This could be a row with only an annotation in it
-                 final Annotation note = JSON.parseToObject(kv.value(),
-                         Annotation.class);
-                 datapoints.getAnnotations().add(note);
-               } else {
-                 if (rollup_query.getGroupBy() == Aggregators.AVG || 
-                     rollup_query.getGroupBy() == Aggregators.DEV) {
-                   if (Bytes.memcmp(RollupQuery.SUM, qual, 0, RollupQuery.SUM.length) == 0 ||
-                       Bytes.memcmp(RollupQuery.COUNT, qual, 0, RollupQuery.COUNT.length) == 0) {
-                     datapoints.addRow(kv);
-                   }
-                 } else if (Bytes.memcmp(rollup_query.getRollupAggPrefix(), 
-                     qual, 0, rollup_query.getRollupAggPrefix().length) == 0) {
-                   datapoints.addRow(kv);
-                 }
-               }
-             }
-           } // end for
-           ++nrows;
-           seenAnnotation |= !datapoints.getAnnotations().isEmpty();
-         } else {
-           // calculate estimated data point count. We don't want to deserialize
-           // the byte arrays so we'll just get a rough estimate of compacted
-           // columns.
-           for (final KeyValue kv : row) {
-             if (kv.qualifier().length % 2 == 0) {
-               if (kv.qualifier().length == 2 || kv.qualifier().length == 4) {
-                 ++dps_post_filter;
-               } else {
-                 // for now we'll assume that all compacted columns are of the 
-                 // same precision. This is likely incorrect.
-                 if (Internal.inMilliseconds(kv.qualifier())) {
-                   dps_post_filter += (kv.qualifier().length / 4);
-                 } else {
-                   dps_post_filter += (kv.qualifier().length / 2);
-                 }
-               }
-             } else if (kv.qualifier()[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
-               // with appends we don't have a good rough estimate as the length
-               // can vary widely with the value length variability. Therefore we
-               // have to iterate.
-               int idx = 0;
-               int qlength = 0;
-               while (idx < kv.value().length) {
-                 qlength = Internal.getQualifierLength(kv.value(), idx);
-                 idx += qlength + Internal.getValueLengthFromQualifier(kv.value(), idx);
-                 ++dps_post_filter;
-               }
-             }
-           }
-           
-           Span datapoints = spans.get(key);
-           if (datapoints == null) {
-             datapoints = new Span(tsdb);
-             spans.put(key, datapoints);
-           }
-           final long compaction_start = DateTime.nanoTime();
-           final KeyValue compacted = 
-             tsdb.compact(row, datapoints.getAnnotations(), null);
-           compaction_time += (DateTime.nanoTime() - compaction_start);
-           seenAnnotation |= !datapoints.getAnnotations().isEmpty();
-           if (compacted != null) { // Can be null if we ignored all KVs.
-             datapoints.addRow(compacted);
-             ++nrows;
-           }
-         }
-       }
-     
-       void close(final Exception e) {
-         scanner.close();
-         
-         if (query_stats != null) {
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.SCANNER_TIME, DateTime.nanoTime() - scan_start_time);
-
-           // Scanner Stats
-           /* Uncomment when AsyncHBase has this feature:
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.ROWS_FROM_STORAGE, scanner.getRowsFetched());
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.COLUMNS_FROM_STORAGE, scanner.getColumnsFetched());
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.BYTES_FROM_STORAGE, scanner.getBytesFetched()); */
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.HBASE_TIME, fetch_time);
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.SUCCESSFUL_SCAN, e == null ? 1 : 0);
-           
-           // Post Scan stats
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.ROWS_PRE_FILTER, rows_pre_filter);
-           query_stats.addScannerStat(query_index, index,
-               QueryStat.DPS_PRE_FILTER, dps_pre_filter);
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.ROWS_POST_FILTER, rows_post_filter);
-           query_stats.addScannerStat(query_index, index,
-               QueryStat.DPS_POST_FILTER, dps_post_filter);
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.SCANNER_UID_TO_STRING_TIME, uid_resolve_time);
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.UID_PAIRS_RESOLVED, uids_resolved);
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.COMPACTION_TIME, compaction_time);
-         }
-         
-         if (e != null) {
-           results.callback(e);
-         } else if (nrows < 1 && !seenAnnotation) {
-           results.callback(null);
-         } else {
-           results.callback(spans);
-         }
-       }
-    }
-
-     new ScannerCB().scan();
-     return results;
   }
   
   private Deferred<TreeMap<byte[], Span>> findSpansWithMultiGetter() throws HBaseException {
