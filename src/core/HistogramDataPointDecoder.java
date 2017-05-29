@@ -15,18 +15,27 @@ package net.opentsdb.core;
 /**
  * Creates {@code HistogramDataPoint} from raw data and timestamp.
  *
- * NOTE: Implementation of this interface should be thread safe.
+ * NOTE: Implementation of this plugin should be thread safe.
  * @see HistogramDataPointDecoderManager
  * 
  * @since 2.4
  */
-public interface HistogramDataPointDecoder {
+public abstract class HistogramDataPointDecoder {
 
+  /**
+   * Default empty ctor, required for plugin and class instantiation.
+   * <b>WARNING</b> Any overrides with arguments will be ignored.
+   */
+  public HistogramDataPointDecoder() {
+    
+  }
+  
   /**
    * Creates {@code HistogramDataPoint} from raw data and timestamp.
    * @param raw_data The encoded byte array of the histogram data
    * @param timestamp The timestamp of this data point
    * @return The decoded histogram data point instance
    */
-  HistogramDataPoint decode(final byte[] raw_data, final long timestamp);
+  public abstract HistogramDataPoint decode(final byte[] raw_data, 
+                                            final long timestamp);
 }

@@ -690,7 +690,7 @@ public class SaltScanner {
             } else if (qual[0] == HistogramDataPoint.PREFIX) {
               try {
                 HistogramDataPoint histogram = 
-                    Internal.decodeHistogramDataPoint(kv, tsdb.getConfig());
+                    Internal.decodeHistogramDataPoint(tsdb, kv);
                 hists.add(histogram);
               } catch (Throwable t) {
                 LOG.error("Failed to decode histogram data point", t);

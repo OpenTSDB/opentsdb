@@ -168,6 +168,11 @@ public final class TSDB {
   /** Whether or not to block writing of derived rollups/pre-ags */
   private final boolean rollups_block_derived;
   
+  /** An optional histogram manger used when the TSD will be dealing with
+   * histograms and sketches. Instantiated ONLY if 
+   * {@link #initializePlugins(boolean)} was called.*/
+  private HistogramDataPointDecoderManager histogram_manager;
+  
   /** Writes rejected by the filter */
   private final AtomicLong rejected_dps = new AtomicLong();
   private final AtomicLong rejected_aggregate_dps = new AtomicLong();
@@ -295,7 +300,7 @@ public final class TSDB {
 
     // set any extra tags from the config for stats
     StatsCollector.setGlobalTags(config);
-
+    
     LOG.debug(config.dumpConfiguration());
   }
 
@@ -500,6 +505,13 @@ public final class TSDB {
       LOG.info("Successfully initialized UID filter plugin [" +
           uid_filter.getClass().getCanonicalName() + "] version: "
           + uid_filter.version());
+    }
+    
+    // finally load the histo manager after plugins have been loaded.
+    if (config.hasProperty("tsd.core.histograms.config")) {
+      histogram_manager = new HistogramDataPointDecoderManager(this);
+    } else {
+      histogram_manager = null;
     }
   }
 
@@ -1067,17 +1079,19 @@ public final class TSDB {
    * data.
    */
   public Deferred<Object> addHistogramPoint(final String metric,
-                                                final long timestamp,
-                                                final byte[] raw_data,
-                                                final Map<String, String> tags) {
+                                            final long timestamp,
+                                            final byte[] raw_data,
+                                            final Map<String, String> tags) {
     if (raw_data == null || raw_data.length < MIN_HISTOGRAM_BYTES) {
-      throw new IllegalArgumentException("The histogram raw data is invalid: " + Bytes.pretty(raw_data));
+      throw new IllegalArgumentException("The histogram raw data is invalid: " 
+          + Bytes.pretty(raw_data));
     }
-
+    
     checkTimestampAndTags(metric, timestamp, raw_data, tags, (short) 0);
     final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
 
-    final byte[] qualifier = Internal.getQualifier(timestamp, HistogramDataPoint.PREFIX);
+    final byte[] qualifier = Internal.getQualifier(timestamp, 
+        HistogramDataPoint.PREFIX);
 
     return storeIntoDB(metric, timestamp, raw_data, tags, (short) 0, row, qualifier);
   }
@@ -2058,6 +2072,12 @@ public final class TSDB {
     return raw_agg_tag_value;
   }
 
+  /** @return The optional histogram manager registered to this TSD. 
+   * @since 2.4 */
+  public HistogramDataPointDecoderManager histogramManager() {
+    return histogram_manager;
+  }
+  
   private final boolean isHistogram(final byte[] qualifier) {
     return (qualifier.length & 0x1) == 1;
   }

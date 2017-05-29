@@ -13,15 +13,23 @@
 package net.opentsdb.core;
 
 import com.esotericsoftware.kryo.io.Output;
+import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
+
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.filter.TagVRegexFilter;
 import net.opentsdb.query.filter.TagVWildcardFilter;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueId.UniqueIdType;
+import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.Threads;
+
+import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
+import org.jboss.netty.util.HashedWheelTimer;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -29,16 +37,20 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.powermock.reflect.Whitebox;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.TreeMap;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -50,35 +62,86 @@ import static org.mockito.Mockito.when;
   Const.class, UniqueId.class, Tags.class, QueryStats.class, DateTime.class,
   HistogramDataPointDecoderManager.class,
   SimpleHistogram.class, SimpleHistogramDecoder.class})
-public class TestSaltScannerHistogram  extends BaseTsdbTest {
-  private final static byte[] FAMILY = "t".getBytes();
-  private final static byte[] QUALIFIER_A = { 0x06, 0x00, 0x00};
-  private final static byte[] QUALIFIER_B = { 0x06, 0x10, 0x00 };
+public class TestSaltScannerHistogram extends BaseTsdbTest {
+  protected final static byte[] FAMILY = "t".getBytes();
+  protected final static byte[] QUALIFIER_A = { 0x06, 0x00, 0x00};
+  protected final static byte[] QUALIFIER_B = { 0x06, 0x10, 0x00 };
 
-  private byte[] VALUE;
+  protected byte[] VALUE;
+  
+  protected List<Scanner> scanners;
+  protected TreeMap<byte[], HistogramSpan> spans;
 
-  private final static int NUM_BUCKETS = 2;
-  private List<Scanner> scanners;
-  private TreeMap<byte[], HistogramSpan> spans;
+  protected List<ArrayList<ArrayList<KeyValue>>> kvs_a;
+  protected List<ArrayList<ArrayList<KeyValue>>> kvs_b;
 
-  private List<ArrayList<ArrayList<KeyValue>>> kvs_a;
-  private List<ArrayList<ArrayList<KeyValue>>> kvs_b;
+  protected Scanner scanner_a;
+  protected Scanner scanner_b;
+  protected QueryStats query_stats;
 
-  private Scanner scanner_a;
-  private Scanner scanner_b;
-  private QueryStats query_stats;
-
-  private byte[] key_a;
+  protected byte[] key_a;
   //different tagv
-  private byte[] key_b;
+  protected byte[] key_b;
   //same as A bug different time
-  private byte[] key_c;
+  protected byte[] key_c;
   
   @Before
-  public void beforeLocal() {
-    PowerMockito.mockStatic(Const.class);
-    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
-    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(NUM_BUCKETS);
+  public void before() throws Exception {
+    // Copying the whole thing as the SPY in the base mucks up the references.
+    uid_map = Maps.newHashMap();
+    PowerMockito.mockStatic(Threads.class);
+    timer = new FakeTaskTimer();
+    PowerMockito.when(Threads.newTimer(anyString())).thenReturn(timer);
+    PowerMockito.when(Threads.newTimer(anyInt(), anyString())).thenReturn(timer);
+    
+    PowerMockito.whenNew(HashedWheelTimer.class).withNoArguments()
+      .thenReturn(timer);
+    PowerMockito.whenNew(HBaseClient.class).withAnyArguments()
+      .thenReturn(client);
+    
+    config = new Config(false);
+    config.overrideConfig("tsd.storage.enable_compaction", "false");
+    tsdb = new TSDB(config);
+
+    config.setAutoMetric(true);
+    
+    Whitebox.setInternalState(tsdb, "metrics", metrics);
+    Whitebox.setInternalState(tsdb, "tag_names", tag_names);
+    Whitebox.setInternalState(tsdb, "tag_values", tag_values);
+
+    setupMetricMaps();
+    setupTagkMaps();
+    setupTagvMaps();
+    
+    mockUID(UniqueIdType.METRIC, HISTOGRAM_METRIC_STRING, HISTOGRAM_METRIC_BYTES);
+    
+    // add metrics and tags to the UIDs list for other functions to share
+    uid_map.put(METRIC_STRING, METRIC_BYTES);
+    uid_map.put(METRIC_B_STRING, METRIC_B_BYTES);
+    uid_map.put(NSUN_METRIC, NSUI_METRIC);
+    uid_map.put(HISTOGRAM_METRIC_STRING, HISTOGRAM_METRIC_BYTES);
+    
+    uid_map.put(TAGK_STRING, TAGK_BYTES);
+    uid_map.put(TAGK_B_STRING, TAGK_B_BYTES);
+    uid_map.put(NSUN_TAGK, NSUI_TAGK);
+    
+    uid_map.put(TAGV_STRING, TAGV_BYTES);
+    uid_map.put(TAGV_B_STRING, TAGV_B_BYTES);
+    uid_map.put(NSUN_TAGV, NSUI_TAGV);
+    
+    uid_map.putAll(UIDS);
+    
+    when(metrics.width()).thenReturn((short)3);
+    when(tag_names.width()).thenReturn((short)3);
+    when(tag_values.width()).thenReturn((short)3);
+    
+    tags = new HashMap<String, String>(1);
+    tags.put(TAGK_STRING, TAGV_STRING);
+    config.overrideConfig("tsd.core.histograms.config", 
+        "{\"net.opentsdb.core.LongHistogramDataPointForTestDecoder\": 0}");
+    HistogramDataPointDecoderManager manager = 
+        new HistogramDataPointDecoderManager(tsdb);
+    Whitebox.setInternalState(tsdb, "histogram_manager", manager);
     
     ByteArrayOutputStream outBuffer = new ByteArrayOutputStream();
     Output output = new Output(outBuffer);
@@ -244,20 +307,32 @@ public class TestSaltScannerHistogram  extends BaseTsdbTest {
    * Sets up a pair of scanners with either a list of values or no data
    * @param no_data Whether or not to return 0 data.
    */
-  private void setupMockScanners(final boolean no_data) {
-    scanners = new ArrayList<Scanner>(NUM_BUCKETS);
-    scanner_a = mock(Scanner.class);
-    scanner_b = mock(Scanner.class);
-    if (no_data) {
-      when(scanner_a.nextRows()).thenReturn(
-              Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
-      when(scanner_b.nextRows()).thenReturn(
-              Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+  protected void setupMockScanners(final boolean no_data) {
+    if (Const.SALT_WIDTH() > 0) {
+      scanners = new ArrayList<Scanner>(Const.SALT_BUCKETS());
+      scanner_a = mock(Scanner.class);
+      scanner_b = mock(Scanner.class);
+      if (no_data) {
+        when(scanner_a.nextRows()).thenReturn(
+                Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+        when(scanner_b.nextRows()).thenReturn(
+                Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+      } else {
+        setupValues();
+      }
+      scanners.add(scanner_a);
+      scanners.add(scanner_b);
     } else {
-      setupValues();
+      scanners = new ArrayList<Scanner>(1);
+      scanner_a = mock(Scanner.class);
+      if (no_data) {
+        when(scanner_a.nextRows()).thenReturn(
+            Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+      } else {
+        setupValues();
+      }
+      scanners.add(scanner_a);
     }
-    scanners.add(scanner_a);
-    scanners.add(scanner_b);
   }
 
   /**
@@ -267,7 +342,7 @@ public class TestSaltScannerHistogram  extends BaseTsdbTest {
    * only happen if you add the timestamp to the salt calculation, which we
    * may do in the future. We're testing now for future proofing.
    */
-  private void setupValues() {
+  protected void setupValues() {
     kvs_a = new ArrayList<ArrayList<ArrayList<KeyValue>>>(3);
     kvs_b = new ArrayList<ArrayList<ArrayList<KeyValue>>>(2);
 
@@ -298,7 +373,6 @@ public class TestSaltScannerHistogram  extends BaseTsdbTest {
             break;
         case 3:
             key = Arrays.copyOf(key_a, key_a.length);
-            key[0] = 1;
             row.add(new KeyValue(key, FAMILY, QUALIFIER_B, 0, VALUE));
             row.add(new KeyValue(key, FAMILY, new byte[] { 1, 0, 0 }, 0,
                     note.getBytes(Charset.forName("UTF8"))));
@@ -306,21 +380,30 @@ public class TestSaltScannerHistogram  extends BaseTsdbTest {
             break;
         case 4:
             key = Arrays.copyOf(key_c, key_c.length);
-            key[0] = 1;
             row.add(new KeyValue(key, FAMILY, QUALIFIER_B, 0, VALUE));
             kvs_b.add(rows);
             break;
       }
     }
 
-    when(scanner_a.nextRows())
-            .thenReturn(Deferred.fromResult(kvs_a.get(0)))
-            .thenReturn(Deferred.fromResult(kvs_a.get(1)))
-            .thenReturn(Deferred.fromResult(kvs_a.get(2)))
-            .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
-    when(scanner_b.nextRows())
-            .thenReturn(Deferred.fromResult(kvs_b.get(0)))
-            .thenReturn(Deferred.fromResult(kvs_b.get(1)))
-            .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+    if (Const.SALT_WIDTH() > 0) {
+      when(scanner_a.nextRows())
+        .thenReturn(Deferred.fromResult(kvs_a.get(0)))
+        .thenReturn(Deferred.fromResult(kvs_a.get(1)))
+        .thenReturn(Deferred.fromResult(kvs_a.get(2)))
+        .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+      when(scanner_b.nextRows())
+        .thenReturn(Deferred.fromResult(kvs_b.get(0)))
+        .thenReturn(Deferred.fromResult(kvs_b.get(1)))
+        .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+    } else {
+      when(scanner_a.nextRows())
+      .thenReturn(Deferred.fromResult(kvs_a.get(0)))
+      .thenReturn(Deferred.fromResult(kvs_a.get(1)))
+      .thenReturn(Deferred.fromResult(kvs_a.get(2)))
+      .thenReturn(Deferred.fromResult(kvs_b.get(0)))
+      .thenReturn(Deferred.fromResult(kvs_b.get(1)))
+      .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+    }
   }
 }

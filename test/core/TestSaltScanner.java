@@ -508,12 +508,12 @@ public class TestSaltScanner extends BaseTsdbTest {
         .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
     } else {
       when(scanner_a.nextRows())
-      .thenReturn(Deferred.fromResult(kvs_a.get(0)))
-      .thenReturn(Deferred.fromResult(kvs_a.get(1)))
-      .thenReturn(Deferred.fromResult(kvs_a.get(2)))
-      .thenReturn(Deferred.fromResult(kvs_b.get(0)))
-      .thenReturn(Deferred.fromResult(kvs_b.get(1)))
-      .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+        .thenReturn(Deferred.fromResult(kvs_a.get(0)))
+        .thenReturn(Deferred.fromResult(kvs_a.get(1)))
+        .thenReturn(Deferred.fromResult(kvs_a.get(2)))
+        .thenReturn(Deferred.fromResult(kvs_b.get(0)))
+        .thenReturn(Deferred.fromResult(kvs_b.get(1)))
+        .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
     }
   }
 }

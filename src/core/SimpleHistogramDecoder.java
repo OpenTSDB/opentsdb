@@ -28,7 +28,7 @@ import java.util.Arrays;
  * </p>
  * @since 2.4
  */
-public class SimpleHistogramDecoder implements HistogramDataPointDecoder {
+public class SimpleHistogramDecoder extends HistogramDataPointDecoder {
   @Override
   public HistogramDataPoint decode(final byte[] raw_data, final long timestamp) {
     final Histogram histogram;

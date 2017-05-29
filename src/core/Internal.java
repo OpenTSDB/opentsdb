@@ -1056,25 +1056,26 @@ public final class Internal {
    *               to get the decoder
    * @return the decoded {@code HistogramDataPoint}
      */
-  public static HistogramDataPoint decodeHistogramDataPoint(final KeyValue kv, final Config config) {
+  public static HistogramDataPoint decodeHistogramDataPoint(final TSDB tsdb,
+                                                            final KeyValue kv) {
     long timestamp = Internal.baseTime(kv.key());
-    return decodeHistogramDataPoint(timestamp, kv.qualifier(), kv.value(), config);
+    return decodeHistogramDataPoint(tsdb, timestamp, kv.qualifier(), kv.value());
   }
 
   /**
    * Decode the histogram point from the given key and values
+   * @param tsdb The TSDB to use when fetching the decoder manager.
    * @param base_time the base time of the histogram
    * @param qualifier the qualifier used to store the histogram
    * @param value the encoded value of the histogram
-   * @param config config object of TSDB, will use {@code "tsd.core.hist_decoder"}
-   *               to get the decoder
    * @return the decoded {@code HistogramDataPoint}
    */
-  public static HistogramDataPoint decodeHistogramDataPoint(final long base_time, final byte[] qualifier,
-                                                            final byte[] value, final Config config) {
-    final String decoder_name = config.hist_decoder_name();
+  public static HistogramDataPoint decodeHistogramDataPoint(final TSDB tsdb,
+                                                            final long base_time, 
+                                                            final byte[] qualifier,
+                                                            final byte[] value) {
     final HistogramDataPointDecoder decoder =
-            HistogramDataPointDecoderManager.getDecoder(decoder_name);
+            tsdb.histogramManager().getDecoder(value[0]);
     long timestamp = getTimeStampFromNonDP(base_time, qualifier);
     return decoder.decode(value, timestamp);
   }

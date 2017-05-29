@@ -12,11 +12,23 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-public class LongHistogramDataPointForTestDecoder extends HistogramDataPointDecoder {
+import org.junit.Before;
+import org.powermock.api.mockito.PowerMockito;
 
-  @Override
-  public HistogramDataPoint decode(byte[] raw_data, long timestamp) {
-    return new LongHistogramDataPointForTest(timestamp, raw_data);
+public class TestSaltScannerHistogramSalted extends TestSaltScannerHistogram {
+  
+  @Before
+  public void beforeLocal() throws Exception {
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(2);
+    
+    key_a = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING, 
+        TAGK_B_STRING, TAGV_STRING);
+    key_b = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_B_STRING, 
+        TAGK_B_STRING, TAGV_STRING);
+    key_c = getRowKey(METRIC_STRING, 1359680400, TAGK_STRING, TAGV_STRING, 
+        TAGK_B_STRING, TAGV_STRING);
   }
 
 }

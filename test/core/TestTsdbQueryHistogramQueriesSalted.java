@@ -10,13 +10,20 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.core;
 
-public class LongHistogramDataPointForTestDecoder extends HistogramDataPointDecoder {
+import org.junit.Before;
+import org.powermock.api.mockito.PowerMockito;
 
-  @Override
-  public HistogramDataPoint decode(byte[] raw_data, long timestamp) {
-    return new LongHistogramDataPointForTest(timestamp, raw_data);
+public class TestTsdbQueryHistogramQueriesSalted extends TestTsdbQueryHistogramQueries {
+
+  @Before
+  public void beforeLocal() throws Exception {
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(2);
+    PowerMockito.when(Const.MAX_NUM_TAGS()).thenReturn((short) 8);
   }
-
+  
 }

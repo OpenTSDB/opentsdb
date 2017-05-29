@@ -17,37 +17,100 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import org.hbase.async.HBaseClient;
+import org.jboss.netty.util.HashedWheelTimer;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
-import net.opentsdb.meta.Annotation;
+import com.google.common.collect.Maps;
 
+import net.opentsdb.meta.Annotation;
+import net.opentsdb.uid.UniqueId.UniqueIdType;
+import net.opentsdb.utils.Config;
+import net.opentsdb.utils.Threads;
+
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({TSDB.class, TsdbQuery.class })
 public class TestTsdbQueryHistogramQueries extends BaseTsdbTest {
-  private TsdbQuery query = null;
+  protected TsdbQuery query = null;
 
   @Before
-  public void beforeLocal() throws Exception {
-    PowerMockito.mockStatic(Const.class);
-    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
-    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(2);
-    PowerMockito.when(Const.MAX_NUM_TAGS()).thenReturn((short) 8);
+  public void before() throws Exception {
+    // Copying the whole thing as the SPY in the base mucks up the references.
+    uid_map = Maps.newHashMap();
+    PowerMockito.mockStatic(Threads.class);
+    timer = new FakeTaskTimer();
+    PowerMockito.when(Threads.newTimer(anyString())).thenReturn(timer);
+    PowerMockito.when(Threads.newTimer(anyInt(), anyString())).thenReturn(timer);
+    
+    PowerMockito.whenNew(HashedWheelTimer.class).withNoArguments()
+      .thenReturn(timer);
+    PowerMockito.whenNew(HBaseClient.class).withAnyArguments()
+      .thenReturn(client);
+    
+    config = new Config(false);
+    config.overrideConfig("tsd.storage.enable_compaction", "false");
+    tsdb = new TSDB(config);
+
+    config.setAutoMetric(true);
+    
+    Whitebox.setInternalState(tsdb, "metrics", metrics);
+    Whitebox.setInternalState(tsdb, "tag_names", tag_names);
+    Whitebox.setInternalState(tsdb, "tag_values", tag_values);
+
+    setupMetricMaps();
+    setupTagkMaps();
+    setupTagvMaps();
+    
+    mockUID(UniqueIdType.METRIC, HISTOGRAM_METRIC_STRING, HISTOGRAM_METRIC_BYTES);
+    
+    // add metrics and tags to the UIDs list for other functions to share
+    uid_map.put(METRIC_STRING, METRIC_BYTES);
+    uid_map.put(METRIC_B_STRING, METRIC_B_BYTES);
+    uid_map.put(NSUN_METRIC, NSUI_METRIC);
+    uid_map.put(HISTOGRAM_METRIC_STRING, HISTOGRAM_METRIC_BYTES);
+    
+    uid_map.put(TAGK_STRING, TAGK_BYTES);
+    uid_map.put(TAGK_B_STRING, TAGK_B_BYTES);
+    uid_map.put(NSUN_TAGK, NSUI_TAGK);
+    
+    uid_map.put(TAGV_STRING, TAGV_BYTES);
+    uid_map.put(TAGV_B_STRING, TAGV_B_BYTES);
+    uid_map.put(NSUN_TAGV, NSUI_TAGV);
+    
+    uid_map.putAll(UIDS);
+    
+    when(metrics.width()).thenReturn((short)3);
+    when(tag_names.width()).thenReturn((short)3);
+    when(tag_values.width()).thenReturn((short)3);
+    
+    tags = new HashMap<String, String>(1);
+    tags.put(TAGK_STRING, TAGV_STRING);
+    config.overrideConfig("tsd.core.histograms.config", 
+        "{\"net.opentsdb.core.LongHistogramDataPointForTestDecoder\": 0}");
+    HistogramDataPointDecoderManager manager = 
+        new HistogramDataPointDecoderManager(tsdb);
+    Whitebox.setInternalState(tsdb, "histogram_manager", manager);
+    
     query = new TsdbQuery(tsdb);
   }
-
+  
   @Test
   public void runSingleTsMsSinglePercentile() throws Exception {
-    Whitebox.setInternalState(config, "hist_decoder_name", 
-        "net.opentsdb.core.LongHistogramDataPointForTestDecoder");
-    
     this.storeTestHistogramTimeSeriesMs();
-    storage.dumpToSystemOut();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     query.setStartTime(1356998400);
@@ -59,7 +122,6 @@ public class TestTsdbQueryHistogramQueries extends BaseTsdbTest {
     percentiles.add(per_98);
     
     query.setPercentiles(percentiles);
-
     final DataPoints[] dps = query.runHistogram();
 
     assertNotNull(dps);

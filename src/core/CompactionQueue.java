@@ -444,7 +444,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
             annotations.add(JSON.parseToObject(kv.value(), Annotation.class));
           } else if (qual[0] == HistogramDataPoint.PREFIX) {
             try {
-              HistogramDataPoint histogram = Internal.decodeHistogramDataPoint(kv, tsdb.getConfig());
+              HistogramDataPoint histogram = 
+                  Internal.decodeHistogramDataPoint(tsdb, kv);
               histograms.add(histogram);
             } catch (Throwable t) {
               LOG.error("Failed to decode histogram data point", t);
