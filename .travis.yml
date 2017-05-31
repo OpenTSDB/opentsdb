@@ -1,11 +1,9 @@
 language: java
 dist: trusty
-script: export MAVEN_OPTS="-Xmx1024m" && mvn test --quiet
+script: export MAVEN_OPTS="-Xmx1024m" && mvn cobertura:cobertura coveralls:report --quiet
 addons:
   hostname: short-hostname
 jdk:
   - oraclejdk8
 notifications:
   email: false
-after_success:
-  - mvn clean cobertura:cobertura coveralls:report
