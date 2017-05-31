@@ -5,6 +5,7 @@
       \___/| .__/ \___|_| |_|_| |____/|____/|____/
            |_|    The modern time series database.
 
+[![Build Status](https://travis-ci.org/manolama/opentsdb.svg?branch=3.0)](https://travis-ci.org/manolama/opentsdb) [![Coverage Status](https://coveralls.io/repos/github/OpenTSDB/opentsdb/badge.svg?branch=3.0)](https://coveralls.io/github/OpenTSDB/opentsdb?branch=3.0)
 # ***** NOTICE *****
 Version 3 of OpenTSDB is currently in a development state. APIs and data
 structures are expected to change before moving to the "put" branch where
