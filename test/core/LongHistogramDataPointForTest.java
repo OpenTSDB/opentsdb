@@ -19,57 +19,41 @@ import java.util.Map;
 
 import org.hbase.async.Bytes;
 
-public class LongHistogramDataPointForTest implements HistogramDataPoint {
-  private long timestamp;
+public class LongHistogramDataPointForTest implements Histogram {
+  private final int id;
   private long data;
-
-  LongHistogramDataPointForTest(final long timestamp, final byte[] raw_data) {
-    this.timestamp = timestamp;
-    this.data = Bytes.getLong(raw_data);
+  
+  public LongHistogramDataPointForTest(final int id) {
+    this.id = id;
+  }
+  
+  LongHistogramDataPointForTest(final int id, final long value) {
+    this.id = id;
+    this.data = value;
   }
   
   protected LongHistogramDataPointForTest(final LongHistogramDataPointForTest rhs) {
-    this.timestamp = rhs.timestamp;
+    this.id = rhs.id;
     this.data = rhs.data;
   }
   
   protected LongHistogramDataPointForTest(final LongHistogramDataPointForTest rhs, 
       final long timestamp) {
+    this.id = rhs.id;
     this.data = rhs.data;
-    this.timestamp = timestamp;
   }
   
-  @Override
-  public long timestamp() {
-    return this.timestamp;
-  }
-
-  public void setTimeStamp(final long timestamp) {
-    this.timestamp = timestamp;
-  }
-  
-  @Override
-  public byte[] getRawData() {
-    return Bytes.fromLong(this.data);
-  }
-
   public void setRawData(final byte[] data) {
     this.data = Bytes.getLong(data);
   }
   
-  @Override
-  public void resetFromRawData(byte[] raw_data) {
-    // TODO Auto-generated method stub
-
-  }
-
   @Override
   public double percentile(double p) {
     return data * p;
   }
 
   @Override
-  public List<Double> percentile(List<Double> p) {
+  public List<Double> percentiles(List<Double> p) {
     List<Double> rs = new ArrayList<Double>();
     for (Double d : p) {
       rs.add(d.doubleValue() * data);
@@ -78,29 +62,56 @@ public class LongHistogramDataPointForTest implements HistogramDataPoint {
   }
 
   @Override
-  public void aggregate(HistogramDataPoint histo, HistogramAggregation func) {
+  public void aggregate(Histogram histo, HistogramAggregation func) {
     if (!(histo instanceof LongHistogramDataPointForTest)) {
       throw new IllegalArgumentException("The object must be an instance of the " 
           + "LongHistogramDataPointForTest");
     }
     
-    long agg = this.data + Bytes.getLong(histo.getRawData());
+    long agg = this.data + Bytes.getLong(histo.histogram(false));
     this.data = agg;
   }
   
   @Override
-  public HistogramDataPoint clone() {
+  public Histogram clone() {
     return new LongHistogramDataPointForTest(this);
   }
   
   @Override
-  public HistogramDataPoint cloneAndSetTimestamp(final long timestamp) {
-    return new LongHistogramDataPointForTest(this, timestamp);
+  public int getId() {
+    return id;
   }
   
   @Override
-  public Map<HistogramBucket, Long> getHistogramBucketsIfHas() {
-    throw new UnsupportedOperationException(
-        "LongHistogramDataPointForTest doesn't support getHistogramBuckets operation");
+  public byte[] histogram(boolean include_id) {
+    if (include_id) {
+      final byte[] result = new byte[9];
+      result[0] = (byte) id;
+      System.arraycopy(Bytes.fromLong(data), 0, result, 1, 8);
+      return result;
+    }
+    return Bytes.fromLong(data);
   }
+
+  @Override
+  public void fromHistogram(byte[] raw, boolean includes_id) {
+    if (includes_id) {
+      data = Bytes.getLong(raw, 1);
+    } else {
+      data = Bytes.getLong(raw);
+    }
+  }
+
+  @Override
+  public Map getHistogram() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public void aggregate(List<Histogram> histos, HistogramAggregation func) {
+    // TODO Auto-generated method stub
+    
+  }
+  
 }

@@ -186,13 +186,13 @@ public class HistogramAggregationIterator implements
   }
 
   @Override
-  public byte[] getRawData() {
-    return value.getRawData();
+  public byte[] getRawData(final boolean include_id) {
+    return value.getRawData(include_id);
   }
 
   @Override
-  public void resetFromRawData(byte[] raw_data) {
-    value.resetFromRawData(raw_data);
+  public void resetFromRawData(byte[] raw_data, final boolean includes_id) {
+    value.resetFromRawData(raw_data, includes_id);
   }
 
   @Override
@@ -220,6 +220,11 @@ public class HistogramAggregationIterator implements
     return value.cloneAndSetTimestamp(timestamp);
   }
 
+  @Override
+  public int getId() {
+    return value.getId();
+  }
+  
   @Override
   public boolean hasNext() {
     for (int i = 0; i < iterators.length; ++i) {

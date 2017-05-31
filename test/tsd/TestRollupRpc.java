@@ -89,8 +89,6 @@ public class TestRollupRpc extends BaseTestPutRpc {
     Whitebox.setInternalState(tsdb, "raw_agg_tag_value", 
         config.getString("tsd.rollups.raw_agg_tag_value"));
     setupGroupByTagValues();
-
-    setupGroupByTagValues();
     
     row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING);
   }

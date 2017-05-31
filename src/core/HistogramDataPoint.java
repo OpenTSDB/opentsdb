@@ -41,15 +41,17 @@ public interface HistogramDataPoint extends Cloneable {
    * in the byte array so latter it can decide how to deserialize it back
    * @return The encoded value os this histogram data point
    */
-  byte[] getRawData();
+  byte[] getRawData(final boolean include_id);
 
   /**
    * Decode the raw data and reset the current histogram data point to the
    * decoded value
    * @param raw_data The encoded value of the histogram data point
    */
-  void resetFromRawData(final byte[] raw_data);
+  void resetFromRawData(final byte[] raw_data, final boolean includes_id);
 
+  int getId();
+  
   /**
    * Calculate percentile of this histogram data point
    * @param p the distribution threshold

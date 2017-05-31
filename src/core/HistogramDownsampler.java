@@ -101,12 +101,12 @@ public class HistogramDownsampler implements HistogramSeekableView, HistogramDat
   }
 
   @Override
-  public byte[] getRawData() {
-    return value.getRawData();
+  public byte[] getRawData(final boolean include_id) {
+    return value.getRawData(include_id);
   }
 
   @Override
-  public void resetFromRawData(byte[] raw_data) {
+  public void resetFromRawData(byte[] raw_data, final boolean includes_id) {
     throw new UnsupportedOperationException();
   }
 
@@ -187,6 +187,11 @@ public class HistogramDownsampler implements HistogramSeekableView, HistogramDat
     return this.value.cloneAndSetTimestamp(timestamp);
   }
 
+  @Override
+  public int getId() {
+    return value.getId();
+  }
+  
   class ValuesInInterval implements HistogramAggregator.Histograms {
 
     /** An optional calendar set to the current timestamp for the data point */

@@ -28,23 +28,32 @@ import java.util.Arrays;
  * </p>
  * @since 2.4
  */
-public class SimpleHistogramDecoder extends HistogramDataPointDecoder {
+public class SimpleHistogramDecoder extends HistogramDataPointCodec {
   @Override
-  public HistogramDataPoint decode(final byte[] raw_data, final long timestamp) {
-    final Histogram histogram;
-    switch (raw_data[0]) {
-    case 0x0:
-    {
-      histogram = new SimpleHistogram();
-      byte[] hist_raw_data = Arrays.copyOfRange(raw_data, 1, raw_data.length);
-      histogram.fromHistogram(hist_raw_data);
+  public Histogram decode(final byte[] raw_data,
+                                   final boolean includes_type) {
+    if (raw_data == null) {
+      throw new IllegalArgumentException("The data array cannot be null.");
     }
-    break;
-    default:
-      throw new IllegalDataException("Unknown header of histogram data, "
-          + "the header is: " + raw_data[0]);
+    if (includes_type && raw_data.length < 1) {
+      throw new IllegalArgumentException("The data array cannot be empty.");
     }
-
-    return new SimpleHistogramDataPointAdapter(histogram, timestamp);
+    if (includes_type && (int) raw_data[0] != id) {
+      throw new IllegalArgumentException("Data ID " + (int) raw_data[0] 
+          + " did not match the codec ID " + id);
+    }
+    final Histogram histogram = new SimpleHistogram(id);
+    histogram.fromHistogram(raw_data, includes_type);
+    return histogram;
+  }
+  
+  @Override
+  public byte[] encode(final Histogram data_point,
+                       final boolean include_id) {
+    if (!(data_point instanceof SimpleHistogram)) {
+      throw new IllegalArgumentException("The given histogram is not a "
+          + "SimpleHistogram: " + data_point.getClass());
+    }
+    return data_point.histogram(include_id);
   }
 }

@@ -101,8 +101,8 @@ public class TestTsdbQueryHistogramQueries extends BaseTsdbTest {
     tags.put(TAGK_STRING, TAGV_STRING);
     config.overrideConfig("tsd.core.histograms.config", 
         "{\"net.opentsdb.core.LongHistogramDataPointForTestDecoder\": 0}");
-    HistogramDataPointDecoderManager manager = 
-        new HistogramDataPointDecoderManager(tsdb);
+    HistogramCodecManager manager = 
+        new HistogramCodecManager(tsdb);
     Whitebox.setInternalState(tsdb, "histogram_manager", manager);
     
     query = new TsdbQuery(tsdb);

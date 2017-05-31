@@ -89,8 +89,10 @@ public final class TestHistogramSpan {
   @Test
   public void addRow() {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    hdps.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     
     final HistogramSpan histSpan = new HistogramSpan(tsdb);
     histSpan.addRow(hour1, hdps);
@@ -107,15 +109,19 @@ public final class TestHistogramSpan {
   @Test (expected = IllegalArgumentException.class)
   public void addRowBadKeyLength() {
     List<HistogramDataPoint> row1 = new ArrayList<HistogramDataPoint>();
-    row1.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    row1.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    row1.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    row1.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     
     final HistogramSpan histSpan = new HistogramSpan(tsdb);
     histSpan.addRow(hour1, row1);
     
     List<HistogramDataPoint> row2 = new ArrayList<HistogramDataPoint>();
-    row2.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
-    row2.add(new LongHistogramDataPointForTest(115L, Bytes.fromLong(3)));
+    row2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
+    row2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 3), 115L));
     
     final byte[] bad_key = new byte[] { 0, 0, 0, 1, 0x50, (byte)0xE2, 0x43, 
         0x20, 0, 0, 0, 1 };
@@ -125,15 +131,19 @@ public final class TestHistogramSpan {
   @Test (expected = IllegalArgumentException.class)
   public void addRowMissMatchedMetric() {
     List<HistogramDataPoint> row1 = new ArrayList<HistogramDataPoint>();
-    row1.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    row1.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    row1.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    row1.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     
     final HistogramSpan histSpan = new HistogramSpan(tsdb);
     histSpan.addRow(hour1, row1);
     
     List<HistogramDataPoint> row2 = new ArrayList<HistogramDataPoint>();
-    row2.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
-    row2.add(new LongHistogramDataPointForTest(115L, Bytes.fromLong(3)));
+    row2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
+    row2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 3), 115L));
     
     final byte[] not_matched_mitric_key = new byte[] { 0, 0, 0, 2, 0x50, 
         (byte)0xE2, 0x35, 0x10, 0, 0, 0, 1, 0, 0, 0, 2 };
@@ -143,15 +153,19 @@ public final class TestHistogramSpan {
   @Test (expected = IllegalArgumentException.class)
   public void addRowMissMatchedTagk() {
     List<HistogramDataPoint> row1 = new ArrayList<HistogramDataPoint>();
-    row1.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    row1.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    row1.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    row1.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     
     final HistogramSpan histSpan = new HistogramSpan(tsdb);
     histSpan.addRow(hour1, row1);
     
     List<HistogramDataPoint> row2 = new ArrayList<HistogramDataPoint>();
-    row2.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
-    row2.add(new LongHistogramDataPointForTest(115L, Bytes.fromLong(3)));
+    row2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
+    row2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 3), 115L));
     
     final byte[] not_matched_tagk_key = new byte[] { 0, 0, 0, 1, 0x50, 
         (byte)0xE2, 0x35, 0x10, 0, 0, 0, 2, 0, 0, 0, 2 };
@@ -161,15 +175,19 @@ public final class TestHistogramSpan {
   @Test (expected = IllegalArgumentException.class)
   public void addRowMissMatchedTagv() {
     List<HistogramDataPoint> row1 = new ArrayList<HistogramDataPoint>();
-    row1.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    row1.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    row1.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    row1.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     
     final HistogramSpan histSpan = new HistogramSpan(tsdb);
     histSpan.addRow(hour1, row1);
     
     List<HistogramDataPoint> row2 = new ArrayList<HistogramDataPoint>();
-    row2.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
-    row2.add(new LongHistogramDataPointForTest(115L, Bytes.fromLong(3)));
+    row2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
+    row2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 3), 115L));
     
     final byte[] not_matched_tagv_key = new byte[] { 0, 0, 0, 1, 0x50, 
         (byte)0xE2, 0x35, 0x10, 0, 0, 0, 1, 0, 0, 0, 3 };
@@ -179,16 +197,20 @@ public final class TestHistogramSpan {
   @Test
   public void addRowOutOfOrder() {
     List<HistogramDataPoint> row2 = new ArrayList<HistogramDataPoint>();
-    row2.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
-    row2.add(new LongHistogramDataPointForTest(115L, Bytes.fromLong(3)));
+    row2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
+    row2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 3), 115L));
     
     
     final HistogramSpan histSpan = new HistogramSpan(tsdb);
     histSpan.addRow(hour2, row2);
     
     List<HistogramDataPoint> row1 = new ArrayList<HistogramDataPoint>();
-    row1.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    row1.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    row1.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    row1.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     histSpan.addRow(hour1, row1);
     
     assertEquals(4, histSpan.size());
@@ -202,8 +224,10 @@ public final class TestHistogramSpan {
   @Test (expected = IllegalArgumentException.class)
   public void addDifferentKey() throws Exception {
     List<HistogramDataPoint> row1 = new ArrayList<HistogramDataPoint>();
-    row1.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    row1.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    row1.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    row1.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     
     final HistogramSpan histSpan = new HistogramSpan(tsdb);
     histSpan.addRow(hour1, row1);
@@ -212,8 +236,10 @@ public final class TestHistogramSpan {
     hour1_with_diff_key[hour1_with_diff_key.length - 1] = 3;
     
     List<HistogramDataPoint> row2 = new ArrayList<HistogramDataPoint>();
-    row2.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
-    row2.add(new LongHistogramDataPointForTest(115L, Bytes.fromLong(3)));
+    row2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
+    row2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 3), 115L));
     
     histSpan.addRow(hour1_with_diff_key, row2);
   }
@@ -221,8 +247,10 @@ public final class TestHistogramSpan {
   @Test
   public void getTagUids() {
     List<HistogramDataPoint> row1 = new ArrayList<HistogramDataPoint>();
-    row1.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    row1.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    row1.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    row1.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     
     final HistogramSpan histSpan = new HistogramSpan(tsdb);
     histSpan.addRow(hour1, row1);
@@ -245,8 +273,10 @@ public final class TestHistogramSpan {
   @Test
   public void getAggregatedTagUids() {
     List<HistogramDataPoint> row1 = new ArrayList<HistogramDataPoint>();
-    row1.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    row1.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    row1.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    row1.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     
     final HistogramSpan histSpan = new HistogramSpan(tsdb);
     histSpan.addRow(hour1, row1);

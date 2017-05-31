@@ -91,7 +91,7 @@ public final class TSDB {
   private static short TAG_NAME_WIDTH = 3;
   private static final String TAG_VALUE_QUAL = "tagv";
   private static short TAG_VALUE_WIDTH = 3;
-  private static final int MIN_HISTOGRAM_BYTES = 2;
+  private static final int MIN_HISTOGRAM_BYTES = 1;
 
   /** Client for the HBase cluster to use.  */
   final HBaseClient client;
@@ -171,7 +171,7 @@ public final class TSDB {
   /** An optional histogram manger used when the TSD will be dealing with
    * histograms and sketches. Instantiated ONLY if 
    * {@link #initializePlugins(boolean)} was called.*/
-  private HistogramDataPointDecoderManager histogram_manager;
+  private HistogramCodecManager histogram_manager;
   
   /** Writes rejected by the filter */
   private final AtomicLong rejected_dps = new AtomicLong();
@@ -509,7 +509,7 @@ public final class TSDB {
     
     // finally load the histo manager after plugins have been loaded.
     if (config.hasProperty("tsd.core.histograms.config")) {
-      histogram_manager = new HistogramDataPointDecoderManager(this);
+      histogram_manager = new HistogramCodecManager(this);
     } else {
       histogram_manager = null;
     }
@@ -1083,8 +1083,8 @@ public final class TSDB {
                                             final byte[] raw_data,
                                             final Map<String, String> tags) {
     if (raw_data == null || raw_data.length < MIN_HISTOGRAM_BYTES) {
-      throw new IllegalArgumentException("The histogram raw data is invalid: " 
-          + Bytes.pretty(raw_data));
+      return Deferred.fromError(new IllegalArgumentException(
+          "The histogram raw data is invalid: " + Bytes.pretty(raw_data)));
     }
     
     checkTimestampAndTags(metric, timestamp, raw_data, tags, (short) 0);
@@ -1092,7 +1092,7 @@ public final class TSDB {
 
     final byte[] qualifier = Internal.getQualifier(timestamp, 
         HistogramDataPoint.PREFIX);
-
+    
     return storeIntoDB(metric, timestamp, raw_data, tags, (short) 0, row, qualifier);
   }
   
@@ -2074,7 +2074,7 @@ public final class TSDB {
 
   /** @return The optional histogram manager registered to this TSD. 
    * @since 2.4 */
-  public HistogramDataPointDecoderManager histogramManager() {
+  public HistogramCodecManager histogramManager() {
     return histogram_manager;
   }
   

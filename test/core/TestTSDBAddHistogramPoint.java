@@ -47,9 +47,9 @@ public class TestTSDBAddHistogramPoint extends BaseTsdbTest {
 
   @Test (expected = IllegalArgumentException.class)
   public void addHistogramPointShortRawData() throws Exception {
-    byte[] testRawValue = new byte[1];
+    byte[] testRawValue = new byte[0];
     tsdb.addHistogramPoint(METRIC_STRING, 1356998400, testRawValue, tags)
-    .joinUninterruptibly();
+      .joinUninterruptibly();
   }
 
   @Test (expected = IllegalArgumentException.class)

@@ -261,11 +261,14 @@ public final class RpcManager {
     if (mode.equals("rw") || mode.equals("wo")) {
       final PutDataPointRpc put = new PutDataPointRpc(tsdb.getConfig());
       final RollupDataPointRpc rollups = new RollupDataPointRpc(tsdb.getConfig());
+      final HistogramDataPointRpc histos = new HistogramDataPointRpc(tsdb.getConfig());
       telnet.put("put", put);
       telnet.put("rollup", rollups);
+      telnet.put("histogram", histos);
       if (enableApi) {
         http.put("api/put", put);
         http.put("api/rollup", rollups);
+        http.put("api/histogram", histos);
       }
     }
 

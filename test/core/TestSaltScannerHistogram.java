@@ -60,7 +60,7 @@ import static org.mockito.Mockito.when;
   "com.sum.*", "org.xml.*"})
 @PrepareForTest({ TSDB.class, Scanner.class, SaltScanner.class, Span.class,
   Const.class, UniqueId.class, Tags.class, QueryStats.class, DateTime.class,
-  HistogramDataPointDecoderManager.class,
+  HistogramCodecManager.class,
   SimpleHistogram.class, SimpleHistogramDecoder.class})
 public class TestSaltScannerHistogram extends BaseTsdbTest {
   protected final static byte[] FAMILY = "t".getBytes();
@@ -139,8 +139,8 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
     tags.put(TAGK_STRING, TAGV_STRING);
     config.overrideConfig("tsd.core.histograms.config", 
         "{\"net.opentsdb.core.LongHistogramDataPointForTestDecoder\": 0}");
-    HistogramDataPointDecoderManager manager = 
-        new HistogramDataPointDecoderManager(tsdb);
+    HistogramCodecManager manager = 
+        new HistogramCodecManager(tsdb);
     Whitebox.setInternalState(tsdb, "histogram_manager", manager);
     
     ByteArrayOutputStream outBuffer = new ByteArrayOutputStream();
@@ -193,7 +193,7 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
     setupMockScanners(false);
 
     SimpleHistogram y1Hist = mock(SimpleHistogram.class);
-    PowerMockito.whenNew(SimpleHistogram.class).withNoArguments().thenReturn(y1Hist);
+    PowerMockito.whenNew(SimpleHistogram.class).withAnyArguments().thenReturn(y1Hist);
 
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         null, null, false, null, query_stats, 0, spans);
@@ -225,7 +225,7 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
     filters.add(new TagVWildcardFilter(TAGK_STRING, "web*"));
 
     SimpleHistogram y1Hist = mock(SimpleHistogram.class);
-    PowerMockito.whenNew(SimpleHistogram.class).withNoArguments().thenReturn(y1Hist);
+    PowerMockito.whenNew(SimpleHistogram.class).withAnyArguments().thenReturn(y1Hist);
 
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         null, null, false, null, query_stats, 0, spans);
@@ -260,7 +260,7 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
     filters.add(new TagVRegexFilter("host", "w.*"));
 
     SimpleHistogram y1Hist = mock(SimpleHistogram.class);
-    PowerMockito.whenNew(SimpleHistogram.class).withNoArguments().thenReturn(y1Hist);
+    PowerMockito.whenNew(SimpleHistogram.class).withAnyArguments().thenReturn(y1Hist);
 
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         null, null, false, null, query_stats, 0, spans);
@@ -294,7 +294,7 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
     filters.add(new TagVWildcardFilter("host", "drood*"));
 
     SimpleHistogram y1Hist = mock(SimpleHistogram.class);
-    PowerMockito.whenNew(SimpleHistogram.class).withNoArguments().thenReturn(y1Hist);
+    PowerMockito.whenNew(SimpleHistogram.class).withAnyArguments().thenReturn(y1Hist);
 
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
         null, filters, false, null, query_stats, 0, spans);

@@ -12,9 +12,11 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -23,7 +25,12 @@ import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Map;
 
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
@@ -32,8 +39,28 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import net.opentsdb.core.HistogramDataPoint.HistogramBucket;
 import net.opentsdb.core.HistogramDataPoint.HistogramBucket.BucketType;
+import net.opentsdb.utils.Config;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({ TSDB.class })
 public class TestSimpleHistogram {
+
+  private TSDB tsdb;
+  private Config config;
+  private HistogramCodecManager manager;
+  
+  @Before
+  public void before() throws Exception {
+    tsdb = PowerMockito.mock(TSDB.class);
+    config = new Config(false);
+    
+    config.overrideConfig("tsd.core.histograms.config", 
+        "{\"net.opentsdb.core.SimpleHistogramDecoder\": 0}");
+    when(tsdb.getConfig()).thenReturn(config);
+    
+    manager = new HistogramCodecManager(tsdb);
+    when(tsdb.histogramManager()).thenReturn(manager);
+  }
   
   @Test
   public void verifyE2EKryo() {
@@ -42,8 +69,8 @@ public class TestSimpleHistogram {
     //Encoding stage
     ByteArrayOutputStream outBuffer = new ByteArrayOutputStream();
     Output output = new Output(outBuffer);
-    output.writeByte(0 /* This is the type of histogram (or sketch) written 
-    // to storage. HistoType.SimpleHistogramType.ordinal()*/);
+    // This is the type of histogram (or sketch) written to storage
+    output.writeByte(0);  
     output.writeShort(8);
     output.writeFloat(1.0f);
     output.writeFloat(2.0f);
@@ -79,9 +106,9 @@ public class TestSimpleHistogram {
 
     switch (metricType) {
       case 0:
-        SimpleHistogram y1Hist = new SimpleHistogram();
+        SimpleHistogram y1Hist = new SimpleHistogram(0);
         y1Hist.read(kryo, input);
-        Input verifyHist = new Input(new ByteArrayInputStream(y1Hist.histogram()));
+        Input verifyHist = new Input(new ByteArrayInputStream(y1Hist.histogram(false)));
 
         int bucketCount = verifyHist.readShort();
         assertEquals(bucketCount, 8);
@@ -101,22 +128,101 @@ public class TestSimpleHistogram {
   }
 
   @Test
+  public void testToFromBytes() {
+    //Encoding stage
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    Output output = new Output(out);
+    // This is the type of histogram (or sketch) written to storage
+    output.writeByte(42);  
+    output.writeShort(8);
+    output.writeFloat(1.0f);
+    output.writeFloat(2.0f);
+    output.writeLong(5, true);
+    output.writeFloat(2.0f);
+    output.writeFloat(3.0f);
+    output.writeLong(5, true);
+    output.writeFloat(3.0f);
+    output.writeFloat(4.0f);
+    output.writeLong(5, true);
+    output.writeFloat(4.0f);
+    output.writeFloat(5.0f);
+    output.writeLong(0, true);
+    output.writeFloat(5.0f);
+    output.writeFloat(6.0f);
+    output.writeLong(0, true);
+    output.writeFloat(6.0f);
+    output.writeFloat(7.0f);
+    output.writeLong(0, true);
+    output.writeFloat(7.0f);
+    output.writeFloat(8.0f);
+    output.writeLong(0, true);
+    output.writeFloat(8.0f);
+    output.writeFloat(9.0f);
+    output.writeLong(0, true);
+    output.writeLong(0, true);
+    output.writeLong(2, true);
+    output.close();
+    
+    SimpleHistogram hist = new SimpleHistogram(42);
+    hist.fromHistogram(out.toByteArray(), true);
+    assertArrayEquals(out.toByteArray(), hist.histogram(true));
+    
+    // skip the id
+    out = new ByteArrayOutputStream();
+    output = new Output(out);
+    // This is the type of histogram (or sketch) written to storage
+    //output.writeByte(42); // <-- Skipped!  
+    output.writeShort(8);
+    output.writeFloat(1.0f);
+    output.writeFloat(2.0f);
+    output.writeLong(5, true);
+    output.writeFloat(2.0f);
+    output.writeFloat(3.0f);
+    output.writeLong(5, true);
+    output.writeFloat(3.0f);
+    output.writeFloat(4.0f);
+    output.writeLong(5, true);
+    output.writeFloat(4.0f);
+    output.writeFloat(5.0f);
+    output.writeLong(0, true);
+    output.writeFloat(5.0f);
+    output.writeFloat(6.0f);
+    output.writeLong(0, true);
+    output.writeFloat(6.0f);
+    output.writeFloat(7.0f);
+    output.writeLong(0, true);
+    output.writeFloat(7.0f);
+    output.writeFloat(8.0f);
+    output.writeLong(0, true);
+    output.writeFloat(8.0f);
+    output.writeFloat(9.0f);
+    output.writeLong(0, true);
+    output.writeLong(0, true);
+    output.writeLong(2, true);
+    output.close();
+    
+    hist = new SimpleHistogram(42);
+    hist.fromHistogram(out.toByteArray(), false);
+    assertArrayEquals(out.toByteArray(), hist.histogram(false));
+  }
+  
+  @Test
   public void testHistogramSerialization() {
     Kryo kryo = new Kryo();
     ByteArrayOutputStream outBuffer = new ByteArrayOutputStream();
     Output output = new Output(outBuffer);
 
-    SimpleHistogram y1Hist = new SimpleHistogram();
+    SimpleHistogram y1Hist = new SimpleHistogram(0);
     y1Hist.addBucket(1.0f, 2.0f, 5L);
     y1Hist.addBucket(2.0f, 3.0f, 5L);
     y1Hist.addBucket(3.0f, 10.0f, 0L);
     y1Hist.write(kryo, output);
     output.close();
 
-    SimpleHistogram y1HistVerify = new SimpleHistogram();
-    y1HistVerify.fromHistogram(outBuffer.toByteArray());
+    SimpleHistogram y1HistVerify = new SimpleHistogram(0);
+    y1HistVerify.fromHistogram(outBuffer.toByteArray(), false);
 
-    Input input = new Input(new ByteArrayInputStream(y1HistVerify.histogram()));
+    Input input = new Input(new ByteArrayInputStream(y1HistVerify.histogram(false)));
     int bucketCount = input.readShort();
     assertEquals(bucketCount, 3);
 
@@ -135,16 +241,16 @@ public class TestSimpleHistogram {
     output.writeShort(4);
     output.close();
 
-    SimpleHistogram y1Hist = new SimpleHistogram();
+    SimpleHistogram y1Hist = new SimpleHistogram(0);
     boolean exceptionCaught = false;
     try {
-      y1Hist.fromHistogram(outBuffer.toByteArray());
+      y1Hist.fromHistogram(outBuffer.toByteArray(), false);
     }
     catch(Exception e) {
       exceptionCaught = true;
     }
 
-    assertFalse(exceptionCaught);
+    assertTrue(exceptionCaught);
   }
 
   @Test
@@ -158,7 +264,7 @@ public class TestSimpleHistogram {
     Input input = new Input(new ByteArrayInputStream(outBuffer.toByteArray()));
     Integer metricType = input.readInt();
 
-    SimpleHistogram y1Hist = new SimpleHistogram();
+    SimpleHistogram y1Hist = new SimpleHistogram(0);
     boolean exceptionCaught = false;
     try {
       y1Hist.read(kryo, input);
@@ -188,8 +294,8 @@ public class TestSimpleHistogram {
     output.writeLong(5, true);
     output.close();
 
-    SimpleHistogram y1Hist = new SimpleHistogram();
-    y1Hist.fromHistogram(outBuffer.toByteArray());
+    SimpleHistogram y1Hist = new SimpleHistogram(0);
+    y1Hist.fromHistogram(outBuffer.toByteArray(), false);
     double perc50 = y1Hist.percentile(50.0f);
 
     assertEquals(perc50, 8.0f, 0.0001);
@@ -217,8 +323,8 @@ public class TestSimpleHistogram {
     output.writeLong(5, true);
     output.close();
 
-    SimpleHistogram y1Hist = new SimpleHistogram();
-    y1Hist.fromHistogram(outBuffer.toByteArray());
+    SimpleHistogram y1Hist = new SimpleHistogram(0);
+    y1Hist.fromHistogram(outBuffer.toByteArray(), false);
     ArrayList<Double> percs = new ArrayList<Double>();
     percs.add(50.0);
     percs.add(99.0);
@@ -251,11 +357,11 @@ public class TestSimpleHistogram {
     output.writeLong(5, true);
     output.close();
 
-    SimpleHistogram y1Hist = new SimpleHistogram();
-    y1Hist.fromHistogram(outBuffer.toByteArray());
+    SimpleHistogram y1Hist = new SimpleHistogram(0);
+    y1Hist.fromHistogram(outBuffer.toByteArray(), false);
 
-    SimpleHistogram y1Hist1 = new SimpleHistogram();
-    y1Hist1.fromHistogram(outBuffer.toByteArray());
+    SimpleHistogram y1Hist1 = new SimpleHistogram(0);
+    y1Hist1.fromHistogram(outBuffer.toByteArray(), false);
     y1Hist1.setUnderflow(2L);
 
     y1Hist.aggregate(y1Hist1, HistogramAggregation.SUM);
@@ -287,15 +393,15 @@ public class TestSimpleHistogram {
     output.writeLong(5, true);
     output.close();
 
-    SimpleHistogram y1Hist = new SimpleHistogram();
-    y1Hist.fromHistogram(outBuffer.toByteArray());
+    SimpleHistogram y1Hist = new SimpleHistogram(0);
+    y1Hist.fromHistogram(outBuffer.toByteArray(), false);
 
     ArrayList<Histogram> histos = new ArrayList<Histogram>();
-    SimpleHistogram y1Hist1 = new SimpleHistogram();
-    y1Hist1.fromHistogram(outBuffer.toByteArray());
+    SimpleHistogram y1Hist1 = new SimpleHistogram(0);
+    y1Hist1.fromHistogram(outBuffer.toByteArray(), false);
     histos.add(y1Hist1);
-    SimpleHistogram y1Hist2 = new SimpleHistogram();
-    y1Hist2.fromHistogram(outBuffer.toByteArray());
+    SimpleHistogram y1Hist2 = new SimpleHistogram(0);
+    y1Hist2.fromHistogram(outBuffer.toByteArray(), false);
     histos.add(y1Hist2);
 
     y1Hist.aggregate(histos, HistogramAggregation.SUM);
@@ -326,8 +432,8 @@ public class TestSimpleHistogram {
       output.writeLong(5, true);
       output.close();
 
-      SimpleHistogram y1Hist = new SimpleHistogram();
-      y1Hist.fromHistogram(outBuffer.toByteArray());
+      SimpleHistogram y1Hist = new SimpleHistogram(0);
+      y1Hist.fromHistogram(outBuffer.toByteArray(), false);
 
       assertEquals(y1Hist.getBucketCount(6.0f, 10.0f), Long.valueOf(10L));
       assertEquals(y1Hist.getBucketCount(5.0f, 6.0f), Long.valueOf(0L));
@@ -337,7 +443,7 @@ public class TestSimpleHistogram {
 
   @Test
   public void testAddBuckets() {
-    SimpleHistogram y1Hist = new SimpleHistogram();
+    SimpleHistogram y1Hist = new SimpleHistogram(0);
 
     y1Hist.addBucket(5.0f, 7.0f, 3L);
     assertEquals(y1Hist.getBucketCount(5.0f, 7.0f), Long.valueOf(3L));;
@@ -348,7 +454,7 @@ public class TestSimpleHistogram {
 
   @Test
   public void testNullBucketVal() {
-    SimpleHistogram y1Hist = new SimpleHistogram();
+    SimpleHistogram y1Hist = new SimpleHistogram(0);
 
     y1Hist.addBucket(5.0f, 7.0f, null);
     assertEquals(y1Hist.getBucketCount(5.0f, 7.0f), Long.valueOf(0L));
@@ -358,7 +464,7 @@ public class TestSimpleHistogram {
   
   @Test
   public void testJsonSerialization() {
-    SimpleHistogram y1Hist = new SimpleHistogram();
+    SimpleHistogram y1Hist = new SimpleHistogram(0);
 
     y1Hist.addBucket(5.0f, 7.0f, 3L);
     y1Hist.addBucket(7.0f, 10.0f, 5L);
@@ -379,7 +485,7 @@ public class TestSimpleHistogram {
     assertTrue(jsonOut.contains("\"underflow\":0"));
     assertTrue(jsonOut.contains("\"overflow\":1"));
     
-    SimpleHistogram y1Hist1 = new SimpleHistogram();
+    SimpleHistogram y1Hist1 = new SimpleHistogram(0);
 
     y1Hist1.addBucket(Float.NEGATIVE_INFINITY, 5.0f, 3L);
     y1Hist1.addBucket(7.0f, 10.0f, 5L);
@@ -400,7 +506,7 @@ public class TestSimpleHistogram {
 
   @Test
   public void testImmutableGetHistogram() {
-    SimpleHistogram y1Hist = new SimpleHistogram();
+    SimpleHistogram y1Hist = new SimpleHistogram(0);
 
     y1Hist.addBucket(5.0f, 7.0f, 3L);
     y1Hist.addBucket(7.0f, 10.0f, 5L);
@@ -419,12 +525,12 @@ public class TestSimpleHistogram {
 
   @Test
   public void testMissingBucketsHistogramAggregation() {
-    SimpleHistogram hist1 = new SimpleHistogram();
+    SimpleHistogram hist1 = new SimpleHistogram(0);
     hist1.addBucket(5.0f, 7.0f, 3L);
     hist1.addBucket(7.0f, 10.0f, 5L);
     hist1.addBucket(15.0f, 20.0f, 2L);
 
-    SimpleHistogram hist2 = new SimpleHistogram();
+    SimpleHistogram hist2 = new SimpleHistogram(0);
     hist2.addBucket(5.0f, 7.0f, 3L);
     hist2.addBucket(7.0f, 10.0f, 5L);
     hist2.addBucket(10.0f, 15.0f, 2L);

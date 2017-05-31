@@ -19,11 +19,10 @@ import static org.junit.Assert.assertTrue;
 import java.util.NoSuchElementException;
 
 import org.hbase.async.Bytes;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /** Helper class to mock HistogramSeekableView. */
-@Ignore
+
 public class HistogramSeekableViewForTest {
 
   /**
@@ -99,8 +98,7 @@ public class HistogramSeekableViewForTest {
     private final long start_time_ms;
     private final long sample_period_ms;
     private final int num_data_points;
-    private final LongHistogramDataPointForTest current_data = 
-        new LongHistogramDataPointForTest(100L, Bytes.fromLong(0L));
+    private SimpleHistogramDataPointAdapter current_data;
     private int current = 0;
 
     DataPointGenerator(final long start_time_ms, final long sample_period_ms,
@@ -108,6 +106,9 @@ public class HistogramSeekableViewForTest {
       this.start_time_ms = start_time_ms;
       this.sample_period_ms = sample_period_ms;
       this.num_data_points = num_data_points;
+      current_data = new SimpleHistogramDataPointAdapter(
+          new LongHistogramDataPointForTest(1, 0), 100L);
+      
       rewind();
     }
 
@@ -149,8 +150,8 @@ public class HistogramSeekableViewForTest {
     }
 
     private void generateData() {
-      current_data.setTimeStamp(generateTimestamp());
-      current_data.setRawData(Bytes.fromLong(current));
+      current_data = new SimpleHistogramDataPointAdapter(
+          new LongHistogramDataPointForTest(1, current), generateTimestamp());
     }
 
     private long generateTimestamp() {
@@ -163,18 +164,23 @@ public class HistogramSeekableViewForTest {
   public void testDataPointGenerator() {
     DataPointGenerator hdpg = new DataPointGenerator(100000, 10000, 5);
     HistogramDataPoint[] expected_data_points = new HistogramDataPoint[] {
-        new LongHistogramDataPointForTest(99000, Bytes.fromLong(0L)),
-        new LongHistogramDataPointForTest(111000, Bytes.fromLong(1L)),
-        new LongHistogramDataPointForTest(119000, Bytes.fromLong(2L)),
-        new LongHistogramDataPointForTest(131000, Bytes.fromLong(3L)),
-        new LongHistogramDataPointForTest(139000, Bytes.fromLong(4L)),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(1, 0), 99000),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(1, 1), 111000),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(1, 2), 119000),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(1, 3), 131000),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(1, 4), 139000),
     };
     for (HistogramDataPoint expected: expected_data_points) {
       assertTrue(hdpg.hasNext());
       HistogramDataPoint dp = hdpg.next();
       assertEquals(expected.timestamp(), dp.timestamp());
-      assertEquals(Bytes.getLong(expected.getRawData()), 
-          Bytes.getLong(dp.getRawData()));
+      assertEquals(Bytes.getLong(expected.getRawData(false)), 
+          Bytes.getLong(dp.getRawData(false)));
     }
     assertFalse(hdpg.hasNext());
   }
@@ -184,16 +190,19 @@ public class HistogramSeekableViewForTest {
     DataPointGenerator hdpg = new DataPointGenerator(100000, 10000, 5);
     hdpg.seek(119000);
     HistogramDataPoint[] expected_data_points = new HistogramDataPoint[] {
-        new LongHistogramDataPointForTest(119000, Bytes.fromLong(2L)),
-        new LongHistogramDataPointForTest(131000, Bytes.fromLong(3L)),
-        new LongHistogramDataPointForTest(139000, Bytes.fromLong(4L)),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(1, 2), 119000),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(1, 3), 131000),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(1, 4), 139000),
     };
     for (HistogramDataPoint expected: expected_data_points) {
       assertTrue(hdpg.hasNext());
       HistogramDataPoint hdp = hdpg.next();
       assertEquals(expected.timestamp(), hdp.timestamp());
-      assertEquals(Bytes.getLong(expected.getRawData()), 
-          Bytes.getLong(hdp.getRawData()));
+      assertEquals(Bytes.getLong(expected.getRawData(false)), 
+          Bytes.getLong(hdp.getRawData(false)));
     }
     assertFalse(hdpg.hasNext());
   }
@@ -203,17 +212,21 @@ public class HistogramSeekableViewForTest {
     DataPointGenerator hdpg = new DataPointGenerator(100000, 10000, 5);
     hdpg.seek(100000);
     HistogramDataPoint[] expected_data_points = new HistogramDataPoint[] {
-        new LongHistogramDataPointForTest(111000, Bytes.fromLong(1L)),
-        new LongHistogramDataPointForTest(119000, Bytes.fromLong(2L)),
-        new LongHistogramDataPointForTest(131000, Bytes.fromLong(3L)),
-        new LongHistogramDataPointForTest(139000, Bytes.fromLong(4L)),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(1, 1), 111000),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(1, 2), 119000),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(1, 3), 131000),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(1, 4), 139000),
     };
     for (HistogramDataPoint expected: expected_data_points) {
       assertTrue(hdpg.hasNext());
       HistogramDataPoint hdp = hdpg.next();
       assertEquals(expected.timestamp(), hdp.timestamp());
-      assertEquals(Bytes.getLong(expected.getRawData()), 
-          Bytes.getLong(hdp.getRawData()));
+      assertEquals(Bytes.getLong(expected.getRawData(false)), 
+          Bytes.getLong(hdp.getRawData(false)));
     }
     assertFalse(hdpg.hasNext());
   }
@@ -223,17 +236,21 @@ public class HistogramSeekableViewForTest {
     DataPointGenerator hdpg = new DataPointGenerator(100000, 10000, 5);
     hdpg.seek(100001);
     HistogramDataPoint[] expected_data_points = new HistogramDataPoint[] {
-        new LongHistogramDataPointForTest(111000, Bytes.fromLong(1)),
-        new LongHistogramDataPointForTest(119000, Bytes.fromLong(2L)),
-        new LongHistogramDataPointForTest(131000, Bytes.fromLong(3L)),
-        new LongHistogramDataPointForTest(139000, Bytes.fromLong(4L)),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(1, 1), 111000),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(1, 2), 119000),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(1, 3), 131000),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(1, 4), 139000),
     };
     for (HistogramDataPoint expected: expected_data_points) {
       assertTrue(hdpg.hasNext());
       HistogramDataPoint hdp = hdpg.next();
       assertEquals(expected.timestamp(), hdp.timestamp());
-      assertEquals(Bytes.getLong(expected.getRawData()), 
-          Bytes.getLong(hdp.getRawData()));
+      assertEquals(Bytes.getLong(expected.getRawData(false)), 
+          Bytes.getLong(hdp.getRawData(false)));
     }
     assertFalse(hdpg.hasNext());
   }

@@ -12,11 +12,20 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-public class LongHistogramDataPointForTestDecoder extends HistogramDataPointDecoder {
+public class LongHistogramDataPointForTestDecoder extends HistogramDataPointCodec {
 
   @Override
-  public HistogramDataPoint decode(byte[] raw_data, long timestamp) {
-    return new LongHistogramDataPointForTest(timestamp, raw_data);
+  public Histogram decode(byte[] raw_data, final boolean includes_id) {
+    final LongHistogramDataPointForTest dp = new LongHistogramDataPointForTest(id);
+    dp.fromHistogram(raw_data, includes_id);
+    return dp;
+  }
+
+  
+  @Override
+  public byte[] encode(Histogram data_point, final boolean include_id) {
+    // TODO Auto-generated method stub
+    return null;
   }
 
 }

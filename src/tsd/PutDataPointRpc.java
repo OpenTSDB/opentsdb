@@ -35,6 +35,9 @@ import org.jboss.netty.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.opentsdb.core.Histogram;
+import net.opentsdb.core.HistogramDataPoint;
+import net.opentsdb.core.HistogramPojo;
 import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
@@ -69,8 +72,10 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
   protected static final AtomicLong telnet_requests = new AtomicLong();
   protected static final AtomicLong http_requests = new AtomicLong();
   protected static final AtomicLong raw_dps = new AtomicLong();
+  protected static final AtomicLong raw_histograms = new AtomicLong();
   protected static final AtomicLong rollup_dps = new AtomicLong();
   protected static final AtomicLong raw_stored = new AtomicLong();
+  protected static final AtomicLong raw_histograms_stored = new AtomicLong();
   protected static final AtomicLong rollup_stored = new AtomicLong();
   protected static final AtomicLong hbase_errors = new AtomicLong();
   protected static final AtomicLong unknown_errors = new AtomicLong();
@@ -89,7 +94,8 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @since 2.4 */
   public enum DataPointType {
     PUT("put"),
-    ROLLUP("rollup");
+    ROLLUP("rollup"),
+    HISTOGRAM("histogram");
     
     private final String name;
     DataPointType(final String name) {
@@ -122,6 +128,9 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
     } else if (command.equals("rollup")) {
       type = DataPointType.ROLLUP;
       rollup_dps.incrementAndGet();
+    } else if (command.equals("histogram")) {
+      type = DataPointType.HISTOGRAM;
+      raw_histograms.incrementAndGet();
     } else {
       throw new IllegalArgumentException("Unrecognized command: " + cmd[0]);
     }
@@ -149,12 +158,16 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
             }
             if (arg instanceof HBaseException) {
               hbase_errors.incrementAndGet();
+            } else if (arg instanceof IllegalArgumentException) {
+              illegal_arguments.incrementAndGet();
+            } else {
+              unknown_errors.incrementAndGet();
             }
           }
           
           // we handle the storage exceptions here so as to avoid creating yet
           // another callback object on every data point.
-          handleStorageException(tsdb, getDataPointFromString(cmd), arg);
+          handleStorageException(tsdb, getDataPointFromString(tsdb, cmd), arg);
           
           if (send_telnet_errors) {
             if (chan.isConnected()) {
@@ -181,15 +194,17 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
         public Object call(final Object obj) {
           if (type == DataPointType.PUT) {
             raw_stored.incrementAndGet();
-          } else {
+          } else if (type == DataPointType.ROLLUP) {
             rollup_stored.incrementAndGet();
+          } else if (type == DataPointType.HISTOGRAM) {
+            raw_histograms_stored.incrementAndGet();
           }
           return true;
         }
       }
       
-      // Rollups override this method in their implementation so that it will
-      // route properly.
+      // Rollups and histos override this method in their implementation so 
+      // that it will route properly.
       return importDataPoint(tsdb, cmd)
           .addCallback(new SuccessCB())
           .addErrback(new PutErrback());
@@ -211,10 +226,10 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
     } catch (PleaseThrottleException x) {
       errmsg = type + ": Throttling exception: " + x.getMessage() + '\n';
       inflight_exceeded.incrementAndGet();
-      handleStorageException(tsdb, getDataPointFromString(cmd), x);
+      handleStorageException(tsdb, getDataPointFromString(tsdb, cmd), x);
     } catch (TimeoutException tex) {
       errmsg = type + ": Request timed out: " + tex.getMessage() + '\n';
-      handleStorageException(tsdb, getDataPointFromString(cmd), tex);
+      handleStorageException(tsdb, getDataPointFromString(tsdb, cmd), tex);
     }
     catch (RuntimeException rex) {
       errmsg = type + ": Unexpected runtime exception: " + rex.getMessage() + '\n';
@@ -298,6 +313,9 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
       if (dp instanceof RollUpDataPoint) {
         type = DataPointType.ROLLUP;
         rollup_dps.incrementAndGet();
+      } else if (dp instanceof HistogramPojo) {
+        type = DataPointType.HISTOGRAM;
+        raw_histograms.incrementAndGet();
       } else {
         type = DataPointType.PUT;
         raw_dps.incrementAndGet();
@@ -339,6 +357,9 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
           case ROLLUP:
             rollup_stored.incrementAndGet();
             break;
+          case HISTOGRAM:
+            raw_histograms_stored.incrementAndGet();
+            break;
           default:
             // don't care
           }
@@ -354,48 +375,70 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
         // TODO - refactor the add calls someday or move some of this into the 
         // actual data point class.
         final Deferred<Boolean> deferred;
-        if (Tags.looksLikeInteger(dp.getValue())) {
-          if (dp instanceof RollUpDataPoint) {
-            final RollUpDataPoint rdp = (RollUpDataPoint)dp;
-            deferred = tsdb.addAggregatePoint(rdp.getMetric(), 
-                rdp.getTimestamp(), 
-                Tags.parseLong(rdp.getValue()), 
-                dp.getTags(), 
-                rdp.getGroupByAggregator() != null, 
-                rdp.getInterval(), 
-                rdp.getAggregator(),
-                rdp.getGroupByAggregator())
-                  .addCallback(new SuccessCB())
-                  .addErrback(new PutErrback());
-          } else {
-            deferred = tsdb.addPoint(dp.getMetric(), dp.getTimestamp(),
-                Tags.parseLong(dp.getValue()), dp.getTags())
+        if (type == DataPointType.HISTOGRAM) {
+          final HistogramPojo pojo = (HistogramPojo) dp;
+          // validation before storage of histograms by decoding then re-encoding.
+          final Histogram hdp = tsdb.histogramManager().decode(
+              pojo.getId(), pojo.getBytes(), false);
+          deferred = tsdb.addHistogramPoint(
+              pojo.getMetric(), 
+              pojo.getTimestamp(), 
+              tsdb.histogramManager().encode(pojo.getId(), hdp, true), 
+              pojo.getTags())
                 .addCallback(new SuccessCB())
                 .addErrback(new PutErrback());
-          }
         } else {
-          if (dp instanceof RollUpDataPoint) {
-            final RollUpDataPoint rdp = (RollUpDataPoint)dp;
-            deferred = tsdb.addAggregatePoint(rdp.getMetric(), 
-                rdp.getTimestamp(), 
-                (Tags.fitsInFloat(dp.getValue()) ? 
-                    Float.parseFloat(dp.getValue()) :
-                      Double.parseDouble(dp.getValue())), 
+          if (Tags.looksLikeInteger(dp.getValue())) {
+            switch (type) {
+            case ROLLUP:
+            {
+              final RollUpDataPoint rdp = (RollUpDataPoint)dp;
+              deferred = tsdb.addAggregatePoint(rdp.getMetric(), 
+                  rdp.getTimestamp(), 
+                  Tags.parseLong(rdp.getValue()), 
                   dp.getTags(), 
-                rdp.getGroupByAggregator() != null, 
-                rdp.getInterval(), 
-                rdp.getAggregator(),
-                rdp.getGroupByAggregator())
+                  rdp.getGroupByAggregator() != null, 
+                  rdp.getInterval(), 
+                  rdp.getAggregator(),
+                  rdp.getGroupByAggregator())
+                    .addCallback(new SuccessCB())
+                    .addErrback(new PutErrback());
+              break;
+            }
+            default:
+              deferred = tsdb.addPoint(dp.getMetric(), dp.getTimestamp(),
+                  Tags.parseLong(dp.getValue()), dp.getTags())
                   .addCallback(new SuccessCB())
                   .addErrback(new PutErrback());
+            }
           } else {
-            deferred = tsdb.addPoint(dp.getMetric(), dp.getTimestamp(),
-                (Tags.fitsInFloat(dp.getValue()) ? 
-                    Float.parseFloat(dp.getValue()) :
-                      Double.parseDouble(dp.getValue())), 
-                  dp.getTags())
-                .addCallback(new SuccessCB())
-                .addErrback(new PutErrback());
+            switch (type) {
+            case ROLLUP:
+            {
+              final RollUpDataPoint rdp = (RollUpDataPoint)dp;
+              deferred = tsdb.addAggregatePoint(rdp.getMetric(), 
+                  rdp.getTimestamp(), 
+                  (Tags.fitsInFloat(dp.getValue()) ? 
+                      Float.parseFloat(dp.getValue()) :
+                        Double.parseDouble(dp.getValue())), 
+                    dp.getTags(), 
+                  rdp.getGroupByAggregator() != null, 
+                  rdp.getInterval(), 
+                  rdp.getAggregator(),
+                  rdp.getGroupByAggregator())
+                    .addCallback(new SuccessCB())
+                    .addErrback(new PutErrback());
+              break;
+            }
+            default:
+              deferred = tsdb.addPoint(dp.getMetric(), dp.getTimestamp(),
+                  (Tags.fitsInFloat(dp.getValue()) ? 
+                      Float.parseFloat(dp.getValue()) :
+                        Double.parseDouble(dp.getValue())), 
+                    dp.getTags())
+                  .addCallback(new SuccessCB())
+                  .addErrback(new PutErrback());
+            }
           }
         }
         ++queued;
@@ -545,6 +588,8 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
         }
         
         final int failures = dps.size() - queued;
+        System.out.println("GOOD: " + good_writes + " Failures: " + failures + " FW " + failed_writes
+            + " DPS: " + dps.size() + " Q " + queued);
         if (!show_summary && !show_details) {
           if (failures + failed_writes > 0) {
             query.sendReply(HttpResponseStatus.BAD_REQUEST, 
@@ -639,7 +684,7 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @throws NoSuchUniqueName if the metric isn't registered.
    */
   protected Deferred<Object> importDataPoint(final TSDB tsdb, 
-      final String[] words) {
+                                             final String[] words) {
     words[0] = null; // Ditch the "put".
     if (words.length < 5) {  // Need at least: metric timestamp value tag
       //               ^ 5 and not 4 because words[0] is "put".
@@ -684,10 +729,12 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * does not perform validation. It should only be used by the Telnet style
    * {@code execute} above within the error callback. At that point it means
    * the array parsed correctly as per {@code importDataPoint}.
+   * @param tsdb The TSDB for encoding/decoding.
    * @param words The array of strings representing a data point
    * @return An incoming data point object.
    */
-  protected IncomingDataPoint getDataPointFromString(final String[] words) {
+  protected IncomingDataPoint getDataPointFromString(final TSDB tsdb, 
+                                                     final String[] words) {
     final IncomingDataPoint dp = new IncomingDataPoint();
     dp.setMetric(words[1]);
     

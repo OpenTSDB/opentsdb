@@ -43,6 +43,8 @@ import net.opentsdb.core.HistogramDataPoint.HistogramBucket.BucketType;
 public class SimpleHistogram implements Histogram {
   private static Logger LOG = LoggerFactory.getLogger(SimpleHistogram.class);
   
+  private final int id;
+  
   @JsonProperty("buckets")
   TreeMap<HistogramBucket, Long> buckets = new TreeMap<HistogramBucket, Long>();
 
@@ -52,6 +54,10 @@ public class SimpleHistogram implements Histogram {
   @JsonProperty("overflow")
   Long overflow = 0L;
 
+  public SimpleHistogram(final int id) {
+    this.id = id;
+  }
+  
   public void addBucket(Float min, Float max, Long count) {
     if (min == null || max == null) {
       return;
@@ -63,12 +69,15 @@ public class SimpleHistogram implements Histogram {
     buckets.put(new HistogramBucket(BucketType.REGULAR, min, max), count);
   }
   
-  public byte[] histogram() {
+  public byte[] histogram(final boolean include_id) {
     ByteArrayOutputStream outBuffer = new ByteArrayOutputStream();
     Output output = new Output(outBuffer);
 
     int bucketCount = buckets.size();
     try {
+      if (include_id) {
+        output.writeByte(id);
+      }
       output.writeShort(bucketCount);
 
       for (Map.Entry<HistogramBucket, Long> bucket : buckets.entrySet()) {
@@ -85,14 +94,17 @@ public class SimpleHistogram implements Histogram {
     return outBuffer.toByteArray();
   }
   
-  public void fromHistogram(byte[] raw) {
+  public void fromHistogram(byte[] raw, final boolean include_id) {
     if (raw.length < 6) {
-      LOG.warn("Byte array shorter than 6 bytes detected: " + Bytes.pretty(raw));
-      return;
+      throw new IllegalArgumentException("Byte array shorter than 6 bytes "
+          + "detected: " + Bytes.pretty(raw));
     }
     Input input = null;
     try {
       input = new Input(new ByteArrayInputStream(raw));
+      if (include_id) {
+        input.readByte(); // pull out the id.
+      }
       int bucketCount = input.readShort();
 
       for (int i = 0; i < bucketCount; i++) {
@@ -170,7 +182,7 @@ public class SimpleHistogram implements Histogram {
 
   @Override
   public SimpleHistogram clone() {
-    SimpleHistogram cloneObj = new SimpleHistogram();
+    SimpleHistogram cloneObj = new SimpleHistogram(id);
 
     for (Map.Entry<HistogramBucket, Long> bucket : buckets.entrySet()) {
       cloneObj.addBucket(bucket.getKey().getLowerBound(), 
@@ -182,6 +194,11 @@ public class SimpleHistogram implements Histogram {
     return cloneObj;
   }
 
+  @Override
+  public int getId() {
+    return id;
+  }
+  
   public Long getBucketCount(Float min, Float max) {
     HistogramBucket qryBucket = new HistogramBucket(BucketType.REGULAR, min, max);
     if (buckets.containsKey(qryBucket)) {

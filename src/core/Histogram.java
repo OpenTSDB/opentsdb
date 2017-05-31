@@ -17,9 +17,9 @@ import java.util.Map;
 
 public interface Histogram {
   
-  public byte[] histogram();
+  public byte[] histogram(final boolean include_id);
   
-  public void fromHistogram(final byte[] raw);
+  public void fromHistogram(final byte[] raw, final boolean includes_id);
   
   public double percentile(final double p);
   
@@ -28,6 +28,8 @@ public interface Histogram {
   public Map getHistogram();
   
   public Histogram clone();
+  
+  public int getId();
   
   void aggregate(Histogram histo, HistogramAggregation func);
   

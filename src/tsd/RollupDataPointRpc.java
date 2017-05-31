@@ -173,11 +173,13 @@ class RollupDataPointRpc extends PutDataPointRpc
    * does not perform validation. It should only be used by the Telnet style
    * {@code execute} above within the error callback. At that point it means
    * the array parsed correctly as per {@code importDataPoint}.
+   * @param tsdb The TSDB for encoding/decoding.
    * @param words The array of strings representing a data point
    * @return An incoming data point object.
    */
   @Override
-  protected IncomingDataPoint getDataPointFromString(final String[] words) {
+  protected IncomingDataPoint getDataPointFromString(final TSDB tsdb, 
+                                                     final String[] words) {
     final RollUpDataPoint dp = new RollUpDataPoint();
     
     final String interval_agg = words[TelnetIndex.INTERVAL_AGG.ordinal()];

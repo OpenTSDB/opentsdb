@@ -263,7 +263,7 @@ public class HistogramRowSeq implements iHistogramRowSeq {
     
     for (short i = 0; i < sz; ++i) {
       buf.append('+').append(rowSeq.get(i).timestamp());
-      buf.append(":histogram(").append(Arrays.toString(rowSeq.get(i).getRawData()));
+      buf.append(":histogram(").append(Arrays.toString(rowSeq.get(i).getRawData(true)));
       buf.append(')');
       if (i != sz -1) {
         buf.append(", ");
@@ -309,13 +309,13 @@ public class HistogramRowSeq implements iHistogramRowSeq {
     }
 
     @Override
-    public byte[] getRawData() {
-      return getCurrent().getRawData();
+    public byte[] getRawData(final boolean include_id) {
+      return getCurrent().getRawData(include_id);
     }
 
     @Override
-    public void resetFromRawData(byte[] raw_data) {
-      getCurrent().resetFromRawData(raw_data);
+    public void resetFromRawData(final byte[] raw_data, final boolean includes_id) {
+      getCurrent().resetFromRawData(raw_data, includes_id);
     }
 
     @Override
@@ -370,6 +370,11 @@ public class HistogramRowSeq implements iHistogramRowSeq {
     @Override
     public HistogramDataPoint clone() {
       return getCurrent().clone();
+    }
+    
+    @Override
+    public int getId() {
+      return getCurrent().getId();
     }
     
     @Override

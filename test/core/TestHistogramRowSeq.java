@@ -77,8 +77,10 @@ public final class TestHistogramRowSeq {
   @Test
   public void setRow() throws Exception {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    hdps.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
     hrs.setRow(key, hdps);
@@ -91,8 +93,10 @@ public final class TestHistogramRowSeq {
   @Test (expected = IllegalStateException.class)
   public void setRowAlreadySet() throws Exception {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    hdps.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
     hrs.setRow(key, hdps);
@@ -102,8 +106,10 @@ public final class TestHistogramRowSeq {
   @Test
   public void addRowMergeLater() throws Exception {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    hdps.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
     hrs.setRow(key, hdps);
@@ -111,8 +117,10 @@ public final class TestHistogramRowSeq {
     
     
     List<HistogramDataPoint> hdps2 = new ArrayList<HistogramDataPoint>();
-    hdps2.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
-    hdps2.add(new LongHistogramDataPointForTest(115L, Bytes.fromLong(3)));
+    hdps2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
+    hdps2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 3), 115L));
     hrs.addRow(hdps2);
     assertEquals(4, hrs.size());
     
@@ -125,8 +133,10 @@ public final class TestHistogramRowSeq {
   @Test
   public void addRowMergeEarlier() throws Exception {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
-    hdps.add(new LongHistogramDataPointForTest(115L, Bytes.fromLong(3)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 3), 115L));
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
     hrs.setRow(key, hdps);
@@ -134,8 +144,10 @@ public final class TestHistogramRowSeq {
     
     
     List<HistogramDataPoint> hdps2 = new ArrayList<HistogramDataPoint>();
-    hdps2.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    hdps2.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    hdps2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    hdps2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     hrs.addRow(hdps2);
     assertEquals(4, hrs.size());
     
@@ -148,8 +160,10 @@ public final class TestHistogramRowSeq {
   @Test
   public void addRowMergeMiddle() throws Exception {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(120L, Bytes.fromLong(4)));
-    hdps.add(new LongHistogramDataPointForTest(125L, Bytes.fromLong(5)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 4), 120L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 5), 125L));
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
     hrs.setRow(key, hdps);
@@ -157,14 +171,18 @@ public final class TestHistogramRowSeq {
     
     
     List<HistogramDataPoint> hdps2 = new ArrayList<HistogramDataPoint>();
-    hdps2.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    hdps2.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    hdps2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    hdps2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     hrs.addRow(hdps2);
     assertEquals(4, hrs.size());
     
     List<HistogramDataPoint> hdps3 = new ArrayList<HistogramDataPoint>();
-    hdps3.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
-    hdps3.add(new LongHistogramDataPointForTest(115L, Bytes.fromLong(3)));
+    hdps3.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
+    hdps3.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 3), 115L));
     hrs.addRow(hdps3);
     assertEquals(6, hrs.size());
     
@@ -179,8 +197,10 @@ public final class TestHistogramRowSeq {
   @Test
   public void addRowMergeDuplicateLater() throws Exception {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    hdps.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
     hrs.setRow(key, hdps);
@@ -188,8 +208,10 @@ public final class TestHistogramRowSeq {
     
     
     List<HistogramDataPoint> hdps2 = new ArrayList<HistogramDataPoint>();
-    hdps2.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(100)));
-    hdps2.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
+    hdps2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 100), 100L));
+    hdps2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
     hrs.addRow(hdps2);
     assertEquals(3, hrs.size());
     
@@ -201,8 +223,10 @@ public final class TestHistogramRowSeq {
   @Test
   public void timestamp() throws Exception {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    hdps.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
     hrs.setRow(key, hdps);
@@ -215,8 +239,10 @@ public final class TestHistogramRowSeq {
   @Test (expected = IndexOutOfBoundsException.class)
   public void timestampOutofBounds() throws Exception {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    hdps.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
     hrs.setRow(key, hdps);
@@ -230,8 +256,10 @@ public final class TestHistogramRowSeq {
   @Test
   public void iterateAllItems() throws Exception {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    hdps.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
     hrs.setRow(key, hdps);
@@ -242,11 +270,11 @@ public final class TestHistogramRowSeq {
     HistogramDataPoint hdp = it.next();
     
     assertEquals(100L, hdp.timestamp());
-    assertEquals(0L, Bytes.getLong(hdp.getRawData()));
+    assertEquals(0L, Bytes.getLong(hdp.getRawData(false)));
  
     hdp = it.next();    
     assertEquals(105L, hdp.timestamp());
-    assertEquals(1L, Bytes.getLong(hdp.getRawData()));
+    assertEquals(1L, Bytes.getLong(hdp.getRawData(false)));
     
     assertFalse(it.hasNext());
   }
@@ -254,8 +282,10 @@ public final class TestHistogramRowSeq {
   @Test
   public void iterateAfterMergeDuplicate() throws Exception {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
-    hdps.add(new LongHistogramDataPointForTest(115L, Bytes.fromLong(3)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 3), 115L));
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
     hrs.setRow(key, hdps);
@@ -263,18 +293,21 @@ public final class TestHistogramRowSeq {
     assertEquals(2, hrs.size());
     
     List<HistogramDataPoint> hdps2 = new ArrayList<HistogramDataPoint>();
-    hdps2.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(20)));
-    hdps2.add(new LongHistogramDataPointForTest(120L, Bytes.fromLong(4)));
+    hdps2.add(
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 20), 110L));
+    hdps2.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 4), 120L));
     
     final HistogramSeekableView it = hrs.iterator();
     HistogramDataPoint hdp = it.next();
     
     assertEquals(110L, hdp.timestamp());
-    assertEquals(2L, Bytes.getLong(hdp.getRawData()));
+    assertEquals(2L, Bytes.getLong(hdp.getRawData(false)));
  
     hdp = it.next();    
     assertEquals(115L, hdp.timestamp());
-    assertEquals(3L, Bytes.getLong(hdp.getRawData()));
+    assertEquals(3L, Bytes.getLong(hdp.getRawData(false)));
     
     assertFalse(it.hasNext());
   }
@@ -285,7 +318,8 @@ public final class TestHistogramRowSeq {
     final int limit = 64 * 1000;
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < limit; ++i) {
-      hdps.add(new LongHistogramDataPointForTest(ts + 5 * i, Bytes.fromLong(i)));
+      hdps.add(new SimpleHistogramDataPointAdapter(
+          new LongHistogramDataPointForTest(0, i), ts + 5 * i));
     }
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
@@ -302,9 +336,12 @@ public final class TestHistogramRowSeq {
   @Test
   public void seekStart() throws Exception {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    hdps.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
-    hdps.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
     hrs.setRow(key, hdps);
@@ -315,7 +352,7 @@ public final class TestHistogramRowSeq {
     it.seek(100L);
     HistogramDataPoint hdp = it.next();
     assertEquals(100L, hdp.timestamp());
-    assertEquals(0, Bytes.getLong(hdp.getRawData()));
+    assertEquals(0, Bytes.getLong(hdp.getRawData(false)));
     
     assertTrue(it.hasNext());
   }
@@ -323,9 +360,12 @@ public final class TestHistogramRowSeq {
   @Test
   public void seekMsBetween() throws Exception {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    hdps.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
-    hdps.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
     hrs.setRow(key, hdps);
@@ -336,7 +376,7 @@ public final class TestHistogramRowSeq {
     it.seek(105L);
     HistogramDataPoint hdp = it.next();
     assertEquals(105L, hdp.timestamp());
-    assertEquals(1, Bytes.getLong(hdp.getRawData()));
+    assertEquals(1, Bytes.getLong(hdp.getRawData(false)));
     
     assertTrue(it.hasNext());
   }
@@ -344,9 +384,12 @@ public final class TestHistogramRowSeq {
   @Test
   public void seekMsEnd() throws Exception {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    hdps.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
-    hdps.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
     hrs.setRow(key, hdps);
@@ -357,7 +400,7 @@ public final class TestHistogramRowSeq {
     it.seek(110L);
     HistogramDataPoint hdp = it.next();
     assertEquals(110L, hdp.timestamp());
-    assertEquals(2, Bytes.getLong(hdp.getRawData()));
+    assertEquals(2, Bytes.getLong(hdp.getRawData(false)));
     
     assertFalse(it.hasNext());
   }
@@ -365,8 +408,10 @@ public final class TestHistogramRowSeq {
   @Test
   public void seekMsTooEarly() throws Exception {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
-    hdps.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
     hrs.setRow(key, hdps);
@@ -377,7 +422,7 @@ public final class TestHistogramRowSeq {
     it.seek(100L);
     HistogramDataPoint hdp = it.next();
     assertEquals(105L, hdp.timestamp());
-    assertEquals(1, Bytes.getLong(hdp.getRawData()));
+    assertEquals(1, Bytes.getLong(hdp.getRawData(false)));
     
     assertTrue(it.hasNext());
   }
@@ -385,9 +430,12 @@ public final class TestHistogramRowSeq {
   @Test (expected = NoSuchElementException.class)
   public void seekMsPastLastDp() throws Exception {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    hdps.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
-    hdps.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
     hrs.setRow(key, hdps);
@@ -403,9 +451,12 @@ public final class TestHistogramRowSeq {
   @Test
   public void getTagUids() throws Exception {
     List<HistogramDataPoint> hdps = new ArrayList<HistogramDataPoint>();
-    hdps.add(new LongHistogramDataPointForTest(100L, Bytes.fromLong(0)));
-    hdps.add(new LongHistogramDataPointForTest(105L, Bytes.fromLong(1)));
-    hdps.add(new LongHistogramDataPointForTest(110L, Bytes.fromLong(2)));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 0), 100L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 1), 105L));
+    hdps.add(new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 2), 110L));
     
     final HistogramRowSeq hrs = new HistogramRowSeq(tsdb);
     hrs.setRow(key, hdps);

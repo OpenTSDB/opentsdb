@@ -34,9 +34,9 @@ import com.google.common.io.Files;
 import net.opentsdb.utils.Config;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ TSDB.class, HistogramDataPointDecoderManager.class, 
+@PrepareForTest({ TSDB.class, HistogramCodecManager.class, 
   Files.class })
-public class TestHistogramDataPointDecoderManager {
+public class TestHistogramCodecManager {
 
   private TSDB tsdb;
   private Config config;
@@ -48,39 +48,68 @@ public class TestHistogramDataPointDecoderManager {
     
     config.overrideConfig("tsd.core.histograms.config", 
         "{\"net.opentsdb.core.SimpleHistogramDecoder\": 0,"
-        + "\"net.opentsdb.core.TestHistogramDataPointDecoderManager$MockDecoder\":1}");
+        + "\"net.opentsdb.core.TestHistogramCodecManager$MockDecoder\":1}");
     when(tsdb.getConfig()).thenReturn(config);
     PowerMockito.mockStatic(Files.class);
   }
   
   @Test
   public void ctor() throws Exception {
-    HistogramDataPointDecoderManager manager = 
-        new HistogramDataPointDecoderManager(tsdb);
-    assertEquals(0, manager.getDecoder(SimpleHistogramDecoder.class));
-    assertEquals(1, manager.getDecoder(MockDecoder.class));
-    assertTrue(manager.getDecoder((byte) 0) instanceof SimpleHistogramDecoder);
-    assertTrue(manager.getDecoder((byte) 1) instanceof MockDecoder);
+    HistogramCodecManager manager = 
+        new HistogramCodecManager(tsdb);
+    assertEquals(0, manager.getCodec(SimpleHistogramDecoder.class));
+    assertEquals(1, manager.getCodec(MockDecoder.class));
+    HistogramDataPointCodec codec = manager.getCodec(0);
+    assertEquals(0, codec.getId());
+    assertTrue(codec instanceof SimpleHistogramDecoder);
+    codec = manager.getCodec(1);
+    assertEquals(1, codec.getId());
+    assertTrue(codec instanceof MockDecoder);
     
     // bad JSON
     config.overrideConfig("tsd.core.histograms.config", 
         "{\"net.opentsdb.core.SimpleHistogramDecoder\": ");
     try {
-      new HistogramDataPointDecoderManager(tsdb);
+      new HistogramCodecManager(tsdb);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    // id too small
+    config.overrideConfig("tsd.core.histograms.config", 
+        "{\"net.opentsdb.core.SimpleHistogramDecoder\":-1}s");
+    try {
+      new HistogramCodecManager(tsdb);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    // id too big
+    config.overrideConfig("tsd.core.histograms.config", 
+        "{\"net.opentsdb.core.SimpleHistogramDecoder\":256}s");
+    try {
+      new HistogramCodecManager(tsdb);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    // duplicate ID
+    config.overrideConfig("tsd.core.histograms.config", 
+        "{\"net.opentsdb.core.SimpleHistogramDecoder\": 42,"
+        + "\"net.opentsdb.core.TestHistogramCodecManager$MockDecoder\":42}");
+    try {
+      new HistogramCodecManager(tsdb);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     config.overrideConfig("tsd.core.histograms.config", "nosuchfile.json");
     when(Files.toString(any(File.class), eq(Const.UTF8_CHARSET)))
       .thenReturn("{\"net.opentsdb.core.SimpleHistogramDecoder\": 0}");
-    manager = new HistogramDataPointDecoderManager(tsdb);
-    assertEquals(0, manager.getDecoder(SimpleHistogramDecoder.class));
-    assertTrue(manager.getDecoder((byte) 0) instanceof SimpleHistogramDecoder);
+    manager = new HistogramCodecManager(tsdb);
+    assertEquals(0, manager.getCodec(SimpleHistogramDecoder.class));
+    assertTrue(manager.getCodec(0) instanceof SimpleHistogramDecoder);
     
     when(Files.toString(any(File.class), eq(Const.UTF8_CHARSET)))
       .thenThrow(new IOException("Boo!"));
     try {
-      new HistogramDataPointDecoderManager(tsdb);
+      new HistogramCodecManager(tsdb);
       fail("Expected RuntimeException");
     } catch (RuntimeException e) { }
     
@@ -88,65 +117,74 @@ public class TestHistogramDataPointDecoderManager {
     config.overrideConfig("tsd.core.histograms.config", 
         "{\"net.opentsdb.core.NoSuchPlugin\":0}");
     try {
-      new HistogramDataPointDecoderManager(tsdb);
+      new HistogramCodecManager(tsdb);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
     // bad plugin
     config.overrideConfig("tsd.core.histograms.config", 
-        "{\"net.opentsdb.core.TestHistogramDataPointDecoderManager$MockDecoderBadly\":0}");
+        "{\"net.opentsdb.core.TestHistogramCodecManager$MockDecoderBadly\":0}");
     try {
-      new HistogramDataPointDecoderManager(tsdb);
+      new HistogramCodecManager(tsdb);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
   }
   
   @Test
   public void getDecoder() throws Exception {
-    final HistogramDataPointDecoderManager manager = 
-        new HistogramDataPointDecoderManager(tsdb);
-    assertTrue(manager.getDecoder((byte) 0) instanceof SimpleHistogramDecoder);
+    final HistogramCodecManager manager = 
+        new HistogramCodecManager(tsdb);
+    assertTrue(manager.getCodec(0) instanceof SimpleHistogramDecoder);
     
     try {
-      manager.getDecoder((byte) 43);
+      manager.getCodec(43);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
   public void getDecoderClass() throws Exception {
-    final HistogramDataPointDecoderManager manager = 
-        new HistogramDataPointDecoderManager(tsdb);
-    assertEquals(0, manager.getDecoder(SimpleHistogramDecoder.class));
-    assertEquals(1, manager.getDecoder(MockDecoder.class));
+    final HistogramCodecManager manager = 
+        new HistogramCodecManager(tsdb);
+    assertEquals(0, manager.getCodec(SimpleHistogramDecoder.class));
+    assertEquals(1, manager.getCodec(MockDecoder.class));
     
     try {
-      manager.getDecoder(null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      manager.getDecoder(MockDecoderBadly.class);
+      manager.getCodec(MockDecoderBadly.class);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
-  public static class MockDecoder extends HistogramDataPointDecoder {
+  public static class MockDecoder extends HistogramDataPointCodec {
 
     @Override
-    public HistogramDataPoint decode(byte[] raw_data, long timestamp) {
+    public Histogram decode(byte[] raw_data, boolean includes_id) {
+      return null;
+    }
+
+    
+    @Override
+    public byte[] encode(Histogram data_point, boolean include_id) {
+      // TODO Auto-generated method stub
       return null;
     }
     
   }
   
-  static class MockDecoderBadly extends HistogramDataPointDecoder {
+  static class MockDecoderBadly extends HistogramDataPointCodec {
 
     // not allowed!
     public MockDecoderBadly(final long unwanted_param) { }
     
     @Override
-    public HistogramDataPoint decode(byte[] raw_data, long timestamp) {
+    public Histogram decode(byte[] raw_data, boolean includes_id) {
+      return null;
+    }
+    
+
+    @Override
+    public byte[] encode(Histogram data_point, boolean include_id) {
+      // TODO Auto-generated method stub
       return null;
     }
     

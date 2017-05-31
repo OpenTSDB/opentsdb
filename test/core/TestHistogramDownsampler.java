@@ -60,17 +60,23 @@ public class TestHistogramDownsampler {
   private static final HistogramDataPoint[] HIST_DATA_POINTS = 
       new HistogramDataPoint[] {
     // timestamp = 1,356,998,400,000 ms
-    new LongHistogramDataPointForTest(BASE_TIME, Bytes.fromLong(40L)),
+    new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 40L), BASE_TIME),
     // timestamp = 1,357,000,400,000 ms
-    new LongHistogramDataPointForTest(BASE_TIME + 2000000, Bytes.fromLong(50L)),
+    new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 50L), BASE_TIME + 2000000),
     // timestamp = 1,357,002,000,000 ms
-    new LongHistogramDataPointForTest(BASE_TIME + 3600000, Bytes.fromLong(40L)),
+    new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 40L), BASE_TIME + 3600000),
     // timestamp = 1,357,002,005,000 ms
-    new LongHistogramDataPointForTest(BASE_TIME + 3605000, Bytes.fromLong(50L)),
+    new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 50L), BASE_TIME + 3605000),
     // timestamp = 1,357,005,600,000 ms
-    new LongHistogramDataPointForTest(BASE_TIME + 7200000, Bytes.fromLong(40L)),
+    new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 40L), BASE_TIME + 7200000),
     // timestamp = 1,357,007,600,000 ms
-    new LongHistogramDataPointForTest(BASE_TIME + 9200000, Bytes.fromLong(50L)) 
+    new SimpleHistogramDataPointAdapter(
+        new LongHistogramDataPointForTest(0, 50L), BASE_TIME + 9200000) 
   };
   
   public static final byte[] KEY = 
@@ -112,7 +118,7 @@ public class TestHistogramDownsampler {
     List<Long> timestamps_in_millis = Lists.newArrayList();
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
-      values.add(Bytes.getLong(hdp.getRawData()));
+      values.add(Bytes.getLong(hdp.getRawData(false)));
       timestamps_in_millis.add(hdp.timestamp());
     }
 
@@ -133,17 +139,28 @@ public class TestHistogramDownsampler {
   public void testDownsampler_10seconds() {
     source = spy(HistogramSeekableViewForTest
         .fromArray(new HistogramDataPoint[] { 
-    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 0, Bytes.fromLong(1L)),
-    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 1, Bytes.fromLong(2L)),
-    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 2, Bytes.fromLong(4L)),
-    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 3, Bytes.fromLong(8L)),
-    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 4, Bytes.fromLong(16L)),
-    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 5, Bytes.fromLong(32L)),
-    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 6, Bytes.fromLong(64L)),
-    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 7, Bytes.fromLong(128L)),
-    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 8, Bytes.fromLong(256L)),
-    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 9, Bytes.fromLong(512L)),
-    new LongHistogramDataPointForTest(BASE_TIME + 5000L * 10, Bytes.fromLong(1024L)) 
+          new SimpleHistogramDataPointAdapter(
+              new LongHistogramDataPointForTest(0, 1L), BASE_TIME + 5000L * 0),
+          new SimpleHistogramDataPointAdapter(
+              new LongHistogramDataPointForTest(0, 2L), BASE_TIME + 5000L * 1),
+          new SimpleHistogramDataPointAdapter(
+              new LongHistogramDataPointForTest(0, 4L), BASE_TIME + 5000L * 2),
+          new SimpleHistogramDataPointAdapter(
+              new LongHistogramDataPointForTest(0, 8L), BASE_TIME + 5000L * 3),
+          new SimpleHistogramDataPointAdapter(
+              new LongHistogramDataPointForTest(0, 16L), BASE_TIME + 5000L * 4),
+          new SimpleHistogramDataPointAdapter(
+              new LongHistogramDataPointForTest(0, 32L), BASE_TIME + 5000L * 5),
+          new SimpleHistogramDataPointAdapter(
+              new LongHistogramDataPointForTest(0, 64L), BASE_TIME + 5000L * 6),
+          new SimpleHistogramDataPointAdapter(
+              new LongHistogramDataPointForTest(0, 128L), BASE_TIME + 5000L * 7),
+          new SimpleHistogramDataPointAdapter(
+              new LongHistogramDataPointForTest(0, 256L), BASE_TIME + 5000L * 8),
+          new SimpleHistogramDataPointAdapter(
+              new LongHistogramDataPointForTest(0, 512L), BASE_TIME + 5000L * 9),
+          new SimpleHistogramDataPointAdapter(
+              new LongHistogramDataPointForTest(0, 1024L), BASE_TIME + 5000L * 10) 
     }));
 
     specification = new DownsamplingSpecification("10s-sum");
@@ -153,7 +170,7 @@ public class TestHistogramDownsampler {
     List<Long> timestamps_in_millis = Lists.newArrayList();
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
-      values.add(Bytes.getLong(hdp.getRawData()));
+      values.add(Bytes.getLong(hdp.getRawData(false)));
       timestamps_in_millis.add(hdp.timestamp());
     }
 
@@ -176,12 +193,18 @@ public class TestHistogramDownsampler {
   public void testDownsampler_15seconds() {
     source = spy(HistogramSeekableViewForTest
         .fromArray(new HistogramDataPoint[] { 
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 15000L, Bytes.fromLong(2L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 25000L, Bytes.fromLong(4L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 35000L, Bytes.fromLong(8L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 45000L, Bytes.fromLong(16L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 55000L, Bytes.fromLong(32L)) }));
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 1L), BASE_TIME + 5000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 2L), BASE_TIME + 15000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 4L), BASE_TIME + 25000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 8L), BASE_TIME + 35000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 16L), BASE_TIME + 45000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 32L), BASE_TIME + 55000L) }));
     specification = new DownsamplingSpecification("15s-sum");
     downsampler = new HistogramDownsampler(source, specification, 0, 0);
     verify(source, never()).next();
@@ -189,7 +212,7 @@ public class TestHistogramDownsampler {
     List<Long> timestamps_in_millis = Lists.newArrayList();
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
-      values.add(Bytes.getLong(hdp.getRawData()));
+      values.add(Bytes.getLong(hdp.getRawData(false)));
       timestamps_in_millis.add(hdp.timestamp());
     }
 
@@ -208,12 +231,18 @@ public class TestHistogramDownsampler {
   public void testDownsampler_allFullRange() {
     source = spy(HistogramSeekableViewForTest
         .fromArray(new HistogramDataPoint[] { 
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 15000L, Bytes.fromLong(2L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 25000L, Bytes.fromLong(4L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 35000L, Bytes.fromLong(8L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 45000L, Bytes.fromLong(16L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 55000L, Bytes.fromLong(32L)) }));
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 1L), BASE_TIME + 5000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 2L), BASE_TIME + 15000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 4L), BASE_TIME + 25000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 8L), BASE_TIME + 35000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 16L), BASE_TIME + 45000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 32L), BASE_TIME + 55000L) }));
     specification = new DownsamplingSpecification("0all-sum");
     downsampler = new HistogramDownsampler(source, specification, 0, Long.MAX_VALUE);
     verify(source, never()).next();
@@ -221,7 +250,7 @@ public class TestHistogramDownsampler {
     List<Long> timestamps_in_millis = Lists.newArrayList();
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
-      values.add(Bytes.getLong(hdp.getRawData()));
+      values.add(Bytes.getLong(hdp.getRawData(false)));
       timestamps_in_millis.add(hdp.timestamp());
     }
 
@@ -234,20 +263,27 @@ public class TestHistogramDownsampler {
   public void testDownsampler_allFilterOnQuery() {
     source = spy(HistogramSeekableViewForTest
         .fromArray(new HistogramDataPoint[] { 
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 15000L, Bytes.fromLong(2L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 25000L, Bytes.fromLong(4L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 35000L, Bytes.fromLong(8L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 45000L, Bytes.fromLong(16L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 55000L, Bytes.fromLong(32L)) }));
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 1L), BASE_TIME + 5000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 2L), BASE_TIME + 15000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 4L), BASE_TIME + 25000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 8L), BASE_TIME + 35000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 16L), BASE_TIME + 45000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 32L), BASE_TIME + 55000L) }));
     specification = new DownsamplingSpecification("0all-sum");
-    downsampler = new HistogramDownsampler(source, specification, BASE_TIME + 15000L, BASE_TIME + 45000L);
+    downsampler = new HistogramDownsampler(source, specification, 
+        BASE_TIME + 15000L, BASE_TIME + 45000L);
     verify(source, never()).next();
     List<Long> values = Lists.newArrayList();
     List<Long> timestamps_in_millis = Lists.newArrayList();
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
-      values.add(Bytes.getLong(hdp.getRawData()));
+      values.add(Bytes.getLong(hdp.getRawData(false)));
       timestamps_in_millis.add(hdp.timestamp());
     }
 
@@ -260,20 +296,27 @@ public class TestHistogramDownsampler {
   public void testDownsampler_allFilterOnQueryOutOfRangeEarly() {
     source = spy(HistogramSeekableViewForTest
         .fromArray(new HistogramDataPoint[] { 
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 15000L, Bytes.fromLong(2L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 25000L, Bytes.fromLong(4L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 35000L, Bytes.fromLong(8L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 45000L, Bytes.fromLong(16L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 55000L, Bytes.fromLong(32L)) }));
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 1L), BASE_TIME + 5000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 2L), BASE_TIME + 15000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 4L), BASE_TIME + 25000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 8L), BASE_TIME + 35000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 16L), BASE_TIME + 45000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 32L), BASE_TIME + 55000L) }));
     specification = new DownsamplingSpecification("0all-sum");
-    downsampler = new HistogramDownsampler(source, specification, BASE_TIME + 65000L, BASE_TIME + 75000L);
+    downsampler = new HistogramDownsampler(source, specification, 
+        BASE_TIME + 65000L, BASE_TIME + 75000L);
     verify(source, never()).next();
     List<Long> values = Lists.newArrayList();
     List<Long> timestamps_in_millis = Lists.newArrayList();
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
-      values.add(Bytes.getLong(hdp.getRawData()));
+      values.add(Bytes.getLong(hdp.getRawData(false)));
       timestamps_in_millis.add(hdp.timestamp());
     }
 
@@ -284,20 +327,27 @@ public class TestHistogramDownsampler {
   public void testDownsampler_allFilterOnQueryOutOfRangeLate() {
     source = spy(HistogramSeekableViewForTest
         .fromArray(new HistogramDataPoint[] { 
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 15000L, Bytes.fromLong(2L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 25000L, Bytes.fromLong(4L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 35000L, Bytes.fromLong(8L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 45000L, Bytes.fromLong(16L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 55000L, Bytes.fromLong(32L)) }));
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 1L), BASE_TIME + 5000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 2L), BASE_TIME + 15000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 4L), BASE_TIME + 25000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 8L), BASE_TIME + 35000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 16L), BASE_TIME + 45000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 32L), BASE_TIME + 55000L) }));
     specification = new DownsamplingSpecification("0all-sum");
-    downsampler = new HistogramDownsampler(source, specification, BASE_TIME - 15000L, BASE_TIME - 5000L);
+    downsampler = new HistogramDownsampler(source, specification, 
+        BASE_TIME - 15000L, BASE_TIME - 5000L);
     verify(source, never()).next();
     List<Long> values = Lists.newArrayList();
     List<Long> timestamps_in_millis = Lists.newArrayList();
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
-      values.add(Bytes.getLong(hdp.getRawData()));
+      values.add(Bytes.getLong(hdp.getRawData(false)));
       timestamps_in_millis.add(hdp.timestamp());
     }
 
@@ -308,12 +358,18 @@ public class TestHistogramDownsampler {
   public void testDownsampler_calendarHour() {
     source = spy(HistogramSeekableViewForTest
         .fromArray(new HistogramDataPoint[] { 
-            new LongHistogramDataPointForTest(BASE_TIME, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 1800000, Bytes.fromLong(2L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 3599000L, Bytes.fromLong(3L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 3600000L, Bytes.fromLong(4L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 5400000L, Bytes.fromLong(5L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 7199000L, Bytes.fromLong(6L)) }));
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 1L), BASE_TIME),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 2L), BASE_TIME + 1800000),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 3L), BASE_TIME + 3599000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 4L), BASE_TIME + 3600000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 5L), BASE_TIME + 5400000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 6L), BASE_TIME + 7199000L) }));
     specification = new DownsamplingSpecification("1hc-sum");
     specification.setTimezone(TV);
     downsampler = new HistogramDownsampler(source, specification, 0, Long.MAX_VALUE);
@@ -323,7 +379,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint dp = downsampler.next();
       assertEquals(ts, dp.timestamp());
-      assertEquals(value, Bytes.getLong(dp.getRawData()));
+      assertEquals(value, Bytes.getLong(dp.getRawData(false)));
       ts += 3600000;
       value = 15;
     }
@@ -339,7 +395,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint dp = downsampler.next();
       assertEquals(ts, dp.timestamp());
-      assertEquals(value, Bytes.getLong(dp.getRawData()));
+      assertEquals(value, Bytes.getLong(dp.getRawData(false)));
       ts += 3600000;
       if (value == 1) {
         value = 9;
@@ -359,7 +415,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
       assertEquals(ts, hdp.timestamp());
-      assertEquals(value, Bytes.getLong(hdp.getRawData()));
+      assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
     }
   }
 
@@ -368,14 +424,20 @@ public class TestHistogramDownsampler {
     // UTC
     source = spy(HistogramSeekableViewForTest
         .fromArray(new HistogramDataPoint[] { 
-            new LongHistogramDataPointForTest(DST_TS, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(DST_TS + 86399000, Bytes.fromLong(2L)),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 1L), DST_TS),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 2L), DST_TS + 86399000),
             // falls to the next in FJ
-            new LongHistogramDataPointForTest(DST_TS + 126001000L, Bytes.fromLong(3L)),
-            new LongHistogramDataPointForTest(DST_TS + 172799000L, Bytes.fromLong(4L)),
-            new LongHistogramDataPointForTest(DST_TS + 172800000L, Bytes.fromLong(5L)),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 3L), DST_TS + 126001000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 4L), DST_TS + 172799000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 5L), DST_TS + 172800000L),
             // falls within 30m offset
-            new LongHistogramDataPointForTest(DST_TS + 242999000L, Bytes.fromLong(6L)) }));
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 6L), DST_TS + 242999000L) }));
 
     // control
     specification = new DownsamplingSpecification("1d-sum");
@@ -386,7 +448,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
       assertEquals(ts, hdp.timestamp());
-      assertEquals(value, Bytes.getLong(hdp.getRawData()));
+      assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
       ts += 86400000;
       if (value == 3) {
         value = 7;
@@ -407,7 +469,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
       assertEquals(ts, hdp.timestamp());
-      assertEquals(value, Bytes.getLong(hdp.getRawData()));
+      assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
       ts += 86400000;
       if (value == 1) {
         value = 5;
@@ -430,7 +492,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
       assertEquals(ts, hdp.timestamp());
-      assertEquals(value, Bytes.getLong(hdp.getRawData()));
+      assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
       ts += 86400000;
       if (value == 1) {
         value = 2;
@@ -453,7 +515,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
       assertEquals(ts, hdp.timestamp());
-      assertEquals(value, Bytes.getLong(hdp.getRawData()));
+      assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
       ts += 86400000;
       if (value == 1) {
         value = 5;
@@ -473,7 +535,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
       assertEquals(ts, hdp.timestamp());
-      assertEquals(value, Bytes.getLong(hdp.getRawData()));
+      assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
     }
   }
 
@@ -482,13 +544,18 @@ public class TestHistogramDownsampler {
     source = HistogramSeekableViewForTest
         .fromArray(new HistogramDataPoint[] { 
             // a Tuesday in UTC land
-            new LongHistogramDataPointForTest(DST_TS, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(DST_TS + (86400000L * 7), Bytes.fromLong(2L)),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 1L), DST_TS),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 2L), DST_TS + (86400000L * 7)),
             // falls to the next in FJ
-            new LongHistogramDataPointForTest(1451129400000L, Bytes.fromLong(3L)),
-            new LongHistogramDataPointForTest(DST_TS + (86400000L * 21), Bytes.fromLong(4L)),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 3L), 1451129400000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 4L), DST_TS + (86400000L * 21)),
             // falls within 30m offset
-            new LongHistogramDataPointForTest(1452367799000L, Bytes.fromLong(5L))
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 5L), 1452367799000L)
     });
     // control
     specification = new DownsamplingSpecification("1wc-sum");
@@ -499,7 +566,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
       assertEquals(ts, hdp.timestamp());
-      assertEquals(value, Bytes.getLong(hdp.getRawData()));
+      assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
       if (ts == 1450569600000L) {
         ts = 1451779200000L; // skips a week
       } else {
@@ -523,7 +590,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint dp = downsampler.next();
       assertEquals(ts, dp.timestamp());
-      assertEquals(value, Bytes.getLong(dp.getRawData()));
+      assertEquals(value, Bytes.getLong(dp.getRawData(false)));
       if (ts == 1450526400000L) {
         ts = 1451736000000L; // skip a week
       } else {
@@ -549,7 +616,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
       assertEquals(ts, hdp.timestamp());
-      assertEquals(value, Bytes.getLong(hdp.getRawData()));
+      assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
       ts += 86400000L * 7;
       value++;
     }
@@ -565,7 +632,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint dp = downsampler.next();
       assertEquals(ts, dp.timestamp());
-      assertEquals(value, Bytes.getLong(dp.getRawData()));
+      assertEquals(value, Bytes.getLong(dp.getRawData(false)));
       if (ts == 1449948600000L) {
         ts = 1450553400000L;
       } else {
@@ -589,7 +656,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
       assertEquals(ts, hdp.timestamp());
-      assertEquals(value, Bytes.getLong(hdp.getRawData()));
+      assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
       ts = 1451158200000L;
       value = 9;
     }
@@ -600,17 +667,23 @@ public class TestHistogramDownsampler {
     final long dec_1st = 1448928000000L;
     source = spy(HistogramSeekableViewForTest
         .fromArray(new HistogramDataPoint[] { 
-            new LongHistogramDataPointForTest(dec_1st, Bytes.fromLong(1L)),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 1L), dec_1st),
             // falls to the next in FJ
-            new LongHistogramDataPointForTest(1451559600000L, Bytes.fromLong(2L)), 
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 2L), 1451559600000L), 
             // jan 1st
-            new LongHistogramDataPointForTest(1451606400000L, Bytes.fromLong(3L)), 
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 3L), 1451606400000L), 
             // feb 1st
-            new LongHistogramDataPointForTest(1454284800000L, Bytes.fromLong(4L)),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 4L), 1454284800000L),
             // feb 29th (leap year)
-            new LongHistogramDataPointForTest(1456704000000L, Bytes.fromLong(5L)), 
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 5L), 1456704000000L), 
             // falls within 30m offset AT
-            new LongHistogramDataPointForTest(1456772400000L, Bytes.fromLong(6L))
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 6L), 1456772400000L)
     }));
 
     // control
@@ -622,7 +695,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
       assertEquals(ts, hdp.timestamp());
-      assertEquals(value, Bytes.getLong(hdp.getRawData()));
+      assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
       if (ts == 1448928000000L) {
         ts = 1451606400000L;
       } else {
@@ -642,7 +715,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
       assertEquals(ts, hdp.timestamp());
-      assertEquals(value, Bytes.getLong(hdp.getRawData()));
+      assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
       if (ts == 1448884800000L) {
         ts = 1451563200000L;
       } else if (ts == 1451563200000L) {
@@ -665,7 +738,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint dp = downsampler.next();
       assertEquals(ts, dp.timestamp());
-      assertEquals(value, Bytes.getLong(dp.getRawData()));
+      assertEquals(value, Bytes.getLong(dp.getRawData(false)));
       if (ts == 1448881200000L) {
         ts = 1451559600000L;
         value = 5;
@@ -689,7 +762,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint dp = downsampler.next();
       assertEquals(ts, dp.timestamp());
-      assertEquals(value, Bytes.getLong(dp.getRawData()));
+      assertEquals(value, Bytes.getLong(dp.getRawData(false)));
       if (ts == 1448911800000L) {
         ts = 1451590200000L;
       } else {
@@ -709,7 +782,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint dp = downsampler.next();
       assertEquals(ts, dp.timestamp());
-      assertEquals(value, Bytes.getLong(dp.getRawData()));
+      assertEquals(value, Bytes.getLong(dp.getRawData(false)));
       ts = 1451563200000L;
       value = 18;
     }
@@ -718,10 +791,14 @@ public class TestHistogramDownsampler {
   @Test
   public void testDownsampler_calendarSkipSomePoints() {
     source = spy(HistogramSeekableViewForTest
-        .fromArray(new HistogramDataPoint[] { new LongHistogramDataPointForTest(BASE_TIME, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 1800000, Bytes.fromLong(2L)),
+        .fromArray(new HistogramDataPoint[] { 
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 1L), BASE_TIME),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 2L), BASE_TIME + 1800000),
             // skip an hour
-            new LongHistogramDataPointForTest(BASE_TIME + 7200000, Bytes.fromLong(6L)) }));
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 6L), BASE_TIME + 7200000) }));
     specification = new DownsamplingSpecification("1hc-sum");
     specification.setTimezone(TV);
     downsampler = new HistogramDownsampler(source, specification, 0, Long.MAX_VALUE);
@@ -731,7 +808,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint dp = downsampler.next();
       assertEquals(ts, dp.timestamp());
-      assertEquals(value, Bytes.getLong(dp.getRawData()));
+      assertEquals(value, Bytes.getLong(dp.getRawData(false)));
       ts = 1357005600000L;
       value = 6;
     }
@@ -771,7 +848,7 @@ public class TestHistogramDownsampler {
     List<Long> timestamps_in_millis = Lists.newArrayList();
     while (downsampler.hasNext()) {
       HistogramDataPoint dp = downsampler.next();
-      values.add(Bytes.getLong(dp.getRawData()));
+      values.add(Bytes.getLong(dp.getRawData(false)));
       timestamps_in_millis.add(dp.timestamp());
     }
 
@@ -794,7 +871,7 @@ public class TestHistogramDownsampler {
     List<Long> timestamps_in_millis = Lists.newArrayList();
     while (downsampler.hasNext()) {
       HistogramDataPoint dp = downsampler.next();
-      values.add(Bytes.getLong(dp.getRawData()));
+      values.add(Bytes.getLong(dp.getRawData(false)));
       timestamps_in_millis.add(dp.timestamp());
     }
 
@@ -823,7 +900,7 @@ public class TestHistogramDownsampler {
     List<Long> timestamps_in_millis = Lists.newArrayList();
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
-      values.add(Bytes.getLong(hdp.getRawData()));
+      values.add(Bytes.getLong(hdp.getRawData(false)));
       timestamps_in_millis.add(hdp.timestamp());
     }
 
@@ -840,17 +917,28 @@ public class TestHistogramDownsampler {
   public void testSeek_abandoningIncompleteInterval() {
     source = HistogramSeekableViewForTest
         .fromArray(new HistogramDataPoint[] { 
-            new LongHistogramDataPointForTest(BASE_TIME + 100L, Bytes.fromLong(40L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 1100L, Bytes.fromLong(40L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 2100L, Bytes.fromLong(40L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 3100L, Bytes.fromLong(40L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 4100L, Bytes.fromLong(40L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 5100L, Bytes.fromLong(40L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 6100L, Bytes.fromLong(40L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 7100L, Bytes.fromLong(40L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 8100L, Bytes.fromLong(40L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 9100L, Bytes.fromLong(40L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 10100L, Bytes.fromLong(40L)) });
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 40L), BASE_TIME + 100L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 40L), BASE_TIME + 1100L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 40L), BASE_TIME + 2100L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 40L), BASE_TIME + 3100L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 40L), BASE_TIME + 4100L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 40L), BASE_TIME + 5100L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 40L), BASE_TIME + 6100L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 40L), BASE_TIME + 7100L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 40L), BASE_TIME + 8100L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 40L), BASE_TIME + 9100L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 40L), BASE_TIME + 10100L) });
     specification = new DownsamplingSpecification("10s-sum");
     downsampler = new HistogramDownsampler(source, specification, 0, 0);
     // The seek is aligned by the downsampling window.
@@ -858,7 +946,7 @@ public class TestHistogramDownsampler {
     assertTrue("seek(BASE_TIME)", downsampler.hasNext());
     HistogramDataPoint first_dp = downsampler.next();
     assertEquals("seek(1356998400000)", BASE_TIME, first_dp.timestamp());
-    assertEquals("seek(1356998400000)", 400, Bytes.getLong(first_dp.getRawData()));
+    assertEquals("seek(1356998400000)", 400, Bytes.getLong(first_dp.getRawData(false)));
 
     // No seeks but the last one is aligned by the downsampling window.
     for (long seek_timestamp = BASE_TIME + 1000L; seek_timestamp < BASE_TIME 
@@ -872,18 +960,22 @@ public class TestHistogramDownsampler {
       assertEquals(String.format("seek(%d)", seek_timestamp), 
           BASE_TIME + 10000L, dp.timestamp());
       assertEquals(String.format("seek(%d)", seek_timestamp), 
-          40, Bytes.getLong(dp.getRawData()));
+          40, Bytes.getLong(dp.getRawData(false)));
     }
   }
 
   @Test
   public void testSeek_useCalendar() {
     source = spy(HistogramSeekableViewForTest
-        .fromArray(new HistogramDataPoint[] { new LongHistogramDataPointForTest(
-            1356998400000L, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(1388534400000L, Bytes.fromLong(2L)),
-            new LongHistogramDataPointForTest(1420070400000L, Bytes.fromLong(4L)),
-            new LongHistogramDataPointForTest(1451606400000L, Bytes.fromLong(8L)) }));
+        .fromArray(new HistogramDataPoint[] { 
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 1L), 1356998400000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 2L), 1388534400000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 4L), 1420070400000L),
+            new SimpleHistogramDataPointAdapter(
+                new LongHistogramDataPointForTest(0, 8L), 1451606400000L) }));
 
     specification = new DownsamplingSpecification("1yc-sum");
     downsampler = new HistogramDownsampler(source, specification, 0, Long.MAX_VALUE);
@@ -895,9 +987,9 @@ public class TestHistogramDownsampler {
     long value = 4;
     while (downsampler.hasNext()) {
       HistogramDataPoint dp = downsampler.next();
-      System.out.println(dp.timestamp() + " " + Bytes.getLong(dp.getRawData()));
+      System.out.println(dp.timestamp() + " " + Bytes.getLong(dp.getRawData(false)));
       assertEquals(timestamp, dp.timestamp());
-      assertEquals(value, Bytes.getLong(dp.getRawData()));
+      assertEquals(value, Bytes.getLong(dp.getRawData(false)));
       timestamp = 1451606400000L;
       value = 8;
     }
@@ -910,7 +1002,7 @@ public class TestHistogramDownsampler {
     while (downsampler.hasNext()) {
       HistogramDataPoint dp = downsampler.next();
       assertEquals(timestamp, dp.timestamp());
-      assertEquals(value, Bytes.getLong(dp.getRawData()));
+      assertEquals(value, Bytes.getLong(dp.getRawData(false)));
     }
   }
 
@@ -925,7 +1017,7 @@ public class TestHistogramDownsampler {
     HistogramSpan.Iterator it = hspan.spanIterator();
     while (it.hasNext()) {
       HistogramDataPoint hdp = it.next();
-      it_values.add(Bytes.getLong(hdp.getRawData()));
+      it_values.add(Bytes.getLong(hdp.getRawData(false)));
     }
     assertEquals(6, it_values.size());
     assertEquals(40L, it_values.get(0).longValue());
@@ -942,7 +1034,7 @@ public class TestHistogramDownsampler {
     downsampler = hspan.downsampler(0, 0, specification, false, 0, 0);
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
-      values.add(Bytes.getLong(hdp.getRawData()));
+      values.add(Bytes.getLong(hdp.getRawData(false)));
       timestamps_in_millis.add(hdp.timestamp());
     }
 
@@ -961,18 +1053,29 @@ public class TestHistogramDownsampler {
   
   @Test
   public void testHistogramSpanDownSampler_10seconds() {
-    List<HistogramDataPoint> row = Arrays.asList(new HistogramDataPoint[] { 
-        new LongHistogramDataPointForTest(BASE_TIME + 5000L * 0, Bytes.fromLong(1L)),
-        new LongHistogramDataPointForTest(BASE_TIME + 5000L * 1, Bytes.fromLong(2L)),
-        new LongHistogramDataPointForTest(BASE_TIME + 5000L * 2, Bytes.fromLong(4L)),
-        new LongHistogramDataPointForTest(BASE_TIME + 5000L * 3, Bytes.fromLong(8L)),
-        new LongHistogramDataPointForTest(BASE_TIME + 5000L * 4, Bytes.fromLong(16L)),
-        new LongHistogramDataPointForTest(BASE_TIME + 5000L * 5, Bytes.fromLong(32L)),
-        new LongHistogramDataPointForTest(BASE_TIME + 5000L * 6, Bytes.fromLong(64L)),
-        new LongHistogramDataPointForTest(BASE_TIME + 5000L * 7, Bytes.fromLong(128L)),
-        new LongHistogramDataPointForTest(BASE_TIME + 5000L * 8, Bytes.fromLong(256L)),
-        new LongHistogramDataPointForTest(BASE_TIME + 5000L * 9, Bytes.fromLong(512L)),
-        new LongHistogramDataPointForTest(BASE_TIME + 5000L * 10, Bytes.fromLong(1024L)) });
+    List<HistogramDataPoint> row = Arrays.asList(new HistogramDataPoint[] {
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 1L), BASE_TIME + 5000L * 0),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 2L), BASE_TIME + 5000L * 1),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 4L), BASE_TIME + 5000L * 2),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 8L), BASE_TIME + 5000L * 3),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 16L), BASE_TIME + 5000L * 4),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 32L), BASE_TIME + 5000L * 5),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 64L), BASE_TIME + 5000L * 6),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 128L), BASE_TIME + 5000L * 7),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 256L), BASE_TIME + 5000L * 8),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 512L), BASE_TIME + 5000L * 9),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 1024L), BASE_TIME + 5000L * 10) });
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
     hspan.addRow(KEY, row);
@@ -984,7 +1087,7 @@ public class TestHistogramDownsampler {
     downsampler = hspan.downsampler(0, 0, specification, false, 0, 0);
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
-      values.add(Bytes.getLong(hdp.getRawData()));
+      values.add(Bytes.getLong(hdp.getRawData(false)));
       timestamps_in_millis.add(hdp.timestamp());
     }
    
@@ -1006,12 +1109,18 @@ public class TestHistogramDownsampler {
   @Test
   public void testHistogramSpanDownSampler_15seconds() {
     List<HistogramDataPoint> row = Arrays.asList(new HistogramDataPoint[] { 
-        new LongHistogramDataPointForTest(BASE_TIME + 5000L, Bytes.fromLong(1L)),
-        new LongHistogramDataPointForTest(BASE_TIME + 15000L, Bytes.fromLong(2L)),
-        new LongHistogramDataPointForTest(BASE_TIME + 25000L, Bytes.fromLong(4L)),
-        new LongHistogramDataPointForTest(BASE_TIME + 35000L, Bytes.fromLong(8L)),
-        new LongHistogramDataPointForTest(BASE_TIME + 45000L, Bytes.fromLong(16L)),
-        new LongHistogramDataPointForTest(BASE_TIME + 55000L, Bytes.fromLong(32L)) });
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 1L), BASE_TIME + 5000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 2L), BASE_TIME + 15000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 4L), BASE_TIME + 25000L),
+        new SimpleHistogramDataPointAdapter(    
+            new LongHistogramDataPointForTest(0, 8L), BASE_TIME + 35000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 16L), BASE_TIME + 45000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 32L), BASE_TIME + 55000L) });
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
     hspan.addRow(KEY, row);
@@ -1023,7 +1132,7 @@ public class TestHistogramDownsampler {
     downsampler = hspan.downsampler(0, 0, specification, false, 0, 0);
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
-      values.add(Bytes.getLong(hdp.getRawData()));
+      values.add(Bytes.getLong(hdp.getRawData(false)));
       timestamps_in_millis.add(hdp.timestamp());
     }
     
@@ -1041,12 +1150,18 @@ public class TestHistogramDownsampler {
   @Test
   public void testHistogramSpanDownsampler_allFullRange() {
     List<HistogramDataPoint> row = Arrays.asList(new HistogramDataPoint[] {
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 15000L, Bytes.fromLong(2L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 25000L, Bytes.fromLong(4L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 35000L, Bytes.fromLong(8L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 45000L, Bytes.fromLong(16L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 55000L, Bytes.fromLong(32L)) });
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 1L), BASE_TIME + 5000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 2L), BASE_TIME + 15000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 4L), BASE_TIME + 25000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 8L), BASE_TIME + 35000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 16L), BASE_TIME + 45000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 32L), BASE_TIME + 55000L) });
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
     hspan.addRow(KEY, row);
@@ -1058,7 +1173,7 @@ public class TestHistogramDownsampler {
     List<Long> timestamps_in_millis = Lists.newArrayList();
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
-      values.add(Bytes.getLong(hdp.getRawData()));
+      values.add(Bytes.getLong(hdp.getRawData(false)));
       timestamps_in_millis.add(hdp.timestamp());
     }
 
@@ -1070,12 +1185,18 @@ public class TestHistogramDownsampler {
   @Test
   public void testHistogramSpanDownsampler_allFilterOnQuery() {
     List<HistogramDataPoint> row = Arrays.asList(new HistogramDataPoint[] { 
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 15000L, Bytes.fromLong(2L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 25000L, Bytes.fromLong(4L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 35000L, Bytes.fromLong(8L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 45000L, Bytes.fromLong(16L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 55000L, Bytes.fromLong(32L)) });
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 1L), BASE_TIME + 5000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 2L), BASE_TIME + 15000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 4L), BASE_TIME + 25000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 8L), BASE_TIME + 35000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 16L), BASE_TIME + 45000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 32L), BASE_TIME + 55000L) });
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
     hspan.addRow(KEY, row);
@@ -1086,7 +1207,7 @@ public class TestHistogramDownsampler {
     List<Long> timestamps_in_millis = Lists.newArrayList();
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
-      values.add(Bytes.getLong(hdp.getRawData()));
+      values.add(Bytes.getLong(hdp.getRawData(false)));
       timestamps_in_millis.add(hdp.timestamp());
     }
 
@@ -1098,12 +1219,18 @@ public class TestHistogramDownsampler {
   @Test
   public void testHistogramSpanDownsampler_allFilterOnQueryOutOfRangeEarly() {
     List<HistogramDataPoint> row = Arrays.asList(new HistogramDataPoint[] { 
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 15000L, Bytes.fromLong(2L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 25000L, Bytes.fromLong(4L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 35000L, Bytes.fromLong(8L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 45000L, Bytes.fromLong(16L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 55000L, Bytes.fromLong(32L)) });
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 1L), BASE_TIME + 5000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 2L), BASE_TIME + 15000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 4L), BASE_TIME + 25000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 8L), BASE_TIME + 35000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 16L), BASE_TIME + 45000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 32L), BASE_TIME + 55000L) });
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
     hspan.addRow(KEY, row);
@@ -1115,7 +1242,7 @@ public class TestHistogramDownsampler {
     List<Long> timestamps_in_millis = Lists.newArrayList();
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
-      values.add(Bytes.getLong(hdp.getRawData()));
+      values.add(Bytes.getLong(hdp.getRawData(false)));
       timestamps_in_millis.add(hdp.timestamp());
     }
 
@@ -1124,13 +1251,19 @@ public class TestHistogramDownsampler {
   
   @Test
   public void testHistogramSpanDownsampler_allFilterOnQueryOutOfRangeLate() {
-    List<HistogramDataPoint> row = Arrays.asList(new HistogramDataPoint[] { 
-            new LongHistogramDataPointForTest(BASE_TIME + 5000L, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 15000L, Bytes.fromLong(2L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 25000L, Bytes.fromLong(4L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 35000L, Bytes.fromLong(8L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 45000L, Bytes.fromLong(16L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 55000L, Bytes.fromLong(32L)) });
+    List<HistogramDataPoint> row = Arrays.asList(new HistogramDataPoint[] {
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 1L), BASE_TIME + 5000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 2L), BASE_TIME + 15000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 4L), BASE_TIME + 25000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 8L), BASE_TIME + 35000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 16L), BASE_TIME + 45000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 32L), BASE_TIME + 55000L) });
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
     hspan.addRow(KEY, row);
@@ -1142,7 +1275,7 @@ public class TestHistogramDownsampler {
     List<Long> timestamps_in_millis = Lists.newArrayList();
     while (downsampler.hasNext()) {
       HistogramDataPoint hdp = downsampler.next();
-      values.add(Bytes.getLong(hdp.getRawData()));
+      values.add(Bytes.getLong(hdp.getRawData(false)));
       timestamps_in_millis.add(hdp.timestamp());
     }
 
@@ -1151,13 +1284,19 @@ public class TestHistogramDownsampler {
   
   @Test
   public void testHistogramSpanDownsampler_calendarHour() {
-    List<HistogramDataPoint> row = Arrays.asList(new HistogramDataPoint[] { 
-            new LongHistogramDataPointForTest(BASE_TIME, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 1800000, Bytes.fromLong(2L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 3599000L, Bytes.fromLong(3L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 3600000L, Bytes.fromLong(4L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 5400000L, Bytes.fromLong(5L)),
-            new LongHistogramDataPointForTest(BASE_TIME + 7199000L, Bytes.fromLong(6L)) });
+    List<HistogramDataPoint> row = Arrays.asList(new HistogramDataPoint[] {
+        new SimpleHistogramDataPointAdapter(
+          new LongHistogramDataPointForTest(0, 1L), BASE_TIME),
+        new SimpleHistogramDataPointAdapter(
+          new LongHistogramDataPointForTest(0, 2L), BASE_TIME + 1800000),
+        new SimpleHistogramDataPointAdapter(
+          new LongHistogramDataPointForTest(0, 3L), BASE_TIME + 3599000L),
+        new SimpleHistogramDataPointAdapter(
+          new LongHistogramDataPointForTest(0, 4L), BASE_TIME + 3600000L),
+        new SimpleHistogramDataPointAdapter(
+          new LongHistogramDataPointForTest(0, 5L), BASE_TIME + 5400000L),
+        new SimpleHistogramDataPointAdapter(
+          new LongHistogramDataPointForTest(0, 6L), BASE_TIME + 7199000L) });
     
     final HistogramSpan hspan = new HistogramSpan(tsdb);
     hspan.addRow(KEY, row);
@@ -1172,7 +1311,7 @@ public class TestHistogramDownsampler {
       while (downsampler.hasNext()) {
         HistogramDataPoint dp = downsampler.next();
         assertEquals(ts, dp.timestamp());
-        assertEquals(value, Bytes.getLong(dp.getRawData()));
+        assertEquals(value, Bytes.getLong(dp.getRawData(false)));
         ts += 3600000;
         value = 15;
       }
@@ -1189,7 +1328,7 @@ public class TestHistogramDownsampler {
       while (downsampler.hasNext()) {
         HistogramDataPoint dp = downsampler.next();
         assertEquals(ts, dp.timestamp());
-        assertEquals(value, Bytes.getLong(dp.getRawData()));
+        assertEquals(value, Bytes.getLong(dp.getRawData(false)));
         ts += 3600000;
         if (value == 1) {
           value = 9;
@@ -1200,7 +1339,6 @@ public class TestHistogramDownsampler {
 
     }
     
-
     // multiple hours
     {
       specification = new DownsamplingSpecification("4hc-sum");
@@ -1212,7 +1350,7 @@ public class TestHistogramDownsampler {
       while (downsampler.hasNext()) {
         HistogramDataPoint hdp = downsampler.next();
         assertEquals(ts, hdp.timestamp());
-        assertEquals(value, Bytes.getLong(hdp.getRawData()));
+        assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
       }
     }
   }
@@ -1221,14 +1359,20 @@ public class TestHistogramDownsampler {
   public void testHistogramSpanDownsampler_calendarDay() {
     // UTC
     List<HistogramDataPoint> row = Arrays.asList(new HistogramDataPoint[] { 
-            new LongHistogramDataPointForTest(DST_TS, Bytes.fromLong(1L)),
-            new LongHistogramDataPointForTest(DST_TS + 86399000, Bytes.fromLong(2L)),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 1L), DST_TS),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 2L), DST_TS + 86399000),
             // falls to the next in FJ
-            new LongHistogramDataPointForTest(DST_TS + 126001000L, Bytes.fromLong(3L)),
-            new LongHistogramDataPointForTest(DST_TS + 172799000L, Bytes.fromLong(4L)),
-            new LongHistogramDataPointForTest(DST_TS + 172800000L, Bytes.fromLong(5L)),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 3L), DST_TS + 126001000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 4L), DST_TS + 172799000L),
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 5L), DST_TS + 172800000L),
             // falls within 30m offset
-            new LongHistogramDataPointForTest(DST_TS + 242999000L, Bytes.fromLong(6L)) });
+        new SimpleHistogramDataPointAdapter(
+            new LongHistogramDataPointForTest(0, 6L), DST_TS + 242999000L) });
 
     final HistogramSpan hspan = new HistogramSpan(tsdb);
     hspan.addRow(KEY, row);
@@ -1243,7 +1387,7 @@ public class TestHistogramDownsampler {
       while (downsampler.hasNext()) {
         HistogramDataPoint hdp = downsampler.next();
         assertEquals(ts, hdp.timestamp());
-        assertEquals(value, Bytes.getLong(hdp.getRawData()));
+        assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
         ts += 86400000;
         if (value == 3) {
           value = 7;
@@ -1264,7 +1408,7 @@ public class TestHistogramDownsampler {
       while (downsampler.hasNext()) {
         HistogramDataPoint hdp = downsampler.next();
         assertEquals(ts, hdp.timestamp());
-        assertEquals(value, Bytes.getLong(hdp.getRawData()));
+        assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
         ts += 86400000;
         if (value == 1) {
           value = 5;
@@ -1287,7 +1431,7 @@ public class TestHistogramDownsampler {
       while (downsampler.hasNext()) {
         HistogramDataPoint hdp = downsampler.next();
         assertEquals(ts, hdp.timestamp());
-        assertEquals(value, Bytes.getLong(hdp.getRawData()));
+        assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
         ts += 86400000;
         if (value == 1) {
           value = 2;
@@ -1310,7 +1454,7 @@ public class TestHistogramDownsampler {
       while (downsampler.hasNext()) {
         HistogramDataPoint hdp = downsampler.next();
         assertEquals(ts, hdp.timestamp());
-        assertEquals(value, Bytes.getLong(hdp.getRawData()));
+        assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
         ts += 86400000;
         if (value == 1) {
           value = 5;
@@ -1331,7 +1475,7 @@ public class TestHistogramDownsampler {
       while (downsampler.hasNext()) {
         HistogramDataPoint hdp = downsampler.next();
         assertEquals(ts, hdp.timestamp());
-        assertEquals(value, Bytes.getLong(hdp.getRawData()));
+        assertEquals(value, Bytes.getLong(hdp.getRawData(false)));
       }
     }
   }

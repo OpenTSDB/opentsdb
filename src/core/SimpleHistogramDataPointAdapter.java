@@ -53,13 +53,13 @@ public class SimpleHistogramDataPointAdapter implements HistogramDataPoint {
   }
 
   @Override
-  public byte[] getRawData() {
-    return histogram.histogram();
+  public byte[] getRawData(final boolean include_id) {
+    return histogram.histogram(include_id);
   }
 
   @Override
-  public void resetFromRawData(final byte[] raw_data) {
-    histogram.fromHistogram(raw_data);
+  public void resetFromRawData(final byte[] raw_data, final boolean includes_id) {
+    histogram.fromHistogram(raw_data, includes_id);
   }
 
   @Override
@@ -93,6 +93,11 @@ public class SimpleHistogramDataPointAdapter implements HistogramDataPoint {
     return new SimpleHistogramDataPointAdapter(this, timestamp);
   }
 
+  @Override
+  public int getId() {
+    return histogram.getId();
+  }
+  
   private HistogramAggregation mapAggregation(final HistogramAggregation func) {
     switch (func) {
     case SUM:

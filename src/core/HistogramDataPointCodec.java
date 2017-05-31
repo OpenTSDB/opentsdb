@@ -13,29 +13,47 @@
 package net.opentsdb.core;
 
 /**
- * Creates {@code HistogramDataPoint} from raw data and timestamp.
+ * Responsible for encoding or decoding {@code HistogramDataPoint}s to and from
+ * byte arrays.
  *
  * NOTE: Implementation of this plugin should be thread safe.
- * @see HistogramDataPointDecoderManager
+ * @see HistogramCodecManager
  * 
  * @since 2.4
  */
-public abstract class HistogramDataPointDecoder {
+public abstract class HistogramDataPointCodec {
 
+  /** The ID of this codec in the Histogram Manager. */
+  protected int id;
+  
   /**
    * Default empty ctor, required for plugin and class instantiation.
    * <b>WARNING</b> Any overrides with arguments will be ignored.
    */
-  public HistogramDataPointDecoder() {
+  public HistogramDataPointCodec() {
     
   }
   
+  public int getId() {
+    return id;
+  }
+  
+  public void setId(final int id) {
+    this.id = id;
+  }
+  
   /**
-   * Creates {@code HistogramDataPoint} from raw data and timestamp.
+   * Creates {@code HistogramDataPoint} from raw data and timestamp. Note that 
+   * the data point identifier is separate.
    * @param raw_data The encoded byte array of the histogram data
    * @param timestamp The timestamp of this data point
+   * @param includes_id Whether or not to include the id prefix.
    * @return The decoded histogram data point instance
    */
-  public abstract HistogramDataPoint decode(final byte[] raw_data, 
-                                            final long timestamp);
+  public abstract Histogram decode(final byte[] raw_data, 
+                                   final boolean includes_id);
+  
+  
+  public abstract byte[] encode(final Histogram data_point,
+                                final boolean include_id);
 }

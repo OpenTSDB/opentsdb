@@ -291,8 +291,8 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
   public void iteratorAllItems() {
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
-          Bytes.fromLong(i)));
+      row.add(new SimpleHistogramDataPointAdapter(
+          new LongHistogramDataPointForTest(0, i), BASE_TIME + 5000L * i));
     }
 
     final HistogramSpan hspan = new HistogramSpan(tsdb);
@@ -336,8 +336,8 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
   public void doubleIteratorAllItems() {
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
-          Bytes.fromLong(i)));
+      row.add(new SimpleHistogramDataPointAdapter(
+          new LongHistogramDataPointForTest(0, i), BASE_TIME + 5000L * i));
     }
 
     final HistogramSpan hspan = new HistogramSpan(tsdb);
@@ -385,8 +385,8 @@ public final class TestHistogramDataPointsToDataPointsAdaptor {
   public void iteratorAllItemsWithDiffPercentile() {
     List<HistogramDataPoint> row = new ArrayList<HistogramDataPoint>();
     for (int i = 0; i < 10; ++i) {
-      row.add(new LongHistogramDataPointForTest(BASE_TIME + 5000L * i, 
-          Bytes.fromLong(i)));
+      row.add(new SimpleHistogramDataPointAdapter(
+          new LongHistogramDataPointForTest(0, i), BASE_TIME + 5000L * i));
     }
 
     final HistogramSpan hspan = new HistogramSpan(tsdb);

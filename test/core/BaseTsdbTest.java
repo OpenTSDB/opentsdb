@@ -171,7 +171,7 @@ public class BaseTsdbTest {
   }
   
   /** Adds the static UIDs to the metrics UID mock object */
-  void setupMetricMaps() {
+  public void setupMetricMaps() {
     mockUID(UniqueIdType.METRIC, METRIC_STRING, METRIC_BYTES);
     mockUID(UniqueIdType.METRIC, METRIC_B_STRING, METRIC_B_BYTES);
 
@@ -192,7 +192,7 @@ public class BaseTsdbTest {
   }
   
   /** Adds the static UIDs to the tag keys UID mock object */
-  void setupTagkMaps() {
+  public void setupTagkMaps() {
     mockUID(UniqueIdType.TAGK, TAGK_STRING, TAGK_BYTES);
     mockUID(UniqueIdType.TAGK, TAGK_B_STRING, TAGK_B_BYTES);
 
@@ -213,7 +213,7 @@ public class BaseTsdbTest {
   }
   
   /** Adds the static UIDs to the tag values UID mock object */
-  void setupTagvMaps() {
+  public void setupTagvMaps() {
     mockUID(UniqueIdType.TAGV, TAGV_STRING, TAGV_BYTES);
     mockUID(UniqueIdType.TAGV, TAGV_B_STRING, TAGV_B_BYTES);
     
@@ -772,8 +772,7 @@ public class BaseTsdbTest {
       }
     }
   }
-
-
+  
   //store histogram data points of {@link LongHistogramDataPointForTest} with second timestamp
   protected void storeTestHistogramTimeSeriesSeconds(final boolean offset) throws Exception {
     setDataPointStorage();
@@ -783,10 +782,16 @@ public class BaseTsdbTest {
     HashMap<String, String> tags_local = new HashMap<String, String>();
     tags_local.put("host", "web01");
     
+    // note that the mock must have been configured properly
+    final int id = tsdb.histogramManager()
+        .getCodec(LongHistogramDataPointForTestDecoder.class);
+    
     long timestamp = 1356998400;
     for (int i = 1; i <= 300; i++) {
-      LongHistogramDataPointForTest hdp = new LongHistogramDataPointForTest(timestamp, Bytes.fromLong(i));
-      tsdb.addHistogramPoint(HISTOGRAM_METRIC_STRING, timestamp += 30, hdp.getRawData(), tags_local).joinUninterruptibly();
+      final LongHistogramDataPointForTest hdp = 
+          new LongHistogramDataPointForTest(id, i);
+      tsdb.addHistogramPoint(HISTOGRAM_METRIC_STRING, timestamp += 30, 
+          hdp.histogram(true), tags_local).joinUninterruptibly();
     }
   
     // dump a parallel set but invert the values
@@ -794,14 +799,21 @@ public class BaseTsdbTest {
     tags_local.put("host", "web02");
     timestamp = offset ? 1356998415 : 1356998400;
     for (int i = 300; i > 0; i--) {
-      LongHistogramDataPointForTest hdp = new LongHistogramDataPointForTest(timestamp, Bytes.fromLong(i));
-      tsdb.addHistogramPoint(HISTOGRAM_METRIC_STRING, timestamp += 30, hdp.getRawData(), tags_local).joinUninterruptibly();
+      final LongHistogramDataPointForTest hdp = 
+          new LongHistogramDataPointForTest(id, i);
+      tsdb.addHistogramPoint(HISTOGRAM_METRIC_STRING, timestamp += 30, 
+          hdp.histogram(true), tags_local).joinUninterruptibly();
     }
   }
    
   // store histogram data points of {@link LongHistogramDataPointForTest} with ms timestamp
   protected void storeTestHistogramTimeSeriesMs() throws Exception {
     setDataPointStorage();
+    
+    // note that the mock must have been configured properly
+    final int id = tsdb.histogramManager()
+        .getCodec(LongHistogramDataPointForTestDecoder.class);
+    
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
     HashMap<String, String> tags = new HashMap<String, String>(1);
@@ -809,8 +821,10 @@ public class BaseTsdbTest {
     long timestamp = 1356998400000L;
     for (int i = 1; i <= 300; i++) {
       timestamp += 500;
-      LongHistogramDataPointForTest hdp = new LongHistogramDataPointForTest(timestamp, Bytes.fromLong(i));
-      tsdb.addHistogramPoint("msg.end2end.latency", timestamp, hdp.getRawData(), tags).joinUninterruptibly();
+      final LongHistogramDataPointForTest hdp = 
+          new LongHistogramDataPointForTest(id, i);
+      tsdb.addHistogramPoint("msg.end2end.latency", timestamp, 
+          hdp.histogram(true), tags).joinUninterruptibly();
     } // end for
    
     // dump a parallel set but invert the values
@@ -819,8 +833,10 @@ public class BaseTsdbTest {
     timestamp = 1356998400000L;
     for (int i = 300; i > 0; i--) {
       timestamp += 500;
-      LongHistogramDataPointForTest hdp = new LongHistogramDataPointForTest(timestamp, Bytes.fromLong(i));
-      tsdb.addHistogramPoint("msg.end2end.latency", timestamp, hdp.getRawData(), tags).joinUninterruptibly();
+      final LongHistogramDataPointForTest hdp = 
+          new LongHistogramDataPointForTest(id, i);
+      tsdb.addHistogramPoint("msg.end2end.latency", timestamp, 
+          hdp.histogram(true), tags).joinUninterruptibly();
     } // end for
   }
   

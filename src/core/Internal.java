@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
@@ -1074,10 +1073,11 @@ public final class Internal {
                                                             final long base_time, 
                                                             final byte[] qualifier,
                                                             final byte[] value) {
-    final HistogramDataPointDecoder decoder =
-            tsdb.histogramManager().getDecoder(value[0]);
+    final HistogramDataPointCodec decoder =
+            tsdb.histogramManager().getCodec((int) value[0]);
     long timestamp = getTimeStampFromNonDP(base_time, qualifier);
-    return decoder.decode(value, timestamp);
+    final Histogram histogram = decoder.decode(value, true);
+    return new SimpleHistogramDataPointAdapter(histogram, timestamp);
   }
 
 }
