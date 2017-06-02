@@ -158,6 +158,26 @@ public class TestHistogramDataPointRpc extends BaseTestPutRpc {
     final Channel chan = NettyMocks.fakeChannel();
     
     rpc.execute(tsdb, chan, new String[] { "histogram", METRIC_STRING, 
+        "1356998400", "u=0:o=1:0,1=42:1,5=24", 
+        TAGK_STRING + "=" + TAGV_STRING })
+        .join();
+    validateCounters(1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1);
+    verify(chan, never()).write(any());
+    verify(chan, never()).isConnected();
+    validateSEH(false);
+    
+    byte[] qualifier = new byte[] {0x06, 0, 0};
+    byte[] value = storage.getColumn(getRowKey(METRIC_STRING, 1356998400, 
+        TAGK_STRING, TAGV_STRING), qualifier);
+    assertArrayEquals(test_histo.histogram(true), value);
+  }
+  
+  @Test
+  public void executeTelnetBinary() throws Exception {
+    final HistogramDataPointRpc rpc = new HistogramDataPointRpc(tsdb.getConfig());
+    final Channel chan = NettyMocks.fakeChannel();
+    
+    rpc.execute(tsdb, chan, new String[] { "histogram", METRIC_STRING, 
         "1356998400", "42", 
         HistogramPojo.bytesToBase64String(test_histo.histogram(false)), 
         TAGK_STRING + "=" + TAGV_STRING })
@@ -195,7 +215,7 @@ public class TestHistogramDataPointRpc extends BaseTestPutRpc {
   }
   
   @Test
-  public void executeTelnetValueTooShort() throws Exception {
+  public void executeTelnetBinaryValueTooShort() throws Exception {
     final HistogramDataPointRpc rpc = new HistogramDataPointRpc(tsdb.getConfig());
     final Channel chan = NettyMocks.fakeChannel();
     
@@ -216,7 +236,7 @@ public class TestHistogramDataPointRpc extends BaseTestPutRpc {
   }
   
   @Test
-  public void executeTelnetCorruptValue() throws Exception {
+  public void executeTelnetBinaryCorruptValue() throws Exception {
     final HistogramDataPointRpc rpc = new HistogramDataPointRpc(tsdb.getConfig());
     final Channel chan = NettyMocks.fakeChannel();
     
@@ -383,6 +403,24 @@ public class TestHistogramDataPointRpc extends BaseTestPutRpc {
   public void executeHttpSingle() throws Exception {
     final HttpQuery query = NettyMocks.postQuery(tsdb, "/api/histogram",
         "{\"metric\":\"" + METRIC_STRING + "\",\"timestamp\":1356998400,"
+            + "\"overflow\":1,\"buckets\":{\"0,1\":42,\"1,5\":24}" 
+            + ",\"tags\":{\"" + TAGK_STRING + "\":\"" + TAGV_STRING + "\"}}");
+    final HistogramDataPointRpc rpc = new HistogramDataPointRpc(tsdb.getConfig());
+    rpc.execute(tsdb, query);
+    validateCounters(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1);
+    assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
+    validateSEH(false);
+    
+    byte[] qualifier = new byte[] {0x06, 0, 0};
+    byte[] value = storage.getColumn(getRowKey(METRIC_STRING, 1356998400, 
+        TAGK_STRING, TAGV_STRING), qualifier);
+    assertArrayEquals(test_histo.histogram(true), value);
+  }
+  
+  @Test
+  public void executeHttpSingleBinary() throws Exception {
+    final HttpQuery query = NettyMocks.postQuery(tsdb, "/api/histogram",
+        "{\"metric\":\"" + METRIC_STRING + "\",\"timestamp\":1356998400,"
             + "\"id\":42,\"value\":\"" 
             + HistogramPojo.bytesToBase64String(test_histo.histogram(false))
             + "\",\"tags\":{\"" + TAGK_STRING + "\":\"" + TAGV_STRING + "\"}}");
@@ -399,7 +437,7 @@ public class TestHistogramDataPointRpc extends BaseTestPutRpc {
   }
   
   @Test
-  public void executeHttpTwo() throws Exception {
+  public void executeHttpTwoBinary() throws Exception {
     final HttpQuery query = NettyMocks.postQuery(tsdb, "/api/histogram",
         "[{\"metric\":\"" + METRIC_STRING + "\",\"timestamp\":1356998400,"
             + "\"id\":42,\"value\":\"" 
@@ -427,7 +465,7 @@ public class TestHistogramDataPointRpc extends BaseTestPutRpc {
   }
   
   @Test
-  public void executeHttpTwoOneGoodOneBad() throws Exception {
+  public void executeHttpTwoOneGoodOneBadBinary() throws Exception {
     final HttpQuery query = NettyMocks.postQuery(tsdb, "/api/histogram",
         "[{\"metric\":\"" + METRIC_STRING + "\",\"timestamp\":1356998400,"
             + "\"id\":42,\"value\":\"" 

@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.base.Strings;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
@@ -36,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Histogram;
-import net.opentsdb.core.HistogramDataPoint;
 import net.opentsdb.core.HistogramPojo;
 import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.TSDB;
@@ -209,6 +209,7 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
           .addCallback(new SuccessCB())
           .addErrback(new PutErrback());
     } catch (NumberFormatException x) {
+      x.printStackTrace();
       errmsg = type + ": invalid value: " + x.getMessage() + '\n';
       invalid_values.incrementAndGet();
     } catch (NoSuchRollupForIntervalException x) {
@@ -216,6 +217,7 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
       illegal_arguments.incrementAndGet();
     } catch (IllegalArgumentException x) {
       errmsg = type + ": illegal argument: " + x.getMessage() + '\n';
+      x.printStackTrace();
       illegal_arguments.incrementAndGet();
     } catch (NoSuchUniqueName x) {
       errmsg = type + ": unknown metric: " + x.getMessage() + '\n';
@@ -230,8 +232,7 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
     } catch (TimeoutException tex) {
       errmsg = type + ": Request timed out: " + tex.getMessage() + '\n';
       handleStorageException(tsdb, getDataPointFromString(tsdb, cmd), tex);
-    }
-    catch (RuntimeException rex) {
+    } catch (RuntimeException rex) {
       errmsg = type + ": Unexpected runtime exception: " + rex.getMessage() + '\n';
       throw rex;
     }
@@ -377,13 +378,19 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
         final Deferred<Boolean> deferred;
         if (type == DataPointType.HISTOGRAM) {
           final HistogramPojo pojo = (HistogramPojo) dp;
-          // validation before storage of histograms by decoding then re-encoding.
-          final Histogram hdp = tsdb.histogramManager().decode(
-              pojo.getId(), pojo.getBytes(), false);
+          // validation and/or conversion before storage of histograms by 
+          // decoding then re-encoding.
+          final Histogram hdp;
+          if (Strings.isNullOrEmpty(dp.getValue())) {
+            hdp = pojo.toSimpleHistogram(tsdb);
+          } else {
+            hdp = tsdb.histogramManager().decode(
+                pojo.getId(), pojo.getBytes(), false);
+          }
           deferred = tsdb.addHistogramPoint(
               pojo.getMetric(), 
               pojo.getTimestamp(), 
-              tsdb.histogramManager().encode(pojo.getId(), hdp, true), 
+              tsdb.histogramManager().encode(hdp.getId(), hdp, true), 
               pojo.getTags())
                 .addCallback(new SuccessCB())
                 .addErrback(new PutErrback());
@@ -588,8 +595,6 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
         }
         
         final int failures = dps.size() - queued;
-        System.out.println("GOOD: " + good_writes + " Failures: " + failures + " FW " + failed_writes
-            + " DPS: " + dps.size() + " Q " + queued);
         if (!show_summary && !show_details) {
           if (failures + failed_writes > 0) {
             query.sendReply(HttpResponseStatus.BAD_REQUEST, 

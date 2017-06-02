@@ -28,6 +28,8 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Histogram;
 import net.opentsdb.core.HistogramPojo;
 import net.opentsdb.core.IncomingDataPoint;
+import net.opentsdb.core.SimpleHistogram;
+import net.opentsdb.core.SimpleHistogramDecoder;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.utils.Config;
@@ -96,10 +98,10 @@ public class HistogramDataPointRpc extends PutDataPointRpc
     }
     
     words[0] = null; // Ditch the "histogram".
-    if (words.length < 6) {  // Need at least: metric timestamp value tag
-      //               ^ 6 and not 5 because words[0] is "histogram".
+    if (words.length < 5) {  // Need at least: metric timestamp value tag
+      //               ^ 5 and not 4 because words[0] is "histogram".
       throw new IllegalArgumentException("not enough arguments"
-                                         + " (need least 6, got " 
+                                         + " (need least 5, got " 
                                          + (words.length - 1) + ')');
     }
     final String metric = words[1];
@@ -116,14 +118,25 @@ public class HistogramDataPointRpc extends PutDataPointRpc
       throw new IllegalArgumentException("invalid timestamp: " + timestamp);
     }
     
-    final int id = Integer.parseInt(words[3]);
-    
-    final String value = words[4];
+    boolean has_id = false;
+    int id = 0;
+    try {
+      id = Integer.parseInt(words[3]);
+      has_id = true;
+    } catch (NumberFormatException e) { }
+    final String value;
+    if (has_id) {
+      value = words[4];
+    } else {
+      // it's a simple Id
+      id = tsdb.histogramManager().getCodec(SimpleHistogramDecoder.class);
+      value = words[3];
+    }
     if (value.length() <= 0) {
       throw new IllegalArgumentException("empty histogram value");
     }
     final HashMap<String, String> tags = new HashMap<String, String>();
-    for (int i = 5; i < words.length; i++) {
+    for (int i = has_id ? 5 : 4; i < words.length; i++) {
       if (!words[i].isEmpty()) {
         Tags.parse(tags, words[i]);
       }
@@ -131,8 +144,13 @@ public class HistogramDataPointRpc extends PutDataPointRpc
     
     // validation and prepend the ID.
     try {
-      final Histogram dp = tsdb.histogramManager().decode(id, 
+      final Histogram dp;
+      if (has_id) {
+        dp = tsdb.histogramManager().decode(id, 
           HistogramPojo.base64StringToBytes(value), false);
+      } else {
+        dp = parseTelnet(tsdb, value);
+      }
       return tsdb.addHistogramPoint(metric, timestamp, 
           tsdb.histogramManager().encode(id, dp, true), tags);
     } catch (Exception e) {
@@ -153,16 +171,33 @@ public class HistogramDataPointRpc extends PutDataPointRpc
       throw new IllegalArgumentException("invalid timestamp: " + timestamp);
     }
     
-    final int id = Integer.parseInt(words[3]);
+    boolean has_id = false;
+    int id = 0;
+    try {
+      id = Integer.parseInt(words[3]);
+      has_id = true;
+    } catch (NumberFormatException e) { }
+    final String value;
+    if (has_id) {
+      value = words[4];
+    } else {
+      // it's a simple Id
+      id = tsdb.histogramManager().getCodec(SimpleHistogramDecoder.class);
+      value = words[3];
+    }
 
-    
     final HistogramPojo dp = new HistogramPojo();
     dp.setMetric(words[1]);
     dp.setTimestamp(timestamp);
     dp.setId(id);
-    dp.setValue(words[4]);
+    if (has_id) {
+      dp.setValue(value);
+    } else {
+      dp.setValue(HistogramPojo.bytesToBase64String(
+          parseTelnet(tsdb, value).histogram(false)));
+    }
     final HashMap<String, String> tags = new HashMap<String, String>();
-    for (int i = 5; i < words.length; i++) {
+    for (int i = has_id ? 5 : 4; i < words.length; i++) {
       if (!words[i].isEmpty()) {
         Tags.parse(tags, words[i]);
       }
@@ -171,6 +206,41 @@ public class HistogramDataPointRpc extends PutDataPointRpc
     return dp;
   }
 
+  SimpleHistogram parseTelnet(final TSDB tsdb, final String encoded) {
+    final SimpleHistogram shdp = new SimpleHistogram(tsdb.histogramManager()
+        .getCodec(SimpleHistogramDecoder.class));
+    
+    final String[] buckets = Tags.splitString(encoded, ':');
+    if (buckets.length < 1) {
+      throw new IllegalArgumentException("Must have at least one bucket in the "
+          + "histogram.");
+    }
+    
+    for (final String bucket : buckets) {
+      final String[] kv = Tags.splitString(bucket, '=');
+      if (kv.length != 2) {
+        throw new IllegalArgumentException("Improperly formatted bucket: " 
+            + bucket);
+      }
+      
+      kv[0] = kv[0].toLowerCase();
+      if (kv[0].equals("u")) {
+        shdp.setUnderflow(Long.parseLong(kv[1]));
+      } else if (kv[0].equals("o")) {
+        shdp.setOverflow(Long.parseLong(kv[1]));
+      } else {
+        final String[] bounds = Tags.splitString(kv[0], ',');
+        if (bounds.length != 2) {
+          throw new IllegalArgumentException("Improperly formatted bounds: " 
+              + bucket);
+        }
+        shdp.addBucket(Float.parseFloat(bounds[0]), Float.parseFloat(bounds[1]), 
+            Long.parseLong(kv[1]));
+      }
+    }
+    return shdp;
+  }
+  
   @VisibleForTesting
   boolean enabled() {
     return enabled;
