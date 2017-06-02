@@ -84,7 +84,7 @@ public final class UniqueId implements UniqueIdInterface {
   /** Maximum number of results to return in suggest(). */
   private static final short MAX_SUGGESTIONS = 25;
   /** Maximum number of  cache_hits. */
-  private static final int MAX_CACHE_SIZE = 1500000000;
+  private static final long MAX_CACHE_SIZE = 2000000000L;
 
   /** HBase client to use.  */
   private final HBaseClient client;
@@ -114,9 +114,9 @@ public final class UniqueId implements UniqueIdInterface {
     Collections.synchronizedSet(new HashSet<String>());
 
   /** Number of times we avoided reading from HBase thanks to the cache. */
-  private volatile int cache_hits;
+  private volatile long cache_hits;
   /** Number of times we had to read from HBase and populate the cache. */
-  private volatile int cache_misses;
+  private volatile long cache_misses;
   /** How many times we collided with an existing ID when attempting to 
    * generate a new UID */
   private volatile int random_id_collisions;
@@ -196,17 +196,17 @@ public final class UniqueId implements UniqueIdInterface {
   }
 
   /** The number of times we avoided reading from HBase thanks to the cache. */
-  public int cacheHits() {
+  public long cacheHits() {
     return cache_hits;
   }
 
   /** The number of times we had to read from HBase and populate the cache. */
-  public int cacheMisses() {
+  public long cacheMisses() {
     return cache_misses;
   }
 
   /** Returns the number of elements stored in the internal cache. */
-  public int cacheSize() {
+  public long cacheSize() {
     return name_cache.size() + id_cache.size();
   }
 

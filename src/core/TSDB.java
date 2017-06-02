@@ -594,19 +594,19 @@ public final class TSDB {
   }
   
   /** Number of cache hits during lookups involving UIDs. */
-  public int uidCacheHits() {
+  public long uidCacheHits() {
     return (metrics.cacheHits() + tag_names.cacheHits()
             + tag_values.cacheHits());
   }
 
   /** Number of cache misses during lookups involving UIDs. */
-  public int uidCacheMisses() {
+  public long uidCacheMisses() {
     return (metrics.cacheMisses() + tag_names.cacheMisses()
             + tag_values.cacheMisses());
   }
 
   /** Number of cache entries currently in RAM for lookups involving UIDs. */
-  public int uidCacheSize() {
+  public long uidCacheSize() {
     return (metrics.cacheSize() + tag_names.cacheSize()
             + tag_values.cacheSize());
   }
