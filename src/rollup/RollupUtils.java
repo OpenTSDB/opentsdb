@@ -84,7 +84,7 @@ public final class RollupUtils {
       case 'd':
         // all set via the zeros above
         break;
-      case 'm':
+      case 'n':
         calendar.set(Calendar.DAY_OF_MONTH, 1);
         break;
       case 'y':
@@ -153,7 +153,7 @@ public final class RollupUtils {
 
     // we shouldn't have a divide by 0 here as the rollup config validator makes
     // sure the interval is positive
-    int offset = (time_seconds - basetime) / interval.getInterval();
+    int offset = (time_seconds - basetime) / interval.getIntervalSeconds();
     if (offset >= interval.getIntervals()) {
       throw new IllegalArgumentException("Offset of " + offset + " was greater "
           + "than the configured intervals " + interval.getIntervals());
@@ -221,7 +221,7 @@ public final class RollupUtils {
         >>> Const.FLAG_BITS;
     }
     
-    return offset * interval.getInterval() * 1000;
+    return offset * interval.getIntervalSeconds() * 1000;
   }
   
   /**
@@ -242,7 +242,7 @@ public final class RollupUtils {
     } else {
       offset = (qualifier & 0xFFFF) >>> Const.FLAG_BITS;
     }
-    return offset * interval.getInterval() * 1000;
+    return offset * interval.getIntervalSeconds() * 1000;
   }
 
   /**

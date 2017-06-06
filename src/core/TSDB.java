@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.Charset;
@@ -23,6 +24,8 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.base.Strings;
+import com.google.common.io.Files;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
@@ -54,6 +57,7 @@ import net.opentsdb.uid.UniqueIdFilterPlugin;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.PluginLoader;
 import net.opentsdb.utils.Threads;
 import net.opentsdb.meta.Annotation;
@@ -252,16 +256,27 @@ public final class TSDB {
     timer = Threads.newTimer("TSDB Timer");
 
     if (config.getBoolean("tsd.rollups.enable")) {
-      rollup_config = new RollupConfig();
+      String conf = config.getString("tsd.rollups.config");
+      if (Strings.isNullOrEmpty(conf)) {
+        throw new IllegalArgumentException("Rollups were enabled but "
+            + "'tsd.rollups.config' is null or empty.");
+      }
+      if (conf.endsWith(".json")) {
+        try {
+          conf = Files.toString(new File(conf), Const.UTF8_CHARSET);
+        } catch (IOException e) {
+          throw new IllegalArgumentException("Failed to open conf file: " 
+              + conf, e);
+        }
+      }
+      rollup_config = JSON.parseToObject(conf, RollupConfig.class);
       RollupInterval config_default = null;
       for (final RollupInterval interval: rollup_config.getRollups().values()) {
-        if (interval.isDefaultRollupInterval()) {
+        if (interval.isDefaultInterval()) {
           config_default = interval;
-          System.out.println("Found default: " + interval);
           break;
         }
       }
-      
       if (config_default == null) {
         throw new IllegalArgumentException("None of the rollup intervals were "
             + "marked as the \"default\".");

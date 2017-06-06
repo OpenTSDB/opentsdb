@@ -14,65 +14,39 @@ package net.opentsdb.core;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import net.opentsdb.uid.UniqueId;
-import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
-
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupQuery;
 import net.opentsdb.rollup.RollupSpan;
 import static net.opentsdb.rollup.RollupUtils.ROLLUP_QUAL_DELIM;
 
-@RunWith(PowerMockRunner.class)
-//"Classloader hell"...  It's real.  Tell PowerMock to ignore these classes
-//because they fiddle with the class loader.  We don't test them anyway.
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-             "ch.qos.*", "org.slf4j.*",
-             "com.sum.*", "org.xml.*"})
-@PrepareForTest({ RowSeq.class, TSDB.class, UniqueId.class, KeyValue.class, 
-Config.class, RowKey.class })
-public final class TestRollupSpan {
-  private TSDB tsdb = mock(TSDB.class);
-  private Config config = mock(Config.class);
-  private UniqueId metrics = mock(UniqueId.class);
-  private static final byte[] TABLE = { 't', 'a', 'b', 'l', 'e' };
-  private static final byte[] HOUR1 = new byte[]
-    { 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
-  private static final byte[] HOUR2 = new byte[]
-    { 0, 0, 1, 0x50, (byte)0xE2, 0x35, 0x10, 0, 0, 1, 0, 0, 2 };
-  private static final byte[] HOUR3 = new byte[]
-    { 0, 0, 1, 0x50, (byte)0xE2, 0x43, 0x20, 0, 0, 1, 0, 0, 2 };
-  private static final byte[] FAMILY = { 't' };
-  private static final byte[] ZERO = { 0 };
-  private static final Aggregator aggr_sum = Aggregators.SUM;
+public class TestRollupSpan extends BaseTsdbTest {
+  protected byte[] hour1 = null;
+  protected byte[] hour2 = null;
+  protected byte[] hour3 = null;
+  protected static final Aggregator aggr_sum = Aggregators.SUM;
   
-  private static final RollupQuery rollup_query = 
-    new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "1s", "1h"), 
-    aggr_sum, 1000, aggr_sum);
+  protected static final RollupQuery rollup_query = 
+    new RollupQuery(RollupInterval.builder()
+        .setTable("tsdb")
+        .setPreAggregationTable("tsdb-agg")
+        .setInterval("1s")
+        .setRowSpan("1h")
+        .build(), 
+    aggr_sum, 
+    1000,
+    aggr_sum);
   
   @Before
-  public void before() throws Exception {
-    // Inject the attributes we need into the "tsdb" object.
-    Whitebox.setInternalState(tsdb, "metrics", metrics);
-    Whitebox.setInternalState(tsdb, "table", TABLE);
-    Whitebox.setInternalState(tsdb, "config", config);
-    when(tsdb.getConfig()).thenReturn(config);
-    when(tsdb.metrics.width()).thenReturn((short)4);
-    when(RowKey.metricNameAsync(tsdb, HOUR1))
-      .thenReturn(Deferred.fromResult("sys.cpu.user"));
+  public void beforeLocal() throws Exception {
+    hour1 = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING);
+    hour2 = getRowKey(METRIC_STRING, 1357002000, TAGK_STRING, TAGV_STRING);
+    hour3 = getRowKey(METRIC_STRING, 1357005600, TAGK_STRING, TAGV_STRING);
   }
   
   @Test
@@ -81,7 +55,7 @@ public final class TestRollupSpan {
     final byte[] val1 = Bytes.fromLong(4L);
     
     final Span span = new RollupSpan(tsdb, rollup_query);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual1, val1));
+    span.addRow(new KeyValue(hour1, TSDB.FAMILY(), qual1, val1));
     
     assertEquals(1, span.size());
   }
@@ -91,7 +65,224 @@ public final class TestRollupSpan {
     final Span span = new RollupSpan(tsdb, rollup_query);
     span.addRow(null);
   }
+ /*
+  * TODO - fix up these tests 
+  @Test (expected = IllegalArgumentException.class)
+  public void addRowBadKeyLength() {
+    final byte[] qual1 = {0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 };
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = {0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 };
+    final byte[] val2 = Bytes.fromLong(8L);
+    
+    final Span span = new RollupSpan(tsdb, rollup_query);
+    span.addRow(new KeyValue(HOUR1, TSDB.FAMILY(), qual1, val1));
+    
+    final byte[] bad_key = 
+      new byte[] { 0, 0, 0, 1, 0x50, (byte)0xE2, 0x43, 0x20, 0, 0, 0, 1 };
+    span.addRow(new KeyValue(bad_key, TSDB.FAMILY(), qual2, 
+        MockBase.concatByteArrays(val1, val2, ZERO)));
+  }
   
+  @Test (expected = IllegalArgumentException.class)
+  public void addRowMissMatchedMetric() {
+    final byte[] qual1 = {0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 };
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = {0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 };
+    final byte[] val2 = Bytes.fromLong(8L);
+    
+    final Span span = new RollupSpan(tsdb, rollup_query);
+    span.addRow(new KeyValue(HOUR1, TSDB.FAMILY(), qual1,val1));
+    
+    final byte[] bad_key = 
+      new byte[] { 0, 0, 0, 2, 0x50, (byte)0xE2, 0x35, 0x10, 0, 0, 0, 1, 0, 0, 0, 2 };
+    span.addRow(new KeyValue(bad_key, TSDB.FAMILY(), qual2,val2));
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void addRowMissMatchedTagk() {
+    final byte[] qual1 = {0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 };
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = {0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 };
+    final byte[] val2 = Bytes.fromLong(8L);
+    
+    final Span span = new RollupSpan(tsdb, rollup_query);
+    span.addRow(new KeyValue(HOUR1, TSDB.FAMILY(), qual1, val1));
+    
+    final byte[] bad_key = 
+      new byte[] { 0, 0, 0, 1, 0x50, (byte)0xE2, 0x35, 0x10, 0, 0, 0, 2, 0, 0, 0, 2 };
+    span.addRow(new KeyValue(bad_key, TSDB.FAMILY(), qual2, val2));
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void addRowMissMatchedTagv() {
+    final byte[] qual1 = {0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 };
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = {0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 };
+    final byte[] val2 = Bytes.fromLong(8L);
+    
+    final Span span = new RollupSpan(tsdb, rollup_query);
+    span.addRow(new KeyValue(HOUR1, TSDB.FAMILY(), qual1, val1));
+    
+    final byte[] bad_key = 
+      new byte[] { 0, 0, 0, 1, 0x50, (byte)0xE2, 0x35, 0x10, 0, 0, 0, 1, 0, 0, 0, 3 };
+    span.addRow(new KeyValue(bad_key, TSDB.FAMILY(), qual2, val2));
+  }
+  
+  @Test
+  public void addRowOutOfOrder() {
+    //2nd hour
+    final byte[] qual1 = {0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 };
+    final byte[] val1 = Bytes.fromLong(4L);
+    //1st hour
+    final byte[] qual2 = {0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    
+    final Span span = new RollupSpan(tsdb, rollup_query);
+    span.addRow(new KeyValue(HOUR2, TSDB.FAMILY(), qual1, val1));
+    span.addRow(new KeyValue(HOUR1, TSDB.FAMILY(), qual2, val2));
+    assertEquals(2, span.size());
+    
+    assertEquals(1356998402000L, span.timestamp(0));
+    assertEquals(5, span.longValue(0));
+    assertEquals(1357002000000L, span.timestamp(1));
+    assertEquals(4, span.longValue(1));
+  }
+
+  @Test
+  public void addDifferentSalt() throws Exception {
+    List<byte[]> qualifiers = new ArrayList<byte[]>();
+    List<byte[]> values = new ArrayList<byte[]>();
+
+    qualifiers.add(new byte[]{ 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 });
+    qualifiers.add(new byte[]{ 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 });
+    qualifiers.add(new byte[]{ 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x37 });
+    qualifiers.add(new byte[]{ 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x47 });
+    values.add(Bytes.fromLong(4L));
+    values.add(Bytes.fromLong(5L));
+    
+    final Span span = new RollupSpan(tsdb, rollup_query);
+    final byte[] hour1 = Arrays.copyOf(HOUR1, HOUR1.length);
+    hour1[0] = 2;
+    span.addRow(new KeyValue(HOUR1, TSDB.FAMILY(), qualifiers.get(0), values.get(0)));
+    span.addRow(new KeyValue(HOUR1, TSDB.FAMILY(), qualifiers.get(1), values.get(1)));
+    span.addRow(new KeyValue(hour1, TSDB.FAMILY(), qualifiers.get(2), values.get(0)));
+    span.addRow(new KeyValue(hour1, TSDB.FAMILY(), qualifiers.get(3), values.get(1)));
+    assertEquals(4, span.size());
+    assertEquals(1356998400000L, span.timestamp(0));
+    assertEquals(4, span.longValue(0));
+    assertEquals(1356998402000L, span.timestamp(1));
+    assertEquals(5, span.longValue(1));
+    assertEquals(1356998403000L, span.timestamp(2));
+    assertEquals(4, span.longValue(2));
+    assertEquals(1356998404000L, span.timestamp(3));
+    assertEquals(5, span.longValue(3));
+  }
+
+  @Test
+  public void addDifferentSaltDiffHour() throws Exception {
+    List<byte[]> qualifiers = new ArrayList<byte[]>();
+    List<byte[]> values = new ArrayList<byte[]>();
+
+    qualifiers.add(new byte[]{ 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 });
+    values.add(Bytes.fromLong(4L));
+    qualifiers.add(new byte[]{ 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 });
+    values.add(Bytes.fromLong(5L));
+    
+    final Span span = new RollupSpan(tsdb, rollup_query);
+    final byte[] hour2 = Arrays.copyOf(HOUR2, HOUR2.length);
+    hour2[0] = 2;
+    span.addRow(new KeyValue(HOUR1, TSDB.FAMILY(), qualifiers.get(0), values.get(0)));
+    span.addRow(new KeyValue(HOUR1, TSDB.FAMILY(), qualifiers.get(1), values.get(1)));
+    span.addRow(new KeyValue(hour2, TSDB.FAMILY(), qualifiers.get(0), values.get(0)));
+    span.addRow(new KeyValue(hour2, TSDB.FAMILY(), qualifiers.get(1), values.get(1)));
+    assertEquals(4, span.size());
+    assertEquals(1356998400000L, span.timestamp(0));
+    assertEquals(4, span.longValue(0));
+    assertEquals(1356998402000L, span.timestamp(1));
+    assertEquals(5, span.longValue(1));
+    assertEquals(1357002000000L, span.timestamp(2));
+    assertEquals(4, span.longValue(2));
+    assertEquals(1357002002000L, span.timestamp(3));
+    assertEquals(5, span.longValue(3));
+  }
+  
+  @Test
+  public void addDifferentSaltDiffHourOO() throws Exception {
+    when(tsdb.followAppendRowLogic()).thenReturn(true);
+    List<byte[]> qualifiers = new ArrayList<byte[]>();
+    List<byte[]> values = new ArrayList<byte[]>();
+
+
+    qualifiers.add(new byte[]{ 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 });
+    values.add(Bytes.fromLong(4L));
+    qualifiers.add(new byte[]{ 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 });
+    values.add(Bytes.fromLong(5L));
+    
+    final Span span = new RollupSpan(tsdb, rollup_query);
+    final byte[] hour2 = Arrays.copyOf(HOUR2, HOUR2.length);
+    hour2[0] = 2;
+    span.addRow(new KeyValue(hour2, TSDB.FAMILY(), qualifiers.get(0), values.get(0)));
+    span.addRow(new KeyValue(hour2, TSDB.FAMILY(), qualifiers.get(1), values.get(1)));
+    span.addRow(new KeyValue(HOUR1, TSDB.FAMILY(), qualifiers.get(0), values.get(0)));
+    span.addRow(new KeyValue(HOUR1, TSDB.FAMILY(), qualifiers.get(1), values.get(1)));
+
+    assertEquals(4, span.size());
+    assertEquals(1356998400000L, span.timestamp(0));
+    assertEquals(4, span.longValue(0));
+    assertEquals(1356998402000L, span.timestamp(1));
+    assertEquals(5, span.longValue(1));
+    assertEquals(1357002000000L, span.timestamp(2));
+    assertEquals(4, span.longValue(2));
+    assertEquals(1357002002000L, span.timestamp(3));
+    assertEquals(5, span.longValue(3));
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void addDifferentKey() throws Exception {
+    when(tsdb.followAppendRowLogic()).thenReturn(true);
+    List<byte[]> qualifiers = new ArrayList<byte[]>();
+    List<byte[]> values = new ArrayList<byte[]>();
+  
+    qualifiers.add(new byte[]{ 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 });
+    values.add(Bytes.fromLong(4L));
+    qualifiers.add(new byte[]{ 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 });
+    values.add(Bytes.fromLong(5L));
+    qualifiers.add(new byte[]{ 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x37 });
+    qualifiers.add(new byte[]{ 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x47 });
+    
+    final Span span = new RollupSpan(tsdb, rollup_query);
+    final byte[] hour1 = Arrays.copyOf(HOUR1, HOUR1.length);
+    hour1[hour1.length - 1] = 3;
+    span.addRow(new KeyValue(HOUR1, TSDB.FAMILY(), qualifiers.get(0), values.get(0)));
+    span.addRow(new KeyValue(HOUR1, TSDB.FAMILY(), qualifiers.get(1), values.get(1)));
+    span.addRow(new KeyValue(hour1, TSDB.FAMILY(), qualifiers.get(2), values.get(0)));
+    span.addRow(new KeyValue(hour1, TSDB.FAMILY(), qualifiers.get(3), values.get(1)));
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void addDifferentSaltAndKey() throws Exception {
+    when(tsdb.followAppendRowLogic()).thenReturn(true);
+    List<byte[]> qualifiers = new ArrayList<byte[]>();
+    List<byte[]> values = new ArrayList<byte[]>();
+  
+  
+    qualifiers.add(new byte[]{ 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 });
+    values.add(Bytes.fromLong(4L));
+    qualifiers.add(new byte[]{ 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 });
+    values.add(Bytes.fromLong(5L));
+    qualifiers.add(new byte[]{ 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x37 });
+    qualifiers.add(new byte[]{ 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x47 });
+    
+    final Span span = new RollupSpan(tsdb, rollup_query);
+    final byte[] hour1 = Arrays.copyOf(HOUR1, HOUR1.length);
+    hour1[0] = 2;
+    hour1[hour1.length - 1] = 3;
+    span.addRow(new KeyValue(HOUR1, TSDB.FAMILY(), qualifiers.get(0), values.get(0)));
+    span.addRow(new KeyValue(HOUR1, TSDB.FAMILY(), qualifiers.get(1), values.get(1)));
+    span.addRow(new KeyValue(hour1, TSDB.FAMILY(), qualifiers.get(2), values.get(0)));
+    span.addRow(new KeyValue(hour1, TSDB.FAMILY(), qualifiers.get(3), values.get(1)));
+  }
+  */
   @Test
   public void timestampNormalized() throws Exception {
     final byte[] qual1 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 };
@@ -100,12 +291,12 @@ public final class TestRollupSpan {
     final byte[] val2 = Bytes.fromLong(5L);
     
     final Span span = new RollupSpan(tsdb, rollup_query);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual1, val1));
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual2, val2));
-    span.addRow(new KeyValue(HOUR2, FAMILY, qual1, val1));
-    span.addRow(new KeyValue(HOUR2, FAMILY, qual2, val2));
-    span.addRow(new KeyValue(HOUR3, FAMILY, qual1, val1));
-    span.addRow(new KeyValue(HOUR3, FAMILY, qual2, val2));
+    span.addRow(new KeyValue(hour1, TSDB.FAMILY(), qual1, val1));
+    span.addRow(new KeyValue(hour1, TSDB.FAMILY(), qual2, val2));
+    span.addRow(new KeyValue(hour2, TSDB.FAMILY(), qual1, val1));
+    span.addRow(new KeyValue(hour2, TSDB.FAMILY(), qual2, val2));
+    span.addRow(new KeyValue(hour3, TSDB.FAMILY(), qual1, val1));
+    span.addRow(new KeyValue(hour3, TSDB.FAMILY(), qual2, val2));
     
     assertEquals(6, span.size());
     assertEquals(1356998400000L, span.timestamp(0));
@@ -128,9 +319,9 @@ public final class TestRollupSpan {
     for (int i = 0; i < 100; i++) {
       final short qualifier = (short) (i << Const.FLAG_BITS | 0x07);
       System.arraycopy(Bytes.fromShort(qualifier), 0, qualifiers, agg.length, 2);
-      span.addRow(new KeyValue(HOUR1, FAMILY, qualifiers, Bytes.fromLong(i)));
-      span.addRow(new KeyValue(HOUR2, FAMILY, qualifiers, Bytes.fromLong(i)));
-      span.addRow(new KeyValue(HOUR3, FAMILY, qualifiers, Bytes.fromLong(i)));
+      span.addRow(new KeyValue(hour1, TSDB.FAMILY(), qualifiers, Bytes.fromLong(i)));
+      span.addRow(new KeyValue(hour2, TSDB.FAMILY(), qualifiers, Bytes.fromLong(i)));
+      span.addRow(new KeyValue(hour3, TSDB.FAMILY(), qualifiers, Bytes.fromLong(i)));
     }
     
     
@@ -145,12 +336,12 @@ public final class TestRollupSpan {
     final byte[] val2 = Bytes.fromLong(5L);
     
     final Span span = new RollupSpan(tsdb, rollup_query);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual1, val1));
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual2, val2));
-    span.addRow(new KeyValue(HOUR2, FAMILY, qual1, val1));
-    span.addRow(new KeyValue(HOUR2, FAMILY, qual2, val2));
-    span.addRow(new KeyValue(HOUR3, FAMILY, qual1, val1));
-    span.addRow(new KeyValue(HOUR3, FAMILY, qual2, val2));
+    span.addRow(new KeyValue(hour1, TSDB.FAMILY(), qual1, val1));
+    span.addRow(new KeyValue(hour1, TSDB.FAMILY(), qual2, val2));
+    span.addRow(new KeyValue(hour2, TSDB.FAMILY(), qual1, val1));
+    span.addRow(new KeyValue(hour2, TSDB.FAMILY(), qual2, val2));
+    span.addRow(new KeyValue(hour3, TSDB.FAMILY(), qual1, val1));
+    span.addRow(new KeyValue(hour3, TSDB.FAMILY(), qual2, val2));
     
     assertEquals(6, span.size());
     assertEquals(1356998400000L, span.timestamp(0));
@@ -169,12 +360,12 @@ public final class TestRollupSpan {
     final byte[] val2 = Bytes.fromLong(5L);
     
     final Span span = new RollupSpan(tsdb, rollup_query);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual1,val1));
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual2,val2));
-    span.addRow(new KeyValue(HOUR2, FAMILY, qual1,val1));
-    span.addRow(new KeyValue(HOUR2, FAMILY, qual2,val2));
-    span.addRow(new KeyValue(HOUR3, FAMILY, qual1,val1));
-    span.addRow(new KeyValue(HOUR3, FAMILY, qual2,val2));
+    span.addRow(new KeyValue(hour1, TSDB.FAMILY(), qual1,val1));
+    span.addRow(new KeyValue(hour1, TSDB.FAMILY(), qual2,val2));
+    span.addRow(new KeyValue(hour2, TSDB.FAMILY(), qual1,val1));
+    span.addRow(new KeyValue(hour2, TSDB.FAMILY(), qual2,val2));
+    span.addRow(new KeyValue(hour3, TSDB.FAMILY(), qual1,val1));
+    span.addRow(new KeyValue(hour3, TSDB.FAMILY(), qual2,val2));
 
     assertEquals(6, span.size());
     final SeekableView it = span.iterator();
@@ -204,30 +395,24 @@ public final class TestRollupSpan {
     assertEquals(5, dp.longValue());
     
     assertFalse(it.hasNext());
- 
-    
   }
 
   @Test
   public void lastTimestampInRow() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
     
-    final KeyValue kv = new KeyValue(HOUR1, FAMILY, qual2, val2);
+    final KeyValue kv = new KeyValue(hour1, TSDB.FAMILY(), qual2, val2);
     
     assertEquals(1356998402L, Span.lastTimestampInRow((short) 3, kv));
   }
   
   @Test
   public void lastTimestampInRowMs() throws Exception {
-    final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
     final byte[] val2 = Bytes.fromLong(5L);
     
-    final KeyValue kv = new KeyValue(HOUR1, FAMILY, qual2, val2);
+    final KeyValue kv = new KeyValue(hour1, TSDB.FAMILY(), qual2, val2);
     
     assertEquals(1356998400008L, Span.lastTimestampInRow((short) 3, kv));
   }

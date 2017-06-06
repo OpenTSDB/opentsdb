@@ -1178,8 +1178,12 @@ public class TestDownsampler {
   
   @Test
   public void testDownsampler_rollupSum() {
-    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
-        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
     final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
         3600000, Aggregators.SUM);
     source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
@@ -1224,8 +1228,12 @@ public class TestDownsampler {
   
   @Test
   public void testDownsampler_rollupAvg() {
-    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
-        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
     final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
         3600000, Aggregators.AVG);
     source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
@@ -1255,8 +1263,12 @@ public class TestDownsampler {
   
   @Test
   public void testDownsampler_rollupCount() {
-    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
-        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
     final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
         3600000, Aggregators.COUNT);
     source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
@@ -1286,8 +1298,12 @@ public class TestDownsampler {
   
   @Test (expected = UnsupportedOperationException.class)
   public void testDownsampler_rollupDev() {
-    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
-        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
     final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
         3600000, Aggregators.DEV);
     specification = new DownsamplingSpecification("10s-dev");

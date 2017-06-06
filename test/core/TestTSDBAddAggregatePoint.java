@@ -65,19 +65,30 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
     storage.addTable("tsdb-rollup-agg-1d".getBytes(), families);
     storage.addTable(AGG_TABLE, families);
     
-    final List<RollupInterval> rollups = new ArrayList<RollupInterval>();
-    rollups.add(new RollupInterval(
-        "tsdb", "tsdb-agg", "1m", "1h", true));
-    rollups.add(new RollupInterval(
-        "tsdb-rollup-10m", "tsdb-rollup-agg-10m", "10m", "1d"));
-    rollups.add(new RollupInterval(
-        "tsdb-rollup-1h", "tsdb-rollup-agg-1h", "1h", "1m"));
-    rollups.add(new RollupInterval(
-        "tsdb-rollup-1d", "tsdb-rollup-agg-1d", "1d", "1y"));
-    
-    rollup_config = new RollupConfig(rollups);
+    rollup_config = RollupConfig.builder()
+        .addAggregationId("sum", 0)
+        .addAggregationId("count", 1)
+        .addAggregationId("max", 2)
+        .addAggregationId("min", 3)
+        .addInterval(RollupInterval.builder()
+            .setTable("tsdb-rollup-10m")
+            .setPreAggregationTable("tsdb-rollup-agg-10m")
+            .setInterval("10m")
+            .setRowSpan("1d"))
+        .addInterval(RollupInterval.builder()
+            .setTable("tsdb-rollup-1h")
+            .setPreAggregationTable("tsdb-rollup-agg-1h")
+            .setInterval("1h")
+            .setRowSpan("1n"))
+        .addInterval(RollupInterval.builder()
+            .setTable("tsdb-rollup-1d")
+            .setPreAggregationTable("tsdb-rollup-agg-1d")
+            .setInterval("1d")
+            .setRowSpan("1y"))
+        .build();
     Whitebox.setInternalState(tsdb, "rollup_config", rollup_config);
-    Whitebox.setInternalState(tsdb, "default_interval", rollups.get(0));
+    Whitebox.setInternalState(tsdb, "default_interval", 
+        rollup_config.getRollupInterval("10m"));
     Whitebox.setInternalState(tsdb, "rollups_block_derived", true);
     Whitebox.setInternalState(tsdb, "agg_tag_key", 
         config.getString("tsd.rollups.agg_tag_key"));
@@ -719,7 +730,7 @@ public class TestTSDBAddAggregatePoint extends BaseTsdbTest {
         agg_tag_key, "SUM");
     
     assertNull(tags.get(agg_tag_key));
-    RollupInterval interval = rollup_config.getRollupInterval("1m");
+    RollupInterval interval = rollup_config.getRollupInterval("10m");
     tsdb.addAggregatePoint(METRIC_STRING, 1356998400, 42, tags, true, null, 
         null, "sum").joinUninterruptibly();
     

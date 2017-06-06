@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -14,22 +14,32 @@ package net.opentsdb.rollup;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
+import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.utils.JSON;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 import java.util.TreeMap;
 
 /**
- * A hard-coded rollup configuration class that stores the lookup map, config
- * and other bits surrounding rollups and pre-aggregates.
+ * A class that contains the runtime configuration for a TSD's raw and rollup
+ * tables.
  * 
  * Each rollup requires two table names for writing, an interval and a span.
  * temporal_table - The table name for raw, temporal only rollup data
@@ -41,51 +51,85 @@ import java.util.TreeMap;
  *        'y' holds a full year. Possible values are:
  *        'h' = hour
  *        'd' = day
- *        'm' = month
+ *        'n' = month
  *        'y' = year
+ * 
  * @since 2.4
  */
+@JsonDeserialize(builder = RollupConfig.Builder.class)
 public class RollupConfig {
   private static final Logger LOG = LoggerFactory.getLogger(RollupConfig.class);
-
+  
   /** The interval to interval map where keys are things like "10m" or "1d"*/
-  final Map<String, RollupInterval> forward_intervals = 
-      new HashMap<String, RollupInterval>();
+  protected final Map<String, RollupInterval> forward_intervals;
   
   /** The table name to interval map for queries */
-  final Map<String, RollupInterval> reverse_intervals = 
-      new HashMap<String, RollupInterval>();
+  protected final Map<String, RollupInterval> reverse_intervals;
+  
+  /** The map of IDs to aggregators for use at query time. */
+  protected final Map<Integer, String> ids_to_aggregations;
+  
+  /** The map of aggregators to IDs for use at write time. */
+  protected final Map<String, Integer> aggregations_to_ids;
   
   /**
-   * Ctor that contains the hard coded intervals. 
-   * TODO - now that we're not writing to a single table, we can load
-   * this from a config file
+   * Default ctor for the builder.
+   * @param builder A non-null builder to load from.
    */
-  public RollupConfig() {
-    final List<RollupInterval> config = new ArrayList<RollupInterval>();
+  protected RollupConfig(final Builder builder) {
+    forward_intervals = Maps.newHashMapWithExpectedSize(2);
+    reverse_intervals = Maps.newHashMapWithExpectedSize(2);
+    ids_to_aggregations = Maps.newHashMapWithExpectedSize(4);
+    aggregations_to_ids = Maps.newHashMapWithExpectedSize(4);
     
-    /** ---------------- CONFIG ---------------------
-     * WARNING: Do NOT change these maps after you start pushing data or you 
-     * will invalidate anything you've written to the database. You can always
-     * add intervals and delete them to stop accepting data, but never remove
-     */
-    config.add(new RollupInterval("tsdb", 
-        "tsdb-agg", "1m", "1h", true));
-    config.add(new RollupInterval("tsdb-rollup-1h", 
-        "tsdb-agg-rollup-1h", "1h", "1d"));
+    if (builder.intervals == null || builder.intervals.isEmpty()) {
+      throw new IllegalArgumentException("Rollup config given but no intervals "
+          + "were found.");
+    }
+    if (builder.aggregationIds == null || builder.aggregationIds.isEmpty()) {
+      throw new IllegalArgumentException("Rollup config given but no aggegation "
+          + "ID mappings found.");
+    }
+    int defaults = 0;
+    for (final RollupInterval config_interval : builder.intervals) {
+      if (forward_intervals.containsKey(config_interval.getInterval())) {
+        throw new IllegalArgumentException(
+            "Only one interval of each type can be configured: " + 
+            config_interval);
+      }
+      if (config_interval.isDefaultInterval() && defaults++ >= 1) {
+        throw new IllegalArgumentException("Multiple default intervals "
+            + "configured. Only one is allowed: " + config_interval);
+      }
+      
+      forward_intervals.put(config_interval.getInterval(), config_interval);
+      reverse_intervals.put(config_interval.getTable(), config_interval);
+      reverse_intervals.put(config_interval.getPreAggregationTable(), 
+          config_interval);
+      LOG.info("Loaded rollup interval: " + config_interval);
+    }
     
-    // don't remove this
-    validateAndCompileIntervals(config);
+    for (final Entry<String, Integer> entry : builder.aggregationIds.entrySet()) {
+      if (entry.getValue() < 0 || entry.getValue() > 127) {
+        throw new IllegalArgumentException("ID for aggregator must be between "
+            + "0 and 127: " + entry);
+      }
+      final String agg = entry.getKey().toLowerCase();
+      if (ids_to_aggregations.containsKey(entry.getValue())) {
+        throw new IllegalArgumentException("Multiple mappings for the "
+            + "ID '" + entry.getValue() + "' are not allowed."); 
+      }
+      if (Aggregators.get(agg) == null) {
+        throw new IllegalArgumentException("No such aggregator found for " + agg);
+      }
+      aggregations_to_ids.put(agg, entry.getValue());
+      ids_to_aggregations.put(entry.getValue(), agg);
+      LOG.info("Mapping aggregator '" + agg + "' to ID " + entry.getValue());
+    }
+    
+    LOG.info("Configured [" + forward_intervals.size() + "] rollup intervals");
   }
   
-  /**
-   * Ctor for unit testing or loading intervals from an alternate source
-   * @param config The list of rollup intervals to store in the config
-   */
-  public RollupConfig(final List<RollupInterval> config) {
-    validateAndCompileIntervals(config);
-  }
-
   /**
    * Fetches the RollupInterval corresponding to the forward interval string map
    * @param interval The interval to lookup
@@ -119,22 +163,23 @@ public class RollupConfig {
    * @throws NoSuchRollupForIntervalException if the interval was not configured
    */
   public List<RollupInterval> getRollupInterval(final long interval, 
-          final String str_interval) {
+                                                final String str_interval) {
     
     if (interval <= 0) {
       throw new IllegalArgumentException("Interval cannot be null or empty");
     }
     
-    Map<Long, RollupInterval> rollups = new TreeMap<Long, RollupInterval>(Collections.reverseOrder());
+    final Map<Long, RollupInterval> rollups = 
+        new TreeMap<Long, RollupInterval>(Collections.reverseOrder());
     boolean right_match = false;
     
     for (RollupInterval rollup: forward_intervals.values()) {
-      if (rollup.getInterval() == interval) {
-        rollups.put(new Long(rollup.getInterval()), rollup);
+      if (rollup.getIntervalSeconds() == interval) {
+        rollups.put((long) rollup.getIntervalSeconds(), rollup);
         right_match = true;
       }
-      else if (interval % rollup.getInterval() == 0) {
-        rollups.put(new Long(rollup.getInterval()), rollup);
+      else if (interval % rollup.getIntervalSeconds() == 0) {
+        rollups.put((long) rollup.getIntervalSeconds(), rollup);
       }
     }
 
@@ -148,7 +193,7 @@ public class RollupConfig {
     if (!right_match) {
       LOG.warn("No such rollup interval found, " + str_interval + ". So falling "
               + "back to the next best match " + best_matches.get(0).
-                      getStringInterval());
+                      getInterval());
     }
     
     return best_matches;
@@ -179,7 +224,6 @@ public class RollupConfig {
    * @param tsdb The TSDB to use for fetching the HBase client
    */
   public void ensureTablesExist(final TSDB tsdb) {
-    
     final List<Deferred<Object>> deferreds = 
         new ArrayList<Deferred<Object>>(forward_intervals.size() * 2);
     
@@ -203,41 +247,103 @@ public class RollupConfig {
   }
   
   /** @return an unmodifiable map of the rollups for printing and debugging */
+  @JsonIgnore
   public Map<String, RollupInterval> getRollups() {
     return Collections.unmodifiableMap(forward_intervals);
   }
   
-  /**
-   * Determines if the config supplied in the ctor is valid. This will throw
-   * exceptions if:
-   * 1) One of the strings is bad when passed to {@link getIntervals} above
-   * 2) A table name is missing
-   * 3) If more than one interval (e.g. "1m") is configured. These must
-   *    be unique.
-   * @param config The list of RollupIntervals to process
-   * @throws IllegalArgumentException if something is invalid
-   */
-  void validateAndCompileIntervals(final List<RollupInterval> config) {
-    if (config.isEmpty()) {
-      LOG.info("No intervals configured for this TSD");
-      return;
-    }
-    
-    for (final RollupInterval config_interval : config) {
-
-      if (forward_intervals.containsKey(config_interval.getStringInterval())) {
-        throw new IllegalArgumentException(
-            "Only one interval of each type can be configured: " + 
-            config_interval);
-      }
-      
-      forward_intervals.put(config_interval.getStringInterval(), config_interval);
-      reverse_intervals.put(config_interval.getTemporalTableName(), config_interval);
-      reverse_intervals.put(config_interval.getGroupbyTableName(), config_interval);
-      LOG.debug("Configured rollup: " + config_interval);
-    }
-    
-    LOG.info("Configured [" + forward_intervals.size() + "] rollup intervals");
+  /** @return The immutable list of rollup intervals for serialization. */
+  public List<RollupInterval> getIntervals() {
+    return Lists.newArrayList(forward_intervals.values());
   }
-
+  
+  /** @return The immutable map of aggregations to IDs for serialization. */
+  public Map<String, Integer> getAggregationIds() {
+    return Collections.unmodifiableMap(aggregations_to_ids);
+  }
+  
+  /**
+   * @param id The ID of an aggregator to search for.
+   * @return The aggregator if found, null if it was not mapped.
+   */
+  public String getAggregatorForId(final int id) {
+    return ids_to_aggregations.get(id);
+  }
+  
+  /**
+   * @param aggregator The non-null and non-empty aggregator to search for.
+   * @return The ID of the aggregator if found.
+   * @throws IllegalArgumentException if the aggregator was not found or if the
+   * aggregator was null or empty.
+   */
+  public int getIdForAggregator(final String aggregator) {
+    if (Strings.isNullOrEmpty(aggregator)) {
+      throw new IllegalArgumentException("Aggregator cannot be null or empty.");
+    }
+    Integer id = aggregations_to_ids.get(aggregator.toLowerCase());
+    if (id == null) {
+      throw new IllegalArgumentException("No ID found mapping to aggregator " 
+          + aggregator);
+    }
+    return id;
+  }
+  
+  @Override
+  public String toString() {
+    return JSON.serializeToString(this);
+  }
+  
+  public static Builder builder() {
+    return new Builder();
+  }
+  
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  @JsonPOJOBuilder(buildMethodName = "build", withPrefix = "")
+  public static class Builder {
+    @JsonProperty
+    private Map<String, Integer> aggregationIds;
+    @JsonProperty
+    private List<RollupInterval> intervals;
+    
+    public Builder setAggregationIds(final Map<String, Integer> aggregationIds) {
+      this.aggregationIds = aggregationIds;
+      return this;
+    }
+    
+    @JsonIgnore
+    public Builder addAggregationId(final String aggregation, final int id) {
+      if (aggregationIds == null) {
+        aggregationIds = Maps.newHashMapWithExpectedSize(1);
+      }
+      aggregationIds.put(aggregation, id);
+      return this;
+    }
+    
+    public Builder setIntervals(final List<RollupInterval> intervals) {
+      this.intervals = intervals;
+      return this;
+    }
+    
+    @JsonIgnore
+    public Builder addInterval(final RollupInterval interval) {
+      if (intervals == null) {
+        intervals = Lists.newArrayList();
+      }
+      intervals.add(interval);
+      return this;
+    }
+    
+    @JsonIgnore
+    public Builder addInterval(final RollupInterval.Builder interval) {
+      if (intervals == null) {
+        intervals = Lists.newArrayList();
+      }
+      intervals.add(interval.build());
+      return this;
+    }
+    
+    public RollupConfig build() {
+      return new RollupConfig(this);
+    }
+  }
 }

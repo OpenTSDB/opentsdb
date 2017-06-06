@@ -218,7 +218,7 @@ final class TsdbQuery implements Query {
    * @since 2.4 */
   public String getRollupTable() {
     if (RollupQuery.isValidQuery(rollup_query)) {
-      return rollup_query.getRollupInterval().getStringInterval();
+      return rollup_query.getRollupInterval().getInterval();
     }
     else {
       return "raw";
@@ -1220,7 +1220,7 @@ final class TsdbQuery implements Query {
         else if (best_match_rollups != null && best_match_rollups.size() > 0) {
           RollupInterval interval = best_match_rollups.remove(0);
           
-          if (interval.isDefaultRollupInterval()) {
+          if (interval.isDefaultInterval()) {
             transformRollupQueryToDownSampler();
           }
           else {
@@ -1556,7 +1556,7 @@ final class TsdbQuery implements Query {
           return;
         }
         
-        if (rollup_query.getRollupInterval().isDefaultRollupInterval()) {
+        if (rollup_query.getRollupInterval().isDefaultInterval()) {
           //Anyways it is a scan on raw data
           rollup_query = null;
         }
@@ -1574,7 +1574,7 @@ final class TsdbQuery implements Query {
     if (rollup_query != null) {
       // TODO - clean up and handle fill
       downsampler = new DownsamplingSpecification(
-          rollup_query.getRollupInterval().getInterval() * 1000, 
+          rollup_query.getRollupInterval().getIntervalSeconds() * 1000, 
           rollup_query.getRollupAgg(),
           (downsampler != null ? downsampler.getFillPolicy() : 
             FillPolicy.ZERO));

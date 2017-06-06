@@ -122,7 +122,7 @@ public class RollupQuery {
   public String toString() {
     final StringBuilder buf = new StringBuilder();
     buf.append("rollup interval=")
-        .append(rollup_interval.getStringInterval())
+        .append(rollup_interval.getInterval())
         .append(", rollup aggregator=")
         .append(rollup_agg.toString())
         .append(", group_by=")
@@ -160,7 +160,7 @@ public class RollupQuery {
    */
   public static boolean isValidQuery(final RollupQuery rollup_query) {
     return (rollup_query != null && rollup_query.rollup_interval != null &&
-      !rollup_query.rollup_interval.isDefaultRollupInterval());
+      !rollup_query.rollup_interval.isDefaultInterval());
   }
   
   /**
@@ -183,6 +183,6 @@ public class RollupQuery {
    * @return true if it is of lower sampling rate else false
    */
   public boolean isLowerSamplingRate() {
-    return this.rollup_interval.getInterval() * 1000 < sample_interval_ms;
+    return this.rollup_interval.getIntervalSeconds() * 1000 < sample_interval_ms;
   }
 }

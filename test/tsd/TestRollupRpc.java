@@ -69,15 +69,31 @@ public class TestRollupRpc extends BaseTestPutRpc {
     final List<byte[]> families = new ArrayList<byte[]>();
     families.add(FAMILY);
     
-    final List<RollupInterval> rollups = new ArrayList<RollupInterval>();
-    rollups.add(new RollupInterval(
-        "tsdb", "tsdb-agg", "1m", "1h", true));
-    rollups.add(new RollupInterval(
-        "tsdb-rollup-1h", "tsdb-rollup-agg-1h", "1h", "1m"));
-    
-    rollup_config = new RollupConfig(rollups);
+    rollup_config = RollupConfig.builder()
+        .addAggregationId("sum", 0)
+        .addAggregationId("count", 1)
+        .addAggregationId("max", 2)
+        .addAggregationId("min", 3)
+        .addInterval(RollupInterval.builder()
+            .setTable("tsdb")
+            .setPreAggregationTable("tsdb-agg")
+            .setInterval("1m")
+            .setRowSpan("1h")
+            .setDefaultInterval(true))
+        .addInterval(RollupInterval.builder()
+            .setTable("tsdb-rollup-1h")
+            .setPreAggregationTable("tsdb-rollup-agg-1h")
+            .setInterval("1h")
+            .setRowSpan("1n"))
+        .addInterval(RollupInterval.builder()
+            .setTable("tsdb-rollup-1d")
+            .setPreAggregationTable("tsdb-rollup-agg-1d")
+            .setInterval("1d")
+            .setRowSpan("1n"))
+        .build();
     Whitebox.setInternalState(tsdb, "rollup_config", rollup_config);
-    Whitebox.setInternalState(tsdb, "default_interval", rollups.get(0));
+    Whitebox.setInternalState(tsdb, "default_interval", 
+        rollup_config.getRollupInterval("1m"));
     
     storage = new MockBase(tsdb, client, true, true, true, true);
     storage.addTable("tsdb-rollup-1h".getBytes(), families);

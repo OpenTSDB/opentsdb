@@ -13,7 +13,6 @@
 package net.opentsdb.core;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -31,7 +30,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import org.hbase.async.Bytes;
 import org.hbase.async.FilterList;
@@ -1567,8 +1565,13 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
         config.getString("tsd.rollups.agg_tag_key"));
     Whitebox.setInternalState(tsdb, "raw_agg_tag_value", 
         config.getString("tsd.rollups.raw_agg_tag_value"));
-    Whitebox.setInternalState(tsdb, "default_interval", new RollupInterval("tsdb", 
-        "tsdb-agg", "1m", "1h", true));
+    Whitebox.setInternalState(tsdb, "default_interval",
+        RollupInterval.builder()
+        .setTable("tsdb")
+        .setPreAggregationTable("tsdb-agg")
+        .setInterval("1m")
+        .setRowSpan("1h")
+        .build());
     
     tsdb.addAggregatePoint(METRIC_STRING, start_timestamp, 42L, tags, true, null, 
         null, "SUM");

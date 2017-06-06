@@ -818,8 +818,12 @@ public class TestFillingDownsampler {
 
   @Test
   public void testDownsampler_rollup() {
-    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
-        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
     final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
         3600000, Aggregators.SUM);
     final long baseTime = 1000L;
@@ -852,8 +856,12 @@ public class TestFillingDownsampler {
   
   @Test
   public void testDownsampler_rollupMissing() {
-    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
-        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
     final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
         3600000, Aggregators.SUM);
     final long baseTime = 500L;
@@ -889,8 +897,12 @@ public class TestFillingDownsampler {
   
   @Test
   public void testDownsampler_rollupAvg() {
-    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
-        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
     final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
         3600000, Aggregators.SUM);
     final long baseTime = 1000L;
@@ -925,8 +937,12 @@ public class TestFillingDownsampler {
   
   @Test
   public void testDownsampler_rollupAvgMissing() {
-    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
-        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
     final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
         3600000, Aggregators.SUM);
     final long baseTime = 500L;
@@ -962,8 +978,12 @@ public class TestFillingDownsampler {
   
   @Test
   public void testDownsampler_rollupCount() {
-    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
-        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
     final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
         3600000, Aggregators.SUM);
     final long baseTime = 1000L;
@@ -998,8 +1018,12 @@ public class TestFillingDownsampler {
   
   @Test
   public void testDownsampler_rollupCountMissing() {
-    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
-        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
     final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
         3600000, Aggregators.SUM);
     final long baseTime = 500L;
@@ -1035,8 +1059,12 @@ public class TestFillingDownsampler {
   
   @Test (expected = UnsupportedOperationException.class)
   public void testDownsampler_rollupDev() {
-    final RollupInterval interval = new RollupInterval("tsdb-rollup-1h",
-        "tsdb-agg-rollup-1h", "1h", "1d");
+    final RollupInterval interval = RollupInterval.builder()
+        .setTable("tsdb-rollup-1h")
+        .setPreAggregationTable("tsdb-agg-rollup-1h")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build();
     final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
         3600000, Aggregators.DEV);
     final long baseTime = 1000L;

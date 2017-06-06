@@ -17,6 +17,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -71,18 +72,38 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     tags2 = new HashMap<String, String>(1);
     tags2.put(TAGK_STRING, TAGV_B_STRING);
     
-    final List<RollupInterval> rollups = new ArrayList<RollupInterval>();
-    rollups.add(new RollupInterval(
-        "tsdb-rollup-10m", "tsdb-rollup-agg-10m", "10m", "6h"));
-    rollups.add(new RollupInterval(
-        "tsdb-rollup-1h", "tsdb-rollup-agg-1h", "1h", "1d"));
-    rollups.add(new RollupInterval(
-        "tsdb-rollup-1d", "tsdb-rollup-agg-1d", "1d", "1m"));
-    
-    rollup_config = new RollupConfig(rollups);
+//    final List<RollupInterval> rollups = new ArrayList<RollupInterval>();
+//    rollups.add(new RollupInterval(
+//        "tsdb-rollup-10m", "tsdb-rollup-agg-10m", "10m", "6h"));
+//    rollups.add(new RollupInterval(
+//        "tsdb-rollup-1h", "tsdb-rollup-agg-1h", "1h", "1d"));
+//    rollups.add(new RollupInterval(
+//        "tsdb-rollup-1d", "tsdb-rollup-agg-1d", "1d", "1m"));
+//    
+//    rollup_config = new RollupConfig(rollups);
+    rollup_config = RollupConfig.builder()
+        .addAggregationId("sum", 0)
+        .addAggregationId("count", 1)
+        .addAggregationId("max", 2)
+        .addAggregationId("min", 3)
+        .addInterval(RollupInterval.builder()
+            .setTable("tsdb-rollup-10m")
+            .setPreAggregationTable("tsdb-rollup-agg-10m")
+            .setInterval("10m")
+            .setRowSpan("6h"))
+        .addInterval(RollupInterval.builder()
+            .setTable("tsdb-rollup-1h")
+            .setPreAggregationTable("tsdb-rollup-agg-1h")
+            .setInterval("1h")
+            .setRowSpan("1d"))
+        .addInterval(RollupInterval.builder()
+            .setTable("tsdb-rollup-1d")
+            .setPreAggregationTable("tsdb-rollup-agg-1d")
+            .setInterval("1d")
+            .setRowSpan("1n"))
+        .build();
     Whitebox.setInternalState(tsdb, "rollup_config", rollup_config);
-    Whitebox.setInternalState(tsdb, "default_interval", new RollupInterval(
-        "tsdb", "tsdb-agg", "1m", "1h"));
+    
   }
 
   // This test shows us falling back to raw data if the requested downsample
@@ -135,6 +156,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
 
     setQuery("30m", aggr, tags, aggr);
     query.configureFromQuery(ts_query, 0);
+    
     DataPoints[] dps = query.run();
     assertEquals(1, dps.length);
     assertEquals(METRIC_STRING, dps[0].metricName());
@@ -149,7 +171,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
       assertEquals(value, dp.doubleValue(), 0);
       assertEquals(ts, dp.timestamp());
       value += 5400;
-      ts += (interval.getInterval() * 3) * 1000;
+      ts += (interval.getIntervalSeconds() * 3) * 1000;
     }
     assertEquals(24, dps[0].size());
   }
@@ -165,7 +187,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
       interval, aggr);
 
     aggr = Aggregators.ZIMSUM;
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     query.configureFromQuery(ts_query, 0);
     
     final DataPoints[] dps = query.run();
@@ -182,8 +204,8 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
       assertFalse(dp.isInteger());
       assertEquals(i, dp.doubleValue(), 0.0001);
       assertEquals(ts, dp.timestamp());
-      ts += interval.getInterval() * 1000;
-      i += interval.getInterval();
+      ts += interval.getIntervalSeconds() * 1000;
+      i += interval.getIntervalSeconds();
     }
     assertEquals(72, dps[0].size());
   }
@@ -198,7 +220,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
       interval, aggr);
 
     aggr = Aggregators.MAX;
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     query.configureFromQuery(ts_query, 0);
     
     final DataPoints[] dps = query.run();
@@ -213,8 +235,8 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     long end_timestamp = 1357041600L;
     storeLongRollup(1356998400L, end_timestamp, false, false, interval, aggr);
 
-    final int time_interval = interval.getInterval();
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    final int time_interval = interval.getIntervalSeconds();
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     query.configureFromQuery(ts_query, 0);
 
     final DataPoints[] dps = query.run();
@@ -245,7 +267,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     
     //rollup doesn't accept timestamps in milliseconds
     tsdb.addAggregatePoint(METRIC_STRING, start_timestamp, 
-          0, tags, false, ten_min_interval.getStringInterval(), 
+          0, tags, false, ten_min_interval.getInterval(), 
           aggr.toString(), null).joinUninterruptibly();
   }
 
@@ -259,7 +281,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     storeLongRollup(start_timestamp, end_timestamp, false, false, 
       interval, aggr);
 
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     ts_query.getQueries().get(0).setRate(true);
     query.configureFromQuery(ts_query, 0);
     final DataPoints[] dps = query.run();
@@ -270,11 +292,11 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     assertNull(dps[0].getAnnotations());
     assertEquals(TAGV_STRING, dps[0].getTags().get(TAGK_STRING));
 
-    long expected_timestamp = (start_timestamp + interval.getInterval()) * 1000;
+    long expected_timestamp = (start_timestamp + interval.getIntervalSeconds()) * 1000;
     for (DataPoint dp : dps[0]) {
       assertEquals(1.0F, dp.doubleValue(), 0.00001);
       assertEquals(expected_timestamp, dp.timestamp());
-      expected_timestamp += interval.getInterval() * 1000;
+      expected_timestamp += interval.getIntervalSeconds() * 1000;
     }
 
     assertEquals(72, dps[0].size());
@@ -288,7 +310,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     final long end_timestamp = 1357041600;
     storeFloatRollup(start_timestamp, end_timestamp, true, false, interval, aggr);
 
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     query.configureFromQuery(ts_query, 0);
     final DataPoints[] dps = query.run();
     
@@ -304,8 +326,8 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     for (DataPoint dp : dps[0]) {
       assertEquals(value, dp.doubleValue(), 0.00001);
       assertEquals(expected_timestamp, dp.timestamp());
-      value += interval.getInterval();
-      expected_timestamp += interval.getInterval() * 1000;
+      value += interval.getIntervalSeconds();
+      expected_timestamp += interval.getIntervalSeconds() * 1000;
     }
 
     assertEquals(73, dps[0].size());
@@ -321,7 +343,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     storeFloatRollup(start_timestamp, end_timestamp, false, false, 
       interval, aggr);
 
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     ts_query.getQueries().get(0).setRate(true);
     query.configureFromQuery(ts_query, 0);
     final DataPoints[] dps = query.run();
@@ -332,11 +354,12 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     assertNull(dps[0].getAnnotations());
     assertEquals(TAGV_STRING, dps[0].getTags().get(TAGK_STRING));
     
-    long expected_timestamp = (start_timestamp + interval.getInterval()) * 1000;
+    long expected_timestamp = (start_timestamp + 
+        interval.getIntervalSeconds()) * 1000;
     for (DataPoint dp : dps[0]) {
       assertEquals(1.0F, dp.doubleValue(), 0.00001);
       assertEquals(expected_timestamp, dp.timestamp());
-      expected_timestamp += interval.getInterval() * 1000;
+      expected_timestamp += interval.getIntervalSeconds() * 1000;
     }
     assertEquals(72, dps[0].size());
   }
@@ -350,8 +373,8 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     long end_timestamp = 1357041600L;
     storeLongRollup(1356998400L, end_timestamp, true, false, interval, aggr);
 
-    final int time_interval = interval.getInterval();
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    final int time_interval = interval.getIntervalSeconds();
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     query.configureFromQuery(ts_query, 0);
 
     final DataPoints[] dps = query.run();
@@ -382,9 +405,9 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     long end_timestamp = 1357041600L;
     storeLongRollup(1356998400L, end_timestamp, true, false, interval, aggr);
 
-    final int time_interval = interval.getInterval();
+    final int time_interval = interval.getIntervalSeconds();
     tags.clear();
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     ts_query.getQueries().get(0).getFilters().clear();
     ts_query.validateAndSetQuery();
     query.configureFromQuery(ts_query, 0);
@@ -419,8 +442,8 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     storeLongRollup(1356998400L, end_timestamp, true, false, interval, 
         Aggregators.MIN);
 
-    final int time_interval = interval.getInterval();
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    final int time_interval = interval.getIntervalSeconds();
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     query.configureFromQuery(ts_query, 0);
 
     final DataPoints[] dps = query.run();
@@ -451,8 +474,8 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     long end_timestamp = 1357041600L;
     storeLongRollup(1356998400L, end_timestamp, false, false, interval, aggr);
 
-    final int time_interval = interval.getInterval();
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    final int time_interval = interval.getIntervalSeconds();
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     query.configureFromQuery(ts_query, 0);
 
     final DataPoints[] dps = query.run();
@@ -483,8 +506,8 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     long end_timestamp = 1357041600L;
     storeLongRollup(1356998400L, end_timestamp, false, false, interval, aggr);
 
-    final int time_interval = interval.getInterval();
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    final int time_interval = interval.getIntervalSeconds();
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     query.configureFromQuery(ts_query, 0);
 
     final DataPoints[] dps = query.run();
@@ -515,9 +538,9 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     long end_timestamp = 1357041600L;
     storeLongRollup(start_timestamp, end_timestamp, false, false, interval, aggr);
     storeCount(start_timestamp, end_timestamp, false, false, interval, 2);
-    
+
     aggr = Aggregators.AVG;
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     query.configureFromQuery(ts_query, 0);
 
     final DataPoints[] dps = query.run();
@@ -534,8 +557,8 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
       assertFalse(dp.isInteger());
       assertEquals(i, dp.doubleValue(), 0.0001);
       assertEquals(ts, dp.timestamp());
-      ts += interval.getInterval() * 1000;
-      i += interval.getInterval() / 2;
+      ts += interval.getIntervalSeconds() * 1000;
+      i += interval.getIntervalSeconds() / 2;
     }
     assertEquals(73, dps[0].size());
   }
@@ -549,7 +572,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     storeLongRollup(start_timestamp, end_timestamp, false, false, interval, aggr);
 
     aggr = Aggregators.AVG;
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     query.configureFromQuery(ts_query, 0);
 
     final DataPoints[] dps = query.run();
@@ -570,7 +593,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     long end_timestamp = 1357041600L;
     storeCount(start_timestamp, end_timestamp, false, false, interval, 1);
 
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     query.configureFromQuery(ts_query, 0);
 
     final DataPoints[] dps = query.run();
@@ -597,7 +620,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     storePoint(1357000200, 4, Aggregators.COUNT, interval);
     
     Aggregator aggr = Aggregators.AVG;
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     query.configureFromQuery(ts_query, 0);
 
     final DataPoints[] dps = query.run();
@@ -635,7 +658,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     storePoint(1357000200, 4, Aggregators.COUNT, interval);
     
     Aggregator aggr = Aggregators.AVG;
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     query.configureFromQuery(ts_query, 0);
 
     final DataPoints[] dps = query.run();
@@ -673,7 +696,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     storePoint(1357000200, 4, Aggregators.COUNT, interval);
     
     Aggregator aggr = Aggregators.AVG;
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     query.configureFromQuery(ts_query, 0);
 
     final DataPoints[] dps = query.run();
@@ -709,7 +732,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     storePoint(1357171800, 5, Aggregators.COUNT, interval);
     
     Aggregator aggr = Aggregators.AVG;
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     ts_query.setEnd("1359590400");
     ts_query.validateAndSetQuery();
     query.configureFromQuery(ts_query, 0);
@@ -759,7 +782,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     //storePoint(1357171800, 5, Aggregators.COUNT, interval);
     
     Aggregator aggr = Aggregators.AVG;
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     ts_query.setEnd("1359590400");
     ts_query.validateAndSetQuery();
     query.configureFromQuery(ts_query, 0);
@@ -790,58 +813,23 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     final Aggregator aggr = Aggregators.SUM;
     
     tsdb.addAggregatePoint(METRIC_STRING, 1357026600L, Integer.MAX_VALUE, tags, false, 
-        interval.getStringInterval(), aggr.toString(), null).joinUninterruptibly();
+        interval.getInterval(), aggr.toString(), null).joinUninterruptibly();
     tsdb.addAggregatePoint(METRIC_STRING, 1357026600L, 42.5F, tags, false, 
-        interval.getStringInterval(), aggr.toString(), null).joinUninterruptibly();
+        interval.getInterval(), aggr.toString(), null).joinUninterruptibly();
     
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
+    setQuery(interval.getInterval(), aggr, tags, aggr);
     query.configureFromQuery(ts_query, 0);
-    DataPoints[] dps = null;
     try {
-      dps = query.run();
+      query.run();
+      fail("Expected IllegalDataException");
     } catch (IllegalDataException e) { }
     
     config.setFixDuplicates(true);
-    dps = query.run();
+    DataPoints[] dps = query.run();
+    
     DataPoint dp = dps[0].iterator().next();
     assertEquals(1357026600000L, dp.timestamp());
     assertEquals(42.5F, dp.toDouble(), 0.0001);
-  }
-  
-  @Test
-  public void runRollupPreAgg() throws Exception {
-    setupGroupByTagValues();
-    final RollupInterval interval = rollup_config.getRollupInterval("10m");
-    final Aggregator aggr = Aggregators.SUM;
-    long start_timestamp = 1356998400L;
-    long end_timestamp = 1357041600L;
-    storeLongRollup(1356998400L, end_timestamp, false, false, interval, aggr);
-    Whitebox.setInternalState(tsdb, "agg_tag_key", 
-        config.getString("tsd.rollups.agg_tag_key"));
-    Whitebox.setInternalState(tsdb, "raw_agg_tag_value", 
-        config.getString("tsd.rollups.raw_agg_tag_value"));
-    
-    tsdb.addAggregatePoint(METRIC_STRING, 1356998400L, 42L, tags, true, "10m", 
-        "SUM", "SUM");
-    
-    tags.put(config.getString("tsd.rollups.agg_tag_key"), "SUM");
-
-    setQuery(interval.getStringInterval(), aggr, tags, aggr);
-    query.configureFromQuery(ts_query, 0);
-
-    final DataPoints[] dps = query.run();
-    assertEquals(1, dps.length);
-    assertEquals(METRIC_STRING, dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
-    assertNull(dps[0].getAnnotations());
-    assertEquals(TAGV_STRING, dps[0].getTags().get(TAGK_STRING));
-
-    long ts = start_timestamp * 1000;
-    final DataPoint dp = dps[0].iterator().next();
-    assertFalse(dp.isInteger());
-    assertEquals(42, dp.doubleValue(), 0.0001);
-    assertEquals(ts, dp.timestamp());
-    assertEquals(1, dps[0].size());
   }
   
   // ----------------- //
@@ -857,7 +845,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
-    int time_interval = interval.getInterval();
+    int time_interval = interval.getIntervalSeconds();
     long start_a = start_timestamp;
     long start_b = start_timestamp + (offset ? time_interval : 0);
     int i = 0;
@@ -865,10 +853,10 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     while (start_a <= end_timestamp) {
       i += time_interval;
       tsdb.addAggregatePoint(METRIC_STRING, start_a, i, tags, false, 
-          interval.getStringInterval(), aggr.toString(), null).joinUninterruptibly();
+          interval.getInterval(), aggr.toString(), null).joinUninterruptibly();
       if (two_metrics) {
         tsdb.addAggregatePoint(METRIC_B_STRING, start_b, i, tags, false, 
-            interval.getStringInterval(), aggr.toString(), null).joinUninterruptibly();
+            interval.getInterval(), aggr.toString(), null).joinUninterruptibly();
       }
       start_a += (offset ? time_interval * 2 : time_interval);
       start_b += (offset ? time_interval * 2 : time_interval);
@@ -881,10 +869,10 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     while (start_a <= end_timestamp) {
       i -= time_interval;
       tsdb.addAggregatePoint(METRIC_STRING, start_a, i, tags2, false,
-          interval.getStringInterval(), aggr.toString(), null).joinUninterruptibly();
+          interval.getInterval(), aggr.toString(), null).joinUninterruptibly();
       if (two_metrics) {
         tsdb.addAggregatePoint(METRIC_B_STRING, start_b, i, tags2, false,
-            interval.getStringInterval(), aggr.toString(), null).joinUninterruptibly();
+            interval.getInterval(), aggr.toString(), null).joinUninterruptibly();
       }
       
       start_a += (offset ? time_interval * 2 : time_interval);
@@ -898,43 +886,43 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
       final boolean offset, 
       final RollupInterval interval, 
       final int value) throws Exception {
-  
-  // dump a bunch of rows of two metrics so that we can test filtering out
-  // on the metric
-  int time_interval = interval.getInterval();
-  long start_a = start_timestamp;
-  long start_b = start_timestamp + (offset ? time_interval : 0);
-
-  while (start_a <= end_timestamp) {
-    tsdb.addAggregatePoint(METRIC_STRING, start_a, value, tags, false, 
-        interval.getStringInterval(), Aggregators.COUNT.toString(), null)
-        .joinUninterruptibly();
-    if (two_metrics) {
-      tsdb.addAggregatePoint(METRIC_B_STRING, start_b, value, tags, false, 
-          interval.getStringInterval(), Aggregators.COUNT.toString(), null)
-          .joinUninterruptibly();
-    }
-    start_a += (offset ? time_interval * 2 : time_interval);
-    start_b += (offset ? time_interval * 2 : time_interval);
-  }
-
-  start_a = start_timestamp;
-  start_b = start_timestamp + (offset ? time_interval : 0);
-  
-  while (start_a <= end_timestamp) {
-    tsdb.addAggregatePoint(METRIC_STRING, start_a, value, tags2, false,
-        interval.getStringInterval(), Aggregators.COUNT.toString(), null)
-        .joinUninterruptibly();
-    if (two_metrics) {
-      tsdb.addAggregatePoint(METRIC_B_STRING, start_b, value, tags2, false,
-          interval.getStringInterval(), Aggregators.COUNT.toString(), null)
-          .joinUninterruptibly();
-    }
     
-    start_a += (offset ? time_interval * 2 : time_interval);
-    start_b += (offset ? time_interval * 2 : time_interval);
+    // dump a bunch of rows of two metrics so that we can test filtering out
+    // on the metric
+    int time_interval = interval.getIntervalSeconds();
+    long start_a = start_timestamp;
+    long start_b = start_timestamp + (offset ? time_interval : 0);
+  
+    while (start_a <= end_timestamp) {
+      tsdb.addAggregatePoint(METRIC_STRING, start_a, value, tags, false, 
+          interval.getInterval(), Aggregators.COUNT.toString(), null)
+          .joinUninterruptibly();
+      if (two_metrics) {
+        tsdb.addAggregatePoint(METRIC_B_STRING, start_b, value, tags, false, 
+            interval.getInterval(), Aggregators.COUNT.toString(), null)
+            .joinUninterruptibly();
+      }
+      start_a += (offset ? time_interval * 2 : time_interval);
+      start_b += (offset ? time_interval * 2 : time_interval);
+    }
+  
+    start_a = start_timestamp;
+    start_b = start_timestamp + (offset ? time_interval : 0);
+    
+    while (start_a <= end_timestamp) {
+      tsdb.addAggregatePoint(METRIC_STRING, start_a, value, tags2, false,
+          interval.getInterval(), Aggregators.COUNT.toString(), null)
+          .joinUninterruptibly();
+      if (two_metrics) {
+        tsdb.addAggregatePoint(METRIC_B_STRING, start_b, value, tags2, false,
+            interval.getInterval(), Aggregators.COUNT.toString(), null)
+            .joinUninterruptibly();
+      }
+      
+      start_a += (offset ? time_interval * 2 : time_interval);
+      start_b += (offset ? time_interval * 2 : time_interval);
+    }
   }
-}
   
   private void storeFloatRollup(final long start_timestamp,
         final long end_timestamp,
@@ -945,7 +933,7 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
-    int time_interval = interval.getInterval();
+    int time_interval = interval.getIntervalSeconds();
     long start_a = start_timestamp;
     long start_b = start_timestamp + (offset ? time_interval : 0);
     float i = 0.5F;
@@ -953,11 +941,11 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     while (start_a <= end_timestamp) {
       i += time_interval;
       tsdb.addAggregatePoint(METRIC_STRING, start_a, i, tags, false, 
-          interval.getStringInterval(), aggr.toString(), null).joinUninterruptibly();
+          interval.getInterval(), aggr.toString(), null).joinUninterruptibly();
       
       if (two_metrics) {
         tsdb.addAggregatePoint(METRIC_B_STRING, start_b,i, tags, false, 
-            interval.getStringInterval(), aggr.toString(), null).joinUninterruptibly();
+            interval.getInterval(), aggr.toString(), null).joinUninterruptibly();
       }
       start_a += (offset ? time_interval * 2 : time_interval);
       start_b += (offset ? time_interval * 2 : time_interval);
@@ -970,10 +958,10 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     while (start_a <= end_timestamp) {
       i -= time_interval;
       tsdb.addAggregatePoint(METRIC_STRING, start_a, i, tags2, false, 
-          interval.getStringInterval(), aggr.toString(), null).joinUninterruptibly();
+          interval.getInterval(), aggr.toString(), null).joinUninterruptibly();
       if (two_metrics) {
         tsdb.addAggregatePoint(METRIC_B_STRING, start_b, i, tags2, false, 
-            interval.getStringInterval(), aggr.toString(), null).joinUninterruptibly();
+            interval.getInterval(), aggr.toString(), null).joinUninterruptibly();
       }
       
       start_a += (offset ? time_interval * 2 : time_interval);
@@ -984,10 +972,9 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
   private void storePoint(final long ts, final long value, final Aggregator agg, 
       final RollupInterval interval) throws Exception {
     tsdb.addAggregatePoint(METRIC_STRING, ts, value, tags, false, 
-        interval.getStringInterval(), agg.toString(), null).joinUninterruptibly();
+        interval.getInterval(), agg.toString(), null).joinUninterruptibly();
   }
   
-  @SuppressWarnings("deprecation")
   private void setQuery(final String ds_interval, final Aggregator ds_agg, 
       final Map<String, String> tags, final Aggregator group_by) {
     ts_query = new TSQuery();
