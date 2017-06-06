@@ -75,7 +75,13 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
           return "report error to channel";
         }
       }
-      return importDataPoint(tsdb, cmd).addErrback(new PutErrback());
+
+      Deferred<Object> result = importDataPoint(tsdb, cmd).addErrback(new PutErrback());
+      if(chan.isConnected()) {
+        chan.write("ok");
+      }
+
+      return result;
     } catch (NumberFormatException x) {
       errmsg = "put: invalid value: " + x.getMessage() + '\n';
       invalid_values.incrementAndGet();
