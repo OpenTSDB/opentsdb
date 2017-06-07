@@ -227,7 +227,8 @@ public class Span implements DataPoints {
    */
   static long lastTimestampInRow(final short metric_width,
                                  final KeyValue row) {
-    final long base_time = Bytes.getUnsignedInt(row.key(), metric_width);
+    final long base_time = Bytes.getUnsignedInt(row.key(), metric_width + 
+        Const.SALT_WIDTH());
     final byte[] qual = row.qualifier();
     if (qual.length >= 4 && Internal.inMilliseconds(qual[qual.length - 4])) {
       return (base_time * 1000) + ((Bytes.getUnsignedInt(qual, qual.length - 4) & 

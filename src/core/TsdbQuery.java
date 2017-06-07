@@ -1316,23 +1316,43 @@ final class TsdbQuery implements Query {
       // it. If not, then we can do this
       if (!rollup_query.getGroupBy().toString().equals("avg")) {
         if (existing != null) {
-          final List<ScanFilter> filters = new ArrayList<ScanFilter>(2);
+          final List<ScanFilter> filters = new ArrayList<ScanFilter>(3);
           filters.add(existing);
           filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
               new BinaryPrefixComparator(rollup_query.getGroupBy().toString()
                       .getBytes(Const.ASCII_CHARSET))));
-          scanner.setFilter(new FilterList(filters, Operator.MUST_PASS_ALL));
+          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+              new BinaryPrefixComparator(new byte[] { 
+                  (byte) tsdb.getRollupConfig().getIdForAggregator(
+                      rollup_query.getRollupAgg().toString())
+              })));
+          scanner.setFilter(new FilterList(filters, Operator.MUST_PASS_ONE));
         } else {
-          scanner.setFilter(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-                new BinaryPrefixComparator(rollup_query.getGroupBy().toString()
-                        .getBytes(Const.ASCII_CHARSET))));
+          final List<ScanFilter> filters = new ArrayList<ScanFilter>(2);
+          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+              new BinaryPrefixComparator(rollup_query.getRollupAgg().toString()
+                  .getBytes(Const.ASCII_CHARSET))));
+          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+              new BinaryPrefixComparator(new byte[] { 
+                  (byte) tsdb.getRollupConfig().getIdForAggregator(
+                      rollup_query.getRollupAgg().toString())
+              })));
+          scanner.setFilter(new FilterList(filters, Operator.MUST_PASS_ONE));
         }
       } else {
-        final List<ScanFilter> filters = new ArrayList<ScanFilter>(2);
+        final List<ScanFilter> filters = new ArrayList<ScanFilter>(4);
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
             new BinaryPrefixComparator("sum".getBytes())));
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
             new BinaryPrefixComparator("count".getBytes())));
+        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+            new BinaryPrefixComparator(new byte[] { 
+                (byte) tsdb.getRollupConfig().getIdForAggregator("sum")
+            })));
+        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+            new BinaryPrefixComparator(new byte[] { 
+                (byte) tsdb.getRollupConfig().getIdForAggregator("count")
+            })));
         
         if (existing != null) {
           final List<ScanFilter> combined = new ArrayList<ScanFilter>(2);

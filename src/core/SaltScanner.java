@@ -109,6 +109,9 @@ public class SaltScanner {
   
   /** Index of the sub query in the main query list */
   private final int query_index;
+  private final boolean is_rollup;
+  private final int rollup_agg_id;
+  private final int rollup_count_id;
   
   /** A latch used to determine how many scanners are still running */
   private final CountDownLatch countdown;
@@ -217,6 +220,20 @@ public class SaltScanner {
     this.query_stats = query_stats;
     this.query_index = query_index;
     countdown = new CountDownLatch(scanners.size());
+    if (rollup_query != null && RollupQuery.isValidQuery(rollup_query)) {
+      is_rollup = true;
+      if (rollup_query.getRollupAgg() == Aggregators.AVG) {
+        rollup_agg_id = tsdb.getRollupConfig().getIdForAggregator("sum");
+        rollup_count_id = tsdb.getRollupConfig().getIdForAggregator("count");
+      } else {
+        rollup_agg_id = tsdb.getRollupConfig().getIdForAggregator(
+            rollup_query.getRollupAgg().toString());
+        rollup_count_id = -1;
+      }
+    } else {
+      is_rollup = false;
+      rollup_agg_id = rollup_count_id = -1;
+    }
   }
 
   /**
@@ -672,10 +689,9 @@ public class SaltScanner {
           final byte[] qual = kv.qualifier();
           
           if (qual.length > 0) {
-            // TODO: Bug! Here we shouldn't use the first byte to check the 
-            // type of this row. Instead should parse the byte array to find 
-            // the suffix and determine the actual type
-            if (qual[0] == Annotation.PREFIX()) {
+            // TODO - allow rollups for annotations and histos? Probably will
+            // want to encode those on 4 bytes or something
+            if (!is_rollup && qual[0] == Annotation.PREFIX()) {
               // This could be a row with only an annotation in it
               final Annotation note = JSON.parseToObject(kv.value(),
                       Annotation.class);
@@ -687,7 +703,7 @@ public class SaltScanner {
                 }
                 map_notes.add(note);
               }
-            } else if (qual[0] == HistogramDataPoint.PREFIX) {
+            } else if (!is_rollup && qual[0] == HistogramDataPoint.PREFIX) {
               try {
                 HistogramDataPoint histogram = 
                     Internal.decodeHistogramDataPoint(tsdb, kv);
@@ -698,12 +714,15 @@ public class SaltScanner {
             } else {
               if (rollup_query.getGroupBy() == Aggregators.AVG || 
                   rollup_query.getGroupBy() == Aggregators.DEV) {
-                if (Bytes.memcmp(RollupQuery.SUM, qual, 0, RollupQuery.SUM.length) == 0 ||
+                if (qual[0] == (byte) rollup_agg_id ||
+                    qual[0] == (byte) rollup_count_id ||
+                    Bytes.memcmp(RollupQuery.SUM, qual, 0, RollupQuery.SUM.length) == 0 ||
                     Bytes.memcmp(RollupQuery.COUNT, qual, 0, RollupQuery.COUNT.length) == 0) {
                   kvs.add(kv);
                 }
-              } else if (Bytes.memcmp(rollup_query.getRollupAggPrefix(), 
-                  qual, 0, rollup_query.getRollupAggPrefix().length) == 0) {
+              } else if (qual[0] == (byte) rollup_agg_id ||
+                  Bytes.memcmp(rollup_query.getRollupAggPrefix(), 
+                    qual, 0, rollup_query.getRollupAggPrefix().length) == 0) {
                 kvs.add(kv);
               }
             }

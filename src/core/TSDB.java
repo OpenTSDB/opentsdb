@@ -1477,9 +1477,10 @@ public final class TSDB {
     
     IncomingDataPoints.checkMetricAndTags(metric, tags);
     
-    final RollupInterval rollup_interval = interval == null || interval.isEmpty()
-        ? null : rollup_config.getRollupInterval(interval);
-    
+    final RollupInterval rollup_interval = (interval == null || interval.isEmpty()
+        ? null : rollup_config.getRollupInterval(interval));
+    final int aggregator_id = rollup_interval == null ? -1 :
+      rollup_config.getIdForAggregator(rollup_aggregator);
     final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
     final String rollup_agg = rollup_aggregator != null ? 
         rollup_aggregator.toUpperCase() : null;
@@ -1497,7 +1498,7 @@ public final class TSDB {
     final byte[] qualifier = interval == null || interval.isEmpty() ? 
         Internal.buildQualifier(timestamp, flags)
         : RollupUtils.buildRollupQualifier(
-            timestamp, base_time, flags, rollup_agg, rollup_interval);
+            timestamp, base_time, flags, aggregator_id, rollup_interval);
     
     /** Callback executed for chaining filter calls to see if the value
     * should be written or not. */

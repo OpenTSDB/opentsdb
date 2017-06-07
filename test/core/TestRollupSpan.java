@@ -19,7 +19,9 @@ import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.junit.Before;
 import org.junit.Test;
+import org.powermock.reflect.Whitebox;
 
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupQuery;
 import net.opentsdb.rollup.RollupSpan;
@@ -29,6 +31,7 @@ public class TestRollupSpan extends BaseTsdbTest {
   protected byte[] hour1 = null;
   protected byte[] hour2 = null;
   protected byte[] hour3 = null;
+  protected RollupConfig rollup_config;
   protected static final Aggregator aggr_sum = Aggregators.SUM;
   
   protected static final RollupQuery rollup_query = 
@@ -47,6 +50,29 @@ public class TestRollupSpan extends BaseTsdbTest {
     hour1 = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING);
     hour2 = getRowKey(METRIC_STRING, 1357002000, TAGK_STRING, TAGV_STRING);
     hour3 = getRowKey(METRIC_STRING, 1357005600, TAGK_STRING, TAGV_STRING);
+    
+    rollup_config = RollupConfig.builder()
+        .addAggregationId("sum", 0)
+        .addAggregationId("count", 1)
+        .addAggregationId("max", 2)
+        .addAggregationId("min", 3)
+        .addInterval(RollupInterval.builder()
+            .setTable("tsdb-rollup-10m")
+            .setPreAggregationTable("tsdb-rollup-agg-10m")
+            .setInterval("10m")
+            .setRowSpan("6h"))
+        .addInterval(RollupInterval.builder()
+            .setTable("tsdb-rollup-1h")
+            .setPreAggregationTable("tsdb-rollup-agg-1h")
+            .setInterval("1h")
+            .setRowSpan("1d"))
+        .addInterval(RollupInterval.builder()
+            .setTable("tsdb-rollup-1d")
+            .setPreAggregationTable("tsdb-rollup-agg-1d")
+            .setInterval("1d")
+            .setRowSpan("1n"))
+        .build();
+    Whitebox.setInternalState(tsdb, "rollup_config", rollup_config);
   }
   
   @Test

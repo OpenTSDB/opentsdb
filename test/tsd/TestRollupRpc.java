@@ -132,7 +132,7 @@ public class TestRollupRpc extends BaseTestPutRpc {
 //    validateSEH(false);
 //    storage.dumpToSystemOut();
 //    System.out.println(MockBase.bytesToString(row));
-//    final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
+//    final byte[] qualifier = new byte[] {0, 0, 0};
 //    final byte[] value = storage.getColumn(
 //        rollup_config.getRollupInterval("1h").getTemporalTable(), 
 //        row, FAMILY, qualifier);
@@ -153,7 +153,7 @@ public class TestRollupRpc extends BaseTestPutRpc {
     verify(chan, never()).isConnected();
     validateSEH(false);
     
-    final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
+    final byte[] qualifier = new byte[] {0, 0, 0};
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("1h").getTemporalTable(), 
         row, FAMILY, qualifier);
@@ -212,7 +212,7 @@ public class TestRollupRpc extends BaseTestPutRpc {
     
     row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING, 
         agg_tag_key, "SUM");
-    final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
+    final byte[] qualifier = new byte[] {0, 0, 0};
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("1h").getGroupbyTable(), 
         row, FAMILY, qualifier);
@@ -544,7 +544,7 @@ public class TestRollupRpc extends BaseTestPutRpc {
 //    validateCounters(0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 //    validateSEH(false);
 //    
-//    final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
+//    final byte[] qualifier = new byte[] {0, 0, 0};
 //    final byte[] value = storage.getColumn(
 //        rollup_config.getRollupInterval("1h").getTemporalTable(), 
 //        row, FAMILY, qualifier);
@@ -564,7 +564,7 @@ public class TestRollupRpc extends BaseTestPutRpc {
     validateCounters(0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     validateSEH(false);
     
-    final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
+    final byte[] qualifier = new byte[] {0, 0, 0};
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("1h").getTemporalTable(), 
         row, FAMILY, qualifier);
@@ -611,7 +611,7 @@ public class TestRollupRpc extends BaseTestPutRpc {
     row = getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING, 
         agg_tag_key, "SUM");
     
-    final byte[] qualifier = new byte[] { 0x73, 0x75, 0x6D, 0x3A, 0, 0 };
+    final byte[] qualifier = new byte[] { 0, 0, 0 };
     final byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("1h").getGroupbyTable(), 
         row, FAMILY, qualifier);
@@ -634,7 +634,7 @@ public class TestRollupRpc extends BaseTestPutRpc {
     validateCounters(0, 1, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     validateSEH(false);
     
-    final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
+    final byte[] qualifier = new byte[] {0, 0, 0};
     byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("1h").getTemporalTable(), 
         row, FAMILY, qualifier);
@@ -664,7 +664,7 @@ public class TestRollupRpc extends BaseTestPutRpc {
     validateCounters(0, 1, 0, 2, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0);
     validateSEH(false);
     
-    final byte[] qualifier = new byte[] {0x73, 0x75, 0x6D, 0x3A, 0, 0};
+    final byte[] qualifier = new byte[] {0, 0, 0};
     byte[] value = storage.getColumn(
         rollup_config.getRollupInterval("1h").getTemporalTable(), 
         row, FAMILY, qualifier);
@@ -741,17 +741,14 @@ public class TestRollupRpc extends BaseTestPutRpc {
             + "\"tags\":{\"" + TAGK_STRING + "\":\"" + TAGV_STRING + "\"}}");
     final RollupDataPointRpc rollup = new RollupDataPointRpc(tsdb.getConfig());
     rollup.execute(tsdb, query);
-    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    validateCounters(0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
+    validateCounters(0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0);
     validateSEH(false);
     
-    final byte[] qualifier = new byte[] {0x6E, 0x6F, 0x73, 0x75, 0x63, 0x68, 
-        0x61, 0x67, 0x67, 0x3A, 0, 0};
-    final byte[] value = storage.getColumn(
+    final byte[] qualifier = new byte[] {0, 0, 0};
+    assertNull(storage.getColumn(
         rollup_config.getRollupInterval("1h").getTemporalTable(), 
-        row, FAMILY, qualifier);
-    final byte[] expected = {0x2A};
-    assertArrayEquals(expected, value);
+        row, FAMILY, qualifier));
   }
 
   @Test

@@ -14,6 +14,8 @@ package net.opentsdb.rollup;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -21,7 +23,6 @@ import org.junit.Test;
 import net.opentsdb.core.Const;
 
 public class TestRollupUtils {
-  private static final byte[] SUM_COL = "sum:".getBytes(Const.ASCII_CHARSET);
   private static final String temporal_table = "tsdb-rollup-10m";
   private static final String groupby_table = "tsdb-rollup-agg-10m";
   
@@ -457,13 +458,13 @@ public class TestRollupUtils {
   @Test
   public void buildRollupQualifier1SecondInHourTop() {
     final byte[] offset = {0, (byte)0x07};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 15:00:00 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370530800L, 1370530800, 
-        (byte)7, "sum", hour_interval);
+        (byte)7, 42, hour_interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -471,13 +472,13 @@ public class TestRollupUtils {
   @Test
   public void buildRollupQualifier1SecondInHourMid() {
     final byte[] offset = {(byte) 0x84, (byte)0xD7};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 15:35:25 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370532925L, 1370530800, 
-        (byte)7, "sum", hour_interval);
+        (byte)7, 42, hour_interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -485,13 +486,13 @@ public class TestRollupUtils {
   @Test
   public void buildRollupQualifier1SecondInHourEnd() {
     final byte[] offset = {(byte) 0xE0, (byte)0xF7};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 15:59:59 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370534399L, 1370530800, 
-        (byte)7, "sum", hour_interval);
+        (byte)7, 42, hour_interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -500,7 +501,7 @@ public class TestRollupUtils {
   public void buildRollupQualifier1SecondInHourOver() {
     //Thu, 06 Jun 2013 16:00:00 GMT
     RollupUtils.buildRollupQualifier(1370534400L, 1370530800, (byte)7, 
-        "sum", hour_interval);
+        42, hour_interval);
   }
   
   @Test
@@ -513,13 +514,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {0, (byte)0x07};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 15:00:00 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370530800L, 1370530800, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -534,13 +535,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {4, (byte)0x67};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 15:35:25 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370532925L, 1370530800, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -555,13 +556,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {7, (byte)0x77};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 15:59:59 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370534399L, 1370530800, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -577,7 +578,7 @@ public class TestRollupUtils {
 
     //Thu, 06 Jun 2013 16:00:00 GMT
     RollupUtils.buildRollupQualifier(1370534400L, 1370530800, (byte)7, 
-        "sum", interval);
+        42, interval);
   }
   
   @Test
@@ -590,13 +591,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {0, (byte)0x07};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 15:00:00 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370530800L, 1370530800, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -611,13 +612,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {2, (byte)0x37};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 15:35:25 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370532925L, 1370530800, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -632,13 +633,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {3, (byte)0xB7};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 15:35:25 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370534399L, 1370530800, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -654,7 +655,7 @@ public class TestRollupUtils {
 
     //Thu, 06 Jun 2013 16:00:00 GMT
     RollupUtils.buildRollupQualifier(1370534400L, 1370530800, (byte)7, 
-        "sum", interval);
+        42, interval);
   }
   
   @Test
@@ -667,13 +668,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {0, (byte)0x07};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 00:00:00 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370476800L, 1370476800, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -688,13 +689,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {3, (byte)0xE7};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 15:35:25 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370532925L, 1370476800, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -709,13 +710,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {5, (byte)0xF7};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 23:59:59 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370563199L, 1370476800, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -730,7 +731,7 @@ public class TestRollupUtils {
         .build();
 
     //Thu, 07 Jun 2013 00:00:00 GMT
-    RollupUtils.buildRollupQualifier(1370563200L, 1370476800, (byte)7, "sum", 
+    RollupUtils.buildRollupQualifier(1370563200L, 1370476800, (byte)7, 42, 
         interval);
   }
   
@@ -744,13 +745,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {0, (byte)0x07};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 00:00:00 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370476800L, 1370476800, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -765,13 +766,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {0, (byte)0xF7};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 15:35:25 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370532925L, 1370476800, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -786,13 +787,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {1, (byte)0x77};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 23:59:59 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370563199L, 1370476800, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -807,7 +808,7 @@ public class TestRollupUtils {
         .build();
 
     //Thu, 07 Jun 2013 00:00:00 GMT
-    RollupUtils.buildRollupQualifier(1370563200L, 1370476800, (byte)7, "sum", 
+    RollupUtils.buildRollupQualifier(1370563200L, 1370476800, (byte)7, 42, 
         interval);
   }
   
@@ -821,13 +822,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {0, (byte)0x07};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Sat, 01 Jun 2013 00:00:00 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370044800L, 1370044800, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -842,13 +843,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {2, (byte)0xD7};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 15:35:25 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370532925L, 1370044800, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -863,13 +864,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {0x0E, (byte)0xF7};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 30 Jun 2013 23:59:59 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1372636799L, 1370044800, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -885,13 +886,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {0x0F, (byte)0x07};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 1 July 2013 00:00:00 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1372636800L, 1370044800, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -907,7 +908,7 @@ public class TestRollupUtils {
         .build();
 
     //Wed, 03 Jul 2013 23:59:59 GMT
-    RollupUtils.buildRollupQualifier(1372895999L, 1370044800, (byte)7, "sum", 
+    RollupUtils.buildRollupQualifier(1372895999L, 1370044800, (byte)7, 42, 
         interval);
   }
   
@@ -921,13 +922,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {0, (byte)0x07};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Tue, 01 Jan 2013 00:00:00 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1356998400L, 1356998400, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -942,13 +943,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {0x27, (byte)0x27};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 15:35:25 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370532925L, 1356998400, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -963,13 +964,13 @@ public class TestRollupUtils {
         .build();
     
     final byte[] offset = {0x5B, (byte)0x37};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Tue, 31 Dec 2013 23:59:59 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1388534399, 1356998400, 
-        (byte)7, "sum", interval);
+        (byte)7, 42, interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -985,7 +986,7 @@ public class TestRollupUtils {
         .build();
 
     //Wed, 01 Jan 2014 00:00:00 GMT
-    RollupUtils.buildRollupQualifier(1388620800, 1356998400, (byte)7, "sum", 
+    RollupUtils.buildRollupQualifier(1388620800, 1356998400, (byte)7, 42, 
         interval);
   }
   
@@ -993,12 +994,12 @@ public class TestRollupUtils {
   @Test
   public void buildRollupQualifier8BytesLong() {
     final byte[] offset = {(byte) 0x84, (byte)0xD7};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     final byte[] q = RollupUtils.buildRollupQualifier(1370532925L, 1370530800, 
-        (byte)7, "sum", hour_interval);
+        (byte)7, 42, hour_interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -1006,12 +1007,12 @@ public class TestRollupUtils {
   @Test
   public void buildRollupQualifierBytesLong() {
     final byte[] offset = {(byte) 0x84, (byte)0xD3};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     final byte[] q = RollupUtils.buildRollupQualifier(1370532925L, 1370530800, 
-        (byte) 3, "sum", hour_interval);
+        (byte) 3, 42, hour_interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -1019,12 +1020,12 @@ public class TestRollupUtils {
   @Test
   public void buildRollupQualifier2BytesLong() {
     final byte[] offset = {(byte) 0x84, (byte)0xD1};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     final byte[] q = RollupUtils.buildRollupQualifier(1370532925L, 1370530800,
-         (byte) 1, "sum", hour_interval);
+         (byte) 1, 42, hour_interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -1032,12 +1033,12 @@ public class TestRollupUtils {
   @Test
   public void buildRollupQualifierByteLong() {
     final byte[] offset = {(byte) 0x84, (byte)0xD0};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     final byte[] q = RollupUtils.buildRollupQualifier(1370532925L, 1370530800,
-        (byte) 0, "sum", hour_interval);
+        (byte) 0, 42, hour_interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -1045,12 +1046,12 @@ public class TestRollupUtils {
   @Test
   public void buildRollupQualifierTenMin8ByteFloat() {
     final byte[] offset = {(byte) 0x84, (byte)0xDF};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
-
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
+    
     final byte[] q = RollupUtils.buildRollupQualifier(1370532925L, 1370530800, 
-        (byte) ( 7 | Const.FLAG_FLOAT), "sum", hour_interval);
+        (byte) ( 7 | Const.FLAG_FLOAT), 42, hour_interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -1058,12 +1059,12 @@ public class TestRollupUtils {
   @Test
   public void buildRollupQualifier4ByteFloat() {
     final byte[] offset = {(byte) 0x84, (byte)0xDB};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     final byte[] q = RollupUtils.buildRollupQualifier(1370532925L, 1370530800, 
-        (byte) ( 3 | Const.FLAG_FLOAT), "sum", hour_interval);
+        (byte) ( 3 | Const.FLAG_FLOAT), 42, hour_interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -1071,12 +1072,12 @@ public class TestRollupUtils {
   @Test
   public void buildRollupQualifierTenMinZeroTime() {
     final byte[] offset = {0x0, 0x0};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     final byte[] q = 
-        RollupUtils.buildRollupQualifier(0, 0, (byte) 0, "sum", hour_interval);
+        RollupUtils.buildRollupQualifier(0, 0, (byte) 0, 42, hour_interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -1087,12 +1088,12 @@ public class TestRollupUtils {
   @Test
   public void buildRollupQualifierNegativeTime() {
     final byte[] offset = {(byte) 0xF1, 0};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     final byte[] q = RollupUtils.buildRollupQualifier(1420062000L, -1420063200, 
-        (byte) 0, "sum", hour_interval);
+        (byte) 0, 42, hour_interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -1100,42 +1101,40 @@ public class TestRollupUtils {
   @Test
   public void buildRollupQualifierAggCase() {
     final byte[] offset = {0, (byte)0x07};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 15:00:00 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370530800L, 1370530800, 
-        (byte)7, "Sum", hour_interval);
+        (byte)7, 42, hour_interval);
 
     assertArrayEquals(expected_qual, q);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void buildRollupQualifierNullAggregator() {
-    RollupUtils.buildRollupQualifier(1370532925L, 1370530800, 
-        (byte)7, null, hour_interval);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void buildRollupQualifierEmptyAggregator() {
-    RollupUtils.buildRollupQualifier(1370532925L, 1370530800, 
-        (byte)7, "", hour_interval);
   }
   
   // verify we truncate the milliseconds
   @Test
   public void buildRollupQualifierMillisecond() {
     final byte[] offset = {(byte) 0x84, (byte)0xD7};
-    byte[] expected_qual = new byte[SUM_COL.length + 2];
-    System.arraycopy(SUM_COL, 0, expected_qual, 0, SUM_COL.length);
-    System.arraycopy(offset, 0, expected_qual, SUM_COL.length, 2);
+    byte[] expected_qual = new byte[3];
+    expected_qual[0] = 42;
+    System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     //Thu, 06 Jun 2013 15:35:25 GMT
     final byte[] q = RollupUtils.buildRollupQualifier(1370532925154L, 1370530800, 
-        (byte)7, "sum", hour_interval);
+        (byte)7, 42, hour_interval);
 
     assertArrayEquals(expected_qual, q);
   }
   
+  @Test
+  public void mask() throws Exception {
+    byte[] header = { (byte) 0x81 };
+    assertEquals(1, header[0] & RollupUtils.AGGREGATOR_MASK);
+    assertTrue(RollupUtils.isCompacted(header));
+    
+    header = new byte[] { 0x01 };
+    assertEquals(1, header[0] & RollupUtils.AGGREGATOR_MASK);
+    assertFalse(RollupUtils.isCompacted(header));
+  }
 }

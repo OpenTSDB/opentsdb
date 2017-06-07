@@ -49,11 +49,11 @@ import org.powermock.reflect.Whitebox;
 @PrepareForTest({ RowSeq.class, TSDB.class, UniqueId.class, KeyValue.class, 
 Config.class, RowKey.class })
 public class TestTsdbQueryRollup extends BaseTsdbTest {
-  private final static byte[] FAMILY = "t".getBytes(MockBase.ASCII());
-  private TsdbQuery query = null;
-  private RollupConfig rollup_config;
-  private Map<String, String> tags2;
-  private TSQuery ts_query;
+  protected final static byte[] FAMILY = "t".getBytes(MockBase.ASCII());
+  protected TsdbQuery query = null;
+  protected RollupConfig rollup_config;
+  protected Map<String, String> tags2;
+  protected TSQuery ts_query;
   
   @Before
   public void beforeLocal() throws Exception {
@@ -72,15 +72,6 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     tags2 = new HashMap<String, String>(1);
     tags2.put(TAGK_STRING, TAGV_B_STRING);
     
-//    final List<RollupInterval> rollups = new ArrayList<RollupInterval>();
-//    rollups.add(new RollupInterval(
-//        "tsdb-rollup-10m", "tsdb-rollup-agg-10m", "10m", "6h"));
-//    rollups.add(new RollupInterval(
-//        "tsdb-rollup-1h", "tsdb-rollup-agg-1h", "1h", "1d"));
-//    rollups.add(new RollupInterval(
-//        "tsdb-rollup-1d", "tsdb-rollup-agg-1d", "1d", "1m"));
-//    
-//    rollup_config = new RollupConfig(rollups);
     rollup_config = RollupConfig.builder()
         .addAggregationId("sum", 0)
         .addAggregationId("count", 1)
@@ -103,7 +94,6 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
             .setRowSpan("1n"))
         .build();
     Whitebox.setInternalState(tsdb, "rollup_config", rollup_config);
-    
   }
 
   // This test shows us falling back to raw data if the requested downsample
@@ -830,6 +820,35 @@ public class TestTsdbQueryRollup extends BaseTsdbTest {
     DataPoint dp = dps[0].iterator().next();
     assertEquals(1357026600000L, dp.timestamp());
     assertEquals(42.5F, dp.toDouble(), 0.0001);
+  }
+  
+  @Test
+  public void oldStringPrefix() throws Exception {
+    final RollupInterval interval = rollup_config.getRollupInterval("10m");
+    final Aggregator aggr = Aggregators.SUM;
+    long start_timestamp = 1356998400000L;
+
+    storage.addColumn("tsdb-rollup-10m".getBytes(), 
+        getRowKey(METRIC_STRING, 1356998400, TAGK_STRING, TAGV_STRING),
+        "t".getBytes(),
+        new byte[] { 's', 'u', 'm', ':', 0, 0 }, new byte[] { 0x2A });
+    
+    final int time_interval = interval.getIntervalSeconds();
+    setQuery(interval.getInterval(), aggr, tags, aggr);
+    query.configureFromQuery(ts_query, 0);
+
+    final DataPoints[] dps = query.run();
+    assertEquals(1, dps.length);
+    assertEquals(METRIC_STRING, dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals(TAGV_STRING, dps[0].getTags().get(TAGK_STRING));
+    
+    final DataPoint dp = dps[0].iterator().next();
+    assertFalse(dp.isInteger());
+    assertEquals(42, dp.doubleValue(), 0.001);
+    assertEquals(start_timestamp, dp.timestamp());
+    assertEquals(1, dps[0].size());
   }
   
   // ----------------- //

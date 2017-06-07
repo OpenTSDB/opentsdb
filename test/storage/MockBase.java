@@ -1707,7 +1707,7 @@ public final class MockBase {
             }
 
 
-            // handle qualifier filters. Just regexp for now
+            // handle qualifier filters. 
             if (filter != null) {
               List<QualifierFilter> qfs = Lists.newArrayList();
               if (filter instanceof FilterList) {

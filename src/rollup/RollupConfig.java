@@ -282,7 +282,7 @@ public class RollupConfig {
     }
     Integer id = aggregations_to_ids.get(aggregator.toLowerCase());
     if (id == null) {
-      throw new IllegalArgumentException("No ID found mapping to aggregator " 
+      throw new IllegalArgumentException("No ID found mapping to aggregator: " 
           + aggregator);
     }
     return id;

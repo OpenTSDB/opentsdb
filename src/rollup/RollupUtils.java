@@ -27,6 +27,10 @@ import net.opentsdb.core.Const;
 public final class RollupUtils {
   private static final Logger LOG = LoggerFactory.getLogger(RollupUtils.class);
   
+  public static final byte AGGREGATOR_MASK = (byte) 0x7F;
+  
+  public static final byte COMPACTED_MASK = (byte) 0x80;
+  
   /** The rollup qualifier delimiter character */
   public static final String ROLLUP_QUAL_DELIM = ":";
   
@@ -46,7 +50,7 @@ public final class RollupUtils {
    * has an unsupported span
    */
   public static int getRollupBasetime(final long timestamp, 
-      final RollupInterval interval) {
+                                      final RollupInterval interval) {
     if (timestamp < 0) {
       throw new IllegalArgumentException("Not supporting negative "
           + "timestamps at this time: " + timestamp);
@@ -107,18 +111,18 @@ public final class RollupUtils {
    *   n  :  2 bytes }
    * @param timestamp The data point timestamp
    * @param flags The length and type (float || int) flags for the value
-   * @param aggregator The aggregator used to generate the data
+   * @param aggregator_id The numeric ID of the aggregator the value maps to.
    * @param interval The RollupInterval object with data about the interval
    * @return An n byte array to use as the qualifier
    * @throws IllegalArgumentException if the aggregator is null or empty or the
    * timestamp is too far from the base time to fit within the interval.
    */
   public static byte[] buildRollupQualifier(final long timestamp,
-      final short flags,
-      final String aggregator,
-      final RollupInterval interval) {
+                                            final short flags,
+                                            final int aggregator_id,
+                                            final RollupInterval interval) {
     return buildRollupQualifier(timestamp, 
-        getRollupBasetime(timestamp, interval), flags, aggregator, interval);
+        getRollupBasetime(timestamp, interval), flags, aggregator_id, interval);
   }
   
   /**
@@ -130,7 +134,7 @@ public final class RollupUtils {
    * @param timestamp The data point timestamp
    * @param basetime The base timestamp to calculate the offset from 
    * @param flags The length and type (float || int) flags for the value
-   * @param aggregator The aggregator used to generate the data
+   * @param aggregator_id The numeric ID of the aggregator the value maps to.
    * @param interval The RollupInterval object with data about the interval
    * @return An n byte array to use as the qualifier
    * @throws IllegalArgumentException if the aggregator is null or empty or the
@@ -139,14 +143,9 @@ public final class RollupUtils {
   public static byte[] buildRollupQualifier(final long timestamp,
                                             final int basetime,
                                             final short flags,
-                                            final String aggregator,
+                                            final int aggregator_id,
                                             final RollupInterval interval) {
-    if (aggregator == null || aggregator.isEmpty()) {
-      throw new IllegalArgumentException("Aggregator cannot be null or empty");
-    }
-    
-    final byte[] agg = getRollupQualifierPrefix(aggregator);
-    final byte[] qualifier = new byte[agg.length + 2];
+    final byte[] qualifier = new byte[3];
 
     final int time_seconds = (int) ((timestamp & Const.SECOND_MASK) != 0 ?
             timestamp / 1000 : timestamp);
@@ -162,10 +161,8 @@ public final class RollupUtils {
     // shift the offset over 4 bits then apply the flag
     offset = offset << Const.FLAG_BITS;
     offset = offset | flags;
-    final byte[] offset_array = Bytes.fromShort((short) offset);
-    System.arraycopy(agg, 0, qualifier, 0, agg.length);
-    System.arraycopy(offset_array, 0, qualifier, agg.length, 
-        offset_array.length);
+    qualifier[0] = (byte) aggregator_id;
+    System.arraycopy(Bytes.fromShort((short) offset), 0, qualifier, 1, 2);
 
     return qualifier;
   }
@@ -254,5 +251,14 @@ public final class RollupUtils {
   public static byte[] getRollupQualifierPrefix(final String aggregator) {
     return (aggregator.toLowerCase() + ROLLUP_QUAL_DELIM)
             .getBytes(Const.ASCII_CHARSET);
+  }
+
+  /**
+   * Determines whether or not the column has been compacted or appended.
+   * @param qualifier A non-null and non-empty byte array.
+   * @return True if the column was compacted, false if not.
+   */
+  public static boolean isCompacted(final byte[] qualifier) {
+    return (qualifier[0] & COMPACTED_MASK) != 0;
   }
 }
