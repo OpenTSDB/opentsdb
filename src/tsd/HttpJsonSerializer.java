@@ -32,6 +32,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.FillPolicy;
@@ -733,6 +734,13 @@ class HttpJsonSerializer extends HttpSerializer {
               Collections.sort(annotations);
               json.writeArrayFieldStart("annotations");
               for (Annotation note : annotations) {
+                long ts = note.getStartTime();
+                if (!((ts & Const.SECOND_MASK) != 0)) {
+                  ts *= 1000;
+                }
+                if (ts < data_query.startTime() || ts > data_query.endTime()) {
+                  continue;
+                }
                 json.writeObject(note);
               }
               json.writeEndArray();
@@ -742,6 +750,13 @@ class HttpJsonSerializer extends HttpSerializer {
               Collections.sort(globals);
               json.writeArrayFieldStart("globalAnnotations");
               for (Annotation note : globals) {
+                long ts = note.getStartTime();
+                if (!((ts & Const.SECOND_MASK) != 0)) {
+                  ts *= 1000;
+                }
+                if (ts < data_query.startTime() || ts > data_query.endTime()) {
+                  continue;
+                }
                 json.writeObject(note);
               }
               json.writeEndArray();
