@@ -142,9 +142,6 @@ public class TestTsdbQueryHistogramQueries extends BaseTsdbTest {
 
   @Test
   public void runSingleTsMsDoulePercentile() throws Exception {
-    Whitebox.setInternalState(config, "hist_decoder_name", 
-        "net.opentsdb.core.LongHistogramDataPointForTestDecoder");
-    
     this.storeTestHistogramTimeSeriesMs();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
@@ -194,8 +191,6 @@ public class TestTsdbQueryHistogramQueries extends BaseTsdbTest {
   
   @Test
   public void runSingleTsMsTwoAggSum() throws Exception {
-    Whitebox.setInternalState(config, "hist_decoder_name", 
-        "net.opentsdb.core.LongHistogramDataPointForTestDecoder");
     this.storeTestHistogramTimeSeriesMs();
     
     HashMap<String, String> tags = new HashMap<String, String>();
@@ -227,8 +222,6 @@ public class TestTsdbQueryHistogramQueries extends BaseTsdbTest {
   
   @Test
   public void runSingleTsMsAggNone() throws Exception {
-    Whitebox.setInternalState(config, "hist_decoder_name", 
-        "net.opentsdb.core.LongHistogramDataPointForTestDecoder");
     this.storeTestHistogramTimeSeriesMs();
     
     HashMap<String, String> tags = new HashMap<String, String>();
@@ -279,8 +272,6 @@ public class TestTsdbQueryHistogramQueries extends BaseTsdbTest {
   
   @Test
   public void runSingleTsMsAggSumTwoGroups() throws Exception {
-    Whitebox.setInternalState(config, "hist_decoder_name", 
-        "net.opentsdb.core.LongHistogramDataPointForTestDecoder");
     this.storeTestHistogramTimeSeriesMs();
     
     HashMap<String, String> tags = new HashMap<String, String>();
@@ -332,8 +323,6 @@ public class TestTsdbQueryHistogramQueries extends BaseTsdbTest {
   
   @Test
   public void runWithAnnotation() throws Exception {
-    Whitebox.setInternalState(config, "hist_decoder_name", 
-        "net.opentsdb.core.LongHistogramDataPointForTestDecoder");
     this.storeTestHistogramTimeSeriesSeconds(false);
     
     final Annotation note = new Annotation();
@@ -369,8 +358,6 @@ public class TestTsdbQueryHistogramQueries extends BaseTsdbTest {
   
   @Test
   public void runWithOnlyAnnotation() throws Exception {
-    Whitebox.setInternalState(config, "hist_decoder_name", 
-        "net.opentsdb.core.LongHistogramDataPointForTestDecoder");
     this.storeTestHistogramTimeSeriesSeconds(false);
     
     byte[] key = getRowKey(HISTOGRAM_METRIC_STRING, 1357002000, TAGK_STRING, TAGV_STRING);
@@ -412,8 +399,6 @@ public class TestTsdbQueryHistogramQueries extends BaseTsdbTest {
   
   @Test
   public void runTSUIDQuery() throws Exception {
-    Whitebox.setInternalState(config, "hist_decoder_name", 
-        "net.opentsdb.core.LongHistogramDataPointForTestDecoder");
     this.storeTestHistogramTimeSeriesSeconds(false);
     
     query.setStartTime(1356998400);
@@ -445,8 +430,6 @@ public class TestTsdbQueryHistogramQueries extends BaseTsdbTest {
   
   @Test
   public void runTSUIDsAggSum() throws Exception {
-    Whitebox.setInternalState(config, "hist_decoder_name", 
-        "net.opentsdb.core.LongHistogramDataPointForTestDecoder");
     this.storeTestHistogramTimeSeriesSeconds(false);
     
     query.setStartTime(1356998400);

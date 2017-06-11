@@ -85,6 +85,9 @@ final class TsdbQuery implements Query {
   
   /** The time, in ns, when we start scanning for data **/
   private long scan_start_time;
+  
+  /** Whether or not the query has any results. */
+  private Boolean no_results;
 
   /** Value used for timestamps that are uninitialized.  */
   private static final int UNSET = -1;
@@ -107,6 +110,9 @@ final class TsdbQuery implements Query {
   /** Whether or not to enable the fuzzy row filter for Hbase */
   private boolean enable_fuzzy_filter;
   
+  /** Whether or not the user wants to use the fuzzy filter */
+  private boolean override_fuzzy_filter;
+  
   /**
    * Tags by which we must group the results.
    * Each element is a tag ID.
@@ -118,6 +124,7 @@ final class TsdbQuery implements Query {
    * Tag key and values to use in the row key filter, all pre-sorted
    */
   private ByteMap<byte[][]> row_key_literals;
+  private List<ByteMap<byte[][]>> row_key_literals_list;
 
   /** If true, use rate of change instead of actual values. */
   private boolean rate;
@@ -160,11 +167,21 @@ final class TsdbQuery implements Query {
   /** Whether or not to match series with ONLY the given tags */
   private boolean explicit_tags;
   
-  private boolean has_filter_cannot_use_get = false;
-  
   private List<Float> percentiles;
   
   private boolean show_histogram_buckets;
+  
+  /** Set at filter resolution time to determine if we can use multi-gets */
+  private boolean use_multi_gets;
+
+  /** Set by the user if they want to bypass multi-gets */
+  private boolean override_multi_get;
+  
+  /** Whether or not to use the search plugin for multi-get resolution. */
+  private boolean multiget_with_search;
+  
+  /** Whether or not to fall back on query failure. */
+  private boolean search_query_failure;
   
   /**
    * Enum for rollup fallback control.
@@ -212,6 +229,7 @@ final class TsdbQuery implements Query {
     this.downsampler = DownsamplingSpecification.NO_DOWNSAMPLER;
     enable_fuzzy_filter = tsdb.getConfig()
         .getBoolean("tsd.query.enable_fuzzy_filter");
+    use_multi_gets = tsdb.getConfig().getBoolean("tsd.query.multi_get.enable");
   }
 
   /** Which rollup table it scanned to get the final result.
@@ -434,6 +452,8 @@ final class TsdbQuery implements Query {
     rollup_usage = sub_query.getRollupUsage();
     filters = sub_query.getFilters();
     explicit_tags = sub_query.getExplicitTags();
+    override_fuzzy_filter = sub_query.getUseFuzzyFilter();
+    override_multi_get = sub_query.getUseMultiGets();
     
     // set percentile options
     percentiles = sub_query.getPercentiles();
@@ -444,6 +464,10 @@ final class TsdbQuery implements Query {
       transformDownSamplerToRollupQuery(aggregator, sub_query.getDownsample());
     }
     sub_query.setTsdbQuery(this);
+    
+    if (use_multi_gets && override_multi_get && multiget_with_search) {
+      row_key_literals_list = Lists.newArrayList();
+    }
     
     // if we have tsuids set, that takes precedence
     if (sub_query.getTsuids() != null && !sub_query.getTsuids().isEmpty()) {
@@ -481,25 +505,57 @@ final class TsdbQuery implements Query {
         public Deferred<Object> call(final byte[] uid) throws Exception {
           metric = uid;
           if (filters != null) {
-            final List<Deferred<byte[]>> deferreds = 
-                new ArrayList<Deferred<byte[]>>(filters.size());
-            for (final TagVFilter filter : filters) {
-              // determine if the user is asking for pre-agg data
-              if (filter instanceof TagVLiteralOrFilter && tsdb.getAggTagKey() != null) {
-                if (filter.getTagk().equals(tsdb.getAggTagKey())) {
-                  if (tsdb.getRawTagValue() != null && 
-                      !filter.getFilter().equals(tsdb.getRawTagValue())) {
-                    pre_aggregate = true;
-                  }
+            if (use_multi_gets && override_multi_get && multiget_with_search) {
+              class ErrorCB implements Callback<Deferred<Object>, Exception> {
+                @Override
+                public Deferred<Object> call(Exception arg) throws Exception {
+                 LOG.info("Doing scans because meta query is failed", arg);
+                 if (explicit_tags) {
+                   search_query_failure = true; 
+                 } else {
+                   override_multi_get = false;
+                   use_multi_gets = false;
+                 }
+                 return Deferred.group(resolveTagFilters()).addCallback(new FilterCB());
                 }
               }
               
-              deferreds.add(filter.resolveTagkName(tsdb));
+              class SuccessCB implements Callback<Deferred<Object>, List<ByteMap<byte[][]>>> {
+                @Override
+                public Deferred<Object> call(final List<ByteMap<byte[][]>> results) throws Exception {
+                  row_key_literals_list.addAll(results);
+                  return Deferred.fromResult(null);
+                }
+              }
+              
+              tsdb.getSearchPlugin().resolveTSQuery(query, index)
+                .addCallbackDeferring(new SuccessCB())
+                .addErrback(new ErrorCB());
             }
-            return Deferred.group(deferreds).addCallback(new FilterCB());
+            
+            return Deferred.group(resolveTagFilters()).addCallback(new FilterCB());
           } else {
             return Deferred.fromResult(null);
           }
+        }
+        
+        private List<Deferred<byte[]>> resolveTagFilters() {
+          final List<Deferred<byte[]>> deferreds = 
+              new ArrayList<Deferred<byte[]>>(filters.size());
+          for (final TagVFilter filter : filters) {
+            // determine if the user is asking for pre-agg data
+            if (filter instanceof TagVLiteralOrFilter && tsdb.getAggTagKey() != null) {
+              if (filter.getTagk().equals(tsdb.getAggTagKey())) {
+                if (tsdb.getRawTagValue() != null && 
+                    !filter.getFilter().equals(tsdb.getRawTagValue())) {
+                  pre_aggregate = true;
+                }
+              }
+            }
+            
+            deferreds.add(filter.resolveTagkName(tsdb));
+          }
+          return deferreds;
         }
       }
       
@@ -541,7 +597,13 @@ final class TsdbQuery implements Query {
       return;
     }
     
+    if ((use_multi_gets && override_multi_get) && !search_query_failure) {
+      
+    }
+    
     row_key_literals = new ByteMap<byte[][]>();
+    final int expansion_limit = tsdb.getConfig().getInt(
+        "tsd.query.filter.expansion_limit");
     
     Collections.sort(filters);
     final Iterator<TagVFilter> current_iterator = filters.iterator();
@@ -588,11 +650,10 @@ final class TsdbQuery implements Query {
       }
       
       if (literals.size() > 0) {
-        if (literals.size() + row_key_literals_count > 
-            tsdb.getConfig().getInt("tsd.query.filter.expansion_limit")) {
+        if (literals.size() + row_key_literals_count > expansion_limit) {
           LOG.debug("Skipping literals for " + current.getTagk() + 
               " as it exceedes the limit");
-          has_filter_cannot_use_get = true;
+          //has_filter_cannot_use_get = true;
         } else {
           final byte[][] values = new byte[literals.size()][];
           literals.keySet().toArray(values);
@@ -605,7 +666,23 @@ final class TsdbQuery implements Query {
         }
       } else {
         row_key_literals.put(current.getTagkBytes(), null);
-        has_filter_cannot_use_get = true;
+        // no literal values, just keys, so we can't multi-get
+        if (search_query_failure) {
+          use_multi_gets = false;
+        }
+      }
+      
+      // make sure the multi-get cardinality doesn't exceed our limit (or disable
+      // multi-gets)
+      if ((use_multi_gets && override_multi_get)) {
+        int multi_get_limit = tsdb.getConfig().getInt("tsd.query.multi_get.limit");
+        int cardinality = filters.size() * row_key_literals_count;
+        if (cardinality > multi_get_limit) {
+          use_multi_gets = false;
+        } else if (search_query_failure) {
+          row_key_literals_list.add(row_key_literals);
+        }
+        // TODO - account for time as well
       }
     }
   }
@@ -646,7 +723,7 @@ final class TsdbQuery implements Query {
   @Override
   public Deferred<DataPoints[]> runAsync() throws HBaseException {
     Deferred<DataPoints[]> result = null;
-    if (!this.has_filter_cannot_use_get && this.explicit_tags) {
+    if (use_multi_gets && override_multi_get) {
       result = this.findSpansWithMultiGetter().addCallback(new GroupByAndAggregateCB());
     } else {
       result = findSpans().addCallback(new GroupByAndAggregateCB());
@@ -666,7 +743,7 @@ final class TsdbQuery implements Query {
     }
     
     Deferred<DataPoints[]> result = null;
-    if (!this.has_filter_cannot_use_get && this.explicit_tags) {
+    if (use_multi_gets && override_multi_get) {
       result = findHistogramSpansWithMultiGetter()
           .addCallback(new HistogramGroupByAndAggregateCB());
     } else {
@@ -741,9 +818,11 @@ final class TsdbQuery implements Query {
     new TreeMap<byte[], Span>(new SpanCmp(metric_width));
 
     scan_start_time = System.nanoTime();
-    return new SaltMultiGetter(tsdb, metric, row_key_literals, getScanStartTimeSeconds(), getScanEndTimeSeconds(),
-        tableToBeScanned(), spans, 0, rollup_query, query_stats, query_index, 0,
-        false).fetch();
+    
+    return new MultiGetQuery(tsdb, this, metric, row_key_literals_list, 
+        getScanStartTimeSeconds(), getScanEndTimeSeconds(),
+        tableToBeScanned(), spans, null, 0, rollup_query, query_stats, query_index, 0,
+        false, search_query_failure).fetch();
   }
   
   /**
@@ -802,11 +881,11 @@ final class TsdbQuery implements Query {
     final TreeMap<byte[], HistogramSpan> histSpans = new TreeMap<byte[], HistogramSpan>(new SpanCmp(metric_width));
 
     scan_start_time = System.nanoTime();
-    return Deferred.fromError(new UnsupportedOperationException("Not implemented yet."));
-    //return new SaltMultiGetter(tsdb, metric, row_key_literals, getScanStartTimeSeconds(), getScanEndTimeSeconds(),
-    //    tableToBeScanned(), null, histSpans, rollup_query, query_stats, query_index).fetchHistogram();
+    return new MultiGetQuery(tsdb, this, metric, row_key_literals_list, 
+        getScanStartTimeSeconds(), getScanEndTimeSeconds(),
+        tableToBeScanned(), null, histSpans, 0, rollup_query, query_stats, query_index, 0,
+        false, search_query_failure).fetchHistogram();
   }
-
   
   /**
    * Callback that should be attached the the output of
@@ -1667,11 +1746,19 @@ final class TsdbQuery implements Query {
      .append("))");
     return buf.toString();
   }
+  
+  public Boolean getNoResults() {
+    return no_results;
+  }
 
+  public void setNoResults(Boolean noResults) {
+    this.no_results = noResults;
+  }
+  
   /**
    * Comparator that ignores timestamps in row keys.
    */
-  private static final class SpanCmp implements Comparator<byte[]> {
+  static final class SpanCmp implements Comparator<byte[]> {
 
     private final short metric_width;
 

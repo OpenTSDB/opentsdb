@@ -105,10 +105,6 @@ public class Config {
 
   /** tsd.storage.hbase.scanner.maxNumRows */
   private int scanner_max_num_rows = 128;
-
-  private int mul_get_batch_size = 1024;
-  
-  private int mul_get_cocurrency_number = 16;
   
   /** tsd.storage.use_otsdb_timestamp */
   /** Sets the HBase cell timestamp equal to metric timestamp */
@@ -118,8 +114,6 @@ public class Config {
   /** Used for resolving between data coming in at same timestamp */
   /** If set to true, the maximum value will be returned, minimum */
   private boolean use_max_value = true;
-
-  private String hist_decoder_name;
   
   /**
    * The list of properties configured to their defaults or modified by users
@@ -274,14 +268,6 @@ public class Config {
   public boolean enable_tree_processing() {
     return enable_tree_processing;
   }
-
-  public int mul_get_batch_size() {
-    return mul_get_batch_size;
-  }
-  
-  public int mul_get_concurrency_number() {
-    return mul_get_cocurrency_number;
-  }
   
   public boolean use_otsdb_timestamp() {
     return use_otsdb_timestamp;
@@ -289,11 +275,6 @@ public class Config {
 
   public boolean use_max_value() {
     return use_max_value;
-  }
-  
-  /** @return The full class name of the decoder for histogram data points */
-  public String hist_decoder_name() {
-    return hist_decoder_name;
   }
   
   /**
@@ -553,6 +534,11 @@ public class Config {
     default_map.put("tsd.query.skip_unresolved_tagvs", "false");
     default_map.put("tsd.query.allow_simultaneous_duplicates", "true");
     default_map.put("tsd.query.enable_fuzzy_filter", "true");
+    default_map.put("tsd.query.multi_get.enable", "false");
+    default_map.put("tsd.query.multi_get.limit", "131072");
+    default_map.put("tsd.query.multi_get.batch_size", "1024");
+    default_map.put("tsd.query.multi_get.concurrent", "20");
+    default_map.put("tsd.query.multi_get.get_all_salts", "false");
     default_map.put("tsd.rpc.telnet.return_errors", "true");
     // Rollup related settings
     default_map.put("tsd.rollups.enable", "false");
@@ -596,8 +582,6 @@ public class Config {
       + "Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, "
       + "X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since");
     default_map.put("tsd.query.timeout", "0");
-    default_map.put("tsd.core.mul_get_batch_size", "1024");
-    default_map.put("tsd.core.mul_get_cocurrency_number", "20");
     default_map.put("tsd.storage.use_otsdb_timestamp", "true");
     default_map.put("tsd.storage.use_max_value", "true");
 
@@ -713,11 +697,8 @@ public class Config {
     enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
     fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
     scanner_max_num_rows = this.getInt("tsd.storage.hbase.scanner.maxNumRows");
-    mul_get_batch_size = this.getInt("tsd.core.mul_get_batch_size");
-    mul_get_cocurrency_number = this.getInt("tsd.core.mul_get_cocurrency_number");
     use_otsdb_timestamp = this.getBoolean("tsd.storage.use_otsdb_timestamp");
     use_max_value = this.getBoolean("tsd.storage.use_max_value");
-    hist_decoder_name = this.getString("tsd.core.hist_decoder");
   }
 
   /**

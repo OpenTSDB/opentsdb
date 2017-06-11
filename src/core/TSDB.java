@@ -2094,6 +2094,12 @@ public final class TSDB {
     return histogram_manager;
   }
   
+  /** @return The search plugin if configured and loaded. May be null.
+   * @since 2.4 */
+  public SearchPlugin getSearchPlugin() {
+    return this.search;
+  }
+  
   private final boolean isHistogram(final byte[] qualifier) {
     return (qualifier.length & 0x1) == 1;
   }
