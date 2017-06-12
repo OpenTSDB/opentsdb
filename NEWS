@@ -1,5 +1,23 @@
-OpenTSDB - User visible changes.
+OpenTSDB - Changelog
 
+* Version 2.4.0 RC1 (2017-06-11)
+
+Noteworthy Changes:
+  - Rollup and pre-aggregated data storage for writing and querying lower resolution
+    data for queries with extremely high cardinality or low cardinality but wide time
+    ranges that would overwhelm the JVM normally.
+  - Support for storing and querying histograms, digest and sketches. These provide 
+    distributed percentile calculations that are much more accurate than trying to
+    average percentiles from multiple sources.
+  - A new authentication plugin for determining whether or not users should have access
+    to various queries.
+  - Support HBase's Date Tiered Compaction as an option by writing the cell timestamp
+    as the data point's timestamp. This can also help with TTL'd tables where really old
+    data written to the table will be dropped immediately.
+  - Allow HBase/Bigtable batched get requests for queries with the option of using the
+    search plugin to pre-resolve all of the time series. This can greatly improve
+    performance for queries when selecting a small subset of data from high cardinality
+    metrics.
 
 * Version 2.3.0 (2016-12-31)
 
