@@ -23,8 +23,8 @@ import com.stumbleupon.async.Deferred;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
@@ -107,17 +107,18 @@ public final class TestCompactionQueue {
 
   @Test
   public void useMaxTsWhileCompacting() throws Exception {
+      Random rnd = new Random();
 	    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
 	    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
-	    long ts1 = Math.abs(ThreadLocalRandom.current().nextLong());
+	    long ts1 = Math.abs(rnd.nextLong());
 	    final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
 	    final byte[] val1 = Bytes.fromLong(4L);
 	    kvs.add(makekvWithTs(qual1, ts1, val1));
-	    long ts2 = Math.abs(ThreadLocalRandom.current().nextLong());
+	    long ts2 = Math.abs(rnd.nextLong());
 	    final byte[] qual2 = { (byte) 0xF0, 0x00, 0x01, 0x07 };
 	    final byte[] val2 = Bytes.fromLong(5L);
 	    kvs.add(makekvWithTs(qual2, ts2, val2));
-	    long ts3 = Math.abs(ThreadLocalRandom.current().nextLong());
+	    long ts3 = Math.abs(rnd.nextLong());
 	    final byte[] qual3 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
 	    final byte[] val3 = Bytes.fromLong(2L);
 	    kvs.add(makekvWithTs(qual3, ts3, val3));
