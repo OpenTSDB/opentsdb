@@ -14,14 +14,14 @@ RUN       mkdir $LOGDIR
 RUN       apk add --no-cache vim
 
 ADD       opentsdb-$projectVersion.tar.gz $SHAREDIR
+RUN       chown -R root $WORKDIR
+RUN       chgrp -R root $WORKDIR
 ADD       opentsdb.conf $WORKDIR/conf/opentsdb.conf
+ADD       tsdb $WORKDIR/bin/tsdb
 
 # It is expected these might need to be passed in with the -e flag
 ENV       CONFIG $WORKDIR/conf/opentsdb.conf
 ENV       LOGBACK $WORKDIR/conf/logback.xml
-ENV       CLASSPATH  $WORKDIR/lib/*:
 ENV       JAVA_OPTS="-Xms512m -Xmx2048m -enableassertions -enablesystemassertions"
-ENV       TSDB_PORT  4242
-ENV       CLASS net.opentsdb.tsd.TSDMain
 
-ENTRYPOINT java ${JAVA_OPTS} -classpath ${CLASSPATH} -Dlogback.configurationFile=$LOGBACK ${CLASS} --config=${CONFIG} 
+ENTRYPOINT /bin/sh $WORKDIR/bin/tsdb tsd --config=${CONFIG} > ${LOGDIR}/stdout.log 2> ${LOGDIR}/stderr.log
