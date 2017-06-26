@@ -332,6 +332,7 @@ test_SRC := \
 	test/tsd/NettyMocks.java	\
 	test/tsd/TestAnnotationRpc.java	\
 	test/tsd/TestGraphHandler.java	\
+	test/tsd/TestHttpHeader.java	\
 	test/tsd/TestHttpJsonSerializer.java	\
 	test/tsd/TestHttpQuery.java	\
 	test/tsd/TestHttpRpcPluginQuery.java	\
