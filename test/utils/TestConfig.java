@@ -601,7 +601,11 @@ public final class TestConfig {
   public void getDirectoryNameNoslash() throws Exception {
     final Config config = new Config(false);
     config.overrideConfig("tsd.unitest", "relative");
-    assertEquals("relative/", config.getDirectoryName("tsd.unitest"));
+    if(Config.IS_WINDOWS){
+        assertEquals("relative\\", config.getDirectoryName("tsd.unitest"));
+    }else{
+        assertEquals("relative/", config.getDirectoryName("tsd.unitest"));
+    }
   }
 
   @Test
