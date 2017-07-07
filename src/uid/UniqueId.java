@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.uid;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -64,6 +65,8 @@ public final class UniqueId implements UniqueIdInterface {
     TAGV
   }
   
+  /** Charset used to convert Strings to byte arrays and back. */
+  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
   /** The single column family used by this class. */
   private static final byte[] ID_FAMILY = toBytes("id");
   /** The single column family used by this class. */
@@ -1257,11 +1260,11 @@ public final class UniqueId implements UniqueIdInterface {
   }
 
   private static byte[] toBytes(final String s) {
-    return s.getBytes(Const.UTF8_CHARSET);
+    return s.getBytes(CHARSET);
   }
 
   private static String fromBytes(final byte[] b) {
-    return new String(b, Const.UTF8_CHARSET);
+    return new String(b, CHARSET);
   }
 
   /** Returns a human readable string representation of the object. */
@@ -1585,21 +1588,21 @@ public final class UniqueId implements UniqueIdInterface {
           // and the user hasn't put any metrics in, so log and return 0s
           LOG.info("Could not find the UID assignment row");
           for (final byte[] kind : kinds) {
-            results.put(new String(kind, Const.ASCII_CHARSET), 0L);
+            results.put(new String(kind, CHARSET), 0L);
           }
           return results;
         }
         
         for (final KeyValue column : row) {
-          results.put(new String(column.qualifier(), Const.ASCII_CHARSET), 
+          results.put(new String(column.qualifier(), CHARSET), 
               Bytes.getLong(column.value()));
         }
         
         // if the user is starting with a fresh UID table, we need to account
         // for missing columns
         for (final byte[] kind : kinds) {
-          if (results.get(new String(kind, Const.ASCII_CHARSET)) == null) {
-            results.put(new String(kind, Const.ASCII_CHARSET), 0L);
+          if (results.get(new String(kind, CHARSET)) == null) {
+            results.put(new String(kind, CHARSET), 0L);
           }
         }
         return results;

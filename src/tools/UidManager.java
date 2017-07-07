@@ -35,7 +35,6 @@ import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 
-import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -301,7 +300,7 @@ final class UidManager {
     if (ignorecase) {
       regexp = "(?i)" + regexp;
     }
-    scanner.setKeyRegexp(regexp, Const.ASCII_CHARSET);
+    scanner.setKeyRegexp(regexp, CliUtils.CHARSET);
     boolean found = false;
     try {
       ArrayList<ArrayList<KeyValue>> rows;
