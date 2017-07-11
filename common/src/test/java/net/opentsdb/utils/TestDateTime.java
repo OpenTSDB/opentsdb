@@ -132,7 +132,6 @@ public final class TestDateTime {
     diff *= 1000;
     assertEquals(diff, (System.currentTimeMillis() - t));
   }
-
   @Test
   public void parseDateTimeStringUnixSeconds() {
     long t = DateTime.parseDateTimeString("1355961600", null);
@@ -337,6 +336,16 @@ public final class TestDateTime {
   public void parseDurationY() {
     long t = DateTime.parseDuration("2y");
     assertEquals((2 * 365L * 24 * 60 * 60 * 1000), t);
+  }
+  
+  @Test
+  public void parseDurationAll() {
+    assertEquals(0, DateTime.parseDuration("2all"));
+    assertEquals(0, DateTime.parseDuration("0ALL"));
+    try {
+      DateTime.parseDuration("2al");
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
   }
 
   @Test
