@@ -741,7 +741,10 @@ public abstract class QueryContext {
     if (Strings.isNullOrEmpty(key)) {
       throw new IllegalArgumentException("Key cannot be null.");
     }
-    return session_objects.get(key);
+    if (session_objects != null) {
+      return session_objects.get(key);
+    }
+    return null;
   }
   
   /**
