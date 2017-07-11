@@ -1136,6 +1136,9 @@ public class TestQueryContext {
     final Object obj_b = new Object();
    
     final MockContext context = new MockContext(tsdb, executor_graph);
+    assertNull(context.getSessionObject("obj_a"));
+    assertNull(context.getSessionObject("obj_b"));
+
     context.addSessionObject("obj_a", obj_a);
     assertSame(obj_a, context.getSessionObject("obj_a"));
     context.addSessionObject("obj_b", obj_b);
