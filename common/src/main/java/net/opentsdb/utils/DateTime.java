@@ -177,7 +177,8 @@ public class DateTime {
    * <li>{@code d}: days</li>
    * <li>{@code w}: weeks</li> 
    * <li>{@code n}: month (30 days)</li>
-   * <li>{@code y}: years (365 days)</li></ul>
+   * <li>{@code y}: years (365 days)</li>
+   * <li>{@code all}: all time, returns 0 ms </li></ul>
    * @param duration The human-readable duration to parse.
    * @return A strictly positive number of milliseconds.
    * @throws IllegalArgumentException if the interval was malformed.
@@ -199,12 +200,19 @@ public class DateTime {
     } catch (NumberFormatException e) {
       throw new IllegalArgumentException("Invalid duration (number): " + duration);
     }
-    if (interval <= 0) {
+    if (interval <= 0 && !duration.toLowerCase().endsWith("all")) {
       throw new IllegalArgumentException("Zero or negative duration: " + duration);
     }
     switch (duration.toLowerCase().charAt(duration.length() - 1)) {
+      case 'l':
+        if (duration.toLowerCase().endsWith("all")) {
+          multiplier = 0;
+        } else {
+          throw new IllegalArgumentException("Invalid duration (suffix): " + duration);
+        }
+        break;
       case 's': 
-        if (duration.charAt(duration.length() - 2) == 'm') {
+        if (duration.toLowerCase().charAt(duration.length() - 2) == 'm') {
           return interval;
         }
         multiplier = 1; break;                        // seconds
