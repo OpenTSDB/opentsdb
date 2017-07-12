@@ -398,14 +398,26 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
       final HttpPost post = new HttpPost(endpoint);
       final Object session_headers = context.getSessionObject(
           SESSION_HEADERS_KEY);
-      if (!(session_headers instanceof Map)) {
-        throw new IllegalStateException("Session headers were not a map: " 
-            + session_headers.getClass());
-      }
       if (session_headers != null) {
-        for (final Entry<String, String> header : 
-            ((Map<String, String>) session_headers).entrySet()) {
-          post.setHeader(header.getKey(), header.getValue());
+        try {
+          for (final Entry<String, String> header :
+              ((Map<String, String>) session_headers).entrySet()) {
+            post.setHeader(header.getKey(), header.getValue());
+          }
+        } catch (ClassCastException ex) {
+          final Exception ise = new IllegalStateException(
+            "Session headers were not a map: " + session_headers.getClass(),
+            ex);
+          try {
+            callback(ise, TsdbTrace.exceptionTags(ise));
+          } catch (final IllegalStateException ignored) {
+            LOG.error("Unexpected state halting execution with mistyped "
+                + "session headers: " + this);
+          } catch (final Exception ignored) {
+            LOG.error("Unexpected exception halting execution with mistyped "
+                + "session headers: " + this);
+          }
+          return;
         }
       }
       try {
