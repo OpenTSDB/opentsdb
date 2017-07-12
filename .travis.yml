@@ -1,6 +1,8 @@
 language: java
 dist: trusty
 script: export MAVEN_OPTS="-Xmx1024m" && mvn cobertura:cobertura coveralls:report --quiet
+after_success:
+  - "[[ $TRAVIS_BRANCH == \"next|3.0\" ]] && { mvn deploy -Dmaven.test.skip=true --settings settings.xml; };"
 addons:
   hostname: short-hostname
 jdk:
