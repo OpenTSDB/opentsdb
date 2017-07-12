@@ -297,6 +297,20 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     assertTrue(executor.outstandingRequests().isEmpty());
     verify(client, times(1)).close();
   }
+
+  @Test (expected = IllegalStateException.class)
+  public void executeQueryNonMapSessionHeaders() throws Exception {
+    final HttpQueryV2Executor executor = new HttpQueryV2Executor(node);
+    setupQuery();
+
+    final Object notMap = new Object();
+    when(context.getSessionObject(HttpQueryV2Executor.SESSION_HEADERS_KEY))
+      .thenReturn(notMap);
+
+    QueryExecution<IteratorGroups> exec =
+      executor.executeQuery(context, query, span);
+    exec.deferred().join();
+  }
   
   @Test (expected = IllegalArgumentException.class)
   public void executeQueryNullQuery() throws Exception {
