@@ -2,7 +2,7 @@ language: java
 dist: trusty
 script: export MAVEN_OPTS="-Xmx1024m" && mvn cobertura:cobertura coveralls:report --quiet
 after_success:
-  - if [ $TRAVIS_BRANCH == "3.0" && $TRAVIS_PULL_REQUEST" = "false" ]; then 
+  - if [[ "$TRAVIS_BRANCH" == "3.0" && "$TRAVIS_PULL_REQUEST" = "false" ]]; then 
     mvn deploy -Dmaven.test.skip=true --settings settings.xml;
     mvn deploy -Dmaven.test.skip=true -Pdocker --settings settings.xml;
     fi
