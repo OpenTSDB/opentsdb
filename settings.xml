@@ -5,5 +5,14 @@
       <username>${env.CI_DEPLOY_USERNAME}</username>
       <password>${env.CI_DEPLOY_PASSWORD}</password>
     </server>
+    
+    <server>
+      <id>docker-hub</id>
+      <username>${env.DOCKER_USERNAME}</username>
+      <password>${env.DOCKER_PASSWORD}</password>
+      <configuration>
+        <email>${env.DOCKER_EMAIL}</email>
+      </configuration>
+    </server>
   </servers>
 </settings>

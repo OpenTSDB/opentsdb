@@ -81,6 +81,7 @@
               <version>0.4.14</version>
               
               <configuration>
+                <serverId>docker-hub</serverId>
                 <dockerDirectory>${basedir}/src/resources/docker</dockerDirectory>
                 <imageName>opentsdb</imageName>
                 <imageTags>
@@ -112,6 +113,29 @@
                   <goals>
                     <goal>build</goal>
                   </goals>
+                </execution>
+                
+                <execution>
+                  <id>tag-image</id>
+                  <phase>package</phase>
+                  <goals>
+                    <goal>tag</goal>
+                  </goals>
+                  <configuration>
+                    <image>opentsdb:${project.version}</image>
+                    <newName>${env.DOCKER_USERNAME}/opentsdb:${project.version}</newName>
+                  </configuration>
+                </execution>
+                
+                <execution>
+                  <id>push-image</id>
+                  <phase>deploy</phase>
+                  <goals>
+                    <goal>push</goal>
+                  </goals>
+                  <configuration>
+                    <imageName>${env.DOCKER_USERNAME}/opentsdb</imageName>
+                  </configuration>
                 </execution>
               </executions>
             </plugin>
