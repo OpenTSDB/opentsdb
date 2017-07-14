@@ -2,9 +2,15 @@ language: java
 dist: trusty
 script: export MAVEN_OPTS="-Xmx1024m" && mvn cobertura:cobertura coveralls:report --quiet
 after_success:
-  - "[[ $TRAVIS_BRANCH == \"3.0\" ]] && { mvn deploy -Dmaven.test.skip=true --settings settings.xml; };"
+  - if [ $TRAVIS_BRANCH == \"3.0\" ]; then 
+    mvn deploy -Dmaven.test.skip=true --settings settings.xml;
+    docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
+    docker push "$DOCKER_USERNAME"/"$DOCKER_REPO";
+    fi
 addons:
   hostname: short-hostname
+services:
+  - docker
 jdk:
   - oraclejdk8
 notifications:
