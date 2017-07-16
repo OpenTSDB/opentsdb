@@ -70,7 +70,7 @@ import com.stumbleupon.async.Deferred;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL)
 @JsonAutoDetect(fieldVisibility = Visibility.PUBLIC_ONLY)
-public final class TSMeta {
+public class TSMeta {
   private static final Logger LOG = LoggerFactory.getLogger(TSMeta.class);
 
   /** Charset used to convert Strings to byte arrays and back. */
