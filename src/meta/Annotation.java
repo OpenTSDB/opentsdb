@@ -76,7 +76,7 @@ import com.stumbleupon.async.Deferred;
 @JsonAutoDetect(fieldVisibility = Visibility.PUBLIC_ONLY)
 @JsonInclude(Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
-public final class Annotation implements Comparable<Annotation> {
+public class Annotation implements Comparable<Annotation> {
   private static final Logger LOG = LoggerFactory.getLogger(Annotation.class);
   
   /** Charset used to convert Strings to byte arrays and back. */
