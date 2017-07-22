@@ -207,6 +207,10 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
     }
     
     final ExecutionGraphNode node = map.get(id);
+    if (node == null) {
+      throw new IllegalArgumentException("No upstream node found with ID: " 
+          + id);
+    }
     
     // init an executor
     final QueryExecutorFactory<?> factory = 

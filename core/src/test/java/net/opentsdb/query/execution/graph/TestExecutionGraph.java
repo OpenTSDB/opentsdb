@@ -253,6 +253,29 @@ public class TestExecutionGraph {
   }
   
   @Test
+  public void initialize1Node() throws Exception {
+    builder = ExecutionGraph.newBuilder()
+      .setId(null)
+      .addNode(ExecutionGraphNode.newBuilder()
+          .setExecutorId("Node1")
+          .setExecutorType("TimedQueryExecutor"));
+    
+    final ExecutionGraph graph = builder.build();
+    assertNull(graph.initialize(tsdb).join());
+    assertSame(tsdb, graph.tsdb());
+    
+    assertEquals(1, graph.executors.size());
+    assertSame(executor_a, graph.executors.get("Node1"));
+    assertTrue(graph.graph.containsVertex("Node1"));
+    assertSame(executor_a, graph.sinkExecutor());
+    assertSame(graph, graph.nodes.get(0).graph());
+    try {
+      graph.getDownstreamExecutor("Node1");
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
+  }
+  
+  @Test
   public void initialize2Nodes() throws Exception {
     final ExecutionGraph graph = builder.build();
     assertNull(graph.initialize(tsdb).join());
@@ -541,6 +564,22 @@ public class TestExecutionGraph {
     assertNull(graph.sinkExecutor());
     assertSame(graph, graph.nodes.get(0).graph());
     assertSame(graph, graph.nodes.get(1).graph());
+  }
+  
+  @Test
+  public void initializeNoSuchUpstreamNode() throws Exception {
+    builder = ExecutionGraph.newBuilder()
+      .setId(null)
+      .addNode(ExecutionGraphNode.newBuilder()
+          .setExecutorId("Node1")
+          .setExecutorType("TimedQueryExecutor")
+          .setUpstream("NoSuchNode"));
+    
+    final ExecutionGraph graph = builder.build();
+    try {
+      graph.initialize(tsdb).join();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
   }
   
   @Test
