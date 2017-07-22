@@ -180,7 +180,7 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
         final String id = iterator.next();
         recursiveInit(id, map);
       }
-      System.out.println("Initialized: " + this);
+      
       return Deferred.<Object>fromResult(null);
     } catch (Exception e) {
       return Deferred.<Object>fromResult(e);
@@ -277,10 +277,7 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
           + "have any downstream executors in graph: " + this);
     }
     DefaultEdge target = downstream.iterator().next();
-    System.out.println("Target: " + target);
     String exec = graph.getEdgeTarget(target);
-    System.out.println("EXec: " + exec);
-    System.out.println("Execs: " + executors);
     return executors.get(exec);
   }
   

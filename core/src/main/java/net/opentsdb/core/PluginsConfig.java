@@ -173,8 +173,9 @@ public class PluginsConfig extends Validatable {
    * a plugin was already registered with the given ID. Also thrown if the
    * plugin given is not an instance of the class.
    */
-  public void registerPlugin(final Class<?> clazz, final String id, 
-      final TsdbPlugin plugin) {
+  public void registerPlugin(final Class<?> clazz, 
+                             final String id, 
+                             final TsdbPlugin plugin) {
     if (clazz == null) {
       throw new IllegalArgumentException("Class cannot be null.");
     }
@@ -182,8 +183,8 @@ public class PluginsConfig extends Validatable {
       throw new IllegalArgumentException("Plugin cannot be null.");
     }
     if (!(clazz.isAssignableFrom(plugin.getClass()))) {
-      throw new IllegalArgumentException("Plugin " + plugin 
-          + " is not an instance of class " + clazz);
+      throw new IllegalArgumentException("Plugin [" + plugin 
+          + "] is not an instance of class: " + clazz);
     }
     Map<String, TsdbPlugin> class_map = plugins.get(clazz);
     if (class_map == null) {
@@ -192,8 +193,8 @@ public class PluginsConfig extends Validatable {
     } else {
       final TsdbPlugin extant = class_map.get(id);
       if (extant != null) {
-        throw new IllegalArgumentException("Plugin with ID " + id 
-            + " and class " + clazz + " already exists: " + extant);
+        throw new IllegalArgumentException("Plugin with ID [" + id 
+            + "] and class [" + clazz + "] already exists: " + extant);
       }
     }
     class_map.put(id, plugin);

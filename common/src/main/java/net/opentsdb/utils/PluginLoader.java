@@ -23,12 +23,14 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceLoader;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.reflect.ClassPath;
 
 /**
@@ -191,9 +193,15 @@ public final class PluginLoader {
     final ServiceLoader<T> serviceLoader = ServiceLoader.load(type);
     final Iterator<T> it = serviceLoader.iterator();
     
+    final Set<String> class_names = Sets.newHashSet();
     final List<T> plugins = Lists.newArrayList();
     while(it.hasNext()) {
-      plugins.add(it.next());
+      final T clazz = it.next();
+      if (class_names.contains(clazz.getClass().getCanonicalName())) {
+        continue;
+      }
+      class_names.add(clazz.getClass().getCanonicalName());
+      plugins.add(clazz);
     }
     
     final List<Class<?>> matches = Lists.newArrayList();
@@ -209,6 +217,10 @@ public final class PluginLoader {
       if (!matches.isEmpty()) {
         for (final Class<?> clazz : matches) {
           try {
+            if (class_names.contains(clazz.getCanonicalName())) {
+              continue;
+            }
+            class_names.add(clazz.getCanonicalName());
             plugins.add((T) clazz.newInstance());
           }  catch (InstantiationException e) {
             LOG.warn("Found an instance of " + clazz 
