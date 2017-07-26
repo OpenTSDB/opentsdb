@@ -12,6 +12,9 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.data.iterators;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+
 import org.junit.Ignore;
 
 import net.opentsdb.data.MillisecondTimeStamp;
@@ -19,7 +22,9 @@ import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.SimpleStringTimeSeriesId;
 import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
+import net.opentsdb.data.types.numeric.NumericType;
 
 /**
  * A helper class with static utilities for working with iterators in unit
@@ -72,5 +77,86 @@ public class IteratorTestUtils {
     groups.addIterator(GROUP_B, shard.getShallowCopy(null));
     
     return groups;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static void validateData(final IteratorGroups results, 
+                                  final long start, final long end,  
+                                  final int order, 
+                                  final long interval) {
+    assertEquals(4, results.flattenedIterators().size());
+    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
+    assertEquals(2, group.flattenedIterators().size());
+    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+    
+    TimeSeriesIterator<NumericType> iterator = 
+        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+    assertEquals(start, iterator.startTime().msEpoch());
+    assertEquals(end, iterator.endTime().msEpoch());
+    long ts = start;
+    int count = 0;
+    while (iterator.status() == IteratorStatus.HAS_DATA) {
+      TimeSeriesValue<NumericType> v = iterator.next();
+      assertEquals(ts, v.timestamp().msEpoch());
+      assertEquals(ts, v.value().longValue());
+      assertEquals(1, v.realCount());
+      ts += interval;
+      ++count;
+    }
+    assertEquals(((end - start) / interval) + 1, count);
+    
+    iterator = 
+        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+    assertEquals(start, iterator.startTime().msEpoch());
+    assertEquals(end, iterator.endTime().msEpoch());
+    ts = start;
+    count = 0;
+    while (iterator.status() == IteratorStatus.HAS_DATA) {
+      TimeSeriesValue<NumericType> v = iterator.next();
+      assertEquals(ts, v.timestamp().msEpoch());
+      assertEquals(ts, v.value().longValue());
+      assertEquals(1, v.realCount());
+      ts += interval;
+      ++count;
+    }
+    assertEquals(((end - start) / interval) + 1, count);
+    
+    group = results.group(IteratorTestUtils.GROUP_B);
+    assertEquals(2, group.flattenedIterators().size());
+    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+    
+    iterator = 
+        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+    assertEquals(start, iterator.startTime().msEpoch());
+    assertEquals(end, iterator.endTime().msEpoch());
+    ts = start;
+    count = 0;
+    while (iterator.status() == IteratorStatus.HAS_DATA) {
+      TimeSeriesValue<NumericType> v = iterator.next();
+      assertEquals(ts, v.timestamp().msEpoch());
+      assertEquals(ts, v.value().longValue());
+      assertEquals(1, v.realCount());
+      ts += interval;
+      ++count;
+    }
+    assertEquals(((end - start) / interval) + 1, count);
+    
+    iterator = 
+        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+    assertEquals(start, iterator.startTime().msEpoch());
+    assertEquals(end, iterator.endTime().msEpoch());
+    ts = start;
+    count = 0;
+    while (iterator.status() == IteratorStatus.HAS_DATA) {
+      TimeSeriesValue<NumericType> v = iterator.next();
+      assertEquals(ts, v.timestamp().msEpoch());
+      assertEquals(ts, v.value().longValue());
+      assertEquals(1, v.realCount());
+      ts += interval;
+      ++count;
+    }
+    assertEquals(((end - start) / interval) + 1, count);
   }
 }
