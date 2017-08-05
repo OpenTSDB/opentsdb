@@ -73,6 +73,7 @@
       <zookeeper.version>@ZOOKEEPER_VERSION@</zookeeper.version>
       <slf4j.version>@SLF4J_API_VERSION@</slf4j.version>
       <asynchbase.version>@ASYNCHBASE_VERSION@</asynchbase.version>
+      <kryo.version>@KRYO_VERSION@</kryo.version>
       <log4j.version>@LOG4J_OVER_SLF4J_VERSION@</log4j.version>
       <logback-core.version>@LOGBACK_CORE_VERSION@</logback-core.version>
       <logback-classic.version>@LOGBACK_CLASSIC_VERSION@</logback-classic.version>
@@ -523,6 +524,11 @@
       <version>${jgrapht.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.esotericsoftware.kryo</groupId>
+      <artifactId>kryo</artifactId>
+      <version>${kryo.version}</version>
+    </dependency>
 
     <!-- runtime dependencies -->
 

@@ -895,6 +895,7 @@ fat-jar-pom.xml: ./fat-jar/fat-jar-pom.xml.in Makefile
 	    -e 's/@JACKSON_VERSION@/$(JACKSON_VERSION)/' \
 	    -e 's/@JAVASSIST_VERSION@/$(JAVASSIST_VERSION)/' \
 	    -e 's/@JUNIT_VERSION@/$(JUNIT_VERSION)/' \
+	    -e 's/@KRYO_VERSION@/$(KRYO_VERSION)/' \
 	    -e 's/@LOG4J_OVER_SLF4J_VERSION@/$(LOG4J_OVER_SLF4J_VERSION)/' \
 	    -e 's/@LOGBACK_CLASSIC_VERSION@/$(LOGBACK_CLASSIC_VERSION)/' \
 	    -e 's/@LOGBACK_CORE_VERSION@/$(LOGBACK_CORE_VERSION)/' \
