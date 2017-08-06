@@ -144,7 +144,7 @@ public final class UniqueId implements UniqueIdInterface {
    * @param table The name of the HBase table to use.
    * @param kind The kind of Unique ID this instance will deal with.
    * @param width The number of bytes on which Unique IDs should be encoded.
-   * @param Whether or not to randomize new UIDs
+   * @param randomize_id Whether or not to randomize new UIDs
    * @throws IllegalArgumentException if width is negative or too small/large
    * or if kind is an empty string.
    * @since 2.2
@@ -171,7 +171,7 @@ public final class UniqueId implements UniqueIdInterface {
    * @param table The name of the HBase table to use.
    * @param kind The kind of Unique ID this instance will deal with.
    * @param width The number of bytes on which Unique IDs should be encoded.
-   * @param Whether or not to randomize new UIDs
+   * @param randomize_id Whether or not to randomize new UIDs
    * @throws IllegalArgumentException if width is negative or too small/large
    * or if kind is an empty string.
    * @since 2.3
@@ -233,7 +233,7 @@ public final class UniqueId implements UniqueIdInterface {
   
   /** The largest possible ID given the number of bytes the IDs are 
    * represented on.
-   * @deprecated Use {@link Internal.getMaxUnsignedValueOnBytes}
+   * @deprecated Use {@link Internal#getMaxUnsignedValueOnBytes(int)}
    */
   public long maxPossibleId() {
     return Internal.getMaxUnsignedValueOnBytes(id_width);
@@ -1623,7 +1623,7 @@ public final class UniqueId implements UniqueIdInterface {
    * @param uid_cache_map A map of {@link UniqueId} objects keyed on the kind.
    * @throws HBaseException Passes any HBaseException from HBase scanner.
    * @throws RuntimeException Wraps any non HBaseException from HBase scanner.
-   * @2.1
+   * @since 2.1
    */
   public static void preloadUidCache(final TSDB tsdb,
       final ByteMap<UniqueId> uid_cache_map) throws HBaseException {

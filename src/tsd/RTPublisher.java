@@ -48,7 +48,7 @@ public abstract class RTPublisher {
    * @param tsdb The parent TSDB object
    * @throws IllegalArgumentException if required configuration parameters are 
    * missing
-   * @throws Exception if something else goes wrong
+   * @throws RuntimeException if something else goes wrong
    */
   public abstract void initialize(final TSDB tsdb);
   

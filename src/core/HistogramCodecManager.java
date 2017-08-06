@@ -195,7 +195,6 @@ public class HistogramCodecManager {
    * @param id The ID of the histogram type to search for.
    * @param raw_data The non-null and non-empty byte array to parse. Should NOT
    * include the first byte of the ID in the data.
-   * @param timestamp The timestamp associated with the data point.
    * @param includes_id Whether or not the data includes the ID prefix.
    * @return A non-null data point if decoding was successful.
    */

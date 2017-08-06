@@ -141,7 +141,7 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
    * The ctor that validates we have a good tag key to work with
    * @param tagk The tag key to associate with this filter
    * @param filter The unparsed filter
-   * @throws IlleglArgumentException if the tag was empty or null.
+   * @throws IllegalArgumentException if the tag was empty or null.
    */
   public TagVFilter(final String tagk, final String filter) {
     this.tagk = tagk;
@@ -161,7 +161,7 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
   
   /**
    * The name of this filter as used in queries. When used in URL queries the
-   * value will be in parentheses, e.g. filter(<exp>)
+   * value will be in parentheses, e.g. filter(&lt;exp&gt;)
    * The name will also be lowercased before storing it in the lookup map.
    * @return The name of the filter.
    */
@@ -169,7 +169,7 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
 
   /**
    * A simple string of the filter settings for printing in toString() calls.
-   * @return A string with the format "{settings=<val>, ...}"
+   * @return A string with the format "{settings=&lt;val&gt;, ...}"
    */
   @JsonIgnore
   public abstract String debugInfo();
@@ -492,7 +492,7 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
   }
 
   /** @return the tag key UID associated with this filter. 
-   * Call {@link resolveName} first */
+   * Call {@link #resolveTagkName(TSDB)} first */
   @JsonIgnore
   public byte[] getTagkBytes() {
     return tagk_bytes;

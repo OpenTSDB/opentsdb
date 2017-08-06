@@ -21,6 +21,7 @@ import java.util.NoSuchElementException;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.rollup.RollupQuery;
+import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;

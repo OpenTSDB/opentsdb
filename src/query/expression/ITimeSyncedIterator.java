@@ -65,7 +65,7 @@ public interface ITimeSyncedIterator {
   /** @return the index in the ExpressionIterator */
   public int getIndex();
   
-  /** @param the index in the ExpressionIterator */
+  /** @param index the index in the ExpressionIterator */
   public void setIndex(final int index);
   
   /** @return the ID of this set given by the user */
@@ -75,7 +75,7 @@ public interface ITimeSyncedIterator {
    * were defined then the set may be empty.  */
   public ByteSet getQueryTagKs();
 
-  /** @param A fill policy for the iterator. Iterators should implement a default */
+  /** @param policy A fill policy for the iterator. Iterators should implement a default */
   public void setFillPolicy(final NumericFillPolicy policy);
   
   /** @return the fill policy for the iterator */

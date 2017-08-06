@@ -166,7 +166,7 @@ public class AggregationIterator implements SeekableView, DataPoint,
    * <li>No: for {@code iterators[i]} the timestamp of the current data
    *     point is {@code timestamps[i]} and the timestamp of the next data
    *     point is {@code timestamps[iterators.length + i]}.</li>
-   * </li></ul>
+   * </ul>
    * <p>
    * Each timestamp can have the {@code FLAG_FLOAT} applied so it's important
    * to use the {@code TIME_MASK} when getting the actual timestamp value

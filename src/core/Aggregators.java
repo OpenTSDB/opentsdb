@@ -87,12 +87,12 @@ public final class Aggregators {
   public static final Aggregator ZIMSUM = new Sum(
       Interpolation.ZIM, "zimsum");
 
-  /** Returns the minimum data point, causing SpanGroup to set <type>.MaxValue
+  /** Returns the minimum data point, causing SpanGroup to set &lt;type&gt;.MaxValue
    * if timestamps don't line up instead of interpolating. */
   public static final Aggregator MIMMIN = new Min(
       Interpolation.MAX, "mimmin");
   
-  /** Returns the maximum data point, causing SpanGroup to set <type>.MinValue
+  /** Returns the maximum data point, causing SpanGroup to set &lt;type&gt;.MinValue
    * if timestamps don't line up instead of interpolating. */
   public static final Aggregator MIMMAX = new Max(
       Interpolation.MIN, "mimmax");

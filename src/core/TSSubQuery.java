@@ -457,7 +457,7 @@ public final class TSSubQuery {
     this.filters = filters;
   }
   
-  /** @param whether or not to match series with ONLY the given tags 
+  /** @param explicit_tags whether or not to match series with ONLY the given tags 
    * @since 2.3 */
   public void setExplicitTags(final boolean explicit_tags) {
     this.explicit_tags = explicit_tags;

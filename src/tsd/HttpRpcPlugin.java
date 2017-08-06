@@ -49,7 +49,7 @@ public abstract class HttpRpcPlugin {
    * @param tsdb The parent TSDB object
    * @throws IllegalArgumentException if required configuration parameters are 
    * missing
-   * @throws Exception
+   * @throws RuntimeException
    */
   public abstract void initialize(TSDB tsdb);
   
@@ -89,10 +89,10 @@ public abstract class HttpRpcPlugin {
    * plugin will fail to load. 
    * 
    * <p>Here are some examples where 
-   * <code>path --(is available at)--> server path</code>
+   * <code>path --(is available at)--&gt; server path</code>
    * <ul>
-   *  <li><code>/myAwesomePlugin --> /plugin/myAwesomePlugin</code>
-   *  <li><code>/myOtherPlugin/operation --> /plugin/myOtherPlugin/operation</code>
+   *  <li><code>/myAwesomePlugin --&gt; /plugin/myAwesomePlugin</code>
+   *  <li><code>/myOtherPlugin/operation --&gt; /plugin/myOtherPlugin/operation</code>
    * </ul>
    * 
    * @return a slash separated path
@@ -101,8 +101,8 @@ public abstract class HttpRpcPlugin {
 
   /**
    * Executes the plugin for the given query received on the path derived from
-   * {@link #getPath()}.  This method will be called by multiple threads
-   * simultaneously and <strong>must be</strong> thread-safe.
+   * {@link #getPath()}. This method will be called by multiple threads
+   * simultaneously and <b>must be</b> thread-safe.
    * 
    * @param tsdb the owning TSDB instance.
    * @param query the parsed query

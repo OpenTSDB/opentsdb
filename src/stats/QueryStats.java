@@ -45,7 +45,7 @@ import net.opentsdb.utils.Pair;
  * stats can be observed via /api/query/stats.
  * 
  * When a query is executed, it should instantiate an object of this class. 
- * Once the query is completed, make sure to call {@link markComplete}.
+ * Once the query is completed, make sure to call {@link #markSent()}.
  * 
  * The cache will store each query based on the combination of the client, query
  * and the result code. If the same query was executed multiple times then it
@@ -890,7 +890,7 @@ public class QueryStats {
     return DateTime.msFromNano(overall_stats.get(stat));
   }
   
-  /** @param whether or not to allow duplicate queries to run */
+  /** @param enable_dupes whether or not to allow duplicate queries to run */
   public static void setEnableDuplicates(final boolean enable_dupes) {
     ENABLE_DUPLICATES = enable_dupes;
   }

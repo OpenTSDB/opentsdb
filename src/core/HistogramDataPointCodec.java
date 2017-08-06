@@ -46,7 +46,6 @@ public abstract class HistogramDataPointCodec {
    * Creates {@code HistogramDataPoint} from raw data and timestamp. Note that 
    * the data point identifier is separate.
    * @param raw_data The encoded byte array of the histogram data
-   * @param timestamp The timestamp of this data point
    * @param includes_id Whether or not to include the id prefix.
    * @return The decoded histogram data point instance
    */

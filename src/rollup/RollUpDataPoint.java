@@ -86,8 +86,8 @@ public class RollUpDataPoint extends IncomingDataPoint {
     return groupby_aggregator;
   }
 
-  /** @param an optional aggregation function if the data point was 
-   * pre-aggregated */
+  /** @param groupby_aggregator an optional aggregation function if the data 
+   * point was pre-aggregated */
   public final void setGroupByAggregator(final String groupby_aggregator) {
     this.groupby_aggregator = groupby_aggregator;
   }

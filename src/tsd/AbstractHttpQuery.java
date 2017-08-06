@@ -115,7 +115,7 @@ public abstract class AbstractHttpQuery {
     return chan;
   }
 
-  /** @return The remote address and port in the format <ip>:<port> */
+  /** @return The remote address and port in the format &lt;ip&gt;:&lt;port&gt; */
   public String getRemoteAddress() {
     return chan.getRemoteAddress().toString();
   }
