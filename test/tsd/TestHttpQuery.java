@@ -791,9 +791,9 @@ public final class TestHttpQuery {
     assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
         query.response().getStatus());
     assertEquals(
-        "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">", 
+        "<!DOCTYPE html>", 
         query.response().getContent().toString(Charset.forName("UTF-8"))
-        .substring(0, 63));
+        .substring(0, 15));
   }
   
   @Test
@@ -845,9 +845,9 @@ public final class TestHttpQuery {
     }
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());    
     assertEquals(
-        "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">", 
+        "<!DOCTYPE html>", 
         query.response().getContent().toString(Charset.forName("UTF-8"))
-        .substring(0, 63));
+        .substring(0, 15));
   }
   
   @Test
@@ -926,9 +926,9 @@ public final class TestHttpQuery {
     query.badRequest("Bad user error");
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());    
     assertEquals(
-        "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">", 
+        "<!DOCTYPE html>", 
         query.response().getContent().toString(Charset.forName("UTF-8"))
-        .substring(0, 63));
+        .substring(0, 15));
   }
   
   @Test
@@ -967,9 +967,9 @@ public final class TestHttpQuery {
     query.notFound();
     assertEquals(HttpResponseStatus.NOT_FOUND, query.response().getStatus());    
     assertEquals(
-        "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">", 
+        "<!DOCTYPE html>", 
         query.response().getContent().toString(Charset.forName("UTF-8"))
-        .substring(0, 63));
+        .substring(0, 15));
   }
   
   @Test
