@@ -31,10 +31,12 @@ import java.util.List;
 import java.util.TreeMap;
 
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.filter.TagVWildcardFilter;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -410,6 +412,40 @@ public class TestSaltScanner extends BaseTsdbTest {
         spans, filters);
     scanner.scan().joinUninterruptibly();
   }
+  
+  @Test
+  public void scanTooManyDps() throws Exception {
+    setupMockScanners(false);
+    List<TagVFilter> filters = new ArrayList<TagVFilter>(1);
+    filters.add(new TagVWildcardFilter(TAGK_STRING, "web*"));
+    
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
+        spans, null, false, null, null, 0, null, 0, 1);
+    try {
+      scanner.scan().joinUninterruptibly();
+      fail("Excpected a QueryException");
+    } catch (QueryException e) {
+      assertEquals(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE, e.getStatus());
+    }
+  }
+  
+  @Test
+  public void scanTooManyBytes() throws Exception {
+    setupMockScanners(false);
+    List<TagVFilter> filters = new ArrayList<TagVFilter>(1);
+    filters.add(new TagVWildcardFilter(TAGK_STRING, "web*"));
+    
+    final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
+        spans, null, false, null, null, 0, null, 2, 0);
+    try {
+      scanner.scan().joinUninterruptibly();
+      fail("Excpected a QueryException");
+    } catch (QueryException e) {
+      assertEquals(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE, e.getStatus());
+    }
+    config.overrideConfig("tsd.core.scanner.max_bytes", "0");
+  }
+  
   
   /**
    * Sets up a pair of scanners with either a list of values or no data

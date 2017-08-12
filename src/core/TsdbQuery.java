@@ -183,6 +183,12 @@ final class TsdbQuery implements Query {
   /** Whether or not to fall back on query failure. */
   private boolean search_query_failure;
   
+  /** The maximum number of bytes allowed per query. */
+  private long max_bytes = 0;
+  
+  /** The maximum number of data points allowed per query. */
+  private long max_data_points = 0;
+  
   /**
    * Enum for rollup fallback control.
    * @since 2.4
@@ -454,6 +460,17 @@ final class TsdbQuery implements Query {
     explicit_tags = sub_query.getExplicitTags();
     override_fuzzy_filter = sub_query.getUseFuzzyFilter();
     override_multi_get = sub_query.getUseMultiGets();
+    
+    max_bytes = tsdb.getQueryByteLimits().getByteLimit(sub_query.getMetric());
+    if (tsdb.getConfig().getBoolean("tsd.query.limits.bytes.allow_override") && 
+        query.overrideByteLimit()) {
+      max_bytes = 0;
+    }
+    max_data_points = tsdb.getQueryByteLimits().getDataPointLimit(sub_query.getMetric());
+    if (tsdb.getConfig().getBoolean("tsd.query.limits.data_points.allow_override") &&
+        query.overrideDataPointLimit()) {
+      max_data_points = 0;
+    }
     
     // set percentile options
     percentiles = sub_query.getPercentiles();
@@ -802,13 +819,15 @@ final class TsdbQuery implements Query {
       }
       scan_start_time = DateTime.nanoTime();
       return new SaltScanner(tsdb, metric, scanners, spans, scanner_filters,
-          delete, rollup_query, query_stats, query_index, null).scan();
+          delete, rollup_query, query_stats, query_index, null, 
+          max_bytes, max_data_points).scan();
     } else {
       final List<Scanner> scanners = new ArrayList<Scanner>(1);
       scanners.add(getScanner(0));
       scan_start_time = DateTime.nanoTime();
       return new SaltScanner(tsdb, metric, scanners, spans, scanner_filters,
-          delete, rollup_query, query_stats, query_index, null).scan();
+          delete, rollup_query, query_stats, query_index, null, max_bytes, 
+          max_data_points).scan();
     }
   }
   
@@ -866,12 +885,14 @@ final class TsdbQuery implements Query {
       }
       scan_start_time = DateTime.nanoTime();
       return new SaltScanner(tsdb, metric, scanners, null, scanner_filters, 
-          delete, rollup_query, query_stats, query_index, histSpans).scanHistogram();
+          delete, rollup_query, query_stats, query_index, histSpans, 
+          max_bytes, max_data_points).scanHistogram();
     } else {
       scanners = Lists.newArrayList(getScanner());
       scan_start_time = DateTime.nanoTime();
       return new SaltScanner(tsdb, metric, scanners, null, scanner_filters, 
-          delete, rollup_query, query_stats, query_index, histSpans).scanHistogram();
+          delete, rollup_query, query_stats, query_index, histSpans, 
+          max_bytes, max_data_points).scanHistogram();
     }
   }
   
@@ -1829,5 +1850,13 @@ final class TsdbQuery implements Query {
       return query.row_key_literals;
     }
   
+    static long maxBytes(final TsdbQuery query) {
+      return query.max_bytes;
+    }
+    
+    static long maxDataPoints(final TsdbQuery query) {
+      return query.max_data_points;
+    }
+    
   }
 }

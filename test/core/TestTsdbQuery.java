@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.List;
 
 import net.opentsdb.core.TsdbQuery.ForTesting;
+import net.opentsdb.query.QueryLimitOverride;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.filter.TagVWildcardFilter;
 import net.opentsdb.storage.MockBase;
@@ -37,6 +38,7 @@ import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.powermock.reflect.Whitebox;
 
 import com.stumbleupon.async.DeferredGroupException;
 
@@ -457,6 +459,78 @@ public final class TestTsdbQuery extends BaseTsdbTest {
         ForTesting.getGroupBys(query).get(0));
   }
 
+  @Test
+  public void configureFromQueryMaxBytes() throws Exception {
+    TSQuery ts_query = getTSQuery();
+    ts_query.validateAndSetQuery();
+    query = new TsdbQuery(tsdb);
+    query.configureFromQuery(ts_query, 0).joinUninterruptibly();
+    assertEquals(config.getInt("tsd.query.limits.bytes.default"), 
+        ForTesting.maxBytes(query));
+    
+    config.overrideConfig("tsd.query.limits.bytes.default", "128");
+    config.overrideConfig("tsd.query.limits.data_points.default", "16");
+    Whitebox.setInternalState(tsdb, "query_limits", 
+        new QueryLimitOverride(tsdb));
+    ts_query = getTSQuery();
+    ts_query.validateAndSetQuery();
+    query = new TsdbQuery(tsdb);
+    query.configureFromQuery(ts_query, 0).joinUninterruptibly();
+    assertEquals(128, ForTesting.maxBytes(query));
+    
+    // disabled by default
+    ts_query = getTSQuery();
+    ts_query.setOverrideByteLimit(true);
+    ts_query.validateAndSetQuery();
+    query = new TsdbQuery(tsdb);
+    query.configureFromQuery(ts_query, 0).joinUninterruptibly();
+    assertEquals(128, ForTesting.maxBytes(query));
+    
+    config.overrideConfig("tsd.query.limits.bytes.allow_override", "true");
+    ts_query = getTSQuery();
+    ts_query.setOverrideByteLimit(true);
+    ts_query.validateAndSetQuery();
+    query = new TsdbQuery(tsdb);
+    query.configureFromQuery(ts_query, 0).joinUninterruptibly();
+    assertEquals(0, ForTesting.maxBytes(query));
+  }
+  
+  @Test
+  public void configureFromQueryMaxDataPoints() throws Exception {
+    TSQuery ts_query = getTSQuery();
+    ts_query.validateAndSetQuery();
+    query = new TsdbQuery(tsdb);
+    query.configureFromQuery(ts_query, 0).joinUninterruptibly();
+    assertEquals(config.getInt("tsd.query.limits.data_points.default"), 
+        ForTesting.maxDataPoints(query));
+    
+    config.overrideConfig("tsd.query.limits.bytes.default", "128");
+    config.overrideConfig("tsd.query.limits.data_points.default", "16");
+    Whitebox.setInternalState(tsdb, "query_limits", 
+        new QueryLimitOverride(tsdb));
+    ts_query = getTSQuery();
+    ts_query.validateAndSetQuery();
+    query = new TsdbQuery(tsdb);
+    query.configureFromQuery(ts_query, 0).joinUninterruptibly();
+    assertEquals(16, ForTesting.maxDataPoints(query));
+    
+    // disabled by default
+    ts_query = getTSQuery();
+    ts_query.setOverrideDataPointLimit(true);
+    ts_query.validateAndSetQuery();
+    query = new TsdbQuery(tsdb);
+    query.configureFromQuery(ts_query, 0).joinUninterruptibly();
+    assertEquals(16, ForTesting.maxDataPoints(query));
+    
+    config.overrideConfig("tsd.query.limits.data_points.allow_override", "true");
+    ts_query = getTSQuery();
+    ts_query.setOverrideDataPointLimit(true);
+    ts_query.validateAndSetQuery();
+    query = new TsdbQuery(tsdb);
+    query.configureFromQuery(ts_query, 0).joinUninterruptibly();
+    assertEquals(0, ForTesting.maxDataPoints(query));
+  }
+  
   @Test
   public void deleteDatapoints() throws Exception {
     setDataPointStorage();

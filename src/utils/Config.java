@@ -534,6 +534,11 @@ public class Config {
     default_map.put("tsd.query.skip_unresolved_tagvs", "false");
     default_map.put("tsd.query.allow_simultaneous_duplicates", "true");
     default_map.put("tsd.query.enable_fuzzy_filter", "true");
+    default_map.put("tsd.query.limits.bytes.default", "0");
+    default_map.put("tsd.query.limits.bytes.allow_override", "false");
+    default_map.put("tsd.query.limits.data_points.default", "0");
+    default_map.put("tsd.query.limits.data_points.allow_override", "false");
+    default_map.put("tsd.query.limits.overrides.interval", "60000");
     default_map.put("tsd.query.multi_get.enable", "false");
     default_map.put("tsd.query.multi_get.limit", "131072");
     default_map.put("tsd.query.multi_get.batch_size", "1024");

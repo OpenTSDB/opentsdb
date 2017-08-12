@@ -22,6 +22,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.query.filter.TagVFilter;
@@ -34,6 +36,7 @@ import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 
 import org.hbase.async.Bytes.ByteMap;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.KeyValue;
@@ -113,6 +116,13 @@ public class SaltScanner {
   private final int rollup_agg_id;
   private final int rollup_count_id;
   
+  /** Settings and counters to determine when we need to cancel a query. */
+  private final AtomicLong num_data_points;  
+  private final AtomicBoolean max_data_points_flag;
+  private AtomicLong bytes_fetched = new AtomicLong();
+  private final long max_data_points;
+  private final long max_bytes;
+  
   /** A latch used to determine how many scanners are still running */
   private final CountDownLatch countdown;
   
@@ -149,7 +159,7 @@ public class SaltScanner {
                                       final List<Scanner> scanners, 
                                       final TreeMap<byte[], Span> spans,
                                       final List<TagVFilter> filters) {
-    this(tsdb, metric, scanners, spans, filters, false, null, null, 0, null);
+    this(tsdb, metric, scanners, spans, filters, false, null, null, 0, null, 0, 0);
   }
   
   /**
@@ -165,6 +175,10 @@ public class SaltScanner {
    * @param query_stats A stats object for tracking timing
    * @param query_index The index of the sub query in the main query list
    * @param histogramSpans The histo map to populate.
+   * @param max_bytes The maximum number of bytes pulled out from all scanners 
+   * combined.
+   * @param max_data_points The maximum number of data points pulled out from all
+   * scanners (estimated).
    * @throws IllegalArgumentException if any required data was missing or
    * we had invalid parameters.
    */
@@ -176,7 +190,9 @@ public class SaltScanner {
                                       final RollupQuery rollup_query,
                                       final QueryStats query_stats,
                                       final int query_index,
-                                      final TreeMap<byte[], HistogramSpan> histogramSpans) {
+                                      final TreeMap<byte[], HistogramSpan> histogramSpans,
+                                      final long max_bytes,
+                                      final long max_data_points) {
     if (tsdb == null) {
       throw new IllegalArgumentException("The TSDB argument was null.");
     }
@@ -234,6 +250,11 @@ public class SaltScanner {
       is_rollup = false;
       rollup_agg_id = rollup_count_id = -1;
     }
+    this.max_bytes = max_bytes;
+    this.max_data_points = max_data_points;
+    num_data_points = new AtomicLong();
+    bytes_fetched = new AtomicLong();
+    max_data_points_flag = new AtomicBoolean();
   }
 
   /**
@@ -532,9 +553,46 @@ public class SaltScanner {
             filters != null && !filters.isEmpty() ? 
                 new ArrayList<Deferred<Object>>(rows.size()) : null;
         
+        // validation checking before processing the next set of results. It's 
+        // kinda funky but we want to allow queries to sneak through that were
+        // just a *tad* over the limits so that's why we don't check at the 
+        // end of a scan call.
+        if (max_data_points > 0 && num_data_points.get() >= max_data_points) {
+          max_data_points_flag.getAndSet(true);
+          try {
+            close(false);
+            handleException(
+                new QueryException(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE,
+                "Sorry, you have attempted to fetch more than our limit of " 
+                    + max_data_points + " data points. Please try filtering "
+                    + "using more tags or decrease your time range."));
+            return false;
+          } catch (Exception e) {
+            LOG.error("Sorry, Scanner is closed: " + scanner, e);
+            return false;
+          }
+        }
+        
+        if (max_bytes > 0 && bytes_fetched.get() > max_bytes) {
+          max_data_points_flag.getAndSet(true);
+          try {
+            close(false);
+            handleException(
+                new QueryException(HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE,
+                "Sorry, you have attempted to fetch more than our maximum "
+                    + "amount of " + (max_bytes / 1024 / 1024) + "MB from storage. " 
+                    + "Please try filtering using more tags or decrease your time range."));
+            return false;
+          } catch (Exception e) {
+            LOG.error("Sorry, Scanner is closed: " + scanner, e);
+            return false;
+          }
+        }
+                
         rows_pre_filter += rows.size();
         for (final ArrayList<KeyValue> row : rows) {
           final byte[] key = row.get(0).key();
+          num_data_points.addAndGet(row.size());
           if (RowKey.rowKeyContainsMetric(metric, key) != 0) {
             close(false);
             handleException(new IllegalDataException(
@@ -547,7 +605,12 @@ public class SaltScanner {
           // calculate estimated data point count. We don't want to deserialize
           // the byte arrays so we'll just get a rough estimate of compacted
           // columns.
+          long bytes = 0;
           for (final KeyValue kv : row) {
+            // rough estimate of the # of bytes returned from storage.
+            bytes += key.length + kv.qualifier().length | kv.value().length;
+            bytes_fetched.addAndGet(bytes);
+            
             if (kv.qualifier().length % 2 == 0) {
               if (kv.qualifier().length == 2 || kv.qualifier().length == 4) {
                 ++dps_pre_filter;

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
+// Copyright (C) 2010-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -65,6 +65,7 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.MetaDataCache;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.query.QueryLimitOverride;
 import net.opentsdb.query.expression.ExpressionFactory;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.rollup.RollupConfig;
@@ -177,6 +178,9 @@ public final class TSDB {
    * histograms and sketches. Instantiated ONLY if 
    * {@link #initializePlugins(boolean)} was called.*/
   private HistogramCodecManager histogram_manager;
+  
+  /** A list of query overrides for the scanners */
+  private final QueryLimitOverride query_limits;
   
   /** Writes rejected by the filter */
   private final AtomicLong rejected_dps = new AtomicLong();
@@ -310,6 +314,8 @@ public final class TSDB {
     if (config.getString("tsd.core.tag.allow_specialchars") != null) {
       Tags.setAllowSpecialChars(config.getString("tsd.core.tag.allow_specialchars"));
     }
+    
+    query_limits = new QueryLimitOverride(this);
 
     // load up the functions that require the TSDB object
     ExpressionFactory.addTSDBFunctions(this);
@@ -2099,6 +2105,11 @@ public final class TSDB {
    * @since 2.4 */
   public SearchPlugin getSearchPlugin() {
     return this.search;
+  }
+  
+  /** @return The byte limit class for queries  */
+  public QueryLimitOverride getQueryByteLimits() {
+    return query_limits;
   }
   
   private final boolean isHistogram(final byte[] qualifier) {

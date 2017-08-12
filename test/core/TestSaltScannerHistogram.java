@@ -196,7 +196,7 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
     PowerMockito.whenNew(SimpleHistogram.class).withAnyArguments().thenReturn(y1Hist);
 
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        null, null, false, null, query_stats, 0, spans);
+        null, null, false, null, query_stats, 0, spans, 0, 0);
     assertTrue(spans == scanner.scanHistogram().joinUninterruptibly());
     assertEquals(3, spans.size());
 
@@ -228,7 +228,7 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
     PowerMockito.whenNew(SimpleHistogram.class).withAnyArguments().thenReturn(y1Hist);
 
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        null, null, false, null, query_stats, 0, spans);
+        null, null, false, null, query_stats, 0, spans, 0, 0);
 
     assertTrue(spans == scanner.scanHistogram().joinUninterruptibly());
     assertEquals(3, spans.size());
@@ -263,7 +263,7 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
     PowerMockito.whenNew(SimpleHistogram.class).withAnyArguments().thenReturn(y1Hist);
 
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        null, null, false, null, query_stats, 0, spans);
+        null, null, false, null, query_stats, 0, spans, 0, 0);
 
     assertTrue(spans == scanner.scanHistogram().joinUninterruptibly());
     assertEquals(3, spans.size());
@@ -297,7 +297,7 @@ public class TestSaltScannerHistogram extends BaseTsdbTest {
     PowerMockito.whenNew(SimpleHistogram.class).withAnyArguments().thenReturn(y1Hist);
 
     final SaltScanner scanner = new SaltScanner(tsdb, METRIC_BYTES, scanners, 
-        null, filters, false, null, query_stats, 0, spans);
+        null, filters, false, null, query_stats, 0, spans, 0, 0);
 
     assertTrue(spans == scanner.scanHistogram().joinUninterruptibly());
     assertEquals(0, spans.size());
