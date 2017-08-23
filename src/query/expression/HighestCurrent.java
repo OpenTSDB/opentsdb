@@ -92,10 +92,14 @@ public class HighestCurrent implements Expression {
               MutableDataPoint.ofLongValue(point.timestamp(), point.longValue())
             : MutableDataPoint.ofDoubleValue(point.timestamp(), point.doubleValue()));
         }
-        post_agg_results[ix++] = new PostAggregatedDataPoints(dps,
-                mutable_points.toArray(new DataPoint[mutable_points.size()]));
+        // Because of AggregationIterator.hasNextValue() will skip empty item.
+        if (mutable_points.size() > 0) {
+            post_agg_results[ix++] = new PostAggregatedDataPoints(dps,
+                    mutable_points.toArray(new DataPoint[mutable_points.size()]));
+        }
       }
     }
+    num_results = ix;
     
     final SeekableView[] views = new SeekableView[num_results];
     for (int i = 0; i < num_results; i++) {
