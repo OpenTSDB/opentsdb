@@ -417,7 +417,6 @@ public class TestMetricShardingExecutor extends BaseExecutorTest {
     // callback 1st, all should stop
     final IllegalStateException ex = new IllegalStateException("Boo!");
     downstreams.get(0).callback(ex);
-    downstreams.get(1).callback(ex);
     try {
       exec.deferred().join();
       fail("Expected IllegalStateException");
@@ -429,6 +428,8 @@ public class TestMetricShardingExecutor extends BaseExecutorTest {
     assertTrue(exec.completed());
     assertEquals(2, downstreams.size());
     
+    assertFalse(downstreams.get(0).cancelled);
+    assertTrue(downstreams.get(0).completed());
     assertTrue(downstreams.get(1).cancelled);
     assertTrue(downstreams.get(1).completed());
   }

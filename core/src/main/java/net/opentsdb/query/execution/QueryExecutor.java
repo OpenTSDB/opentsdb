@@ -60,11 +60,18 @@ public abstract class QueryExecutor<T> {
    * Default ctor.
    * @param node A node to pull configuration from such as the ID and default
    * config.
-   * @throws IllegalArgumentException if the node was null.
+   * @throws IllegalArgumentException if the node was null, no default config 
+   * was present or the graph was null.
    */
   public QueryExecutor(final ExecutionGraphNode node) {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
+    }
+    if (node.getDefaultConfig() == null) {
+      throw new IllegalArgumentException("Default config cannot be null.");
+    }
+    if (node.graph() == null) {
+      throw new IllegalStateException("Execution graph cannot be null.");
     }
     this.node = node;
     completed = new AtomicBoolean();
