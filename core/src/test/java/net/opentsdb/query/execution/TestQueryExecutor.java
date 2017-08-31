@@ -14,6 +14,7 @@ package net.opentsdb.query.execution;
 
 import org.junit.Ignore;
 
+import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 @Ignore
@@ -29,7 +30,10 @@ public class TestQueryExecutor {
 
     @Override
     public void cancel() {
-      cancelled = true;
+      if (!completed()) {
+        cancelled = true;
+        callback(new QueryExecutionCanceled("Cancelled!", 0));
+      }
     }
     
   }

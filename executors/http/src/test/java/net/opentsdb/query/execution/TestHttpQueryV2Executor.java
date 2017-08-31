@@ -126,6 +126,7 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
       }
     }).when(cleanup_pool).execute(any(Runnable.class));
     when(node.getDefaultConfig()).thenReturn(config);
+    when(node.graph()).thenReturn(graph);
     when(context.getSessionObject(HttpQueryV2Executor.SESSION_HEADERS_KEY))
       .thenReturn(headers);
     

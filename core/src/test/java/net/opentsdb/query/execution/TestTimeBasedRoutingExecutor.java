@@ -836,7 +836,7 @@ public class TestTimeBasedRoutingExecutor extends BaseExecutorTest {
       fail("Expected QueryExecutionCanceled");
     } catch (QueryExecutionCanceled e) { }
     assertFalse(executor.outstandingRequests().contains(exec));
-    assertTrue(downstream_executions.get("tsdb3").cancelled); // called anyway
+    assertFalse(downstream_executions.get("tsdb3").cancelled);
     assertTrue(downstream_executions.get("tsdb2").cancelled);
     assertTrue(downstream_executions.get("tsdb1").cancelled);
   }

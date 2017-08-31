@@ -1366,7 +1366,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         any(long[].class), any(TimeUnit.class));
     assertFalse(executor.outstandingRequests().contains(exec));
     assertTrue(downstreams.isEmpty());
-    assertTrue(cache_execution.cancelled);
+    assertFalse(cache_execution.cancelled);
   }
   
   @Test
@@ -1426,9 +1426,9 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
         any(long[].class), any(TimeUnit.class));
     assertFalse(executor.outstandingRequests().contains(exec));
     assertEquals(2, downstreams.size());
-    assertTrue(downstreams.get(0).cancelled);
+    assertFalse(downstreams.get(0).cancelled);
     assertTrue(downstreams.get(1).cancelled);
-    assertTrue(cache_execution.cancelled);
+    assertFalse(cache_execution.cancelled);
   }
 
   @SuppressWarnings("unchecked")
@@ -1888,7 +1888,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     assertEquals(2, downstreams.size());
     assertTrue(downstreams.get(0).cancelled);
     assertTrue(downstreams.get(1).cancelled);
-    assertTrue(cache_execution.cancelled);
+    assertFalse(cache_execution.cancelled);
     assertEquals(0, cache.size());
   }
   
@@ -1950,7 +1950,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     assertEquals(2, downstreams.size());
     assertTrue(downstreams.get(0).cancelled);
     assertTrue(downstreams.get(1).cancelled);
-    assertTrue(cache_execution.cancelled);
+    assertFalse(cache_execution.cancelled);
     assertEquals(0, cache.size());
   }
 
