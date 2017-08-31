@@ -32,6 +32,7 @@ import com.google.common.reflect.TypeToken;
 
 import io.opentracing.Span;
 import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 
@@ -44,7 +45,9 @@ public class TestDefaultQueryExecutorFactory {
   @Before
   public void before() throws Exception {
     node = mock(ExecutionGraphNode.class);
+    when(node.graph()).thenReturn(mock(ExecutionGraph.class));
     when(node.getExecutorId()).thenReturn("TextExec");
+    when(node.getDefaultConfig()).thenReturn(mock(QueryExecutorConfig.class));
   }
   
   @SuppressWarnings({ "rawtypes", "unchecked" })

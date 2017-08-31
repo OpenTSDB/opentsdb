@@ -288,6 +288,9 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
             }
           } else {
             cache_execution = null;
+            if (ex instanceof QueryExecutionCanceled) {
+              return null;
+            }
             if (!config.simultaneous) {
               if (LOG.isDebugEnabled()) {
                 LOG.debug("Firing query downstream after exception from cache.");

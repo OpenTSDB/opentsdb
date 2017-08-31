@@ -43,6 +43,7 @@ import net.opentsdb.query.execution.MetricShardingExecutor;
 import net.opentsdb.query.execution.MultiClusterQueryExecutor;
 import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.QueryExecutorFactory;
+import net.opentsdb.query.execution.StorageQueryExecutor;
 import net.opentsdb.query.execution.TimeSlicedCachingExecutor;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
@@ -468,6 +469,7 @@ public class Registry {
               "IteratorGroupsSlicePlanner");
       registerFactory(planner_factory);
       
+      // TODO - this can be done with reflection programmatically.
       ctor = CachingQueryExecutor.class.getConstructor(ExecutionGraphNode.class);
       QueryExecutorFactory<IteratorGroups> executor_factory =
           new DefaultQueryExecutorFactory<IteratorGroups>(
@@ -489,13 +491,21 @@ public class Registry {
               "MetricShardingExecutor");
       tsdb.getRegistry().registerFactory(executor_factory);
 
-      ctor = MultiClusterQueryExecutor.class.getConstructor(
+      ctor = StorageQueryExecutor.class.getConstructor(
               ExecutionGraphNode.class);
       executor_factory = 
           new DefaultQueryExecutorFactory<IteratorGroups>(
               (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class,
-                "MultiClusterQueryExecutor");
+                "StorageQueryExecutor");
       tsdb.getRegistry().registerFactory(executor_factory);
+      
+      ctor = MultiClusterQueryExecutor.class.getConstructor(
+          ExecutionGraphNode.class);
+  executor_factory = 
+      new DefaultQueryExecutorFactory<IteratorGroups>(
+          (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class,
+            "MultiClusterQueryExecutor");
+  tsdb.getRegistry().registerFactory(executor_factory);
       
     } catch (Exception e) {
       LOG.error("Failed setting up one or more default executors or planners", e);

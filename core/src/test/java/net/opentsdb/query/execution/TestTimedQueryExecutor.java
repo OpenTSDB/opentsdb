@@ -276,7 +276,7 @@ public class TestTimedQueryExecutor extends BaseExecutorTest {
     } catch (QueryExecutionException e) { }
     assertFalse(tqe.outstandingRequests().contains(exec));
     verify(timeout, never()).cancel();
-    assertFalse(downstream.completed());
+    assertTrue(downstream.completed());
     assertTrue(downstream.cancelled);
     assertTrue(exec.completed());
     
@@ -337,7 +337,7 @@ public class TestTimedQueryExecutor extends BaseExecutorTest {
     } catch (QueryExecutionException e) { }
     assertFalse(tqe.outstandingRequests().contains(exec));
     verify(timeout, times(1)).cancel();
-    assertFalse(downstream.completed());
+    assertTrue(downstream.completed());
     assertTrue(downstream.cancelled);
   }
   
@@ -355,7 +355,7 @@ public class TestTimedQueryExecutor extends BaseExecutorTest {
     tqe.close().join();
     verify(timeout, times(1)).cancel();
     verify(executor, times(1)).close();
-    assertFalse(downstream.completed());
+    assertTrue(downstream.completed());
     assertTrue(downstream.cancelled);
   }
   

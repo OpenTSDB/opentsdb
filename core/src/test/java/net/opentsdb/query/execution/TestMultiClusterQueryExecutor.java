@@ -319,10 +319,10 @@ public class TestMultiClusterQueryExecutor extends BaseExecutorTest {
     assertEquals(42L, (long) exec.deferred().join()); // still mocked
     assertFalse(executor.outstandingRequests().contains(exec));
     assertTrue(exec.completed());
-    assertTrue(downstream_a.cancelled);
+    assertFalse(downstream_a.cancelled);
     assertTrue(downstream_a.completed());
     assertTrue(downstream_b.cancelled);
-    assertFalse(downstream_b.completed());
+    assertTrue(downstream_b.completed());
     verify(timeout, never()).cancel();
   }
   
@@ -502,9 +502,9 @@ public class TestMultiClusterQueryExecutor extends BaseExecutorTest {
     assertFalse(executor.outstandingRequests().contains(exec));
     assertTrue(exec.completed());
     assertTrue(downstream_a.cancelled); // made it through so we cancel it.
-    assertFalse(downstream_a.completed());
+    assertTrue(downstream_a.completed());
     assertTrue(downstream_b.cancelled);
-    assertFalse(downstream_b.completed());
+    assertTrue(downstream_b.completed());
     verify(merger, never()).merge(any(List.class), eq(context), any(Span.class));
   }
   
@@ -631,10 +631,10 @@ public class TestMultiClusterQueryExecutor extends BaseExecutorTest {
     assertEquals(42L, (long) exec.deferred().join()); // still mocked
     assertFalse(executor.outstandingRequests().contains(exec));
     assertTrue(exec.completed());
-    assertTrue(downstream_a.cancelled);
+    assertFalse(downstream_a.cancelled);
     assertTrue(downstream_a.completed());
     assertTrue(downstream_b.cancelled);
-    assertFalse(downstream_b.completed());
+    assertTrue(downstream_b.completed());
     verify(timeout, never()).cancel();
   }
   
@@ -701,9 +701,9 @@ public class TestMultiClusterQueryExecutor extends BaseExecutorTest {
     assertFalse(executor.outstandingRequests().contains(exec));
     assertTrue(exec.completed());
     assertTrue(downstream_a.cancelled); // made it through so we cancel it.
-    assertFalse(downstream_a.completed());
+    assertTrue(downstream_a.completed());
     assertTrue(downstream_b.cancelled);
-    assertFalse(downstream_b.completed());
+    assertTrue(downstream_b.completed());
     verify(merger, never()).merge(any(List.class), eq(context), any(Span.class));
     assertEquals(2, executor.downstreamExecutors().size());
     assertSame(executor_b, executor.downstreamExecutors().get(0));
