@@ -178,21 +178,31 @@ final public class QueryRpc {
     
     // initiate the tracer
     final TsdbTrace trace;
-    final Span span;
+    final Span query_span;
     final TsdbPlugin tracer = tsdb.getRegistry().getDefaultPlugin(TsdbTracer.class);
     if (tracer != null) {
       trace = ((TsdbTracer) tracer).getTracer(true);
-      span = trace.tracer().buildSpan(this.getClass().getSimpleName())
+      query_span = trace.tracer()
+          .buildSpan(this.getClass().getSimpleName())
           .withTag("endpoint", "/api/query")
+          .withTag("startThread", Thread.currentThread().getName())
           // TODO - more useful info
           .start();
-      trace.setFirstSpan(span);
+      trace.setFirstSpan(query_span);
       request.setAttribute(TRACE_KEY, trace);
     } else {
       trace = null;
-      span = null;
+      query_span = null;
     }
     
+    Span parse_span = null;
+    if (query_span != null) {
+      parse_span = trace.tracer()
+          .buildSpan("parseAndValidate")
+          .withTag("startThread", Thread.currentThread().getName())
+          .asChildOf(query_span)
+          .start();
+    }
     // parse the query
     final TSQuery ts_query;
     try {
@@ -206,8 +216,21 @@ final public class QueryRpc {
       request.setAttribute(V2_QUERY_KEY, ts_query);
     } catch (Exception e) {
       throw new QueryExecutionException("Invalid query", 400, e);
-    }   
+    }
+    if (parse_span != null) {
+      parse_span.setTag("Status", "OK")
+                .setTag("finalThread", Thread.currentThread().getName())
+                .finish();
+    }
     
+    Span convert_span = null;
+    if (query_span != null) {
+      convert_span = trace.tracer()
+          .buildSpan("convertAndValidate")
+          .withTag("startThread", Thread.currentThread().getName())
+          .asChildOf(query_span)
+          .start();
+    }
     // copy the required headers.
     // TODO - break this out into a helper function.
     final Enumeration<String> headers = request.getHeaderNames();
@@ -220,8 +243,8 @@ final public class QueryRpc {
     }
     
     final TimeSeriesQuery query = TSQuery.convertQuery(ts_query);
-    if (span != null) {
-      span.setTag("queryId", 
+    if (query_span != null) {
+      query_span.setTag("queryId", 
           Bytes.byteArrayToString(query.buildHashCode().asBytes()));
     }
     query.validate();
@@ -234,7 +257,20 @@ final public class QueryRpc {
         .put("traceId", trace != null ? trace.getTraceId() : null)
         .put("query", ts_query)
         .build()));
+    if (convert_span != null) {
+      convert_span.setTag("Status", "OK")
+                  .setTag("finalThread", Thread.currentThread().getName())
+                  .finish();
+    }
     
+    Span setup_span = null;
+    if (query_span != null) {
+      setup_span = trace.tracer()
+          .buildSpan("setupContext")
+          .withTag("startThread", Thread.currentThread().getName())
+          .asChildOf(query_span)
+          .start();
+    }
     // setup the context and copy headers for downstream use.
     final QueryContext context = new DefaultQueryContext(tsdb, 
         tsdb.getRegistry().getDefaultExecutionGraph(), 
@@ -252,9 +288,7 @@ final public class QueryRpc {
     
     final QueryExecutor<IteratorGroups> executor =
         (QueryExecutor<IteratorGroups>) obj;
-    final QueryExecution<IteratorGroups> execution = 
-        executor.executeQuery(context, query, span);
-
+    
     /** Class called when the query has completed without an exception. Stashes
      * the results in the request attributes and calls the async dispatch. */
     class SuccessCB implements Callback<Object, IteratorGroups> {
@@ -314,7 +348,23 @@ final public class QueryRpc {
     async.setTimeout((Integer) servlet_config.getServletContext()
         .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
     
+    if (setup_span != null) {
+      setup_span.setTag("Status", "OK")
+                .setTag("finalThread", Thread.currentThread().getName())
+                .finish();
+    }
+    
+    Span execute_span = null;
+    if (query_span != null) {
+      execute_span = trace.tracer()
+          .buildSpan("startExecution")
+          .withTag("startThread", Thread.currentThread().getName())
+          .asChildOf(query_span)
+          .start();
+    }
     try {
+      final QueryExecution<IteratorGroups> execution = 
+          executor.executeQuery(context, query, query_span);
       execution.deferred()
         .addCallback(new SuccessCB(async))
         .addErrback(new ErrorCB(async));
@@ -326,6 +376,11 @@ final public class QueryRpc {
       } catch (Exception ex) {
         LOG.error("WFT? Dispatch may have already been called", ex);
       }
+    }
+    if (execute_span != null) {
+      execute_span.setTag("Status", "OK")
+                  .setTag("finalThread", Thread.currentThread().getName())
+                  .finish();
     }
     return null;
   }
@@ -343,15 +398,16 @@ final public class QueryRpc {
         OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE);
     final QueryContext context = (QueryContext) request.getAttribute(CONTEXT_KEY);
     final TimeSeriesQuery query = (TimeSeriesQuery) request.getAttribute(QUERY_KEY);
-    final Span serdes_span;
+    final Span response_span;
     final TsdbTrace trace;
     if (context.getTracer() != null) {
       trace = (TsdbTrace) request.getAttribute(TRACE_KEY);
-      serdes_span = context.getTracer().buildSpan("serialization")
+      response_span = context.getTracer().buildSpan("responseHandler")
+          .withTag("startThread", Thread.currentThread().getName())
           .asChildOf(trace.getFirstSpan())
           .start();
     } else {
-      serdes_span = null;
+      response_span = null;
       trace = null;
     }
     
@@ -368,6 +424,13 @@ final public class QueryRpc {
       @Override
       public void write(OutputStream output)
           throws IOException, WebApplicationException {
+        Span serdes_span = null;
+        if (response_span != null) {
+          serdes_span = context.getTracer().buildSpan("serdes")
+              .withTag("startThread", Thread.currentThread().getName())
+              .asChildOf(response_span)
+              .start();
+        }
         final JsonGenerator json = JSON.getFactory().createGenerator(output);
         json.writeStartArray();
         
@@ -393,40 +456,48 @@ final public class QueryRpc {
         
         // TODO - trace, other bits.
         if (serdes_span != null) {
-          serdes_span.finish();
+          serdes_span.setTag("finalThread", Thread.currentThread().getName())
+                     .setTag("status", "OK")
+                     .finish();
         }
+        
+        query_success.incrementAndGet();
+        LOG.info("Completing query=" 
+            + JSON.serializeToString(ImmutableMap.<String, Object>builder()
+            // TODO - possible upstream headers
+            .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
+            .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
+            .put("traceId", trace != null ? trace.getTraceId() : null)
+            .put("status", Response.Status.OK)
+            .put("query", request.getAttribute(V2_QUERY_KEY))
+            .build()));
+          
+          QUERY_LOG.info("Completing query=" 
+            + JSON.serializeToString(ImmutableMap.<String, Object>builder()
+            // TODO - possible upstream headers
+            .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
+            .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
+            .put("traceId", trace != null ? trace.getTraceId() : null)
+            .put("status", Response.Status.OK)
+            .put("trace", trace.serializeToString())
+            .put("query", request.getAttribute(V2_QUERY_KEY))
+            .build()));
+         
+          
+          if (response_span != null) {
+            response_span.setTag("finalThread", Thread.currentThread().getName())
+                         .setTag("status", "OK")
+                         .finish();
+          }
+          if (trace != null && trace.getFirstSpan() != null) {
+            trace.getFirstSpan()
+              .setTag("status", "OK")
+              .setTag("finalThread", Thread.currentThread().getName())
+              .finish();
+          }
       }
     };
     
-    LOG.info("Completing query=" 
-      + JSON.serializeToString(ImmutableMap.<String, Object>builder()
-      // TODO - possible upstream headers
-      .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
-      .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
-      .put("traceId", trace != null ? trace.getTraceId() : null)
-      .put("status", Response.Status.OK)
-      .put("query", request.getAttribute(V2_QUERY_KEY))
-      .build()));
-    
-    QUERY_LOG.info("Completing query=" 
-      + JSON.serializeToString(ImmutableMap.<String, Object>builder()
-      // TODO - possible upstream headers
-      .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
-      .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
-      .put("traceId", trace != null ? trace.getTraceId() : null)
-      .put("status", Response.Status.OK)
-      .put("trace", trace.serializeToString())
-      .put("query", request.getAttribute(V2_QUERY_KEY))
-      .build()));
-    
-    if (trace != null && trace.getFirstSpan() != null) {
-      trace.getFirstSpan()
-        .setTag("status", "OK")
-        .setTag("finalThread", Thread.currentThread().getName())
-        .finish();
-    }
-    
-    query_success.incrementAndGet();
     return Response.ok().entity(stream)
         .type(MediaType.APPLICATION_JSON)
         .build();
