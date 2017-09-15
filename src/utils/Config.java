@@ -110,6 +110,15 @@ public class Config {
   /** Sets the HBase cell timestamp equal to metric timestamp */
   private boolean use_otsdb_timestamp = true;
 
+  /** tsd.storage.get_date_tiered_compaction_start */
+  /** Sets the time at which you started using use_otsdb_timestamp
+   * this value is overriden if you have existing data in your tsdb table
+   * but don't want to re-write the cell timestamps, therefore you can start
+   * set this timestamp to when you start using use_otsdb_timestamp
+   * */
+  private long get_date_tiered_compaction_start = 0;
+
+
   /** tsd.storage.use_max_value */
   /** Used for resolving between data coming in at same timestamp */
   /** If set to true, the maximum value will be returned, minimum */
@@ -271,6 +280,11 @@ public class Config {
   
   public boolean use_otsdb_timestamp() {
     return use_otsdb_timestamp;
+  }
+
+  /** @return the time at which you started storing data using otsdb_timestamp(), if not set defaults to 0 */
+  public long get_date_tiered_compaction_start() {
+    return get_date_tiered_compaction_start;
   }
 
   public boolean use_max_value() {
@@ -589,6 +603,7 @@ public class Config {
     default_map.put("tsd.query.timeout", "0");
     default_map.put("tsd.storage.use_otsdb_timestamp", "true");
     default_map.put("tsd.storage.use_max_value", "true");
+    default_map.put("tsd.storage.get_date_tiered_compaction_start", "0");
 
     for (Map.Entry<String, String> entry : default_map.entrySet()) {
       if (!properties.containsKey(entry.getKey()))
@@ -703,6 +718,7 @@ public class Config {
     fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
     scanner_max_num_rows = this.getInt("tsd.storage.hbase.scanner.maxNumRows");
     use_otsdb_timestamp = this.getBoolean("tsd.storage.use_otsdb_timestamp");
+    get_date_tiered_compaction_start = this.getLong("tsd.storage.get_date_tiered_compaction_start");
     use_max_value = this.getBoolean("tsd.storage.use_max_value");
   }
 
