@@ -1400,7 +1400,9 @@ final class TsdbQuery implements Query {
     if(tsdb.getConfig().use_otsdb_timestamp()) {
       long stTime = (getScanStartTimeSeconds() * 1000);
       long endTime = end_time == UNSET ? -1 : (getScanEndTimeSeconds() * 1000);
-      scanner.setTimeRange(stTime, endTime);
+      if (tsdb.getConfig().get_date_tiered_compaction_start() <= stTime) {
+        scanner.setTimeRange(stTime, endTime);
+      }
     }
     if (tsuids != null && !tsuids.isEmpty()) {
       createAndSetTSUIDFilter(scanner);
