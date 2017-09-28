@@ -166,7 +166,7 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
     this.order = order;
     last_timestamp = Long.MIN_VALUE;
     span = end.msEpoch() - start.msEpoch();
-    dp = new MutableNumericType(id);
+    dp = new MutableNumericType();
     encode_on = NumericType.encodeOn(span, NumericType.TOTAL_FLAG_BITS);
     timestamp = new MillisecondTimeStamp(-1);
     offsets = new byte[count * encode_on];
@@ -189,11 +189,10 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
    * previously stored value.
    * @param timestamp A timestamp in Unix Epoch milliseconds.
    * @param value A signed integer value.
-   * @param reals A real value.
    * @throws IllegalStateException if the shard has been copied and is no longer
    * accepting values.
    */
-  public void add(final long timestamp, final long value, final long reals) {
+  public void add(final long timestamp, final long value) {
     if (copied) {
       throw new IllegalStateException("Cannot add data after the shard has "
           + "been copied.");
@@ -211,17 +210,11 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
           + "less than or equal to the end time: " + end_timestamp);
     }
     last_timestamp = timestamp;
-    final byte[] real_bytes = NumericType.vleEncodeLong(reals);
     final byte[] vle = NumericType.vleEncodeLong(value);
-    final byte real_length = (byte) ((real_bytes.length - 1) 
-        << NumericType.VALUE_FLAG_BITS);
-    final byte flags = (byte) ((vle.length - 1) | real_length);
+    final byte flags = (byte) ((vle.length - 1));
     final byte[] offset = Bytes.fromLong(
        (((timestamp - start_timestamp.msEpoch()) << NumericType.TOTAL_FLAG_BITS) | flags));
-    final byte[] v = new byte[real_bytes.length + vle.length];
-    System.arraycopy(real_bytes, 0, v, 0, real_bytes.length);
-    System.arraycopy(vle, 0, v, real_bytes.length, vle.length);
-    add(offset, v);
+    add(offset, vle);
   }
   
   /**
@@ -231,11 +224,10 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
    * @param timestamp A timestamp in Unix Epoch milliseconds.
    * @param value A signed floating point value. If it can fit within a single
    * precision encoding, the value will be converted.
-   * @param reals A real value.
    * @throws IllegalStateException if the shard has been copied and is no longer
    * accepting values.
    */
-  public void add(final long timestamp, final double value, final long reals) {
+  public void add(final long timestamp, final double value) {
     if (copied) {
       throw new IllegalStateException("Cannot add data after the shard has "
           + "been copied.");
@@ -253,20 +245,14 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
           + "less than or equal  to the end time: " + end_timestamp);
     }
     last_timestamp = timestamp;
-    final byte[] real_bytes = NumericType.vleEncodeLong(reals);
     final byte[] vle = NumericType.fitsInFloat(value) ? 
         Bytes.fromInt(Float.floatToIntBits((float) value)) :
           Bytes.fromLong(Double.doubleToLongBits(value));
-    final byte real_length = (byte) ((real_bytes.length - 1) 
-        << NumericType.VALUE_FLAG_BITS);
     final byte flags = (byte) ((vle.length - 1) 
-        | NumericType.FLAG_FLOAT | real_length);
+        | NumericType.FLAG_FLOAT);
     final byte[] offset = Bytes.fromLong(
        (((timestamp - start_timestamp.msEpoch()) << NumericType.TOTAL_FLAG_BITS) | flags));
-    final byte[] v = new byte[real_bytes.length + vle.length];
-    System.arraycopy(real_bytes, 0, v, 0, real_bytes.length);
-    System.arraycopy(vle, 0, v, real_bytes.length, vle.length);
-    add(offset, v);
+    add(offset, vle);
   }
   
   /**
@@ -322,7 +308,7 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
     // TODO - fill
     if (read_offset_idx >= write_offset_idx || read_value_idx >= write_value_idx) {
       if (context != null) {
-        dp.reset(context.syncTimestamp(), Double.NaN, 0);
+        dp.reset(context.syncTimestamp(), Double.NaN);
         return dp;
       }
       throw new NoSuchElementException("No more data in shard");
@@ -332,32 +318,25 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
     long offset = Bytes.getLong(offset_copy);
     final byte flags = (byte) offset;
     offset = offset >> NumericType.TOTAL_FLAG_BITS;
-
-    final byte reals_length = (byte) ((flags & NumericType.REALS_LENGTH_MASK) 
-        >> NumericType.VALUE_FLAG_BITS);
     final byte vlen = (byte) ((flags & NumericType.VALUE_LENGTH_MASK) + 1);
     timestamp.updateMsEpoch(start_timestamp.msEpoch() + offset);
     
     if (context != null && 
         context.syncTimestamp().compare(TimeStampComparator.NE, timestamp)) {
-      dp.reset(context.syncTimestamp(), Double.NaN, 0);
+      dp.reset(context.syncTimestamp(), Double.NaN);
       updateContext();
       return dp;
     }
     
-    // TODO - change reals to a long. *could* happen.
-    final int reals = (int) NumericType.extractIntegerValue(values, 
-        read_value_idx, reals_length);
-    
     if ((flags & NumericType.FLAG_FLOAT) == 0x0) {
       dp.reset(timestamp, NumericType.extractIntegerValue(values, 
-          read_value_idx + reals_length + 1, flags), reals);
+          read_value_idx, flags));
     } else {
       dp.reset(timestamp, NumericType.extractFloatingPointValue(values, 
-          read_value_idx + reals_length + 1, flags), reals);
+          read_value_idx, flags));
     }
     read_offset_idx += encode_on;
-    read_value_idx += vlen + reals_length + 1;
+    read_value_idx += vlen;
     
     updateContext();
     return dp;
@@ -374,22 +353,17 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
     long offset = Bytes.getLong(offset_copy);
     final byte flags = (byte) offset;
     offset = offset >> NumericType.TOTAL_FLAG_BITS;
-
-    final byte reals_length = (byte) ((flags & NumericType.REALS_LENGTH_MASK) 
-        >> NumericType.VALUE_FLAG_BITS);
     final TimeStamp timestamp = 
         new MillisecondTimeStamp(start_timestamp.msEpoch() + offset);
     
-    final MutableNumericType value = new MutableNumericType(id);
-    final int reals = (int) NumericType.extractIntegerValue(values, 
-        read_value_idx, reals_length);
+    final MutableNumericType value = new MutableNumericType();
     
     if ((flags & NumericType.FLAG_FLOAT) == 0x0) {
       value.reset(timestamp, NumericType.extractIntegerValue(values, 
-          read_value_idx + reals_length + 1, flags), reals);
+          read_value_idx, flags));
     } else {
       value.reset(timestamp, NumericType.extractFloatingPointValue(values, 
-          read_value_idx + reals_length + 1, flags), reals);
+          read_value_idx, flags));
     }
     return value;
   }
@@ -445,33 +419,26 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
       long offset = Bytes.getLong(offset_copy);
       byte flags = (byte) offset;
       offset = offset >> NumericType.TOTAL_FLAG_BITS;
-
-      byte reals_length = (byte) ((flags & NumericType.REALS_LENGTH_MASK) 
-          >> NumericType.VALUE_FLAG_BITS);
       byte vlen = (byte) ((flags & NumericType.VALUE_LENGTH_MASK) + 1);
       ts.updateMsEpoch(start_timestamp.msEpoch() + offset);
       
       if (ts.compare(TimeStampComparator.GTE, start) && 
           ts.compare(TimeStampComparator.LTE, end)) {
         // we're decoding and re-encoding here as we may save a fair amount
-        // of space with the offset encoding.
-        // TODO - change reals to a long. *could* happen.
-        final int reals = (int) NumericType.extractIntegerValue(values, 
-            value_idx, reals_length);
-        
+        // of space with the offset encoding.        
         if ((flags & NumericType.FLAG_FLOAT) == 0x0) {
           shard.add(start_timestamp.msEpoch() + offset, 
               NumericType.extractIntegerValue(values, 
-                  value_idx + reals_length + 1, flags), reals);
+                  value_idx, flags));
         } else {
           shard.add(start_timestamp.msEpoch() + offset, 
               NumericType.extractFloatingPointValue(values, 
-                  value_idx + reals_length + 1, flags), reals);
+                  value_idx, flags));
         }
       }
       
       off_idx += encode_on;
-      value_idx += vlen + reals_length + 1;
+      value_idx += vlen;
     }
     
     return shard;

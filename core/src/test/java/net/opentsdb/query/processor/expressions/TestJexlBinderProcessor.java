@@ -37,7 +37,7 @@ import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
@@ -116,12 +116,12 @@ public class TestJexlBinderProcessor {
     group_id_a = new SimpleStringGroupId("a");
     group_id_b = new SimpleStringGroupId("b");
     
-    id_a = SimpleStringTimeSeriesId.newBuilder()
+    id_a = BaseTimeSeriesId.newBuilder()
         .setAlias("Khaleesi")
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .build();
-    id_b = SimpleStringTimeSeriesId.newBuilder()
+    id_b = BaseTimeSeriesId.newBuilder()
         .setAlias("Khalasar")
         .addTags("host", "web02")
         .addTags("colo", "lax")
@@ -129,28 +129,28 @@ public class TestJexlBinderProcessor {
     
     data_a = Lists.newArrayListWithCapacity(2);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data_a.add(set);
     
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data_a.add(set);
 
     data_b = Lists.newArrayListWithCapacity(2);
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data_b.add(set);
     
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data_b.add(set);
     
     it_a_a = new MockNumericIterator(id_a);

@@ -39,7 +39,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
@@ -64,7 +64,7 @@ public class TestSlicedTimeSeriesIterator {
   public void before() throws Exception {
     tsdb = mock(TSDB.class);
     execution_graph = mock(ExecutionGraph.class);
-    id = SimpleStringTimeSeriesId.newBuilder()
+    id = BaseTimeSeriesId.newBuilder()
         .setMetrics(Lists.newArrayList("sys.cpu.user"))
         .build();
   }
@@ -83,7 +83,7 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
+    shard.add(1486045801000L, 1);
     iterator.addIterator(shard);
     assertSame(id, iterator.id());
     assertSame(shard.type(), iterator.type());
@@ -142,7 +142,7 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
+    shard.add(1486045801000L, 1);
     iterator.addIterator(shard);
     assertSame(id, iterator.id());
     assertSame(shard.type(), iterator.type());
@@ -152,7 +152,6 @@ public class TestSlicedTimeSeriesIterator {
     TimeSeriesValue<NumericType> v = iterator.peek();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1,v.realCount());
   }
   
   @Test
@@ -164,23 +163,22 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard_a = new NumericMillisecondShard(id, start, end, 0);
-    shard_a.add(1486045801000L, 1, 1);
-    shard_a.add(1486045871000L, 2, 0);
-    shard_a.add(1486045900000L, 3, 1);
+    shard_a.add(1486045801000L, 1);
+    shard_a.add(1486045871000L, 2);
+    shard_a.add(1486045900000L, 3);
     iterator.addIterator(shard_a);
     
     start = new MillisecondTimeStamp(1486045900000L);
     end = new MillisecondTimeStamp(1486046000000L);
     NumericMillisecondShard shard_b = new NumericMillisecondShard(id, start, end, 1);
-    shard_b.add(1486045901000L, 4, 1);
-    shard_b.add(1486045971000L, 5, 0);
+    shard_b.add(1486045901000L, 4);
+    shard_b.add(1486045971000L, 5);
     iterator.addIterator(shard_b);
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     TimeSeriesIterator<NumericType> clone = iterator.getShallowCopy(null);
     assertNotSame(clone, iterator);
@@ -189,7 +187,6 @@ public class TestSlicedTimeSeriesIterator {
     v = clone.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
   }
   
   @Test
@@ -270,9 +267,9 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
-    shard.add(1486045871000L, 2, 0);
-    shard.add(1486045900000L, 3, 1);
+    shard.add(1486045801000L, 1);
+    shard.add(1486045871000L, 2);
+    shard.add(1486045900000L, 3);
     
     iterator.addIterator(shard);
     
@@ -280,19 +277,16 @@ public class TestSlicedTimeSeriesIterator {
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
   }
@@ -306,17 +300,17 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
-    shard.add(1486045871000L, 2, 0);
-    shard.add(1486045900000L, 3, 1);
+    shard.add(1486045801000L, 1);
+    shard.add(1486045871000L, 2);
+    shard.add(1486045900000L, 3);
     
     iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486045900000L);
     end = new MillisecondTimeStamp(1486046000000L);
     shard = new NumericMillisecondShard(id, start, end, 1);
-    shard.add(1486045901000L, 4, 1);
-    shard.add(1486045971000L, 5, 0);
+    shard.add(1486045901000L, 4);
+    shard.add(1486045971000L, 5);
     
     iterator.addIterator(shard);
     
@@ -324,31 +318,26 @@ public class TestSlicedTimeSeriesIterator {
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045901000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045971000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
   }
@@ -362,48 +351,43 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
-    shard.add(1486045871000L, 2, 0);
-    shard.add(1486045900000L, 3, 1);
+    shard.add(1486045801000L, 1);
+    shard.add(1486045871000L, 2);
+    shard.add(1486045900000L, 3);
     iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486045900000L);
     end = new MillisecondTimeStamp(1486046000000L);
     shard = new NumericMillisecondShard(id, start, end, 1);
-    shard.add(1486045900000L, 100, 1); // <-- ignored
-    shard.add(1486045901000L, 4, 1);
-    shard.add(1486045971000L, 5, 0);
+    shard.add(1486045900000L, 100); // <-- ignored
+    shard.add(1486045901000L, 4);
+    shard.add(1486045971000L, 5);
     iterator.addIterator(shard);
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045901000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045971000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
   }
@@ -417,54 +401,49 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
-    shard.add(1486045871000L, 2, 0);
-    shard.add(1486045900000L, 3, 1);
+    shard.add(1486045801000L, 1);
+    shard.add(1486045871000L, 2);
+    shard.add(1486045900000L, 3);
     iterator.addIterator(shard);
     
     // nothing to see here.
     //start = new MillisecondTimeStamp(1486045900000L);
     //end = new MillisecondTimeStamp(1486046000000L);
     //shard = new NumericMillisecondShard(id, start, end, 1);
-    //shard.add(1486045900000L, 100, 1);
+    //shard.add(1486045900000L, 100);
     //iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486046000000L);
     end = new MillisecondTimeStamp(1486046100000L);
     shard = new NumericMillisecondShard(id, start, end, 2);
-    shard.add(1486046010000L, 4, 1);
-    shard.add(1486046071000L, 5, 0);
+    shard.add(1486046010000L, 4);
+    shard.add(1486046071000L, 5);
     iterator.addIterator(shard);
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486046010000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486046071000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
   }
@@ -478,9 +457,9 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
-    shard.add(1486045871000L, 2, 0);
-    shard.add(1486045900000L, 3, 1);
+    shard.add(1486045801000L, 1);
+    shard.add(1486045871000L, 2);
+    shard.add(1486045900000L, 3);
     iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486045900000L);
@@ -491,39 +470,34 @@ public class TestSlicedTimeSeriesIterator {
     start = new MillisecondTimeStamp(1486046000000L);
     end = new MillisecondTimeStamp(1486046100000L);
     shard = new NumericMillisecondShard(id, start, end, 2);
-    shard.add(1486046010000L, 4, 1);
-    shard.add(1486046071000L, 5, 0);
+    shard.add(1486046010000L, 4);
+    shard.add(1486046071000L, 5);
     iterator.addIterator(shard);
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486046010000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486046071000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
   }
@@ -537,53 +511,48 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
-    shard.add(1486045871000L, 2, 0);
-    shard.add(1486045900000L, 3, 1);
+    shard.add(1486045801000L, 1);
+    shard.add(1486045871000L, 2);
+    shard.add(1486045900000L, 3);
     iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486045900000L);
     end = new MillisecondTimeStamp(1486046000000L);
     shard = new NumericMillisecondShard(id, start, end, 1);
-    shard.add(1486045900000L, 100, 1);
+    shard.add(1486045900000L, 100);
     iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486046000000L);
     end = new MillisecondTimeStamp(1486046100000L);
     shard = new NumericMillisecondShard(id, start, end, 2);
-    shard.add(1486046010000L, 4, 1);
-    shard.add(1486046071000L, 5, 0);
+    shard.add(1486046010000L, 4);
+    shard.add(1486046071000L, 5);
     iterator.addIterator(shard);
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486046010000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486046071000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
   }
@@ -597,61 +566,55 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
-    shard.add(1486045871000L, 2, 0);
-    shard.add(1486045900000L, 3, 1);
+    shard.add(1486045801000L, 1);
+    shard.add(1486045871000L, 2);
+    shard.add(1486045900000L, 3);
     iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486045900000L);
     end = new MillisecondTimeStamp(1486046000000L);
     shard = new NumericMillisecondShard(id, start, end, 1);
-    shard.add(1486045900000L, 100, 1);
-    shard.add(1486046000000L, 4, 1);
+    shard.add(1486045900000L, 100);
+    shard.add(1486046000000L, 4);
     iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486046000000L);
     end = new MillisecondTimeStamp(1486046100000L);
     shard = new NumericMillisecondShard(id, start, end, 2);
-    shard.add(1486046000000L, 200, 1);
-    shard.add(1486046010000L, 5, 1);
-    shard.add(1486046071000L, 6, 0);
+    shard.add(1486046000000L, 200);
+    shard.add(1486046010000L, 5);
+    shard.add(1486046071000L, 6);
     iterator.addIterator(shard);
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486046000000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486046010000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486046071000L, v.timestamp().msEpoch());
     assertEquals(6, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
   }
@@ -670,47 +633,42 @@ public class TestSlicedTimeSeriesIterator {
     start = new MillisecondTimeStamp(1486045900000L);
     end = new MillisecondTimeStamp(1486046000000L);
     shard = new NumericMillisecondShard(id, start, end, 1);
-    shard.add(1486045900000L, 1, 1);
-    shard.add(1486045901000L, 2, 0);
-    shard.add(1486045907000L, 3, 1);
+    shard.add(1486045900000L, 1);
+    shard.add(1486045901000L, 2);
+    shard.add(1486045907000L, 3);
     iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486046000000L);
     end = new MillisecondTimeStamp(1486046100000L);
     shard = new NumericMillisecondShard(id, start, end, 2);
-    shard.add(1486046010000L, 4, 1);
-    shard.add(1486046071000L, 5, 0);
+    shard.add(1486046010000L, 4);
+    shard.add(1486046071000L, 5);
     iterator.addIterator(shard);
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045901000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045907000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486046010000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486046071000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
   }
@@ -724,16 +682,16 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045800000L, 1, 1);
-    shard.add(1486045801000L, 2, 0);
-    shard.add(1486045807000L, 3, 1);
+    shard.add(1486045800000L, 1);
+    shard.add(1486045801000L, 2);
+    shard.add(1486045807000L, 3);
     iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486045900000L);
     end = new MillisecondTimeStamp(1486046000000L);
     shard = new NumericMillisecondShard(id, start, end, 1);
-    shard.add(1486045900000L, 4, 1);
-    shard.add(1486045907000L, 5, 0);
+    shard.add(1486045900000L, 4);
+    shard.add(1486045907000L, 5);
     iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486046000000L);
@@ -745,31 +703,26 @@ public class TestSlicedTimeSeriesIterator {
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045800000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045807000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045907000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
   }
@@ -798,21 +751,19 @@ public class TestSlicedTimeSeriesIterator {
     start = new MillisecondTimeStamp(1486046100000L);
     end = new MillisecondTimeStamp(1486046200000L);
     shard = new NumericMillisecondShard(id, start, end, 3);
-    shard.add(1486046110000L, 4, 1);
-    shard.add(1486046171000L, 5, 0);
+    shard.add(1486046110000L, 4);
+    shard.add(1486046171000L, 5);
     iterator.addIterator(shard);
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486046110000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486046171000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
   }
@@ -826,9 +777,9 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
-    shard.add(1486045871000L, 2, 0);
-    shard.add(1486045900000L, 3, 1);
+    shard.add(1486045801000L, 1);
+    shard.add(1486045871000L, 2);
+    shard.add(1486045900000L, 3);
     iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486045900000L);
@@ -844,39 +795,34 @@ public class TestSlicedTimeSeriesIterator {
     start = new MillisecondTimeStamp(1486046100000L);
     end = new MillisecondTimeStamp(1486046200000L);
     shard = new NumericMillisecondShard(id, start, end, 3);
-    shard.add(1486046110000L, 4, 1);
-    shard.add(1486046171000L, 5, 0);
+    shard.add(1486046110000L, 4);
+    shard.add(1486046171000L, 5);
     iterator.addIterator(shard);
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486046110000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486046171000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
   }
@@ -890,9 +836,9 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
-    shard.add(1486045871000L, 2, 0);
-    shard.add(1486045900000L, 3, 1);
+    shard.add(1486045801000L, 1);
+    shard.add(1486045871000L, 2);
+    shard.add(1486045900000L, 3);
     iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486045900000L);
@@ -914,19 +860,16 @@ public class TestSlicedTimeSeriesIterator {
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
   }
@@ -936,19 +879,19 @@ public class TestSlicedTimeSeriesIterator {
     final List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(3);
     
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(2000), 2, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(7000), 7, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(7000), 7));
     data.add(set);
     
     final SlicedTimeSeriesIterator<NumericType> iterator = 
@@ -989,9 +932,9 @@ public class TestSlicedTimeSeriesIterator {
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(2000), 2, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     
     MockNumericIterator it = new MockNumericIterator(id, 0);
@@ -1000,9 +943,9 @@ public class TestSlicedTimeSeriesIterator {
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data.add(set);
     
     it = new MockNumericIterator(id, 1);
@@ -1041,9 +984,9 @@ public class TestSlicedTimeSeriesIterator {
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(2000), 2, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     
     MockNumericIterator it = new MockNumericIterator(id, 0);
@@ -1052,10 +995,10 @@ public class TestSlicedTimeSeriesIterator {
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(4);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 100, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 100));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data.add(set);
     
     it = new MockNumericIterator(id, 1);
@@ -1094,12 +1037,12 @@ public class TestSlicedTimeSeriesIterator {
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(2000), 2, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     
     MockNumericIterator it = new MockNumericIterator(id, 0);
@@ -1108,10 +1051,10 @@ public class TestSlicedTimeSeriesIterator {
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(4);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 100, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 100));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data.add(set);
     
     it = new MockNumericIterator(id, 1);
@@ -1150,12 +1093,12 @@ public class TestSlicedTimeSeriesIterator {
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(2000), 2, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     
     MockNumericIterator it = new MockNumericIterator(id, 0);
@@ -1164,10 +1107,10 @@ public class TestSlicedTimeSeriesIterator {
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(4);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 100, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 100));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data.add(set);
     
     it = new MockNumericIterator(id, 1);
@@ -1209,12 +1152,12 @@ public class TestSlicedTimeSeriesIterator {
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(2000), 2, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     
     MockNumericIterator it = new MockNumericIterator(id, 0);
@@ -1245,17 +1188,17 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
-    shard.add(1486045871000L, 2, 0);
-    shard.add(1486045900000L, 3, 1);
+    shard.add(1486045801000L, 1);
+    shard.add(1486045871000L, 2);
+    shard.add(1486045900000L, 3);
     slice_iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486045900000L);
     end = new MillisecondTimeStamp(1486046000000L);
     shard = new NumericMillisecondShard(id, start, end, 1);
-    shard.add(1486045900000L, 100, 1); // <-- ignored
-    shard.add(1486045901000L, 4, 1);
-    shard.add(1486045971000L, 5, 0);
+    shard.add(1486045900000L, 100); // <-- ignored
+    shard.add(1486045901000L, 4);
+    shard.add(1486045971000L, 5);
     slice_iterator.addIterator(shard);
     
     final TimeSeriesProcessor group = new DefaultTimeSeriesProcessor(context);
@@ -1285,7 +1228,6 @@ public class TestSlicedTimeSeriesIterator {
     assertEquals(1486045800000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(0, v.realCount());
     
     // real value
     assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
@@ -1298,7 +1240,6 @@ public class TestSlicedTimeSeriesIterator {
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     // fill in middle
     context.updateContext(IteratorStatus.HAS_DATA, 
@@ -1313,7 +1254,6 @@ public class TestSlicedTimeSeriesIterator {
     assertEquals(1486045802000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(0, v.realCount());
     
     // real value
     assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
@@ -1326,7 +1266,6 @@ public class TestSlicedTimeSeriesIterator {
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     // real value
     assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
@@ -1339,7 +1278,6 @@ public class TestSlicedTimeSeriesIterator {
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     // real value
     assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
@@ -1352,7 +1290,6 @@ public class TestSlicedTimeSeriesIterator {
     assertEquals(1486045901000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     // fill in middle
     context.updateContext(IteratorStatus.HAS_DATA, 
@@ -1367,7 +1304,6 @@ public class TestSlicedTimeSeriesIterator {
     assertEquals(1486045902000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(0, v.realCount());
     
     // real value
     assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
@@ -1380,7 +1316,6 @@ public class TestSlicedTimeSeriesIterator {
     assertEquals(1486045971000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     // end of data.
     assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
@@ -1401,23 +1336,23 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
-    shard.add(1486045871000L, 2, 0);
-    shard.add(1486045900000L, 3, 1);
+    shard.add(1486045801000L, 1);
+    shard.add(1486045871000L, 2);
+    shard.add(1486045900000L, 3);
     slice_iterator.addIterator(shard);
     
     // nothing to see here.
     //start = new MillisecondTimeStamp(1486045900000L);
     //end = new MillisecondTimeStamp(1486046000000L);
     //shard = new NumericMillisecondShard(id, start, end, 1);
-    //shard.add(1486045900000L, 100, 1);
+    //shard.add(1486045900000L, 100);
     //iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486046000000L);
     end = new MillisecondTimeStamp(1486046100000L);
     shard = new NumericMillisecondShard(id, start, end, 2);
-    shard.add(1486046010000L, 4, 1);
-    shard.add(1486046071000L, 5, 0);
+    shard.add(1486046010000L, 4);
+    shard.add(1486046071000L, 5);
     slice_iterator.addIterator(shard);
     
     final TimeSeriesProcessor group = new DefaultTimeSeriesProcessor(context);
@@ -1433,31 +1368,26 @@ public class TestSlicedTimeSeriesIterator {
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486046010000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486046071000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -1472,9 +1402,9 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
-    shard.add(1486045871000L, 2, 0);
-    shard.add(1486045900000L, 3, 1);
+    shard.add(1486045801000L, 1);
+    shard.add(1486045871000L, 2);
+    shard.add(1486045900000L, 3);
     slice_iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486045900000L);
@@ -1485,8 +1415,8 @@ public class TestSlicedTimeSeriesIterator {
     start = new MillisecondTimeStamp(1486046000000L);
     end = new MillisecondTimeStamp(1486046100000L);
     shard = new NumericMillisecondShard(id, start, end, 2);
-    shard.add(1486046010000L, 4, 1);
-    shard.add(1486046071000L, 5, 0);
+    shard.add(1486046010000L, 4);
+    shard.add(1486046071000L, 5);
     slice_iterator.addIterator(shard);
     
     final TimeSeriesProcessor group = new DefaultTimeSeriesProcessor(context);
@@ -1502,31 +1432,26 @@ public class TestSlicedTimeSeriesIterator {
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486046010000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486046071000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -1541,22 +1466,22 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
-    shard.add(1486045871000L, 2, 0);
-    shard.add(1486045900000L, 3, 1);
+    shard.add(1486045801000L, 1);
+    shard.add(1486045871000L, 2);
+    shard.add(1486045900000L, 3);
     slice_iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486045900000L);
     end = new MillisecondTimeStamp(1486046000000L);
     shard = new NumericMillisecondShard(id, start, end, 1);
-    shard.add(1486045900000L, 100, 1);
+    shard.add(1486045900000L, 100);
     slice_iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486046000000L);
     end = new MillisecondTimeStamp(1486046100000L);
     shard = new NumericMillisecondShard(id, start, end, 2);
-    shard.add(1486046010000L, 4, 1);
-    shard.add(1486046071000L, 5, 0);
+    shard.add(1486046010000L, 4);
+    shard.add(1486046071000L, 5);
     slice_iterator.addIterator(shard);
     
     final TimeSeriesProcessor group = new DefaultTimeSeriesProcessor(context);
@@ -1572,31 +1497,26 @@ public class TestSlicedTimeSeriesIterator {
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486046010000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486046071000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -1611,24 +1531,24 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
-    shard.add(1486045871000L, 2, 0);
-    shard.add(1486045900000L, 3, 1);
+    shard.add(1486045801000L, 1);
+    shard.add(1486045871000L, 2);
+    shard.add(1486045900000L, 3);
     slice_iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486045900000L);
     end = new MillisecondTimeStamp(1486046000000L);
     shard = new NumericMillisecondShard(id, start, end, 1);
-    shard.add(1486045900000L, 100, 1);
-    shard.add(1486046000000L, 4, 1);
+    shard.add(1486045900000L, 100);
+    shard.add(1486046000000L, 4);
     slice_iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486046000000L);
     end = new MillisecondTimeStamp(1486046100000L);
     shard = new NumericMillisecondShard(id, start, end, 2);
-    shard.add(1486046000000L, 200, 1);
-    shard.add(1486046010000L, 5, 1);
-    shard.add(1486046071000L, 6, 0);
+    shard.add(1486046000000L, 200);
+    shard.add(1486046010000L, 5);
+    shard.add(1486046071000L, 6);
     slice_iterator.addIterator(shard);
     
     final TimeSeriesProcessor group = new DefaultTimeSeriesProcessor(context);
@@ -1644,37 +1564,31 @@ public class TestSlicedTimeSeriesIterator {
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486046000000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486046010000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486046071000L, v.timestamp().msEpoch());
     assertEquals(6, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -1694,16 +1608,16 @@ public class TestSlicedTimeSeriesIterator {
     start = new MillisecondTimeStamp(1486045900000L);
     end = new MillisecondTimeStamp(1486046000000L);
     shard = new NumericMillisecondShard(id, start, end, 1);
-    shard.add(1486045900000L, 1, 1);
-    shard.add(1486045901000L, 2, 0);
-    shard.add(1486045907000L, 3, 1);
+    shard.add(1486045900000L, 1);
+    shard.add(1486045901000L, 2);
+    shard.add(1486045907000L, 3);
     slice_iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486046000000L);
     end = new MillisecondTimeStamp(1486046100000L);
     shard = new NumericMillisecondShard(id, start, end, 2);
-    shard.add(1486046010000L, 4, 1);
-    shard.add(1486046071000L, 5, 0);
+    shard.add(1486046010000L, 4);
+    shard.add(1486046071000L, 5);
     slice_iterator.addIterator(shard);
     
     final TimeSeriesProcessor group = new DefaultTimeSeriesProcessor(context);
@@ -1719,31 +1633,26 @@ public class TestSlicedTimeSeriesIterator {
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045901000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045907000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486046010000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486046071000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -1758,16 +1667,16 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045800000L, 1, 1);
-    shard.add(1486045801000L, 2, 0);
-    shard.add(1486045807000L, 3, 1);
+    shard.add(1486045800000L, 1);
+    shard.add(1486045801000L, 2);
+    shard.add(1486045807000L, 3);
     slice_iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486045900000L);
     end = new MillisecondTimeStamp(1486046000000L);
     shard = new NumericMillisecondShard(id, start, end, 1);
-    shard.add(1486045900000L, 4, 1);
-    shard.add(1486045907000L, 5, 0);
+    shard.add(1486045900000L, 4);
+    shard.add(1486045907000L, 5);
     slice_iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486046000000L);
@@ -1788,31 +1697,26 @@ public class TestSlicedTimeSeriesIterator {
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045800000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045807000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045907000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -1842,8 +1746,8 @@ public class TestSlicedTimeSeriesIterator {
     start = new MillisecondTimeStamp(1486046100000L);
     end = new MillisecondTimeStamp(1486046200000L);
     shard = new NumericMillisecondShard(id, start, end, 3);
-    shard.add(1486046110000L, 4, 1);
-    shard.add(1486046171000L, 5, 0);
+    shard.add(1486046110000L, 4);
+    shard.add(1486046171000L, 5);
     slice_iterator.addIterator(shard);
     
     final TimeSeriesProcessor group = new DefaultTimeSeriesProcessor(context);
@@ -1859,13 +1763,11 @@ public class TestSlicedTimeSeriesIterator {
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486046110000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486046171000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -1880,9 +1782,9 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
-    shard.add(1486045871000L, 2, 0);
-    shard.add(1486045900000L, 3, 1);
+    shard.add(1486045801000L, 1);
+    shard.add(1486045871000L, 2);
+    shard.add(1486045900000L, 3);
     slice_iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486045900000L);
@@ -1898,8 +1800,8 @@ public class TestSlicedTimeSeriesIterator {
     start = new MillisecondTimeStamp(1486046100000L);
     end = new MillisecondTimeStamp(1486046200000L);
     shard = new NumericMillisecondShard(id, start, end, 3);
-    shard.add(1486046110000L, 4, 1);
-    shard.add(1486046171000L, 5, 0);
+    shard.add(1486046110000L, 4);
+    shard.add(1486046171000L, 5);
     slice_iterator.addIterator(shard);
     
     final TimeSeriesProcessor group = new DefaultTimeSeriesProcessor(context);
@@ -1915,31 +1817,26 @@ public class TestSlicedTimeSeriesIterator {
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486046110000L, v.timestamp().msEpoch());
     assertEquals(4, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486046171000L, v.timestamp().msEpoch());
     assertEquals(5, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -1954,9 +1851,9 @@ public class TestSlicedTimeSeriesIterator {
     TimeStamp end = new MillisecondTimeStamp(1486045900000L);
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end, 0);
-    shard.add(1486045801000L, 1, 1);
-    shard.add(1486045871000L, 2, 0);
-    shard.add(1486045900000L, 3, 1);
+    shard.add(1486045801000L, 1);
+    shard.add(1486045871000L, 2);
+    shard.add(1486045900000L, 3);
     slice_iterator.addIterator(shard);
     
     start = new MillisecondTimeStamp(1486045900000L);
@@ -1987,19 +1884,16 @@ public class TestSlicedTimeSeriesIterator {
     TimeSeriesValue<NumericType> v = iterator.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(2, v.value().longValue());
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = iterator.next();
     assertEquals(1486045900000L, v.timestamp().msEpoch());
     assertEquals(3, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -2010,19 +1904,19 @@ public class TestSlicedTimeSeriesIterator {
     final List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(3);
     
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(2000), 2, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(7000), 7, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(7000), 7));
     data.add(set);
     
     final SlicedTimeSeriesIterator<NumericType> slice_iterator = 
@@ -2073,9 +1967,9 @@ public class TestSlicedTimeSeriesIterator {
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(2000), 2, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     
     MockNumericIterator it = new MockNumericIterator(id, 0);
@@ -2084,9 +1978,9 @@ public class TestSlicedTimeSeriesIterator {
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data.add(set);
     
     it = new MockNumericIterator(id, 1);
@@ -2135,9 +2029,9 @@ public class TestSlicedTimeSeriesIterator {
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(2000), 2, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     
     MockNumericIterator it = new MockNumericIterator(id, 0);
@@ -2146,10 +2040,10 @@ public class TestSlicedTimeSeriesIterator {
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(4);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 100, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 100));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data.add(set);
     
     it = new MockNumericIterator(id, 1);
@@ -2198,12 +2092,12 @@ public class TestSlicedTimeSeriesIterator {
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(2000), 2, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     
     MockNumericIterator it = new MockNumericIterator(id, 0);
@@ -2212,10 +2106,10 @@ public class TestSlicedTimeSeriesIterator {
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(4);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 100, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 100));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data.add(set);
     
     it = new MockNumericIterator(id, 1);
@@ -2264,12 +2158,12 @@ public class TestSlicedTimeSeriesIterator {
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(2000), 2, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     
     MockNumericIterator it = new MockNumericIterator(id, 0);
@@ -2278,10 +2172,10 @@ public class TestSlicedTimeSeriesIterator {
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(4);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 100, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 100));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data.add(set);
     
     it = new MockNumericIterator(id, 1);
@@ -2333,12 +2227,12 @@ public class TestSlicedTimeSeriesIterator {
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(2000), 2, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     
     MockNumericIterator it = new MockNumericIterator(id, 0);

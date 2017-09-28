@@ -16,6 +16,7 @@ import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Span;
 import net.opentsdb.core.TsdbPlugin;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.query.context.QueryContext;
@@ -42,13 +43,15 @@ public abstract class TimeSeriesDataStore extends TsdbPlugin {
   
   /**
    * Writes the given value to the data store.
+   * @param id A non-null ID for the value.
    * @param value A non-null value to write.
    * @param trace An optional tracer.
    * @param upstream_span An optional span for tracing.
    * @return A deferred resolving to null on success or an exception if the 
    * value was unable to be written.
    */
-  public abstract Deferred<Object> write(final TimeSeriesValue<?> value, 
+  public abstract Deferred<Object> write(final TimeSeriesId id,
+                                         final TimeSeriesValue<?> value, 
                                          final TsdbTrace trace, 
                                          final Span upstream_span);
   

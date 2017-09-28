@@ -109,13 +109,13 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
     int non_finites = 0;
     int differences = 0;
     
-    final MutableNumericType v = new MutableNumericType(shard.id());
+    final MutableNumericType v = new MutableNumericType();
     final TimeStamp next = new MillisecondTimeStamp(Long.MAX_VALUE);
     // loop till all the values are nulled out.
     while (true) {
       next.setMax();
       int had_value = 0;
-      v.reset(last_ts, Double.MIN_VALUE, 0);
+      v.reset(last_ts, Double.MIN_VALUE);
       for (int i = 0; i < values.length; i++) {
         if (values[i] == null) {
           continue;
@@ -155,11 +155,11 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
       
       last_ts.update(next);
       if (v.isInteger()) {
-        shard.add(v.timestamp().msEpoch(), v.longValue(), v.realCount());
+        shard.add(v.timestamp().msEpoch(), v.longValue());
       } else if (Double.isFinite(v.doubleValue())) {
-        shard.add(v.timestamp().msEpoch(), v.doubleValue(), v.realCount());
+        shard.add(v.timestamp().msEpoch(), v.doubleValue());
       } else {
-        shard.add(v.timestamp().msEpoch(), Double.NaN, v.realCount());
+        shard.add(v.timestamp().msEpoch(), Double.NaN);
       }
     }
     

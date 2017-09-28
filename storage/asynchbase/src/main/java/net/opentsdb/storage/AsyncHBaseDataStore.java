@@ -21,6 +21,7 @@ import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Span;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.query.context.QueryContext;
@@ -100,7 +101,8 @@ public class AsyncHBaseDataStore extends TimeSeriesDataStore {
   }
 
   @Override
-  public Deferred<Object> write(TimeSeriesValue<?> value, TsdbTrace trace,
+  public Deferred<Object> write(TimeSeriesId id, 
+      TimeSeriesValue<?> value, TsdbTrace trace,
       Span upstream_span) {
     // TODO Auto-generated method stub
     return null;

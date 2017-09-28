@@ -12,13 +12,13 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.processor;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.TreeMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,8 +37,6 @@ import net.opentsdb.data.iterators.TimeSeriesIterators;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.query.pojo.Join.SetOperator;
 import net.opentsdb.query.processor.expressions.ExpressionProcessorConfig;
-import net.opentsdb.utils.Bytes;
-import net.opentsdb.utils.Bytes.ByteMap;
 
 /**
  * A class that performs a join on time series across multiple groups in the
@@ -80,16 +78,16 @@ public class Joiner {
    * {@link TimeSeriesGroupId} is the variable name used in the expression.
    * @return A non-null byte map with join keys as the key.
    */
-  public ByteMap<IteratorGroups> join(final IteratorGroups source) {
+  public Map<String, IteratorGroups> join(final IteratorGroups source) {
     if (source == null) {
       throw new IllegalArgumentException("Source cannot be null.");
     }
     
-    final ByteMap<IteratorGroups> joined = new ByteMap<IteratorGroups>();
+    final Map<String, IteratorGroups> joined = Maps.newHashMap();
     for (final IteratorGroup group : source.groups()) {
       for (final TimeSeriesIterator<?> it : group.flattenedIterators()) {
         try {
-          final byte[] join_key = joinKey(it.id());
+          final String join_key = joinKey(it.id());
           if (join_key != null) {
             // find the proper map to dump it in
             IteratorGroups joined_group = joined.get(join_key);
@@ -128,20 +126,18 @@ public class Joiner {
    * @param joins A non-null list of joins to work on.
    * @return A non-null list of intersected joins.
    */
-  private ByteMap<IteratorGroups> computeIntersection(
-      final ByteMap<IteratorGroups> joins) {
+  private Map<String, IteratorGroups> computeIntersection(
+      final Map<String, IteratorGroups> joins) {
     
     // TODO - join on a specific data type. May not care about annotations or 
     // others when performing an expression so those can be "grouped".
     
     // Ugly but since the iterator sets are immutable, we have to convert to
     // a map, then back.
-    final ByteMap<Map<TimeSeriesGroupId, Map<TimeSeriesId, 
-      Map<TypeToken<?>, TimeSeriesIterator<?>>>>> joined = 
-        new ByteMap<Map<TimeSeriesGroupId, Map<TimeSeriesId, 
-          Map<TypeToken<?>, TimeSeriesIterator<?>>>>>();
+    final Map<String, Map<TimeSeriesGroupId, Map<TimeSeriesId, 
+      Map<TypeToken<?>, TimeSeriesIterator<?>>>>> joined = Maps.newHashMap();
     
-    for (final Entry<byte[], IteratorGroups> join : joins.entrySet()) {
+    for (final Entry<String, IteratorGroups> join : joins.entrySet()) {
       final Map<TimeSeriesGroupId, Map<TimeSeriesId, 
         Map<TypeToken<?>, TimeSeriesIterator<?>>>> group = Maps.newHashMap();
       joined.put(join.getKey(), group);
@@ -163,11 +159,11 @@ public class Joiner {
     }
     
     // now compute the intersections.
-    final Iterator<Entry<byte[], Map<TimeSeriesGroupId, Map<TimeSeriesId, 
+    final Iterator<Entry<String, Map<TimeSeriesGroupId, Map<TimeSeriesId, 
       Map<TypeToken<?>, TimeSeriesIterator<?>>>>>> top_iterator = 
-        joined.iterator();
+        joined.entrySet().iterator();
     while (top_iterator.hasNext()) {
-      final Entry<byte[], Map<TimeSeriesGroupId, Map<TimeSeriesId, 
+      final Entry<String, Map<TimeSeriesGroupId, Map<TimeSeriesId, 
         Map<TypeToken<?>, TimeSeriesIterator<?>>>>> join = top_iterator.next();
       
       final Iterator<Entry<TimeSeriesGroupId, Map<TimeSeriesId, 
@@ -197,7 +193,7 @@ public class Joiner {
                 other_group.getValue().get(timeseries.getKey());
             if (other_types == null) {
               if (LOG.isDebugEnabled()) {
-                LOG.debug("[" + Bytes.pretty(join.getKey()) + "] kicking out series " 
+                LOG.debug("[" + join.getKey() + "] kicking out series " 
                     + timeseries.getKey() + " for group " + group.getKey() 
                     + " as group " + other_group.getKey() 
                     + " does not have data.");
@@ -213,7 +209,7 @@ public class Joiner {
                   type_iterator.next();
               if (!other_types.containsKey(type.getKey())) {
                 if (LOG.isDebugEnabled()) {
-                  LOG.debug("[" + Bytes.pretty(join.getKey()) + "] kicking out type " 
+                  LOG.debug("[" + join.getKey() + "] kicking out type " 
                       + type.getKey() + " for group " + group.getKey() 
                       + " as group " + other_group.getKey() 
                       + " does not have data.");
@@ -237,9 +233,9 @@ public class Joiner {
       }
     }
     
-    final ByteMap<IteratorGroups> final_joins = new ByteMap<IteratorGroups>();
+    final Map<String, IteratorGroups> final_joins = Maps.newHashMap();
     // reverse
-    for (final Entry<byte[], Map<TimeSeriesGroupId, Map<TimeSeriesId, 
+    for (final Entry<String, Map<TimeSeriesGroupId, Map<TimeSeriesId, 
         Map<TypeToken<?>, TimeSeriesIterator<?>>>>> groups : joined.entrySet()) {
       final IteratorGroups final_groups = new DefaultIteratorGroups();
       final_joins.put(groups.getKey(), final_groups);
@@ -268,35 +264,35 @@ public class Joiner {
    * @throws IOException If the ID was null.
    */
   @VisibleForTesting
-  byte[] joinKey(final TimeSeriesId id) throws IOException {
+  String joinKey(final TimeSeriesId id) throws IOException {
     if (id == null) {
       throw new IllegalArgumentException("ID cannot be null");
     }
-    final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+    final StringBuffer buffer = new StringBuffer();
     
-    final List<byte[]> tag_keys = config.getTagKeys();
+    final List<String> tag_keys = config.getTagKeys();
     final boolean include_agg_tags = config.getExpression().getJoin() != null ?
         config.getExpression().getJoin().getIncludeAggTags() : false;
     final boolean include_disjoint_tags = config.getExpression().getJoin() != null ?
         config.getExpression().getJoin().getIncludeDisjointTags() : false;
     if (tag_keys != null) {
-      for (final byte[] tag_key : tag_keys) {
-        byte[] tag_value = id.tags().get(tag_key);
+      for (final String tag_key : tag_keys) {
+        String tag_value = id.tags().get(tag_key);
         if (tag_value != null) {
-          buffer.write(tag_key);
-          buffer.write(tag_value);
+          buffer.append(tag_key);
+          buffer.append(tag_value);
         } else {
           boolean matched = false;
           if (include_agg_tags) {
-            for (final byte[] tag : id.aggregatedTags()) {
-              if (Bytes.memcmp(tag_key, tag) == 0) {
+            for (final String tag : id.aggregatedTags()) {
+              if (tag_key.equals(tag)) {
                 matched = true;
                 break;
               }
             }
           } if (!matched && include_disjoint_tags) {
-            for (final byte[] tag : id.disjointTags()) {
-              if (Bytes.memcmp(tag_key, tag) == 0) {
+            for (final String tag : id.disjointTags()) {
+              if (tag_key.equals(tag)) {
                 matched = true;
                 break;
               }
@@ -309,39 +305,44 @@ public class Joiner {
             }
             return null;
           }
-          buffer.write(tag_key);
+          buffer.append(tag_key);
         }
       }
     } else {
       // full join!
       if (!id.tags().isEmpty()) {
-        // ByteMap is already sorted
-        for (final Entry<byte[], byte[]> pair : id.tags().entrySet()) {
-          buffer.write(pair.getKey());
-          buffer.write(pair.getValue());
+        // make sure it's sorted is already sorted
+        final Map<String, String> tags;
+        if (id instanceof TreeMap) {
+          tags = id.tags();
+        } else {
+          tags = new TreeMap<String, String>(id.tags());
+        }
+        for (final Entry<String, String> pair : tags.entrySet()) {
+          buffer.append(pair.getKey());
+          buffer.append(pair.getValue());
         }
       }
       
       if (include_agg_tags && !id.aggregatedTags().isEmpty()) {
         // not guaranteed of sorting
-        final List<byte[]> sorted = Lists.newArrayList(id.aggregatedTags());
-        Collections.sort(sorted, Bytes.MEMCMP);
-        for (final byte[] tag : sorted) {
-          buffer.write(tag);
+        final List<String> sorted = Lists.newArrayList(id.aggregatedTags());
+        Collections.sort(sorted);
+        for (final String tag : sorted) {
+          buffer.append(tag);
         }
       }
       
       if (include_disjoint_tags && !id.disjointTags().isEmpty()) {
         // not guaranteed of sorting
-        final List<byte[]> sorted = Lists.newArrayList(id.disjointTags());
-        Collections.sort(sorted, Bytes.MEMCMP);
-        for (final byte[] tag : sorted) {
-          buffer.write(tag);
+        final List<String> sorted = Lists.newArrayList(id.disjointTags());
+        Collections.sort(sorted);
+        for (final String tag : sorted) {
+          buffer.append(tag);
         }
       }
     }
     
-    buffer.close();
-    return buffer.toByteArray();
+    return buffer.toString();
   }
 }

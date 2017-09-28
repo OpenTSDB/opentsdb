@@ -55,7 +55,7 @@ import com.stumbleupon.async.Callback;
 import io.opentracing.Span;
 import net.opentsdb.core.Const;
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.iterators.DefaultIteratorGroup;
 import net.opentsdb.data.iterators.DefaultIteratorGroups;
 import net.opentsdb.data.iterators.IteratorGroup;
@@ -209,8 +209,8 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
-    final SimpleStringTimeSeriesId.Builder id = 
-        SimpleStringTimeSeriesId.newBuilder();
+    final BaseTimeSeriesId.Builder id = 
+        BaseTimeSeriesId.newBuilder();
     
     final String metric;
     if (node.has("metric")) {
@@ -254,12 +254,12 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
         final String v = value.getValue().asText();
         if (v.startsWith("N") || v.startsWith("n")) {
           // nulls and NaNs.
-          shard.add(Long.parseLong(value.getKey()), Double.NaN, 0);
+          shard.add(Long.parseLong(value.getKey()), Double.NaN);
         } else if (NumericType.looksLikeInteger(v)) {
-          shard.add(Long.parseLong(value.getKey()), NumericType.parseLong(v), 1);
+          shard.add(Long.parseLong(value.getKey()), NumericType.parseLong(v));
         } else {
           final double parsed = Double.parseDouble(v);
-          shard.add(Long.parseLong(value.getKey()), parsed, 1);
+          shard.add(Long.parseLong(value.getKey()), parsed);
           if (!Double.isFinite(parsed)) {
             ++nans;
           }
@@ -287,7 +287,7 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
    * @param tags A pointer to the tags node in the JSON tree.
    * @throws JSONException if any key or value in the tag map is null.
    */
-  private void parseTags(final SimpleStringTimeSeriesId.Builder id, 
+  private void parseTags(final BaseTimeSeriesId.Builder id, 
       final JsonNode tags) {
     if (tags != null) {
       final Iterator<Entry<String, JsonNode>> pairs = tags.fields();
@@ -308,7 +308,7 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
    * @param agg_tags A pointer to the aggregated tags node in the JSON tree.
    * @throws JSONException if any of the tags are null.
    */
-  private void parseAggTags(final SimpleStringTimeSeriesId.Builder id, 
+  private void parseAggTags(final BaseTimeSeriesId.Builder id, 
       final JsonNode agg_tags) {
     if (agg_tags != null) {
       for (final JsonNode tag : agg_tags) {
