@@ -19,7 +19,7 @@ import org.junit.Ignore;
 
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
@@ -33,10 +33,10 @@ import net.opentsdb.data.types.numeric.NumericType;
 @Ignore
 public class IteratorTestUtils {
 
-  public static  TimeSeriesId ID_A = SimpleStringTimeSeriesId.newBuilder()
+  public static  TimeSeriesId ID_A = BaseTimeSeriesId.newBuilder()
       .addMetric("system.cpu.user")
       .build();
-  public static TimeSeriesId ID_B = SimpleStringTimeSeriesId.newBuilder()
+  public static TimeSeriesId ID_B = BaseTimeSeriesId.newBuilder()
       .addMetric("system.cpu.idle")
       .build();
   
@@ -61,7 +61,7 @@ public class IteratorTestUtils {
     NumericMillisecondShard shard = new NumericMillisecondShard(ID_A, 
         new MillisecondTimeStamp(start), new MillisecondTimeStamp(end), order);
     for (long ts = start; ts <= end; ts += interval) {
-      shard.add(ts, ts, 1);
+      shard.add(ts, ts);
     }
     
     groups.addIterator(GROUP_A, shard);
@@ -70,7 +70,7 @@ public class IteratorTestUtils {
     shard = new NumericMillisecondShard(ID_B, 
         new MillisecondTimeStamp(start), new MillisecondTimeStamp(end), order);
     for (long ts = start; ts <= end; ts += interval) {
-      shard.add(ts, ts, 1);
+      shard.add(ts, ts);
     }
     
     groups.addIterator(GROUP_A, shard);
@@ -100,7 +100,6 @@ public class IteratorTestUtils {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
       ts += interval;
       ++count;
     }
@@ -116,7 +115,6 @@ public class IteratorTestUtils {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
       ts += interval;
       ++count;
     }
@@ -137,7 +135,6 @@ public class IteratorTestUtils {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
       ts += interval;
       ++count;
     }
@@ -153,7 +150,6 @@ public class IteratorTestUtils {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
       ts += interval;
       ++count;
     }

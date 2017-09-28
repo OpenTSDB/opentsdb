@@ -24,11 +24,10 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Span;
-import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
@@ -47,7 +46,6 @@ import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.stats.TsdbTrace;
-import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 
@@ -80,19 +78,20 @@ public class MockDataStore extends TimeSeriesDataStore {
   
   @SuppressWarnings("unchecked")
   @Override
-  public Deferred<Object> write(final TimeSeriesValue<?> value, 
+  public Deferred<Object> write(final TimeSeriesId id,
+                                final TimeSeriesValue<?> value, 
                                 final TsdbTrace trace,
                                 final Span upstream_span) {
-    Map<TypeToken<?>, MockSpan<?>> type = database.get(value.id());
+    Map<TypeToken<?>, MockSpan<?>> type = database.get(id);
     if (type == null) {
       type = Maps.newHashMap();
-      database.put(value.id(), type);
+      database.put(id, type);
     }
     
     MockSpan<?> span = type.get(value.type());
     if (span == null) {
       if (value.type() == NumericType.TYPE) {
-        span = new MockSpan<NumericType>();
+        span = new MockSpan<NumericType>(id);
       }
       
       type.put(value.type(), span);
@@ -133,8 +132,7 @@ public class MockDataStore extends TimeSeriesDataStore {
         for (final Entry<TimeSeriesId, Map<TypeToken<?>, MockSpan<?>>> entry : 
               database.entrySet()) {
           for (Metric m : query.getMetrics()) {
-            if (Bytes.memcmp(m.getMetric().getBytes(Const.UTF8_CHARSET), 
-                             entry.getKey().metrics().get(0)) != 0) {
+            if (!m.getMetric().equals(entry.getKey().metrics().get(0))) {
               continue;
             }
             
@@ -153,17 +151,15 @@ public class MockDataStore extends TimeSeriesDataStore {
               }
               
               boolean matched = true;
-              for (TagVFilter tf : f.getTags()) {
-                byte[] tagv = entry.getKey().tags().get(
-                    tf.getTagk().getBytes(Const.UTF8_CHARSET));
+              for (final TagVFilter tf : f.getTags()) {
+                String tagv = entry.getKey().tags().get(tf.getTagk());
                 if (tagv == null) {
                   matched = false;
                   break;
                 }
                 
                 try {
-                  if (!tf.match(ImmutableMap.of(tf.getTagk(), 
-                      new String(tagv, Const.UTF8_CHARSET))).join()) {
+                  if (!tf.match(ImmutableMap.of(tf.getTagk(), tagv)).join()) {
                     matched = false;
                     break;
                   }
@@ -226,6 +222,11 @@ public class MockDataStore extends TimeSeriesDataStore {
 
   class MockSpan<T extends TimeSeriesDataType> {
     private List<MockRow<T>> rows = Lists.newArrayList();
+    private final TimeSeriesId id;
+    
+    public MockSpan(final TimeSeriesId id) {
+      this.id = id;
+    }
     
     public void addValue(TimeSeriesValue<T> value) {
       
@@ -240,7 +241,7 @@ public class MockDataStore extends TimeSeriesDataStore {
       }
       
       if (value.type() == NumericType.TYPE) {
-        MockRow<NumericType> row = new NumericMockRow(
+        MockRow<NumericType> row = new NumericMockRow(id,
             (TimeSeriesValue<NumericType>) value);
         rows.add((MockRow<T>) row);
       }
@@ -260,13 +261,13 @@ public class MockDataStore extends TimeSeriesDataStore {
   }
   
   class NumericMockRow extends MockRow<NumericType> {
-
     NumericMillisecondShard shard;
     
-    public NumericMockRow(final TimeSeriesValue<NumericType> value) {
+    public NumericMockRow(final TimeSeriesId id, 
+                          final TimeSeriesValue<NumericType> value) {
       base_timestamp = value.timestamp().msEpoch() - 
           (value.timestamp().msEpoch() % ROW_WIDTH);
-      shard = new NumericMillisecondShard(value.id(), 
+      shard = new NumericMillisecondShard(id, 
           new MillisecondTimeStamp(base_timestamp), 
           new MillisecondTimeStamp(base_timestamp + ROW_WIDTH));
       addValue(value);
@@ -275,11 +276,9 @@ public class MockDataStore extends TimeSeriesDataStore {
     @Override
     public void addValue(TimeSeriesValue<NumericType> value) {
       if (value.value().isInteger()) {
-        shard.add(value.timestamp().msEpoch(), value.value().longValue(),
-            value.realCount());
+        shard.add(value.timestamp().msEpoch(), value.value().longValue());
       } else {
-        shard.add(value.timestamp().msEpoch(), value.value().doubleValue(), 
-            value.realCount());
+        shard.add(value.timestamp().msEpoch(), value.value().doubleValue());
       }
     }
 
@@ -319,17 +318,17 @@ public class MockDataStore extends TimeSeriesDataStore {
       for (final String metric : METRICS) {
         for (final String dc : DATACENTERS) {
           for (int h = 0; h < hosts; h++) {
-            TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+            TimeSeriesId id = BaseTimeSeriesId.newBuilder()
                 .addMetric(metric)
                 .addTags("dc", dc)
                 .addTags("host", String.format("web%02d", h + 1))
                 .build();
-            MutableNumericType dp = new MutableNumericType(id);
+            MutableNumericType dp = new MutableNumericType();
             TimeStamp ts = new MillisecondTimeStamp(0);
             for (long i = 0; i < (ROW_WIDTH / interval); i++) {
               ts.updateMsEpoch(start_timestamp + (i * interval) + (t * ROW_WIDTH));
-              dp.reset(ts, t + h + i, 1);
-              write(dp, null, null);
+              dp.reset(ts, t + h + i);
+              write(id, dp, null, null);
             }
           }
         }

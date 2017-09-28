@@ -13,6 +13,7 @@
 package net.opentsdb.query.processor.expressions;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import com.google.common.collect.Lists;
@@ -31,7 +32,6 @@ import net.opentsdb.query.processor.Joiner;
 import net.opentsdb.query.processor.TimeSeriesProcessor;
 import net.opentsdb.query.processor.TimeSeriesProcessorConfig;
 import net.opentsdb.utils.Deferreds;
-import net.opentsdb.utils.Bytes.ByteMap;
 
 /**
  * An expression processor that allows for flexible custom mutations of 
@@ -118,7 +118,7 @@ public class JexlBinderProcessor extends TimeSeriesProcessor {
               ((ExpressionProcessorConfig) config).getExpression().getId());
           
           final Joiner joiner = new Joiner((ExpressionProcessorConfig) config);        
-          final ByteMap<IteratorGroups> joins = joiner.join(iterators_to_join);
+          final Map<String, IteratorGroups> joins = joiner.join(iterators_to_join);
           
           final List<Deferred<Object>> deferreds = 
               Lists.newArrayListWithExpectedSize(joins.size());

@@ -16,14 +16,15 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Map;
+
 import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import net.opentsdb.common.Const;
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.iterators.DefaultIteratorGroups;
 import net.opentsdb.data.iterators.IteratorGroup;
@@ -36,7 +37,6 @@ import net.opentsdb.query.pojo.Expression;
 import net.opentsdb.query.pojo.Join;
 import net.opentsdb.query.pojo.Join.SetOperator;
 import net.opentsdb.query.processor.expressions.ExpressionProcessorConfig;
-import net.opentsdb.utils.Bytes.ByteMap;
 
 public class TestJoiner {
   private ExpressionProcessorConfig config;
@@ -69,7 +69,7 @@ public class TestJoiner {
     final Joiner joiner = new Joiner(config);
     
     final IteratorGroups group = new DefaultIteratorGroups();
-    TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .build();
@@ -78,7 +78,7 @@ public class TestJoiner {
     group.addIterator(new SimpleStringGroupId("b"), new MockNumericIterator(id));
     group.addIterator(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
     
-    id = SimpleStringTimeSeriesId.newBuilder()
+    id = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web02")
         .addTags("colo", "lax")
         .build();
@@ -87,7 +87,7 @@ public class TestJoiner {
     group.addIterator(new SimpleStringGroupId("b"), new MockNumericIterator(id));
     group.addIterator(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
     
-    id = SimpleStringTimeSeriesId.newBuilder()
+    id = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "phx")
         .build();
@@ -96,10 +96,10 @@ public class TestJoiner {
     group.addIterator(new SimpleStringGroupId("b"), new MockNumericIterator(id));
     //group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
 
-    final ByteMap<IteratorGroups> joins = joiner.join(group);
+    final Map<String, IteratorGroups> joins = joiner.join(group);
     
     assertEquals(3, joins.size());
-    byte[] key = "cololaxhostweb01".getBytes(Const.UTF8_CHARSET);
+    String key = "cololaxhostweb01";
     IteratorGroups join_group = joins.get(key);
     assertEquals(3, join_group.flattenedIterators().size());
     IteratorGroup its = 
@@ -112,7 +112,7 @@ public class TestJoiner {
     assertEquals(1, its.iterators(AnnotationType.TYPE).size());
     assertEquals(1, its.iterators(NumericType.TYPE).size());
     
-    key = "cololaxhostweb02".getBytes(Const.UTF8_CHARSET);
+    key = "cololaxhostweb02";
     join_group = joins.get(key);
     assertEquals(4, join_group.flattenedIterators().size());
     its = join_group.group(new SimpleStringGroupId("a"));
@@ -124,7 +124,7 @@ public class TestJoiner {
     assertEquals(1, its.iterators(AnnotationType.TYPE).size());
     assertEquals(1, its.iterators(NumericType.TYPE).size());
     
-    key = "colophxhostweb01".getBytes(Const.UTF8_CHARSET);
+    key = "colophxhostweb01";
     join_group = joins.get(key);
     assertEquals(3, join_group.flattenedIterators().size());
     its = join_group.group(new SimpleStringGroupId("a"));
@@ -143,16 +143,16 @@ public class TestJoiner {
     final Joiner joiner = new Joiner(config);
     
     final IteratorGroups group = new DefaultIteratorGroups();
-    TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .build();
     group.addIterator(new SimpleStringGroupId("a"), new MockNumericIterator(id));
     
-    final ByteMap<IteratorGroups> joins = joiner.join(group);
+    final Map<String, IteratorGroups> joins = joiner.join(group);
     
     assertEquals(1, joins.size());
-    byte[] key = "cololaxhostweb01".getBytes(Const.UTF8_CHARSET);
+    String key = "cololaxhostweb01";
     IteratorGroups join_group = joins.get(key);
     assertEquals(1, join_group.flattenedIterators().size());
     IteratorGroup join_types = 
@@ -170,7 +170,7 @@ public class TestJoiner {
     final Joiner joiner = new Joiner(config);
     
     final IteratorGroups group = new DefaultIteratorGroups();
-    TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .build();
@@ -179,7 +179,7 @@ public class TestJoiner {
     group.addIterator(new SimpleStringGroupId("b"), new MockNumericIterator(id));
     group.addIterator(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
     
-    id = SimpleStringTimeSeriesId.newBuilder()
+    id = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web02")
         .addTags("colo", "lax")
         .build();
@@ -188,7 +188,7 @@ public class TestJoiner {
     group.addIterator(new SimpleStringGroupId("b"), new MockNumericIterator(id));
     group.addIterator(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
     
-    id = SimpleStringTimeSeriesId.newBuilder()
+    id = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "phx")
         .build();
@@ -197,10 +197,10 @@ public class TestJoiner {
     group.addIterator(new SimpleStringGroupId("b"), new MockNumericIterator(id));
     //group.addSeries(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
 
-    final ByteMap<IteratorGroups> joins = joiner.join(group);
+    final Map<String, IteratorGroups> joins = joiner.join(group);
     
     assertEquals(3, joins.size());
-    byte[] key = "cololaxhostweb01".getBytes(Const.UTF8_CHARSET);
+    String key = "cololaxhostweb01";
     IteratorGroups join_group = joins.get(key);
     assertEquals(2, join_group.flattenedIterators().size());
     IteratorGroup join_types = 
@@ -213,7 +213,7 @@ public class TestJoiner {
     assertEquals(1, join_types.iterators(AnnotationType.TYPE).size());
     assertTrue(join_types.iterators(NumericType.TYPE).isEmpty());
     
-    key = "cololaxhostweb02".getBytes(Const.UTF8_CHARSET);
+    key = "cololaxhostweb02";
     join_group = joins.get(key);
     assertEquals(4, join_group.flattenedIterators().size());
     join_types = join_group.group(new SimpleStringGroupId("a"));
@@ -225,7 +225,7 @@ public class TestJoiner {
     assertEquals(1, join_types.iterators(AnnotationType.TYPE).size());
     assertEquals(1, join_types.iterators(NumericType.TYPE).size());
     
-    key = "colophxhostweb01".getBytes(Const.UTF8_CHARSET);
+    key = "colophxhostweb01";
     join_group = joins.get(key);
     assertEquals(2, join_group.flattenedIterators().size());
     join_types = join_group.group(new SimpleStringGroupId("a"));
@@ -245,7 +245,7 @@ public class TestJoiner {
     final Joiner joiner = new Joiner(config);
     
     final IteratorGroups group = new DefaultIteratorGroups();
-    TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .build();
@@ -266,15 +266,14 @@ public class TestJoiner {
     join_builder.setTags(Lists.newArrayList("host", "colo", "dept"));
     setConfig();
     
-    final TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+    final TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .addTags("dept", "KingsGuard")
         .build();
     
     final Joiner joiner = new Joiner(config);
-    assertEquals("cololaxdeptKingsGuardhostweb01", 
-        new String(joiner.joinKey(id), Const.UTF8_CHARSET));
+    assertEquals("cololaxdeptKingsGuardhostweb01", joiner.joinKey(id));
   }
   
   @Test
@@ -282,15 +281,14 @@ public class TestJoiner {
     join_builder.setTags(Lists.newArrayList("host", "colo", "dept"));
     setConfig();
     
-    final TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+    final TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("dept", "KingsGuard")
         .addAggregatedTag("colo")
         .build();
     
     final Joiner joiner = new Joiner(config);
-    assertEquals("colodeptKingsGuardhostweb01", 
-        new String(joiner.joinKey(id), Const.UTF8_CHARSET));
+    assertEquals("colodeptKingsGuardhostweb01", joiner.joinKey(id));
   }
   
   @Test
@@ -298,15 +296,14 @@ public class TestJoiner {
     join_builder.setTags(Lists.newArrayList("host", "colo", "dept"));
     setConfig();
     
-    final TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+    final TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("dept", "KingsGuard")
         .addDisjointTag("colo")
         .build();
     
     final Joiner joiner = new Joiner(config);
-    assertEquals("colodeptKingsGuardhostweb01", 
-        new String(joiner.joinKey(id), Const.UTF8_CHARSET));
+    assertEquals("colodeptKingsGuardhostweb01", joiner.joinKey(id));
   }
   
   @Test
@@ -314,15 +311,14 @@ public class TestJoiner {
     join_builder.setTags(Lists.newArrayList("host", "colo", "dept"));
     setConfig();
     
-    final TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+    final TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addAggregatedTag("colo")
         .addDisjointTag("dept")
         .build();
     
     final Joiner joiner = new Joiner(config);
-    assertEquals("colodepthostweb01", 
-        new String(joiner.joinKey(id), Const.UTF8_CHARSET));
+    assertEquals("colodepthostweb01", joiner.joinKey(id));
   }
   
   @Test
@@ -331,7 +327,7 @@ public class TestJoiner {
       .setIncludeAggTags(false);
     setConfig();
     
-    final TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+    final TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addAggregatedTag("colo")
         .addDisjointTag("dept")
@@ -347,7 +343,7 @@ public class TestJoiner {
       .setIncludeDisjointTags(false);
     setConfig();
     
-    final TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+    final TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addAggregatedTag("colo")
         .addDisjointTag("dept")
@@ -364,22 +360,20 @@ public class TestJoiner {
     setConfig();
     Joiner joiner = new Joiner(config);
     
-    final TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+    final TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addAggregatedTag("colo")
         .addDisjointTag("owner")
         .build();
     
-    assertEquals("hostweb01coloowner", 
-        new String(joiner.joinKey(id), Const.UTF8_CHARSET));
+    assertEquals("hostweb01coloowner", joiner.joinKey(id));
     
     join_builder = Join.newBuilder()
         .setOperator(SetOperator.UNION)
         .setIncludeAggTags(false);
     setConfig();
     joiner = new Joiner(config);
-    assertEquals("hostweb01owner", 
-        new String(joiner.joinKey(id), Const.UTF8_CHARSET));
+    assertEquals("hostweb01owner", joiner.joinKey(id));
     
     join_builder = Join.newBuilder()
         .setOperator(SetOperator.UNION)
@@ -387,8 +381,7 @@ public class TestJoiner {
         .setIncludeDisjointTags(false);
     setConfig();
     joiner = new Joiner(config);
-    assertEquals("hostweb01", 
-        new String(joiner.joinKey(id), Const.UTF8_CHARSET));
+    assertEquals("hostweb01", joiner.joinKey(id));
   }
   
   @Test
@@ -398,12 +391,11 @@ public class TestJoiner {
     setConfig();
     Joiner joiner = new Joiner(config);
     
-    final TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+    final TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .addMetric("sys.cpu.user")
         .build();
     
-    assertEquals("", 
-        new String(joiner.joinKey(id), Const.UTF8_CHARSET));
+    assertEquals("", joiner.joinKey(id));
   }
   
   private void setConfig() {

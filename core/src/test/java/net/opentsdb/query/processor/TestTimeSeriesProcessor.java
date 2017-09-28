@@ -39,7 +39,7 @@ import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
 
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.iterators.DefaultIteratorGroups;
@@ -55,7 +55,7 @@ public class TestTimeSeriesProcessor {
   
   @Before
   public void before() throws Exception {
-    id = SimpleStringTimeSeriesId.newBuilder()
+    id = BaseTimeSeriesId.newBuilder()
         .setMetrics(Lists.newArrayList("sys.cpu.idle"))
         .build();
   }

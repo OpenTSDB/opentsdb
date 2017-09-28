@@ -159,7 +159,6 @@ public class JexlBinderNumericIterator extends
   @Override
   public TimeSeriesValue<NumericType> next() {
     try {
-      int reals = 0;
       for (final String variable : config.getExpression().getVariables()) {
         final TimeSeriesIterator<?> it = iterators.get(variable);
         if (it == null) {
@@ -181,7 +180,6 @@ public class JexlBinderNumericIterator extends
           } else {
             jexl_context.set(variable, value.value().isInteger() ? 
                 value.value().longValue() : value.value().doubleValue());
-            reals += value.realCount();
           }
         }
       }
@@ -192,15 +190,13 @@ public class JexlBinderNumericIterator extends
             config.getExpression().getFillPolicy() != null) {
           // TODO - infectious nan
           dp.reset(context.syncTimestamp(), 
-              config.getExpression().getFillPolicy().getValue(),
-              reals);
+              config.getExpression().getFillPolicy().getValue());
         } else {
           dp.reset(context.syncTimestamp(), 
-              (Double) output, 
-              reals);
+              (Double) output);
         }
       } else if (output instanceof Boolean) {
-        dp.reset(context.syncTimestamp(), (((Boolean) output) ? 1 : 0), reals);
+        dp.reset(context.syncTimestamp(), (((Boolean) output) ? 1 : 0));
       } else {
         throw new IllegalStateException("Expression returned a result of type: " 
             + output.getClass().getName() + " for " + this);
@@ -299,7 +295,7 @@ public class JexlBinderNumericIterator extends
 
   protected void setId() {
     id = merger.build();
-    dp = new MutableNumericType(id);
+    dp = new MutableNumericType();
   }
   
   @Override

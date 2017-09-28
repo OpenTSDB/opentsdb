@@ -25,7 +25,7 @@ import net.opentsdb.utils.Bytes;
  * <p>
  * Implementations of this interface aren't expected to be synchronized.
  */
-public abstract class NumericType implements TimeSeriesDataType {
+public interface NumericType extends TimeSeriesDataType {
 
   /** The data type reference to pass around. */
   public static final TypeToken<NumericType> TYPE = TypeToken.of(NumericType.class);
@@ -64,21 +64,21 @@ public abstract class NumericType implements TimeSeriesDataType {
    * @return {@code true} if the value is of integer type (call {@link #longValue()}), 
    * {@code false} if it's of double point type (call {@link #doubleValue()}.
    */
-  public abstract boolean isInteger();
+  public boolean isInteger();
 
   /**
    * Returns the value of the this data point as a {@code long}.
    * @return The value as a long if {@link #isInteger()} was true.
    * @throws ClassCastException if the {@code isInteger() == false}.
    */
-  public abstract long longValue();
+  public long longValue();
 
   /**
    * Returns the value of the this data point as a {@code double}.
    * @return The value as a double if {@link #isInteger()} was false.
    * @throws ClassCastException if the {@code isInteger() == true}.
    */
-  public abstract double doubleValue();
+  public double doubleValue();
 
   /**
    * Returns the value of the this data point as a {@code double}, even if
@@ -87,15 +87,7 @@ public abstract class NumericType implements TimeSeriesDataType {
    * thing as {@link #doubleValue}.  Otherwise, it returns the same thing as
    * {@link #longValue}'s return value casted to a {@code double}.
    */
-  public abstract double toDouble();
-
-  /**
-   * Represents the number of real values behind this data point when referring
-   * to a pre-aggregated and/or rolled up value.
-   * @return The number of real values represented in this data point. Usually
-   * just 1 for raw values.
-   */
-  public abstract long valueCount();
+  public double toDouble();
 
   /**
    * Encodes a signed long on 1, 2, 4 or 8 bytes.

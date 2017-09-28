@@ -41,7 +41,6 @@ import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.StorageQueryExecutor.Config;
 import net.opentsdb.query.execution.TestQueryExecutor.MockDownstream;
-import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
@@ -166,7 +165,6 @@ public class TestStorageQueryExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
       ts += 300000;
       ++count;
     }
@@ -182,7 +180,6 @@ public class TestStorageQueryExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
       ts += 300000;
       ++count;
     }
@@ -203,7 +200,6 @@ public class TestStorageQueryExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
       ts += 300000;
       ++count;
     }
@@ -219,7 +215,6 @@ public class TestStorageQueryExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
       ts += 300000;
       ++count;
     }

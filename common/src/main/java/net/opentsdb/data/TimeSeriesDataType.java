@@ -12,8 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.data;
 
-import com.google.common.reflect.TypeToken;
-
 /**
  * Describes a type of data for use in storing and querying with OpenTSDB.
  * 

@@ -32,7 +32,7 @@ import com.google.common.collect.Lists;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
@@ -53,7 +53,7 @@ public class TestNumericMillisecondShard {
   
   @Before
   public void before() throws Exception {
-    id = SimpleStringTimeSeriesId.newBuilder()
+    id = BaseTimeSeriesId.newBuilder()
         .setMetrics(Lists.newArrayList("sys.cpu.user"))
         .build();
     start = new MillisecondTimeStamp(0L);
@@ -150,12 +150,11 @@ public class TestNumericMillisecondShard {
     
     assertNull(shard.peek());
 
-    shard.add(1486045801000L, 42, 1);
+    shard.add(1486045801000L, 42);
     
     TimeSeriesValue<NumericType> v = shard.peek();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(42, v.value().longValue());
-    assertEquals(1, v.realCount());
   }
   
   @Test
@@ -172,42 +171,42 @@ public class TestNumericMillisecondShard {
     assertArrayEquals(new byte[] { 0, 0, 0 }, shard.offsets());
     assertArrayEquals(new byte[] { 0, 0, 0, 0 }, shard.values());
     
-    shard.add(1486045801000L, 42, 1);
+    shard.add(1486045801000L, 42);
     assertEquals(6, shard.offsets().length); // expanded
     assertEquals(4, shard.values().length);
     assertArrayEquals(new byte[] { 1, -12, 0, 0, 0, 0 }, shard.offsets());
-    assertArrayEquals(new byte[] { 1, 42, 0, 0 }, shard.values());
+    assertArrayEquals(new byte[] { 42, 0, 0, 0 }, shard.values());
     
-    shard.add(1486045871000L, 9866.854, 0);
+    shard.add(1486045871000L, 9866.854);
     assertEquals(12, shard.offsets().length); // expanded
     assertEquals(16, shard.values().length);
     assertArrayEquals(new byte[] { 1, -12, 0, -118, -84, 15, 0, 0, 0, 0, 0, 0 }, 
         shard.offsets());
-    assertArrayEquals(new byte[] { 1, 42, 0, 64, -61, 69, 109, 79, -33, 59, 
-        100, 0, 0, 0, 0, 0 }, shard.values());
+    assertArrayEquals(new byte[] { 42, 64, -61, 69, 109, 79, -33, 59, 
+        100, 0, 0, 0, 0, 0, 0, 0 }, shard.values());
     
     // less than not allowed
     try {
-      shard.add(1486045800000L, 1, 0);
+      shard.add(1486045800000L, 1);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
 
     // same not allowed
     try {
-      shard.add(1486045871000L, 9866.854, 0);
+      shard.add(1486045871000L, 9866.854);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     // too late
     try {
-      shard.add(1486045900001L, 1, 0);
+      shard.add(1486045900001L, 1);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     // too early
     shard = new NumericMillisecondShard(id, start, end);
     try {
-      shard.add(1486045799999L, 1, 0);
+      shard.add(1486045799999L, 1);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -219,84 +218,73 @@ public class TestNumericMillisecondShard {
     start = new MillisecondTimeStamp(1486045800000L);
     end = new MillisecondTimeStamp(1486046000000L);
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
-    shard.add(1486045801000L, 42, 1);
-    shard.add(1486045871000L, 9866.854, 0);
-    shard.add(1486045881000L, -128, 1024);
+    shard.add(1486045801000L, 42);
+    shard.add(1486045871000L, 9866.854);
+    shard.add(1486045881000L, -128);
     
     TimeSeriesValue<NumericType> v = shard.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(42, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     v = shard.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(9866.854, v.value().doubleValue(), 0.00001);
-    assertEquals(0, v.realCount());
     
     v = shard.next();
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(-128, v.value().longValue());
-    assertEquals(1024, v.realCount());
     
     // add after is ok.
-    shard.add(1486045891000L, Long.MAX_VALUE, Integer.MAX_VALUE);
+    shard.add(1486045891000L, Long.MAX_VALUE);
     v = shard.next();
     assertEquals(1486045891000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(Long.MAX_VALUE, v.value().longValue());
-    assertEquals(Integer.MAX_VALUE, v.realCount());
     
-    shard.add(1486045891050L, Long.MIN_VALUE, Integer.MAX_VALUE);
+    shard.add(1486045891050L, Long.MIN_VALUE);
     v = shard.next();
     assertEquals(1486045891050L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(Long.MIN_VALUE, v.value().longValue());
-    assertEquals(Integer.MAX_VALUE, v.realCount());
     
-    shard.add(1486045901571L, Double.MAX_VALUE, Integer.MAX_VALUE);
+    shard.add(1486045901571L, Double.MAX_VALUE);
     v = shard.next();
     assertEquals(1486045901571L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(Double.MAX_VALUE, v.value().doubleValue(), 0.00001);
-    assertEquals(Integer.MAX_VALUE, v.realCount());
     
-    shard.add(1486045901572L, Double.MIN_VALUE, Integer.MAX_VALUE);
+    shard.add(1486045901572L, Double.MIN_VALUE);
     v = shard.next();
     assertEquals(1486045901572L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(Double.MIN_NORMAL, v.value().doubleValue(), 0.00001);
-    assertEquals(Integer.MAX_VALUE, v.realCount());
     
-    shard.add(1486045902000L, 0, 1);
+    shard.add(1486045902000L, 0);
     v = shard.next();
     assertEquals(1486045902000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(0, v.value().longValue());
-    assertEquals(1, v.realCount());
     
-    shard.add(1486045903000L, 0f, 1);
+    shard.add(1486045903000L, 0f);
     v = shard.next();
     assertEquals(1486045903000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(0, v.value().doubleValue(), 0.0001);
-    assertEquals(1, v.realCount());
     
-    shard.add(1486045904000L, Double.POSITIVE_INFINITY, 1);
+    shard.add(1486045904000L, Double.POSITIVE_INFINITY);
     v = shard.next();
     assertEquals(1486045904000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertTrue(Double.isInfinite(v.value().doubleValue()));
-    assertEquals(1, v.realCount());
     
-    shard.add(1486045905000L, Double.NaN, 1);
+    shard.add(1486045905000L, Double.NaN);
     v = shard.next();
     assertEquals(1486045905000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(1, v.realCount());
     
     try {
       v = shard.next();
@@ -315,9 +303,9 @@ public class TestNumericMillisecondShard {
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
     group.addSeries(new SimpleStringGroupId("a"), shard);
     
-    shard.add(1486045801000L, 42, 1);
-    shard.add(1486045871000L, 9866.854, 0);
-    shard.add(1486045881000L, -128, 1024);
+    shard.add(1486045801000L, 42);
+    shard.add(1486045871000L, 9866.854);
+    shard.add(1486045881000L, -128);
     
     assertEquals(IteratorStatus.END_OF_DATA, context.currentStatus());
     assertEquals(IteratorStatus.END_OF_DATA, context.nextStatus());
@@ -344,7 +332,6 @@ public class TestNumericMillisecondShard {
     assertEquals(1486045800000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
     assertEquals(IteratorStatus.HAS_DATA, context.nextStatus());
@@ -356,7 +343,6 @@ public class TestNumericMillisecondShard {
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(42, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     // fill in middle
     context.updateContext(IteratorStatus.HAS_DATA, 
@@ -371,7 +357,6 @@ public class TestNumericMillisecondShard {
     assertEquals(1486045851000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
     assertEquals(IteratorStatus.HAS_DATA, context.nextStatus());
@@ -383,7 +368,6 @@ public class TestNumericMillisecondShard {
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(9866.854, v.value().doubleValue(), 0.00001);
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
     assertEquals(IteratorStatus.HAS_DATA, context.nextStatus());
@@ -395,7 +379,6 @@ public class TestNumericMillisecondShard {
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(-128, v.value().longValue());
-    assertEquals(1024, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
     assertEquals(IteratorStatus.END_OF_DATA, context.nextStatus());
@@ -410,7 +393,6 @@ public class TestNumericMillisecondShard {
     assertEquals(1486045891000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.currentStatus());
     assertEquals(IteratorStatus.END_OF_DATA, context.nextStatus());
@@ -425,34 +407,32 @@ public class TestNumericMillisecondShard {
     start = new MillisecondTimeStamp(1486045800000L);
     end = new MillisecondTimeStamp(1486045890000L);
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
-    shard.add(1486045801000L, 42, 1);
-    shard.add(1486045871000L, 9866.854, 0);
-    shard.add(1486045881000L, -128, 1024);
+    shard.add(1486045801000L, 42);
+    shard.add(1486045871000L, 9866.854);
+    shard.add(1486045881000L, -128);
     
     TimeSeriesValue<NumericType> v = shard.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(42, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     NumericMillisecondShard clone = (NumericMillisecondShard) shard.getShallowCopy(null);
     v = clone.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(42, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertNotSame(shard, clone);
     assertSame(shard.offsets(), clone.offsets());
     assertSame(shard.values(), clone.values());
     
     try {
-      shard.add(1486045891000L, 24, 2);
+      shard.add(1486045891000L, 24);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
     try {
-      clone.add(1486045891000L, 24, 2);
+      clone.add(1486045891000L, 24);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
   }
@@ -462,15 +442,14 @@ public class TestNumericMillisecondShard {
     start = new MillisecondTimeStamp(1486045800000L);
     end = new MillisecondTimeStamp(1486045890000L);
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
-    shard.add(1486045801000L, 42, 1);
-    shard.add(1486045871000L, 9866.854, 0);
-    shard.add(1486045881000L, -128, 1024);
+    shard.add(1486045801000L, 42);
+    shard.add(1486045871000L, 9866.854);
+    shard.add(1486045881000L, -128);
     
     TimeSeriesValue<NumericType> v = shard.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(42, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     TimeStamp start = new MillisecondTimeStamp(1486045800000L);
     TimeStamp end = new MillisecondTimeStamp(1486045800900L);
@@ -490,13 +469,11 @@ public class TestNumericMillisecondShard {
     v = clone.next();
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertEquals(42, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, clone.status());
     v = clone.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(9866.854, v.value().doubleValue(), 0.001);
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, clone.status());
     // no movement in the original
@@ -521,13 +498,11 @@ public class TestNumericMillisecondShard {
     v = clone.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertEquals(9866.854, v.value().doubleValue(), 0.001);
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, clone.status());
     v = clone.next();
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertEquals(-128, v.value().longValue());
-    assertEquals(1024, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, clone.status());
     // no movement in the original

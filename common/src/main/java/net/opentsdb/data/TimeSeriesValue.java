@@ -20,17 +20,13 @@ import com.google.common.reflect.TypeToken;
  * {@link #value()} can be any data type supported by OpenTSDB.
  * <p>
  * <b>WARNING:</b> Note that when a value is extracted from an iterator, a copy
- * should be made using {@link #getCopy()}.
+ * should be made as the iterator may change the actual value on the next
+ * iteration.
  *
  * @param <T> A {@link TimeSeriesDataType} object.
  * @since 3.0
  */
 public interface TimeSeriesValue<T extends TimeSeriesDataType> {
-  /**
-   * A reference to the time series ID associated with this value.
-   * @return A non-null {@link TimeSeriesId}.
-   */
-  public TimeSeriesId id();
   
   /**
    * The timestamp associated with this value.
@@ -45,24 +41,8 @@ public interface TimeSeriesValue<T extends TimeSeriesDataType> {
   public T value();
   
   /**
-   * A count of the number of real underlying values represented in this data
-   * point. If this was a completely synthetic or "filled" data point then the
-   * count will be zero. Non-zero values indicates that at least one actual
-   * value went into the presentation of this point.
-   * @return A non-negative value.
+   * The type of data this value represents.
+   * @return A non-null type token for the given data type.
    */
-  public int realCount();
-  
-  /**
-   * The {@link TimeSeriesDataType} data type of this value.
-   * @return A non-null type token.
-   */
-  public TypeToken<?> type();
-  
-  /**
-   * Creates and returns a deep copy of this value. Useful if the value was
-   * retrieved from an iterator that may modify the underlying data.
-   * @return A non-null deep copy of the current value.
-   */
-  public TimeSeriesValue<T> getCopy();
+  public TypeToken<T> type();
 }

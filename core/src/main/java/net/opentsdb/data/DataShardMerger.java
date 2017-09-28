@@ -15,6 +15,7 @@ package net.opentsdb.data;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 
 import io.opentracing.Span;
@@ -34,8 +36,6 @@ import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.iterators.TimeSeriesIterators;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.utils.ByteSet;
-import net.opentsdb.utils.Bytes;
 
 /**
  * A class that takes shards groups from multiple clusters or multiple runs
@@ -234,8 +234,8 @@ public class DataShardMerger implements DataMerger<IteratorGroups> {
             final TimeSeriesId local_id = groups.get(y).iterators().get(z).id();
             
             // alias check first
-            if (temp_id.alias() != null && temp_id.alias().length > 0) {
-              if (Bytes.memcmp(temp_id.alias(), local_id.alias()) != 0) {
+            if (temp_id.alias() != null && !temp_id.alias().isEmpty()) {
+              if (!temp_id.alias().equals(local_id.alias())) {
                 // fail fast
                 continue;
               }
@@ -246,8 +246,8 @@ public class DataShardMerger implements DataMerger<IteratorGroups> {
             if (temp_id.namespaces().size() != local_id.namespaces().size()) {
               continue;
             }
-            for (final byte[] namespace : temp_id.namespaces()) {
-              if (!Bytes.contains(local_id.namespaces(), namespace)) {
+            for (final String namespace : temp_id.namespaces()) {
+              if (!local_id.namespaces().contains(namespace)) {
                 matched = false;
                 break;
               }
@@ -261,8 +261,8 @@ public class DataShardMerger implements DataMerger<IteratorGroups> {
             if (temp_id.metrics().size() != local_id.metrics().size()) {
               continue;
             }
-            for (final byte[] metric : temp_id.metrics()) {
-              if (!Bytes.contains(local_id.metrics(), metric)) {
+            for (final String metric : temp_id.metrics()) {
+              if (!local_id.metrics().contains(metric)) {
                 matched = false;
                 break;
               }
@@ -271,19 +271,19 @@ public class DataShardMerger implements DataMerger<IteratorGroups> {
               continue;
             }
             
-            final ByteSet promoted_agg_tags = new ByteSet();
-            final ByteSet promoted_disjoint_tags = new ByteSet();
+            final Set<String> promoted_agg_tags = Sets.newHashSet();
+            final Set<String> promoted_disjoint_tags = Sets.newHashSet();
             matched = true;
-            for (final Entry<byte[], byte[]> pair : temp_id.tags().entrySet()) {
-              final byte[] tag_v = local_id.tags().get(pair.getKey());
-              if (Bytes.memcmpMaybeNull(tag_v, pair.getValue()) == 0) {
+            for (final Entry<String, String> pair : temp_id.tags().entrySet()) {
+              final String tag_v = local_id.tags().get(pair.getKey());
+              if (tag_v != null && tag_v.equals(pair.getValue())) {
                 // matched!
                 continue;
               }
               
-              if (!Bytes.contains(local_id.aggregatedTags(), pair.getKey())) {
+              if (!local_id.aggregatedTags().contains(pair.getKey())) {
                 promoted_agg_tags.add(pair.getKey());
-              } else if (!Bytes.contains(local_id.disjointTags(), pair.getKey())) {
+              } else if (!local_id.disjointTags().contains(pair.getKey())) {
                 promoted_disjoint_tags.add(pair.getKey());
               }
             }
@@ -292,15 +292,15 @@ public class DataShardMerger implements DataMerger<IteratorGroups> {
             }
             
             // reverse tags processing
-            for (final Entry<byte[], byte[]> pair : local_id.tags().entrySet()) {
-              final byte[] tag_v = temp_id.tags.get(pair.getKey());
-              if (Bytes.memcmpMaybeNull(tag_v, pair.getValue()) == 0) {
+            for (final Entry<String, String> pair : local_id.tags().entrySet()) {
+              final String tag_v = temp_id.tags().get(pair.getKey());
+              if (tag_v != null && tag_v.equals(pair.getValue())) {
                 continue;
               }
               
               // this one wasn't in the other tag list so check agg/disjoint.
-              if (!Bytes.contains(temp_id.aggregatedTags(), pair.getKey()) &&
-                  !Bytes.contains(temp_id.disjointTags(), pair.getKey())) {
+              if (!temp_id.aggregatedTags().contains(pair.getKey()) &&
+                  !temp_id.disjointTags().contains(pair.getKey())) {
                 matched = false;
                 break;
               }
@@ -310,13 +310,13 @@ public class DataShardMerger implements DataMerger<IteratorGroups> {
             }
             
             // aggs and disjoint
-            for (final byte[] tagk : local_id.aggregatedTags()) {
-              if (Bytes.contains(temp_id.aggregatedTags(), tagk) || 
+            for (final String tagk : local_id.aggregatedTags()) {
+              if (temp_id.aggregatedTags().contains(tagk) || 
                   promoted_agg_tags.contains(tagk)) {
                 continue;
               }
               
-              if (!Bytes.contains(temp_id.disjointTags(), tagk) &&
+              if (!temp_id.disjointTags().contains(tagk) &&
                   !promoted_disjoint_tags.contains(tagk)) {
                 matched = false;
                 break;
@@ -326,12 +326,12 @@ public class DataShardMerger implements DataMerger<IteratorGroups> {
               continue;
             }
             
-            for (final byte[] tagk : local_id.disjointTags()) {
-              if (Bytes.contains(temp_id.aggregatedTags(), tagk) ||
+            for (final String tagk : local_id.disjointTags()) {
+              if (temp_id.aggregatedTags().contains(tagk) ||
                   promoted_agg_tags.contains(tagk)) {
                 continue;
               }
-              if (!Bytes.contains(temp_id.disjointTags(), tagk) && 
+              if (!temp_id.disjointTags().contains(tagk) && 
                   !promoted_disjoint_tags.contains(tagk)) {
                 matched = false;
                 break;

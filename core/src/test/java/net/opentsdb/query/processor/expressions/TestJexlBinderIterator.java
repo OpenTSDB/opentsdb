@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.processor.expressions;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
@@ -35,11 +34,10 @@ import org.mockito.internal.util.reflection.Whitebox;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
@@ -104,39 +102,39 @@ public class TestJexlBinderIterator {
     group_id_a = new SimpleStringGroupId("a");
     group_id_b = new SimpleStringGroupId("b");
     
-    id_a = SimpleStringTimeSeriesId.newBuilder()
+    id_a = BaseTimeSeriesId.newBuilder()
         .setAlias("Khaleesi")
         .addMetric("system.cpu.user")
         .build();
-    id_b = SimpleStringTimeSeriesId.newBuilder()
+    id_b = BaseTimeSeriesId.newBuilder()
         .setAlias("Khalasar")
         .addMetric("system.cpu.idle")
         .build();
     
     data_a = Lists.newArrayListWithCapacity(2);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data_a.add(set);
     
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data_a.add(set);
 
     data_b = Lists.newArrayListWithCapacity(2);
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data_b.add(set);
     
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(4000), 4, 1));
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data_b.add(set);
     
     it_a = spy(new MockNumericIterator(id_a));
@@ -214,10 +212,8 @@ public class TestJexlBinderIterator {
     assertNull(it.initialize().join());
     
     assertEquals(2, it.id().metrics().size());
-    assertArrayEquals("system.cpu.idle".getBytes(Const.UTF8_CHARSET), 
-        it.id().metrics().get(0));
-    assertArrayEquals("system.cpu.user".getBytes(Const.UTF8_CHARSET), 
-        it.id().metrics().get(1));
+    assertEquals("system.cpu.idle", it.id().metrics().get(0));
+    assertEquals("system.cpu.user", it.id().metrics().get(1));
     assertNull(it.id().alias());
   }
   
@@ -241,19 +237,16 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(2000, v.timestamp().msEpoch());
     assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(6, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     assertNull(context.fetchNext().join());
@@ -261,19 +254,16 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(4000, v.timestamp().msEpoch());
     assertEquals(8, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(5000, v.timestamp().msEpoch());
     assertEquals(-95, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(6000, v.timestamp().msEpoch());
     assertEquals(12, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -303,19 +293,16 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(2000, v.timestamp().msEpoch());
     assertEquals(-98, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(6, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     assertNull(context.fetchNext().join());
@@ -323,19 +310,16 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(4000, v.timestamp().msEpoch());
     assertEquals(8, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(5000, v.timestamp().msEpoch());
     assertEquals(-95, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(6000, v.timestamp().msEpoch());
     assertEquals(12, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -363,19 +347,16 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(2000, v.timestamp().msEpoch());
     assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(6, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     assertNull(context.fetchNext().join());
@@ -383,19 +364,16 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(4000, v.timestamp().msEpoch());
     assertEquals(8, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(5000, v.timestamp().msEpoch());
     assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, context.advance());
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(6000, v.timestamp().msEpoch());
     assertEquals(12, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -415,7 +393,6 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     // inject an exception
     it_b.ex = new RuntimeException("Boo!");
@@ -439,7 +416,6 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     // inject an exception
     it_b.ex = new RuntimeException("Boo!");
@@ -500,7 +476,6 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     final QueryContext ctx2 = 
         new DefaultQueryContext(tsdb, mock(ExecutionGraph.class));
@@ -520,7 +495,6 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) copy.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertNotSame(copy, it);
   }
@@ -541,7 +515,6 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(1, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -549,7 +522,6 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(2000, v.timestamp().msEpoch());
     assertEquals(4, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -557,7 +529,6 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(6, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -578,7 +549,6 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(1, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -586,7 +556,6 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(2000, v.timestamp().msEpoch());
     assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -594,7 +563,6 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(6, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -615,7 +583,6 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -623,7 +590,6 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(2000, v.timestamp().msEpoch());
     assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -631,7 +597,6 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(6, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -652,7 +617,6 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(2, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -660,7 +624,6 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(2000, v.timestamp().msEpoch());
     assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -668,7 +631,6 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(3, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -689,7 +651,6 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(-99, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -697,7 +658,6 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(2000, v.timestamp().msEpoch());
     assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -705,7 +665,6 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(3, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -726,7 +685,6 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(-99, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -736,7 +694,6 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(3, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
 
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -757,7 +714,6 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(-99, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -784,7 +740,6 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(2000, v.timestamp().msEpoch());
     assertEquals(-98, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -812,7 +767,6 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(-97, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -833,7 +787,6 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(-99, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -841,7 +794,6 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(2000, v.timestamp().msEpoch());
     assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -849,7 +801,6 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(-97, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }
@@ -870,7 +821,6 @@ public class TestJexlBinderIterator {
     TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(-99, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -878,7 +828,6 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(2000, v.timestamp().msEpoch());
     assertEquals(2, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_CHUNK, context.advance());
     context.fetchNext().join();
@@ -886,7 +835,6 @@ public class TestJexlBinderIterator {
     v = (TimeSeriesValue<NumericType>) it.next();
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(-97, v.value().doubleValue(), 0.01);
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, context.advance());
   }

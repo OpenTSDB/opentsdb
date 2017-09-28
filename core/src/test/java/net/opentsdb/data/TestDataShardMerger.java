@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.data;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -36,9 +35,8 @@ import com.google.common.reflect.TypeToken;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
-import net.opentsdb.common.Const;
 import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.DefaultIteratorGroup;
@@ -66,7 +64,7 @@ public class TestDataShardMerger {
   public void before() throws Exception {
     context = mock(QueryContext.class);
     group_id = new SimpleStringGroupId("a");
-    id = SimpleStringTimeSeriesId.newBuilder()
+    id = BaseTimeSeriesId.newBuilder()
         .setAlias("a")
         .addMetric("sys.cpu.user")
         .build();
@@ -134,17 +132,17 @@ public class TestDataShardMerger {
     when(mock_annotation_a.startTime()).thenReturn(start);
     when(mock_annotation_b.startTime()).thenReturn(start);
     
-    it_a.add(1486045801000L, 42, 1);
-    it_b.add(1486045801000L, 42, 1);
-    it_c.add(1486045801000L, 42, 1);
+    it_a.add(1486045801000L, 42);
+    it_b.add(1486045801000L, 42);
+    it_c.add(1486045801000L, 42);
     
-    it_a.add(1486045871000L, 9866.854, 2);
-    it_b.add(1486045871000L, 9866.854, 2);
-    it_c.add(1486045871000L, 9866.854, 2);
+    it_a.add(1486045871000L, 9866.854);
+    it_b.add(1486045871000L, 9866.854);
+    it_c.add(1486045871000L, 9866.854);
     
-    it_a.add(1486045881000L, -128, 2);
-    it_b.add(1486045881000L, -128, 2);
-    it_c.add(1486045881000L, -128, 2);
+    it_a.add(1486045881000L, -128);
+    it_b.add(1486045881000L, -128);
+    it_c.add(1486045881000L, -128);
     
     TimeSeriesIterators shards_a = new DefaultTimeSeriesIterators(id);
     shards_a.addIterator(it_a);
@@ -200,15 +198,15 @@ public class TestDataShardMerger {
   @Test
   public void mergeIdsAlias() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("a").build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("b").build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("a").build(),
-          SimpleStringTimeSeriesId.newBuilder()
+          BaseTimeSeriesId.newBuilder()
           .setAlias("b").build());
     
     final List<IteratorGroups> shards = Lists.newArrayList( set1, set2 );
@@ -216,24 +214,24 @@ public class TestDataShardMerger {
     merger.registerStrategy(new NumericMergeLargest());
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
-    assertArrayEquals("a".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("a", 
         results.flattenedIterators().get(0).id().alias());
-    assertArrayEquals("b".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("b", 
         results.flattenedIterators().get(1).id().alias());
   }
   
   @Test
   public void mergeIdsAliasDiff() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("a").build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("b").build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("a").build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("c").build());
     
     final List<IteratorGroups> shards = Lists.newArrayList( set1, set2 );
@@ -241,26 +239,26 @@ public class TestDataShardMerger {
     merger.registerStrategy(new NumericMergeLargest());
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(3, results.flattenedIterators().size());
-    assertArrayEquals("a".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("a", 
         results.flattenedIterators().get(0).id().alias());
-    assertArrayEquals("b".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("b", 
         results.flattenedIterators().get(1).id().alias());
-    assertArrayEquals("c".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("c", 
         results.flattenedIterators().get(2).id().alias());
   }
   
   @Test
   public void mergeIdsAliasDiffDisjoint() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("a").build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("b").build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("d").build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("c").build());
     
     final List<IteratorGroups> shards = Lists.newArrayList( set1, set2 );
@@ -268,37 +266,37 @@ public class TestDataShardMerger {
     merger.registerStrategy(new NumericMergeLargest());
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(4, results.flattenedIterators().size());
-    assertArrayEquals("a".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("a", 
         results.flattenedIterators().get(0).id().alias());
-    assertArrayEquals("b".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("b", 
         results.flattenedIterators().get(1).id().alias());
-    assertArrayEquals("d".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("d", 
         results.flattenedIterators().get(2).id().alias());
-    assertArrayEquals("c".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("c", 
         results.flattenedIterators().get(3).id().alias());
   }
   
   @Test
   public void mergeIdsAliasSameDiffTags() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("foo")
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("bar")
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("foo")
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("bar")
           .addMetric("sys.mem")
           .addTags("host", "web02")
@@ -310,35 +308,35 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(3, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(0).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(1).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(2).id().metrics().get(0));
-    assertArrayEquals("web02".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(2).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+    assertEquals("web02",
+        results.flattenedIterators().get(2).id().tags().get("host"));
   }
   
   @Test
   public void mergeIdsNamespace() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Frey")
           .build());
 
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Frey")
           .build());
     
@@ -347,27 +345,27 @@ public class TestDataShardMerger {
     merger.registerStrategy(new NumericMergeLargest());
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
-    assertArrayEquals("Targaryen".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("Targaryen", 
         results.flattenedIterators().get(0).id().namespaces().get(0));
-    assertArrayEquals("Frey".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("Frey", 
         results.flattenedIterators().get(1).id().namespaces().get(0));
   }
   
   @Test
   public void mergeIdsNamespaceDiff() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Frey")
           .build());
 
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("GreyJoy")
           .build());
     
@@ -376,32 +374,32 @@ public class TestDataShardMerger {
     merger.registerStrategy(new NumericMergeLargest());
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(3, results.flattenedIterators().size());
-    assertArrayEquals("Targaryen".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("Targaryen", 
         results.flattenedIterators().get(0).id().namespaces().get(0));
-    assertArrayEquals("Frey".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("Frey", 
         results.flattenedIterators().get(1).id().namespaces().get(0));
-    assertArrayEquals("GreyJoy".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("GreyJoy", 
         results.flattenedIterators().get(2).id().namespaces().get(0));
   }
   
   @Test
   public void mergeIdsNamespaceExtra() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Frey")
           .build());
 
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Frey")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("GreyJoy")
           .build());
     
@@ -410,30 +408,30 @@ public class TestDataShardMerger {
     merger.registerStrategy(new NumericMergeLargest());
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(3, results.flattenedIterators().size());
-    assertArrayEquals("Targaryen".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("Targaryen", 
         results.flattenedIterators().get(0).id().namespaces().get(0));
-    assertArrayEquals("Frey".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("Frey", 
         results.flattenedIterators().get(1).id().namespaces().get(0));
-    assertArrayEquals("GreyJoy".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("GreyJoy", 
         results.flattenedIterators().get(2).id().namespaces().get(0));
   }
   
   @Test
   public void mergeIdsNamespaceMulti() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Frey")
           .addNamespace("GreyJoy")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build());
 
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Frey")
           .addNamespace("GreyJoy")
           .build());
@@ -443,30 +441,30 @@ public class TestDataShardMerger {
     merger.registerStrategy(new NumericMergeLargest());
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
-    assertArrayEquals("Frey".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("Frey", 
         results.flattenedIterators().get(0).id().namespaces().get(0));
-    assertArrayEquals("GreyJoy".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("GreyJoy", 
         results.flattenedIterators().get(0).id().namespaces().get(1));
-    assertArrayEquals("Targaryen".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("Targaryen", 
         results.flattenedIterators().get(1).id().namespaces().get(0));
   }
   
   @Test
   public void mergeIdsNamespaceMultiDiffOrder() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("GreyJoy")
           .addNamespace("Frey")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build());
 
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Frey")
           .addNamespace("GreyJoy")
           .build());
@@ -476,30 +474,30 @@ public class TestDataShardMerger {
     merger.registerStrategy(new NumericMergeLargest());
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
-    assertArrayEquals("Frey".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("Frey", 
         results.flattenedIterators().get(0).id().namespaces().get(0));
-    assertArrayEquals("GreyJoy".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("GreyJoy", 
         results.flattenedIterators().get(0).id().namespaces().get(1));
-    assertArrayEquals("Targaryen".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("Targaryen", 
         results.flattenedIterators().get(1).id().namespaces().get(0));
   }
   
   @Test
   public void mergeIdsNamespaceMissing() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("GreyJoy")
           //.addNamespace("Frey")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build());
 
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Targaryen")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addNamespace("Frey")
           .addNamespace("GreyJoy")
           .build());
@@ -509,31 +507,31 @@ public class TestDataShardMerger {
     merger.registerStrategy(new NumericMergeLargest());
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(3, results.flattenedIterators().size());
-    assertArrayEquals("GreyJoy".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("GreyJoy", 
         results.flattenedIterators().get(0).id().namespaces().get(0));
-    assertArrayEquals("Targaryen".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("Targaryen", 
         results.flattenedIterators().get(1).id().namespaces().get(0));
-    assertArrayEquals("Frey".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("Frey", 
         results.flattenedIterators().get(2).id().namespaces().get(0));
-    assertArrayEquals("GreyJoy".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("GreyJoy", 
         results.flattenedIterators().get(2).id().namespaces().get(1));
   }
   
   @Test
   public void mergeIdsMetricsOnly() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .build());
         
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .build());
     
@@ -542,27 +540,27 @@ public class TestDataShardMerger {
     merger.registerStrategy(new NumericMergeLargest());
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
   }
   
   @Test
   public void mergeIdsMetricsOnlyDiff() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .build());
         
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.disk")
           .build());
     
@@ -571,32 +569,32 @@ public class TestDataShardMerger {
     merger.registerStrategy(new NumericMergeLargest());
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(3, results.flattenedIterators().size());
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("sys.disk".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.disk", 
         results.flattenedIterators().get(2).id().metrics().get(0));
   }
   
   @Test
   public void mergeIdsMetricsOnlyMulti() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addMetric("sys.mem")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.disk")
           .addMetric("sys.if")
           .build());
         
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addMetric("sys.mem")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.disk")
           .addMetric("sys.if")
           .build());
@@ -606,34 +604,34 @@ public class TestDataShardMerger {
     merger.registerStrategy(new NumericMergeLargest());
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(0).id().metrics().get(1));
-    assertArrayEquals("sys.disk".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.disk", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("sys.if".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.if", 
         results.flattenedIterators().get(1).id().metrics().get(1));
   }
   
   @Test
   public void mergeIdsMetricsOnlyMultiDiffOrder() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addMetric("sys.mem")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.disk")
           .addMetric("sys.if")
           .build());
         
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addMetric("sys.cpu")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.if")
           .addMetric("sys.disk")
           .build());
@@ -643,34 +641,34 @@ public class TestDataShardMerger {
     merger.registerStrategy(new NumericMergeLargest());
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(0).id().metrics().get(1));
-    assertArrayEquals("sys.disk".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.disk", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("sys.if".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.if", 
         results.flattenedIterators().get(1).id().metrics().get(1));
   }
   
   @Test
   public void mergeIdsTags() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .build());
@@ -681,34 +679,34 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(0).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+    assertEquals("web01",
+        results.flattenedIterators().get(1).id().tags().get("host"));
   }
   
   @Test
   public void mergeIdsTagsDiff() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web02")
           .build());
@@ -719,38 +717,38 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(3, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(0).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(1).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(2).id().metrics().get(0));
-    assertArrayEquals("web02".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(2).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+    assertEquals("web02",
+        results.flattenedIterators().get(2).id().tags().get("host"));
   }
   
   @Test
   public void mergeIdsTagsExtraTag() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .addTags("dc", "phx")
@@ -762,41 +760,41 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(3, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(0).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(1).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(2).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(2).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("phx".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(2).id().tags().get("dc".getBytes(Const.UTF8_CHARSET)));
+    assertEquals("web01",
+        results.flattenedIterators().get(2).id().tags().get("host"));
+    assertEquals("phx",
+        results.flattenedIterators().get(2).id().tags().get("dc"));
   }
   
   @Test
   public void mergeIdsTagsExtraTagAggedOut() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .addAggregatedTag("dc")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .addTags("dc", "phx")
@@ -808,37 +806,37 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(0).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("dc".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(1).id().tags().get("host"));
+    assertEquals("dc", 
         results.flattenedIterators().get(1).id().aggregatedTags().get(0));
   }
   
   @Test
   public void mergeIdsTagsExtraTagAggedOutOtherDirection() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .addTags("dc", "phx")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .addAggregatedTag("dc")
@@ -850,36 +848,36 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(0).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("dc".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(1).id().tags().get("host"));
+    assertEquals("dc", 
         results.flattenedIterators().get(1).id().aggregatedTags().get(0));
   }
   
   @Test
   public void mergeIdsTagsExtraTagAggedOutEmptiedTags() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addAggregatedTag("host")
           .build());
@@ -890,34 +888,34 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(0).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("host", 
         results.flattenedIterators().get(1).id().aggregatedTags().get(0));
   }
   
   @Test
   public void mergeIdsTagsExtraTagDisjointedOut() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addDisjointTag("host")
           .build());
@@ -928,34 +926,34 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(0).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("host", 
         results.flattenedIterators().get(1).id().disjointTags().get(0));
   }
   
   @Test
   public void mergeIdsTagsExtraTagDisjointedOutOtherDirection() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addDisjointTag("host")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .build());
@@ -966,35 +964,35 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(0).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("host", 
         results.flattenedIterators().get(1).id().disjointTags().get(0));
   }
   
   @Test
   public void mergeIdsTagsMultiDiffOrder() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .addTags("dc", "phx")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("dc", "phx")
           .addTags("host", "web01")
@@ -1006,36 +1004,36 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(0).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("phx".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(1).id().tags().get("dc".getBytes(Const.UTF8_CHARSET)));
+    assertEquals("web01",
+        results.flattenedIterators().get(1).id().tags().get("host"));
+    assertEquals("phx",
+        results.flattenedIterators().get(1).id().tags().get("dc"));
   }
   
   @Test
   public void mergeIdsAggTags() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addAggregatedTag("host")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addAggregatedTag("host")
           .build());
@@ -1046,34 +1044,34 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(0).id().aggregatedTags().get(0));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(1).id().aggregatedTags().get(0));
   }
 
   @Test
   public void mergeIdsAggTagsDiff() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addAggregatedTag("host")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addAggregatedTag("dc")
           .build());
@@ -1084,39 +1082,39 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(3, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(0).id().aggregatedTags().get(0));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(1).id().aggregatedTags().get(0));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(2).id().metrics().get(0));
-    assertArrayEquals("dc".getBytes(Const.UTF8_CHARSET),
+    assertEquals("dc",
         results.flattenedIterators().get(2).id().aggregatedTags().get(0));
   }
   
   @Test
   public void mergeIdsAggTagsMulti() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addAggregatedTag("host")
           .addAggregatedTag("dc")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addAggregatedTag("host")
           .addAggregatedTag("dc")
@@ -1128,37 +1126,37 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(0).id().aggregatedTags().get(0));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("dc".getBytes(Const.UTF8_CHARSET),
+    assertEquals("dc",
         results.flattenedIterators().get(1).id().aggregatedTags().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(1).id().aggregatedTags().get(1));
   }
   
   @Test
   public void mergeIdsAggTagsMultiDiffOrder() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addAggregatedTag("dc")
           .addAggregatedTag("host")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addAggregatedTag("host")
           .addAggregatedTag("dc")
@@ -1170,36 +1168,36 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(0).id().aggregatedTags().get(0));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("dc".getBytes(Const.UTF8_CHARSET),
+    assertEquals("dc",
         results.flattenedIterators().get(1).id().aggregatedTags().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(1).id().aggregatedTags().get(1));
   }
   
   @Test
   public void mergeIdsDisjointTags() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addDisjointTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addDisjointTag("host")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addDisjointTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addDisjointTag("host")
           .build());
@@ -1210,34 +1208,34 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(0).id().disjointTags().get(0));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(1).id().disjointTags().get(0));
   }
   
   @Test
   public void mergeIdsDisjointTagsDiff() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addDisjointTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addDisjointTag("host")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addDisjointTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addDisjointTag("dc")
           .build());
@@ -1248,39 +1246,39 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(3, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(0).id().disjointTags().get(0));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(1).id().disjointTags().get(0));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(2).id().metrics().get(0));
-    assertArrayEquals("dc".getBytes(Const.UTF8_CHARSET),
+    assertEquals("dc",
         results.flattenedIterators().get(2).id().disjointTags().get(0));
   }
   
   @Test
   public void mergeIdsDisjointTagsMulti() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addDisjointTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addDisjointTag("host")
           .addDisjointTag("dc")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addDisjointTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addDisjointTag("host")
           .addDisjointTag("dc")
@@ -1292,37 +1290,37 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(0).id().disjointTags().get(0));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("dc".getBytes(Const.UTF8_CHARSET),
+    assertEquals("dc",
         results.flattenedIterators().get(1).id().disjointTags().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(1).id().disjointTags().get(1));
   }
   
   @Test
   public void mergeIdsDisjointTagsMultiDiffOrder() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addDisjointTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addDisjointTag("host")
           .addDisjointTag("dc")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addDisjointTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addDisjointTag("dc")
           .addDisjointTag("host")
@@ -1334,36 +1332,36 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(0).id().disjointTags().get(0));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("dc".getBytes(Const.UTF8_CHARSET),
+    assertEquals("dc",
         results.flattenedIterators().get(1).id().disjointTags().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(1).id().disjointTags().get(1));
   }
   
   @Test
   public void mergeIdsAggToDisjoint() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addAggregatedTag("host")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addDisjointTag("host")
           .build());
@@ -1374,13 +1372,13 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(0).id().aggregatedTags().get(0));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(1).id().disjointTags().get(0));
     assertTrue(results.flattenedIterators().get(1).id().aggregatedTags().isEmpty());
   }
@@ -1388,21 +1386,21 @@ public class TestDataShardMerger {
   @Test
   public void mergeIdsAggToDisjointOtherDirection() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addDisjointTag("host")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addAggregatedTag("host")
           .build());
@@ -1413,13 +1411,13 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(0).id().aggregatedTags().get(0));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(1).id().disjointTags().get(0));
     assertTrue(results.flattenedIterators().get(1).id().aggregatedTags().isEmpty());
   }
@@ -1427,31 +1425,31 @@ public class TestDataShardMerger {
   @Test
   public void mergeIdsTagsToAggToDisjoint() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addAggregatedTag("host")
           .build());
     
     final IteratorGroups set3 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addDisjointTag("host")
           .build());
@@ -1462,13 +1460,13 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(0).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(1).id().disjointTags().get(0));
     assertTrue(results.flattenedIterators().get(1).id().aggregatedTags().isEmpty());
   }
@@ -1476,31 +1474,31 @@ public class TestDataShardMerger {
   @Test
   public void mergeIdsTagsToAggToDisjointOtherDirection() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addDisjointTag("host")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addAggregatedTag("host")
           .build());
     
     final IteratorGroups set3 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .build());
@@ -1511,13 +1509,13 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(0).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
+    assertEquals("host",
         results.flattenedIterators().get(1).id().disjointTags().get(0));
     assertTrue(results.flattenedIterators().get(1).id().aggregatedTags().isEmpty());
   }
@@ -1525,31 +1523,31 @@ public class TestDataShardMerger {
   @Test
   public void mergeIds3DiffTags() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web01")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web02")
           .build());
     
     final IteratorGroups set3 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addTags("host", "web01")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addTags("host", "web03")
           .build());
@@ -1560,52 +1558,52 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(4, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(0).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(0).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("web01".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(1).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web01",
+        results.flattenedIterators().get(1).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(2).id().metrics().get(0));
-    assertArrayEquals("web02".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(2).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("web02",
+        results.flattenedIterators().get(2).id().tags().get("host"));
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(3).id().metrics().get(0));
-    assertArrayEquals("web03".getBytes(Const.UTF8_CHARSET),
-        results.flattenedIterators().get(3).id().tags().get("host".getBytes(Const.UTF8_CHARSET)));
+    assertEquals("web03",
+        results.flattenedIterators().get(3).id().tags().get("host"));
   }
   
   @Test
   public void mergeIds3AliasDisjoint() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .setAlias("a")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .setAlias("b")
           .build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .setAlias("c")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .setAlias("d")
           .build());
     
     final IteratorGroups set3 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .setAlias("e")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .setAlias("f")
           .build());
@@ -1616,50 +1614,50 @@ public class TestDataShardMerger {
     final IteratorGroups results = merger.merge(shards, context, null);
     assertEquals(6, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("a".getBytes(Const.UTF8_CHARSET),
+    assertEquals("a",
         results.flattenedIterators().get(0).id().alias());
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("b".getBytes(Const.UTF8_CHARSET),
+    assertEquals("b",
         results.flattenedIterators().get(1).id().alias());
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(2).id().metrics().get(0));
-    assertArrayEquals("c".getBytes(Const.UTF8_CHARSET),
+    assertEquals("c",
         results.flattenedIterators().get(2).id().alias());
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(3).id().metrics().get(0));
-    assertArrayEquals("d".getBytes(Const.UTF8_CHARSET),
+    assertEquals("d",
         results.flattenedIterators().get(3).id().alias());
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(4).id().metrics().get(0));
-    assertArrayEquals("e".getBytes(Const.UTF8_CHARSET),
+    assertEquals("e",
         results.flattenedIterators().get(4).id().alias());
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(5).id().metrics().get(0));
-    assertArrayEquals("f".getBytes(Const.UTF8_CHARSET),
+    assertEquals("f",
         results.flattenedIterators().get(5).id().alias());
   }
   
   @Test (expected = IllegalStateException.class)
   public void mergeIdsBadOrder() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addAggregatedTag("host")
           .build());
     
     final IteratorGroups set2 = createGroups(1, // <-- order
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .addAggregatedTag("host")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .addAggregatedTag("host")
           .build());
@@ -1681,15 +1679,15 @@ public class TestDataShardMerger {
     when(builder.start()).thenReturn(local_span);
     
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("a").build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("b").build());
     
     final IteratorGroups set2 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .setAlias("a").build(),
-          SimpleStringTimeSeriesId.newBuilder()
+          BaseTimeSeriesId.newBuilder()
           .setAlias("b").build());
     
     final List<IteratorGroups> shards = Lists.newArrayList( set1, set2 );
@@ -1706,11 +1704,11 @@ public class TestDataShardMerger {
   @Test
   public void mergeGroupAlignment() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .setAlias("a")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .setAlias("b")
           .build());
@@ -1718,21 +1716,21 @@ public class TestDataShardMerger {
     final IteratorGroups set2 = createGroups(
         0,
         new SimpleStringGroupId("Greyjoy"),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .setAlias("c")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .setAlias("d")
           .build());
     
     final IteratorGroups set3 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .setAlias("a")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .setAlias("b")
           .build());
@@ -1747,35 +1745,35 @@ public class TestDataShardMerger {
 
     assertEquals("a", results.groups().get(0).id().id());
     assertEquals(2, results.groups().get(0).flattenedIterators().size());
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("a".getBytes(Const.UTF8_CHARSET),
+    assertEquals("a",
         results.flattenedIterators().get(0).id().alias());
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("b".getBytes(Const.UTF8_CHARSET),
+    assertEquals("b",
         results.flattenedIterators().get(1).id().alias());
     
     assertEquals("Greyjoy", results.groups().get(1).id().id());
     assertEquals(2, results.groups().get(1).flattenedIterators().size());
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(2).id().metrics().get(0));
-    assertArrayEquals("c".getBytes(Const.UTF8_CHARSET),
+    assertEquals("c",
         results.flattenedIterators().get(2).id().alias());
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(3).id().metrics().get(0));
-    assertArrayEquals("d".getBytes(Const.UTF8_CHARSET),
+    assertEquals("d",
         results.flattenedIterators().get(3).id().alias());
   }
   
   @Test
   public void mergeGroupDisjoint() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .setAlias("a")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .setAlias("b")
           .build());
@@ -1783,11 +1781,11 @@ public class TestDataShardMerger {
     final IteratorGroups set2 = createGroups(
         0,
         new SimpleStringGroupId("Greyjoy"),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .setAlias("c")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .setAlias("d")
           .build());
@@ -1795,11 +1793,11 @@ public class TestDataShardMerger {
     final IteratorGroups set3 = createGroups(
         0,
         new SimpleStringGroupId("Karstark"),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .setAlias("e")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .setAlias("f")
           .build());
@@ -1813,35 +1811,35 @@ public class TestDataShardMerger {
     assertEquals(6, results.flattenedIterators().size());
 
     assertEquals("a", results.groups().get(0).id().id());
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("a".getBytes(Const.UTF8_CHARSET),
+    assertEquals("a",
         results.flattenedIterators().get(0).id().alias());
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("b".getBytes(Const.UTF8_CHARSET),
+    assertEquals("b",
         results.flattenedIterators().get(1).id().alias());
     
     assertEquals("Greyjoy", results.groups().get(1).id().id());
     assertEquals(2, results.groups().get(1).flattenedIterators().size());
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(2).id().metrics().get(0));
-    assertArrayEquals("c".getBytes(Const.UTF8_CHARSET),
+    assertEquals("c",
         results.flattenedIterators().get(2).id().alias());
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(3).id().metrics().get(0));
-    assertArrayEquals("d".getBytes(Const.UTF8_CHARSET),
+    assertEquals("d",
         results.flattenedIterators().get(3).id().alias());
     
     assertEquals("Karstark", results.groups().get(2).id().id());
     assertEquals(2, results.groups().get(2).flattenedIterators().size());
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(4).id().metrics().get(0));
-    assertArrayEquals("e".getBytes(Const.UTF8_CHARSET),
+    assertEquals("e",
         results.flattenedIterators().get(4).id().alias());
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(5).id().metrics().get(0));
-    assertArrayEquals("f".getBytes(Const.UTF8_CHARSET),
+    assertEquals("f",
         results.flattenedIterators().get(5).id().alias());
   }
   
@@ -1857,11 +1855,11 @@ public class TestDataShardMerger {
   @Test
   public void mergeSingleGroup() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .setAlias("a")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .setAlias("b")
           .build());
@@ -1873,24 +1871,24 @@ public class TestDataShardMerger {
     assertEquals(group_id, results.groups().get(0).id());
     assertEquals(2, results.flattenedIterators().size());
 
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("a".getBytes(Const.UTF8_CHARSET),
+    assertEquals("a",
         results.flattenedIterators().get(0).id().alias());
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("b".getBytes(Const.UTF8_CHARSET),
+    assertEquals("b",
         results.flattenedIterators().get(1).id().alias());
   }
   
   @Test
   public void mergeOneGroupEmtpy() {
     final IteratorGroups set1 = createGroups(
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .setAlias("a")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .setAlias("b")
           .build());
@@ -1898,11 +1896,11 @@ public class TestDataShardMerger {
     final IteratorGroups set2 = createGroups(
         0,
         new SimpleStringGroupId("Greyjoy"),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.cpu")
           .setAlias("c")
           .build(),
-        SimpleStringTimeSeriesId.newBuilder()
+        BaseTimeSeriesId.newBuilder()
           .addMetric("sys.mem")
           .setAlias("d")
           .build());
@@ -1918,24 +1916,24 @@ public class TestDataShardMerger {
     assertEquals(4, results.flattenedIterators().size());
 
     assertEquals("a", results.groups().get(0).id().id());
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(0).id().metrics().get(0));
-    assertArrayEquals("a".getBytes(Const.UTF8_CHARSET),
+    assertEquals("a",
         results.flattenedIterators().get(0).id().alias());
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(1).id().metrics().get(0));
-    assertArrayEquals("b".getBytes(Const.UTF8_CHARSET),
+    assertEquals("b",
         results.flattenedIterators().get(1).id().alias());
     
     assertEquals("Greyjoy", results.groups().get(1).id().id());
     assertEquals(2, results.groups().get(1).flattenedIterators().size());
-    assertArrayEquals("sys.cpu".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.cpu", 
         results.flattenedIterators().get(2).id().metrics().get(0));
-    assertArrayEquals("c".getBytes(Const.UTF8_CHARSET),
+    assertEquals("c",
         results.flattenedIterators().get(2).id().alias());
-    assertArrayEquals("sys.mem".getBytes(Const.UTF8_CHARSET), 
+    assertEquals("sys.mem", 
         results.flattenedIterators().get(3).id().metrics().get(0));
-    assertArrayEquals("d".getBytes(Const.UTF8_CHARSET),
+    assertEquals("d",
         results.flattenedIterators().get(3).id().alias());
   }
   

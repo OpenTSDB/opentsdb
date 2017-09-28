@@ -35,7 +35,7 @@ import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.types.annotation.AnnotationType;
@@ -56,10 +56,10 @@ public class TestDefaultIteratorGroups {
   public void before() throws Exception {
     group_id_a = new SimpleStringGroupId("Freys");
     group_id_b = new SimpleStringGroupId("Lanisters");
-    id_a = SimpleStringTimeSeriesId.newBuilder()
+    id_a = BaseTimeSeriesId.newBuilder()
         .setMetrics(Lists.newArrayList("sys.cpu.idle"))
         .build();
-    id_b = SimpleStringTimeSeriesId.newBuilder()
+    id_b = BaseTimeSeriesId.newBuilder()
         .setMetrics(Lists.newArrayList("sys.cpu.user"))
         .build();
     context = mock(QueryContext.class);

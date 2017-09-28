@@ -28,7 +28,7 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
@@ -186,26 +186,26 @@ public class TestMockDataStore {
     mds.initialize(tsdb).join();
     assertEquals(4 * 4 * 4, mds.getDatabase().size());
     
-    TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .addMetric("unit.test")
         .addTags("dc", "lga")
         .addTags("host", "db01")
         .build();
-    MutableNumericType dp = new MutableNumericType(id);
+    MutableNumericType dp = new MutableNumericType();
     TimeStamp ts = new MillisecondTimeStamp(1483228800000L);
-    dp.reset(ts, 42.5, 1);
-    mds.write(dp, null, null);
+    dp.reset(ts, 42.5);
+    mds.write(id, dp, null, null);
     assertEquals((4 * 4 * 4) + 1, mds.getDatabase().size());
     
     ts.updateMsEpoch(1483228800000L + 60000L);
-    dp.reset(ts, 24.5, 1);
-    mds.write(dp, null, null);
+    dp.reset(ts, 24.5);
+    mds.write(id, dp, null, null);
     
     // no out-of-order timestamps per series for now. at least within a "row".
     ts.updateMsEpoch(1483228800000L + 30000L);
-    dp.reset(ts, -1, 1);
+    dp.reset(ts, -1);
     try {
-      mds.write(dp, null, null);
+      mds.write(id, dp, null, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
