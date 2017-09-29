@@ -104,6 +104,7 @@ tsdb_SRC := \
 	src/meta/TSUIDQuery.java	\
 	src/meta/UIDMeta.java	\
 	src/query/QueryUtil.java	\
+	src/query/QueryLimitOverride.java	\
 	src/query/expression/Absolute.java	\
 	src/query/expression/Alias.java	\
 	src/query/expression/DiffSeries.java	\
