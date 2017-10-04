@@ -30,7 +30,7 @@ import com.google.common.collect.Lists;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
@@ -57,26 +57,26 @@ public class TestMockNumericIterator {
   public void before() throws Exception {
     tsdb = mock(TSDB.class);
     execution_graph = mock(ExecutionGraph.class);
-    id = SimpleStringTimeSeriesId.newBuilder()
+    id = BaseTimeSeriesId.newBuilder()
         .setAlias("Khalisi")
         .build();
     
     data = Lists.newArrayListWithCapacity(3);
     
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(2000), 2, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(id, new MillisecondTimeStamp(7000), 7, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(7000), 7));
     data.add(set);
     
     context = new DefaultQueryContext(tsdb, execution_graph);

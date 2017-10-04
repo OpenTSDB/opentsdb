@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.execution;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -60,7 +59,6 @@ import com.google.common.collect.Maps;
 import com.stumbleupon.async.TimeoutException;
 
 import io.opentracing.Span;
-import net.opentsdb.common.Const;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.DefaultIteratorGroup;
@@ -244,25 +242,18 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     IteratorGroup data = groups.groups().iterator().next();
     TimeSeriesIterator<NumericType> it_a = (TimeSeriesIterator<NumericType>) 
         data.flattenedIterators().get(0);
-    assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
-        it_a.id().metrics().get(0));
-    assertArrayEquals("group_b".getBytes(Const.UTF8_CHARSET), 
-        it_a.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("SUM".getBytes(Const.UTF8_CHARSET), 
-        it_a.id().tags().get("_aggregate".getBytes(Const.UTF8_CHARSET)));
+    assertEquals("sys.cpu.user", it_a.id().metrics().get(0));
+    assertEquals("group_b", it_a.id().tags().get("hostgroup"));
+    assertEquals("SUM", it_a.id().tags().get("_aggregate"));
     assertTrue(it_a.id().aggregatedTags().isEmpty());
     
     TimeSeriesIterator<NumericType> it_b = (TimeSeriesIterator<NumericType>) 
         data.iterators().get(1).iterators().get(0);
-    assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
-        it_b.id().metrics().get(0));
-    assertArrayEquals("group_a".getBytes(Const.UTF8_CHARSET), 
-        it_b.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("SUM".getBytes(Const.UTF8_CHARSET), 
-        it_b.id().tags().get("_aggregate".getBytes(Const.UTF8_CHARSET)));
+    assertEquals("sys.cpu.user", it_b.id().metrics().get(0));
+    assertEquals("group_a", it_b.id().tags().get("hostgroup"));
+    assertEquals("SUM", it_b.id().tags().get("_aggregate"));
     assertEquals(1, it_b.id().aggregatedTags().size());
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        it_b.id().aggregatedTags().get(0));
+    assertEquals("host",it_b.id().aggregatedTags().get(0));
     
     TimeSeriesValue<NumericType> v = it_a.next();
     assertEquals(1490122920000L, v.timestamp().msEpoch());
@@ -951,12 +942,9 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     executor.parseTSQuery(query, root.get(0), span, groups);
     TimeSeriesIterator<NumericType> it = (TimeSeriesIterator<NumericType>) 
         groups.get("m1").iterators().get(0).iterators().get(0);
-    assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
-        it.id().metrics().get(0));
-    assertArrayEquals("group_b".getBytes(Const.UTF8_CHARSET), 
-        it.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("SUM".getBytes(Const.UTF8_CHARSET), 
-        it.id().tags().get("_aggregate".getBytes(Const.UTF8_CHARSET)));
+    assertEquals("sys.cpu.user", it.id().metrics().get(0));
+    assertEquals("group_b", it.id().tags().get("hostgroup"));
+    assertEquals("SUM", it.id().tags().get("_aggregate"));
     assertTrue(it.id().aggregatedTags().isEmpty());
     assertNull(it.id().alias());
     assertTrue(it.id().namespaces().isEmpty());
@@ -981,15 +969,11 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     executor.parseTSQuery(query, root.get(1), span, groups);
     it = (TimeSeriesIterator<NumericType>) 
         groups.get("m1").iterators().get(1).iterators().get(0);
-    assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
-        it.id().metrics().get(0));
-    assertArrayEquals("group_a".getBytes(Const.UTF8_CHARSET), 
-        it.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("SUM".getBytes(Const.UTF8_CHARSET), 
-        it.id().tags().get("_aggregate".getBytes(Const.UTF8_CHARSET)));
+    assertEquals("sys.cpu.user", it.id().metrics().get(0));
+    assertEquals("group_a", it.id().tags().get("hostgroup"));
+    assertEquals("SUM", it.id().tags().get("_aggregate"));
     assertEquals(1, it.id().aggregatedTags().size());
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        it.id().aggregatedTags().get(0));
+    assertEquals("host",it.id().aggregatedTags().get(0));
     assertNull(it.id().alias());
     assertTrue(it.id().namespaces().isEmpty());
     assertTrue(it.id().uniqueIds().isEmpty());
@@ -1053,12 +1037,9 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     
     TimeSeriesIterator<NumericType> it = (TimeSeriesIterator<NumericType>) 
         groups.get("m1").iterators().get(0).iterators().get(0);
-    assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
-        it.id().metrics().get(0));
-    assertArrayEquals("group_b".getBytes(Const.UTF8_CHARSET), 
-        it.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("SUM".getBytes(Const.UTF8_CHARSET), 
-        it.id().tags().get("_aggregate".getBytes(Const.UTF8_CHARSET)));
+    assertEquals("sys.cpu.user", it.id().metrics().get(0));
+    assertEquals("group_b", it.id().tags().get("hostgroup"));
+    assertEquals("SUM", it.id().tags().get("_aggregate"));
     assertTrue(it.id().aggregatedTags().isEmpty());
     assertNull(it.id().alias());
     assertTrue(it.id().namespaces().isEmpty());
@@ -1073,15 +1054,11 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     executor.parseTSQuery(query, root.get(1), span, groups);
     it = (TimeSeriesIterator<NumericType>) 
         groups.get("m1").iterators().get(1).iterators().get(0);
-    assertArrayEquals("sys.cpu.user".getBytes(Const.UTF8_CHARSET), 
-        it.id().metrics().get(0));
-    assertArrayEquals("group_a".getBytes(Const.UTF8_CHARSET), 
-        it.id().tags().get("hostgroup".getBytes(Const.UTF8_CHARSET)));
-    assertArrayEquals("SUM".getBytes(Const.UTF8_CHARSET), 
-        it.id().tags().get("_aggregate".getBytes(Const.UTF8_CHARSET)));
+    assertEquals("sys.cpu.user", it.id().metrics().get(0));
+    assertEquals("group_a", it.id().tags().get("hostgroup"));
+    assertEquals("SUM", it.id().tags().get("_aggregate"));
     assertEquals(1, it.id().aggregatedTags().size());
-    assertArrayEquals("host".getBytes(Const.UTF8_CHARSET),
-        it.id().aggregatedTags().get(0));
+    assertEquals("host",it.id().aggregatedTags().get(0));
     assertNull(it.id().alias());
     assertTrue(it.id().namespaces().isEmpty());
     assertTrue(it.id().uniqueIds().isEmpty());

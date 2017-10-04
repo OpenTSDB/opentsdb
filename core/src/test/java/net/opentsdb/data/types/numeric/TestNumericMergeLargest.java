@@ -36,7 +36,7 @@ import com.google.common.reflect.TypeToken;
 
 import io.opentracing.Span;
 import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
@@ -54,7 +54,7 @@ public class TestNumericMergeLargest {
   @Before
   public void before() throws Exception {
     context = mock(QueryContext.class);
-    id = SimpleStringTimeSeriesId.newBuilder()
+    id = BaseTimeSeriesId.newBuilder()
         .setAlias("a")
         .addMetric("sys.cpu.user")
         .build();
@@ -74,17 +74,17 @@ public class TestNumericMergeLargest {
     NumericMillisecondShard it_b = new NumericMillisecondShard(id, start, end);
     NumericMillisecondShard it_c = new NumericMillisecondShard(id, start, end);
     
-    it_a.add(1486045801000L, 42, 1);
-    it_b.add(1486045801000L, 42, 1);
-    it_c.add(1486045801000L, 42, 1);
+    it_a.add(1486045801000L, 42);
+    it_b.add(1486045801000L, 42);
+    it_c.add(1486045801000L, 42);
     
-    it_a.add(1486045871000L, 9866.854, 2);
-    it_b.add(1486045871000L, 9866.854, 2);
-    it_c.add(1486045871000L, 9866.854, 2);
+    it_a.add(1486045871000L, 9866.854);
+    it_b.add(1486045871000L, 9866.854);
+    it_c.add(1486045871000L, 9866.854);
     
-    it_a.add(1486045881000L, -128, 2);
-    it_b.add(1486045881000L, -128, 2);
-    it_c.add(1486045881000L, -128, 2);
+    it_a.add(1486045881000L, -128);
+    it_b.add(1486045881000L, -128);
+    it_c.add(1486045881000L, -128);
     
     final TimeSeriesIterator<NumericType> merged = new NumericMergeLargest()
         .merge(id, Lists.<TimeSeriesIterator<?>>newArrayList(
@@ -97,19 +97,16 @@ public class TestNumericMergeLargest {
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(42, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(9866.854, v.value().doubleValue(), 0.001);
-    assertEquals(2, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(-128, v.value().longValue());
-    assertEquals(2, v.realCount());
     
     try {
       iterator.next();
@@ -123,17 +120,17 @@ public class TestNumericMergeLargest {
     NumericMillisecondShard it_b = new NumericMillisecondShard(id, start, end);
     NumericMillisecondShard it_c = new NumericMillisecondShard(id, start, end);
     
-    //it_a.add(1486045801000L, 42, 1);
-    //it_b.add(1486045801000L, 42, 1);
-    it_c.add(1486045801000L, 42, 1);
+    //it_a.add(1486045801000L, 42);
+    //it_b.add(1486045801000L, 42);
+    it_c.add(1486045801000L, 42);
     
-    it_a.add(1486045871000L, 9866.854, 2);
-    it_b.add(1486045871000L, 9866.854, 2);
-    //it_c.add(1486045871000L, 9866.854, 2);
+    it_a.add(1486045871000L, 9866.854);
+    it_b.add(1486045871000L, 9866.854);
+    //it_c.add(1486045871000L, 9866.854);
     
-    it_a.add(1486045881000L, -128, 2);
-    //it_b.add(1486045881000L, -128, 2);
-    //it_c.add(1486045881000L, -128, 2);
+    it_a.add(1486045881000L, -128);
+    //it_b.add(1486045881000L, -128);
+    //it_c.add(1486045881000L, -128);
     
     TimeSeriesIterator<NumericType> merged = new NumericMergeLargest().merge(id, 
         Lists.<TimeSeriesIterator<?>>newArrayList(it_a, it_b, it_c), 
@@ -145,19 +142,16 @@ public class TestNumericMergeLargest {
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(42, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(9866.854, v.value().doubleValue(), 0.001);
-    assertEquals(2, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(-128, v.value().longValue());
-    assertEquals(2, v.realCount());
     
     try {
       iterator.next();
@@ -169,17 +163,17 @@ public class TestNumericMergeLargest {
     it_b = new NumericMillisecondShard(id, start, end);
     it_c = new NumericMillisecondShard(id, start, end);
     
-    //it_a.add(1486045801000L, 42, 1);
-    //it_b.add(1486045801000L, 42, 1);
-    it_c.add(1486045801000L, 42, 1);
+    //it_a.add(1486045801000L, 42);
+    //it_b.add(1486045801000L, 42);
+    it_c.add(1486045801000L, 42);
     
-    //it_a.add(1486045871000L, 9866.854, 2);
-    it_b.add(1486045871000L, 9866.854, 2);
-    //it_c.add(1486045871000L, 9866.854, 2);
+    //it_a.add(1486045871000L, 9866.854);
+    it_b.add(1486045871000L, 9866.854);
+    //it_c.add(1486045871000L, 9866.854);
     
-    it_a.add(1486045881000L, -128, 2);
-    //it_b.add(1486045881000L, -128, 2);
-    //it_c.add(1486045881000L, -128, 2);
+    it_a.add(1486045881000L, -128);
+    //it_b.add(1486045881000L, -128);
+    //it_c.add(1486045881000L, -128);
     
     merged = new NumericMergeLargest().merge(id, 
         Lists.<TimeSeriesIterator<?>>newArrayList(it_a, it_b, it_c), 
@@ -191,19 +185,16 @@ public class TestNumericMergeLargest {
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(42, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(9866.854, v.value().doubleValue(), 0.001);
-    assertEquals(2, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(-128, v.value().longValue());
-    assertEquals(2, v.realCount());
     
     try {
       iterator.next();
@@ -215,17 +206,17 @@ public class TestNumericMergeLargest {
     it_b = new NumericMillisecondShard(id, start, end);
     it_c = new NumericMillisecondShard(id, start, end);
     
-    //it_a.add(1486045801000L, 42, 1);
-    //it_b.add(1486045801000L, 42, 1);
-    it_c.add(1486045801000L, 42, 1);
+    //it_a.add(1486045801000L, 42);
+    //it_b.add(1486045801000L, 42);
+    it_c.add(1486045801000L, 42);
     
-    //it_a.add(1486045871000L, 9866.854, 2);
-    it_b.add(1486045871000L, 9866.854, 2);
-    it_c.add(1486045871000L, 9866.854, 2);
+    //it_a.add(1486045871000L, 9866.854);
+    it_b.add(1486045871000L, 9866.854);
+    it_c.add(1486045871000L, 9866.854);
     
-    //it_a.add(1486045881000L, -128, 2);
-    //it_b.add(1486045881000L, -128, 2);
-    it_c.add(1486045881000L, -128, 2);
+    //it_a.add(1486045881000L, -128);
+    //it_b.add(1486045881000L, -128);
+    it_c.add(1486045881000L, -128);
     
     merged = new NumericMergeLargest().merge(id, 
         Lists.<TimeSeriesIterator<?>>newArrayList(it_a, it_b, it_c), 
@@ -237,19 +228,16 @@ public class TestNumericMergeLargest {
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(42, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(9866.854, v.value().doubleValue(), 0.001);
-    assertEquals(2, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(-128, v.value().longValue());
-    assertEquals(2, v.realCount());
     
     try {
       iterator.next();
@@ -263,17 +251,17 @@ public class TestNumericMergeLargest {
     NumericMillisecondShard it_b = new NumericMillisecondShard(id, start, end);
     NumericMillisecondShard it_c = new NumericMillisecondShard(id, start, end);
     
-    it_a.add(1486045801000L, 42, 1);
-    it_b.add(1486045801000L, 42.0, 1);
-    it_c.add(1486045801000L, 42, 1);
+    it_a.add(1486045801000L, 42);
+    it_b.add(1486045801000L, 42.0);
+    it_c.add(1486045801000L, 42);
     
-    it_a.add(1486045871000L, 9866.854, 2);
-    it_b.add(1486045871000L, 9866.854, 2);
-    it_c.add(1486045871000L, 9866.854, 2);
+    it_a.add(1486045871000L, 9866.854);
+    it_b.add(1486045871000L, 9866.854);
+    it_c.add(1486045871000L, 9866.854);
     
-    it_a.add(1486045881000L, -128, 2);
-    it_b.add(1486045881000L, -128.0, 2);
-    it_c.add(1486045881000L, -128, 2);
+    it_a.add(1486045881000L, -128);
+    it_b.add(1486045881000L, -128.0);
+    it_c.add(1486045881000L, -128);
     
     final TimeSeriesIterator<NumericType> merged = new NumericMergeLargest().merge(id, 
         Lists.<TimeSeriesIterator<?>>newArrayList(it_a, it_b, it_c), 
@@ -285,19 +273,16 @@ public class TestNumericMergeLargest {
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(42, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(9866.854, v.value().doubleValue(), 0.001);
-    assertEquals(2, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(-128, v.value().longValue());
-    assertEquals(2, v.realCount());
     
     try {
       iterator.next();
@@ -311,17 +296,17 @@ public class TestNumericMergeLargest {
     NumericMillisecondShard it_b = new NumericMillisecondShard(id, start, end);
     NumericMillisecondShard it_c = new NumericMillisecondShard(id, start, end);
     
-    it_a.add(1486045801000L, 42, 1);
-    it_b.add(1486045801000L, 84, 1);
-    it_c.add(1486045801000L, 41, 1);
+    it_a.add(1486045801000L, 42);
+    it_b.add(1486045801000L, 84);
+    it_c.add(1486045801000L, 41);
     
-    it_a.add(1486045871000L, 866.854, 2);
-    it_b.add(1486045871000L, 11024.342, 2);
-    it_c.add(1486045871000L, 9866.854, 2);
+    it_a.add(1486045871000L, 866.854);
+    it_b.add(1486045871000L, 11024.342);
+    it_c.add(1486045871000L, 9866.854);
     
-    it_a.add(1486045881000L, -127, 2);
-    it_b.add(1486045881000L, -132, 2);
-    it_c.add(1486045881000L, -128, 2);
+    it_a.add(1486045881000L, -127);
+    it_b.add(1486045881000L, -132);
+    it_c.add(1486045881000L, -128);
     
     final TimeSeriesIterator<NumericType> merged = new NumericMergeLargest().merge(id, 
         Lists.<TimeSeriesIterator<?>>newArrayList(it_a, it_b, it_c), 
@@ -333,19 +318,16 @@ public class TestNumericMergeLargest {
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(84, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(11024.342, v.value().doubleValue(), 0.001);
-    assertEquals(2, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(-127, v.value().longValue());
-    assertEquals(2, v.realCount());
     
     try {
       iterator.next();
@@ -359,17 +341,17 @@ public class TestNumericMergeLargest {
     NumericMillisecondShard it_b = new NumericMillisecondShard(id, start, end);
     NumericMillisecondShard it_c = new NumericMillisecondShard(id, start, end);
     
-    it_a.add(1486045801000L, 42, 1);
-    it_b.add(1486045801000L, 84.56, 1);
-    it_c.add(1486045801000L, 41.2, 1);
+    it_a.add(1486045801000L, 42);
+    it_b.add(1486045801000L, 84.56);
+    it_c.add(1486045801000L, 41.2);
     
-    it_a.add(1486045871000L, 866.854, 2);
-    it_b.add(1486045871000L, 11024, 2);
-    it_c.add(1486045871000L, 9866.854, 2);
+    it_a.add(1486045871000L, 866.854);
+    it_b.add(1486045871000L, 11024);
+    it_c.add(1486045871000L, 9866.854);
     
-    it_a.add(1486045881000L, -127.957, 2);
-    it_b.add(1486045881000L, -132.85, 2);
-    it_c.add(1486045881000L, -128, 2);
+    it_a.add(1486045881000L, -127.957);
+    it_b.add(1486045881000L, -132.85);
+    it_c.add(1486045881000L, -128);
     
     final TimeSeriesIterator<NumericType> merged = new NumericMergeLargest().merge(id, 
         Lists.<TimeSeriesIterator<?>>newArrayList(it_a, it_b, it_c), 
@@ -381,19 +363,16 @@ public class TestNumericMergeLargest {
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(84.56, v.value().doubleValue(), 0.0001);
-    assertEquals(1, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(11024, v.value().longValue());
-    assertEquals(2, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(-127.957, v.value().doubleValue(), 0.0001);
-    assertEquals(2, v.realCount());
     
     try {
       iterator.next();
@@ -407,17 +386,17 @@ public class TestNumericMergeLargest {
     NumericMillisecondShard it_b = new NumericMillisecondShard(id, start, end);
     NumericMillisecondShard it_c = new NumericMillisecondShard(id, start, end);
     
-    it_a.add(1486045801000L, 42, 2);
-    it_b.add(1486045801000L, 84.56, 1);
-    it_c.add(1486045801000L, 41.2, 1);
+    it_a.add(1486045801000L, 42);
+    it_b.add(1486045801000L, 84.56);
+    it_c.add(1486045801000L, 41.2);
     
-    it_a.add(1486045871000L, 866.854, 2);
-    it_b.add(1486045871000L, 11024, 2);
-    it_c.add(1486045871000L, 9866.854, 3);
+    it_a.add(1486045871000L, 866.854);
+    it_b.add(1486045871000L, 11024);
+    it_c.add(1486045871000L, 9866.854);
     
-    it_a.add(1486045881000L, -127.957, 2);
-    it_b.add(1486045881000L, -132.85, 8);
-    it_c.add(1486045881000L, -128, 2);
+    it_a.add(1486045881000L, -127.957);
+    it_b.add(1486045881000L, -132.85);
+    it_c.add(1486045881000L, -128);
     
     final TimeSeriesIterator<NumericType> merged = new NumericMergeLargest().merge(id, 
         Lists.<TimeSeriesIterator<?>>newArrayList(it_a, it_b, it_c), 
@@ -429,19 +408,16 @@ public class TestNumericMergeLargest {
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(84.56, v.value().doubleValue(), 0.0001);
-    assertEquals(1, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(11024, v.value().longValue());
-    assertEquals(2, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(-127.957, v.value().doubleValue(), 0.0001);
-    assertEquals(2, v.realCount());
     
     try {
       iterator.next();
@@ -455,17 +431,17 @@ public class TestNumericMergeLargest {
     NumericMillisecondShard it_b = new NumericMillisecondShard(id, start, end);
     NumericMillisecondShard it_c = new NumericMillisecondShard(id, start, end);
     
-    it_a.add(1486045801000L, 42, 2);
-    it_b.add(1486045801000L, Double.NaN, 1);
-    it_c.add(1486045801000L, 41.2, 1);
+    it_a.add(1486045801000L, 42);
+    it_b.add(1486045801000L, Double.NaN);
+    it_c.add(1486045801000L, 41.2);
     
-    it_a.add(1486045871000L, 866.854, 2);
-    it_b.add(1486045871000L, Double.POSITIVE_INFINITY, 2);
-    it_c.add(1486045871000L, 9866.854, 3);
+    it_a.add(1486045871000L, 866.854);
+    it_b.add(1486045871000L, Double.POSITIVE_INFINITY);
+    it_c.add(1486045871000L, 9866.854);
     
-    it_a.add(1486045881000L, Double.NEGATIVE_INFINITY, 2);
-    it_b.add(1486045881000L, -132.85, 8);
-    it_c.add(1486045881000L, -128, 2);
+    it_a.add(1486045881000L, Double.NEGATIVE_INFINITY);
+    it_b.add(1486045881000L, -132.85);
+    it_c.add(1486045881000L, -128);
     
     TimeSeriesIterator<NumericType> merged = new NumericMergeLargest().merge(id, 
         Lists.<TimeSeriesIterator<?>>newArrayList(it_a, it_b, it_c), 
@@ -477,19 +453,16 @@ public class TestNumericMergeLargest {
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(42, v.value().longValue());
-    assertEquals(2, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(9866.854, v.value().doubleValue(), 0.0001);
-    assertEquals(3, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(-128, v.value().longValue());
-    assertEquals(2, v.realCount());
     
     try {
       iterator.next();
@@ -501,17 +474,17 @@ public class TestNumericMergeLargest {
     it_b = new NumericMillisecondShard(id, start, end);
     it_c = new NumericMillisecondShard(id, start, end);
     
-    it_a.add(1486045801000L, 42, 2);
-    it_b.add(1486045801000L, Double.NaN, 1);
-    it_c.add(1486045801000L, 41.2, 1);
+    it_a.add(1486045801000L, 42);
+    it_b.add(1486045801000L, Double.NaN);
+    it_c.add(1486045801000L, 41.2);
     
-    it_a.add(1486045871000L, Double.NaN, 0);
-    it_b.add(1486045871000L, Double.POSITIVE_INFINITY, 2);
-    it_c.add(1486045871000L, Double.NEGATIVE_INFINITY, 0);
+    it_a.add(1486045871000L, Double.NaN);
+    it_b.add(1486045871000L, Double.POSITIVE_INFINITY);
+    it_c.add(1486045871000L, Double.NEGATIVE_INFINITY);
     
-    it_a.add(1486045881000L, Double.NEGATIVE_INFINITY, 2);
-    it_b.add(1486045881000L, -132.85, 8);
-    it_c.add(1486045881000L, -128, 2);
+    it_a.add(1486045881000L, Double.NEGATIVE_INFINITY);
+    it_b.add(1486045881000L, -132.85);
+    it_c.add(1486045881000L, -128);
     
     merged = new NumericMergeLargest().merge(id, 
         Lists.<TimeSeriesIterator<?>>newArrayList(it_a, it_b, it_c), 
@@ -523,19 +496,16 @@ public class TestNumericMergeLargest {
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(42, v.value().longValue());
-    assertEquals(2, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(0, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(-128, v.value().longValue());
-    assertEquals(2, v.realCount());
     
     try {
       iterator.next();
@@ -546,17 +516,17 @@ public class TestNumericMergeLargest {
     it_b = new NumericMillisecondShard(id, start, end);
     it_c = new NumericMillisecondShard(id, start, end);
     
-    it_a.add(1486045801000L, 42, 2);
-    it_b.add(1486045801000L, Double.NaN, 1);
-    it_c.add(1486045801000L, 41.2, 1);
+    it_a.add(1486045801000L, 42);
+    it_b.add(1486045801000L, Double.NaN);
+    it_c.add(1486045801000L, 41.2);
     
-    it_a.add(1486045871000L, Double.POSITIVE_INFINITY, 0);
-    it_b.add(1486045871000L, Double.NaN, 2);
-    it_c.add(1486045871000L, Double.NEGATIVE_INFINITY, 0);
+    it_a.add(1486045871000L, Double.POSITIVE_INFINITY);
+    it_b.add(1486045871000L, Double.NaN);
+    it_c.add(1486045871000L, Double.NEGATIVE_INFINITY);
     
-    it_a.add(1486045881000L, Double.NEGATIVE_INFINITY, 2);
-    it_b.add(1486045881000L, -132.85, 8);
-    it_c.add(1486045881000L, -128, 2);
+    it_a.add(1486045881000L, Double.NEGATIVE_INFINITY);
+    it_b.add(1486045881000L, -132.85);
+    it_c.add(1486045881000L, -128);
     
     merged = new NumericMergeLargest().merge(id, 
         Lists.<TimeSeriesIterator<?>>newArrayList(it_a, it_b, it_c), 
@@ -568,19 +538,16 @@ public class TestNumericMergeLargest {
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(42, v.value().longValue());
-    assertEquals(2, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(0, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(-128, v.value().longValue());
-    assertEquals(2, v.realCount());
     
     try {
       iterator.next();
@@ -612,9 +579,9 @@ public class TestNumericMergeLargest {
     NumericMillisecondShard it_b = new NumericMillisecondShard(id, start, end);
     NumericMillisecondShard it_c = new NumericMillisecondShard(id, start, end);
     
-    it_a.add(1486045801000L, 42, 1);
-    it_b.add(1486045801000L, 42, 1);
-    it_c.add(1486045801000L, 42, 1);
+    it_a.add(1486045801000L, 42);
+    it_b.add(1486045801000L, 42);
+    it_c.add(1486045801000L, 42);
     
     try {
       new NumericMergeLargest().merge(null, 
@@ -667,17 +634,17 @@ public class TestNumericMergeLargest {
     NumericMillisecondShard it_c = 
         new NumericMillisecondShard(id, start, end, 42);
     
-    it_a.add(1486045801000L, 42, 1);
-    it_b.add(1486045801000L, 42, 1);
-    it_c.add(1486045801000L, 42, 1);
+    it_a.add(1486045801000L, 42);
+    it_b.add(1486045801000L, 42);
+    it_c.add(1486045801000L, 42);
     
-    it_a.add(1486045871000L, 9866.854, 2);
-    it_b.add(1486045871000L, 9866.854, 2);
-    it_c.add(1486045871000L, 9866.854, 2);
+    it_a.add(1486045871000L, 9866.854);
+    it_b.add(1486045871000L, 9866.854);
+    it_c.add(1486045871000L, 9866.854);
     
-    it_a.add(1486045881000L, -128, 2);
-    it_b.add(1486045881000L, -128, 2);
-    it_c.add(1486045881000L, -128, 2);
+    it_a.add(1486045881000L, -128);
+    it_b.add(1486045881000L, -128);
+    it_c.add(1486045881000L, -128);
     
     final TimeSeriesIterator<NumericType> merged = new NumericMergeLargest().merge(id, 
         Lists.<TimeSeriesIterator<?>>newArrayList(it_a, it_b, it_c), 
@@ -690,19 +657,16 @@ public class TestNumericMergeLargest {
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(42, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(9866.854, v.value().doubleValue(), 0.001);
-    assertEquals(2, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(-128, v.value().longValue());
-    assertEquals(2, v.realCount());
     
     try {
       iterator.next();
@@ -721,17 +685,17 @@ public class TestNumericMergeLargest {
     NumericMillisecondShard it_c = 
         new NumericMillisecondShard(id, start, end, 42);
     
-    it_a.add(1486045801000L, 42, 1);
-    it_b.add(1486045801000L, 42, 1);
-    it_c.add(1486045801000L, 42, 1);
+    it_a.add(1486045801000L, 42);
+    it_b.add(1486045801000L, 42);
+    it_c.add(1486045801000L, 42);
     
-    it_a.add(1486045871000L, 9866.854, 2);
-    it_b.add(1486045871000L, 9866.854, 2);
-    it_c.add(1486045871000L, 9866.854, 2);
+    it_a.add(1486045871000L, 9866.854);
+    it_b.add(1486045871000L, 9866.854);
+    it_c.add(1486045871000L, 9866.854);
     
-    it_a.add(1486045881000L, -128, 2);
-    it_b.add(1486045881000L, -128, 2);
-    it_c.add(1486045881000L, -128, 2);
+    it_a.add(1486045881000L, -128);
+    it_b.add(1486045881000L, -128);
+    it_c.add(1486045881000L, -128);
     
     final TimeSeriesIterator<NumericType> merged = new NumericMergeLargest().merge(id, 
         Lists.<TimeSeriesIterator<?>>newArrayList(it_a, it_b, it_c), 
@@ -744,19 +708,16 @@ public class TestNumericMergeLargest {
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(42, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(9866.854, v.value().doubleValue(), 0.001);
-    assertEquals(2, v.realCount());
     
     v = iterator.next();
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(-128, v.value().longValue());
-    assertEquals(2, v.realCount());
     
     try {
       iterator.next();

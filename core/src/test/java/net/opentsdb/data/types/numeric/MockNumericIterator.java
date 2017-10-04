@@ -155,11 +155,11 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
             inner_index++;
           }
         } else {
-          result = new MutableNumericType(id, context.syncTimestamp(), 
+          result = new MutableNumericType(context.syncTimestamp(), 
             fill.getValue());
         }
       } else {
-        result = new MutableNumericType(id, context.syncTimestamp(), 
+        result = new MutableNumericType(context.syncTimestamp(), 
             fill.getValue());
       }
       

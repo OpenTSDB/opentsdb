@@ -28,7 +28,7 @@ import com.google.common.collect.Lists;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeStamp;
@@ -61,7 +61,7 @@ public class TestJsonV2QuerySerdes {
     final IteratorGroups results = new DefaultIteratorGroups();
     
     final TimeSeriesGroupId group_id_a = new SimpleStringGroupId("a");
-    final TimeSeriesId id_a = SimpleStringTimeSeriesId.newBuilder()
+    final TimeSeriesId id_a = BaseTimeSeriesId.newBuilder()
         .setMetrics(Lists.newArrayList("sys.cpu.user"))
         .addTags("host", "web01")
         .addTags("dc", "phx")
@@ -69,33 +69,33 @@ public class TestJsonV2QuerySerdes {
     
     NumericMillisecondShard shard = 
         new NumericMillisecondShard(id_a, start, end);
-    shard.add(1486045801000L, 42, 1);
-    shard.add(1486045871000L, 9866.854, 0);
-    shard.add(1486045881000L, -128, 1024);
+    shard.add(1486045801000L, 42);
+    shard.add(1486045871000L, 9866.854);
+    shard.add(1486045881000L, -128);
     results.addIterator(group_id_a, shard);
     
-    final TimeSeriesId id_b = SimpleStringTimeSeriesId.newBuilder()
+    final TimeSeriesId id_b = BaseTimeSeriesId.newBuilder()
         .setMetrics(Lists.newArrayList("sys.cpu.user"))
         .addTags("host", "web02")
         .addTags("dc", "phx")
     .build();
     shard = new NumericMillisecondShard(id_b, start, end);
-    shard.add(1486045801000L, 8, 1);
-    shard.add(1486045871000L, Double.NaN, 0);
-    shard.add(1486045881000L, 5000, 1024);
+    shard.add(1486045801000L, 8);
+    shard.add(1486045871000L, Double.NaN);
+    shard.add(1486045881000L, 5000);
     results.addIterator(group_id_a, shard);
     
     final TimeSeriesGroupId group_id_b = new SimpleStringGroupId("b");
     shard = new NumericMillisecondShard(id_a, start, end);
-    shard.add(1486045801000L, 5, 1);
-    shard.add(1486045871000L, Double.NaN, 0);
-    shard.add(1486045881000L, 2, 1024);
+    shard.add(1486045801000L, 5);
+    shard.add(1486045871000L, Double.NaN);
+    shard.add(1486045881000L, 2);
     results.addIterator(group_id_b, shard);
     
     shard = new NumericMillisecondShard(id_b, start, end);
-    shard.add(1486045801000L, 20, 1);
-    shard.add(1486045871000L, Double.NaN, 0);
-    shard.add(1486045881000L, 13, 1024);
+    shard.add(1486045801000L, 20);
+    shard.add(1486045871000L, Double.NaN);
+    shard.add(1486045881000L, 13);
     results.addIterator(group_id_b, shard);
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -132,7 +132,7 @@ public class TestJsonV2QuerySerdes {
     final IteratorGroups results = new DefaultIteratorGroups();
     
     final TimeSeriesGroupId group_id_a = new SimpleStringGroupId("a");
-    final TimeSeriesId id_a = SimpleStringTimeSeriesId.newBuilder()
+    final TimeSeriesId id_a = BaseTimeSeriesId.newBuilder()
         .setMetrics(Lists.newArrayList("sys.cpu.user"))
         .addTags("host", "web01")
         .addTags("dc", "phx")
@@ -140,33 +140,33 @@ public class TestJsonV2QuerySerdes {
     
     NumericMillisecondShard shard = 
         new NumericMillisecondShard(id_a, start, end);
-    shard.add(1486045801000L, 42, 1);
-    shard.add(1486045871000L, 9866.854, 0);
-    shard.add(1486045881000L, -128, 1024);
+    shard.add(1486045801000L, 42);
+    shard.add(1486045871000L, 9866.854);
+    shard.add(1486045881000L, -128);
     results.addIterator(group_id_a, shard);
     
-    final TimeSeriesId id_b = SimpleStringTimeSeriesId.newBuilder()
+    final TimeSeriesId id_b = BaseTimeSeriesId.newBuilder()
         .setMetrics(Lists.newArrayList("sys.cpu.user"))
         .addTags("host", "web02")
         .addTags("dc", "phx")
     .build();
     shard = new NumericMillisecondShard(id_b, start, end);
-    shard.add(1486045801000L, 8, 1);
-    shard.add(1486045871000L, Double.NaN, 0);
-    shard.add(1486045881000L, 5000, 1024);
+    shard.add(1486045801000L, 8);
+    shard.add(1486045871000L, Double.NaN);
+    shard.add(1486045881000L, 5000);
     results.addIterator(group_id_a, shard);
     
     final TimeSeriesGroupId group_id_b = new SimpleStringGroupId("b");
     shard = new NumericMillisecondShard(id_a, start, end);
-    shard.add(1486045801000L, 5, 1);
-    shard.add(1486045871000L, Double.NaN, 0);
-    shard.add(1486045881000L, 2, 1024);
+    shard.add(1486045801000L, 5);
+    shard.add(1486045871000L, Double.NaN);
+    shard.add(1486045881000L, 2);
     results.addIterator(group_id_b, shard);
     
     shard = new NumericMillisecondShard(id_b, start, end);
-    shard.add(1486045801000L, 20, 1);
-    shard.add(1486045871000L, Double.NaN, 0);
-    shard.add(1486045881000L, 13, 1024);
+    shard.add(1486045801000L, 20);
+    shard.add(1486045871000L, Double.NaN);
+    shard.add(1486045881000L, 13);
     results.addIterator(group_id_b, shard);
     
     final SerdesOptions conf = JsonV2QuerySerdesOptions.newBuilder()
@@ -212,7 +212,7 @@ public class TestJsonV2QuerySerdes {
     final IteratorGroups results = new DefaultIteratorGroups();
     
     final TimeSeriesGroupId group_id_a = new SimpleStringGroupId("a");
-    final TimeSeriesId id_a = SimpleStringTimeSeriesId.newBuilder()
+    final TimeSeriesId id_a = BaseTimeSeriesId.newBuilder()
         .setMetrics(Lists.newArrayList("sys.cpu.user"))
         .addTags("host", "web01")
         .addTags("dc", "phx")
@@ -220,33 +220,33 @@ public class TestJsonV2QuerySerdes {
     
     NumericMillisecondShard shard = 
         new NumericMillisecondShard(id_a, start, end);
-    shard.add(1486045801000L, 42, 1);
-    shard.add(1486045871000L, 9866.854, 0);
-    shard.add(1486045881000L, -128, 1024);
+    shard.add(1486045801000L, 42);
+    shard.add(1486045871000L, 9866.854);
+    shard.add(1486045881000L, -128);
     results.addIterator(group_id_a, shard);
     
-    final TimeSeriesId id_b = SimpleStringTimeSeriesId.newBuilder()
+    final TimeSeriesId id_b = BaseTimeSeriesId.newBuilder()
         .setMetrics(Lists.newArrayList("sys.cpu.user"))
         .addTags("host", "web02")
         .addTags("dc", "phx")
     .build();
     shard = new NumericMillisecondShard(id_b, start, end);
-    shard.add(1486045801000L, 8, 1);
-    shard.add(1486045871000L, Double.NaN, 0);
-    shard.add(1486045881000L, 5000, 1024);
+    shard.add(1486045801000L, 8);
+    shard.add(1486045871000L, Double.NaN);
+    shard.add(1486045881000L, 5000);
     results.addIterator(group_id_a, shard);
     
     final TimeSeriesGroupId group_id_b = new SimpleStringGroupId("b");
     shard = new NumericMillisecondShard(id_a, start, end);
-    shard.add(1486045801000L, 5, 1);
-    shard.add(1486045871000L, Double.NaN, 0);
-    shard.add(1486045881000L, 2, 1024);
+    shard.add(1486045801000L, 5);
+    shard.add(1486045871000L, Double.NaN);
+    shard.add(1486045881000L, 2);
     results.addIterator(group_id_b, shard);
     
     shard = new NumericMillisecondShard(id_b, start, end);
-    shard.add(1486045801000L, 20, 1);
-    shard.add(1486045871000L, Double.NaN, 0);
-    shard.add(1486045881000L, 13, 1024);
+    shard.add(1486045801000L, 20);
+    shard.add(1486045871000L, Double.NaN);
+    shard.add(1486045881000L, 13);
     results.addIterator(group_id_b, shard);
     
     final ByteArrayOutputStream output = new ByteArrayOutputStream();

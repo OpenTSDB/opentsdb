@@ -45,29 +45,29 @@ public class ProcessorTestsHelpers {
     
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(1000), 1, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(2000), 2, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     a.data = data;
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(1000), 1, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(2000), 2, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     b.data = data;
   }
@@ -84,29 +84,29 @@ public class ProcessorTestsHelpers {
     
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(1000), 1, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(2000), 2, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     a.data = data;
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(1000), 1, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(2000), 2, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     b.data = data;
   }
@@ -123,29 +123,29 @@ public class ProcessorTestsHelpers {
     
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(1000), 1, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(2000), 2, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     a.data = data;
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(1000), 1, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(2000), 2, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     b.data = data;
   }
@@ -162,29 +162,29 @@ public class ProcessorTestsHelpers {
     
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(1000), 1, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(2000), 2, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(3000), 3, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     a.data = data;
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(1000), 1, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(2000), 2, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     b.data = data;
   }
@@ -201,29 +201,29 @@ public class ProcessorTestsHelpers {
     
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(1000), 1, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(2000), 2, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(3000), 3, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     a.data = data;
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(1000), 1, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(2000), 2, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     b.data = data;
   }
@@ -240,29 +240,29 @@ public class ProcessorTestsHelpers {
     
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(1000), 1, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(2000), 2, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(3000), 3, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     a.data = data;
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(1000), 1, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(2000), 2, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     b.data = data;
   }
@@ -279,29 +279,29 @@ public class ProcessorTestsHelpers {
     
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(1000), 1, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(2000), 2, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(3000), 3, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     a.data = data;
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(1000), 1, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(2000), 2, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(3000), 3, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     b.data = data;
   }
@@ -318,29 +318,29 @@ public class ProcessorTestsHelpers {
     
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(1000), 1, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(2000), 2, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(3000), 3, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     a.data = data;
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(1000), 1, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(2000), 2, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(3000), 3, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     b.data = data;
   }
@@ -357,29 +357,29 @@ public class ProcessorTestsHelpers {
     
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(1000), 1, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(2000), 2, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     a.data = data;
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(1000), 1, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(2000), 2, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(3000), 3, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     b.data = data;
   }
@@ -396,29 +396,29 @@ public class ProcessorTestsHelpers {
     
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(1000), 1, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(2000), 2, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     a.data = data;
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(1000), 1, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(2000), 2, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(3000), 3, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     b.data = data;
   }
@@ -435,29 +435,29 @@ public class ProcessorTestsHelpers {
     
     List<List<MutableNumericType>> data = Lists.newArrayListWithCapacity(1);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(1000), 1, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(2000), 2, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(a.id(), new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data.add(set);
     a.data = data;
     
     data = Lists.newArrayListWithCapacity(1);
     set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(1000), 1, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
     data.add(set);
     
     set = Lists.newArrayListWithCapacity(1);
-    set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(2000), 2, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
     data.add(set);
     
     //set = Lists.newArrayListWithCapacity(1);
-    //set.add(new MutableNumericType(b.id(), new MillisecondTimeStamp(3000), 3, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     //data.add(set);
     b.data = data;
   }

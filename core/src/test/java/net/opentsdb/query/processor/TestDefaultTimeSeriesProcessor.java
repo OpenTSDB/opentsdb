@@ -33,7 +33,7 @@ import com.google.common.collect.Lists;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
@@ -65,37 +65,37 @@ public class TestDefaultTimeSeriesProcessor {
   public void before() throws Exception {
     tsdb = mock(TSDB.class);
     group_id = new SimpleStringGroupId("Dothraki");
-    id_a = SimpleStringTimeSeriesId.newBuilder()
+    id_a = BaseTimeSeriesId.newBuilder()
         .setAlias("Khaleesi")
         .build();
-    id_b = SimpleStringTimeSeriesId.newBuilder()
+    id_b = BaseTimeSeriesId.newBuilder()
         .setAlias("Khalasar")
         .build();
     
     data_a = Lists.newArrayListWithCapacity(2);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data_a.add(set);
     
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data_a.add(set);
 
     data_b = Lists.newArrayListWithCapacity(2);
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data_b.add(set);
     
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(4000), 4, 1));
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data_b.add(set);
     
     it_a = spy(new MockNumericIterator(id_a));
@@ -213,15 +213,15 @@ public class TestDefaultTimeSeriesProcessor {
     
     data_a = Lists.newArrayListWithCapacity(2);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data_a.add(set);
     
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data_a.add(set);
     it_a.data = data_a;
 
@@ -323,29 +323,29 @@ public class TestDefaultTimeSeriesProcessor {
   public void chunkEndedEarlySameRecoversOtherUnaligned() throws Exception {
     data_a = Lists.newArrayListWithCapacity(2);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data_a.add(set);
     
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(6000), 6, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data_a.add(set);
     it_a.data = data_a;
     
     data_b = Lists.newArrayListWithCapacity(2);
     set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(1000), 1, 1));
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(2000), 2, 1));
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data_b.add(set);
     
     set = Lists.newArrayListWithCapacity(3);
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(4000), 4, 1));
-    //set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id_b, new MillisecondTimeStamp(6000), 6, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data_b.add(set);
     it_b.data = data_b;
     
@@ -446,15 +446,15 @@ public class TestDefaultTimeSeriesProcessor {
   public void chunkEndedEarlyOtherRecoversSameUnaligned() throws Exception {
     data_a = Lists.newArrayListWithCapacity(2);
     List<MutableNumericType> set = Lists.newArrayListWithCapacity(3);
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(1000), 1, 1));
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(2000), 2, 1));
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(3000), 3, 1));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(1000), 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(2000), 2));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(3000), 3));
     data_a.add(set);
     
     set = Lists.newArrayListWithCapacity(3);
-    //set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(4000), 4, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(5000), 5, 1));
-    set.add(new MutableNumericType(id_a, new MillisecondTimeStamp(6000), 6, 1));
+    //set.add(new MutableNumericType(new MillisecondTimeStamp(4000), 4));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(5000), 5));
+    set.add(new MutableNumericType(new MillisecondTimeStamp(6000), 6));
     data_a.add(set);
     it_a.data = data_a;
 

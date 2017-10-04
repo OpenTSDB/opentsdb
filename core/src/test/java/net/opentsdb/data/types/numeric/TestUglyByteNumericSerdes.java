@@ -27,7 +27,7 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 
 import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.SimpleStringTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
@@ -48,7 +48,7 @@ public class TestUglyByteNumericSerdes {
   @SuppressWarnings("unchecked")
   @Test
   public void fullSerdes() throws Exception {
-    TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .setAlias("a")
         .setMetrics(Lists.newArrayList("sys.cpu.user"))
         .addTags("host", "web01")
@@ -56,9 +56,9 @@ public class TestUglyByteNumericSerdes {
     .build();
     
     NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
-    shard.add(1486045801000L, 42, 1);
-    shard.add(1486045871000L, 9866.854, 0);
-    shard.add(1486045881000L, -128, 1024);
+    shard.add(1486045801000L, 42);
+    shard.add(1486045871000L, 9866.854);
+    shard.add(1486045881000L, -128);
     
     final UglyByteNumericSerdes serdes = new UglyByteNumericSerdes();
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -76,28 +76,25 @@ public class TestUglyByteNumericSerdes {
     assertEquals(1486045801000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(42, v.value().longValue());
-    assertEquals(1, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(1486045871000L, v.timestamp().msEpoch());
     assertFalse(v.value().isInteger());
     assertEquals(9866.854, v.value().doubleValue(), 0.0001);
-    assertEquals(0, v.realCount());
     
     assertEquals(IteratorStatus.HAS_DATA, iterator.status());
     v = (TimeSeriesValue<NumericType>) iterator.next();
     assertEquals(1486045881000L, v.timestamp().msEpoch());
     assertTrue(v.value().isInteger());
     assertEquals(-128, v.value().longValue());
-    assertEquals(1024, v.realCount());
     
     assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
   }
   
   @Test
   public void emptyValues() throws Exception {
-    TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .setAlias("a")
         .setMetrics(Lists.newArrayList("sys.cpu.user"))
         .addTags("host", "web01")
@@ -121,7 +118,7 @@ public class TestUglyByteNumericSerdes {
 
   @Test
   public void exceptions() throws Exception {
-    TimeSeriesId id = SimpleStringTimeSeriesId.newBuilder()
+    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .setAlias("a")
         .setMetrics(Lists.newArrayList("sys.cpu.user"))
         .addTags("host", "web01")

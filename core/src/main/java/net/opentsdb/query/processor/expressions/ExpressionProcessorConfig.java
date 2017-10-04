@@ -28,13 +28,11 @@ import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
-import net.opentsdb.common.Const;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Expression;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.processor.TimeSeriesProcessorConfig;
 import net.opentsdb.query.processor.TimeSeriesProcessorConfigBuilder;
-import net.opentsdb.utils.Bytes;
 
 /**
  * Configuration class for the Jexl Expression processor.
@@ -58,7 +56,7 @@ public class ExpressionProcessorConfig implements
   /** Optional list of tag keys to join on. 
    * NOTE: Do not account for this in equals, compare or hash code. Comes from 
    * Join and Filter. */
-  private List<byte[]> tag_keys;
+  private List<String> tag_keys;
   
   /**
    * Private CTor to construct from a builder.
@@ -74,19 +72,17 @@ public class ExpressionProcessorConfig implements
       tag_keys = Lists.newArrayList();
       if (expression.getJoin().getTags() != null && 
           !expression.getJoin().getTags().isEmpty()) {
-        for (final String tag : expression.getJoin().getTags()) {
-          tag_keys.add(tag.getBytes(Const.UTF8_CHARSET));
-        }
+        tag_keys.addAll(expression.getJoin().getTags());
       } else {
         if (filters != null) {
           for (final Filter f : filters) {
             for (final TagVFilter filter : f.getTags()) {
-              tag_keys.add(filter.getTagk().getBytes(Const.UTF8_CHARSET));
+              tag_keys.add(filter.getTagk());
             }
           }
         }
       }
-      Collections.sort(tag_keys, Bytes.MEMCMP);
+      Collections.sort(tag_keys);
     }
   }
   
@@ -101,7 +97,7 @@ public class ExpressionProcessorConfig implements
   }
   
   /** @return An optional list of tag keys converted to byte arrays. */
-  public List<byte[]> getTagKeys() {
+  public List<String> getTagKeys() {
     return tag_keys;
   }
   

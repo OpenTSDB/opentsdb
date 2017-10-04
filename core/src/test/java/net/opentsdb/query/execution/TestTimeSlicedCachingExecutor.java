@@ -309,8 +309,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -325,8 +324,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -346,8 +344,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -362,8 +359,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -434,8 +430,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -450,8 +445,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -471,8 +465,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -487,8 +480,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -562,8 +554,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -578,8 +569,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -599,8 +589,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -615,8 +604,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -696,8 +684,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -712,8 +699,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -733,8 +719,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -749,8 +734,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -845,8 +829,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -861,8 +844,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -882,8 +864,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -898,8 +879,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -994,8 +974,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1010,8 +989,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1031,8 +1009,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1047,8 +1024,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1238,8 +1214,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1254,8 +1229,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1275,8 +1249,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1291,8 +1264,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1522,8 +1494,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1538,8 +1509,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1559,8 +1529,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1575,8 +1544,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1642,8 +1610,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1658,8 +1625,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1679,8 +1645,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1695,8 +1660,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1761,8 +1725,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1777,8 +1740,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1798,8 +1760,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);
@@ -1814,8 +1775,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       TimeSeriesValue<NumericType> v = iterator.next();
       assertEquals(ts, v.timestamp().msEpoch());
       assertEquals(ts, v.value().longValue());
-      assertEquals(1, v.realCount());
-      ts += 300000;
+        ts += 300000;
       ++count;
     }
     assertEquals(49, count);

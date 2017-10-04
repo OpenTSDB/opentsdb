@@ -14,15 +14,14 @@ package net.opentsdb.data;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-
-import net.opentsdb.core.Const;
-import net.opentsdb.utils.ByteSet;
-import net.opentsdb.utils.Bytes;
-import net.opentsdb.utils.Bytes.ByteMap;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 /**
  * An ID that can be used to merge multiple time series into one. Use by
@@ -49,187 +48,7 @@ import net.opentsdb.utils.Bytes.ByteMap;
  * 
  * @since 3.0
  */
-public class MergedTimeSeriesId extends TimeSeriesId {
-
-  protected MergedTimeSeriesId(final Builder builder) {
-    alias = builder.alias;
-    
-    ByteSet namespaces = null;
-    ByteSet metrics = null;
-    ByteMap<byte[]> tags = null;
-    ByteSet aggregated_tags = null;
-    ByteSet disjoint_tags = null;
-    ByteSet unique_ids = null;
-    
-    int i = 0;
-    for (final TimeSeriesId id : builder.ids) {
-      if (id.namespaces() != null && !id.namespaces().isEmpty()) {
-        if (namespaces == null) {
-          namespaces = new ByteSet();
-        }
-        namespaces.addAll(id.namespaces());
-      }
-      
-      if (id.metrics() != null && !id.metrics().isEmpty()) {
-       if (metrics == null) {
-         metrics = new ByteSet();
-       }
-        metrics.addAll(id.metrics());
-      }
-      
-      // agg and disjoint BEFORE tags
-      if (id.aggregatedTags() != null && !id.aggregatedTags().isEmpty()) {
-        for (final byte[] tag : id.aggregatedTags()) {
-          if (tags != null && tags.containsKey(tag)) {
-            tags.remove(tag);
-            if (aggregated_tags == null) {
-              aggregated_tags = new ByteSet();
-            }
-            aggregated_tags.add(tag);
-          } else {
-            if (disjoint_tags != null && disjoint_tags.contains(tag)) {
-              // no-op
-            } else {
-              if (aggregated_tags == null) {
-                aggregated_tags = new ByteSet();
-              }
-              if (i < 1) {
-                aggregated_tags.add(tag);
-              } else {
-                if (aggregated_tags != null && !aggregated_tags.contains(tag)) {
-                  if (disjoint_tags == null) {
-                    disjoint_tags = new ByteSet();
-                  }
-                  disjoint_tags.add(tag);
-                }
-              }
-            }
-          }
-        }
-      }
-      
-      if (id.disjointTags() != null && !id.disjointTags().isEmpty()) {
-        for (final byte[] tag : id.disjointTags()) {
-          if (tags != null && tags.containsKey(tag)) {
-            tags.remove(tag);
-          }
-          if (aggregated_tags != null && aggregated_tags.contains(tag)) {
-            aggregated_tags.remove(tag);
-          }
-          if (disjoint_tags == null) {
-            disjoint_tags = new ByteSet();
-          }
-          disjoint_tags.add(tag);
-        }
-      }
-      
-      if (id.tags() != null && !id.tags().isEmpty()) {
-        if (tags == null) {
-          tags = new ByteMap<byte[]>();
-        }
-        
-        for (final Entry<byte[], byte[]> pair : id.tags().entrySet()) {
-          if (disjoint_tags != null && disjoint_tags.contains(pair.getKey())) {
-            continue;
-          }
-          if (aggregated_tags != null && aggregated_tags.contains(pair.getKey())) {
-            continue;
-          }
-          
-          // check tag and values!
-          final byte[] existing_value = tags.get(pair.getKey());
-          if (existing_value == null) {
-            if (i > 0) {
-              // disjoint!
-              if (disjoint_tags == null) {
-                disjoint_tags = new ByteSet();
-              }
-              disjoint_tags.add(pair.getKey());
-            } else {
-              tags.put(pair.getKey(), pair.getValue());
-            }
-          } else if (Bytes.memcmp(existing_value, pair.getValue()) != 0) {
-            // move to agg
-            if (aggregated_tags == null) {
-              aggregated_tags = new ByteSet();
-            }
-            aggregated_tags.add(pair.getKey());
-            tags.remove(pair.getKey());
-          }
-        }
-        
-        // reverse
-        if (tags != null) {
-          final Iterator<Entry<byte[], byte[]>> it = tags.iterator();
-          while (it.hasNext()) {
-            final Entry<byte[], byte[]> pair = it.next();
-            if (!id.tags().containsKey(pair.getKey())) {
-              // disjoint!
-              if (disjoint_tags == null) {
-                disjoint_tags = new ByteSet();
-              }
-              disjoint_tags.add(pair.getKey());
-              it.remove();
-            }
-          }
-        }
-      } // end id tags check
-      
-      // reverse agg
-      if (aggregated_tags != null && i > 0) {
-        final Iterator<byte[]> it = aggregated_tags.iterator();
-        while(it.hasNext()) {
-          final byte[] tag = it.next();
-          if (id.tags() != null && id.tags().containsKey(tag)) {
-            // good, keep it
-            continue;
-          }
-          if (id.aggregatedTags() != null && !id.aggregatedTags().isEmpty()) {
-            boolean matched = false;
-            for (final byte[] other : id.aggregatedTags()) {
-              if (Bytes.memcmpMaybeNull(tag, other) == 0) {
-                matched = true;
-                break;
-              }
-            }
-            if (matched) {
-              continue;
-            }
-          }
-          
-          if (disjoint_tags == null) {
-            disjoint_tags = new ByteSet();
-          }
-          disjoint_tags.add(tag);
-          it.remove();
-        }
-      } // end reverse agg check
-      
-      if (id.uniqueIds() != null && !id.uniqueIds().isEmpty()) {
-        if (unique_ids == null) {
-          unique_ids = new ByteSet();
-        }
-        unique_ids.addAll(id.uniqueIds());
-      }
-      i++;
-    }
-    
-    if (namespaces != null && !namespaces.isEmpty()) {
-      this.namespaces = Lists.newArrayList(namespaces);
-    }
-    if (metrics != null && !metrics.isEmpty()) {
-      this.metrics = Lists.newArrayList(metrics);
-    }
-    if (tags != null && !tags.isEmpty()) {
-      this.tags = tags;
-    }
-    if (aggregated_tags != null && !aggregated_tags.isEmpty()) {
-      this.aggregated_tags = Lists.newArrayList(aggregated_tags);
-    }
-    if (disjoint_tags != null && !disjoint_tags.isEmpty()) {
-      this.disjoint_tags = Lists.newArrayList(disjoint_tags);
-    }
-  }
+public class MergedTimeSeriesId {
   
   /** @return A builder for the merged ID */
   public static Builder newBuilder() {
@@ -238,16 +57,9 @@ public class MergedTimeSeriesId extends TimeSeriesId {
 
   public static class Builder {
     private List<TimeSeriesId> ids;
-    private byte[] alias;
+    private String alias;
     
     public Builder setAlias(final String alias) {
-      if (!Strings.isNullOrEmpty(alias)) {
-        this.alias = alias.getBytes(Const.UTF8_CHARSET);
-      }
-      return this;
-    }
-    
-    public Builder setAlias(final byte[] alias) {
       this.alias = alias;
       return this;
     }
@@ -263,8 +75,204 @@ public class MergedTimeSeriesId extends TimeSeriesId {
       return this;
     }
 
-    public MergedTimeSeriesId build() {
-      return new MergedTimeSeriesId(this);
+    public TimeSeriesId build() {
+      return merge();
+    }
+    
+    /**
+     * Merges the time series into a new ID, promoting tags to aggregated or 
+     * disjoint tags and combining namespaces, metrics and unique IDs.
+     * @return A non-null time series ID.
+     */
+    private TimeSeriesId merge() {
+      // TODO shortcircuit if there is only a single ID
+      
+      Set<String> namespaces = null;
+      Set<String> metrics = null;
+      Map<String, String> tags = null;
+      Set<String> aggregated_tags = null;
+      Set<String> disjoint_tags = null;
+      Set<String> unique_ids = null;
+      
+      int i = 0;
+      for (final TimeSeriesId id : ids) {
+        if (id.namespaces() != null && !id.namespaces().isEmpty()) {
+          if (namespaces == null) {
+            namespaces = Sets.newHashSetWithExpectedSize(1);
+          }
+          namespaces.addAll(id.namespaces());
+        }
+        
+        if (id.metrics() != null && !id.metrics().isEmpty()) {
+         if (metrics == null) {
+           metrics = Sets.newHashSetWithExpectedSize(1);
+         }
+          metrics.addAll(id.metrics());
+        }
+        
+        // agg and disjoint BEFORE tags
+        if (id.aggregatedTags() != null && !id.aggregatedTags().isEmpty()) {
+          for (final String tag : id.aggregatedTags()) {
+            if (!Strings.isNullOrEmpty(tag) && tags != null && tags.containsKey(tag)) {
+              tags.remove(tag);
+              if (aggregated_tags == null) {
+                aggregated_tags = Sets.newHashSetWithExpectedSize(1);
+              }
+              aggregated_tags.add(tag);
+            } else {
+              if (disjoint_tags != null && disjoint_tags.contains(tag)) {
+                // no-op
+              } else {
+                if (aggregated_tags == null) {
+                  aggregated_tags = Sets.newHashSetWithExpectedSize(1);
+                }
+                if (i < 1) {
+                  aggregated_tags.add(tag);
+                } else {
+                  if (aggregated_tags != null && !aggregated_tags.contains(tag)) {
+                    if (disjoint_tags == null) {
+                      disjoint_tags = Sets.newHashSetWithExpectedSize(1);
+                    }
+                    disjoint_tags.add(tag);
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        if (id.disjointTags() != null && !id.disjointTags().isEmpty()) {
+          for (final String tag : id.disjointTags()) {
+            if (tags != null && tags.containsKey(tag)) {
+              tags.remove(tag);
+            }
+            if (aggregated_tags != null && aggregated_tags.contains(tag)) {
+              aggregated_tags.remove(tag);
+            }
+            if (disjoint_tags == null) {
+              disjoint_tags = Sets.newHashSetWithExpectedSize(1);
+            }
+            disjoint_tags.add(tag);
+          }
+        }
+        
+        if (id.tags() != null && !id.tags().isEmpty()) {
+          if (tags == null) {
+            tags = Maps.newHashMapWithExpectedSize(id.tags().size());
+          }
+          
+          for (final Entry<String, String> pair : id.tags().entrySet()) {
+            if (disjoint_tags != null && disjoint_tags.contains(pair.getKey())) {
+              continue;
+            }
+            if (aggregated_tags != null && aggregated_tags.contains(pair.getKey())) {
+              continue;
+            }
+            
+            // check tag and values!
+            final String existing_value = tags.get(pair.getKey());
+            if (existing_value == null) {
+              if (i > 0) {
+                // disjoint!
+                if (disjoint_tags == null) {
+                  disjoint_tags = Sets.newHashSetWithExpectedSize(1);
+                }
+                disjoint_tags.add(pair.getKey());
+              } else {
+                tags.put(pair.getKey(), pair.getValue());
+              }
+            } else if (!existing_value.equals(pair.getValue())) {
+              // move to agg
+              if (aggregated_tags == null) {
+                aggregated_tags = Sets.newHashSetWithExpectedSize(1);
+              }
+              aggregated_tags.add(pair.getKey());
+              tags.remove(pair.getKey());
+            }
+          }
+          
+          // reverse
+          if (tags != null) {
+            final Iterator<Entry<String, String>> it = tags.entrySet().iterator();
+            while (it.hasNext()) {
+              final Entry<String, String> pair = it.next();
+              if (!id.tags().containsKey(pair.getKey())) {
+                // disjoint!
+                if (disjoint_tags == null) {
+                  disjoint_tags = Sets.newHashSetWithExpectedSize(1);
+                }
+                disjoint_tags.add(pair.getKey());
+                it.remove();
+              }
+            }
+          }
+        } // end id tags check
+        
+        // reverse agg
+        if (aggregated_tags != null && i > 0) {
+          final Iterator<String> it = aggregated_tags.iterator();
+          while(it.hasNext()) {
+            final String tag = it.next();
+            if (id.tags() != null && id.tags().containsKey(tag)) {
+              // good, keep it
+              continue;
+            }
+            if (id.aggregatedTags() != null && !id.aggregatedTags().isEmpty()) {
+              boolean matched = false;
+              for (final String other : id.aggregatedTags()) {
+                if (tag.equals(other)) {
+                  matched = true;
+                  break;
+                }
+              }
+              if (matched) {
+                continue;
+              }
+            }
+            
+            if (disjoint_tags == null) {
+              disjoint_tags = Sets.newHashSetWithExpectedSize(1);
+            }
+            disjoint_tags.add(tag);
+            it.remove();
+          }
+        } // end reverse agg check
+        
+        if (id.uniqueIds() != null && !id.uniqueIds().isEmpty()) {
+          if (unique_ids == null) {
+            unique_ids = Sets.newHashSetWithExpectedSize(1);
+          }
+          unique_ids.addAll(id.uniqueIds());
+        }
+        i++;
+      }
+      
+      final BaseTimeSeriesId.Builder builder = BaseTimeSeriesId.newBuilder();
+      builder.setAlias(alias);
+      if (namespaces != null && !namespaces.isEmpty()) {
+        for (final String ns : namespaces) {
+          builder.addNamespace(ns);
+        }
+      }
+      if (metrics != null && !metrics.isEmpty()) {
+        for (final String metric : metrics) {
+          builder.addMetric(metric);
+        }
+      }
+      if (tags != null && !tags.isEmpty()) {
+        builder.setTags(tags);
+      }
+      if (aggregated_tags != null && !aggregated_tags.isEmpty()) {
+        for (final String tag : aggregated_tags) {
+          builder.addAggregatedTag(tag);
+        }
+      }
+      if (disjoint_tags != null && !disjoint_tags.isEmpty()) {
+        for (final String tag : disjoint_tags) {
+          builder.addDisjointTag(tag);
+        }
+      }
+      return builder.build();
     }
   }
   

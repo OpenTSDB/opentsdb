@@ -78,15 +78,14 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes<IteratorGroups> {
       for (final TimeSeriesIterator<?> it : data.flattenedIterators()) {
         json.writeStartObject();
         
-        json.writeStringField("metric", new String(it.id().metrics().get(0)));
+        json.writeStringField("metric", it.id().metrics().get(0));
         json.writeObjectFieldStart("tags");
-        for (final Entry<byte[], byte[]> entry : it.id().tags().entrySet()) {
-          json.writeStringField(
-              new String(entry.getKey()), new String(entry.getValue()));
+        for (final Entry<String, String> entry : it.id().tags().entrySet()) {
+          json.writeStringField(entry.getKey(), entry.getValue());
         }
         json.writeArrayFieldStart("aggregateTags");
-        for (final byte[] tag : it.id().aggregatedTags()) {
-          json.writeString(new String(tag));
+        for (final String tag : it.id().aggregatedTags()) {
+          json.writeString(tag);
         }
         json.writeEndArray();
         json.writeEndObject();
