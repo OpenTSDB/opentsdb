@@ -63,24 +63,18 @@ public class UglyByteNumericSerdes implements
       byte[] buf = id.alias() == null ? null : id.alias().getBytes(Const.UTF8_CHARSET);
       stream.write(Bytes.fromInt(buf == null ? 0 : buf.length));
       if (buf != null) {
-        stream.write(id.alias().getBytes(Const.UTF8_CHARSET));
-      }
-      
-      stream.write(Bytes.fromInt(id.namespaces().size()));
-      for (final String namespace : id.namespaces()) {
-        buf = namespace.getBytes(Const.UTF8_CHARSET);
-        stream.write(Bytes.fromInt(buf.length));
-        if (buf.length > 0) {
-          stream.write(buf);
-        }
-      }
-      
-      stream.write(Bytes.fromInt(id.metrics().size()));
-      for (final String metric : id.metrics()) {
-        buf = metric.getBytes(Const.UTF8_CHARSET);
-        stream.write(Bytes.fromInt(buf.length));
         stream.write(buf);
       }
+      
+      buf = id.namespace() == null ? null : id.namespace().getBytes(Const.UTF8_CHARSET);
+      stream.write(Bytes.fromInt(buf == null ? 0 : buf.length));
+      if (buf != null) {
+        stream.write(buf);
+      }
+      
+      buf = id.metric().getBytes(Const.UTF8_CHARSET);
+      stream.write(Bytes.fromInt(buf.length));
+      stream.write(buf);
       
       stream.write(Bytes.fromInt(id.tags().size()));
       for (final Entry<String, String> pair : id.tags().entrySet()) {
@@ -133,21 +127,19 @@ public class UglyByteNumericSerdes implements
       }
       
       stream.read(buf);
-      int namespaces = Bytes.getInt(buf);
-      for (int x = 0; x < namespaces; x++) {
-        stream.read(buf);
-        byte[] array = new byte[Bytes.getInt(buf)];
+      len = Bytes.getInt(buf);
+      if (len > 0) {
+        byte[] array = new byte[len];
         stream.read(array);
-        id.addNamespace(new String(array, Const.UTF8_CHARSET));
+        id.setNamespace(new String(array, Const.UTF8_CHARSET));
       }
       
       stream.read(buf);
-      int metrics = Bytes.getInt(buf);
-      for (int x = 0; x < metrics; x++) {
-        stream.read(buf);
-        byte[] array = new byte[Bytes.getInt(buf)];
+      len = Bytes.getInt(buf);
+      if (len > 0) {
+        byte[] array = new byte[len];
         stream.read(array);
-        id.addMetric(new String(array, Const.UTF8_CHARSET));
+        id.setMetric(new String(array, Const.UTF8_CHARSET));
       }
       
       stream.read(buf);

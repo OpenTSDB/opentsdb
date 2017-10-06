@@ -23,7 +23,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.google.common.collect.Lists;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.MillisecondTimeStamp;
@@ -62,7 +61,7 @@ public class TestJsonV2QuerySerdes {
     
     final TimeSeriesGroupId group_id_a = new SimpleStringGroupId("a");
     final TimeSeriesId id_a = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("sys.cpu.user"))
+        .setMetric("sys.cpu.user")
         .addTags("host", "web01")
         .addTags("dc", "phx")
     .build();
@@ -75,7 +74,7 @@ public class TestJsonV2QuerySerdes {
     results.addIterator(group_id_a, shard);
     
     final TimeSeriesId id_b = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("sys.cpu.user"))
+        .setMetric("sys.cpu.user")
         .addTags("host", "web02")
         .addTags("dc", "phx")
     .build();
@@ -133,7 +132,7 @@ public class TestJsonV2QuerySerdes {
     
     final TimeSeriesGroupId group_id_a = new SimpleStringGroupId("a");
     final TimeSeriesId id_a = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("sys.cpu.user"))
+        .setMetric("sys.cpu.user")
         .addTags("host", "web01")
         .addTags("dc", "phx")
     .build();
@@ -146,7 +145,7 @@ public class TestJsonV2QuerySerdes {
     results.addIterator(group_id_a, shard);
     
     final TimeSeriesId id_b = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("sys.cpu.user"))
+        .setMetric("sys.cpu.user")
         .addTags("host", "web02")
         .addTags("dc", "phx")
     .build();
@@ -213,7 +212,7 @@ public class TestJsonV2QuerySerdes {
     
     final TimeSeriesGroupId group_id_a = new SimpleStringGroupId("a");
     final TimeSeriesId id_a = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("sys.cpu.user"))
+        .setMetric("sys.cpu.user")
         .addTags("host", "web01")
         .addTags("dc", "phx")
     .build();
@@ -226,7 +225,7 @@ public class TestJsonV2QuerySerdes {
     results.addIterator(group_id_a, shard);
     
     final TimeSeriesId id_b = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("sys.cpu.user"))
+        .setMetric("sys.cpu.user")
         .addTags("host", "web02")
         .addTags("dc", "phx")
     .build();

@@ -218,7 +218,7 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
         throw new JSONException("Metric was null for query result: " + node);
       }
       metric = node.path("metric").asText();
-      id.addMetric(metric);
+      id.setMetric(metric);
     } else {
       throw new JSONException("No metric found for the series: " + node);
     }

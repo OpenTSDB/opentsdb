@@ -187,7 +187,7 @@ public class TestMockDataStore {
     assertEquals(4 * 4 * 4, mds.getDatabase().size());
     
     TimeSeriesId id = BaseTimeSeriesId.newBuilder()
-        .addMetric("unit.test")
+        .setMetric("unit.test")
         .addTags("dc", "lga")
         .addTags("host", "db01")
         .build();

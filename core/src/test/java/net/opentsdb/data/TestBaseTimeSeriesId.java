@@ -34,157 +34,77 @@ public class TestBaseTimeSeriesId {
   public void alias() throws Exception {
     TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .setAlias("MyID!")
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals("MyID!", id.alias());
     
     id = BaseTimeSeriesId.newBuilder()
         .setAlias("")
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals("", id.alias());
     
     id = BaseTimeSeriesId.newBuilder()
         .setAlias(null)
+        .setMetric("sys.cpu.user")
         .build();
     assertNull(id.alias());
     
     id = BaseTimeSeriesId.newBuilder()
+        .setMetric("sys.cpu.user")
         .build();
     assertNull(id.alias());
   }
 
   @Test
-  public void namespaces() throws Exception {
+  public void namespace() throws Exception {
     TimeSeriesId id = BaseTimeSeriesId.newBuilder()
-        .setNamespaces(Lists.newArrayList("Tyrell", "Frey", "Casterly"))
+        .setNamespace("Tyrell")
+        .setMetric("sys.cpu.user")
         .build();
-    assertEquals(3, id.namespaces().size());
-    assertEquals("Casterly", id.namespaces().get(0));
-    assertEquals("Frey", id.namespaces().get(1));
-    assertEquals("Tyrell", id.namespaces().get(2));
+    assertEquals("Tyrell", id.namespace());
     
     id = BaseTimeSeriesId.newBuilder()
-        .setNamespaces(Lists.newArrayList("Tyrell", "", "Casterly"))
+        .setNamespace("")
+        .setMetric("sys.cpu.user")
         .build();
-    assertEquals(3, id.namespaces().size());
-    assertEquals("", id.namespaces().get(0));
-    assertEquals("Casterly", id.namespaces().get(1));
-    assertEquals("Tyrell", id.namespaces().get(2));
-    
-    try {
-      id = BaseTimeSeriesId.newBuilder()
-          .setNamespaces(Lists.newArrayList("Tyrell", null, "Casterly"))
-          .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+    assertEquals("", id.namespace());
     
     id = BaseTimeSeriesId.newBuilder()
-        .setNamespaces(new ArrayList<String>())
+        .setNamespace(null)
+        .setMetric("sys.cpu.user")
         .build();
-    assertTrue(id.namespaces().isEmpty());
+    assertNull(id.namespace());
     
     id = BaseTimeSeriesId.newBuilder()
-        .setNamespaces(null)
+        .setMetric("sys.cpu.user")
         .build();
-    assertTrue(id.namespaces().isEmpty());
-    
-    id = BaseTimeSeriesId.newBuilder()
-        .build();
-    assertTrue(id.namespaces().isEmpty());
-    
-    id = BaseTimeSeriesId.newBuilder()
-        .addNamespace("Tyrell")
-        .addNamespace("Frey")
-        .addNamespace("Casterly")
-        .build();
-    assertEquals(3, id.namespaces().size());
-    assertEquals("Casterly", id.namespaces().get(0));
-    assertEquals("Frey", id.namespaces().get(1));
-    assertEquals("Tyrell", id.namespaces().get(2));
-    
-    id = BaseTimeSeriesId.newBuilder()
-        .addNamespace("Tyrell")
-        .addNamespace("")
-        .addNamespace("Casterly")
-        .build();
-    assertEquals(3, id.namespaces().size());
-    assertEquals("", id.namespaces().get(0));
-    assertEquals("Casterly", id.namespaces().get(1));
-    assertEquals("Tyrell", id.namespaces().get(2));
-    
-    try {
-      id = BaseTimeSeriesId.newBuilder()
-          .addNamespace("Tyrell")
-          .addNamespace(null)
-          .addNamespace("Casterly")
-          .build();
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+    assertNull(id.namespace());
   }
   
   @Test
-  public void metrics() throws Exception {
+  public void metric() throws Exception {
     TimeSeriesId id = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("Tyrell", "Frey", "Casterly"))
+        .setMetric("sys.cpu.user")
         .build();
-    assertEquals(3, id.metrics().size());
-    assertEquals("Casterly", id.metrics().get(0));
-    assertEquals("Frey", id.metrics().get(1));
-    assertEquals("Tyrell", id.metrics().get(2));
-    
-    id = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("Tyrell", "", "Casterly"))
-        .build();
-    assertEquals(3, id.metrics().size());
-    assertEquals("", id.metrics().get(0));
-    assertEquals("Casterly", id.metrics().get(1));
-    assertEquals("Tyrell", id.metrics().get(2));
+    assertEquals("sys.cpu.user", id.metric());
     
     try {
       id = BaseTimeSeriesId.newBuilder()
-          .setMetrics(Lists.newArrayList("Tyrell", null, "Casterly"))
+          .setMetric("")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    id = BaseTimeSeriesId.newBuilder()
-        .setMetrics(new ArrayList<String>())
-        .build();
-    assertTrue(id.metrics().isEmpty());
-    
-    id = BaseTimeSeriesId.newBuilder()
-        .setMetrics(null)
-        .build();
-    assertTrue(id.metrics().isEmpty());
-    
-    id = BaseTimeSeriesId.newBuilder()
-        .build();
-    assertTrue(id.metrics().isEmpty());
-    
-    id = BaseTimeSeriesId.newBuilder()
-        .addMetric("Tyrell")
-        .addMetric("Frey")
-        .addMetric("Casterly")
-        .build();
-    assertEquals(3, id.metrics().size());
-    assertEquals("Casterly", id.metrics().get(0));
-    assertEquals("Frey", id.metrics().get(1));
-    assertEquals("Tyrell", id.metrics().get(2));
-    
-    id = BaseTimeSeriesId.newBuilder()
-        .addMetric("Tyrell")
-        .addMetric("")
-        .addMetric("Casterly")
-        .build();
-    assertEquals(3, id.metrics().size());
-    assertEquals("", id.metrics().get(0));
-    assertEquals("Casterly", id.metrics().get(1));
-    assertEquals("Tyrell", id.metrics().get(2));
+    try {
+      id = BaseTimeSeriesId.newBuilder()
+          .setMetric(null)
+          .build();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
     
     try {
       id = BaseTimeSeriesId.newBuilder()
-          .addMetric("Tyrell")
-          .addMetric(null)
-          .addMetric("Casterly")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -197,6 +117,7 @@ public class TestBaseTimeSeriesId {
     tags.put("colo", "lax");
     TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .setTags(tags)
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(2, id.tags().size());
     assertEquals("web01", 
@@ -208,6 +129,7 @@ public class TestBaseTimeSeriesId {
     tags.put("colo", "");
     id = BaseTimeSeriesId.newBuilder()
         .setTags(tags)
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(1, id.tags().size());
     assertEquals("", 
@@ -218,6 +140,7 @@ public class TestBaseTimeSeriesId {
     try {
       id = BaseTimeSeriesId.newBuilder()
           .setTags(tags)
+          .setMetric("sys.cpu.user")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -226,6 +149,7 @@ public class TestBaseTimeSeriesId {
     tags.put("", "lax");
     id = BaseTimeSeriesId.newBuilder()
         .setTags(tags)
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(1, id.tags().size());
     assertEquals("lax", 
@@ -236,6 +160,7 @@ public class TestBaseTimeSeriesId {
     try {
       id = BaseTimeSeriesId.newBuilder()
           .setTags(tags)
+          .setMetric("sys.cpu.user")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -243,21 +168,25 @@ public class TestBaseTimeSeriesId {
     tags = Maps.newHashMap();
     id = BaseTimeSeriesId.newBuilder()
         .setTags(tags)
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(0, id.tags().size());
     
     id = BaseTimeSeriesId.newBuilder()
         .setTags(null)
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(0, id.tags().size());
     
     id = BaseTimeSeriesId.newBuilder()
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(0, id.tags().size());
     
     id = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(2, id.tags().size());
     assertEquals("web01", 
@@ -267,6 +196,7 @@ public class TestBaseTimeSeriesId {
     
     id = BaseTimeSeriesId.newBuilder()
         .addTags("colo", "")
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(1, id.tags().size());
     assertEquals("", 
@@ -275,12 +205,14 @@ public class TestBaseTimeSeriesId {
     try {
       id = BaseTimeSeriesId.newBuilder()
           .addTags("colo", null)
+          .setMetric("sys.cpu.user")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     id = BaseTimeSeriesId.newBuilder()
         .addTags("", "lax")
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(1, id.tags().size());
     assertEquals("lax", 
@@ -289,6 +221,7 @@ public class TestBaseTimeSeriesId {
     try {
       id = BaseTimeSeriesId.newBuilder()
           .addTags(null, "lax")
+          .setMetric("sys.cpu.user")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -296,6 +229,7 @@ public class TestBaseTimeSeriesId {
     try {
       id = BaseTimeSeriesId.newBuilder()
           .addTags(null, null)
+          .setMetric("sys.cpu.user")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -305,6 +239,7 @@ public class TestBaseTimeSeriesId {
   public void aggregatedTags() throws Exception {
     TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .setAggregatedTags(Lists.newArrayList("Tyrell", "Frey", "Casterly"))
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(3, id.aggregatedTags().size());
     assertEquals("Casterly", id.aggregatedTags().get(0));
@@ -313,6 +248,7 @@ public class TestBaseTimeSeriesId {
     
     id = BaseTimeSeriesId.newBuilder()
         .setAggregatedTags(Lists.newArrayList("Tyrell", "", "Casterly"))
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(3, id.aggregatedTags().size());
     assertEquals("", id.aggregatedTags().get(0));
@@ -322,21 +258,25 @@ public class TestBaseTimeSeriesId {
     try {
       id = BaseTimeSeriesId.newBuilder()
           .setAggregatedTags(Lists.newArrayList("Tyrell", null, "Casterly"))
+          .setMetric("sys.cpu.user")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     id = BaseTimeSeriesId.newBuilder()
         .setAggregatedTags(new ArrayList<String>())
+        .setMetric("sys.cpu.user")
         .build();
     assertTrue(id.aggregatedTags().isEmpty());
     
     id = BaseTimeSeriesId.newBuilder()
         .setAggregatedTags(null)
+        .setMetric("sys.cpu.user")
         .build();
     assertTrue(id.aggregatedTags().isEmpty());
     
     id = BaseTimeSeriesId.newBuilder()
+        .setMetric("sys.cpu.user")
         .build();
     assertTrue(id.aggregatedTags().isEmpty());
     
@@ -344,6 +284,7 @@ public class TestBaseTimeSeriesId {
         .addAggregatedTag("Tyrell")
         .addAggregatedTag("Frey")
         .addAggregatedTag("Casterly")
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(3, id.aggregatedTags().size());
     assertEquals("Casterly", id.aggregatedTags().get(0));
@@ -354,6 +295,7 @@ public class TestBaseTimeSeriesId {
         .addAggregatedTag("Tyrell")
         .addAggregatedTag("")
         .addAggregatedTag("Casterly")
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(3, id.aggregatedTags().size());
     assertEquals("", id.aggregatedTags().get(0));
@@ -365,6 +307,7 @@ public class TestBaseTimeSeriesId {
           .addAggregatedTag("Tyrell")
           .addAggregatedTag(null)
           .addAggregatedTag("Casterly")
+          .setMetric("sys.cpu.user")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -374,6 +317,7 @@ public class TestBaseTimeSeriesId {
   public void disjointTags() throws Exception {
     TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .setDisjointTags(Lists.newArrayList("Tyrell", "Frey", "Casterly"))
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(3, id.disjointTags().size());
     assertEquals("Casterly", id.disjointTags().get(0));
@@ -382,6 +326,7 @@ public class TestBaseTimeSeriesId {
     
     id = BaseTimeSeriesId.newBuilder()
         .setDisjointTags(Lists.newArrayList("Tyrell", "", "Casterly"))
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(3, id.disjointTags().size());
     assertEquals("", id.disjointTags().get(0));
@@ -391,21 +336,25 @@ public class TestBaseTimeSeriesId {
     try {
       id = BaseTimeSeriesId.newBuilder()
           .setDisjointTags(Lists.newArrayList("Tyrell", null, "Casterly"))
+          .setMetric("sys.cpu.user")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     id = BaseTimeSeriesId.newBuilder()
         .setDisjointTags(new ArrayList<String>())
+        .setMetric("sys.cpu.user")
         .build();
     assertTrue(id.disjointTags().isEmpty());
     
     id = BaseTimeSeriesId.newBuilder()
         .setDisjointTags(null)
+        .setMetric("sys.cpu.user")
         .build();
     assertTrue(id.disjointTags().isEmpty());
     
     id = BaseTimeSeriesId.newBuilder()
+        .setMetric("sys.cpu.user")
         .build();
     assertTrue(id.disjointTags().isEmpty());
     
@@ -413,6 +362,7 @@ public class TestBaseTimeSeriesId {
         .addDisjointTag("Tyrell")
         .addDisjointTag("Frey")
         .addDisjointTag("Casterly")
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(3, id.disjointTags().size());
     assertEquals("Casterly", id.disjointTags().get(0));
@@ -423,6 +373,7 @@ public class TestBaseTimeSeriesId {
         .addDisjointTag("Tyrell")
         .addDisjointTag("")
         .addDisjointTag("Casterly")
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(3, id.disjointTags().size());
     assertEquals("", id.disjointTags().get(0));
@@ -434,6 +385,7 @@ public class TestBaseTimeSeriesId {
           .addDisjointTag("Tyrell")
           .addDisjointTag(null)
           .addDisjointTag("Casterly")
+          .setMetric("sys.cpu.user")
           .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -444,6 +396,7 @@ public class TestBaseTimeSeriesId {
     Set<String> ids = Sets.newHashSet("000001", "000002");
     TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .setUniqueId(ids)
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(2, id.uniqueIds().size());
     assertTrue(id.uniqueIds().contains("000001"));
@@ -451,21 +404,25 @@ public class TestBaseTimeSeriesId {
     
     id = BaseTimeSeriesId.newBuilder()
         .setUniqueId(Sets.newHashSet())
+        .setMetric("sys.cpu.user")
         .build();
     assertTrue(id.uniqueIds().isEmpty());
     
     id = BaseTimeSeriesId.newBuilder()
         .setUniqueId(null)
+        .setMetric("sys.cpu.user")
         .build();
     assertTrue(id.uniqueIds().isEmpty());
     
     id = BaseTimeSeriesId.newBuilder()
+        .setMetric("sys.cpu.user")
         .build();
     assertTrue(id.uniqueIds().isEmpty());
     
     id = BaseTimeSeriesId.newBuilder()
         .addUniqueId("000002")
         .addUniqueId("000001")
+        .setMetric("sys.cpu.user")
         .build();
     assertEquals(2, id.uniqueIds().size());
     assertTrue(id.uniqueIds().contains("000001"));
@@ -486,8 +443,8 @@ public class TestBaseTimeSeriesId {
     
     final BaseTimeSeriesId id1 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setNamespace("OpenTSDB")
+        .setMetric("sys.cpu.user")
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
@@ -497,8 +454,8 @@ public class TestBaseTimeSeriesId {
     
     BaseTimeSeriesId id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setNamespace("OpenTSDB")
+        .setMetric("sys.cpu.user")
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
@@ -511,8 +468,8 @@ public class TestBaseTimeSeriesId {
     
     id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID2") // <-- Diff
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setNamespace("OpenTSDB")
+        .setMetric("sys.cpu.user")
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
@@ -525,50 +482,8 @@ public class TestBaseTimeSeriesId {
     
     id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB", "EGADS"))  // <-- Diff
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
-        .setTags(tags)
-        .setAggregatedTags(Lists.newArrayList("owner", "role"))
-        .setDisjointTags(Lists.newArrayList("propery", "type"))
-        .addUniqueId("000001")
-        .addUniqueId("000002")
-        .build();
-    assertNotEquals(id1.hashCode(), id2.hashCode());
-    assertNotEquals(id1, id2);
-    assertEquals(1, id1.compareTo(id2));
-    
-    id2 = BaseTimeSeriesId.newBuilder()
-        .setAlias("FakeID")
-        //.setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))  // <-- Diff
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
-        .setTags(tags)
-        .setAggregatedTags(Lists.newArrayList("owner", "role"))
-        .setDisjointTags(Lists.newArrayList("propery", "type"))
-        .addUniqueId("000001")
-        .addUniqueId("000002")
-        .build();
-    assertNotEquals(id1.hashCode(), id2.hashCode());
-    assertNotEquals(id1, id2);
-    assertEquals(1, id1.compareTo(id2));
-    
-    id2 = BaseTimeSeriesId.newBuilder()
-        .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("OpenTSDB", "Yahoo"))  // <-- Diff order OK!
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
-        .setTags(tags)
-        .setAggregatedTags(Lists.newArrayList("owner", "role"))
-        .setDisjointTags(Lists.newArrayList("propery", "type"))
-        .addUniqueId("000001")
-        .addUniqueId("000002")
-        .build();
-    assertEquals(id1.hashCode(), id2.hashCode());
-    assertEquals(id1, id2);
-    assertEquals(0, id1.compareTo(id2));
-    
-    id2 = BaseTimeSeriesId.newBuilder()
-        .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.user")) 
+        .setNamespace("Yahoo") // <-- Diff
+        .setMetric("sys.cpu.user")
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
@@ -581,8 +496,8 @@ public class TestBaseTimeSeriesId {
     
     id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        //.setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle")) // <-- Diff
+        //.setNamespace("OpenTSDB") // <-- Diff
+        .setMetric("sys.cpu.user")
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
@@ -595,17 +510,17 @@ public class TestBaseTimeSeriesId {
     
     id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.idle", "sys.cpu.user")) // <-- Diff order OK!
+        .setNamespace("OpenTSDB")
+        .setMetric("sys.cpu.idle") // <-- Diff
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
         .addUniqueId("000001")
         .addUniqueId("000002")
         .build();
-    assertEquals(id1.hashCode(), id2.hashCode());
-    assertEquals(id1, id2);
-    assertEquals(0, id1.compareTo(id2));
+    assertNotEquals(id1.hashCode(), id2.hashCode());
+    assertNotEquals(id1, id2);
+    assertEquals(1, id1.compareTo(id2));
     
     Map<String, String> tags2 = Maps.newHashMap();
     tags.put("host", "web02"); // <-- Diff
@@ -613,8 +528,8 @@ public class TestBaseTimeSeriesId {
     
     id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setNamespace("OpenTSDB")
+        .setMetric("sys.cpu.user")
         .setTags(tags2) // <-- Diff
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
@@ -631,8 +546,8 @@ public class TestBaseTimeSeriesId {
     
     id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setNamespace("OpenTSDB")
+        .setMetric("sys.cpu.user")
         .setTags(tags2) // <-- Diff
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
@@ -645,8 +560,8 @@ public class TestBaseTimeSeriesId {
     
     id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setNamespace("OpenTSDB")
+        .setMetric("sys.cpu.user")
         //.setTags(tags) // <-- Diff
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
@@ -659,8 +574,8 @@ public class TestBaseTimeSeriesId {
     
     id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setNamespace("OpenTSDB")
+        .setMetric("sys.cpu.user")
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner")) // <-- Diff
         .setDisjointTags(Lists.newArrayList("propery", "type"))
@@ -673,8 +588,8 @@ public class TestBaseTimeSeriesId {
     
     id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setNamespace("OpenTSDB")
+        .setMetric("sys.cpu.user")
         .setTags(tags)
         //.setAggregatedTags(Lists.newArrayList("owner", "role")) // <-- Diff
         .setDisjointTags(Lists.newArrayList("propery", "type"))
@@ -687,8 +602,8 @@ public class TestBaseTimeSeriesId {
     
     id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setNamespace("OpenTSDB")
+        .setMetric("sys.cpu.user")
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("role", "owner")) // <-- Diff order OK!
         .setDisjointTags(Lists.newArrayList("propery", "type"))
@@ -701,8 +616,8 @@ public class TestBaseTimeSeriesId {
     
     id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setNamespace("OpenTSDB")
+        .setMetric("sys.cpu.user")
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery"))  // <-- Diff
@@ -715,8 +630,8 @@ public class TestBaseTimeSeriesId {
     
     id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setNamespace("OpenTSDB")
+        .setMetric("sys.cpu.user")
         .setTags(tags)
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         //.setDisjointTags(Lists.newArrayList("propery", "type"))  // <-- Diff
@@ -729,8 +644,8 @@ public class TestBaseTimeSeriesId {
     
     id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setNamespace("OpenTSDB")
+        .setMetric("sys.cpu.user")
         .setTags(tags) 
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("type", "propery")) // <-- Diff order OK!
@@ -743,8 +658,8 @@ public class TestBaseTimeSeriesId {
     
     id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setNamespace("OpenTSDB")
+        .setMetric("sys.cpu.user")
         .setTags(tags) 
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
@@ -757,8 +672,8 @@ public class TestBaseTimeSeriesId {
     
     id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setNamespace("OpenTSDB")
+        .setMetric("sys.cpu.user")
         .setTags(tags) 
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))
@@ -771,8 +686,8 @@ public class TestBaseTimeSeriesId {
     
     id2 = BaseTimeSeriesId.newBuilder()
         .setAlias("FakeID")
-        .setNamespaces(Lists.newArrayList("Yahoo", "OpenTSDB"))
-        .setMetrics(Lists.newArrayList("sys.cpu.user", "sys.cpu.idle"))
+        .setNamespace("OpenTSDB")
+        .setMetric("sys.cpu.user")
         .setTags(tags) 
         .setAggregatedTags(Lists.newArrayList("owner", "role"))
         .setDisjointTags(Lists.newArrayList("propery", "type"))

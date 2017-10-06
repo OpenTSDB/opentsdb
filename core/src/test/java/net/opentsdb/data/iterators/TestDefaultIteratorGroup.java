@@ -30,7 +30,6 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
@@ -55,10 +54,10 @@ public class TestDefaultIteratorGroup {
   public void before() throws Exception {
     group_id = new SimpleStringGroupId("Freys");
     id_a = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("sys.cpu.idle"))
+        .setMetric("sys.cpu.idle")
         .build();
     id_b = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("sys.cpu.user"))
+        .setMetric("sys.cpu.user")
         .build();
     context = mock(QueryContext.class);
   }

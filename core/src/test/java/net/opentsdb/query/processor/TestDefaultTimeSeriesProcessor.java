@@ -67,9 +67,11 @@ public class TestDefaultTimeSeriesProcessor {
     group_id = new SimpleStringGroupId("Dothraki");
     id_a = BaseTimeSeriesId.newBuilder()
         .setAlias("Khaleesi")
+        .setMetric("Khalasar")
         .build();
     id_b = BaseTimeSeriesId.newBuilder()
-        .setAlias("Khalasar")
+        .setAlias("Drogo")
+        .setMetric("Khalasar")
         .build();
     
     data_a = Lists.newArrayListWithCapacity(2);

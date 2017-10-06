@@ -132,7 +132,7 @@ public class MockDataStore extends TimeSeriesDataStore {
         for (final Entry<TimeSeriesId, Map<TypeToken<?>, MockSpan<?>>> entry : 
               database.entrySet()) {
           for (Metric m : query.getMetrics()) {
-            if (!m.getMetric().equals(entry.getKey().metrics().get(0))) {
+            if (!m.getMetric().equals(entry.getKey().metric())) {
               continue;
             }
             
@@ -319,7 +319,7 @@ public class MockDataStore extends TimeSeriesDataStore {
         for (final String dc : DATACENTERS) {
           for (int h = 0; h < hosts; h++) {
             TimeSeriesId id = BaseTimeSeriesId.newBuilder()
-                .addMetric(metric)
+                .setMetric(metric)
                 .addTags("dc", dc)
                 .addTags("host", String.format("web%02d", h + 1))
                 .build();

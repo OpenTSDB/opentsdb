@@ -16,11 +16,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
-
 import org.junit.Test;
-
-import com.google.common.collect.Lists;
 
 public class TestMergedTimeSeriesId {
 
@@ -28,9 +24,11 @@ public class TestMergedTimeSeriesId {
   public void alias() throws Exception {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .setAlias("Series A")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .setAlias("Series B")
+        .setMetric("ice.dragon")
         .build();
     
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
@@ -78,109 +76,47 @@ public class TestMergedTimeSeriesId {
   @Test
   public void mergeNameSpaces() throws Exception {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
-        .setNamespaces(Lists.newArrayList("Tyrell", "Frey", "Dorne"))
+        .setNamespace("Tyrell")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
-        .setNamespaces(Lists.newArrayList("Lanister", "Frey", "Dorne"))
+        .setNamespace("Lanister")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
-    assertEquals(4, merged.namespaces().size());
-    assertEquals("Dorne", merged.namespaces().get(0));
-    assertEquals("Frey", merged.namespaces().get(1));
-    assertEquals("Lanister", merged.namespaces().get(2));
-    assertEquals("Tyrell", merged.namespaces().get(3));
+    assertEquals("Tyrell", merged.namespace());
 
-    b = BaseTimeSeriesId.newBuilder()
-        .setNamespaces(new ArrayList<String>())
-        .build();
     merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
+        .setNamespace("Dorne")
         .build();
-    assertEquals(3, merged.namespaces().size());
-    assertEquals("Dorne", merged.namespaces().get(0));
-    assertEquals("Frey", merged.namespaces().get(1));
-    assertEquals("Tyrell", merged.namespaces().get(2));
-    
-    b = BaseTimeSeriesId.newBuilder()
-        .build();
-    merged = MergedTimeSeriesId.newBuilder()
-        .addSeries(a)
-        .addSeries(b)
-        .build();
-    assertEquals(3, merged.namespaces().size());
-    assertEquals("Dorne", merged.namespaces().get(0));
-    assertEquals("Frey", merged.namespaces().get(1));
-    assertEquals("Tyrell", merged.namespaces().get(2));
-    
-    a = BaseTimeSeriesId.newBuilder()
-        .setNamespaces(new ArrayList<String>())
-        .build();
-    b = BaseTimeSeriesId.newBuilder()
-        .setNamespaces(new ArrayList<String>())
-        .build();
-    merged = MergedTimeSeriesId.newBuilder()
-        .addSeries(a)
-        .addSeries(b)
-        .build();
-    assertTrue(merged.namespaces().isEmpty());
+    assertEquals("Dorne", merged.namespace());
   }
 
   @Test
   public void mergeMetrics() throws Exception {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("Tyrell", "Frey", "Dorne"))
+        .setMetric("Tyrell")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("Lanister", "Frey", "Dorne"))
+        .setMetric("Lanister")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
-    assertEquals(4, merged.metrics().size());
-    assertEquals("Dorne", merged.metrics().get(0));
-    assertEquals("Frey", merged.metrics().get(1));
-    assertEquals("Lanister", merged.metrics().get(2));
-    assertEquals("Tyrell", merged.metrics().get(3));
+    assertEquals("Tyrell", merged.metric());
 
-    b = BaseTimeSeriesId.newBuilder()
-        .setMetrics(new ArrayList<String>())
-        .build();
     merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
+        .setMetric("Stark")
         .build();
-    assertEquals(3, merged.metrics().size());
-    assertEquals("Dorne", merged.metrics().get(0));
-    assertEquals("Frey", merged.metrics().get(1));
-    assertEquals("Tyrell", merged.metrics().get(2));
-    
-    b = BaseTimeSeriesId.newBuilder()
-        .build();
-    merged = MergedTimeSeriesId.newBuilder()
-        .addSeries(a)
-        .addSeries(b)
-        .build();
-    assertEquals(3, merged.metrics().size());
-    assertEquals("Dorne", merged.metrics().get(0));
-    assertEquals("Frey", merged.metrics().get(1));
-    assertEquals("Tyrell", merged.metrics().get(2));
-    
-    a = BaseTimeSeriesId.newBuilder()
-        .setMetrics(new ArrayList<String>())
-        .build();
-    b = BaseTimeSeriesId.newBuilder()
-        .setMetrics(new ArrayList<String>())
-        .build();
-    merged = MergedTimeSeriesId.newBuilder()
-        .addSeries(a)
-        .addSeries(b)
-        .build();
-    assertTrue(merged.metrics().isEmpty());
+    assertEquals("Stark", merged.metric());
   }
   
   @Test
@@ -188,10 +124,12 @@ public class TestMergedTimeSeriesId {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
@@ -211,10 +149,12 @@ public class TestMergedTimeSeriesId {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web02")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
@@ -235,10 +175,12 @@ public class TestMergedTimeSeriesId {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web02")
         .addTags("colo", "lga")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
@@ -258,10 +200,12 @@ public class TestMergedTimeSeriesId {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .addAggregatedTag("host")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web02")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
@@ -281,10 +225,12 @@ public class TestMergedTimeSeriesId {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .addAggregatedTag("host")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
@@ -304,10 +250,12 @@ public class TestMergedTimeSeriesId {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .addDisjointTag("host")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web02")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
@@ -327,10 +275,12 @@ public class TestMergedTimeSeriesId {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .addDisjointTag("host")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
@@ -350,10 +300,12 @@ public class TestMergedTimeSeriesId {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("owner", "Lanister")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
@@ -375,10 +327,12 @@ public class TestMergedTimeSeriesId {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .addTags("dept", "KingsGaurd")
         .addTags("owner", "Lanister")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
@@ -403,10 +357,12 @@ public class TestMergedTimeSeriesId {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addAggregatedTag("colo")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
@@ -426,10 +382,12 @@ public class TestMergedTimeSeriesId {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addDisjointTag("colo")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
@@ -449,14 +407,17 @@ public class TestMergedTimeSeriesId {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addAggregatedTag("colo")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId c = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("dept", "KingsGaurd")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
@@ -479,10 +440,12 @@ public class TestMergedTimeSeriesId {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .addAggregatedTag("host")
         .addAggregatedTag("colo")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .addAggregatedTag("host")
         .addAggregatedTag("colo")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
@@ -502,10 +465,12 @@ public class TestMergedTimeSeriesId {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .addAggregatedTag("host")
         .addAggregatedTag("colo")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .addAggregatedTag("host")
         .addAggregatedTag("owner")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
@@ -527,10 +492,12 @@ public class TestMergedTimeSeriesId {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .addAggregatedTag("host")
         .addAggregatedTag("colo")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .addAggregatedTag("dept")
         .addAggregatedTag("owner")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
@@ -554,10 +521,12 @@ public class TestMergedTimeSeriesId {
     TimeSeriesId a = BaseTimeSeriesId.newBuilder()
         .addDisjointTag("host")
         .addDisjointTag("colo")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId b = BaseTimeSeriesId.newBuilder()
         .addDisjointTag("host")
         .addDisjointTag("owner")
+        .setMetric("ice.dragon")
         .build();
     TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)

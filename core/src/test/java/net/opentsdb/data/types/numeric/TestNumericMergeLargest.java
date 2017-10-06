@@ -56,7 +56,7 @@ public class TestNumericMergeLargest {
     context = mock(QueryContext.class);
     id = BaseTimeSeriesId.newBuilder()
         .setAlias("a")
-        .addMetric("sys.cpu.user")
+        .setMetric("sys.cpu.user")
         .build();
     start = new MillisecondTimeStamp(1486045800000L);
     end = new MillisecondTimeStamp(1486045900000L);

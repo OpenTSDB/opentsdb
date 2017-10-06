@@ -59,6 +59,7 @@ public class TestMockNumericIterator {
     execution_graph = mock(ExecutionGraph.class);
     id = BaseTimeSeriesId.newBuilder()
         .setAlias("Khalisi")
+        .setMetric("Khalasar")
         .build();
     
     data = Lists.newArrayListWithCapacity(3);

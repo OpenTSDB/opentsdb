@@ -24,8 +24,6 @@ import java.io.ByteArrayOutputStream;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.google.common.collect.Lists;
-
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesId;
@@ -50,7 +48,7 @@ public class TestUglyByteNumericSerdes {
   public void fullSerdes() throws Exception {
     TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .setAlias("a")
-        .setMetrics(Lists.newArrayList("sys.cpu.user"))
+        .setMetric("sys.cpu.user")
         .addTags("host", "web01")
         .addTags("dc", "phx")
     .build();
@@ -96,7 +94,7 @@ public class TestUglyByteNumericSerdes {
   public void emptyValues() throws Exception {
     TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .setAlias("a")
-        .setMetrics(Lists.newArrayList("sys.cpu.user"))
+        .setMetric("sys.cpu.user")
         .addTags("host", "web01")
         .addTags("dc", "phx")
     .build();
@@ -120,7 +118,7 @@ public class TestUglyByteNumericSerdes {
   public void exceptions() throws Exception {
     TimeSeriesId id = BaseTimeSeriesId.newBuilder()
         .setAlias("a")
-        .setMetrics(Lists.newArrayList("sys.cpu.user"))
+        .setMetric("sys.cpu.user")
         .addTags("host", "web01")
         .addTags("dc", "phx")
     .build();

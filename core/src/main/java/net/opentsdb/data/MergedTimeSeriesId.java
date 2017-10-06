@@ -58,9 +58,21 @@ public class MergedTimeSeriesId {
   public static class Builder {
     private List<TimeSeriesId> ids;
     private String alias;
+    private String namespace;
+    private String metric;
     
     public Builder setAlias(final String alias) {
       this.alias = alias;
+      return this;
+    }
+    
+    public Builder setNamespace(final String namespace) {
+      this.namespace = namespace;
+      return this;
+    }
+    
+    public Builder setMetric(final String metric) {
+      this.metric = metric;
       return this;
     }
     
@@ -87,8 +99,8 @@ public class MergedTimeSeriesId {
     private TimeSeriesId merge() {
       // TODO shortcircuit if there is only a single ID
       
-      Set<String> namespaces = null;
-      Set<String> metrics = null;
+      String first_namespace = null;
+      String first_metric = null;
       Map<String, String> tags = null;
       Set<String> aggregated_tags = null;
       Set<String> disjoint_tags = null;
@@ -96,18 +108,12 @@ public class MergedTimeSeriesId {
       
       int i = 0;
       for (final TimeSeriesId id : ids) {
-        if (id.namespaces() != null && !id.namespaces().isEmpty()) {
-          if (namespaces == null) {
-            namespaces = Sets.newHashSetWithExpectedSize(1);
-          }
-          namespaces.addAll(id.namespaces());
+        if (Strings.isNullOrEmpty(first_namespace)) {
+          first_namespace = id.namespace();
         }
         
-        if (id.metrics() != null && !id.metrics().isEmpty()) {
-         if (metrics == null) {
-           metrics = Sets.newHashSetWithExpectedSize(1);
-         }
-          metrics.addAll(id.metrics());
+        if (Strings.isNullOrEmpty(first_metric)) {
+          first_metric = id.metric();
         }
         
         // agg and disjoint BEFORE tags
@@ -249,15 +255,15 @@ public class MergedTimeSeriesId {
       
       final BaseTimeSeriesId.Builder builder = BaseTimeSeriesId.newBuilder();
       builder.setAlias(alias);
-      if (namespaces != null && !namespaces.isEmpty()) {
-        for (final String ns : namespaces) {
-          builder.addNamespace(ns);
-        }
+      if (Strings.isNullOrEmpty(namespace)) {
+        builder.setNamespace(first_namespace);
+      } else {
+        builder.setNamespace(namespace);
       }
-      if (metrics != null && !metrics.isEmpty()) {
-        for (final String metric : metrics) {
-          builder.addMetric(metric);
-        }
+      if (Strings.isNullOrEmpty(metric)) {
+        builder.setMetric(first_metric);
+      } else {
+        builder.setMetric(metric);
       }
       if (tags != null && !tags.isEmpty()) {
         builder.setTags(tags);

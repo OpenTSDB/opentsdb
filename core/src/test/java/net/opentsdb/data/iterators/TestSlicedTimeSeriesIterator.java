@@ -65,7 +65,7 @@ public class TestSlicedTimeSeriesIterator {
     tsdb = mock(TSDB.class);
     execution_graph = mock(ExecutionGraph.class);
     id = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("sys.cpu.user"))
+        .setMetric("sys.cpu.user")
         .build();
   }
   

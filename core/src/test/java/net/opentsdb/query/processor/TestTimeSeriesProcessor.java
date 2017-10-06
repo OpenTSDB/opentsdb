@@ -33,7 +33,6 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
@@ -56,7 +55,7 @@ public class TestTimeSeriesProcessor {
   @Before
   public void before() throws Exception {
     id = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("sys.cpu.idle"))
+        .setMetric("sys.cpu.idle")
         .build();
   }
   
