@@ -70,6 +70,7 @@ public class TestJoiner {
     
     final IteratorGroups group = new DefaultIteratorGroups();
     TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+        .setMetric("Khalasar")
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .build();
@@ -79,6 +80,7 @@ public class TestJoiner {
     group.addIterator(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
     
     id = BaseTimeSeriesId.newBuilder()
+        .setMetric("Khalasar")
         .addTags("host", "web02")
         .addTags("colo", "lax")
         .build();
@@ -88,6 +90,7 @@ public class TestJoiner {
     group.addIterator(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
     
     id = BaseTimeSeriesId.newBuilder()
+        .setMetric("Khalasar")
         .addTags("host", "web01")
         .addTags("colo", "phx")
         .build();
@@ -144,6 +147,7 @@ public class TestJoiner {
     
     final IteratorGroups group = new DefaultIteratorGroups();
     TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+        .setMetric("Khalasar")
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .build();
@@ -171,6 +175,7 @@ public class TestJoiner {
     
     final IteratorGroups group = new DefaultIteratorGroups();
     TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+        .setMetric("Khalasar")
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .build();
@@ -180,6 +185,7 @@ public class TestJoiner {
     group.addIterator(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
     
     id = BaseTimeSeriesId.newBuilder()
+        .setMetric("Khalasar")
         .addTags("host", "web02")
         .addTags("colo", "lax")
         .build();
@@ -189,6 +195,7 @@ public class TestJoiner {
     group.addIterator(new SimpleStringGroupId("b"), new MockAnnotationIterator(id));
     
     id = BaseTimeSeriesId.newBuilder()
+        .setMetric("Khalasar")
         .addTags("host", "web01")
         .addTags("colo", "phx")
         .build();
@@ -246,6 +253,7 @@ public class TestJoiner {
     
     final IteratorGroups group = new DefaultIteratorGroups();
     TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+        .setMetric("Khalasar")
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .build();
@@ -267,6 +275,7 @@ public class TestJoiner {
     setConfig();
     
     final TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+        .setMetric("Khalasar")
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .addTags("dept", "KingsGuard")
@@ -282,6 +291,7 @@ public class TestJoiner {
     setConfig();
     
     final TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+        .setMetric("Khalasar")
         .addTags("host", "web01")
         .addTags("dept", "KingsGuard")
         .addAggregatedTag("colo")
@@ -297,6 +307,7 @@ public class TestJoiner {
     setConfig();
     
     final TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+        .setMetric("Khalasar")
         .addTags("host", "web01")
         .addTags("dept", "KingsGuard")
         .addDisjointTag("colo")
@@ -312,6 +323,7 @@ public class TestJoiner {
     setConfig();
     
     final TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+        .setMetric("Khalasar")
         .addTags("host", "web01")
         .addAggregatedTag("colo")
         .addDisjointTag("dept")
@@ -328,6 +340,7 @@ public class TestJoiner {
     setConfig();
     
     final TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+        .setMetric("Khalasar")
         .addTags("host", "web01")
         .addAggregatedTag("colo")
         .addDisjointTag("dept")
@@ -344,6 +357,7 @@ public class TestJoiner {
     setConfig();
     
     final TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+        .setMetric("Khalasar")
         .addTags("host", "web01")
         .addAggregatedTag("colo")
         .addDisjointTag("dept")
@@ -361,6 +375,7 @@ public class TestJoiner {
     Joiner joiner = new Joiner(config);
     
     final TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+        .setMetric("Khalasar")
         .addTags("host", "web01")
         .addAggregatedTag("colo")
         .addDisjointTag("owner")
@@ -392,7 +407,7 @@ public class TestJoiner {
     Joiner joiner = new Joiner(config);
     
     final TimeSeriesId id = BaseTimeSeriesId.newBuilder()
-        .addMetric("sys.cpu.user")
+        .setMetric("sys.cpu.user")
         .build();
     
     assertEquals("", joiner.joinKey(id));

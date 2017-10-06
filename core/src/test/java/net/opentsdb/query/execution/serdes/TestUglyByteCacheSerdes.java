@@ -23,8 +23,6 @@ import java.io.ByteArrayOutputStream;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.google.common.collect.Lists;
-
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.BaseTimeSeriesId;
@@ -58,7 +56,7 @@ public class TestUglyByteCacheSerdes {
     
     final TimeSeriesGroupId group_id_a = new SimpleStringGroupId("a");
     final TimeSeriesId id_a = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("sys.cpu.user"))
+        .setMetric("sys.cpu.user")
         .addTags("host", "web01")
         .addTags("dc", "phx")
     .build();
@@ -71,7 +69,7 @@ public class TestUglyByteCacheSerdes {
     results.addIterator(group_id_a, shard);
     
     final TimeSeriesId id_b = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("sys.cpu.user"))
+        .setMetric("sys.cpu.user")
         .addTags("host", "web02")
         .addTags("dc", "phx")
     .build();

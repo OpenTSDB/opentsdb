@@ -242,14 +242,14 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     IteratorGroup data = groups.groups().iterator().next();
     TimeSeriesIterator<NumericType> it_a = (TimeSeriesIterator<NumericType>) 
         data.flattenedIterators().get(0);
-    assertEquals("sys.cpu.user", it_a.id().metrics().get(0));
+    assertEquals("sys.cpu.user", it_a.id().metric());
     assertEquals("group_b", it_a.id().tags().get("hostgroup"));
     assertEquals("SUM", it_a.id().tags().get("_aggregate"));
     assertTrue(it_a.id().aggregatedTags().isEmpty());
     
     TimeSeriesIterator<NumericType> it_b = (TimeSeriesIterator<NumericType>) 
         data.iterators().get(1).iterators().get(0);
-    assertEquals("sys.cpu.user", it_b.id().metrics().get(0));
+    assertEquals("sys.cpu.user", it_b.id().metric());
     assertEquals("group_a", it_b.id().tags().get("hostgroup"));
     assertEquals("SUM", it_b.id().tags().get("_aggregate"));
     assertEquals(1, it_b.id().aggregatedTags().size());
@@ -942,12 +942,12 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     executor.parseTSQuery(query, root.get(0), span, groups);
     TimeSeriesIterator<NumericType> it = (TimeSeriesIterator<NumericType>) 
         groups.get("m1").iterators().get(0).iterators().get(0);
-    assertEquals("sys.cpu.user", it.id().metrics().get(0));
+    assertEquals("sys.cpu.user", it.id().metric());
     assertEquals("group_b", it.id().tags().get("hostgroup"));
     assertEquals("SUM", it.id().tags().get("_aggregate"));
     assertTrue(it.id().aggregatedTags().isEmpty());
     assertNull(it.id().alias());
-    assertTrue(it.id().namespaces().isEmpty());
+    assertTrue(it.id().namespace() == null);
     assertTrue(it.id().uniqueIds().isEmpty());
     
     assertEquals(1, groups.get("m1").iterators().get(0).iterators().size());
@@ -969,13 +969,13 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     executor.parseTSQuery(query, root.get(1), span, groups);
     it = (TimeSeriesIterator<NumericType>) 
         groups.get("m1").iterators().get(1).iterators().get(0);
-    assertEquals("sys.cpu.user", it.id().metrics().get(0));
+    assertEquals("sys.cpu.user", it.id().metric());
     assertEquals("group_a", it.id().tags().get("hostgroup"));
     assertEquals("SUM", it.id().tags().get("_aggregate"));
     assertEquals(1, it.id().aggregatedTags().size());
     assertEquals("host",it.id().aggregatedTags().get(0));
     assertNull(it.id().alias());
-    assertTrue(it.id().namespaces().isEmpty());
+    assertTrue(it.id().namespace() == null);
     assertTrue(it.id().uniqueIds().isEmpty());
     
     assertEquals(1, groups.get("m1").iterators().get(1).iterators().size());
@@ -1037,12 +1037,12 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     
     TimeSeriesIterator<NumericType> it = (TimeSeriesIterator<NumericType>) 
         groups.get("m1").iterators().get(0).iterators().get(0);
-    assertEquals("sys.cpu.user", it.id().metrics().get(0));
+    assertEquals("sys.cpu.user", it.id().metric());
     assertEquals("group_b", it.id().tags().get("hostgroup"));
     assertEquals("SUM", it.id().tags().get("_aggregate"));
     assertTrue(it.id().aggregatedTags().isEmpty());
     assertNull(it.id().alias());
-    assertTrue(it.id().namespaces().isEmpty());
+    assertTrue(it.id().namespace() == null);
     assertTrue(it.id().uniqueIds().isEmpty());
     
     assertEquals(1, groups.get("m1").iterators().get(0).iterators().size());
@@ -1054,13 +1054,13 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
     executor.parseTSQuery(query, root.get(1), span, groups);
     it = (TimeSeriesIterator<NumericType>) 
         groups.get("m1").iterators().get(1).iterators().get(0);
-    assertEquals("sys.cpu.user", it.id().metrics().get(0));
+    assertEquals("sys.cpu.user", it.id().metric());
     assertEquals("group_a", it.id().tags().get("hostgroup"));
     assertEquals("SUM", it.id().tags().get("_aggregate"));
     assertEquals(1, it.id().aggregatedTags().size());
     assertEquals("host",it.id().aggregatedTags().get(0));
     assertNull(it.id().alias());
-    assertTrue(it.id().namespaces().isEmpty());
+    assertTrue(it.id().namespace() == null);
     assertTrue(it.id().uniqueIds().isEmpty());
     
     assertEquals(1, groups.get("m1").iterators().get(1).iterators().size());

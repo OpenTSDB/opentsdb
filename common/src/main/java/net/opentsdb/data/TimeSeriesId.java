@@ -20,12 +20,7 @@ import java.util.Set;
  * An identifier for a time series. The identity can be as simple as the alias
  * or a combination of namespace, metrics, tags, etc.
  * <p>
- * Most of the fields return a list or map. These represent the aggregate of all
- * time series included in the sourcing of this series. This is applicable to
- * synthetic series when multiple time series are aggregated into one series.
- * <p>
- * In general, if a raw time series is the source then only one metric and
- * an optional set of tags should be present.
+ * TODO - further docs
  * 
  * @since 3.0
  */
@@ -40,36 +35,29 @@ public interface TimeSeriesId extends Comparable<TimeSeriesId> {
    * A simple string for identifying the time series. The alias may be null or
    * empty. If a value is present, the alias must be unique within a set of
    * time series.
-   * <p>
-   * Invariant: If all other fields for the identity are empty, then the alias
-   * must be non-null and non-empty.
    * 
    * @return A string or null if not used.
    */
   public String alias();
   
   /**
-   * A list of namespace identifiers included in the sources for this time series.
-   * May be empty if namespaces are not in use for the platform.
+   * An optional tenant or group name for the time series.
+   * May be null or empty if namespaces are not in use for the platform.
    *  
-   * @return A non-null list if zero or more namespace identifiers.
+   * @return A string if set, null if not used.
    */
-  public List<String> namespaces();
+  public String namespace();
   
   /**
-   * A list of metric names included in the sources for this time series.
-   * If this list is empty, check {@link #metrics()} for data.
-   * <p>
-   * Invariant: If this list is empty (meaning the series or set of series is 
-   * not associated with a specific metric) then the {@link #alias()} must be 
-   * non-null and unique.
+   * The metric component of the time series ID. This is a required value and
+   * may not be null or empty.
    *  
-   * @return A non-null list of zero or more metric names.
+   * @return A non-null and non-empty string.
    */
-  public List<String> metrics();
+  public String metric();
   
   /**
-   * A list of tag name and value pairs included in the sources for this time 
+   * A map of tag name and value pairs included in the sources for this time 
    * series. If the underlying storage system does not support tags or none of
    * the source time series had tags pairs in common, this list may be empty.
    * The map key represents a tag name (tagk) and the map value represents a 

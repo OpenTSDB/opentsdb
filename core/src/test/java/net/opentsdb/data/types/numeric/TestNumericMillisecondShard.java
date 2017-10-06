@@ -27,8 +27,6 @@ import java.util.NoSuchElementException;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.google.common.collect.Lists;
-
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
@@ -54,7 +52,7 @@ public class TestNumericMillisecondShard {
   @Before
   public void before() throws Exception {
     id = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("sys.cpu.user"))
+        .setMetric("sys.cpu.user")
         .build();
     start = new MillisecondTimeStamp(0L);
     end = new MillisecondTimeStamp(3600000);

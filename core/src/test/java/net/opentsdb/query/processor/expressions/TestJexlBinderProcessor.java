@@ -118,11 +118,13 @@ public class TestJexlBinderProcessor {
     
     id_a = BaseTimeSeriesId.newBuilder()
         .setAlias("Khaleesi")
+        .setMetric("Khalasar")
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .build();
     id_b = BaseTimeSeriesId.newBuilder()
-        .setAlias("Khalasar")
+        .setAlias("Drogo")
+        .setMetric("Khalasar")
         .addTags("host", "web02")
         .addTags("colo", "lax")
         .build();

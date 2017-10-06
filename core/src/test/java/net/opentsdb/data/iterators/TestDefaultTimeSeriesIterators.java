@@ -31,7 +31,6 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
@@ -52,7 +51,7 @@ public class TestDefaultTimeSeriesIterators {
   @Before
   public void before() throws Exception {
     id = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("sys.cpu.idle"))
+        .setMetric("sys.cpu.idle")
         .build();
     context = mock(QueryContext.class);
   }
@@ -154,7 +153,7 @@ public class TestDefaultTimeSeriesIterators {
     
     // clear and add different ID
     TimeSeriesId id2 = BaseTimeSeriesId.newBuilder()
-        .setMetrics(Lists.newArrayList("sys.cpu.user"))
+        .setMetric("sys.cpu.user")
         .build();
     note_it = new MockAnnotationIterator(id2);
     iterators = new DefaultTimeSeriesIterators(id);

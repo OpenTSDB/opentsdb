@@ -14,6 +14,7 @@ package net.opentsdb.data;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Map.Entry;
 import java.util.Set;
 
@@ -234,46 +235,47 @@ public class DataShardMerger implements DataMerger<IteratorGroups> {
             final TimeSeriesId local_id = groups.get(y).iterators().get(z).id();
             
             // alias check first
-            if (temp_id.alias() != null && !temp_id.alias().isEmpty()) {
-              if (!temp_id.alias().equals(local_id.alias())) {
-                // fail fast
-                continue;
-              }
+            if (!Objects.equals(local_id.alias(), temp_id.alias())) {
+              continue;
             }
             
-            boolean matched = true;
             // namespace fail fast
-            if (temp_id.namespaces().size() != local_id.namespaces().size()) {
+            if (!Objects.equals(local_id.namespace(), temp_id.namespace())) {
               continue;
             }
-            for (final String namespace : temp_id.namespaces()) {
-              if (!local_id.namespaces().contains(namespace)) {
-                matched = false;
-                break;
-              }
-            }
-            if (!matched) {
-              continue;
-            }
+//            if (temp_id.namespaces().size() != local_id.namespaces().size()) {
+//              continue;
+//            }
+//            for (final String namespace : temp_id.namespaces()) {
+//              if (!local_id.namespaces().contains(namespace)) {
+//                matched = false;
+//                break;
+//              }
+//            }
+//            if (!matched) {
+//              continue;
+//            }
             
             // metric check fail fast
-            matched = true;
-            if (temp_id.metrics().size() != local_id.metrics().size()) {
+            if (!Objects.equals(local_id.metric(), temp_id.metric())) {
               continue;
             }
-            for (final String metric : temp_id.metrics()) {
-              if (!local_id.metrics().contains(metric)) {
-                matched = false;
-                break;
-              }
-            }
-            if (!matched) {
-              continue;
-            }
+//            if (temp_id.metrics().size() != local_id.metrics().size()) {
+//              continue;
+//            }
+//            for (final String metric : temp_id.metrics()) {
+//              if (!local_id.metrics().contains(metric)) {
+//                matched = false;
+//                break;
+//              }
+//            }
+//            if (!matched) {
+//              continue;
+//            }
             
             final Set<String> promoted_agg_tags = Sets.newHashSet();
             final Set<String> promoted_disjoint_tags = Sets.newHashSet();
-            matched = true;
+            boolean matched = true;
             for (final Entry<String, String> pair : temp_id.tags().entrySet()) {
               final String tag_v = local_id.tags().get(pair.getKey());
               if (tag_v != null && tag_v.equals(pair.getValue())) {

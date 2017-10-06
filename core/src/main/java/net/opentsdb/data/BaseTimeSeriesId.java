@@ -27,6 +27,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -52,11 +53,11 @@ public class BaseTimeSeriesId implements TimeSeriesId {
   /** An optional alias. */
   protected String alias;
   
-  /** An optional list of namespaces for the ID. */
-  protected List<String> namespaces;
+  /** An optional namespace. */
+  protected String namespace;
   
-  /** An optional list of metrics for the ID. */
-  protected List<String> metrics;
+  /** The required non-null and non-empty metric name. */
+  protected String metric;
   
   /** A map of tag key/value pairs for the ID. */
   protected Map<String, String> tags;
@@ -81,25 +82,10 @@ public class BaseTimeSeriesId implements TimeSeriesId {
   private BaseTimeSeriesId(final Builder builder) {
     encoded = builder.encoded;
     alias = builder.alias;
-    if (builder.namespaces != null && !builder.namespaces.isEmpty()) {
-      try {
-        Collections.sort(builder.namespaces);
-      } catch (NullPointerException e) {
-        throw new IllegalArgumentException("Namespaces cannot contain nulls");
-      }
-      namespaces = Collections.unmodifiableList(builder.namespaces);
-    } else {
-      namespaces = Collections.emptyList();
-    }
-    if (builder.metrics != null && !builder.metrics.isEmpty()) {
-      try {
-        Collections.sort(builder.metrics);
-      } catch (NullPointerException e) {
-        throw new IllegalArgumentException("Metrics cannot contain nulls");
-      }
-      metrics = Collections.unmodifiableList(builder.metrics);
-    } else {
-      metrics = Collections.emptyList();
+    namespace = builder.namespace;
+    metric = builder.metric;
+    if (Strings.isNullOrEmpty(metric)) {
+      throw new IllegalArgumentException("Metric cannot be null or empty.");
     }
     if (builder.tags != null && !builder.tags.isEmpty()) {
       for (final Entry<String, String> pair : builder.tags.entrySet()) {
@@ -152,13 +138,13 @@ public class BaseTimeSeriesId implements TimeSeriesId {
   }
 
   @Override
-  public List<String> namespaces() {
-    return namespaces;
+  public String namespace() {
+    return namespace;
   }
 
   @Override
-  public List<String> metrics() {
-    return metrics;
+  public String metric() {
+    return metric;
   }
 
   @Override
@@ -184,11 +170,9 @@ public class BaseTimeSeriesId implements TimeSeriesId {
   @Override
   public int compareTo(final TimeSeriesId o) {
     return ComparisonChain.start()
-        .compare(alias, o.alias())
-        .compare(namespaces, o.namespaces(), 
-            Ordering.<String>natural().lexicographical().nullsFirst())
-        .compare(metrics, o.metrics(), 
-            Ordering.<String>natural().lexicographical().nullsFirst())
+        .compare(Strings.nullToEmpty(alias), Strings.nullToEmpty(o.alias()))
+        .compare(Strings.nullToEmpty(namespace), Strings.nullToEmpty(o.namespace()))
+        .compare(metric, o.metric())
         .compare(tags, o.tags(), STR_MAP_CMP)
         .compare(aggregated_tags, o.aggregatedTags(), 
             Ordering.<String>natural().lexicographical().nullsFirst())
@@ -211,10 +195,10 @@ public class BaseTimeSeriesId implements TimeSeriesId {
     if (!Objects.equal(alias, id.alias())) {
       return false;
     }
-    if (!Objects.equal(namespaces(), id.namespaces())) {
+    if (!Objects.equal(namespace(), id.namespace())) {
       return false;
     }
-    if (!Objects.equal(metrics(), id.metrics())) {
+    if (!Objects.equal(metric(), id.metric())) {
       return false;
     }
     if (!Objects.equal(tags(), id.tags())) {
@@ -246,16 +230,8 @@ public class BaseTimeSeriesId implements TimeSeriesId {
     if (alias != null) {
       buf.append(alias);
     }
-    if (namespaces != null) {
-      for (final String ns : namespaces) {
-        buf.append(ns);
-      }
-    }
-    if (metrics != null) {
-      for (final String m : metrics) {
-        buf.append(m);
-      }
-    }
+    buf.append(namespace);
+    buf.append(metric);
     if (tags != null) {
       for (final Entry<String, String> pair : tags.entrySet()) {
         buf.append(pair.getKey());
@@ -287,10 +263,10 @@ public class BaseTimeSeriesId implements TimeSeriesId {
     final StringBuilder buf = new StringBuilder()
         .append("alias=")
         .append(alias != null ? alias : "null")
-        .append(", namespaces=")
-        .append(namespaces)
-        .append(", metrics=")
-        .append(metrics)
+        .append(", namespace=")
+        .append(namespace)
+        .append(", metric=")
+        .append(metric)
         .append(", tags=")
         .append(tags)
         .append(", aggregated_tags=")
@@ -315,9 +291,9 @@ public class BaseTimeSeriesId implements TimeSeriesId {
     @JsonProperty
     private String alias;
     @JsonProperty
-    private List<String> namespaces;
+    private String namespace;
     @JsonProperty
-    private List<String> metrics;
+    private String metric;
     @JsonProperty
     private Map<String, String> tags;
     @JsonProperty
@@ -337,43 +313,13 @@ public class BaseTimeSeriesId implements TimeSeriesId {
       return this;
     }
     
-    /**
-     * Sets the namespace list. <b>NOTE:</b> This will maintain a reference to the
-     * list and will NOT make a copy. Be sure to avoid mutating the list after 
-     * passing it to the builder.
-     * @param namespaces A non-null list of namespaces.
-     * @return The builder object.
-     */
-    public Builder setNamespaces(final List<String> namespaces) {
-      this.namespaces = namespaces;
+    public Builder setNamespace(final String namespace) {
+      this.namespace = namespace;
       return this;
     }
     
-    public Builder addNamespace(final String namespace) {
-      if (namespaces == null) {
-        namespaces = Lists.newArrayList();
-      }
-      namespaces.add(namespace);
-      return this;
-    }
-    
-    /**
-     * Sets the metric list. <b>NOTE:</b> This will maintain a reference to the
-     * list and will NOT make a copy. Be sure to avoid mutating the list after 
-     * passing it to the builder.
-     * @param metrics A non-null list of metrics.
-     * @return The builder object.
-     */
-    public Builder setMetrics(final List<String> metrics) {
-      this.metrics = metrics;
-      return this;
-    }
-    
-    public Builder addMetric(final String metric) {
-      if (metrics == null) {
-        metrics = Lists.newArrayList();
-      }
-      metrics.add(metric);
+    public Builder setMetric(final String metric) {
+      this.metric = metric;
       return this;
     }
     

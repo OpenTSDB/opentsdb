@@ -34,10 +34,10 @@ import net.opentsdb.data.types.numeric.NumericType;
 public class IteratorTestUtils {
 
   public static  TimeSeriesId ID_A = BaseTimeSeriesId.newBuilder()
-      .addMetric("system.cpu.user")
+      .setMetric("system.cpu.user")
       .build();
   public static TimeSeriesId ID_B = BaseTimeSeriesId.newBuilder()
-      .addMetric("system.cpu.idle")
+      .setMetric("system.cpu.idle")
       .build();
   
   public static TimeSeriesGroupId GROUP_A = new SimpleStringGroupId("a");
