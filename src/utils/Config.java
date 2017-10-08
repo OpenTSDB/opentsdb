@@ -576,6 +576,10 @@ public class Config {
     default_map.put("tsd.storage.compaction.max_concurrent_flushes", "10000");
     default_map.put("tsd.storage.compaction.flush_speed", "2");
     default_map.put("tsd.timeseriesfilter.enable", "false");
+    default_map.put("tsd.uid.use_mode", "false");
+    default_map.put("tsd.uid.lru.enable", "false");
+    default_map.put("tsd.uid.lru.name.size", "5000000");
+    default_map.put("tsd.uid.lru.id.size", "5000000");
     default_map.put("tsd.uidfilter.enable", "false");
     default_map.put("tsd.core.stats_with_port", "false");
     default_map.put("tsd.http.show_stack_trace", "true");

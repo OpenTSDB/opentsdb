@@ -99,9 +99,19 @@ public final class TSDB {
   private static short TAG_VALUE_WIDTH = 3;
   private static final int MIN_HISTOGRAM_BYTES = 1;
 
+  /** The operation mode (role) of the TSD. */
+  public enum OperationMode {
+    READWRITE,
+    READONLY,
+    WRITEONLY
+  }
+  
   /** Client for the HBase cluster to use.  */
   final HBaseClient client;
 
+  /** The operation mode (role) of the TSD. */
+  final OperationMode mode;
+  
   /** Name of the table in which timeseries are stored.  */
   final byte[] table;
   /** Name of the table in which UID information is stored. */
@@ -218,6 +228,17 @@ public final class TSDB {
       this.client = client;
     }
 
+    String string_mode = config.getString("tsd.mode");
+    if (Strings.isNullOrEmpty(string_mode)) {
+      mode = OperationMode.READWRITE;
+    } else if (string_mode.toLowerCase().equals("ro")) {
+      mode = OperationMode.READONLY;
+    } else if (string_mode.toLowerCase().equals("wo")) {
+      mode = OperationMode.WRITEONLY;
+    } else {
+      mode = OperationMode.READWRITE;
+    }
+    
     // SALT AND UID WIDTHS
     // Users really wanted this to be set via config instead of having to
     // compile. Hopefully they know NOT to change these after writing data.
@@ -2110,6 +2131,12 @@ public final class TSDB {
   /** @return The byte limit class for queries  */
   public QueryLimitOverride getQueryByteLimits() {
     return query_limits;
+  }
+  
+  /** @return The mode of operation for this TSD. 
+   * @since 2.4 */
+  public OperationMode getMode() {
+    return mode;
   }
   
   private final boolean isHistogram(final byte[] qualifier) {
