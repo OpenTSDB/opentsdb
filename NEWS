@@ -1,5 +1,32 @@
 OpenTSDB - Changelog
 
+* Version 2.4.0 RC2 (2017-10-08)
+
+Noteworthy Changes:
+  - Modify the RPC handler plugin system so that it parses only the first part of 
+    the URI instead of the entire path. Now plugins can implement sub-paths.
+  - Return the HTML 5 doctype for built-in UI pages
+  - Add an optional byte and/or data point limit to the amount of data fetched
+    from storage. This allows admins to prevent OOMing TSDs due to massive queries.
+  - Allow a start time via config when enabling the date tiered compaction in HBase
+  - Provide the option of using an LRU for caching UIDs to avoid OOMing writers and
+    readers with too many strings
+  - Optionally avoid writing to the forward or reverse UID maps when a specific TSD
+    operational mode is enabled to avoid wasting memory on maps that will never be
+    used.
+
+Bug Fixes:
+  - Roll back UTF8 issue with UIDs in RC1 wherein the stored bytes weren't converting
+    properly and vice-versa. We'll have to work on full UTF8 support in 3.x
+  - Fix a build issue for Javacc
+  - Add Kryo as a dependency to the fat jar
+  - Javadoc fixes
+  - Fix an issue with calendar aligned downsampling by seeking to the start time of
+    the query when the zone-aligned timestamp may be earlier than the query start time
+  - Add the missing QueryLimitOverride to the makefile
+  - Fix compatibility with Bigtable for 2.4
+  - Enable standard read-only APIs when the TSD is in write only mode
+
 * Version 2.4.0 RC1 (2017-06-11)
 
 Noteworthy Changes:
