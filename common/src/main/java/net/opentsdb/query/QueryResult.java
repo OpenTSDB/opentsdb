@@ -36,7 +36,27 @@ public interface QueryResult {
   
   /**
    * The collection of time series results. May be empty but will not be null.
-   * @return A collection of zero or more time series.
+   * @return A non-null collection of zero or more time series.
    */
   public Collection<TimeSeries> timeSeries();
+  
+  /**
+   * @return The zero based sequence ID of the result when operating in a 
+   * streaming mode.
+   */
+  public long sequenceId();
+  
+  /**
+   * The node that generated this query result.
+   * @return A non-null query node.
+   */
+  public QueryNode source();
+
+  /**
+   * Closes and releases resources used by this result set. Should be called
+   * by the API consumer or {@link QueryPipelineContext} when the listeners are
+   * finished to avoid balooning memory.
+   */
+  public void close();
+  
 }
