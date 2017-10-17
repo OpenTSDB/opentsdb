@@ -27,6 +27,12 @@
           <artifactId>opentsdb-common</artifactId>
           <version>${project.version}</version>
         </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-common</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
+        </dependency>
       
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -130,6 +136,13 @@
       </dependency>
       
       <!-- TESTING Deps. -->
+      
+      <dependency>
+        <groupId>net.opentsdb</groupId>
+        <artifactId>opentsdb-common</artifactId>
+        <type>test-jar</type>
+      </dependency>
+        
       <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>

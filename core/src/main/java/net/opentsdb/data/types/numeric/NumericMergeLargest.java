@@ -101,7 +101,8 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
         tracer_span.setTag("totalValues", 0);
         //tracer_span.setTag("totalValues", 0);
       }
-      return shard;
+      //return shard;
+      return null;
     }
     
     // counters for tracing
@@ -168,7 +169,8 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
       tracer_span.setTag("nonFiniteValues", non_finites);
       tracer_span.setTag("differentValues", differences);
     }
-    return shard;
+    //return shard;
+    return null;
   }
 
 }

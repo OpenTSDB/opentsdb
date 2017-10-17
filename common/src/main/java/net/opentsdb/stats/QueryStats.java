@@ -23,7 +23,7 @@ public interface QueryStats {
 
   /**
    * @return An optional tracer to use for the query. May be null if tracing
-   * is disabled. If the value is not null, {@link #querySpan()} </i>must</i>
+   * is disabled. If the value is not null, {@link #querySpan()} <i>must</i>
    * return a non-null span.
    */
   public Tracer tracer();

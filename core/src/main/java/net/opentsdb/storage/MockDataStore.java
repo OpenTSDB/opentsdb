@@ -12,9 +12,20 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.storage;
 
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -26,28 +37,30 @@ import com.stumbleupon.async.Deferred;
 import io.opentracing.Span;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.SimpleStringGroupId;
+import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.iterators.DefaultIteratorGroups;
-import net.opentsdb.data.iterators.IteratorGroups;
-import net.opentsdb.data.iterators.SlicedTimeSeriesIterator;
-import net.opentsdb.data.iterators.TimeSeriesIterator;
+import net.opentsdb.data.iterators.SlicedTimeSeries;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.execution.QueryExecution;
+import net.opentsdb.query.AbstractQueryNode;
+import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.filter.TagVFilter;
-import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.DateTime;
-import net.opentsdb.utils.JSON;
 
 /**
  * A simple store that generates a set of time series to query as well as stores
@@ -56,7 +69,9 @@ import net.opentsdb.utils.JSON;
  * 
  * @since 3.0
  */
-public class MockDataStore extends TimeSeriesDataStore {
+public class MockDataStore extends TimeSeriesDataStore implements QueryNodeFactory {
+  private static final Logger LOG = LoggerFactory.getLogger(MockDataStore.class);
+  
   public static final long ROW_WIDTH = 3600000;
   public static final long HOSTS = 4;
   public static final long INTERVAL = 60000;
@@ -66,150 +81,52 @@ public class MockDataStore extends TimeSeriesDataStore {
   public static final List<String> METRICS = Lists.newArrayList(
       "sys.cpu.user", "sys.if.out", "sys.if.in", "web.requests");
 
-  /** <ID, <type, list of hourly buckets>> */
-  private Map<TimeSeriesId, Map<TypeToken<?>, MockSpan<?>>> database;
+  /** The super inefficient and thread unsafe in-memory db. */
+  private Map<TimeSeriesId, MockSpan> database;
+  
+  /** Thread pool used by the executions. */
+  private ExecutorService thread_pool;
+  
+  @Override
+  public QueryNode newNode(final QueryPipelineContext context,
+                           final QueryNodeConfig config) {
+    return new LocalNode(context, (QuerySourceConfig) config);
+  }
   
   @Override
   public Deferred<Object> initialize(final TSDB tsdb) {
     database = Maps.newHashMap();
     generateMockData(tsdb);
+    if (tsdb.getConfig().hasProperty("MockDataStore.threadpool.enable") && 
+        tsdb.getConfig().getBoolean("MockDataStore.threadpool.enable")) {
+      thread_pool = Executors.newCachedThreadPool();
+    }
     return Deferred.fromResult(null);
   }
   
-  @SuppressWarnings("unchecked")
+  @Override
+  public Deferred<Object> shutdown() {
+    if (thread_pool != null) {
+      thread_pool.shutdownNow();
+    }
+    return Deferred.fromResult(null);
+  }
+  
   @Override
   public Deferred<Object> write(final TimeSeriesId id,
                                 final TimeSeriesValue<?> value, 
                                 final TsdbTrace trace,
-                                final Span upstream_span) {
-    Map<TypeToken<?>, MockSpan<?>> type = database.get(id);
-    if (type == null) {
-      type = Maps.newHashMap();
-      database.put(id, type);
-    }
-    
-    MockSpan<?> span = type.get(value.type());
+                                final Span upstream_span) {    
+    MockSpan span = database.get(id);
     if (span == null) {
-      if (value.type() == NumericType.TYPE) {
-        span = new MockSpan<NumericType>(id);
-      }
-      
-      type.put(value.type(), span);
+      span = new MockSpan(id);
+      database.put(id, span);
     }
     
-    if (value.type() == NumericType.TYPE) {
-      ((MockSpan<NumericType>) span).addValue((TimeSeriesValue<NumericType>) value);
-    }
+    span.addValue(value);
     return Deferred.fromResult(null);
   }
-
-  @Override
-  public QueryExecution<IteratorGroups> runTimeSeriesQuery(final QueryContext context,
-                                                           final TimeSeriesQuery query, 
-                                                           final Span upstream_span) {
-    class Ex extends QueryExecution<IteratorGroups> {
-
-      public Ex(TimeSeriesQuery query) {
-        super(query);
-      }
-
-      @Override
-      public void cancel() {
-        
-      }
-      
-      public void execute() {
-        setSpan(context, 
-                MockDataStore.class.getSimpleName(), 
-                upstream_span,
-                TsdbTrace.addTags(
-                    "order", Integer.toString(query.getOrder()),
-                    "query", JSON.serializeToString(query),
-                    "startThread", Thread.currentThread().getName()));
-        
-        int matches = 0;
-        final IteratorGroups results = new DefaultIteratorGroups(); 
-        for (final Entry<TimeSeriesId, Map<TypeToken<?>, MockSpan<?>>> entry : 
-              database.entrySet()) {
-          for (Metric m : query.getMetrics()) {
-            if (!m.getMetric().equals(entry.getKey().metric())) {
-              continue;
-            }
-            
-            if (!Strings.isNullOrEmpty(m.getFilter())) {
-              Filter f = null;
-              for (Filter filter : query.getFilters()) {
-                if (filter.getId().equals(m.getFilter())) {
-                  f = filter;
-                  break;
-                }
-              }
-              
-              if (f == null) {
-                // WTF? Shouldn't happen at this level.
-                continue;
-              }
-              
-              boolean matched = true;
-              for (final TagVFilter tf : f.getTags()) {
-                String tagv = entry.getKey().tags().get(tf.getTagk());
-                if (tagv == null) {
-                  matched = false;
-                  break;
-                }
-                
-                try {
-                  if (!tf.match(ImmutableMap.of(tf.getTagk(), tagv)).join()) {
-                    matched = false;
-                    break;
-                  }
-                } catch (Exception e) {
-                  callback(e);
-                  return;
-                }
-              }
-              
-              if (!matched) {
-                continue;
-              }
-            }
-            
-            // matched the filters
-            final MockSpan<?> span = entry.getValue().get(NumericType.TYPE);
-            if (span == null) {
-              continue;
-            }
-            
-            SlicedTimeSeriesIterator<NumericType> iterator = 
-                new SlicedTimeSeriesIterator<NumericType>();
-            int rows = 0;
-            for (final MockRow<NumericType> row : ((MockSpan<NumericType>) span).rows) {
-              if (row.base_timestamp >= query.getTime().startTime().msEpoch() && 
-                  row.base_timestamp <= query.getTime().endTime().msEpoch()) {
-                iterator.addIterator(row.iterator());
-                rows++;
-              }
-            }
-            
-            if (rows > 0) {
-              results.addIterator(new SimpleStringGroupId(
-                  Strings.isNullOrEmpty(m.getId()) ? m.getMetric() : m.getId()), iterator);
-              matches++;
-            }
-          }
-        }
-        
-        callback(results, TsdbTrace.successfulTags(
-            "matchedSeries", Integer.toString(matches)));
-      }
-      
-    }
-    
-    Ex result = new Ex(query);
-    result.execute();
-    return result;
-  }
-
+  
   @Override
   public String id() {
     return "MockDataStore";
@@ -220,75 +137,115 @@ public class MockDataStore extends TimeSeriesDataStore {
     return "0.0.0";
   }
 
-  class MockSpan<T extends TimeSeriesDataType> {
-    private List<MockRow<T>> rows = Lists.newArrayList();
+  class MockSpan {
+    private List<MockRow> rows = Lists.newArrayList();
     private final TimeSeriesId id;
     
     public MockSpan(final TimeSeriesId id) {
       this.id = id;
     }
     
-    public void addValue(TimeSeriesValue<T> value) {
+    public void addValue(TimeSeriesValue<?> value) {
       
       long base_time = value.timestamp().msEpoch() - 
           (value.timestamp().msEpoch() % ROW_WIDTH);
-      //System.out.println("BASE TIME: " + base_time);
-      for (final MockRow<T> row : rows) {
+      
+      for (final MockRow row : rows) {
         if (row.base_timestamp == base_time) {
-          row.addValue((TimeSeriesValue<T>) value);
+          row.addValue(value);
           return;
         }
       }
       
-      if (value.type() == NumericType.TYPE) {
-        MockRow<NumericType> row = new NumericMockRow(id,
-            (TimeSeriesValue<NumericType>) value);
-        rows.add((MockRow<T>) row);
-      }
+      final MockRow row = new MockRow(id, value);
+      rows.add(row);
     }
   
-    List<MockRow<T>> rows() {
+    List<MockRow> rows() {
       return rows;
     }
   }
   
-  abstract class MockRow<T extends TimeSeriesDataType> {
+  class MockRow implements TimeSeries {
+    private TimeSeriesId id;
     public long base_timestamp;
+    public Map<TypeToken<?>, TimeSeries> sources;
     
-    public abstract void addValue(TimeSeriesValue<T> value);
-    
-    public abstract TimeSeriesIterator<T> iterator();
-  }
-  
-  class NumericMockRow extends MockRow<NumericType> {
-    NumericMillisecondShard shard;
-    
-    public NumericMockRow(final TimeSeriesId id, 
-                          final TimeSeriesValue<NumericType> value) {
+    public MockRow(final TimeSeriesId id, 
+                   final TimeSeriesValue<?> value) {
+      this.id = id;
       base_timestamp = value.timestamp().msEpoch() - 
           (value.timestamp().msEpoch() % ROW_WIDTH);
-      shard = new NumericMillisecondShard(id, 
-          new MillisecondTimeStamp(base_timestamp), 
-          new MillisecondTimeStamp(base_timestamp + ROW_WIDTH));
-      addValue(value);
+      sources = Maps.newHashMap();
+      // TODO - other types
+      if (value.type() == NumericType.TYPE) {
+        sources.put(NumericType.TYPE, new NumericMillisecondShard(
+            id,
+            new MillisecondTimeStamp(base_timestamp), 
+            new MillisecondTimeStamp(base_timestamp + ROW_WIDTH)));
+        addValue(value);
+      }
     }
     
-    @Override
-    public void addValue(TimeSeriesValue<NumericType> value) {
-      if (value.value().isInteger()) {
-        shard.add(value.timestamp().msEpoch(), value.value().longValue());
-      } else {
-        shard.add(value.timestamp().msEpoch(), value.value().doubleValue());
+    public void addValue(final TimeSeriesValue<?> value) {
+      // TODO - other types
+      if (value.type() == NumericType.TYPE) {
+        NumericMillisecondShard shard = 
+            (NumericMillisecondShard) sources.get(NumericType.TYPE);
+        if (shard == null) {
+          shard = new NumericMillisecondShard(
+              id,
+              new MillisecondTimeStamp(base_timestamp), 
+              new MillisecondTimeStamp(base_timestamp + ROW_WIDTH));
+          sources.put(NumericType.TYPE, shard);
+        }
+        if (((TimeSeriesValue<NumericType>) value).value().isInteger()) {
+          shard.add(value.timestamp().msEpoch(), 
+              ((TimeSeriesValue<NumericType>) value).value().longValue());
+        } else {
+          shard.add(value.timestamp().msEpoch(), 
+              ((TimeSeriesValue<NumericType>) value).value().doubleValue());
+        }
       }
     }
 
     @Override
-    public TimeSeriesIterator<NumericType> iterator() {
-      return shard.getShallowCopy(null);
+    public TimeSeriesId id() {
+      return id;
+    }
+
+    @Override
+    public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
+        TypeToken<?> type) {
+      // TODO - other types
+      if (type == NumericType.TYPE) {
+        return Optional.of(((NumericMillisecondShard) 
+            sources.get(NumericType.TYPE)).iterator());
+      }
+      return Optional.empty();
+    }
+
+    @Override
+    public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+      // TODO - other types
+      final List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> its = 
+          Lists.newArrayListWithCapacity(1);
+      its.add(((NumericMillisecondShard) sources.get(NumericType.TYPE)).iterator());
+      return its;
+    }
+
+    @Override
+    public Collection<TypeToken<?>> types() {
+      return sources.keySet();
+    }
+
+    @Override
+    public void close() {
+      // TODO Auto-generated method stub
     }
     
   }
-
+  
   private void generateMockData(final TSDB tsdb) {
     long start_timestamp = DateTime.currentTimeMillis() - 2 * ROW_WIDTH;
     start_timestamp = start_timestamp - start_timestamp % ROW_WIDTH;
@@ -337,7 +294,354 @@ public class MockDataStore extends TimeSeriesDataStore {
     }
   }
 
-  Map<TimeSeriesId, Map<TypeToken<?>, MockSpan<?>>> getDatabase() {
+  Map<TimeSeriesId, MockSpan> getDatabase() {
     return database;
   }
+  
+  /**
+   * An instance of a node spawned by this "db".
+   */
+  class LocalNode extends AbstractQueryNode implements TimeSeriesDataSource {
+    private AtomicInteger sequence_id = new AtomicInteger();
+    private AtomicBoolean completed = new AtomicBoolean();
+    private QuerySourceConfig config;
+    
+    public LocalNode(final QueryPipelineContext context, 
+                     final QuerySourceConfig config) {
+      super(context);
+      this.config = config;
+    }
+    
+    @Override
+    public void fetchNext() {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Fetching next set of data.");
+      }
+      try {
+        if (completed.get()) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Already completed by 'fetchNext()' wsa called.");
+          }
+          return;
+        }
+        
+        final LocalResult result = new LocalResult(context, this, config, 
+            sequence_id.getAndIncrement());
+        
+        if (thread_pool == null) {
+          result.run();
+        } else {
+          thread_pool.submit(result);
+        }
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
+    
+    @Override
+    public String id() {
+      return config.id();
+    }
+    
+    @Override
+    public void close() {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Closing pipeline.");
+      }
+      if (completed.compareAndSet(false, true)) {
+        for (final QueryNode node : upstream) {
+          node.onComplete(this, sequence_id.get() - 1, sequence_id.get());
+        }
+      }
+    }
+
+    @Override
+    public QueryPipelineContext pipelineContext() {
+      return context;
+    }
+    
+    Collection<QueryNode> upstream() {
+      return upstream;
+    }
+    
+    @Override
+    public void onComplete(final QueryNode downstream, 
+                           final long final_sequence,
+                           final long total_sequences) {
+      throw new UnsupportedOperationException("This is a source node!");
+    }
+
+    @Override
+    public void onNext(final QueryResult next) {
+      throw new UnsupportedOperationException("This is a source node!");
+    }
+
+    @Override
+    public void onError(final Throwable t) {
+      throw new UnsupportedOperationException("This is a source node!");
+    }
+
+    @Override
+    public QueryNodeConfig config() {
+      return config;
+    }
+  }
+  
+  class LocalResult implements QueryResult, Runnable {
+    final QueryPipelineContext context;
+    final LocalNode pipeline;
+    final long sequence_id;
+    final List<TimeSeries> matched_series;
+    final net.opentsdb.query.pojo.TimeSeriesQuery query;
+    
+    LocalResult(final QueryPipelineContext context, 
+                final LocalNode pipeline, 
+                final QuerySourceConfig config, 
+                final long sequence_id) {
+      this.context = context;
+      this.pipeline = pipeline;
+      this.sequence_id = sequence_id;
+      query = (net.opentsdb.query.pojo.TimeSeriesQuery) config.query();
+      matched_series = Lists.newArrayList();
+    }
+    
+    @Override
+    public TimeSpecification timeSpecification() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override
+    public Collection<TimeSeries> timeSeries() {
+      return matched_series;
+    }
+    
+    @Override
+    public long sequenceId() {
+      return sequence_id;
+    }
+    
+    @Override
+    public void run() {
+      try {
+        if (!hasNext(sequence_id)) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Over the end time. done: " + this.pipeline);
+          }
+          if (pipeline.completed.compareAndSet(false, true)) {
+            for (QueryNode node : pipeline.upstream()) {
+              node.onComplete(pipeline, sequence_id - 1, sequence_id);
+            }
+          } else if (LOG.isDebugEnabled()) {
+            LOG.debug("ALREADY MARKED COMPLETE!!");
+          }
+          return;
+        }
+        
+        long start_ts = context.queryContext().mode() == QueryMode.SINGLE ? 
+            query.getTime().startTime().msEpoch() : 
+              query.getTime().endTime().msEpoch() - ((sequence_id + 1) * ROW_WIDTH);
+        long end_ts = context.queryContext().mode() == QueryMode.SINGLE ? 
+            query.getTime().endTime().msEpoch() : 
+              query.getTime().endTime().msEpoch() - (sequence_id * ROW_WIDTH);
+  
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Running the filter: " + query);
+        }
+        for (final Entry<TimeSeriesId, MockSpan> entry : database.entrySet()) {
+          final Metric m = query.getMetrics().get(0);
+          if (!m.getMetric().equals(entry.getKey().metric())) {
+            continue;
+          }
+          
+          if (!Strings.isNullOrEmpty(m.getFilter())) {
+            boolean matched = true;
+            for (final TagVFilter tf : query.getFilters().get(0).getTags()) {
+              String tagv = entry.getKey().tags().get(tf.getTagk());
+              if (tagv == null) {
+                matched = false;
+                break;
+              }
+              
+              try {
+                if (!tf.match(ImmutableMap.of(tf.getTagk(), tagv)).join()) {
+                  matched = false;
+                  break;
+                }
+              } catch (Exception e) {
+                throw new RuntimeException("WTF?", e);
+              }
+            }
+            
+            if (!matched) {
+              continue;
+            }
+          }
+          
+          // matched the filters
+          TimeSeries iterator = context.queryContext().mode() == 
+              QueryMode.SINGLE ? new SlicedTimeSeries() : null;
+          int rows = 0;
+          for (final MockRow row : entry.getValue().rows) {
+            if (row.base_timestamp >= start_ts && 
+                row.base_timestamp < end_ts) {
+              ++rows;
+              if (context.queryContext().mode() == QueryMode.SINGLE) {
+                ((SlicedTimeSeries) iterator).addSource(row);
+              } else {
+                iterator = row;
+                break;
+              }
+            }
+          }
+          
+          if (rows > 0) {
+            matched_series.add(iterator);
+          }
+        }
+        
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("DONE with filtering. " + pipeline + "  Results: " 
+              + matched_series.size());
+        }
+        if (pipeline.completed.get()) {
+          return;
+        }
+        
+        switch(context.queryContext().mode()) {
+        case SINGLE:
+          for (QueryNode node : pipeline.upstream()) {
+            try {
+              node.onNext(this);
+            } catch (Throwable t) {
+              LOG.error("Failed to pass results upstream to node: " + node, t);
+            }
+            
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("No more data, marking complete");
+            }
+            if (pipeline.completed.compareAndSet(false, true)) {
+              node.onComplete(pipeline, sequence_id, sequence_id + 1);
+            }
+          }
+          break;
+        case BOUNDED_CLIENT_STREAM:
+          for (QueryNode node : pipeline.upstream()) {
+            try {
+              node.onNext(this);
+            } catch (Throwable t) {
+              LOG.error("Failed to pass results upstream to node: " + node, t);
+            }
+          }
+          if (!hasNext(sequence_id + 1)) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Next query wouldn't have any data: " + pipeline);
+            }
+            if (pipeline.completed.compareAndSet(false, true)) {
+              for (QueryNode node : pipeline.upstream()) {
+                node.onComplete(pipeline, sequence_id, sequence_id + 1);
+              }
+            }
+          }
+          break;
+        case CONTINOUS_CLIENT_STREAM:
+        case BOUNDED_SERVER_SYNC_STREAM:
+        case CONTINOUS_SERVER_SYNC_STREAM:
+          for (QueryNode node : pipeline.upstream()) {
+            try {
+              node.onNext(this);
+            } catch (Throwable t) {
+              LOG.error("Failed to pass results upstream to node: " + node, t);
+            }
+          }
+          // fetching next or complete handled by the {@link QueryNode#close()} 
+          // method or fetched by the client.
+          break;
+        case BOUNDED_SERVER_ASYNC_STREAM:
+          for (QueryNode node : pipeline.upstream()) {
+            try {
+              node.onNext(this);
+            } catch (Throwable t) {
+              LOG.error("Failed to pass results upstream to node: " + node, t);
+            }
+          }
+          
+          if (!hasNext(sequence_id + 1)) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Next query wouldn't have any data: " + pipeline);
+            }
+            for (QueryNode node : pipeline.upstream()) {
+              node.onComplete(pipeline, sequence_id, sequence_id + 1);
+            }
+          } else {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Fetching next Seq: " + (sequence_id  + 1) 
+                  + " as there is more data: " + pipeline);
+            }
+            pipeline.fetchNext();
+          }
+          break;
+        case CONTINOUS_SERVER_ASYNC_STREAM:
+          for (QueryNode node : pipeline.upstream()) {
+            try {
+              node.onNext(this);
+            } catch (Throwable t) {
+              LOG.error("Failed to pass results upstream to node: " + node, t);
+            }
+          }
+          
+          if (!hasNext(sequence_id + 1)) {
+            // Wait for data.
+          } else {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Fetching next Seq: " + (sequence_id  + 1) 
+                  + " as there is more data: " + pipeline);
+            }
+            pipeline.fetchNext();
+          }
+        }
+      } catch (Exception e) {
+        LOG.error("WTF? Shouldn't be here", e);
+      }
+    }
+
+    boolean hasNext(final long seqid) {
+      long end_ts = context.queryContext().mode() == QueryMode.SINGLE ? 
+          query.getTime().endTime().msEpoch() : 
+            query.getTime().endTime().msEpoch() - (seqid * ROW_WIDTH);
+      
+      if (end_ts <= query.getTime().startTime().msEpoch()) {
+        return false;
+      }
+      return true;
+    }
+    
+    @Override
+    public QueryNode source() {
+      return pipeline;
+    }
+  
+    @Override
+    public void close() {
+      if (context.queryContext().mode() == QueryMode.BOUNDED_SERVER_SYNC_STREAM || 
+          context.queryContext().mode() == QueryMode.CONTINOUS_SERVER_SYNC_STREAM) {
+        if (!hasNext(sequence_id + 1)) {
+          if (context.queryContext().mode() == QueryMode.BOUNDED_SERVER_SYNC_STREAM) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Next query wouldn't have any data: " + pipeline);
+            }
+            for (QueryNode node : pipeline.upstream()) {
+              node.onComplete(pipeline, sequence_id, sequence_id + 1);
+            }
+          }
+        } else {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Result closed, firing the next!: " + pipeline);
+          }
+          pipeline.fetchNext();
+        }
+      }
+    }
+  }
+  
 }

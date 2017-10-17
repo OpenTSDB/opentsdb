@@ -26,12 +26,12 @@ import net.opentsdb.stats.QueryStats;
 public interface QueryContext {
 
   /**
-   * Returns the current listeners for this component.
-   * @return A non-null and non empty collection of listeners. Note that the 
+   * Returns the current sinks for this component.
+   * @return A non-null and non empty collection of sinks. Note that the 
    * collection cannot be null or empty as a query context must not be created
-   * without at least one valid listener.
+   * without at least one valid sinks.
    */
-  public Collection<QueryListener> getListeners();
+  public Collection<QuerySink> sinks();
   
   /**
    * Returns the mode the query is executing in.
@@ -41,7 +41,7 @@ public interface QueryContext {
   
   /**
    * Travels downstream the pipeline to fetch the next set of results. 
-   * @throws IllegalStateException if no listener was set on this context.
+   * @throws IllegalStateException if no sinks was set on this context.
    */
   public void fetchNext();
   

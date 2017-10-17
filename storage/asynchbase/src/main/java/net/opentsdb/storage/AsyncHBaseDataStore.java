@@ -24,6 +24,9 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.IteratorGroups;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
@@ -93,17 +96,17 @@ public class AsyncHBaseDataStore extends TimeSeriesDataStore {
   }
   
   @Override
-  public QueryExecution<IteratorGroups> runTimeSeriesQuery(
-      final QueryContext context, 
-      final TimeSeriesQuery query, 
-      final Span upstream_span) {
-    return null;
-  }
-
-  @Override
   public Deferred<Object> write(TimeSeriesId id, 
       TimeSeriesValue<?> value, TsdbTrace trace,
       Span upstream_span) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  
+  @Override
+  public QueryNode newNode(QueryPipelineContext context,
+      QueryNodeConfig config) {
     // TODO Auto-generated method stub
     return null;
   }

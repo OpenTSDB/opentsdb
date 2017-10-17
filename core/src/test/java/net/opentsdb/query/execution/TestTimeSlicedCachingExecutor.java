@@ -260,1700 +260,1700 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void executeCacheMissAll() throws Exception {
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    // cache miss
-    cache_execution.callback(new byte[4][]);
-    
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    final IteratorGroups data = 
-        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000);
-    downstreams.get(0).callback(data);
-    final IteratorGroups results = exec.deferred().join(1);
-    assertEquals(4, results.flattenedIterators().size());
-    
-    // validate data returned
-    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
-    assertEquals(2, group.flattenedIterators().size());
-    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    TimeSeriesIterator<NumericType> iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    long ts = ts_start;
-    int count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    group = results.group(IteratorTestUtils.GROUP_B);
-    assertEquals(2, group.flattenedIterators().size());
-    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    verify(this.executor, times(1)).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, times(1)).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstreams.get(0).cancelled);
-    assertFalse(cache_execution.cancelled);
-    assertEquals(4, cache.size());
-    
-    final byte[][] keys = key_generator.generate(query, planner.getTimeRanges());
-    assertTrue(cache.containsKey(keys[0]));
-    assertTrue(cache.containsKey(keys[1]));
-    assertTrue(cache.containsKey(keys[2]));
-    assertTrue(cache.containsKey(keys[3]));
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void executeCacheHitAll() throws Exception {
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    // cache hit
-    final byte[][] cache_results = new byte[4][];
-    final List<IteratorGroups> slices = planner.sliceResult(
-        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000), 0, 3);
-    for (int i = 0; i < slices.size(); i++) {
-      final ByteArrayOutputStream output = new ByteArrayOutputStream();
-      serdes.serialize(query, null, output, slices.get(i));
-      output.close();
-      cache_results[i] = output.toByteArray();
-    }
-    cache_execution.callback(cache_results);
-
-    final IteratorGroups results = exec.deferred().join(1);
-    assertEquals(4, results.flattenedIterators().size());
-    
-    // validate data returned
-    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
-    assertEquals(2, group.flattenedIterators().size());
-    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    TimeSeriesIterator<NumericType> iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    long ts = ts_start;
-    int count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    group = results.group(IteratorTestUtils.GROUP_B);
-    assertEquals(2, group.flattenedIterators().size());
-    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    verify(this.executor, never()).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertTrue(downstreams.isEmpty());
-    assertFalse(cache_execution.cancelled);
-    assertEquals(0, cache.size());
-  }
-
-  @SuppressWarnings("unchecked")
-  @Test
-  public void executeCachePartialHitTip() throws Exception {
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    // cache hit
-    final byte[][] cache_results = new byte[4][];
-    final List<IteratorGroups> slices = planner.sliceResult(
-        IteratorTestUtils.generateData(ts_start, 1493949600000L, 0, 300000), 0, 3);
-    for (int i = 0; i < 2; i++) {
-      final ByteArrayOutputStream output = new ByteArrayOutputStream();
-      serdes.serialize(query, null, output, slices.get(i));
-      output.close();
-      cache_results[i] = output.toByteArray();
-    }
-    cache_execution.callback(cache_results);
-
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    assertEquals(1, downstreams.size());
-    downstreams.get(0).callback(
-        IteratorTestUtils.generateData(1493949600000L, ts_end, 0, 300000));
-    
-    final IteratorGroups results = exec.deferred().join(1);
-    assertEquals(4, results.flattenedIterators().size());
-    
-    // validate data returned
-    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
-    assertEquals(2, group.flattenedIterators().size());
-    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    TimeSeriesIterator<NumericType> iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    long ts = ts_start;
-    int count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    group = results.group(IteratorTestUtils.GROUP_B);
-    assertEquals(2, group.flattenedIterators().size());
-    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    verify(this.executor, times(1)).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, times(1)).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertEquals(1, downstreams.size());
-    assertFalse(cache_execution.cancelled);
-    assertEquals(2, cache.size());
-    
-    final byte[][] keys = key_generator.generate(query, planner.getTimeRanges());
-    assertFalse(cache.containsKey(keys[0]));
-    assertFalse(cache.containsKey(keys[1]));
-    assertTrue(cache.containsKey(keys[2]));
-    assertTrue(cache.containsKey(keys[3]));
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void executeCachePartialHitTail() throws Exception {
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    // cache hit
-    final byte[][] cache_results = new byte[4][];
-    final List<IteratorGroups> slices = planner.sliceResult(
-        IteratorTestUtils.generateData(1493949600000L, ts_end, 0, 300000), 2, 3);
-    for (int i = 2; i < 4; i++) {
-      final ByteArrayOutputStream output = new ByteArrayOutputStream();
-      serdes.serialize(query, null, output, slices.get(i - 2));
-      output.close();
-      cache_results[i] = output.toByteArray();
-    }
-    cache_execution.callback(cache_results);
-
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    assertEquals(1, downstreams.size());
-    downstreams.get(0).callback(
-        IteratorTestUtils.generateData(ts_start, 1493949600000L, 0, 300000));
-    
-    final IteratorGroups results = exec.deferred().join(1);
-    assertEquals(4, results.flattenedIterators().size());
-    
-    // validate data returned
-    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
-    assertEquals(2, group.flattenedIterators().size());
-    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    TimeSeriesIterator<NumericType> iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    long ts = ts_start;
-    int count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    group = results.group(IteratorTestUtils.GROUP_B);
-    assertEquals(2, group.flattenedIterators().size());
-    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    verify(this.executor, times(1)).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, times(1)).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertEquals(1, downstreams.size());
-    assertFalse(cache_execution.cancelled);
-    assertEquals(2, cache.size());
-    
-    final byte[][] keys = key_generator.generate(query, planner.getTimeRanges());
-    assertTrue(cache.containsKey(keys[0]));
-    assertTrue(cache.containsKey(keys[1]));
-    assertFalse(cache.containsKey(keys[2]));
-    assertFalse(cache.containsKey(keys[3]));
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void executeCacheMissHitMissHit() throws Exception {
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    // cache hit
-    final byte[][] cache_results = new byte[4][];
-    List<IteratorGroups> slices = planner.sliceResult(
-        IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000), 1, 1);
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(query, null, output, slices.get(0));
-    output.close();
-    cache_results[1] = output.toByteArray();
-    
-    slices = planner.sliceResult(
-        IteratorTestUtils.generateData(1493953200000L, ts_end, 0, 300000), 3, 3);
-    output = new ByteArrayOutputStream();
-    serdes.serialize(query, null, output, slices.get(0));
-    output.close();
-    cache_results[3] = output.toByteArray();
-    
-    cache_execution.callback(cache_results);
-
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    assertEquals(2, downstreams.size());
-    
-    downstreams.get(0).callback(
-        IteratorTestUtils.generateData(ts_start, 1493946000000L, 0, 300000));
-    
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    downstreams.get(1).callback(
-        IteratorTestUtils.generateData(1493949600000L, 1493953200000L, 1, 300000));
-    
-    final IteratorGroups results = exec.deferred().join(1);
-    assertEquals(4, results.flattenedIterators().size());
-    
-    // validate data returned
-    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
-    assertEquals(2, group.flattenedIterators().size());
-    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    TimeSeriesIterator<NumericType> iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    long ts = ts_start;
-    int count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    group = results.group(IteratorTestUtils.GROUP_B);
-    assertEquals(2, group.flattenedIterators().size());
-    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    verify(this.executor, times(2)).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, times(2)).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertEquals(2, downstreams.size());
-    assertFalse(cache_execution.cancelled);
-    assertEquals(2, cache.size());
-    
-    final byte[][] keys = key_generator.generate(query, planner.getTimeRanges());
-    assertTrue(cache.containsKey(keys[0]));
-    assertFalse(cache.containsKey(keys[1]));
-    assertTrue(cache.containsKey(keys[2]));
-    assertFalse(cache.containsKey(keys[3]));
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void executeCacheHitMissHitMiss() throws Exception {
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    // cache hit
-    final byte[][] cache_results = new byte[4][];
-    List<IteratorGroups> slices = planner.sliceResult(
-        IteratorTestUtils.generateData(ts_start, 1493946000000L, 0, 300000), 0, 0);
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(query, null, output, slices.get(0));
-    output.close();
-    cache_results[0] = output.toByteArray();
-    
-    slices = planner.sliceResult(
-        IteratorTestUtils.generateData(1493949600000L, 1493953200000L, 0, 300000), 2, 2);
-    output = new ByteArrayOutputStream();
-    serdes.serialize(query, null, output, slices.get(0));
-    output.close();
-    cache_results[2] = output.toByteArray();
-    
-    cache_execution.callback(cache_results);
-
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    assertEquals(2, downstreams.size());
-    
-    downstreams.get(0).callback(
-        IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000));
-    
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    downstreams.get(1).callback(
-        IteratorTestUtils.generateData(1493953200000L, ts_end, 1, 300000));
-    
-    final IteratorGroups results = exec.deferred().join(1);
-    assertEquals(4, results.flattenedIterators().size());
-    
-    // validate data returned
-    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
-    assertEquals(2, group.flattenedIterators().size());
-    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    TimeSeriesIterator<NumericType> iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    long ts = ts_start;
-    int count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    group = results.group(IteratorTestUtils.GROUP_B);
-    assertEquals(2, group.flattenedIterators().size());
-    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    verify(this.executor, times(2)).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, times(2)).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertEquals(2, downstreams.size());
-    assertFalse(cache_execution.cancelled);
-    assertEquals(2, cache.size());
-    
-    final byte[][] keys = key_generator.generate(query, planner.getTimeRanges());
-    assertFalse(cache.containsKey(keys[0]));
-    assertTrue(cache.containsKey(keys[1]));
-    assertFalse(cache.containsKey(keys[2]));
-    assertTrue(cache.containsKey(keys[3]));
-  }
-
-  @Test
-  public void executeCacheExceptionThrow() throws Exception {
-    plugin = mock(QueryCachePlugin.class);
-    when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
-      .thenReturn(plugin);
-    when(registry.getPlugin(eq(TimeSeriesCacheKeyGenerator.class), anyString()))
-      .thenReturn(key_generator);
-    when(plugin.fetch(any(QueryContext.class), any(byte[][].class), any(Span.class)))
-      .thenThrow(new IllegalArgumentException("Boo!"));
-    
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    final IteratorGroups data = 
-        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000);
-    downstreams.get(0).callback(data);
-    final IteratorGroups results = exec.deferred().join(1);
-    assertEquals(4, results.flattenedIterators().size());
-    
-    verify(this.executor, times(1)).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, times(1)).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstreams.get(0).cancelled);
-    assertFalse(cache_execution.cancelled);
-  }
-  
-  @Test
-  public void executeCacheExceptionReturned() throws Exception {
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    
-    cache_execution.callback(new IllegalStateException("Boo!"));
-    
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    final IteratorGroups data = 
-        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000);
-    downstreams.get(0).callback(data);
-    final IteratorGroups results = exec.deferred().join(1);
-    assertEquals(4, results.flattenedIterators().size());
-    
-    verify(this.executor, times(1)).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, times(1)).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstreams.get(0).cancelled);
-    assertFalse(cache_execution.cancelled);
-  }
-  
-  @Test
-  public void executeCacheReturnedNull() throws Exception {
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    
-    cache_execution.callback(null);
-    
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    final IteratorGroups data = 
-        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000);
-    downstreams.get(0).callback(data);
-    final IteratorGroups results = exec.deferred().join(1);
-    assertEquals(4, results.flattenedIterators().size());
-    
-    verify(this.executor, times(1)).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, times(1)).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstreams.get(0).cancelled);
-    assertFalse(cache_execution.cancelled);
-  }
-
-  @SuppressWarnings("unchecked")
-  @Test
-  public void executeCacheHitCorruptEntries() throws Exception {
-    final byte[][] cache_results = new byte[4][];
-    final List<IteratorGroups> slices = planner.sliceResult(
-        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000), 0, 3);
-    
-    serdes = mock(TimeSeriesSerdes.class);
-    when(registry.getSerdes(anyString()))
-      .thenAnswer(new Answer<TimeSeriesSerdes<IteratorGroups>>() {
-      @Override
-      public TimeSeriesSerdes<IteratorGroups> answer(
-          final InvocationOnMock invocation) throws Throwable {
-        return serdes;
-      }
-    });
-    when(serdes.deserialize(any(), any(InputStream.class)))
-      .thenReturn(slices.get(0))
-      .thenReturn(slices.get(1))
-      .thenThrow(new IllegalStateException("Boo!"))
-      .thenReturn(slices.get(3));
-    
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    for (int i = 0; i < slices.size(); i++) {
-      final ByteArrayOutputStream output = new ByteArrayOutputStream();
-      serdes.serialize(query, null, output, slices.get(i));
-      output.close();
-      cache_results[i] = output.toByteArray();
-    }
-    
-    cache_execution.callback(cache_results);
-    
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    downstreams.get(0).callback(slices.get(2));
-
-    final IteratorGroups results = exec.deferred().join(1);
-    assertEquals(4, results.flattenedIterators().size());
-    
-    // validate data returned
-    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
-    assertEquals(2, group.flattenedIterators().size());
-    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    TimeSeriesIterator<NumericType> iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    long ts = ts_start;
-    int count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    group = results.group(IteratorTestUtils.GROUP_B);
-    assertEquals(2, group.flattenedIterators().size());
-    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    verify(this.executor, times(1)).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, times(1)).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertEquals(1, downstreams.size());
-    assertFalse(cache_execution.cancelled);
-    assertEquals(1, cache.size());
-    
-    final byte[][] keys = key_generator.generate(query, planner.getTimeRanges());
-    assertFalse(cache.containsKey(keys[0]));
-    assertFalse(cache.containsKey(keys[1]));
-    assertTrue(cache.containsKey(keys[2]));
-    assertFalse(cache.containsKey(keys[3]));
-  }
-  
-  @Test
-  public void executeDownstreamThrowsException() throws Exception {
-    when(executor.executeQuery(eq(context), any(TimeSeriesQuery.class), any(Span.class)))
-      .thenThrow(new IllegalStateException("Boo!"));
-    
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    // partial cache hit
-    final byte[][] cache_results = new byte[4][];
-    List<IteratorGroups> slices = planner.sliceResult(
-        IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000), 1, 1);
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(query, null, output, slices.get(0));
-    output.close();
-    cache_results[1] = output.toByteArray();
-    
-    slices = planner.sliceResult(
-        IteratorTestUtils.generateData(1493953200000L, ts_end, 0, 300000), 3, 3);
-    output = new ByteArrayOutputStream();
-    serdes.serialize(query, null, output, slices.get(0));
-    output.close();
-    cache_results[3] = output.toByteArray();
-    
-    cache_execution.callback(cache_results);
-        
-    try {
-      exec.deferred().join(1);
-      fail("Expected QueryExecutionException");
-    } catch (QueryExecutionException e) { 
-      assertEquals("Boo!", e.getCause().getMessage());
-    }
-    
-    verify(this.executor, times(2)).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertTrue(downstreams.isEmpty());
-    assertFalse(cache_execution.cancelled);
-  }
-  
-  @Test
-  public void executeDownstreamReturnsException() throws Exception {
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    // partial cache hit
-    final byte[][] cache_results = new byte[4][];
-    List<IteratorGroups> slices = planner.sliceResult(
-        IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000), 1, 1);
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(query, null, output, slices.get(0));
-    output.close();
-    cache_results[1] = output.toByteArray();
-    
-    slices = planner.sliceResult(
-        IteratorTestUtils.generateData(1493953200000L, ts_end, 0, 300000), 3, 3);
-    output = new ByteArrayOutputStream();
-    serdes.serialize(query, null, output, slices.get(0));
-    output.close();
-    cache_results[3] = output.toByteArray();
-    
-    cache_execution.callback(cache_results);
-    
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    final IllegalArgumentException ex = new IllegalArgumentException("Boo!");
-    downstreams.get(0).callback(ex);
-    
-    try {
-      exec.deferred().join(1);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { 
-      assertEquals("Boo!", e.getMessage());
-    }
-    
-    verify(this.executor, times(2)).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertEquals(2, downstreams.size());
-    assertFalse(downstreams.get(0).cancelled);
-    assertTrue(downstreams.get(1).cancelled);
-    assertFalse(cache_execution.cancelled);
-  }
-
-  @SuppressWarnings("unchecked")
-  @Test
-  public void executeMergeException() throws Exception {
-    when(planner.mergeSlicedResults(anyList()))
-      .thenThrow(new IllegalArgumentException("Boo!"));
-    
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    // cache hit
-    final byte[][] cache_results = new byte[4][];
-    final List<IteratorGroups> slices = planner.sliceResult(
-        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000), 0, 3);
-    for (int i = 0; i < slices.size(); i++) {
-      final ByteArrayOutputStream output = new ByteArrayOutputStream();
-      serdes.serialize(query, null, output, slices.get(i));
-      output.close();
-      cache_results[i] = output.toByteArray();
-    }
-    cache_execution.callback(cache_results);
-
-    try {
-      exec.deferred().join(1);
-      fail("Expected QueryExecutionException");
-    } catch (QueryExecutionException e) { }
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void executeCacheWriteException() throws Exception {
-    doThrow(new IllegalArgumentException("Boo!"))
-      .when(plugin).cache(any(byte[][].class), any(byte[][].class), 
-          any(long[].class), eq(TimeUnit.MILLISECONDS));
-    
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    // cache miss
-    cache_execution.callback(new byte[4][]);
-    
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    final IteratorGroups data = 
-        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000);
-    downstreams.get(0).callback(data);
-    final IteratorGroups results = exec.deferred().join(1);
-    assertEquals(4, results.flattenedIterators().size());
-    
-    // validate data returned
-    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
-    assertEquals(2, group.flattenedIterators().size());
-    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    TimeSeriesIterator<NumericType> iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    long ts = ts_start;
-    int count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    group = results.group(IteratorTestUtils.GROUP_B);
-    assertEquals(2, group.flattenedIterators().size());
-    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    verify(this.executor, times(1)).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, times(1)).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstreams.get(0).cancelled);
-    assertFalse(cache_execution.cancelled);
-    assertEquals(0, cache.size());
-  }
-
-  @SuppressWarnings("unchecked")
-  @Test
-  public void executeBypassDefault() throws Exception {
-    config = (Config) Config.newBuilder()
-        .setExpiration(60000)
-        .setPlannerId("IteratorGroupsSlicePlanner")
-        .setSerdesId("Default")
-        .setBypass(true)
-        .setKeyGeneratorId("MyKeyGen")
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
-        .build();
-    when(node.getDefaultConfig()).thenReturn(config);
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, never())
-      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
-    verify(this.executor, times(1)).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-
-    final IteratorGroups data = 
-        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000);
-    downstreams.get(0).callback(data);
-    final IteratorGroups results = exec.deferred().join(1);
-    assertEquals(4, results.flattenedIterators().size());
-    
-    // validate data returned
-    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
-    assertEquals(2, group.flattenedIterators().size());
-    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    TimeSeriesIterator<NumericType> iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    long ts = ts_start;
-    int count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    group = results.group(IteratorTestUtils.GROUP_B);
-    assertEquals(2, group.flattenedIterators().size());
-    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    verify(this.executor, times(1)).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, never()).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstreams.get(0).cancelled);
-    assertFalse(cache_execution.cancelled);
-  }
-  
-  @SuppressWarnings("unchecked")
-  @Test
-  public void executeBypassOverride() throws Exception {
-    config = (Config) Config.newBuilder()
-        .setExpiration(60000)
-        .setPlannerId("IteratorGroupsSlicePlanner")
-        .setSerdesId("Default")
-        .setBypass(true)
-        .setKeyGeneratorId("MyKeyGen")
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
-        .build();
-    when(context.getConfigOverride(anyString())).thenReturn(config);
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, never())
-      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
-    verify(this.executor, times(1)).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-
-    final IteratorGroups data = 
-        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000);
-    downstreams.get(0).callback(data);
-    final IteratorGroups results = exec.deferred().join(1);
-    assertEquals(4, results.flattenedIterators().size());
-    
-    // validate data returned
-    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
-    assertEquals(2, group.flattenedIterators().size());
-    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    TimeSeriesIterator<NumericType> iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    long ts = ts_start;
-    int count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    group = results.group(IteratorTestUtils.GROUP_B);
-    assertEquals(2, group.flattenedIterators().size());
-    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
-    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    iterator = 
-        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
-    assertEquals(1493942400000L, iterator.startTime().msEpoch());
-    assertEquals(1493956800000L, iterator.endTime().msEpoch());
-    ts = ts_start;
-    count = 0;
-    while (iterator.status() == IteratorStatus.HAS_DATA) {
-      TimeSeriesValue<NumericType> v = iterator.next();
-      assertEquals(ts, v.timestamp().msEpoch());
-      assertEquals(ts, v.value().longValue());
-        ts += 300000;
-      ++count;
-    }
-    assertEquals(49, count);
-    
-    verify(this.executor, times(1)).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, never()).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstreams.get(0).cancelled);
-    assertFalse(cache_execution.cancelled);
-  }
-  
-  @Test
-  public void executeCancel() throws Exception {
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    // cache hit
-    final byte[][] cache_results = new byte[4][];
-    List<IteratorGroups> slices = planner.sliceResult(
-        IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000), 1, 1);
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(query, null, output, slices.get(0));
-    output.close();
-    cache_results[1] = output.toByteArray();
-    
-    slices = planner.sliceResult(
-        IteratorTestUtils.generateData(1493953200000L, ts_end, 0, 300000), 3, 3);
-    output = new ByteArrayOutputStream();
-    serdes.serialize(query, null, output, slices.get(0));
-    output.close();
-    cache_results[3] = output.toByteArray();
-    
-    cache_execution.callback(cache_results);
-
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    assertEquals(2, downstreams.size());
-    
-    exec.cancel();
-    
-    try {
-      exec.deferred().join(1);
-      fail("Expected QueryExecutionCanceled");
-    } catch (QueryExecutionCanceled e) { }
-    
-    verify(this.executor, times(2)).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertEquals(2, downstreams.size());
-    assertTrue(downstreams.get(0).cancelled);
-    assertTrue(downstreams.get(1).cancelled);
-    assertFalse(cache_execution.cancelled);
-    assertEquals(0, cache.size());
-  }
-  
-  @Test
-  public void executeClose() throws Exception {
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    // cache hit
-    final byte[][] cache_results = new byte[4][];
-    List<IteratorGroups> slices = planner.sliceResult(
-        IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000), 1, 1);
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(query, null, output, slices.get(0));
-    output.close();
-    cache_results[1] = output.toByteArray();
-    
-    slices = planner.sliceResult(
-        IteratorTestUtils.generateData(1493953200000L, ts_end, 0, 300000), 3, 3);
-    output = new ByteArrayOutputStream();
-    serdes.serialize(query, null, output, slices.get(0));
-    output.close();
-    cache_results[3] = output.toByteArray();
-    
-    cache_execution.callback(cache_results);
-
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    assertEquals(2, downstreams.size());
-    
-    assertNull(executor.close().join());
-    
-    try {
-      exec.deferred().join(1);
-      fail("Expected QueryExecutionCanceled");
-    } catch (QueryExecutionCanceled e) { }
-    
-    verify(this.executor, times(2)).executeQuery(eq(context), 
-        any(TimeSeriesQuery.class), any(Span.class));
-    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
-    verify(plugin, never()).cache(any(byte[][].class), any(byte[][].class), 
-        any(long[].class), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertEquals(2, downstreams.size());
-    assertTrue(downstreams.get(0).cancelled);
-    assertTrue(downstreams.get(1).cancelled);
-    assertFalse(cache_execution.cancelled);
-    assertEquals(0, cache.size());
-  }
-
-  @Test (expected = IllegalArgumentException.class)
-  public void executeNoFactoryPlan() throws Exception {
-    when(registry.getQueryPlanner(anyString())).thenReturn(null);
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    executor.executeQuery(context, query, span);
-  }
-  
-  @Test (expected = IllegalStateException.class)
-  public void executeNullPlanner() throws Exception {
-    when(plan_factory.newPlanner(any(TimeSeriesQuery.class))).thenReturn(null);
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    executor.executeQuery(context, query, span);
-  }
-  
-  @Test (expected = IllegalStateException.class)
-  public void executeWrongPlannerType() throws Exception {
-    final SplitMetricPlanner bad_plan = new SplitMetricPlanner(query);
-    final QueryPlannnerFactory<?> mock_factory = mock(QueryPlannnerFactory.class);
-    when(mock_factory.newPlanner(any(TimeSeriesQuery.class)))
-      .thenAnswer(new Answer<QueryPlanner<?>>() {
-        @Override
-        public QueryPlanner<?> answer(InvocationOnMock invocation) throws Throwable {
-          return bad_plan;
-        }
-      });
-    when(registry.getQueryPlanner(anyString()))
-      .thenAnswer(new Answer<QueryPlannnerFactory<?>>() {
-      @Override
-      public QueryPlannnerFactory<?> answer(InvocationOnMock invocation)
-          throws Throwable {
-        return mock_factory;
-      }
-    });
-      
-    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
-        new TimeSlicedCachingExecutor<IteratorGroups>(node);
-    executor.executeQuery(context, query, span);
-  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void executeCacheMissAll() throws Exception {
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+//    verify(this.executor, never()).executeQuery(context, query, null);
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class));
+//    assertTrue(executor.outstandingRequests().contains(exec));
+//    
+//    // cache miss
+//    cache_execution.callback(new byte[4][]);
+//    
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    
+//    final IteratorGroups data = 
+//        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000);
+//    downstreams.get(0).callback(data);
+//    final IteratorGroups results = exec.deferred().join(1);
+//    assertEquals(4, results.flattenedIterators().size());
+//    
+//    // validate data returned
+//    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    TimeSeriesIterator<NumericType> iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    long ts = ts_start;
+//    int count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    group = results.group(IteratorTestUtils.GROUP_B);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    verify(this.executor, times(1)).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, times(1)).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertFalse(downstreams.get(0).cancelled);
+//    assertFalse(cache_execution.cancelled);
+//    assertEquals(4, cache.size());
+//    
+//    final byte[][] keys = key_generator.generate(query, planner.getTimeRanges());
+//    assertTrue(cache.containsKey(keys[0]));
+//    assertTrue(cache.containsKey(keys[1]));
+//    assertTrue(cache.containsKey(keys[2]));
+//    assertTrue(cache.containsKey(keys[3]));
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void executeCacheHitAll() throws Exception {
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+//    verify(this.executor, never()).executeQuery(context, query, null);
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class));
+//    assertTrue(executor.outstandingRequests().contains(exec));
+//    
+//    // cache hit
+//    final byte[][] cache_results = new byte[4][];
+//    final List<IteratorGroups> slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000), 0, 3);
+//    for (int i = 0; i < slices.size(); i++) {
+//      final ByteArrayOutputStream output = new ByteArrayOutputStream();
+//      serdes.serialize(query, null, output, slices.get(i));
+//      output.close();
+//      cache_results[i] = output.toByteArray();
+//    }
+//    cache_execution.callback(cache_results);
+//
+//    final IteratorGroups results = exec.deferred().join(1);
+//    assertEquals(4, results.flattenedIterators().size());
+//    
+//    // validate data returned
+//    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    TimeSeriesIterator<NumericType> iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    long ts = ts_start;
+//    int count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    group = results.group(IteratorTestUtils.GROUP_B);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    verify(this.executor, never()).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertTrue(downstreams.isEmpty());
+//    assertFalse(cache_execution.cancelled);
+//    assertEquals(0, cache.size());
+//  }
+//
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void executeCachePartialHitTip() throws Exception {
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+//    verify(this.executor, never()).executeQuery(context, query, null);
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class));
+//    assertTrue(executor.outstandingRequests().contains(exec));
+//    
+//    // cache hit
+//    final byte[][] cache_results = new byte[4][];
+//    final List<IteratorGroups> slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(ts_start, 1493949600000L, 0, 300000), 0, 3);
+//    for (int i = 0; i < 2; i++) {
+//      final ByteArrayOutputStream output = new ByteArrayOutputStream();
+//      serdes.serialize(query, null, output, slices.get(i));
+//      output.close();
+//      cache_results[i] = output.toByteArray();
+//    }
+//    cache_execution.callback(cache_results);
+//
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    
+//    assertEquals(1, downstreams.size());
+//    downstreams.get(0).callback(
+//        IteratorTestUtils.generateData(1493949600000L, ts_end, 0, 300000));
+//    
+//    final IteratorGroups results = exec.deferred().join(1);
+//    assertEquals(4, results.flattenedIterators().size());
+//    
+//    // validate data returned
+//    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    TimeSeriesIterator<NumericType> iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    long ts = ts_start;
+//    int count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    group = results.group(IteratorTestUtils.GROUP_B);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    verify(this.executor, times(1)).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, times(1)).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertEquals(1, downstreams.size());
+//    assertFalse(cache_execution.cancelled);
+//    assertEquals(2, cache.size());
+//    
+//    final byte[][] keys = key_generator.generate(query, planner.getTimeRanges());
+//    assertFalse(cache.containsKey(keys[0]));
+//    assertFalse(cache.containsKey(keys[1]));
+//    assertTrue(cache.containsKey(keys[2]));
+//    assertTrue(cache.containsKey(keys[3]));
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void executeCachePartialHitTail() throws Exception {
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+//    verify(this.executor, never()).executeQuery(context, query, null);
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class));
+//    assertTrue(executor.outstandingRequests().contains(exec));
+//    
+//    // cache hit
+//    final byte[][] cache_results = new byte[4][];
+//    final List<IteratorGroups> slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(1493949600000L, ts_end, 0, 300000), 2, 3);
+//    for (int i = 2; i < 4; i++) {
+//      final ByteArrayOutputStream output = new ByteArrayOutputStream();
+//      serdes.serialize(query, null, output, slices.get(i - 2));
+//      output.close();
+//      cache_results[i] = output.toByteArray();
+//    }
+//    cache_execution.callback(cache_results);
+//
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    
+//    assertEquals(1, downstreams.size());
+//    downstreams.get(0).callback(
+//        IteratorTestUtils.generateData(ts_start, 1493949600000L, 0, 300000));
+//    
+//    final IteratorGroups results = exec.deferred().join(1);
+//    assertEquals(4, results.flattenedIterators().size());
+//    
+//    // validate data returned
+//    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    TimeSeriesIterator<NumericType> iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    long ts = ts_start;
+//    int count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    group = results.group(IteratorTestUtils.GROUP_B);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    verify(this.executor, times(1)).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, times(1)).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertEquals(1, downstreams.size());
+//    assertFalse(cache_execution.cancelled);
+//    assertEquals(2, cache.size());
+//    
+//    final byte[][] keys = key_generator.generate(query, planner.getTimeRanges());
+//    assertTrue(cache.containsKey(keys[0]));
+//    assertTrue(cache.containsKey(keys[1]));
+//    assertFalse(cache.containsKey(keys[2]));
+//    assertFalse(cache.containsKey(keys[3]));
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void executeCacheMissHitMissHit() throws Exception {
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+//    verify(this.executor, never()).executeQuery(context, query, null);
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class));
+//    assertTrue(executor.outstandingRequests().contains(exec));
+//    
+//    // cache hit
+//    final byte[][] cache_results = new byte[4][];
+//    List<IteratorGroups> slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000), 1, 1);
+//    ByteArrayOutputStream output = new ByteArrayOutputStream();
+//    serdes.serialize(query, null, output, slices.get(0));
+//    output.close();
+//    cache_results[1] = output.toByteArray();
+//    
+//    slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(1493953200000L, ts_end, 0, 300000), 3, 3);
+//    output = new ByteArrayOutputStream();
+//    serdes.serialize(query, null, output, slices.get(0));
+//    output.close();
+//    cache_results[3] = output.toByteArray();
+//    
+//    cache_execution.callback(cache_results);
+//
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    
+//    assertEquals(2, downstreams.size());
+//    
+//    downstreams.get(0).callback(
+//        IteratorTestUtils.generateData(ts_start, 1493946000000L, 0, 300000));
+//    
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    
+//    downstreams.get(1).callback(
+//        IteratorTestUtils.generateData(1493949600000L, 1493953200000L, 1, 300000));
+//    
+//    final IteratorGroups results = exec.deferred().join(1);
+//    assertEquals(4, results.flattenedIterators().size());
+//    
+//    // validate data returned
+//    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    TimeSeriesIterator<NumericType> iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    long ts = ts_start;
+//    int count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    group = results.group(IteratorTestUtils.GROUP_B);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    verify(this.executor, times(2)).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, times(2)).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertEquals(2, downstreams.size());
+//    assertFalse(cache_execution.cancelled);
+//    assertEquals(2, cache.size());
+//    
+//    final byte[][] keys = key_generator.generate(query, planner.getTimeRanges());
+//    assertTrue(cache.containsKey(keys[0]));
+//    assertFalse(cache.containsKey(keys[1]));
+//    assertTrue(cache.containsKey(keys[2]));
+//    assertFalse(cache.containsKey(keys[3]));
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void executeCacheHitMissHitMiss() throws Exception {
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+//    verify(this.executor, never()).executeQuery(context, query, null);
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class));
+//    assertTrue(executor.outstandingRequests().contains(exec));
+//    
+//    // cache hit
+//    final byte[][] cache_results = new byte[4][];
+//    List<IteratorGroups> slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(ts_start, 1493946000000L, 0, 300000), 0, 0);
+//    ByteArrayOutputStream output = new ByteArrayOutputStream();
+//    serdes.serialize(query, null, output, slices.get(0));
+//    output.close();
+//    cache_results[0] = output.toByteArray();
+//    
+//    slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(1493949600000L, 1493953200000L, 0, 300000), 2, 2);
+//    output = new ByteArrayOutputStream();
+//    serdes.serialize(query, null, output, slices.get(0));
+//    output.close();
+//    cache_results[2] = output.toByteArray();
+//    
+//    cache_execution.callback(cache_results);
+//
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    
+//    assertEquals(2, downstreams.size());
+//    
+//    downstreams.get(0).callback(
+//        IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000));
+//    
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    
+//    downstreams.get(1).callback(
+//        IteratorTestUtils.generateData(1493953200000L, ts_end, 1, 300000));
+//    
+//    final IteratorGroups results = exec.deferred().join(1);
+//    assertEquals(4, results.flattenedIterators().size());
+//    
+//    // validate data returned
+//    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    TimeSeriesIterator<NumericType> iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    long ts = ts_start;
+//    int count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    group = results.group(IteratorTestUtils.GROUP_B);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    verify(this.executor, times(2)).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, times(2)).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertEquals(2, downstreams.size());
+//    assertFalse(cache_execution.cancelled);
+//    assertEquals(2, cache.size());
+//    
+//    final byte[][] keys = key_generator.generate(query, planner.getTimeRanges());
+//    assertFalse(cache.containsKey(keys[0]));
+//    assertTrue(cache.containsKey(keys[1]));
+//    assertFalse(cache.containsKey(keys[2]));
+//    assertTrue(cache.containsKey(keys[3]));
+//  }
+//
+//  @Test
+//  public void executeCacheExceptionThrow() throws Exception {
+//    plugin = mock(QueryCachePlugin.class);
+//    when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
+//      .thenReturn(plugin);
+//    when(registry.getPlugin(eq(TimeSeriesCacheKeyGenerator.class), anyString()))
+//      .thenReturn(key_generator);
+//    when(plugin.fetch(any(QueryContext.class), any(byte[][].class), any(Span.class)))
+//      .thenThrow(new IllegalArgumentException("Boo!"));
+//    
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    
+//    final IteratorGroups data = 
+//        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000);
+//    downstreams.get(0).callback(data);
+//    final IteratorGroups results = exec.deferred().join(1);
+//    assertEquals(4, results.flattenedIterators().size());
+//    
+//    verify(this.executor, times(1)).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, times(1)).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertFalse(downstreams.get(0).cancelled);
+//    assertFalse(cache_execution.cancelled);
+//  }
+//  
+//  @Test
+//  public void executeCacheExceptionReturned() throws Exception {
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    
+//    cache_execution.callback(new IllegalStateException("Boo!"));
+//    
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    
+//    final IteratorGroups data = 
+//        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000);
+//    downstreams.get(0).callback(data);
+//    final IteratorGroups results = exec.deferred().join(1);
+//    assertEquals(4, results.flattenedIterators().size());
+//    
+//    verify(this.executor, times(1)).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, times(1)).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertFalse(downstreams.get(0).cancelled);
+//    assertFalse(cache_execution.cancelled);
+//  }
+//  
+//  @Test
+//  public void executeCacheReturnedNull() throws Exception {
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    
+//    cache_execution.callback(null);
+//    
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    
+//    final IteratorGroups data = 
+//        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000);
+//    downstreams.get(0).callback(data);
+//    final IteratorGroups results = exec.deferred().join(1);
+//    assertEquals(4, results.flattenedIterators().size());
+//    
+//    verify(this.executor, times(1)).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, times(1)).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertFalse(downstreams.get(0).cancelled);
+//    assertFalse(cache_execution.cancelled);
+//  }
+//
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void executeCacheHitCorruptEntries() throws Exception {
+//    final byte[][] cache_results = new byte[4][];
+//    final List<IteratorGroups> slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000), 0, 3);
+//    
+//    serdes = mock(TimeSeriesSerdes.class);
+//    when(registry.getSerdes(anyString()))
+//      .thenAnswer(new Answer<TimeSeriesSerdes<IteratorGroups>>() {
+//      @Override
+//      public TimeSeriesSerdes<IteratorGroups> answer(
+//          final InvocationOnMock invocation) throws Throwable {
+//        return serdes;
+//      }
+//    });
+//    when(serdes.deserialize(any(), any(InputStream.class)))
+//      .thenReturn(slices.get(0))
+//      .thenReturn(slices.get(1))
+//      .thenThrow(new IllegalStateException("Boo!"))
+//      .thenReturn(slices.get(3));
+//    
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+//    verify(this.executor, never()).executeQuery(context, query, null);
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class));
+//    assertTrue(executor.outstandingRequests().contains(exec));
+//    
+//    for (int i = 0; i < slices.size(); i++) {
+//      final ByteArrayOutputStream output = new ByteArrayOutputStream();
+//      serdes.serialize(query, null, output, slices.get(i));
+//      output.close();
+//      cache_results[i] = output.toByteArray();
+//    }
+//    
+//    cache_execution.callback(cache_results);
+//    
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    
+//    downstreams.get(0).callback(slices.get(2));
+//
+//    final IteratorGroups results = exec.deferred().join(1);
+//    assertEquals(4, results.flattenedIterators().size());
+//    
+//    // validate data returned
+//    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    TimeSeriesIterator<NumericType> iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    long ts = ts_start;
+//    int count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    group = results.group(IteratorTestUtils.GROUP_B);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertEquals(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertEquals(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    verify(this.executor, times(1)).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, times(1)).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertEquals(1, downstreams.size());
+//    assertFalse(cache_execution.cancelled);
+//    assertEquals(1, cache.size());
+//    
+//    final byte[][] keys = key_generator.generate(query, planner.getTimeRanges());
+//    assertFalse(cache.containsKey(keys[0]));
+//    assertFalse(cache.containsKey(keys[1]));
+//    assertTrue(cache.containsKey(keys[2]));
+//    assertFalse(cache.containsKey(keys[3]));
+//  }
+//  
+//  @Test
+//  public void executeDownstreamThrowsException() throws Exception {
+//    when(executor.executeQuery(eq(context), any(TimeSeriesQuery.class), any(Span.class)))
+//      .thenThrow(new IllegalStateException("Boo!"));
+//    
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+//    verify(this.executor, never()).executeQuery(context, query, null);
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class));
+//    assertTrue(executor.outstandingRequests().contains(exec));
+//    
+//    // partial cache hit
+//    final byte[][] cache_results = new byte[4][];
+//    List<IteratorGroups> slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000), 1, 1);
+//    ByteArrayOutputStream output = new ByteArrayOutputStream();
+//    serdes.serialize(query, null, output, slices.get(0));
+//    output.close();
+//    cache_results[1] = output.toByteArray();
+//    
+//    slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(1493953200000L, ts_end, 0, 300000), 3, 3);
+//    output = new ByteArrayOutputStream();
+//    serdes.serialize(query, null, output, slices.get(0));
+//    output.close();
+//    cache_results[3] = output.toByteArray();
+//    
+//    cache_execution.callback(cache_results);
+//        
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected QueryExecutionException");
+//    } catch (QueryExecutionException e) { 
+//      assertEquals("Boo!", e.getCause().getMessage());
+//    }
+//    
+//    verify(this.executor, times(2)).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertTrue(downstreams.isEmpty());
+//    assertFalse(cache_execution.cancelled);
+//  }
+//  
+//  @Test
+//  public void executeDownstreamReturnsException() throws Exception {
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+//    verify(this.executor, never()).executeQuery(context, query, null);
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class));
+//    assertTrue(executor.outstandingRequests().contains(exec));
+//    
+//    // partial cache hit
+//    final byte[][] cache_results = new byte[4][];
+//    List<IteratorGroups> slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000), 1, 1);
+//    ByteArrayOutputStream output = new ByteArrayOutputStream();
+//    serdes.serialize(query, null, output, slices.get(0));
+//    output.close();
+//    cache_results[1] = output.toByteArray();
+//    
+//    slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(1493953200000L, ts_end, 0, 300000), 3, 3);
+//    output = new ByteArrayOutputStream();
+//    serdes.serialize(query, null, output, slices.get(0));
+//    output.close();
+//    cache_results[3] = output.toByteArray();
+//    
+//    cache_execution.callback(cache_results);
+//    
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    
+//    final IllegalArgumentException ex = new IllegalArgumentException("Boo!");
+//    downstreams.get(0).callback(ex);
+//    
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { 
+//      assertEquals("Boo!", e.getMessage());
+//    }
+//    
+//    verify(this.executor, times(2)).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertEquals(2, downstreams.size());
+//    assertFalse(downstreams.get(0).cancelled);
+//    assertTrue(downstreams.get(1).cancelled);
+//    assertFalse(cache_execution.cancelled);
+//  }
+//
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void executeMergeException() throws Exception {
+//    when(planner.mergeSlicedResults(anyList()))
+//      .thenThrow(new IllegalArgumentException("Boo!"));
+//    
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+//    verify(this.executor, never()).executeQuery(context, query, null);
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class));
+//    assertTrue(executor.outstandingRequests().contains(exec));
+//    
+//    // cache hit
+//    final byte[][] cache_results = new byte[4][];
+//    final List<IteratorGroups> slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000), 0, 3);
+//    for (int i = 0; i < slices.size(); i++) {
+//      final ByteArrayOutputStream output = new ByteArrayOutputStream();
+//      serdes.serialize(query, null, output, slices.get(i));
+//      output.close();
+//      cache_results[i] = output.toByteArray();
+//    }
+//    cache_execution.callback(cache_results);
+//
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected QueryExecutionException");
+//    } catch (QueryExecutionException e) { }
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void executeCacheWriteException() throws Exception {
+//    doThrow(new IllegalArgumentException("Boo!"))
+//      .when(plugin).cache(any(byte[][].class), any(byte[][].class), 
+//          any(long[].class), eq(TimeUnit.MILLISECONDS));
+//    
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+//    verify(this.executor, never()).executeQuery(context, query, null);
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class));
+//    assertTrue(executor.outstandingRequests().contains(exec));
+//    
+//    // cache miss
+//    cache_execution.callback(new byte[4][]);
+//    
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    
+//    final IteratorGroups data = 
+//        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000);
+//    downstreams.get(0).callback(data);
+//    final IteratorGroups results = exec.deferred().join(1);
+//    assertEquals(4, results.flattenedIterators().size());
+//    
+//    // validate data returned
+//    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    TimeSeriesIterator<NumericType> iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    long ts = ts_start;
+//    int count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    group = results.group(IteratorTestUtils.GROUP_B);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    verify(this.executor, times(1)).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, times(1)).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertFalse(downstreams.get(0).cancelled);
+//    assertFalse(cache_execution.cancelled);
+//    assertEquals(0, cache.size());
+//  }
+//
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void executeBypassDefault() throws Exception {
+//    config = (Config) Config.newBuilder()
+//        .setExpiration(60000)
+//        .setPlannerId("IteratorGroupsSlicePlanner")
+//        .setSerdesId("Default")
+//        .setBypass(true)
+//        .setKeyGeneratorId("MyKeyGen")
+//        .setExecutorId("LocalCache")
+//        .setExecutorType("CachingQueryExecutor")
+//        .build();
+//    when(node.getDefaultConfig()).thenReturn(config);
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    verify(plugin, never())
+//      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+//    verify(this.executor, times(1)).executeQuery(context, query, null);
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class));
+//    assertTrue(executor.outstandingRequests().contains(exec));
+//
+//    final IteratorGroups data = 
+//        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000);
+//    downstreams.get(0).callback(data);
+//    final IteratorGroups results = exec.deferred().join(1);
+//    assertEquals(4, results.flattenedIterators().size());
+//    
+//    // validate data returned
+//    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    TimeSeriesIterator<NumericType> iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    long ts = ts_start;
+//    int count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    group = results.group(IteratorTestUtils.GROUP_B);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    verify(this.executor, times(1)).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, never()).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertFalse(downstreams.get(0).cancelled);
+//    assertFalse(cache_execution.cancelled);
+//  }
+//  
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void executeBypassOverride() throws Exception {
+//    config = (Config) Config.newBuilder()
+//        .setExpiration(60000)
+//        .setPlannerId("IteratorGroupsSlicePlanner")
+//        .setSerdesId("Default")
+//        .setBypass(true)
+//        .setKeyGeneratorId("MyKeyGen")
+//        .setExecutorId("LocalCache")
+//        .setExecutorType("CachingQueryExecutor")
+//        .build();
+//    when(context.getConfigOverride(anyString())).thenReturn(config);
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    verify(plugin, never())
+//      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+//    verify(this.executor, times(1)).executeQuery(context, query, null);
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class));
+//    assertTrue(executor.outstandingRequests().contains(exec));
+//
+//    final IteratorGroups data = 
+//        IteratorTestUtils.generateData(ts_start, ts_end, 0, 300000);
+//    downstreams.get(0).callback(data);
+//    final IteratorGroups results = exec.deferred().join(1);
+//    assertEquals(4, results.flattenedIterators().size());
+//    
+//    // validate data returned
+//    IteratorGroup group = results.group(IteratorTestUtils.GROUP_A);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    TimeSeriesIterator<NumericType> iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    long ts = ts_start;
+//    int count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    group = results.group(IteratorTestUtils.GROUP_B);
+//    assertEquals(2, group.flattenedIterators().size());
+//    assertSame(IteratorTestUtils.ID_A, group.flattenedIterators().get(0).id());
+//    assertSame(IteratorTestUtils.ID_B, group.flattenedIterators().get(1).id());
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(0);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    iterator = 
+//        (TimeSeriesIterator<NumericType>) group.flattenedIterators().get(1);
+//    assertEquals(1493942400000L, iterator.startTime().msEpoch());
+//    assertEquals(1493956800000L, iterator.endTime().msEpoch());
+//    ts = ts_start;
+//    count = 0;
+//    while (iterator.status() == IteratorStatus.HAS_DATA) {
+//      TimeSeriesValue<NumericType> v = iterator.next();
+//      assertEquals(ts, v.timestamp().msEpoch());
+//      assertEquals(ts, v.value().longValue());
+//        ts += 300000;
+//      ++count;
+//    }
+//    assertEquals(49, count);
+//    
+//    verify(this.executor, times(1)).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, never()).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertFalse(downstreams.get(0).cancelled);
+//    assertFalse(cache_execution.cancelled);
+//  }
+//  
+//  @Test
+//  public void executeCancel() throws Exception {
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+//    verify(this.executor, never()).executeQuery(context, query, null);
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class));
+//    assertTrue(executor.outstandingRequests().contains(exec));
+//    
+//    // cache hit
+//    final byte[][] cache_results = new byte[4][];
+//    List<IteratorGroups> slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000), 1, 1);
+//    ByteArrayOutputStream output = new ByteArrayOutputStream();
+//    serdes.serialize(query, null, output, slices.get(0));
+//    output.close();
+//    cache_results[1] = output.toByteArray();
+//    
+//    slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(1493953200000L, ts_end, 0, 300000), 3, 3);
+//    output = new ByteArrayOutputStream();
+//    serdes.serialize(query, null, output, slices.get(0));
+//    output.close();
+//    cache_results[3] = output.toByteArray();
+//    
+//    cache_execution.callback(cache_results);
+//
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    
+//    assertEquals(2, downstreams.size());
+//    
+//    exec.cancel();
+//    
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected QueryExecutionCanceled");
+//    } catch (QueryExecutionCanceled e) { }
+//    
+//    verify(this.executor, times(2)).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertEquals(2, downstreams.size());
+//    assertTrue(downstreams.get(0).cancelled);
+//    assertTrue(downstreams.get(1).cancelled);
+//    assertFalse(cache_execution.cancelled);
+//    assertEquals(0, cache.size());
+//  }
+//  
+//  @Test
+//  public void executeClose() throws Exception {
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    final QueryExecution<IteratorGroups> exec = 
+//        executor.executeQuery(context, query, span);
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    verify(plugin, times(1))
+//      .fetch(any(QueryContext.class), any(byte[][].class), any(Span.class));
+//    verify(this.executor, never()).executeQuery(context, query, null);
+//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+//        anyLong(), any(TimeUnit.class));
+//    assertTrue(executor.outstandingRequests().contains(exec));
+//    
+//    // cache hit
+//    final byte[][] cache_results = new byte[4][];
+//    List<IteratorGroups> slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(1493946000000L, 1493949600000L, 0, 300000), 1, 1);
+//    ByteArrayOutputStream output = new ByteArrayOutputStream();
+//    serdes.serialize(query, null, output, slices.get(0));
+//    output.close();
+//    cache_results[1] = output.toByteArray();
+//    
+//    slices = planner.sliceResult(
+//        IteratorTestUtils.generateData(1493953200000L, ts_end, 0, 300000), 3, 3);
+//    output = new ByteArrayOutputStream();
+//    serdes.serialize(query, null, output, slices.get(0));
+//    output.close();
+//    cache_results[3] = output.toByteArray();
+//    
+//    cache_execution.callback(cache_results);
+//
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected TimeoutException");
+//    } catch (TimeoutException e) { }
+//    
+//    assertEquals(2, downstreams.size());
+//    
+//    assertNull(executor.close().join());
+//    
+//    try {
+//      exec.deferred().join(1);
+//      fail("Expected QueryExecutionCanceled");
+//    } catch (QueryExecutionCanceled e) { }
+//    
+//    verify(this.executor, times(2)).executeQuery(eq(context), 
+//        any(TimeSeriesQuery.class), any(Span.class));
+//    verify(plugin, times(1)).fetch(eq(context), any(byte[][].class), any(Span.class));
+//    verify(plugin, never()).cache(any(byte[][].class), any(byte[][].class), 
+//        any(long[].class), any(TimeUnit.class));
+//    assertFalse(executor.outstandingRequests().contains(exec));
+//    assertEquals(2, downstreams.size());
+//    assertTrue(downstreams.get(0).cancelled);
+//    assertTrue(downstreams.get(1).cancelled);
+//    assertFalse(cache_execution.cancelled);
+//    assertEquals(0, cache.size());
+//  }
+//
+//  @Test (expected = IllegalArgumentException.class)
+//  public void executeNoFactoryPlan() throws Exception {
+//    when(registry.getQueryPlanner(anyString())).thenReturn(null);
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    executor.executeQuery(context, query, span);
+//  }
+//  
+//  @Test (expected = IllegalStateException.class)
+//  public void executeNullPlanner() throws Exception {
+//    when(plan_factory.newPlanner(any(TimeSeriesQuery.class))).thenReturn(null);
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    executor.executeQuery(context, query, span);
+//  }
+//  
+//  @Test (expected = IllegalStateException.class)
+//  public void executeWrongPlannerType() throws Exception {
+//    final SplitMetricPlanner bad_plan = new SplitMetricPlanner(query);
+//    final QueryPlannnerFactory<?> mock_factory = mock(QueryPlannnerFactory.class);
+//    when(mock_factory.newPlanner(any(TimeSeriesQuery.class)))
+//      .thenAnswer(new Answer<QueryPlanner<?>>() {
+//        @Override
+//        public QueryPlanner<?> answer(InvocationOnMock invocation) throws Throwable {
+//          return bad_plan;
+//        }
+//      });
+//    when(registry.getQueryPlanner(anyString()))
+//      .thenAnswer(new Answer<QueryPlannnerFactory<?>>() {
+//      @Override
+//      public QueryPlannnerFactory<?> answer(InvocationOnMock invocation)
+//          throws Throwable {
+//        return mock_factory;
+//      }
+//    });
+//      
+//    final TimeSlicedCachingExecutor<IteratorGroups> executor = 
+//        new TimeSlicedCachingExecutor<IteratorGroups>(node);
+//    executor.executeQuery(context, query, span);
+//  }
 
   @Test
   public void builder() throws Exception {

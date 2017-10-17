@@ -278,7 +278,7 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
       tracer_span.setTag("totalValues", values);
     }
     
-    group.addIterator(shard);
+    //group.addIterator(shard);
   }
   
   /**

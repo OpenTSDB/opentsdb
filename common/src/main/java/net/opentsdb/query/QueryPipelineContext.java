@@ -28,18 +28,23 @@ public interface QueryPipelineContext extends QueryNode {
   /**
    * @return The original query passed by the user.
    */
-  public TimeSeriesQuery getQuery();
+  public TimeSeriesQuery query();
   
   /**
    * @return The user's query context.
    */
-  public QueryContext getContext();
+  public QueryContext queryContext();
   
   /**
-   * Called by the user's {@link #context()} to initialize the pipeline. Must
+   * Called by the user's {@link #pipelineContext()} to initialize the pipeline. Must
    * be called before any of the node functions.
    */
   public void initialize();
+  
+  /**
+   * Called by the upstream context or nodes to fetch the next set of data.
+   */
+  public void fetchNext();
   
   /**
    * Returns the upstream nodes for the requested node.
@@ -62,7 +67,7 @@ public interface QueryPipelineContext extends QueryNode {
    * results.
    * @return A non-null list of one or more sinks.
    */
-  public Collection<QueryListener> sinks();
+  public Collection<QuerySink> sinks();
   
   /**
    * The list of "root" or "sink" query nodes for the DAG. These will be linked

@@ -14,32 +14,33 @@ package net.opentsdb.storage;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.List;
-import java.util.Map;
+import java.util.Iterator;
+import java.util.Map.Entry;
 
 import org.junit.Before;
 import org.junit.Test;
 
-import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.SimpleStringGroupId;
+import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.iterators.IteratorGroup;
-import net.opentsdb.data.iterators.IteratorGroups;
-import net.opentsdb.data.iterators.IteratorStatus;
-import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.execution.QueryExecution;
+import net.opentsdb.query.DefaultQueryContextBuilder;
+import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QuerySink;
+import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
@@ -53,17 +54,25 @@ public class TestMockDataStore {
 
   private TSDB tsdb;
   private Config config;
-  private QueryContext context;
+  private Registry registry;
+  private MockDataStore mds;
   
   @Before
   public void before() throws Exception {
     tsdb = mock(TSDB.class);
     config = new Config(false);
-    context = mock(QueryContext.class);
+    registry = mock(Registry.class);
     when(tsdb.getConfig()).thenReturn(config);
+    when(tsdb.getRegistry()).thenReturn(registry);
     
     config.overrideConfig("MockDataStore.timestamp", "1483228800000");
+    config.overrideConfig("MockDataStore.threadpool.enable", "true");
+    config.overrideConfig("MockDataStore.sysout.enable", "true");
+    mds = new MockDataStore();
+    mds.initialize(tsdb).join();
+    when(registry.getQueryNodeFactory(anyString())).thenReturn(mds);
   }
+
   
   @Test
   public void initialize() throws Exception {
@@ -71,112 +80,23 @@ public class TestMockDataStore {
     mds.initialize(tsdb).join();
     assertEquals(4 * 4 * 4, mds.getDatabase().size());
     
-    for (Map<TypeToken<?>, MockSpan<?>> types : mds.getDatabase().values()) {
-      MockSpan<?> spans = types.get(NumericType.TYPE);
-      assertEquals(24, spans.rows().size());
+    for (final Entry<TimeSeriesId, MockSpan> series : mds.getDatabase().entrySet()) {
+      assertEquals(24, series.getValue().rows().size());
       
       long ts = 1483228800000L;
-      for (MockRow<?> row : spans.rows()) {
+      for (MockRow row : series.getValue().rows()) {
         assertEquals(ts, row.base_timestamp);
         
-        TimeSeriesIterator<NumericType> iterator = 
-            (TimeSeriesIterator<NumericType>) row.iterator();
+        Iterator<TimeSeriesValue<?>> it = row.iterator(NumericType.TYPE).get();
         int count = 0;
-        while (iterator.status() == IteratorStatus.HAS_DATA) {
-          assertEquals(ts + (count * 60000), iterator.next().timestamp().msEpoch());
+        while (it.hasNext()) {
+          assertEquals(ts + (count * 60000), it.next().timestamp().msEpoch());
           count++;
         }
         ts += MockDataStore.ROW_WIDTH;
         assertEquals(60, count);
       }
       assertEquals(1483315200000L, ts);
-    }
-  }
-  
-  @Test
-  public void query() throws Exception {
-    MockDataStore mds = new MockDataStore();
-    mds.initialize(tsdb).join();
-    
-    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("1483228800000")
-            .setEnd("1483236000000"))
-        .addMetric(Metric.newBuilder()
-            .setMetric("sys.cpu.user")
-            .setFilter("f1")
-            .setId("m1"))
-        .addMetric(Metric.newBuilder()
-            .setMetric("web.requests")
-            .setFilter("f1")
-            .setId("m2"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .addFilter(TagVFilter.newBuilder()
-                .setFilter("web01")
-                .setType("literal_or")
-                .setTagk("host")
-                )
-            )
-        .build();
-    
-    QueryExecution<IteratorGroups> ex = mds.runTimeSeriesQuery(context, query, null);
-    IteratorGroups results = ex.deferred().join();
-    assertEquals(8, results.flattenedIterators().size());
-    
-    IteratorGroup group = results.group(new SimpleStringGroupId("m1"));
-    List<TimeSeriesIterator<?>> iterators = group.flattenedIterators();
-    assertEquals(4, iterators.size());
-    for (final TimeSeriesIterator<?> it : iterators) {
-      TimeSeriesIterator<NumericType> iterator = (TimeSeriesIterator<NumericType>) it;
-      long ts = 1483228800000L;
-      while (iterator.status() == IteratorStatus.HAS_DATA) {
-        TimeSeriesValue<NumericType> v = iterator.next();
-        assertEquals(ts, v.timestamp().msEpoch());
-        ts += 60000;
-      }
-      assertEquals(1483239600000L, ts);
-    }
-    
-    query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart("1483228800000")
-            .setEnd("1483236000000"))
-        .addMetric(Metric.newBuilder()
-            .setMetric("sys.cpu.user")
-            .setFilter("f1")
-            .setId("m1"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .addFilter(TagVFilter.newBuilder()
-                .setFilter("web01")
-                .setType("literal_or")
-                .setTagk("host")
-                )
-            .addFilter(TagVFilter.newBuilder()
-                .setFilter("PHX")
-                .setType("literal_or")
-                .setTagk("dc")
-                )
-            )
-        .build();
-    
-    mds = new MockDataStore();
-    mds.initialize(tsdb).join();
-    
-    ex = mds.runTimeSeriesQuery(context, query, null);
-    results = ex.deferred().join();
-    iterators = results.flattenedIterators();
-    assertEquals(1, iterators.size());
-    for (final TimeSeriesIterator<?> it : iterators) {
-      TimeSeriesIterator<NumericType> iterator = (TimeSeriesIterator<NumericType>) it;
-      long ts = 1483228800000L;
-      while (iterator.status() == IteratorStatus.HAS_DATA) {
-        TimeSeriesValue<NumericType> v = iterator.next();
-        assertEquals(ts, v.timestamp().msEpoch());
-        ts += 60000;
-      }
-      assertEquals(1483239600000L, ts);
     }
   }
   
@@ -209,4 +129,5 @@ public class TestMockDataStore {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
+
 }

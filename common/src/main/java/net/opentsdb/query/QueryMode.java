@@ -20,19 +20,19 @@ package net.opentsdb.query;
 public enum QueryMode {
   /**
    * The default query wherein the complete set of results are compiled into a 
-   * single {@link QueryResult} object and {@link QueryListener#onComplete()} is
-   * called immediately after {@link QueryListener#onNext(QueryResult)}.
+   * single {@link QueryResult} object and {@link QuerySink#onComplete()} is
+   * called immediately after {@link QuerySink#onNext(QueryResult)}.
    * This mode may fail a query early if it would exceed memory limits.
    */
   SINGLE,
   
   /**
    * A bounded stream query (e.g. a query for historical data) that will return
-   * subsets of data in each call to {@link QueryListener#onNext(QueryResult)}
+   * subsets of data in each call to {@link QuerySink#onNext(QueryResult)}
    * from the context. In order to receive the next set of data, the caller
    * must call {@link QueryContext#fetchNext()}. On the final call to 
    * {@link QueryContext#fetchNext()}, if the query is finished, the 
-   * {@link QueryListener#onComplete()} method will be called.
+   * {@link QuerySink#onComplete()} method will be called.
    */
   BOUNDED_CLIENT_STREAM,
   
@@ -50,7 +50,7 @@ public enum QueryMode {
   
   /**
    * A bounded stream query that will send the next subset of data as soon as 
-   * the result passed in {@link QueryListener#onNext(QueryResult)} has been 
+   * the result passed in {@link QuerySink#onNext(QueryResult)} has been 
    * closed by the caller via {@link QueryResult#close()}. This provides for
    * quicker streaming to the client but prevents buffering large amounts of 
    * data in memory.
@@ -68,7 +68,7 @@ public enum QueryMode {
   
   /**
    * A bounded query stream that will send results as soon as their available to
-   * the {@link QueryListener#onNext(QueryResult)} callback. This means the 
+   * the {@link QuerySink#onNext(QueryResult)} callback. This means the 
    * client is responsible for thread safety in their listener.
    * <b>Note:</b> If too much data has been buffered in memory the query may be
    * marked as failed.
