@@ -43,117 +43,117 @@ public class TestUglyByteNumericSerdes {
     end = new MillisecondTimeStamp(1486046000000L);
   }
   
-  @SuppressWarnings("unchecked")
-  @Test
-  public void fullSerdes() throws Exception {
-    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
-        .setAlias("a")
-        .setMetric("sys.cpu.user")
-        .addTags("host", "web01")
-        .addTags("dc", "phx")
-    .build();
-    
-    NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
-    shard.add(1486045801000L, 42);
-    shard.add(1486045871000L, 9866.854);
-    shard.add(1486045881000L, -128);
-    
-    final UglyByteNumericSerdes serdes = new UglyByteNumericSerdes();
-    final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(null, null, output, shard);
-    output.close();
-    byte[] data = output.toByteArray();
-    
-    final ByteArrayInputStream input = new ByteArrayInputStream(data);
-    final TimeSeriesIterator<?> iterator = serdes.deserialize(null, input);
-    assertEquals(id, iterator.id());
-    
-    assertEquals(IteratorStatus.HAS_DATA, iterator.status());
-    TimeSeriesValue<NumericType> v = 
-        (TimeSeriesValue<NumericType>) iterator.next();
-    assertEquals(1486045801000L, v.timestamp().msEpoch());
-    assertTrue(v.value().isInteger());
-    assertEquals(42, v.value().longValue());
-    
-    assertEquals(IteratorStatus.HAS_DATA, iterator.status());
-    v = (TimeSeriesValue<NumericType>) iterator.next();
-    assertEquals(1486045871000L, v.timestamp().msEpoch());
-    assertFalse(v.value().isInteger());
-    assertEquals(9866.854, v.value().doubleValue(), 0.0001);
-    
-    assertEquals(IteratorStatus.HAS_DATA, iterator.status());
-    v = (TimeSeriesValue<NumericType>) iterator.next();
-    assertEquals(1486045881000L, v.timestamp().msEpoch());
-    assertTrue(v.value().isInteger());
-    assertEquals(-128, v.value().longValue());
-    
-    assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
-  }
-  
-  @Test
-  public void emptyValues() throws Exception {
-    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
-        .setAlias("a")
-        .setMetric("sys.cpu.user")
-        .addTags("host", "web01")
-        .addTags("dc", "phx")
-    .build();
-    
-    NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
-    
-    final UglyByteNumericSerdes serdes = new UglyByteNumericSerdes();
-    final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(null, null, output, shard);
-    output.close();
-    byte[] data = output.toByteArray();
-    
-    final ByteArrayInputStream input = new ByteArrayInputStream(data);
-    final TimeSeriesIterator<?> iterator = serdes.deserialize(null, input);
-    assertEquals(id, iterator.id());
-    
-    assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
-  }
-
-  @Test
-  public void exceptions() throws Exception {
-    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
-        .setAlias("a")
-        .setMetric("sys.cpu.user")
-        .addTags("host", "web01")
-        .addTags("dc", "phx")
-    .build();
-    
-    NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
-    
-    final UglyByteNumericSerdes serdes = new UglyByteNumericSerdes();
-    final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    
-    try {
-      serdes.serialize(null, null, null, shard);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      serdes.serialize(null, null, output, null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    NumericMillisecondShard mock = mock(NumericMillisecondShard.class);
-    try {
-      serdes.serialize(null, null, output, mock);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      serdes.deserialize(null, null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    final ByteArrayInputStream input = new ByteArrayInputStream(new byte[] { });
-    try {
-      // thrown by NumericType "Span cannot be negative."
-      serdes.deserialize(null, input);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-  }
+//  @SuppressWarnings("unchecked")
+//  @Test
+//  public void fullSerdes() throws Exception {
+//    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+//        .setAlias("a")
+//        .setMetric("sys.cpu.user")
+//        .addTags("host", "web01")
+//        .addTags("dc", "phx")
+//    .build();
+//    
+//    NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
+//    shard.add(1486045801000L, 42);
+//    shard.add(1486045871000L, 9866.854);
+//    shard.add(1486045881000L, -128);
+//    
+//    final UglyByteNumericSerdes serdes = new UglyByteNumericSerdes();
+//    final ByteArrayOutputStream output = new ByteArrayOutputStream();
+//    serdes.serialize(null, null, output, shard);
+//    output.close();
+//    byte[] data = output.toByteArray();
+//    
+//    final ByteArrayInputStream input = new ByteArrayInputStream(data);
+//    final TimeSeriesIterator<?> iterator = serdes.deserialize(null, input);
+//    assertEquals(id, iterator.id());
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, iterator.status());
+//    TimeSeriesValue<NumericType> v = 
+//        (TimeSeriesValue<NumericType>) iterator.next();
+//    assertEquals(1486045801000L, v.timestamp().msEpoch());
+//    assertTrue(v.value().isInteger());
+//    assertEquals(42, v.value().longValue());
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, iterator.status());
+//    v = (TimeSeriesValue<NumericType>) iterator.next();
+//    assertEquals(1486045871000L, v.timestamp().msEpoch());
+//    assertFalse(v.value().isInteger());
+//    assertEquals(9866.854, v.value().doubleValue(), 0.0001);
+//    
+//    assertEquals(IteratorStatus.HAS_DATA, iterator.status());
+//    v = (TimeSeriesValue<NumericType>) iterator.next();
+//    assertEquals(1486045881000L, v.timestamp().msEpoch());
+//    assertTrue(v.value().isInteger());
+//    assertEquals(-128, v.value().longValue());
+//    
+//    assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
+//  }
+//  
+//  @Test
+//  public void emptyValues() throws Exception {
+//    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+//        .setAlias("a")
+//        .setMetric("sys.cpu.user")
+//        .addTags("host", "web01")
+//        .addTags("dc", "phx")
+//    .build();
+//    
+//    NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
+//    
+//    final UglyByteNumericSerdes serdes = new UglyByteNumericSerdes();
+//    final ByteArrayOutputStream output = new ByteArrayOutputStream();
+//    serdes.serialize(null, null, output, shard);
+//    output.close();
+//    byte[] data = output.toByteArray();
+//    
+//    final ByteArrayInputStream input = new ByteArrayInputStream(data);
+//    final TimeSeriesIterator<?> iterator = serdes.deserialize(null, input);
+//    assertEquals(id, iterator.id());
+//    
+//    assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
+//  }
+//
+//  @Test
+//  public void exceptions() throws Exception {
+//    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+//        .setAlias("a")
+//        .setMetric("sys.cpu.user")
+//        .addTags("host", "web01")
+//        .addTags("dc", "phx")
+//    .build();
+//    
+//    NumericMillisecondShard shard = new NumericMillisecondShard(id, start, end);
+//    
+//    final UglyByteNumericSerdes serdes = new UglyByteNumericSerdes();
+//    final ByteArrayOutputStream output = new ByteArrayOutputStream();
+//    
+//    try {
+//      serdes.serialize(null, null, null, shard);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//    
+//    try {
+//      serdes.serialize(null, null, output, null);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//    
+//    NumericMillisecondShard mock = mock(NumericMillisecondShard.class);
+//    try {
+//      serdes.serialize(null, null, output, mock);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//    
+//    try {
+//      serdes.deserialize(null, null);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//    
+//    final ByteArrayInputStream input = new ByteArrayInputStream(new byte[] { });
+//    try {
+//      // thrown by NumericType "Span cannot be negative."
+//      serdes.deserialize(null, input);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//  }
 }

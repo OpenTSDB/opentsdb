@@ -23,10 +23,10 @@ package net.opentsdb.query;
 public interface QueryNode {
 
   /**
-   * The query context this node belongs to.
+   * The pipeline context this node belongs to.
    * @return A non-null context.
    */
-  public QueryPipelineContext context();
+  public QueryPipelineContext pipelineContext();
   
   /**
    * Called by the {@link QueryPipelineContext} after the DAG has been setup
@@ -34,12 +34,7 @@ public interface QueryNode {
    * needs from the query and config as well as setup any structures it needs. 
    */
   public void initialize();
-  
-  /**
-   * Called by the upstream context or nodes to fetch the next set of data.
-   */
-  public void fetchNext();
-  
+    
   /**
    * @return The config for this query node.
    */
@@ -60,8 +55,11 @@ public interface QueryNode {
    * Called by downstream nodes when the downstream node has finished it's query.
    * @param downstream The non-null downstream node calling in.
    * @param final_sequence The final sequence ID of the downstream result.
+   * @param total_sequences The number of sequences sent by this node.
    */
-  public void onComplete(final QueryNode downstream, final long final_sequence);
+  public void onComplete(final QueryNode downstream, 
+                         final long final_sequence,
+                         final long total_sequences);
   
   /**
    * Called by the downstream nodes when a new result is ready.

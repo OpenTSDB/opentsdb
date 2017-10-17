@@ -15,49 +15,37 @@ package net.opentsdb.data.types.numeric;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.TimeStampComparator;
-import net.opentsdb.data.iterators.IteratorStatus;
-import net.opentsdb.data.iterators.TimeSeriesIterator;
-import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.utils.Bytes;
 
 /**
- * An implementation of a data shard that stores 64 bit signed longs or single
- * or double precision floating point values (along with "real" value counts)
- * in compacted byte arrays for efficiency. This is similar to OpenTSDB v1/2's 
- * RowSeqs.
- * <p>
- * Adding values MUST be in increasing time order and duplicates are not allowed.
- * <p>
- * Adding can continue after iteration has started but after making a clone, values
- * cannot be added to either the original or the clone. Copies contain a reference
- * to the original arrays of data, avoiding memory waste.
- * <p>
- * Data is encoded as follows:
- * <b>Offsets</b>: Each offset is encoded on {@link #encodeOn()} bytes. The last
- * 7 bits encode the length of the real count as well as the type of value
- * (floating or integer) and the length of the value. The remaining bits are 
- * shifted to represent the offset. 
- * Of the 7 bits, the first three are the length - 1 of the real count (from 0 
- * to 7). The next bit is a 1 if the value is a floating point or 0 if it's an
- * integer. The last 3 bytes are the length - 1 of the value.
- * <b>Values:</b>: The values are varying width with a VLE real count followed by
- * either a VLE integer, a 4 bytes single precision float or 8 byte double 
- * precision double. 
+ * A class that concatenates individual numeric data points into two byte arrays
+ * for a fairly quick and easy way to cache the information. Note that this 
+ * class isn't particularly efficient and can use a lot of tuning for max
+ * performance. It's generally better to create iterators on top of raw binary
+ * data instead of converting it into this shard.
  * 
  * @since 3.0
  */
-public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
+public class NumericMillisecondShard implements TimeSeries, 
+    Iterable<TimeSeriesValue<?>> {
+  
+  /** ID of the time series. */
+  private final TimeSeriesId id;  
   
   /** The *width* of the data (in ms) to be stored in this shard so we can 
    * calculate how many bytes are needed to store offsets from the base time. */
@@ -78,8 +66,6 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
   /** Index's for the write and read paths over the array. */
   private int write_offset_idx;
   private int write_value_idx;
-  private int read_offset_idx;
-  private int read_value_idx;
   
   /** The time offsets and real + value flags. */
   private byte[] offsets;
@@ -89,12 +75,6 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
   
   /** The last timestamp recorded to track dupes and OOO data. */
   private long last_timestamp;
-  
-  /** The data point reset and returned. */
-  private final MutableNumericType dp;
-  
-  /** A holder for the timestamp to update the {@link MutableNumericType}. */
-  private final TimeStamp timestamp;
   
   /** Whether or not the shard was copied. */
   private boolean copied;
@@ -148,7 +128,6 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
                                  final TimeStamp end, 
                                  final int order, 
                                  final int count) {
-    super(id);
     if (id == null) {
       throw new IllegalArgumentException("ID cannot be null.");
     }
@@ -161,27 +140,15 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
     if (count < 0) {
       throw new IllegalArgumentException("Count cannot be less than zero.");
     }
+    this.id = id;
     this.start_timestamp = start;
     this.end_timestamp = end;
     this.order = order;
     last_timestamp = Long.MIN_VALUE;
     span = end.msEpoch() - start.msEpoch();
-    dp = new MutableNumericType();
     encode_on = NumericType.encodeOn(span, NumericType.TOTAL_FLAG_BITS);
-    timestamp = new MillisecondTimeStamp(-1);
     offsets = new byte[count * encode_on];
     values = new byte[count * 4]; // may be too large or too small.
-  }
-  
-  @Override
-  public int order() {
-    return order;
-  }
-  
-  @Override
-  public Deferred<Object> initialize() {
-    updateContext();
-    return Deferred.fromResult(null);
   }
   
   /**
@@ -280,186 +247,110 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
     write_value_idx += value.length;
   }
   
-  @Override
+  public Iterator<TimeSeriesValue<?>> iterator() {
+    return new LocalIterator();
+  }
+  
+  protected class LocalIterator implements Iterator<TimeSeriesValue<?>>,
+                                           TimeSeriesValue<NumericType> {
+    private int read_offset_idx;
+    private int read_value_idx;
+    private int write_idx;
+    private MutableNumericType dp;
+    private TimeStamp timestamp;
+    
+    protected LocalIterator() {
+      dp = new MutableNumericType();
+      timestamp = new MillisecondTimeStamp(0);
+      write_idx = write_offset_idx;
+    }
+    
+    @Override
+    public boolean hasNext() {
+      return read_offset_idx < write_idx;
+    }
+
+    @Override
+    public TimeSeriesValue<NumericType> next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException();
+      }
+      final byte[] offset_copy = new byte[8];
+      System.arraycopy(offsets, read_offset_idx, offset_copy, 8 - encode_on, encode_on);
+      long offset = Bytes.getLong(offset_copy);
+      final byte flags = (byte) offset;
+      offset = offset >> NumericType.TOTAL_FLAG_BITS;
+      final byte vlen = (byte) ((flags & NumericType.VALUE_LENGTH_MASK) + 1);
+      timestamp.updateMsEpoch(start_timestamp.msEpoch() + offset);
+      
+      if ((flags & NumericType.FLAG_FLOAT) == 0x0) {
+        dp.reset(timestamp, NumericType.extractIntegerValue(values, 
+            read_value_idx, flags));
+      } else {
+        dp.reset(timestamp, NumericType.extractFloatingPointValue(values, 
+            read_value_idx, flags));
+      }
+      read_offset_idx += encode_on;
+      read_value_idx += vlen;
+      
+      return this;
+    }
+
+    @Override
+    public TimeStamp timestamp() {
+      return dp.timestamp();
+    }
+
+    @Override
+    public NumericType value() {
+      return dp;
+    }
+
+    @Override
+    public TypeToken<NumericType> type() {
+      return NumericType.TYPE;
+    }
+    
+  }
+  
   public TimeStamp startTime() {
     return start_timestamp;
   }
   
-  @Override
   public TimeStamp endTime() {
     return end_timestamp;
   }
-
-  @Override
-  public TypeToken<NumericType> type() {
-    return NumericType.TYPE;
-  }
-
-  @Override
-  public IteratorStatus status() {
-    if (read_offset_idx >= write_offset_idx || read_value_idx >= write_value_idx) {
-      return IteratorStatus.END_OF_DATA;
-    }
-    return IteratorStatus.HAS_DATA;
-  }
   
   @Override
-  public TimeSeriesValue<NumericType> next() {
-    // TODO - fill
-    if (read_offset_idx >= write_offset_idx || read_value_idx >= write_value_idx) {
-      if (context != null) {
-        dp.reset(context.syncTimestamp(), Double.NaN);
-        return dp;
-      }
-      throw new NoSuchElementException("No more data in shard");
-    }
-    final byte[] offset_copy = new byte[8];
-    System.arraycopy(offsets, read_offset_idx, offset_copy, 8 - encode_on, encode_on);
-    long offset = Bytes.getLong(offset_copy);
-    final byte flags = (byte) offset;
-    offset = offset >> NumericType.TOTAL_FLAG_BITS;
-    final byte vlen = (byte) ((flags & NumericType.VALUE_LENGTH_MASK) + 1);
-    timestamp.updateMsEpoch(start_timestamp.msEpoch() + offset);
-    
-    if (context != null && 
-        context.syncTimestamp().compare(TimeStampComparator.NE, timestamp)) {
-      dp.reset(context.syncTimestamp(), Double.NaN);
-      updateContext();
-      return dp;
-    }
-    
-    if ((flags & NumericType.FLAG_FLOAT) == 0x0) {
-      dp.reset(timestamp, NumericType.extractIntegerValue(values, 
-          read_value_idx, flags));
-    } else {
-      dp.reset(timestamp, NumericType.extractFloatingPointValue(values, 
-          read_value_idx, flags));
-    }
-    read_offset_idx += encode_on;
-    read_value_idx += vlen;
-    
-    updateContext();
-    return dp;
+  public TimeSeriesId id() {
+    return id;
   }
 
   @Override
-  public TimeSeriesValue<NumericType> peek() {
-    if (read_offset_idx >= write_offset_idx || read_value_idx >= write_value_idx) {
-      return null;
+  public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
+      final TypeToken<?> type) {
+    if (type == NumericType.TYPE) {
+      return Optional.of(new LocalIterator());
     }
-    
-    final byte[] offset_copy = new byte[8];
-    System.arraycopy(offsets, read_offset_idx, offset_copy, 8 - encode_on, encode_on);
-    long offset = Bytes.getLong(offset_copy);
-    final byte flags = (byte) offset;
-    offset = offset >> NumericType.TOTAL_FLAG_BITS;
-    final TimeStamp timestamp = 
-        new MillisecondTimeStamp(start_timestamp.msEpoch() + offset);
-    
-    final MutableNumericType value = new MutableNumericType();
-    
-    if ((flags & NumericType.FLAG_FLOAT) == 0x0) {
-      value.reset(timestamp, NumericType.extractIntegerValue(values, 
-          read_value_idx, flags));
-    } else {
-      value.reset(timestamp, NumericType.extractFloatingPointValue(values, 
-          read_value_idx, flags));
-    }
-    return value;
+    return Optional.empty();
   }
-  
+
+  @SuppressWarnings("unchecked")
   @Override
-  public TimeSeriesIterator<NumericType> getShallowCopy(final QueryContext context) {
-    final NumericMillisecondShard shard = 
-        new NumericMillisecondShard(id, start_timestamp, end_timestamp, order);
-    shard.start_timestamp = start_timestamp;
-    shard.last_timestamp = last_timestamp;
-    shard.read_offset_idx = 0;
-    shard.write_offset_idx = write_offset_idx;
-    shard.read_value_idx = 0;
-    shard.write_value_idx = write_value_idx;
-    shard.offsets = offsets;
-    shard.values = values;
-    shard.copied = true;
-    copied = true;
-    shard.setContext(context);
-    return shard;
+  public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
+    return Lists.
+        <Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>>newArrayList(
+            new LocalIterator());
   }
 
   @Override
-  public TimeSeriesIterator<NumericType> getDeepCopy(final QueryContext context, 
-                                                 final TimeStamp start, 
-                                                 final TimeStamp end) {
-    if (start == null) {
-      throw new IllegalArgumentException("Start cannot be null.");
-    }
-    if (end == null) {
-      throw new IllegalArgumentException("End cannot be null.");
-    }
-    if (end.compare(TimeStampComparator.LTE, start)) {
-      throw new IllegalArgumentException("End time cannot be less than or "
-          + "equal to start time.");
-    }
-    
-    final NumericMillisecondShard shard = 
-        new NumericMillisecondShard(id, start, end, -1);
-    shard.setContext(context);
-    // shortcut for the empty case
-    if (this.write_offset_idx < 1) {
-      return shard;
-    }
-    
-    int off_idx = 0;
-    int value_idx = 0;
-    final TimeStamp ts = new MillisecondTimeStamp(Long.MIN_VALUE);
-    final byte[] offset_copy = new byte[8];
-    
-    while (off_idx < write_offset_idx) {
-      System.arraycopy(offsets, off_idx, offset_copy, 8 - encode_on, encode_on);
-      long offset = Bytes.getLong(offset_copy);
-      byte flags = (byte) offset;
-      offset = offset >> NumericType.TOTAL_FLAG_BITS;
-      byte vlen = (byte) ((flags & NumericType.VALUE_LENGTH_MASK) + 1);
-      ts.updateMsEpoch(start_timestamp.msEpoch() + offset);
-      
-      if (ts.compare(TimeStampComparator.GTE, start) && 
-          ts.compare(TimeStampComparator.LTE, end)) {
-        // we're decoding and re-encoding here as we may save a fair amount
-        // of space with the offset encoding.        
-        if ((flags & NumericType.FLAG_FLOAT) == 0x0) {
-          shard.add(start_timestamp.msEpoch() + offset, 
-              NumericType.extractIntegerValue(values, 
-                  value_idx, flags));
-        } else {
-          shard.add(start_timestamp.msEpoch() + offset, 
-              NumericType.extractFloatingPointValue(values, 
-                  value_idx, flags));
-        }
-      }
-      
-      off_idx += encode_on;
-      value_idx += vlen;
-    }
-    
-    return shard;
+  public Collection<TypeToken<?>> types() {
+    return Lists.newArrayList(NumericType.TYPE);
   }
-  
-  /**
-   * If the context is not null, updates it with the status and timestamp.
-   */
-  protected void updateContext() {
-    if (context != null) {
-      if (read_offset_idx >= write_offset_idx) {
-        context.updateContext(IteratorStatus.END_OF_DATA, null);
-      } else {
-        final byte[] offset_copy = new byte[8];
-        System.arraycopy(offsets, read_offset_idx, offset_copy, 8 - encode_on, encode_on);
-        long offset = Bytes.getLong(offset_copy);
-        offset = offset >> NumericType.TOTAL_FLAG_BITS;
-        timestamp.updateMsEpoch(start_timestamp.msEpoch() + offset);
-        context.updateContext(IteratorStatus.HAS_DATA, timestamp);
-      }
-    }
+
+  @Override
+  public void close() {
+    // no-op
   }
   
   /**
@@ -498,7 +389,8 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
       stream.read(array);
       long end_ts = Bytes.getLong(array);
       
-      final NumericMillisecondShard shard = new NumericMillisecondShard(id, 
+      final NumericMillisecondShard shard = new NumericMillisecondShard(
+          id,
           new MillisecondTimeStamp(start_ts), 
           new MillisecondTimeStamp(end_ts),
           -1);
@@ -525,6 +417,10 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
     }
   }
   
+  public int order() {
+    return order;
+  }
+  
   @VisibleForTesting
   byte[] offsets() {
     return offsets;
@@ -539,4 +435,6 @@ public class NumericMillisecondShard extends TimeSeriesIterator<NumericType> {
   byte encodeOn() {
     return encode_on;
   }
+
+  
 }

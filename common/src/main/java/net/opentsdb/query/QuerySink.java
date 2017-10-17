@@ -24,7 +24,7 @@ package net.opentsdb.query;
  * <li>The pipeline either calls {@link #onNext(QueryResult)} with the next
  * result or {@link #onComplete()} to signal the end of the query.</li>
  * <li>The sink releases the query resources.</li>
- * </0l>
+ * </ol>
  * <p>
  * If no data is available for a given query, {@link #onComplete()} may be 
  * called before {@link #onNext(QueryResult)}. 
@@ -35,7 +35,7 @@ package net.opentsdb.query;
  * 
  * @since 3.0
  */
-public interface QueryListener {
+public interface QuerySink {
   
   /**
    * Called by the pipeline to signify the end of data. Note that in asynchronous

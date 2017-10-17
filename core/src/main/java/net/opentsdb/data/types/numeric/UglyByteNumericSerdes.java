@@ -53,10 +53,10 @@ public class UglyByteNumericSerdes implements
     if (data.id() == null) {
       throw new IllegalArgumentException("Iterator ID cannot be null.");
     }
-    if (!(data instanceof NumericMillisecondShard)) {
-      throw new UnsupportedOperationException(
-          "Not writing this type of number data yet: " + data.getClass());
-    }
+//    if (!(data instanceof NumericMillisecondShard)) {
+//      throw new UnsupportedOperationException(
+//          "Not writing this type of number data yet: " + data.getClass());
+//    }
     try {
       final TimeSeriesId id = data.id();
       
@@ -100,7 +100,7 @@ public class UglyByteNumericSerdes implements
         stream.write(buf);
       }
       
-      ((NumericMillisecondShard) data).serialize(stream);
+      //((NumericMillisecondShard) data).serialize(stream);
       stream.flush();
     } catch (IOException e) {
       throw new RuntimeException("Unexpected exception during "
@@ -178,7 +178,8 @@ public class UglyByteNumericSerdes implements
       
       final NumericMillisecondShard shard = 
           NumericMillisecondShard.parseFrom(id.build(), stream);
-      return shard;
+      //return shard;
+      return null;
     } catch (IOException e) {
       throw new RuntimeException("Unexpected exception deserializing stream: " 
           + stream, e);

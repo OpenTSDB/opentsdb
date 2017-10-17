@@ -24,7 +24,7 @@ import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.iterators.DefaultIteratorGroups;
 import net.opentsdb.data.iterators.IteratorGroup;
 import net.opentsdb.data.iterators.IteratorGroups;
-import net.opentsdb.data.iterators.SlicedTimeSeriesIterator;
+//import net.opentsdb.data.iterators.SlicedTimeSeriesIterator;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
@@ -50,43 +50,44 @@ public class IteratorGroupsSlicePlanner extends
   @SuppressWarnings("unchecked")
   @Override
   public IteratorGroups mergeSlicedResults(final List<IteratorGroups> results) {
-    if (results == null) {
-      throw new IllegalArgumentException("Results cannot be null.");
-    }
-    // super ugly, ripe for optimization. May be a better way but we have to 
-    // sort and add the chunks to the proper slice iterator then feed them into 
-    // groups.
-    final Map<TimeSeriesGroupId, Map<TimeSeriesId, 
-    SlicedTimeSeriesIterator<NumericType>>> its = Maps.newHashMap();
-    final IteratorGroups merged = new DefaultIteratorGroups();
-    
-    for (final IteratorGroups result : results) {
-      if (result == null) {
-        continue;
-      }
-      final IteratorGroups groups = (IteratorGroups) result;
-      for (final Entry<TimeSeriesGroupId, IteratorGroup> entry : groups) {
-        Map<TimeSeriesId, SlicedTimeSeriesIterator<NumericType>> series = 
-            its.get(entry.getKey());
-        if (series == null) {
-          series = Maps.newHashMap();
-          its.put(entry.getKey(), series);
-        }
-        for (final TimeSeriesIterator<?> iterator : 
-            entry.getValue().flattenedIterators()) {
-          SlicedTimeSeriesIterator<NumericType> slice = series.get(iterator.id());
-          if (slice == null) {
-            slice = new SlicedTimeSeriesIterator<NumericType>();
-            slice.addIterator((TimeSeriesIterator<NumericType>) iterator);
-            series.put(iterator.id(), slice);
-            merged.addIterator(entry.getKey(), slice);
-          } else {
-            slice.addIterator((TimeSeriesIterator<NumericType>) iterator);
-          }
-        }
-      }
-    }
-    return merged;
+//    if (results == null) {
+//      throw new IllegalArgumentException("Results cannot be null.");
+//    }
+//    // super ugly, ripe for optimization. May be a better way but we have to 
+//    // sort and add the chunks to the proper slice iterator then feed them into 
+//    // groups.
+//    final Map<TimeSeriesGroupId, Map<TimeSeriesId, 
+//    SlicedTimeSeriesIterator<NumericType>>> its = Maps.newHashMap();
+//    final IteratorGroups merged = new DefaultIteratorGroups();
+//    
+//    for (final IteratorGroups result : results) {
+//      if (result == null) {
+//        continue;
+//      }
+//      final IteratorGroups groups = (IteratorGroups) result;
+//      for (final Entry<TimeSeriesGroupId, IteratorGroup> entry : groups) {
+//        Map<TimeSeriesId, SlicedTimeSeriesIterator<NumericType>> series = 
+//            its.get(entry.getKey());
+//        if (series == null) {
+//          series = Maps.newHashMap();
+//          its.put(entry.getKey(), series);
+//        }
+//        for (final TimeSeriesIterator<?> iterator : 
+//            entry.getValue().flattenedIterators()) {
+//          SlicedTimeSeriesIterator<NumericType> slice = series.get(iterator.id());
+//          if (slice == null) {
+//            slice = new SlicedTimeSeriesIterator<NumericType>();
+//            slice.addIterator((TimeSeriesIterator<NumericType>) iterator);
+//            series.put(iterator.id(), slice);
+//            merged.addIterator(entry.getKey(), slice);
+//          } else {
+//            slice.addIterator((TimeSeriesIterator<NumericType>) iterator);
+//          }
+//        }
+//      }
+//    }
+//    return merged;
+    return null;
   }
 
   @Override

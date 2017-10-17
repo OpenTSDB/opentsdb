@@ -23,6 +23,7 @@ import com.google.common.base.Objects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
@@ -34,6 +35,7 @@ import net.opentsdb.utils.JSON;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -43,7 +45,8 @@ import java.util.Set;
 @JsonInclude(Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonDeserialize(builder = TimeSeriesQuery.Builder.class)
-public class TimeSeriesQuery extends Validatable implements Comparable<TimeSeriesQuery> {
+public class TimeSeriesQuery extends Validatable implements Comparable<TimeSeriesQuery>, 
+    net.opentsdb.query.TimeSeriesQuery {
   /** An optional name for the query */
   private String name;
   
@@ -52,6 +55,9 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
   
   /** A list of filters */
   private List<Filter> filters;
+  
+  /** A mapping of the filters for key/value access. */
+  private Map<String, Filter> filter_map;
   
   /** A list of metrics */
   private List<Metric> metrics;
@@ -84,6 +90,13 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
     this.expressions = builder.expressions;
     this.outputs = builder.outputs;
     this.order = builder.order;
+    
+    if (builder.filters != null) {
+      filter_map = Maps.newHashMapWithExpectedSize(filters.size());
+      for (final Filter filter : filters) {
+        filter_map.put(filter.getId(), filter);
+      }
+    }
   }
 
   /** @return an optional name for the query */
@@ -101,6 +114,23 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
     return filters == null ? null : Collections.unmodifiableList(filters);
   }
 
+  /**
+   * Fetches the given filter ID from the map if it exists.
+   * @param id A non-null and non-empty filter Id.
+   * @return Null if no filters were set or the filter ID exists, the filter if
+   * present.
+   */
+  @JsonIgnore
+  public Filter getFilter(final String id) {
+    if (Strings.isNullOrEmpty(id)) {
+      throw new IllegalArgumentException("Filter ID cannot be null or empty.");
+    }
+    if (filter_map == null) {
+      return null;
+    }
+    return filter_map.get(id);
+  }
+  
   /** @return a list of metrics */
   public List<Metric> getMetrics() {
     return metrics == null ? null : Collections.unmodifiableList(metrics);

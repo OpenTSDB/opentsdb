@@ -28,10 +28,11 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-public class TestQuery {
+public class TestTimeSeriesQuery {
   private Timespan time;
   private Filter filter;
   private Metric metric;
@@ -195,6 +196,20 @@ public class TestQuery {
     query.validate();
   }
 
+  @Test
+  public void getFilter() throws Exception {
+    TimeSeriesQuery query = getDefaultQueryBuilder().setTime((Timespan) null).build();
+    assertEquals("host", query.getFilter("f1").getTags().get(0).getTagk());
+    assertNull(query.getFilter("f2"));
+    
+    query = getDefaultQueryBuilder()
+        .setFilters(null)
+        .setTime((Timespan) null)
+        .build();
+    assertNull(query.getFilter("f1"));
+    assertNull(query.getFilter("f2"));
+  }
+  
   @Test
   public void serialize() throws Exception {
     final TimeSeriesQuery query = TimeSeriesQuery.newBuilder().setExpressions(Arrays.asList(expression))

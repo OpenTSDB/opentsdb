@@ -64,17 +64,17 @@ public class IteratorTestUtils {
       shard.add(ts, ts);
     }
     
-    groups.addIterator(GROUP_A, shard);
-    groups.addIterator(GROUP_B, shard.getShallowCopy(null));
-    
-    shard = new NumericMillisecondShard(ID_B, 
-        new MillisecondTimeStamp(start), new MillisecondTimeStamp(end), order);
-    for (long ts = start; ts <= end; ts += interval) {
-      shard.add(ts, ts);
-    }
-    
-    groups.addIterator(GROUP_A, shard);
-    groups.addIterator(GROUP_B, shard.getShallowCopy(null));
+//    groups.addIterator(GROUP_A, shard);
+//    groups.addIterator(GROUP_B, shard.getShallowCopy(null));
+//    
+//    shard = new NumericMillisecondShard(ID_B, 
+//        new MillisecondTimeStamp(start), new MillisecondTimeStamp(end), order);
+//    for (long ts = start; ts <= end; ts += interval) {
+//      shard.add(ts, ts);
+//    }
+//    
+//    groups.addIterator(GROUP_A, shard);
+//    groups.addIterator(GROUP_B, shard.getShallowCopy(null));
     
     return groups;
   }

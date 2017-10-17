@@ -37,13 +37,13 @@ import net.opentsdb.data.DataMerger;
 import net.opentsdb.data.DataShardMerger;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.types.numeric.NumericMergeLargest;
+import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.execution.CachingQueryExecutor;
 import net.opentsdb.query.execution.DefaultQueryExecutorFactory;
 import net.opentsdb.query.execution.MetricShardingExecutor;
 import net.opentsdb.query.execution.MultiClusterQueryExecutor;
 import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.QueryExecutorFactory;
-import net.opentsdb.query.execution.StorageQueryExecutor;
 import net.opentsdb.query.execution.TimeSlicedCachingExecutor;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
@@ -91,6 +91,8 @@ public class Registry {
   /** The map of query plans. */
   private final Map<String, QueryPlannnerFactory<?>> query_plans;
   
+  private final Map<String, QueryNodeFactory> node_factories;
+  
   /** A concurrent map of shared objects used by various plugins such as 
    * connection pools, etc. */
   private final Map<String, Object> shared_objects;
@@ -119,6 +121,7 @@ public class Registry {
     clusters = Maps.newHashMapWithExpectedSize(1);
     serdes = Maps.newHashMapWithExpectedSize(1);
     query_plans = Maps.newHashMapWithExpectedSize(1);
+    node_factories = Maps.newHashMap();
     shared_objects = Maps.newConcurrentMap();
     cleanup_pool = Executors.newFixedThreadPool(1);
   }
@@ -208,6 +211,14 @@ public class Registry {
       return executor_graphs.get(null);
     }
     return executor_graphs.get(id);
+  }
+  
+  public void registerFactory(final QueryNodeFactory factory) {
+    node_factories.put(factory.id(), factory);
+  }
+  
+  public QueryNodeFactory getQueryNodeFactory(final String id) {
+    return node_factories.get(id);
   }
   
   /**
@@ -491,13 +502,13 @@ public class Registry {
               "MetricShardingExecutor");
       tsdb.getRegistry().registerFactory(executor_factory);
 
-      ctor = StorageQueryExecutor.class.getConstructor(
-              ExecutionGraphNode.class);
-      executor_factory = 
-          new DefaultQueryExecutorFactory<IteratorGroups>(
-              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class,
-                "StorageQueryExecutor");
-      tsdb.getRegistry().registerFactory(executor_factory);
+//      ctor = StorageQueryExecutor.class.getConstructor(
+//              ExecutionGraphNode.class);
+//      executor_factory = 
+//          new DefaultQueryExecutorFactory<IteratorGroups>(
+//              (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class,
+//                "StorageQueryExecutor");
+//      tsdb.getRegistry().registerFactory(executor_factory);
       
       ctor = MultiClusterQueryExecutor.class.getConstructor(
           ExecutionGraphNode.class);

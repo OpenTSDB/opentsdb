@@ -14,7 +14,6 @@ package net.opentsdb.query.plan;
 
 import java.util.List;
 
-import net.opentsdb.data.iterators.SlicedTimeSeriesIterator;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 /**
@@ -37,7 +36,7 @@ public abstract class TimeSlicedQueryPlanner<T> extends QueryPlanner<T> {
 
   /**
    * Merges a list of time ordered results into a single result set, likely
-   * using {@link SlicedTimeSeriesIterator}s. While the results list may not
+   * using SlicedTimeSeriesIterators. While the results list may not
    * be null, the individual entries may be null and they will be skipped
    * during merge. If the list is empty, the result will be an empty object (but
    * never null).
