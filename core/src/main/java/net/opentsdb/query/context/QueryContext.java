@@ -35,7 +35,7 @@ import com.stumbleupon.async.Deferred;
 
 import io.netty.util.Timer;
 import io.opentracing.Tracer;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.TimeStampComparator;
@@ -63,7 +63,7 @@ public abstract class QueryContext {
   private static final Logger LOG = LoggerFactory.getLogger(QueryContext.class);
   
   /** The TSDB to which we belong. */
-  protected final TSDB tsdb;
+  protected final DefaultTSDB tsdb;
   
   /** The "current" timestamp returned when {@link #syncTimestamp()} is 
    * called. */
@@ -128,7 +128,7 @@ public abstract class QueryContext {
    * @param executor_graph The non-null executor context to use.
    * @throws IllegalArgumentException if the TSDB was null.
    */
-  public QueryContext(final TSDB tsdb, 
+  public QueryContext(final DefaultTSDB tsdb, 
                       final ExecutionGraph executor_graph) {
     this(tsdb, executor_graph, (Tracer) null);
   }
@@ -140,7 +140,7 @@ public abstract class QueryContext {
    * @param tracer An optional tracer to use for tracking queries.
    * @throws IllegalArgumentException if the TSDB was null.
    */
-  public QueryContext(final TSDB tsdb, 
+  public QueryContext(final DefaultTSDB tsdb, 
                       final ExecutionGraph executor_graph,
                       final Tracer tracer) {
     if (tsdb == null) {
@@ -675,7 +675,7 @@ public abstract class QueryContext {
   }
   
   /** @return The TSDB this context is owned by. */
-  public TSDB getTSDB() {
+  public DefaultTSDB getTSDB() {
     return tsdb;
   }
   

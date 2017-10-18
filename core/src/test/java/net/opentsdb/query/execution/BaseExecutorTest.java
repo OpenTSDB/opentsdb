@@ -26,8 +26,8 @@ import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import io.opentracing.Span;
-import net.opentsdb.core.Registry;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
@@ -35,9 +35,9 @@ import net.opentsdb.query.pojo.TimeSeriesQuery;
 
 public class BaseExecutorTest {
   
-  protected TSDB tsdb;
+  protected DefaultTSDB tsdb;
   protected QueryContext context;
-  protected Registry registry;
+  protected DefaultRegistry registry;
   protected ExecutionGraph graph;
   protected Timer timer;
   protected Timeout timeout;
@@ -48,9 +48,9 @@ public class BaseExecutorTest {
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = mock(DefaultTSDB.class);
     context = mock(QueryContext.class);
-    registry = mock(Registry.class);
+    registry = mock(DefaultRegistry.class);
     graph = mock(ExecutionGraph.class);
     timer = mock(Timer.class);
     timeout = mock(Timeout.class);

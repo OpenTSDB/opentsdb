@@ -31,7 +31,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Span;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
@@ -40,14 +40,14 @@ import net.opentsdb.utils.DateTime;
 @PrepareForTest({ DateTime.class, GuavaLRUCache.class })
 public class TestGuavaLRUCache {
 
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   private Config config;
   private QueryContext context;
   private Span span;
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = mock(DefaultTSDB.class);
     config = new Config(false);
     context = mock(QueryContext.class);
     span = mock(Span.class);

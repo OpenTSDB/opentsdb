@@ -34,7 +34,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.stumbleupon.async.DeferredGroupException;
 
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.BaseTimeSeriesId;
@@ -61,7 +61,7 @@ import net.opentsdb.query.processor.TimeSeriesProcessor;
 import net.opentsdb.utils.Exceptions;
 
 public class TestJexlBinderProcessor {
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   private TimeSeriesGroupId group_id_a;
   private TimeSeriesGroupId group_id_b;
   
@@ -88,7 +88,7 @@ public class TestJexlBinderProcessor {
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = mock(DefaultTSDB.class);
     fills = Maps.newHashMap();
     fills.put("a", NumericFillPolicy.newBuilder()
         .setPolicy(FillPolicy.ZERO).build());

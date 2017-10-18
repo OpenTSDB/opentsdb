@@ -15,7 +15,7 @@ package net.opentsdb.query.execution.cache;
 import java.util.concurrent.TimeUnit;
 
 import io.opentracing.Span;
-import net.opentsdb.core.TsdbPlugin;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
 
@@ -34,7 +34,7 @@ import net.opentsdb.query.execution.QueryExecution;
  * </ul>
  * @since 3.0
  */
-public abstract class QueryCachePlugin extends TsdbPlugin {
+public abstract class QueryCachePlugin extends BaseTSDBPlugin {
 
   /**
    * Attempts to fetch a key from the cache. If no results were found, the 

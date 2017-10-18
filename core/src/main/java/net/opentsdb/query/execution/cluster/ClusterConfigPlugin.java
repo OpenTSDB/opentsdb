@@ -31,7 +31,7 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.core.TsdbPlugin;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.query.context.QueryContext;
 
 /**
@@ -44,7 +44,7 @@ import net.opentsdb.query.context.QueryContext;
  *
  * @since 3.0
  */
-public abstract class ClusterConfigPlugin extends TsdbPlugin {
+public abstract class ClusterConfigPlugin extends BaseTSDBPlugin {
   /** The config for this plugin. */
   protected Config config;
   

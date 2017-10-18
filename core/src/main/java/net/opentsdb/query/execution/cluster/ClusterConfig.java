@@ -35,7 +35,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.MultiClusterQueryExecutor;
 import net.opentsdb.query.execution.QueryExecutor;
@@ -49,7 +49,7 @@ import net.opentsdb.utils.PluginLoader;
  * <ul>
  * <li>A {@link ClusterConfigPlugin} Config describing one or more clusters
  * to execute queries against and a plugin implementation used to parse and
- * process that config, loaded during the  {@link #initialize(TSDB)} phase.</li>
+ * process that config, loaded during the  {@link #initialize(DefaultTSDB)} phase.</li>
  * <li>A {@link ExecutionGraph} configuration that will instantiate a graph
  * of one or more {@link QueryExecutor}s for use in queries.</li>
  * </ul>
@@ -108,7 +108,7 @@ public class ClusterConfig implements Comparable<ClusterConfig> {
    * @return A deferred to wait on for initialization to complete. Resolves to
    * null on success or an exception on failure.
    */
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final DefaultTSDB tsdb) {
     final String implementation_name;
     if (config.implementation().contains(".") || 
         config.implementation().endsWith("$Config")) {
@@ -247,7 +247,7 @@ public class ClusterConfig implements Comparable<ClusterConfig> {
    * @throws IllegalArgumentException if the cluster ID was null, empty or did
    * not exist in the cluster configuration.
    * @throws IllegalStateException if this method was called before 
-   * {@link #initialize(TSDB)}.
+   * {@link #initialize(DefaultTSDB)}.
    */
   public QueryExecutor<?> getSinkExecutor(final String cluster_id) {
     if (Strings.isNullOrEmpty(cluster_id)) {
@@ -282,7 +282,7 @@ public class ClusterConfig implements Comparable<ClusterConfig> {
    * TODO Doc exception
    * @throws IllegalArgumentException if the context was null. 
    * @throws IllegalStateException if this method was called before 
-   * {@link #initialize(TSDB)}.
+   * {@link #initialize(DefaultTSDB)}.
    */
   public List<String> setupQuery(final QueryContext context) {
     return setupQuery(context, null);
@@ -302,7 +302,7 @@ public class ClusterConfig implements Comparable<ClusterConfig> {
    * TODO Doc exception
    * @throws IllegalArgumentException if the context was null. 
    * @throws IllegalStateException if this method was called before 
-   * {@link #initialize(TSDB)}.
+   * {@link #initialize(DefaultTSDB)}.
    */
   public List<String> setupQuery(final QueryContext context, 
                                  final String override) {

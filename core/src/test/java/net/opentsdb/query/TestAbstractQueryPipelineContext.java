@@ -33,13 +33,13 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
 
 public class TestAbstractQueryPipelineContext {
 
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   private TimeSeriesQuery query;
   private QueryContext context;
   private QuerySink sink1;
@@ -47,7 +47,7 @@ public class TestAbstractQueryPipelineContext {
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = mock(DefaultTSDB.class);
     query = mock(TimeSeriesQuery.class);
     context = mock(QueryContext.class);
     sink1 = mock(QuerySink.class);
@@ -365,7 +365,7 @@ public class TestAbstractQueryPipelineContext {
     final TimeSeriesDataSource s1 = mock(TimeSeriesDataSource.class);
     final TimeSeriesDataSource s2 = mock(TimeSeriesDataSource.class);
     
-    public TestContext(TSDB tsdb, TimeSeriesQuery query, QueryContext context,
+    public TestContext(DefaultTSDB tsdb, TimeSeriesQuery query, QueryContext context,
         Collection<QuerySink> sinks) {
       super(tsdb, query, context, sinks);
     }

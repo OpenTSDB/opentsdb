@@ -30,7 +30,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.BaseTimeSeriesId;
@@ -47,7 +47,7 @@ import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 
 public class TestDefaultTimeSeriesProcessor {
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   private TimeSeriesGroupId group_id;
   private TimeSeriesId id_a;
   private TimeSeriesId id_b;
@@ -63,7 +63,7 @@ public class TestDefaultTimeSeriesProcessor {
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = mock(DefaultTSDB.class);
     group_id = new SimpleStringGroupId("Dothraki");
     id_a = BaseTimeSeriesId.newBuilder()
         .setAlias("Khaleesi")

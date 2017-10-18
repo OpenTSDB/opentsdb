@@ -35,6 +35,7 @@ import com.stumbleupon.async.Callback;
 
 import io.opentracing.Span;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
@@ -92,8 +93,8 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
       throw new IllegalArgumentException("Unable to find a caching plugin "
           + "for ID: " + ((Config) node.getDefaultConfig()).cache_id);
     }
-    serdes = (TimeSeriesSerdes<T>) node.graph().tsdb()
-        .getRegistry().getSerdes(
+    serdes = (TimeSeriesSerdes<T>) ((DefaultRegistry) node.graph().tsdb()
+        .getRegistry()).getSerdes(
             ((Config) node.getDefaultConfig()).serdes_id);
     if (serdes == null) {
       throw new IllegalArgumentException("Unable to find a serdes implementation "

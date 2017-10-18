@@ -26,8 +26,8 @@ import org.junit.Test;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
 
-import net.opentsdb.core.Registry;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -41,16 +41,16 @@ import net.opentsdb.utils.Config;
 
 public class TestTSDBV2Pipeline {
 
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   private Config config;
-  private Registry registry;
+  private DefaultRegistry registry;
   private MockDataStore mds;
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = mock(DefaultTSDB.class);
     config = new Config(false);
-    registry = mock(Registry.class);
+    registry = mock(DefaultRegistry.class);
     when(tsdb.getConfig()).thenReturn(config);
     when(tsdb.getRegistry()).thenReturn(registry);
     
@@ -59,6 +59,91 @@ public class TestTSDBV2Pipeline {
     mds = new MockDataStore();
     mds.initialize(tsdb).join();
     when(registry.getQueryNodeFactory(anyString())).thenReturn(mds);
+  }
+  
+  @Test
+  public void foo() throws Exception {
+    MockDataStore mds = new MockDataStore();
+    mds.initialize(tsdb).join();
+    
+    long start_ts = 1483228800000L;
+    long end_ts = 1483236000000l;
+    
+    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Long.toString(start_ts))
+            .setEnd(Long.toString(end_ts)))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user")
+            .setAggregator("mult")
+            .setFilter("f1")
+            .setId("m1"))
+        .addFilter(Filter.newBuilder()
+            .setId("f1")
+            .addFilter(TagVFilter.newBuilder()
+                .setFilter("*")
+                .setType("wildcard")
+                .setTagk("dc")
+                .setGroupBy(true)
+                )
+            )
+        .build();
+    
+    class TestListener implements QuerySink {
+      int on_next = 0;
+      int on_error = 0;
+      Deferred<Object> completed = new Deferred<Object>();
+      Deferred<Object> call_limit = new Deferred<Object>();
+      
+      @Override
+      public void onComplete() {
+        completed.callback(null);
+      }
+
+      @Override
+      public void onNext(QueryResult next) {
+        for (TimeSeries ts : next.timeSeries()) {
+          long timestamp = start_ts;
+          int values = 0;
+          System.out.println(ts.id());
+//          assertEquals("sys.cpu.user", ts.id().metric());
+          Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
+          while (it.hasNext()) {
+            TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+            System.out.println("  " + v.timestamp().msEpoch() + " " + v.value().toDouble());
+//            assertEquals(timestamp, v.timestamp().msEpoch());
+//            timestamp += MockDataStore.INTERVAL;
+//            values++;
+          }
+//          assertEquals((end_ts - start_ts) / MockDataStore.INTERVAL, values);
+        }
+        next.close();
+        on_next++;
+        if (on_next == 1) {
+          call_limit.callback(null);
+        }
+      }
+
+      @Override
+      public void onError(Throwable t) {
+        on_error++;
+      }
+      
+    }
+    
+    TestListener listener = new TestListener();
+    QueryContext ctx = DefaultQueryContextBuilder.newBuilder(tsdb)
+        .setQuery(query)
+        .setMode(QueryMode.SINGLE)
+        .addQuerySink(listener)
+        .build();
+    ctx.fetchNext();
+    
+    listener.completed.join(1000);
+    listener.call_limit.join(1000);
+    assertEquals(1, listener.on_next);
+    assertEquals(0, listener.on_error);
+    mds.shutdown().join();
   }
   
   @Test

@@ -50,6 +50,7 @@ import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.AbstractQueryNode;
+import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
@@ -90,7 +91,7 @@ public class MockDataStore extends TimeSeriesDataStore implements QueryNodeFacto
   @Override
   public QueryNode newNode(final QueryPipelineContext context,
                            final QueryNodeConfig config) {
-    return new LocalNode(context, (QuerySourceConfig) config);
+    return new LocalNode(this, context, (QuerySourceConfig) config);
   }
   
   @Override
@@ -306,9 +307,10 @@ public class MockDataStore extends TimeSeriesDataStore implements QueryNodeFacto
     private AtomicBoolean completed = new AtomicBoolean();
     private QuerySourceConfig config;
     
-    public LocalNode(final QueryPipelineContext context, 
+    public LocalNode(final QueryNodeFactory factory,
+                     final QueryPipelineContext context, 
                      final QuerySourceConfig config) {
-      super(context);
+      super(factory, context);
       this.config = config;
     }
     
@@ -340,7 +342,7 @@ public class MockDataStore extends TimeSeriesDataStore implements QueryNodeFacto
     
     @Override
     public String id() {
-      return config.id();
+      return config.getId();
     }
     
     @Override
@@ -642,6 +644,33 @@ public class MockDataStore extends TimeSeriesDataStore implements QueryNodeFacto
         }
       }
     }
+  }
+
+  
+  @Override
+  public void registerIteratorFactory(final TypeToken<?> type,
+                                      final QueryIteratorFactory factory) {
+    throw new UnsupportedOperationException("Not implemented.");
+  }
+
+  @Override
+  public Iterator<TimeSeriesValue<?>> newIterator(final TypeToken<?> type,
+                                                  final QueryNode node, 
+                                                  final Collection<TimeSeries> sources) {
+    throw new UnsupportedOperationException("Not implemented.");
+  }
+
+  @Override
+  public Iterator<TimeSeriesValue<?>> newIterator(final TypeToken<?> type,
+                                                  final QueryNode node, 
+                                                  final Map<String, TimeSeries> sources) {
+    throw new UnsupportedOperationException("Not implemented.");
+  }
+
+  
+  @Override
+  public Collection<TypeToken<?>> types() {
+    return Lists.newArrayList(NumericType.TYPE);
   }
   
 }

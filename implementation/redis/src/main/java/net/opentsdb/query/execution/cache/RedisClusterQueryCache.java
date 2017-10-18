@@ -26,6 +26,7 @@ import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Span;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;

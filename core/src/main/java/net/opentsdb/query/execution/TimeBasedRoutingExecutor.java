@@ -38,6 +38,7 @@ import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Span;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.data.iterators.DefaultIteratorGroups;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.query.context.QueryContext;
@@ -318,7 +319,7 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
         
         final String plan_id = Strings.isNullOrEmpty(config.getPlannerId()) ? 
             ((Config) node.getDefaultConfig()).getPlannerId() : config.getPlannerId();
-        final QueryPlannnerFactory<?> plan_factory = context.getTSDB().getRegistry()
+        final QueryPlannnerFactory<?> plan_factory = ((DefaultRegistry) context.getTSDB().getRegistry())
             .getQueryPlanner(plan_id);
         if (plan_factory == null) {
           throw new IllegalArgumentException("No such query plan factory: " 

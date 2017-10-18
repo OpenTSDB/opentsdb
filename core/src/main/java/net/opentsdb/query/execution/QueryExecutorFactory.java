@@ -14,7 +14,7 @@ package net.opentsdb.query.execution;
 
 import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.core.TsdbPlugin;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 
@@ -30,7 +30,7 @@ import net.opentsdb.query.execution.graph.ExecutionGraphNode;
  * 
  * @since 3.0
  */
-public abstract class QueryExecutorFactory<T> extends TsdbPlugin {
+public abstract class QueryExecutorFactory<T> extends BaseTSDBPlugin {
 
   /** @return The ID of the executor instantiated by this factory. */
   public abstract String id();

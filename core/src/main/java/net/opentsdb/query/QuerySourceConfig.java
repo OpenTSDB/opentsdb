@@ -35,7 +35,7 @@ public class QuerySourceConfig implements QueryNodeConfig {
   }
   
   @Override
-  public String id() {
+  public String getId() {
     return id;
   }
   

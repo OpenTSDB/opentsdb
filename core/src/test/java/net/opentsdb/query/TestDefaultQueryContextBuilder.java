@@ -24,7 +24,7 @@ import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.stats.MockStats;
 import net.opentsdb.stats.MockTracer;
 import net.opentsdb.stats.QueryStats;
@@ -32,14 +32,14 @@ import net.opentsdb.stats.QueryStats;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ DefaultQueryContextBuilder.class })
 public class TestDefaultQueryContextBuilder {
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   private TSDBV2Pipeline pipeline_context;
   private TimeSeriesQuery query;
   private QuerySink sink;
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = mock(DefaultTSDB.class);
     pipeline_context = mock(TSDBV2Pipeline.class);
     query = mock(TimeSeriesQuery.class);
     sink = mock(QuerySink.class);

@@ -14,7 +14,7 @@ package net.opentsdb.core;
 
 import java.util.NoSuchElementException;
 
-import net.opentsdb.core.Aggregators.Interpolation;
+import net.opentsdb.data.types.numeric.Aggregators.Interpolation;
 
 /**
  * A function capable of aggregating multiple {@code DataPoints} together.

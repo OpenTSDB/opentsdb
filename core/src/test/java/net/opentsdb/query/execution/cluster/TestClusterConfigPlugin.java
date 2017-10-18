@@ -32,7 +32,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.TimedQueryExecutor;
 import net.opentsdb.query.execution.cluster.TestClusterConfigPlugin.UTPlugin.Config;
@@ -40,12 +40,12 @@ import net.opentsdb.utils.JSON;
 
 public class TestClusterConfigPlugin {
 
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   private QueryContext context;
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = mock(DefaultTSDB.class);
     context = mock(QueryContext.class);
   }
   

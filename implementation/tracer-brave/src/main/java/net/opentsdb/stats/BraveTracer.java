@@ -25,6 +25,7 @@ import com.google.common.collect.Sets;
 import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Tracer;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
 import zipkin.BinaryAnnotation;
 import zipkin.Span;

@@ -23,5 +23,5 @@ public interface QueryNodeConfig {
   /**
    * @return The ID of the node in this config.
    */
-  public String id();
+  public String getId();
 }

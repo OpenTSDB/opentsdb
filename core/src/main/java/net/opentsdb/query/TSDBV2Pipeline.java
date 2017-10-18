@@ -16,8 +16,13 @@ import java.util.Collection;
 
 import com.google.common.base.Strings;
 
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.data.types.numeric.NumericInterpolatorFactories;
+import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
+import net.opentsdb.query.processor.groupby.GroupByFactory;
+import net.opentsdb.query.processor.groupby.GroupByConfig;
 
 /**
  * Context pipeline that implements OpenTSDB 2.x's query operations.
@@ -36,7 +41,7 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
   * @param sinks A collection of one or more sinks to publish to.
   * @throws IllegalArgumentException if any argument was null.
   */
-  public TSDBV2Pipeline(final TSDB tsdb, 
+  public TSDBV2Pipeline(final DefaultTSDB tsdb, 
                         final TimeSeriesQuery query, 
                         final QueryContext context,
                         final Collection<QuerySink> sinks) {
@@ -64,10 +69,37 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
           .build();
       
       // TODO - get a proper source. For now just the default.
-      final QueryNode node = tsdb.getRegistry()
+      QueryNode node = tsdb.getRegistry()
           .getQueryNodeFactory(null)
           .newNode(this, config);
       addVertex(node);
+      
+      Filter filter = Strings.isNullOrEmpty(metric.getFilter()) ? null : q.getFilter(metric.getFilter());
+      if (filter != null) {
+        GroupByConfig.Builder gb_config = null;
+        for (TagVFilter v : filter.getTags()) {
+          if (v.isGroupBy()) {
+            if (gb_config == null) {
+              gb_config = GroupByConfig.newBuilder()
+                  .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactories.Null())
+                  .setId("groupBy_" + metric.getId());
+            }
+            gb_config.addTagKey(v.getTagk());
+          }
+        }
+        
+        if (gb_config != null) {
+          gb_config.setAggregator( 
+              !Strings.isNullOrEmpty(metric.getAggregator()) ?
+              metric.getAggregator() : q.getTime().getAggregator());
+          
+          QueryNode gb = new GroupByFactory().newNode(this, gb_config.build());
+          addVertex(gb);
+          addDagEdge(gb, node);
+          node = gb;
+        }
+      }
+      
       addDagEdge(this, node);
     }
     

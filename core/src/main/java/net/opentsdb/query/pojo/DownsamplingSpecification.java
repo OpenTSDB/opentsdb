@@ -18,7 +18,8 @@ import java.util.TimeZone;
 import com.google.common.base.MoreObjects;
 
 import net.opentsdb.core.Aggregator;
-import net.opentsdb.core.Aggregators;
+import net.opentsdb.data.types.numeric.Aggregators;
+import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -34,7 +35,7 @@ public final class DownsamplingSpecification {
   public static final long NO_INTERVAL = 0L;
 
   /** Special value representing no downsampling function given. */
-  public static final Aggregator NO_FUNCTION = null;
+  public static final NumericAggregator NO_FUNCTION = null;
 
   /** The default fill policy. */
   public static final FillPolicy DEFAULT_FILL_POLICY = FillPolicy.NONE;
@@ -46,7 +47,7 @@ public final class DownsamplingSpecification {
   private final String string_interval;
   
   // Parsed downsampler function.
-  private final Aggregator function;
+  private final NumericAggregator function;
   
   // Parsed fill policy: whether to interpolate or to fill.
   private final FillPolicy fill_policy;
@@ -78,7 +79,7 @@ public final class DownsamplingSpecification {
    * @deprecated since 2.3
    */
   public DownsamplingSpecification(final long interval,
-      final Aggregator function, final FillPolicy fill_policy) {
+      final NumericAggregator function, final FillPolicy fill_policy) {
     if (null == function) {
       throw new IllegalArgumentException("downsampling function cannot be null");
     }
@@ -215,7 +216,7 @@ public final class DownsamplingSpecification {
    * Get the downsampling function.
    * @return the downsampling function.
    */
-  public Aggregator getFunction() {
+  public NumericAggregator getFunction() {
     return function;
   }
 
