@@ -56,6 +56,46 @@ public class TestMutableNumericType {
     assertFalse(dp.isInteger());
     assertEquals(42.5, dp.doubleValue(), 0.001);
     
+    class IntDP implements NumericType {
+      @Override
+      public boolean isInteger() { return true; }
+
+      @Override
+      public long longValue() { return 42; }
+
+      @Override
+      public double doubleValue() { throw new ClassCastException(); }
+
+      @Override
+      public double toDouble() { return 42D; }
+    }
+    
+    dp = new MutableNumericType(ts, new IntDP());
+    assertNotSame(ts, dp.timestamp());
+    assertEquals(1, dp.timestamp().msEpoch());
+    assertTrue(dp.isInteger());
+    assertEquals(42, dp.longValue());
+    
+    class FloatDP implements NumericType {
+      @Override
+      public boolean isInteger() { return false; }
+
+      @Override
+      public long longValue() { throw new ClassCastException(); }
+
+      @Override
+      public double doubleValue() { return 42.5D; }
+
+      @Override
+      public double toDouble() { return 42.5D; }
+    }
+    
+    dp = new MutableNumericType(ts, new FloatDP());
+    assertNotSame(ts, dp.timestamp());
+    assertEquals(1, dp.timestamp().msEpoch());
+    assertFalse(dp.isInteger());
+    assertEquals(42.5, dp.doubleValue(), 0.001);
+    
     try {
       new MutableNumericType(null, 42);
       fail("Expected IllegalArgumentException");
@@ -68,6 +108,16 @@ public class TestMutableNumericType {
     
     try {
       new MutableNumericType((TimeSeriesValue<NumericType>) null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      new MutableNumericType(null, new IntDP());
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      new MutableNumericType(ts, (NumericType) null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -101,6 +151,71 @@ public class TestMutableNumericType {
     assertEquals(3, dupe.timestamp().msEpoch());
     assertFalse(dupe.isInteger());
     assertEquals(24.5, dupe.doubleValue(), 0.001);
+    
+    class IntDP implements NumericType {
+      @Override
+      public boolean isInteger() { return true; }
+
+      @Override
+      public long longValue() { return 42; }
+
+      @Override
+      public double doubleValue() { throw new ClassCastException(); }
+
+      @Override
+      public double toDouble() { return 42D; }
+    }
+    
+    dp.reset(ts, new IntDP());
+    assertNotSame(ts, dp.timestamp());
+    assertEquals(1, dp.timestamp().msEpoch());
+    assertTrue(dp.isInteger());
+    assertEquals(42, dp.longValue());
+    
+    class FloatDP implements NumericType {
+      @Override
+      public boolean isInteger() { return false; }
+
+      @Override
+      public long longValue() { throw new ClassCastException(); }
+
+      @Override
+      public double doubleValue() { return 42.5D; }
+
+      @Override
+      public double toDouble() { return 42.5D; }
+    }
+    
+    dp.reset(ts, new FloatDP());
+    assertNotSame(ts, dp.timestamp());
+    assertEquals(1, dp.timestamp().msEpoch());
+    assertFalse(dp.isInteger());
+    assertEquals(42.5, dp.doubleValue(), 0.001);
+    
+    try {
+      dp.reset(null, 42);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      dp.reset(null, 42.5D);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      dp.reset((TimeSeriesValue<NumericType>) null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      dp.reset(null, new IntDP());
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      dp.reset(ts, (NumericType) null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
   }
 
 }

@@ -35,8 +35,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbPlugin;
+import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.Bytes;
@@ -49,7 +49,7 @@ import net.opentsdb.utils.Bytes;
  * 
  * @since 1.0
  */
-public abstract class UniqueId extends TsdbPlugin {
+public abstract class UniqueId extends BaseTSDBPlugin {
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
 
   /** Enumerator for different types of UIDS @since 2.0 */
@@ -81,7 +81,7 @@ public abstract class UniqueId extends TsdbPlugin {
 //  private static final short MAX_SUGGESTIONS = 25;
 
   /** The TSDB this implementation belongs to. */
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   
   /** The type of UniqueID this UID implementation is working with. */
   private UniqueIdType type;

@@ -12,7 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.stats;
 
-import net.opentsdb.core.TsdbPlugin;
+import net.opentsdb.core.BaseTSDBPlugin;
 
 /**
  * A plugin abstraction definition used for implementations of the OpenTracing
@@ -20,7 +20,7 @@ import net.opentsdb.core.TsdbPlugin;
  * 
  * @since 3.0
  */
-public abstract class TsdbTracer extends TsdbPlugin {
+public abstract class TsdbTracer extends BaseTSDBPlugin {
 
   /**
    * Returns a new tracer for an operation. Uses the service name from the 

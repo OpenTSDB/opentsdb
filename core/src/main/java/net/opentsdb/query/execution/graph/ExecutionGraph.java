@@ -40,7 +40,8 @@ import com.google.common.hash.Hashing;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.QueryExecutorFactory;
 
@@ -51,10 +52,10 @@ import net.opentsdb.query.execution.QueryExecutorFactory;
  * <p>
  * Note that the builder is used to instantiate the object (via code or JSON
  * deserialization) but the graph will not be ready to use until 
- * {@link #initialize(TSDB)} is called.
+ * {@link #initialize(DefaultTSDB)} is called.
  * <p>
  * If the graph is part of a cluster or a sub config, give a unique prefix
- * to {@link #initialize(TSDB, String)} and all executors and configs will be
+ * to {@link #initialize(DefaultTSDB, String)} and all executors and configs will be
  * pre-pended with the prefix. That will allow users to override configs at
  * query time.
  * <p>
@@ -75,7 +76,7 @@ import net.opentsdb.query.execution.QueryExecutorFactory;
 @JsonDeserialize(builder = ExecutionGraph.Builder.class)
 public class ExecutionGraph implements Comparable<ExecutionGraph> {
   /** The TSDB to which this graph belongs. */
-  protected TSDB tsdb;
+  protected DefaultTSDB tsdb;
   
   /** The ID of this execution graph. */
   protected String id;
@@ -115,7 +116,7 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
    * an exception if the graph does not conform to specs.
    * @throws IllegalArgumentException if the TSDB was null.
    */
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public Deferred<Object> initialize(final DefaultTSDB tsdb) {
     return initialize(tsdb, null);
   }
   
@@ -129,7 +130,7 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
    * an exception if the graph does not conform to specs.
    * @throws IllegalArgumentException if the TSDB was null.
    */
-  public Deferred<Object> initialize(final TSDB tsdb, final String id_prefix) {
+  public Deferred<Object> initialize(final DefaultTSDB tsdb, final String id_prefix) {
     if (tsdb == null) {
       throw new IllegalArgumentException("TSDB cannot be null.");
     }
@@ -214,7 +215,7 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
     
     // init an executor
     final QueryExecutorFactory<?> factory = 
-        tsdb.getRegistry().getFactory(node.getExecutorType());
+        ((DefaultRegistry) tsdb.getRegistry()).getFactory(node.getExecutorType());
     if (factory == null) {
       throw new IllegalArgumentException("No factory "
           + "found for executor: " + node.getExecutorType());
@@ -286,7 +287,7 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
   }
   
   /** The TSDB this graph belongs to. */
-  public TSDB tsdb() {
+  public DefaultTSDB tsdb() {
     return tsdb;
   }
   
@@ -351,7 +352,7 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
   
   /**
    * Clones a graph, returning a builder. <b>NOTE:</b> The cloned graph must be
-   * initialized via {@link #initialize(TSDB)}.
+   * initialized via {@link #initialize(DefaultTSDB)}.
    * @param graph A non-null graph to clone from.
    * @return A cloned builder using configs from the source graph.
    */

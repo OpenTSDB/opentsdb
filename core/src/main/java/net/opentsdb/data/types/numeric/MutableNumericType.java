@@ -78,6 +78,30 @@ public final class MutableNumericType implements NumericType,
   }
 
   /**
+   * Initializes the data point with a timestamp and value, making copies of the
+   * arguments.
+   * @param timestamp A non-null timestamp.
+   * @param value A numeric value.
+   * @throws IllegalArgumentException if the timestamp or value was null.
+   */
+  public MutableNumericType(final TimeStamp timestamp, final NumericType value) {
+    if (timestamp == null) {
+      throw new IllegalArgumentException("Timestamp cannot be null.");
+    }
+    if (value == null) {
+      throw new IllegalArgumentException("Value cannot be null.");
+    }
+    this.timestamp = timestamp.getCopy();
+    if (value.isInteger()) {
+      is_integer = true;
+      this.value = value.longValue();
+    } else {
+      is_integer = false;
+      this.value = Double.doubleToRawLongBits(value.doubleValue());
+    }
+  }
+  
+  /**
    * Initialize the data point from the given value, copying the timestamp
    * but passing the reference to the ID.
    * @param value A non-null value to copy from.
@@ -176,12 +200,35 @@ public final class MutableNumericType implements NumericType,
     if (value.timestamp() == null) {
       throw new IllegalArgumentException("Value's timestamp cannot be null");
     }
-    timestamp = value.timestamp().getCopy();
+    timestamp.update(value.timestamp());
     this.value = value.value().isInteger() ? value.value().longValue() : 
       Double.doubleToRawLongBits(value.value().doubleValue());
     is_integer = value.value().isInteger();
   }
 
+  /**
+   * Resets the local value by copying the timestamp and value from the arguments.
+   * @param A non-null timestamp.
+   * @param value A numeric value.
+   * @throws IllegalArgumentException if the timestamp or value was null.
+   */
+  public void reset(final TimeStamp timestamp, final NumericType value) {
+    if (timestamp == null) {
+      throw new IllegalArgumentException("Timestamp cannot be null.");
+    }
+    if (value == null) {
+      throw new IllegalArgumentException("Value cannot be null.");
+    }
+    this.timestamp.update(timestamp);
+    if (value.isInteger()) {
+      is_integer = true;
+      this.value = value.longValue();
+    } else {
+      is_integer = false;
+      this.value = Double.doubleToRawLongBits(value.doubleValue());
+    }
+  }
+  
   @Override
   public TypeToken<NumericType> type() {
     return NumericType.TYPE;

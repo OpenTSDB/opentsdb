@@ -15,7 +15,8 @@ package net.opentsdb.query.pojo;
 import org.junit.Test;
 
 import net.opentsdb.core.Aggregator;
-import net.opentsdb.core.Aggregators;
+import net.opentsdb.data.types.numeric.Aggregators;
+import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.utils.DateTime;
 
 import static org.junit.Assert.assertEquals;
@@ -27,13 +28,13 @@ import java.util.TimeZone;
 public class TestDownsamplingSpecification {
   final long interval = 60000L;
   final FillPolicy fill_policy = FillPolicy.ZERO;
-  final Aggregator function = Aggregators.SUM;
+  final NumericAggregator function = Aggregators.SUM;
   final TimeZone timezone = DateTime.timezones.get(DateTime.UTC_ID);
   
   @Test
   public void testCtor() {
     final long interval = 1234567L;
-    final Aggregator function = Aggregators.SUM;
+    final NumericAggregator function = Aggregators.SUM;
     final FillPolicy fill_policy = FillPolicy.ZERO;
 
     final DownsamplingSpecification ds = new DownsamplingSpecification(

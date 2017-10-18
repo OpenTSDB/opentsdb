@@ -17,7 +17,7 @@ import java.util.List;
 
 import com.google.common.collect.Lists;
 
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.Span;
 
@@ -30,7 +30,7 @@ import net.opentsdb.stats.Span;
  */
 public class DefaultQueryContextBuilder implements QueryContextBuilder {
   /** The TSDB to pull configs and settings from. */
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   
   /** The list of sinks to callback with results. */
   private List<QuerySink> sinks;
@@ -53,7 +53,7 @@ public class DefaultQueryContextBuilder implements QueryContextBuilder {
    * @return The builder.
    * @throws IllegalArgumentException if the TSDB object was null.
    */
-  public static QueryContextBuilder newBuilder(final TSDB tsdb) {
+  public static QueryContextBuilder newBuilder(final DefaultTSDB tsdb) {
     if (tsdb == null) {
       throw new IllegalArgumentException("TSDB cannot be null.");
     }

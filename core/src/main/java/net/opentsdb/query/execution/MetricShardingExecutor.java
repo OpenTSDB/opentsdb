@@ -35,6 +35,7 @@ import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Span;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.data.DataMerger;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
@@ -92,8 +93,8 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
           + "greater.");
     }
     default_parallel_executors = ((Config) node.getDefaultConfig()).parallel_executors;
-    default_data_merger = (DataMerger<T>) node.graph().tsdb()
-        .getRegistry().getDataMerger(
+    default_data_merger = (DataMerger<T>) ((DefaultRegistry) node.graph().tsdb()
+        .getRegistry()).getDataMerger(
             ((Config) node.getDefaultConfig()).merge_strategy);
     if (default_data_merger == null) {
       throw new IllegalArgumentException("No data merger found for: " 

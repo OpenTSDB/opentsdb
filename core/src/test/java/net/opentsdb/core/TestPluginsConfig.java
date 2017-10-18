@@ -47,7 +47,7 @@ import net.opentsdb.utils.PluginLoader;
 /**
  * <B>NOTE:</b> This class depends on the behavior of {@link PluginLoader} from
  * the TSDB common class as well as
- * {@link Registry#registerPlugin(Class, String, TsdbPlugin)}'s behavior.
+ * {@link DefaultRegistry#registerPlugin(Class, String, BaseTSDBPlugin)}'s behavior.
  */
 public class TestPluginsConfig {
   private static int ORDER = 0;
@@ -608,7 +608,7 @@ public class TestPluginsConfig {
     } catch (PluginLoadException e) { }
     
     verify(config, never()).registerPlugin(any(Class.class), anyString(), 
-        any(TsdbPlugin.class));
+        any(BaseTSDBPlugin.class));
   }
   
   @Test
@@ -628,7 +628,7 @@ public class TestPluginsConfig {
     } catch (PluginLoadException e) { }
     
     verify(config, never()).registerPlugin(any(Class.class), anyString(), 
-        any(TsdbPlugin.class));
+        any(BaseTSDBPlugin.class));
   }
   
   @Test
@@ -932,10 +932,10 @@ public class TestPluginsConfig {
         any(MockPluginBase.class));
     verify(config, never()).registerPlugin(eq(clazz), 
         eq("net.MockPluginBase.core.TestPluginsConfig.MockPluginB"), 
-        any(TsdbPlugin.class));
+        any(BaseTSDBPlugin.class));
     verify(config, never()).registerPlugin(eq(clazz), 
         eq("net.MockPluginBase.core.TestPluginsConfig.MockPluginC"), 
-        any(TsdbPlugin.class));
+        any(BaseTSDBPlugin.class));
   }
   
   @Test
@@ -1152,7 +1152,7 @@ public class TestPluginsConfig {
   
   /** -------- MOCKS ---------- **/
   
-  public static abstract class MockPluginBase extends TsdbPlugin { }
+  public static abstract class MockPluginBase extends BaseTSDBPlugin { }
   
   public static class MockPluginA extends MockPluginBase {
     public int order = -1;
@@ -1230,7 +1230,7 @@ public class TestPluginsConfig {
     }
   }
   
-  public static abstract class MockPluginBaseClean extends TsdbPlugin { }
+  public static abstract class MockPluginBaseClean extends BaseTSDBPlugin { }
   
   public static class MockPluginCleanA extends MockPluginBaseClean {
     public int order = -1;
@@ -1312,5 +1312,5 @@ public class TestPluginsConfig {
     }
   }
 
-  public static abstract class MockPluginBaseWrongType extends TsdbPlugin { }
+  public static abstract class MockPluginBaseWrongType extends BaseTSDBPlugin { }
 }

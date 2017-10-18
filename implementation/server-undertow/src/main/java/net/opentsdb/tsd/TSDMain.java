@@ -40,7 +40,7 @@ import io.undertow.server.handlers.PathHandler;
 import io.undertow.servlet.Servlets;
 import io.undertow.servlet.api.DeploymentInfo;
 import io.undertow.servlet.api.DeploymentManager;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.utils.ArgP;
 import net.opentsdb.utils.CliOptions;
@@ -59,7 +59,7 @@ public class TSDMain {
   public static final String DEFAULT_PATH = "/";
   
   /** The TSD reference. Static so we can shutdown gracefully. */
-  private static TSDB tsdb = null;
+  private static DefaultTSDB tsdb = null;
   
   /** The Undertwo server reference. Static so we can shutdown gracefully. */
   private static Undertow server = null;
@@ -118,7 +118,7 @@ public class TSDMain {
     boolean load_plugins = config.hasProperty("tsd.core.load_plugins") ? 
         config.getBoolean("tsd.core.load_plugins") : true;
     
-    tsdb = new TSDB(config);
+    tsdb = new DefaultTSDB(config);
     if (load_plugins) {
       try {
         // if the plugins don't load within 5 minutes, something is TERRIBLY

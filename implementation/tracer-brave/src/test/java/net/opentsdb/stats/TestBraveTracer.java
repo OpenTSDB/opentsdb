@@ -33,7 +33,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.utils.Config;
 import zipkin.Span;
 import zipkin.reporter.AsyncReporter;
@@ -44,7 +44,7 @@ import zipkin.reporter.okhttp3.OkHttpSender;
   AsyncReporter.Builder.class, OkHttpSender.class })
 public class TestBraveTracer {
 
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   private Config config;
   private OkHttpSender sender;
   private AsyncReporter<zipkin.Span> reporter;
@@ -55,7 +55,7 @@ public class TestBraveTracer {
   @SuppressWarnings("unchecked")
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = mock(DefaultTSDB.class);
     config = new Config(false);
     sender = mock(OkHttpSender.class);
     reporter = mock(AsyncReporter.class);

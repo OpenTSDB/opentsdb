@@ -40,7 +40,7 @@ import net.opentsdb.utils.PluginLoader;
 /**
  * The configuration class that handles loading, initializing and shutting down
  * of TSDB plugins. It should ONLY be instantiated and dealt with via the 
- * {@link Registry}.
+ * {@link DefaultRegistry}.
  * <p>
  * The class allows for plugin initialization ordering in that initialization
  * occurs by iterating over the {@link #configs} in order. Each initialization
@@ -104,11 +104,11 @@ public class PluginsConfig extends Validatable {
   private boolean shutdown_reverse = true;
   
   /** The list of configured and instantiated plugins. */
-  private List<TsdbPlugin> instantiated_plugins;
+  private List<BaseTSDBPlugin> instantiated_plugins;
   
   /** The map of plugins loaded by the TSD. This includes the 
    * {@link #instantiated_plugins} as well as those registered. */
-  private final Map<Class<?>, Map<String, TsdbPlugin>> plugins;
+  private final Map<Class<?>, Map<String, TSDBPlugin>> plugins;
   
   /** Default ctor */
   public PluginsConfig() {
@@ -175,7 +175,7 @@ public class PluginsConfig extends Validatable {
    */
   public void registerPlugin(final Class<?> clazz, 
                              final String id, 
-                             final TsdbPlugin plugin) {
+                             final TSDBPlugin plugin) {
     if (clazz == null) {
       throw new IllegalArgumentException("Class cannot be null.");
     }
@@ -186,12 +186,12 @@ public class PluginsConfig extends Validatable {
       throw new IllegalArgumentException("Plugin [" + plugin 
           + "] is not an instance of class: " + clazz);
     }
-    Map<String, TsdbPlugin> class_map = plugins.get(clazz);
+    Map<String, TSDBPlugin> class_map = plugins.get(clazz);
     if (class_map == null) {
       class_map = Maps.newHashMapWithExpectedSize(1);
       plugins.put(clazz, class_map);
     } else {
-      final TsdbPlugin extant = class_map.get(id);
+      final TSDBPlugin extant = class_map.get(id);
       if (extant != null) {
         throw new IllegalArgumentException("Plugin with ID [" + id 
             + "] and class [" + clazz + "] already exists: " + extant);
@@ -207,7 +207,7 @@ public class PluginsConfig extends Validatable {
    * @return An instantiated plugin if found, null if not.
    * @throws IllegalArgumentException if the clazz was null.
    */
-  public TsdbPlugin getDefaultPlugin(final Class<?> clazz) {
+  public TSDBPlugin getDefaultPlugin(final Class<?> clazz) {
     return getPlugin(clazz, null);
   }
   
@@ -218,11 +218,11 @@ public class PluginsConfig extends Validatable {
    * @return An instantiated plugin if found, null if not.
    * @throws IllegalArgumentException if the clazz was null.
    */
-  public TsdbPlugin getPlugin(final Class<?> clazz, final String id) {
+  public TSDBPlugin getPlugin(final Class<?> clazz, final String id) {
     if (clazz == null) {
       throw new IllegalArgumentException("Class cannot be null.");
     }
-    final Map<String, TsdbPlugin> class_map = plugins.get(clazz);
+    final Map<String, TSDBPlugin> class_map = plugins.get(clazz);
     if (class_map == null) {
       return null;
     }
@@ -344,7 +344,7 @@ public class PluginsConfig extends Validatable {
               
               // load specific
               final Class<?> type = Class.forName(plugin_config.getType());
-              final TsdbPlugin plugin = (TsdbPlugin) PluginLoader
+              final BaseTSDBPlugin plugin = (BaseTSDBPlugin) PluginLoader
                   .loadSpecificPlugin(plugin_config.getPlugin(), type);
               if (plugin == null) {
                 throw new RuntimeException("No plugin found for type: " 
@@ -370,8 +370,8 @@ public class PluginsConfig extends Validatable {
             } else {
               // load all plugins of a type.
               final Class<?> type = Class.forName(plugin_config.getType());
-              final List<TsdbPlugin> plugins = 
-                  (List<TsdbPlugin>) PluginLoader.loadPlugins(type);
+              final List<BaseTSDBPlugin> plugins = 
+                  (List<BaseTSDBPlugin>) PluginLoader.loadPlugins(type);
               
               if (plugins == null || plugins.isEmpty()) {
                 LOG.info("No plugins found for type: " + type);
@@ -383,7 +383,7 @@ public class PluginsConfig extends Validatable {
               } else {
                 final List<Deferred<Object>> deferreds = 
                     Lists.newArrayListWithCapacity(plugins.size());
-                for (final TsdbPlugin plugin : plugins) {
+                for (final BaseTSDBPlugin plugin : plugins) {
                   deferreds.add(plugin.initialize(tsdb));
                   final PluginConfig waiting = new PluginConfig();
                   waiting.setPlugin(plugin.getClass().getCanonicalName());
@@ -461,10 +461,10 @@ public class PluginsConfig extends Validatable {
     
     /** Error handler that continues shutdown with the next plugin. */
     class ErrorCB implements Callback<Object, Exception> {
-      final TsdbPlugin plugin;
+      final TSDBPlugin plugin;
       final Callback<Object, Object> downstream;
       
-      ErrorCB(final TsdbPlugin plugin, final Callback<Object, Object> downstream) {
+      ErrorCB(final TSDBPlugin plugin, final Callback<Object, Object> downstream) {
         this.plugin = plugin;
         this.downstream = downstream;
       }
@@ -489,10 +489,10 @@ public class PluginsConfig extends Validatable {
     
     /** Shuts down the given plugin and continues downstream. */
     class SuccessCB implements Callback<Object, Object> {
-      final TsdbPlugin plugin;
+      final TSDBPlugin plugin;
       final SuccessCB downstream;
       
-      SuccessCB(final TsdbPlugin plugin, final SuccessCB downstream) {
+      SuccessCB(final TSDBPlugin plugin, final SuccessCB downstream) {
         this.plugin = plugin;
         this.downstream = downstream;
       }
@@ -547,8 +547,8 @@ public class PluginsConfig extends Validatable {
     }
     
     // now add any other plugin that snuck in another way.
-    for (final Map<String, TsdbPlugin> named_plugins : plugins.values()) {
-      for (final TsdbPlugin plugin : named_plugins.values()) {
+    for (final Map<String, TSDBPlugin> named_plugins : plugins.values()) {
+      for (final TSDBPlugin plugin : named_plugins.values()) {
         if (instantiated_plugins.contains(plugin)) {
           continue;
         }
@@ -647,7 +647,7 @@ public class PluginsConfig extends Validatable {
   }
   
   @VisibleForTesting
-  List<TsdbPlugin> instantiatedPlugins() {
+  List<BaseTSDBPlugin> instantiatedPlugins() {
     return instantiated_plugins;
   }
   
@@ -673,7 +673,7 @@ public class PluginsConfig extends Validatable {
     protected Class<?> clazz;
     
     /** Used by the initialization routine for storing the instantiated plugin. */
-    protected TsdbPlugin instantiated_plugin;
+    protected BaseTSDBPlugin instantiated_plugin;
     
     /** @return The canonical class name of the plugin implementation. */
     public String getPlugin() {

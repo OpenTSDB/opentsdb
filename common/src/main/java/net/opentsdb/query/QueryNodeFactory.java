@@ -12,6 +12,16 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query;
 
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.Map;
+
+import com.google.common.reflect.TypeToken;
+
+import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesValue;
+
 /**
  * The factory used to generate a {@link QueryNode} for a new query execution.
  * 
@@ -34,5 +44,19 @@ public interface QueryNodeFactory {
    * @return A non-null unique ID of the factory.
    */
   public String id();
+ 
+  public Collection<TypeToken<?>> types();
   
+  public void registerIteratorFactory(final TypeToken<?> type, 
+                                      final QueryIteratorFactory factory);
+  
+  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
+      final TypeToken<?> type,
+      final QueryNode node,
+      final Collection<TimeSeries> sources);
+  
+  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
+      final TypeToken<?> type,
+      final QueryNode node,
+      final Map<String, TimeSeries> sources);
 }

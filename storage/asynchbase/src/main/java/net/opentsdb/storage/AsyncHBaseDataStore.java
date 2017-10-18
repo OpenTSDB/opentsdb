@@ -13,17 +13,25 @@
 package net.opentsdb.storage;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.Map;
 
 import org.hbase.async.HBaseClient;
 
 import com.google.common.base.Strings;
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Span;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.IteratorGroups;
+import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
@@ -107,6 +115,33 @@ public class AsyncHBaseDataStore extends TimeSeriesDataStore {
   @Override
   public QueryNode newNode(QueryPipelineContext context,
       QueryNodeConfig config) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public Collection<TypeToken<?>> types() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public void registerIteratorFactory(TypeToken<?> type,
+      QueryIteratorFactory factory) {
+    // TODO Auto-generated method stub
+    
+  }
+
+  @Override
+  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
+      TypeToken<?> type, QueryNode node, Collection<TimeSeries> sources) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
+      TypeToken<?> type, QueryNode node, Map<String, TimeSeries> sources) {
     // TODO Auto-generated method stub
     return null;
   }

@@ -15,7 +15,7 @@ package net.opentsdb.storage;
 import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Span;
-import net.opentsdb.core.TsdbPlugin;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.query.QueryNodeFactory;
@@ -36,7 +36,7 @@ import net.opentsdb.stats.TsdbTrace;
  * 
  * @since 3.0
  */
-public abstract class TimeSeriesDataStore extends TsdbPlugin implements 
+public abstract class TimeSeriesDataStore extends BaseTSDBPlugin implements 
   QueryNodeFactory {
   
   /**

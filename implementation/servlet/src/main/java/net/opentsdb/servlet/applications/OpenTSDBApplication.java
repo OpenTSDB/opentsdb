@@ -20,7 +20,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 
 import com.google.common.collect.ImmutableMap;
 
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.servlet.exceptions.GenericExceptionMapper;
 import net.opentsdb.servlet.exceptions.QueryExecutionExceptionMapper;
 import net.opentsdb.servlet.resources.JMXResource;
@@ -45,11 +45,11 @@ public class OpenTSDBApplication extends ResourceConfig {
     try {
       final Object pre_instantiated_tsd = servletConfig.getServletContext()
           .getAttribute(TSD_ATTRIBUTE);
-      final TSDB tsdb;
-      if (pre_instantiated_tsd != null && pre_instantiated_tsd instanceof TSDB) {
-        tsdb = (TSDB) pre_instantiated_tsd;
+      final DefaultTSDB tsdb;
+      if (pre_instantiated_tsd != null && pre_instantiated_tsd instanceof DefaultTSDB) {
+        tsdb = (DefaultTSDB) pre_instantiated_tsd;
       } else {
-        tsdb = new TSDB(new Config(true)); 
+        tsdb = new DefaultTSDB(new Config(true)); 
         servletConfig.getServletContext().setAttribute(TSD_ATTRIBUTE, tsdb);
         tsdb.initializeRegistry(true).join();
       }

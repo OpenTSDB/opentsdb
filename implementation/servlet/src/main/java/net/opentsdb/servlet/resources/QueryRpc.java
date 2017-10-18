@@ -48,9 +48,9 @@ import com.stumbleupon.async.Callback;
 
 import io.opentracing.Span;
 import jersey.repackaged.com.google.common.collect.ImmutableMap;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.Tags;
-import net.opentsdb.core.TsdbPlugin;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.TSQuery;
@@ -169,17 +169,17 @@ final public class QueryRpc {
       throw new WebApplicationException("Unable to pull TSDB instance from "
           + "servlet context.",
           Response.Status.INTERNAL_SERVER_ERROR);
-    } else if (!(obj instanceof TSDB)) {
+    } else if (!(obj instanceof DefaultTSDB)) {
       throw new WebApplicationException("Object stored for as the TSDB was "
           + "of the wrong type: " + obj.getClass(),
           Response.Status.INTERNAL_SERVER_ERROR);
     }
-    final TSDB tsdb = (TSDB) obj;
+    final DefaultTSDB tsdb = (DefaultTSDB) obj;
     
     // initiate the tracer
     final TsdbTrace trace;
     final Span query_span;
-    final TsdbPlugin tracer = tsdb.getRegistry().getDefaultPlugin(TsdbTracer.class);
+    final BaseTSDBPlugin tracer = (BaseTSDBPlugin) tsdb.getRegistry().getDefaultPlugin(TsdbTracer.class);
     if (tracer != null) {
       trace = ((TsdbTracer) tracer).getTracer(true);
       query_span = trace.tracer()
@@ -272,19 +272,19 @@ final public class QueryRpc {
           .start();
     }
     // setup the context and copy headers for downstream use.
-    final QueryContext context = new DefaultQueryContext(tsdb, 
-        tsdb.getRegistry().getDefaultExecutionGraph(), 
-        trace == null ? null : trace.tracer());
-    context.addSessionObject(HttpQueryV2Executor.SESSION_HEADERS_KEY, 
-        headers_copy);
-    request.setAttribute(CONTEXT_KEY, context);
-    
-    obj = context.executionGraph().sinkExecutor();
-    if (obj == null) {
-      throw new WebApplicationException("Execution graph returned a null "
-          + "sink executor: " + tsdb.getRegistry().getDefaultExecutionGraph(),
-          Response.Status.INTERNAL_SERVER_ERROR);
-    }
+//    final QueryContext context = new DefaultQueryContext(tsdb, 
+//        tsdb.getRegistry().getDefaultExecutionGraph(), 
+//        trace == null ? null : trace.tracer());
+//    context.addSessionObject(HttpQueryV2Executor.SESSION_HEADERS_KEY, 
+//        headers_copy);
+//    request.setAttribute(CONTEXT_KEY, context);
+//    
+//    obj = context.executionGraph().sinkExecutor();
+//    if (obj == null) {
+//      throw new WebApplicationException("Execution graph returned a null "
+//          + "sink executor: " + tsdb.getRegistry().getDefaultExecutionGraph(),
+//          Response.Status.INTERNAL_SERVER_ERROR);
+//    }
     
     final QueryExecutor<IteratorGroups> executor =
         (QueryExecutor<IteratorGroups>) obj;
@@ -364,7 +364,7 @@ final public class QueryRpc {
     }
     try {
       final QueryExecution<IteratorGroups> execution = 
-          executor.executeQuery(context, query, query_span);
+          executor.executeQuery(null, query, query_span);
       execution.deferred()
         .addCallback(new SuccessCB(async))
         .addErrback(new ErrorCB(async));
@@ -956,7 +956,7 @@ final public class QueryRpc {
    * @throws WebApplicationException if parsing was unsuccessful
    * @since 2.3
    */
-  public static TSQuery parseQuery(final TSDB tsdb, 
+  public static TSQuery parseQuery(final DefaultTSDB tsdb, 
                                    final HttpServletRequest request,
                                    final List<Object> expressions) {
     final TSQuery data_query = new TSQuery();

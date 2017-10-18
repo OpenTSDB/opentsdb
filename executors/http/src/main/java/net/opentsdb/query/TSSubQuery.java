@@ -20,7 +20,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 import net.opentsdb.core.Aggregator;
-import net.opentsdb.core.Aggregators;
+import net.opentsdb.data.types.numeric.Aggregators;
+import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.utils.ByteSet;
@@ -68,7 +69,7 @@ public final class TSSubQuery {
   private RateOptions rate_options;
   
   /** Parsed aggregation function */
-  private Aggregator agg;
+  private NumericAggregator agg;
   
   /** Parsed downsampling specification. */
   //private DownsamplingSpecification downsample_specifier;
@@ -222,7 +223,7 @@ public final class TSSubQuery {
   }
 
   /** @return the parsed aggregation function */
-  public Aggregator aggregator() {
+  public NumericAggregator aggregator() {
     return this.agg;
   }
   

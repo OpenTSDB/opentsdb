@@ -12,7 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.execution.cache;
 
-import net.opentsdb.core.TsdbPlugin;
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 
@@ -22,7 +22,7 @@ import net.opentsdb.query.pojo.TimeSeriesQuery;
  * 
  * @since 3.0
  */
-public abstract class TimeSeriesCacheKeyGenerator extends TsdbPlugin {
+public abstract class TimeSeriesCacheKeyGenerator extends BaseTSDBPlugin {
 
   /**
    * Generates a cache key based on the given query and whether or not to

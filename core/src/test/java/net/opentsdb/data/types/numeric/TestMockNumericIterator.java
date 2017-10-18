@@ -27,7 +27,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.BaseTimeSeriesId;
@@ -45,7 +45,7 @@ import net.opentsdb.query.processor.TimeSeriesProcessor;
  * Yes we are testing a mock. Gotta make sure it's happy.
  */
 public class TestMockNumericIterator {
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   private ExecutionGraph execution_graph;
   private QueryContext context;
   private TimeSeriesProcessor processor;
@@ -55,7 +55,7 @@ public class TestMockNumericIterator {
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = mock(DefaultTSDB.class);
     execution_graph = mock(ExecutionGraph.class);
     id = BaseTimeSeriesId.newBuilder()
         .setAlias("Khalisi")
