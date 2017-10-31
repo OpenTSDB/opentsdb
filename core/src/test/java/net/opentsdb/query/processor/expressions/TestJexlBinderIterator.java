@@ -34,7 +34,7 @@ import org.mockito.internal.util.reflection.Whitebox;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.BaseTimeSeriesId;
@@ -57,7 +57,7 @@ import net.opentsdb.query.processor.ProcessorTestsHelpers;
 import net.opentsdb.query.processor.TimeSeriesProcessor;
 
 public class TestJexlBinderIterator {
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   private TimeSeriesGroupId group_id_a;
   private TimeSeriesGroupId group_id_b;
   
@@ -80,7 +80,7 @@ public class TestJexlBinderIterator {
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = mock(DefaultTSDB.class);
     fills = Maps.newHashMap();
     fills.put("a", NumericFillPolicy.newBuilder()
         .setPolicy(FillPolicy.ZERO).build());

@@ -39,8 +39,8 @@ import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 import com.stumbleupon.async.TimeoutException;
 
-import net.opentsdb.core.Registry;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.QueryExecutorFactory;
@@ -56,9 +56,9 @@ import net.opentsdb.utils.PluginLoader;
   ExecutionGraph.class })
 public class TestClusterConfig {
   
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   private QueryContext context;
-  private Registry registry;
+  private DefaultRegistry registry;
   private QueryExecutorFactory<?> factory;
   private QueryExecutor<?> executor;
   private ClusterConfig.Builder builder;
@@ -67,9 +67,9 @@ public class TestClusterConfig {
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = mock(DefaultTSDB.class);
     context = mock(QueryContext.class);
-    registry = mock(Registry.class);
+    registry = mock(DefaultRegistry.class);
     factory = mock(QueryExecutorFactory.class);
     executor = mock(QueryExecutor.class);
     
@@ -532,7 +532,7 @@ public class TestClusterConfig {
       .thenReturn(mock_builder);
     when(mock_builder.build()).thenReturn(mock_graph);
     
-    when(mock_graph.initialize(any(TSDB.class), anyString())).thenThrow(ex);
+    when(mock_graph.initialize(any(DefaultTSDB.class), anyString())).thenThrow(ex);
     
     final Deferred<Object> response = config.initialize(tsdb);
     try {
@@ -555,7 +555,7 @@ public class TestClusterConfig {
     when(mock_builder.build()).thenReturn(mock_graph);
     
     final Deferred<Object> deferred = new Deferred<Object>();
-    when(mock_graph.initialize(any(TSDB.class), anyString()))
+    when(mock_graph.initialize(any(DefaultTSDB.class), anyString()))
       .thenReturn(deferred);
     
     final Deferred<Object> response = config.initialize(tsdb);

@@ -36,16 +36,16 @@ import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.utils.Config;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ Registry.class, Executors.class })
+@PrepareForTest({ DefaultRegistry.class, Executors.class })
 public class TestRegistry {
 
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   private Config config;
   private ExecutorService cleanup_pool;
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = mock(DefaultTSDB.class);
     config = new Config(false);
     cleanup_pool = mock(ExecutorService.class);
     
@@ -57,11 +57,11 @@ public class TestRegistry {
   
   @Test
   public void ctor() throws Exception {
-    Registry registry = new Registry(tsdb);
+    DefaultRegistry registry = new DefaultRegistry(tsdb);
     assertSame(cleanup_pool, registry.cleanupPool());
     
     try {
-      new Registry(null);
+      new DefaultRegistry(null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
@@ -72,7 +72,7 @@ public class TestRegistry {
     when(graph_a.getId()).thenReturn("graph_a");
     final ExecutionGraph graph_b = mock(ExecutionGraph.class);
     when(graph_b.getId()).thenReturn("graph_b");
-    final Registry registry = new Registry(tsdb);
+    final DefaultRegistry registry = new DefaultRegistry(tsdb);
     
     assertNull(registry.getDefaultExecutionGraph());
     registry.registerExecutionGraph(graph_a, false);
@@ -133,7 +133,7 @@ public class TestRegistry {
     when(factory_a.id()).thenReturn("factory_a");
     final QueryExecutorFactory<?> factory_b = mock(QueryExecutorFactory.class);
     when(factory_b.id()).thenReturn("factory_b");
-    final Registry registry = new Registry(tsdb);
+    final DefaultRegistry registry = new DefaultRegistry(tsdb);
     
     registry.registerFactory(factory_a);
     registry.registerFactory(factory_b);
@@ -179,7 +179,7 @@ public class TestRegistry {
     when(config_a.getId()).thenReturn("config_a");
     final ClusterConfig config_b = mock(ClusterConfig.class);
     when(config_b.getId()).thenReturn("config_b");
-    final Registry registry = new Registry(tsdb);
+    final DefaultRegistry registry = new DefaultRegistry(tsdb);
     
     registry.registerClusterConfig(config_a);
     registry.registerClusterConfig(config_b);
@@ -229,7 +229,7 @@ public class TestRegistry {
         + "\"shutdownReverse\": true}";
     config.overrideConfig("tsd.plugin.config", json);
     
-    final Registry registry = new Registry(tsdb);
+    final DefaultRegistry registry = new DefaultRegistry(tsdb);
     assertNull(registry.loadPlugins().join(1));
     
     assertTrue(registry.getPlugin(MockPluginBase.class, "MockTest") 

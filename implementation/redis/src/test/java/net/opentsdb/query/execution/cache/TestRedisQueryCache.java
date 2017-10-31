@@ -39,7 +39,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.common.collect.Lists;
 
-import net.opentsdb.core.Registry;
+import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
@@ -53,7 +53,7 @@ import redis.clients.jedis.Protocol;
 @PrepareForTest({ TSDB.class, RedisQueryCache.class })
 public class TestRedisQueryCache {
   private TSDB tsdb;
-  private Registry registry;
+  private DefaultRegistry registry;
   private Config config;
   private JedisPool connection_pool;
   private Jedis instance;
@@ -62,7 +62,7 @@ public class TestRedisQueryCache {
   @Before
   public void before() throws Exception {
     tsdb = mock(TSDB.class);
-    registry = mock(Registry.class);
+    registry = mock(DefaultRegistry.class);
     config = new Config(false);
     connection_pool = mock(JedisPool.class);
     instance = mock(Jedis.class);

@@ -81,8 +81,8 @@ import net.opentsdb.query.filter.TagVFilter;
  * This class is the central class of OpenTSDB.  You use it to add new data
  * points or query the database.
  */
-public class TSDB {
-  private static final Logger LOG = LoggerFactory.getLogger(TSDB.class);
+public class DefaultTSDB implements TSDB {
+  private static final Logger LOG = LoggerFactory.getLogger(DefaultTSDB.class);
   
 //  static final byte[] FAMILY = { 't' };
 //
@@ -309,9 +309,9 @@ public class TSDB {
    * @param config An initialized configuration object
    * @since 2.0
    */
-  public TSDB(final Config config) {
+  public DefaultTSDB(final Config config) {
     this.config = config;
-    registry = new Registry(this);
+    registry = new DefaultRegistry(this);
     timer = Threads.newTimer("MainTSDBTimer");
   }
   

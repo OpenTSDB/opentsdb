@@ -32,16 +32,16 @@ import org.mockito.stubbing.Answer;
 
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.core.Registry;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.QueryExecutorFactory;
 import net.opentsdb.utils.JSON;
 
 public class TestExecutionGraph {
 
-  private TSDB tsdb;
-  private Registry registry;
+  private DefaultTSDB tsdb;
+  private DefaultRegistry registry;
   private QueryExecutorFactory<?> factory;
   private QueryExecutor<?> executor_a;
   private QueryExecutor<?> executor_b;
@@ -50,8 +50,8 @@ public class TestExecutionGraph {
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
-    registry = mock(Registry.class);
+    tsdb = mock(DefaultTSDB.class);
+    registry = mock(DefaultRegistry.class);
     factory = mock(QueryExecutorFactory.class);
     executor_a = mock(QueryExecutor.class);
     executor_b = mock(QueryExecutor.class);

@@ -36,7 +36,7 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import io.netty.util.Timer;
 import io.opentracing.Tracer;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.IteratorStatus;
@@ -47,13 +47,13 @@ import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.processor.TimeSeriesProcessor;
 
 public class TestQueryContext {
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   private ExecutionGraph executor_graph;
   private int order_counter = 0;
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = mock(DefaultTSDB.class);
     executor_graph = mock(ExecutionGraph.class);
   }
   
@@ -1177,12 +1177,12 @@ public class TestQueryContext {
    */
   class MockContext extends QueryContext {
     
-    public MockContext(final TSDB tsdb, 
+    public MockContext(final DefaultTSDB tsdb, 
                        final ExecutionGraph executor_context) {
       super(tsdb, executor_context, null);
     }
     
-    public MockContext(final TSDB tsdb, 
+    public MockContext(final DefaultTSDB tsdb, 
                        final ExecutionGraph executor_context, 
                        final Tracer tracer) {
       super(tsdb, executor_context, tracer);

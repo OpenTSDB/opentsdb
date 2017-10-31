@@ -29,7 +29,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.pojo.Downsampler;
@@ -44,12 +44,12 @@ import net.opentsdb.utils.DateTime;
 @PrepareForTest({ DateTime.class, TimeSeriesQuery.class, Timespan.class })
 public class TestDefaultTimeSeriesCacheKeyGenerator {
 
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   private Config config;
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = mock(DefaultTSDB.class);
     config = new Config(false);
     when(tsdb.getConfig()).thenReturn(config);
   }

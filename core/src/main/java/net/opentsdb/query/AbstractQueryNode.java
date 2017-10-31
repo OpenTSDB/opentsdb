@@ -21,7 +21,9 @@ import java.util.Collection;
  * @since 3.0
  */
 public abstract class AbstractQueryNode implements QueryNode {
-
+  /** A reference to the query node factory that generated this node. */
+  protected QueryNodeFactory factory;
+  
   /** The pipeline context. */
   protected QueryPipelineContext context;
   
@@ -33,13 +35,19 @@ public abstract class AbstractQueryNode implements QueryNode {
   
   /**
    * The default ctor.
+   * @param factory A non-null factory to generate iterators from.
    * @param context A non-null query context.
    * @throws IllegalArgumentException if the context was null.
    */
-  public AbstractQueryNode(final QueryPipelineContext context) {
+  public AbstractQueryNode(final QueryNodeFactory factory,
+                           final QueryPipelineContext context) {
+    if (factory == null) {
+      throw new IllegalArgumentException("Factory cannot be null.");
+    }
     if (context == null) {
       throw new IllegalArgumentException("Context cannot be null.");
     }
+    this.factory = factory;
     this.context = context;
   }
   
@@ -52,5 +60,9 @@ public abstract class AbstractQueryNode implements QueryNode {
   @Override
   public QueryPipelineContext pipelineContext() {
     return context;
+  }
+
+  public QueryNodeFactory factory() {
+    return factory;
   }
 }

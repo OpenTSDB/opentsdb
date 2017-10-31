@@ -18,6 +18,7 @@ import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 
@@ -84,7 +85,7 @@ public class DefaultQueryExecutorFactory<T> extends QueryExecutorFactory<T> {
   public Deferred<Object> initialize(final TSDB tsdb) {
     try {
       if (!Strings.isNullOrEmpty(id)) {
-        tsdb.getRegistry().registerFactory(this);
+        ((DefaultRegistry) tsdb.getRegistry()).registerFactory(this);
       }
     } catch (Exception e) {
       return Deferred.fromError(e);

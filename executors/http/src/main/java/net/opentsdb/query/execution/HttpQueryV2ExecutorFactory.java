@@ -3,6 +3,7 @@ package net.opentsdb.query.execution;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
@@ -13,7 +14,7 @@ public class HttpQueryV2ExecutorFactory extends QueryExecutorFactory<IteratorGro
   @Override
   public Deferred<Object> initialize(final TSDB tsdb) {
     try {
-      tsdb.getRegistry().registerFactory(this);
+      //tsdb.getRegistry().registerFactory(this);
     } catch (Exception e) {
       Deferred.fromResult(e);
     }

@@ -26,8 +26,8 @@ import org.junit.Test;
 
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.core.Registry;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.BaseTimeSeriesId;
@@ -52,16 +52,16 @@ import net.opentsdb.utils.Config;
 
 public class TestMockDataStore {
 
-  private TSDB tsdb;
+  private DefaultTSDB tsdb;
   private Config config;
-  private Registry registry;
+  private DefaultRegistry registry;
   private MockDataStore mds;
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(TSDB.class);
+    tsdb = mock(DefaultTSDB.class);
     config = new Config(false);
-    registry = mock(Registry.class);
+    registry = mock(DefaultRegistry.class);
     when(tsdb.getConfig()).thenReturn(config);
     when(tsdb.getRegistry()).thenReturn(registry);
     

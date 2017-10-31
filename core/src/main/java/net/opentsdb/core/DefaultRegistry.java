@@ -37,6 +37,8 @@ import net.opentsdb.data.DataMerger;
 import net.opentsdb.data.DataShardMerger;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.types.numeric.NumericMergeLargest;
+import net.opentsdb.query.QueryIteratorFactory;
+import net.opentsdb.query.QueryIteratorInterpolatorFactory;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.execution.CachingQueryExecutor;
 import net.opentsdb.query.execution.DefaultQueryExecutorFactory;
@@ -67,11 +69,11 @@ import net.opentsdb.utils.JSON;
  *
  * @since 3.0
  */
-public class Registry {
-  private static final Logger LOG = LoggerFactory.getLogger(Registry.class);
+public class DefaultRegistry implements Registry {
+  private static final Logger LOG = LoggerFactory.getLogger(DefaultRegistry.class);
   
   /** The TSDB to which this registry belongs. Used for reading the config. */
-  private final TSDB tsdb;
+  private final DefaultTSDB tsdb;
   
   /** The map of data mergers. */
   private final Map<String, DataMerger<?>> data_mergers;
@@ -108,7 +110,7 @@ public class Registry {
    * all for now.
    * @param tsdb A non-null TSDB to load and pass to plugins.
    */
-  public Registry(final TSDB tsdb) {
+  public DefaultRegistry(final DefaultTSDB tsdb) {
     if (tsdb == null) {
       throw new IllegalArgumentException("TSDB cannot be null.");
     }
@@ -213,10 +215,12 @@ public class Registry {
     return executor_graphs.get(id);
   }
   
+  @Override
   public void registerFactory(final QueryNodeFactory factory) {
     node_factories.put(factory.id(), factory);
   }
   
+  @Override
   public QueryNodeFactory getQueryNodeFactory(final String id) {
     return node_factories.get(id);
   }
@@ -333,7 +337,7 @@ public class Registry {
    */
   public void registerPlugin(final Class<?> clazz, 
                              final String id, 
-                             final TsdbPlugin plugin) {
+                             final TSDBPlugin plugin) {
     if (plugins == null) {
       throw new IllegalStateException("Plugins have not been loaded. "
           + "Call loadPlugins();");
@@ -348,7 +352,7 @@ public class Registry {
    * @return An instantiated plugin if found, null if not.
    * @throws IllegalArgumentException if the clazz was null.
    */
-  public TsdbPlugin getDefaultPlugin(final Class<?> clazz) {
+  public TSDBPlugin getDefaultPlugin(final Class<?> clazz) {
     return getPlugin(clazz, null);
   }
   
@@ -359,7 +363,7 @@ public class Registry {
    * @return An instantiated plugin if found, null if not.
    * @throws IllegalArgumentException if the clazz was null.
    */
-  public TsdbPlugin getPlugin(final Class<?> clazz, final String id) {
+  public TSDBPlugin getPlugin(final Class<?> clazz, final String id) {
     if (plugins == null) {
       throw new IllegalStateException("Plugins have not been loaded. "
           + "Call loadPlugins();");
@@ -439,7 +443,7 @@ public class Registry {
   }
   
   /** @return Package private shutdown returning the deferred to wait on. */
-  Deferred<Object> shutdown() {
+  public Deferred<Object> shutdown() {
     cleanup_pool.shutdown();
     return Deferred.fromResult(null);
   }
@@ -486,21 +490,21 @@ public class Registry {
           new DefaultQueryExecutorFactory<IteratorGroups>(
               (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, 
               "CachingQueryExecutor");
-      tsdb.getRegistry().registerFactory(executor_factory);
+      registerFactory(executor_factory);
       
       ctor = TimeSlicedCachingExecutor.class.getConstructor(ExecutionGraphNode.class);
       executor_factory = 
           new DefaultQueryExecutorFactory<IteratorGroups>(
               (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, 
               "TimeSlicedCachingExecutor");
-      tsdb.getRegistry().registerFactory(executor_factory);
+      registerFactory(executor_factory);
       
       ctor = MetricShardingExecutor.class.getConstructor(ExecutionGraphNode.class);
       executor_factory = 
           new DefaultQueryExecutorFactory<IteratorGroups>(
               (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class, 
               "MetricShardingExecutor");
-      tsdb.getRegistry().registerFactory(executor_factory);
+      registerFactory(executor_factory);
 
 //      ctor = StorageQueryExecutor.class.getConstructor(
 //              ExecutionGraphNode.class);
@@ -516,7 +520,7 @@ public class Registry {
       new DefaultQueryExecutorFactory<IteratorGroups>(
           (Constructor<QueryExecutor<?>>) ctor, IteratorGroups.class,
             "MultiClusterQueryExecutor");
-  tsdb.getRegistry().registerFactory(executor_factory);
+  registerFactory(executor_factory);
       
     } catch (Exception e) {
       LOG.error("Failed setting up one or more default executors or planners", e);
@@ -606,6 +610,19 @@ public class Registry {
     }
     LOG.info("Completed initializing registry defaults.");
     return Deferred.group(deferreds).addCallback(Deferreds.NULL_GROUP_CB);
+  }
+
+  @Override
+  public QueryIteratorInterpolatorFactory getQueryIteratorInterpolatorFactory(
+      String id) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public QueryIteratorFactory getQueryIteratorFactory(String id) {
+    // TODO Auto-generated method stub
+    return null;
   }
   
 }

@@ -41,6 +41,7 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.opentracing.Span;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.data.DataMerger;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
@@ -106,7 +107,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
     if (Strings.isNullOrEmpty(((Config) node.getDefaultConfig()).cluster_config)) {
       throw new IllegalArgumentException("Cluster config cannot be null.");
     }
-    cluster_graph = node.graph().tsdb().getRegistry().getClusterConfig(
+    cluster_graph = ((DefaultRegistry) node.graph().tsdb().getRegistry()).getClusterConfig(
         ((Config) node.getDefaultConfig()).cluster_config);
     if (cluster_graph == null) {
       throw new IllegalArgumentException("No cluster found for: " 
@@ -133,8 +134,8 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
       }
     }
     default_timeout = ((Config) node.getDefaultConfig()).timeout;
-    default_data_merger = (DataMerger<T>) node.graph().tsdb()
-        .getRegistry().getDataMerger(
+    default_data_merger = (DataMerger<T>) ((DefaultRegistry) node.graph().tsdb()
+        .getRegistry()).getDataMerger(
             ((Config) node.getDefaultConfig()).merge_strategy);
     if (default_data_merger == null) {
       throw new IllegalArgumentException("No data merger found for: " 
