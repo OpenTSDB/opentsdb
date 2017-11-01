@@ -214,44 +214,44 @@ public class TestUglyByteCacheSerdes {
 //    
 //    assertEquals(IteratorStatus.END_OF_DATA, iterator.status());
 //  }
-  
-  @Test
-  public void empty() throws Exception {
-    final IteratorGroups results = new DefaultIteratorGroups();
-    final UglyByteIteratorGroupsSerdes serdes = 
-        new UglyByteIteratorGroupsSerdes();
-    final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    serdes.serialize(null, null, output, results);
-    
-    output.close();
-    byte[] data = output.toByteArray();
-    
-    final ByteArrayInputStream input = new ByteArrayInputStream(data);
-    final IteratorGroups groups = serdes.deserialize(null, input);
-    
-    assertTrue(groups.groups().isEmpty());
-  }
-  
-  @Test
-  public void exceptions() throws Exception {
-    final IteratorGroups results = new DefaultIteratorGroups();
-    final UglyByteIteratorGroupsSerdes serdes = 
-        new UglyByteIteratorGroupsSerdes();
-    final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    
-    try {
-      serdes.serialize(null, null, null, results);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      serdes.serialize(null, null, output, null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      serdes.deserialize(null, null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-  }
+//  
+//  @Test
+//  public void empty() throws Exception {
+//    final IteratorGroups results = new DefaultIteratorGroups();
+//    final UglyByteIteratorGroupsSerdes serdes = 
+//        new UglyByteIteratorGroupsSerdes();
+//    final ByteArrayOutputStream output = new ByteArrayOutputStream();
+//    serdes.serialize(null, null, output, results);
+//    
+//    output.close();
+//    byte[] data = output.toByteArray();
+//    
+//    final ByteArrayInputStream input = new ByteArrayInputStream(data);
+//    final IteratorGroups groups = serdes.deserialize(null, input);
+//    
+//    assertTrue(groups.groups().isEmpty());
+//  }
+//  
+//  @Test
+//  public void exceptions() throws Exception {
+//    final IteratorGroups results = new DefaultIteratorGroups();
+//    final UglyByteIteratorGroupsSerdes serdes = 
+//        new UglyByteIteratorGroupsSerdes();
+//    final ByteArrayOutputStream output = new ByteArrayOutputStream();
+//    
+//    try {
+//      serdes.serialize(null, null, null, results);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//    
+//    try {
+//      serdes.serialize(null, null, output, null);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//    
+//    try {
+//      serdes.deserialize(null, null);
+//      fail("Expected IllegalArgumentException");
+//    } catch (IllegalArgumentException e) { }
+//  }
 }

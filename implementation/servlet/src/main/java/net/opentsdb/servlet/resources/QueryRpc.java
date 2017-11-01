@@ -46,17 +46,20 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 import com.stumbleupon.async.Callback;
 
-import io.opentracing.Span;
 import jersey.repackaged.com.google.common.collect.ImmutableMap;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.DefaultQueryContextBuilder;
 import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.TSSubQuery;
 import net.opentsdb.query.context.DefaultQueryContext;
-import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QuerySink;
 import net.opentsdb.query.execution.HttpQueryV2Executor;
 import net.opentsdb.query.execution.QueryExecution;
 import net.opentsdb.query.execution.QueryExecutor;
@@ -66,9 +69,11 @@ import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
+import net.opentsdb.stats.DefaultQueryStats;
+import net.opentsdb.stats.Span;
 import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.stats.TsdbTrace;
-import net.opentsdb.stats.TsdbTracer;
+import net.opentsdb.stats.Trace;
+import net.opentsdb.stats.Tracer;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.StringUtils;
@@ -177,18 +182,16 @@ final public class QueryRpc {
     final DefaultTSDB tsdb = (DefaultTSDB) obj;
     
     // initiate the tracer
-    final TsdbTrace trace;
+    final Trace trace;
     final Span query_span;
-    final BaseTSDBPlugin tracer = (BaseTSDBPlugin) tsdb.getRegistry().getDefaultPlugin(TsdbTracer.class);
+    final Tracer tracer = (Tracer) tsdb.getRegistry().getDefaultPlugin(Tracer.class);
     if (tracer != null) {
-      trace = ((TsdbTracer) tracer).getTracer(true);
-      query_span = trace.tracer()
-          .buildSpan(this.getClass().getSimpleName())
+      trace = tracer.newTrace(true, true);
+      query_span = trace.newSpan(this.getClass().getSimpleName())
           .withTag("endpoint", "/api/query")
           .withTag("startThread", Thread.currentThread().getName())
           // TODO - more useful info
           .start();
-      trace.setFirstSpan(query_span);
       request.setAttribute(TRACE_KEY, trace);
     } else {
       trace = null;
@@ -197,8 +200,7 @@ final public class QueryRpc {
     
     Span parse_span = null;
     if (query_span != null) {
-      parse_span = trace.tracer()
-          .buildSpan("parseAndValidate")
+      parse_span = trace.newSpan("parseAndValidate")
           .withTag("startThread", Thread.currentThread().getName())
           .asChildOf(query_span)
           .start();
@@ -225,8 +227,7 @@ final public class QueryRpc {
     
     Span convert_span = null;
     if (query_span != null) {
-      convert_span = trace.tracer()
-          .buildSpan("convertAndValidate")
+      convert_span = trace.newSpan("convertAndValidate")
           .withTag("startThread", Thread.currentThread().getName())
           .asChildOf(query_span)
           .start();
@@ -254,7 +255,7 @@ final public class QueryRpc {
         // TODO - possible upstream headers
         .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
         .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
-        .put("traceId", trace != null ? trace.getTraceId() : null)
+        .put("traceId", trace != null ? trace.traceId() : null)
         .put("query", ts_query)
         .build()));
     if (convert_span != null) {
@@ -265,8 +266,7 @@ final public class QueryRpc {
     
     Span setup_span = null;
     if (query_span != null) {
-      setup_span = trace.tracer()
-          .buildSpan("setupContext")
+      setup_span = trace.newSpan("setupContext")
           .withTag("startThread", Thread.currentThread().getName())
           .asChildOf(query_span)
           .start();
@@ -286,18 +286,22 @@ final public class QueryRpc {
 //          Response.Status.INTERNAL_SERVER_ERROR);
 //    }
     
-    final QueryExecutor<IteratorGroups> executor =
-        (QueryExecutor<IteratorGroups>) obj;
-    
-    /** Class called when the query has completed without an exception. Stashes
-     * the results in the request attributes and calls the async dispatch. */
-    class SuccessCB implements Callback<Object, IteratorGroups> {
+    class LocalSink implements QuerySink {
       final AsyncContext async;
-      SuccessCB(final AsyncContext async) {
+      
+      LocalSink(final AsyncContext async) {
         this.async = async;
       }
+      
       @Override
-      public Object call(final IteratorGroups groups) throws Exception {
+      public void onComplete() {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Yay, all done!");
+        }
+      }
+
+      @Override
+      public void onNext(final QueryResult next) {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Successful response for query=" 
               + JSON.serializeToString(
@@ -305,41 +309,32 @@ final public class QueryRpc {
                   // TODO - possible upstream headers
                   .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
                   .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
-                  .put("traceId", trace != null ? trace.getTraceId() : null)
+                  .put("traceId", trace != null ? trace.traceId() : null)
                   .put("query", ts_query)
                   .build()));
         }
-        request.setAttribute(OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE, groups);
+        request.setAttribute(OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE, next);
         try {
           async.dispatch();
         } catch (Exception e) {
           LOG.error("Unexpected exception dispatching async request for "
               + "query: " + ts_query, e);
         }
-        return null;
       }
-    }
-    
-    /** Exception handler, unwraps and stashes in the request attributes for 
-     * serialization. */
-    class ErrorCB implements Callback<Object, Exception> {
-      final AsyncContext async;
-      ErrorCB(final AsyncContext async) {
-        this.async = async;
-      }
+
       @Override
-      public Object call(final Exception ex) throws Exception {
+      public void onError(Throwable t) {
         LOG.error("Exception for query: " 
-            + Bytes.byteArrayToString(query.buildHashCode().asBytes()), ex);
-        request.setAttribute(OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE, ex);
+            + Bytes.byteArrayToString(query.buildHashCode().asBytes()), t);
+        request.setAttribute(OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE, t);
         try {
           async.dispatch();
         } catch (Exception e) {
           LOG.error("WFT? Dispatch may have already been called", e);
         }
-        return null;
       }
     }
+    
     
     // start the Async context and pass it around. 
     // WARNING After this point, make sure to catch all exceptions and dispatch
@@ -347,6 +342,17 @@ final public class QueryRpc {
     final AsyncContext async = request.startAsync();
     async.setTimeout((Integer) servlet_config.getServletContext()
         .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
+    
+    final QueryContext ctx = DefaultQueryContextBuilder.newBuilder(tsdb)
+        .setQuery(query)
+        .setMode(QueryMode.SINGLE)
+        .addQuerySink(new LocalSink(async))
+        .setStats(DefaultQueryStats.newBuilder()
+            .setTrace(trace)
+            .build())
+        // TODO - stats
+        .build();
+    request.setAttribute(CONTEXT_KEY, ctx);
     
     if (setup_span != null) {
       setup_span.setTag("Status", "OK")
@@ -356,18 +362,14 @@ final public class QueryRpc {
     
     Span execute_span = null;
     if (query_span != null) {
-      execute_span = trace.tracer()
-          .buildSpan("startExecution")
+      execute_span = trace.newSpan("startExecution")
           .withTag("startThread", Thread.currentThread().getName())
           .asChildOf(query_span)
           .start();
     }
+    
     try {
-      final QueryExecution<IteratorGroups> execution = 
-          executor.executeQuery(null, query, query_span);
-      execution.deferred()
-        .addCallback(new SuccessCB(async))
-        .addErrback(new ErrorCB(async));
+      ctx.fetchNext();
     } catch (Exception e) {
       LOG.error("Unexpected exception adding callbacks to deferred.", e);
       request.setAttribute(OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE, e);
@@ -377,6 +379,7 @@ final public class QueryRpc {
         LOG.error("WFT? Dispatch may have already been called", ex);
       }
     }
+    
     if (execute_span != null) {
       execute_span.setTag("Status", "OK")
                   .setTag("finalThread", Thread.currentThread().getName())
@@ -394,17 +397,16 @@ final public class QueryRpc {
   @VisibleForTesting
   Response handeResponse(final ServletConfig servlet_config, 
                          final HttpServletRequest request) {
-    final IteratorGroups groups = (IteratorGroups) request.getAttribute(
+    final QueryResult result = (QueryResult) request.getAttribute(
         OpenTSDBApplication.QUERY_RESULT_ATTRIBUTE);
     final QueryContext context = (QueryContext) request.getAttribute(CONTEXT_KEY);
     final TimeSeriesQuery query = (TimeSeriesQuery) request.getAttribute(QUERY_KEY);
     final Span response_span;
-    final TsdbTrace trace;
-    if (context.getTracer() != null) {
-      trace = (TsdbTrace) request.getAttribute(TRACE_KEY);
-      response_span = context.getTracer().buildSpan("responseHandler")
+    final Trace trace;
+    if (context.stats().trace() != null) {
+      response_span = context.stats().trace().newSpan("responseHandler")
           .withTag("startThread", Thread.currentThread().getName())
-          .asChildOf(trace.getFirstSpan())
+          .asChildOf(context.stats().trace().firstSpan())
           .start();
     } else {
       response_span = null;
@@ -426,7 +428,7 @@ final public class QueryRpc {
           throws IOException, WebApplicationException {
         Span serdes_span = null;
         if (response_span != null) {
-          serdes_span = context.getTracer().buildSpan("serdes")
+          serdes_span = context.stats().trace().newSpan("serdes")
               .withTag("startThread", Thread.currentThread().getName())
               .asChildOf(response_span)
               .start();
@@ -435,7 +437,7 @@ final public class QueryRpc {
         json.writeStartArray();
         
         final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(json);
-        serdes.serialize(query, options, output, groups);
+        serdes.serialize(context, options, output, result);
         
         if (options.showSummary()) {
           json.writeObjectFieldStart("summary");
@@ -443,9 +445,10 @@ final public class QueryRpc {
               query.buildTimelessHashCode().asBytes()));
           json.writeStringField("queryId", Bytes.byteArrayToString(
               query.buildHashCode().asBytes()));
-          json.writeStringField("traceId", trace == null ? "null" : trace.getTraceId());
-          if (trace != null) {
-            trace.serializeJSON("trace", json);
+          json.writeStringField("traceId", context.stats().trace() == null ? "null" : 
+            context.stats().trace().traceId());
+          if (context.stats().trace() != null) {
+            //trace.serializeJSON("trace", json);
           }
           json.writeEndObject();
         }
@@ -467,7 +470,7 @@ final public class QueryRpc {
             // TODO - possible upstream headers
             .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
             .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
-            .put("traceId", trace != null ? trace.getTraceId() : null)
+            //.put("traceId", trace != null ? trace.getTraceId() : null)
             .put("status", Response.Status.OK)
             .put("query", request.getAttribute(V2_QUERY_KEY))
             .build()));
@@ -477,9 +480,9 @@ final public class QueryRpc {
             // TODO - possible upstream headers
             .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
             .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
-            .put("traceId", trace != null ? trace.getTraceId() : null)
+            //.put("traceId", trace != null ? trace.getTraceId() : null)
             .put("status", Response.Status.OK)
-            .put("trace", trace.serializeToString())
+            //.put("trace", trace.serializeToString())
             .put("query", request.getAttribute(V2_QUERY_KEY))
             .build()));
          
@@ -489,8 +492,9 @@ final public class QueryRpc {
                          .setTag("status", "OK")
                          .finish();
           }
-          if (trace != null && trace.getFirstSpan() != null) {
-            trace.getFirstSpan()
+          if (context.stats().trace() != null && 
+              context.stats().trace().firstSpan() != null) {
+            context.stats().trace().firstSpan()
               .setTag("status", "OK")
               .setTag("finalThread", Thread.currentThread().getName())
               .finish();
@@ -514,9 +518,9 @@ final public class QueryRpc {
   Response handleException(final HttpServletRequest request) throws Exception {
     final QueryContext context = (QueryContext) request.getAttribute(CONTEXT_KEY);
     final TimeSeriesQuery query = (TimeSeriesQuery) request.getAttribute(QUERY_KEY);
-    final TsdbTrace trace;
-    if (context != null && context.getTracer() != null) {
-      trace = (TsdbTrace) request.getAttribute(TRACE_KEY);
+    final Trace trace;
+    if (context != null && context.stats().trace() != null) {
+      trace = context.stats().trace();
     } else {
       trace = null;
     }
@@ -528,7 +532,7 @@ final public class QueryRpc {
       // TODO - possible upstream headers
       .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
       .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
-      .put("traceId", trace != null ? trace.getTraceId() : null)
+      .put("traceId", trace != null ? trace.traceId() : null)
       .put("status", Response.Status.OK)
       .put("query", request.getAttribute(V2_QUERY_KEY))
       .build()));
@@ -539,14 +543,14 @@ final public class QueryRpc {
       // TODO - possible upstream headers
       .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
       .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
-      .put("traceId", trace != null ? trace.getTraceId() : null)
+      .put("traceId", trace != null ? trace.traceId() : null)
       .put("status", Response.Status.OK)
-      .put("trace", trace.serializeToString())
+      //.put("trace", trace.serializeToString())
       .put("query", request.getAttribute(V2_QUERY_KEY))
       .build()));
     
-    if (trace != null && trace.getFirstSpan() != null) {
-      trace.getFirstSpan()
+    if (trace != null && trace.firstSpan() != null) {
+      trace.firstSpan()
         .setTag("status", "Error")
         .setTag("finalThread", Thread.currentThread().getName())
         .setTag("error", e.getMessage())

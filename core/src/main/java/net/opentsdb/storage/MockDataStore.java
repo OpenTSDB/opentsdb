@@ -70,7 +70,7 @@ import net.opentsdb.utils.DateTime;
  * 
  * @since 3.0
  */
-public class MockDataStore extends TimeSeriesDataStore implements QueryNodeFactory {
+public class MockDataStore extends TimeSeriesDataStore {
   private static final Logger LOG = LoggerFactory.getLogger(MockDataStore.class);
   
   public static final long ROW_WIDTH = 3600000;

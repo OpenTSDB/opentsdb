@@ -26,6 +26,8 @@ import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.data.types.numeric.UglyByteNumericSerdes;
+import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.utils.Bytes;
 
@@ -41,8 +43,7 @@ import net.opentsdb.utils.Bytes;
  * 
  * @since 3.0
  */
-public class UglyByteIteratorGroupsSerdes implements
-    TimeSeriesSerdes<IteratorGroups> {
+public class UglyByteIteratorGroupsSerdes implements TimeSeriesSerdes {
 
   // TODO - registry :)
   /** The numeric type serdes. */
@@ -50,48 +51,48 @@ public class UglyByteIteratorGroupsSerdes implements
   
   @SuppressWarnings("unchecked")
   @Override
-  public void serialize(final TimeSeriesQuery query, 
+  public void serialize(final QueryContext context, 
                         final SerdesOptions options,
                         final OutputStream stream, 
-                        final IteratorGroups data) {
+                        final QueryResult result) {
     if (stream == null) {
       throw new IllegalArgumentException("Output stream may not be null.");
     }
-    if (data == null) {
+    if (result == null) {
       throw new IllegalArgumentException("Data may not be null.");
     }
-    try {
-      stream.write(Bytes.fromInt(data.groups().size()));
-      for (final Entry<TimeSeriesGroupId, IteratorGroup> entry : data) {
-        final TimeSeriesGroupId group_id = entry.getKey();
-        final byte[] group = group_id.id().getBytes(Const.UTF8_CHARSET);
-        stream.write(Bytes.fromInt(group.length));
-        stream.write(group);
-        
-        stream.write(Bytes.fromInt(entry.getValue().iterators().size()));
-        for (final TimeSeriesIterators iterators : entry.getValue()) {
-          
-          stream.write(Bytes.fromInt(iterators.iterators().size()));
-          for (final TimeSeriesIterator<?> it : iterators.iterators()) {
-            final byte[] type = it.type().toString().getBytes(Const.ASCII_CHARSET);
-            stream.write(Bytes.fromInt(type.length));
-            stream.write(type);
-            
-            if (it.type().equals(NumericType.TYPE)) {
-              nums.serialize(query, options, stream, 
-                  (TimeSeriesIterator<NumericType>) it);
-            }
-          }
-        }
-      }
-    } catch (IOException e) {
-      throw new RuntimeException("Unexpected exception during "
-          + "serialization of: " + data, e);
-    }
+//    try {
+//      stream.write(Bytes.fromInt(data.groups().size()));
+//      for (final Entry<TimeSeriesGroupId, IteratorGroup> entry : data) {
+//        final TimeSeriesGroupId group_id = entry.getKey();
+//        final byte[] group = group_id.id().getBytes(Const.UTF8_CHARSET);
+//        stream.write(Bytes.fromInt(group.length));
+//        stream.write(group);
+//        
+//        stream.write(Bytes.fromInt(entry.getValue().iterators().size()));
+//        for (final TimeSeriesIterators iterators : entry.getValue()) {
+//          
+//          stream.write(Bytes.fromInt(iterators.iterators().size()));
+//          for (final TimeSeriesIterator<?> it : iterators.iterators()) {
+//            final byte[] type = it.type().toString().getBytes(Const.ASCII_CHARSET);
+//            stream.write(Bytes.fromInt(type.length));
+//            stream.write(type);
+//            
+//            if (it.type().equals(NumericType.TYPE)) {
+//              nums.serialize(query, options, stream, 
+//                  (TimeSeriesIterator<NumericType>) it);
+//            }
+//          }
+//        }
+//      }
+//    } catch (IOException e) {
+//      throw new RuntimeException("Unexpected exception during "
+//          + "serialization of: " + result, e);
+//    }
   }
 
   @Override
-  public IteratorGroups deserialize(final SerdesOptions options,
+  public QueryResult deserialize(final SerdesOptions options,
                                     final InputStream stream) {
     if (stream == null) {
       throw new IllegalArgumentException("Stream cannot be null.");
@@ -133,9 +134,9 @@ public class UglyByteIteratorGroupsSerdes implements
             // TODO - need a util here
             Class<?> clazz = Class.forName(new String(buf));
             TypeToken<?> type = TypeToken.of(clazz);
-            if (type.equals(NumericType.TYPE)) {
-              results.addIterator(group_id, nums.deserialize(options, stream));
-            }
+//            if (type.equals(NumericType.TYPE)) {
+//              results.addIterator(group_id, nums.deserialize(options, stream));
+//            }
           }
         }
       }
@@ -143,7 +144,7 @@ public class UglyByteIteratorGroupsSerdes implements
       throw new RuntimeException("Unexpected exception deserializing stream: " 
           + stream, e);
     }
-    return results;
+    return null;//results;
   }
 
 }

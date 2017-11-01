@@ -54,4 +54,7 @@ public interface QueryContext {
    * @return An optional stats collector for the query, may be null.
    */
   public QueryStats stats();
+  
+  /** @return The original query. */
+  public TimeSeriesQuery query();
 }

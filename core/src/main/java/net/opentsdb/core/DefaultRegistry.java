@@ -73,7 +73,7 @@ public class DefaultRegistry implements Registry {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultRegistry.class);
   
   /** The TSDB to which this registry belongs. Used for reading the config. */
-  private final DefaultTSDB tsdb;
+  private final TSDB tsdb;
   
   /** The map of data mergers. */
   private final Map<String, DataMerger<?>> data_mergers;
@@ -88,7 +88,7 @@ public class DefaultRegistry implements Registry {
   private final Map<String, ClusterConfig> clusters;
     
   /** The map of serdes classes. */
-  private final Map<String, TimeSeriesSerdes<?>> serdes;
+  private final Map<String, TimeSeriesSerdes> serdes;
   
   /** The map of query plans. */
   private final Map<String, QueryPlannnerFactory<?>> query_plans;
@@ -110,7 +110,7 @@ public class DefaultRegistry implements Registry {
    * all for now.
    * @param tsdb A non-null TSDB to load and pass to plugins.
    */
-  public DefaultRegistry(final DefaultTSDB tsdb) {
+  public DefaultRegistry(final TSDB tsdb) {
     if (tsdb == null) {
       throw new IllegalArgumentException("TSDB cannot be null.");
     }
@@ -222,7 +222,20 @@ public class DefaultRegistry implements Registry {
   
   @Override
   public QueryNodeFactory getQueryNodeFactory(final String id) {
-    return node_factories.get(id);
+    QueryNodeFactory factory = node_factories.get(id);
+    if (factory != null) {
+      return factory;
+    }
+    final TSDBPlugin plugin = plugins.getPlugin(QueryNodeFactory.class, id);
+    if (plugin == null) {
+      return null;
+    }
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Caching QueryNodeFactory " + plugin + " with ID: " + id);
+    }
+    factory = (QueryNodeFactory) plugin;
+    node_factories.put(id, factory);
+    return factory;
   }
   
   /**
@@ -407,7 +420,7 @@ public class DefaultRegistry implements Registry {
     return data_mergers.get(merger);
   }
   
-  public TimeSeriesSerdes<?> getSerdes(final String id) {
+  public TimeSeriesSerdes getSerdes(final String id) {
     return serdes.get(id);
   }
   
@@ -595,11 +608,11 @@ public class DefaultRegistry implements Registry {
             }
           }
           
-          for (final ExecutionGraph graph : graphs) {
-            deferreds.add(graph.initialize(tsdb));
-            registerExecutionGraph(graph, 
-                Strings.isNullOrEmpty(graph.getId()) ? true : false);
-          }
+//          for (final ExecutionGraph graph : graphs) {
+//            deferreds.add(graph.initialize(tsdb));
+//            registerExecutionGraph(graph, 
+//                Strings.isNullOrEmpty(graph.getId()) ? true : false);
+//          }
         }
       }
       
@@ -608,6 +621,7 @@ public class DefaultRegistry implements Registry {
       return Deferred.fromError(new RuntimeException("Unexpected exception "
           + "initializing defaults", e));
     }
+    
     LOG.info("Completed initializing registry defaults.");
     return Deferred.group(deferreds).addCallback(Deferreds.NULL_GROUP_CB);
   }

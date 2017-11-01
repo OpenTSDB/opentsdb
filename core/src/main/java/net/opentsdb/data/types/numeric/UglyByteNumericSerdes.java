@@ -19,8 +19,11 @@ import java.util.Map.Entry;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
+import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.execution.serdes.SerdesOptions;
 import net.opentsdb.query.execution.serdes.TimeSeriesSerdes;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
@@ -36,81 +39,79 @@ import net.opentsdb.utils.Bytes;
  * TODO - Handle ID serdes outside of this class. Since it's shared by all types.
  * @since 3.0
  */
-public class UglyByteNumericSerdes implements 
-  TimeSeriesSerdes<TimeSeriesIterator<NumericType>> {
+public class UglyByteNumericSerdes implements TimeSeriesSerdes {
 
   @Override
-  public void serialize(final TimeSeriesQuery query,
+  public void serialize(final QueryContext context,
                         final SerdesOptions options,
                         final OutputStream stream,
-                        final TimeSeriesIterator<NumericType> data) {
+                        final QueryResult result) {
     if (stream == null) {
       throw new IllegalArgumentException("Output stream may not be null.");
     }
-    if (data == null) {
+    if (result == null) {
       throw new IllegalArgumentException("Data may not be null.");
     }
-    if (data.id() == null) {
-      throw new IllegalArgumentException("Iterator ID cannot be null.");
-    }
-//    if (!(data instanceof NumericMillisecondShard)) {
-//      throw new UnsupportedOperationException(
-//          "Not writing this type of number data yet: " + data.getClass());
-//    }
+    
     try {
-      final TimeSeriesId id = data.id();
-      
-      byte[] buf = id.alias() == null ? null : id.alias().getBytes(Const.UTF8_CHARSET);
-      stream.write(Bytes.fromInt(buf == null ? 0 : buf.length));
-      if (buf != null) {
-        stream.write(buf);
-      }
-      
-      buf = id.namespace() == null ? null : id.namespace().getBytes(Const.UTF8_CHARSET);
-      stream.write(Bytes.fromInt(buf == null ? 0 : buf.length));
-      if (buf != null) {
-        stream.write(buf);
-      }
-      
-      buf = id.metric().getBytes(Const.UTF8_CHARSET);
-      stream.write(Bytes.fromInt(buf.length));
+      byte[] buf = Bytes.fromInt(result.timeSeries().size());
       stream.write(buf);
       
-      stream.write(Bytes.fromInt(id.tags().size()));
-      for (final Entry<String, String> pair : id.tags().entrySet()) {
-        buf = pair.getKey().getBytes(Const.UTF8_CHARSET);
+      for (final TimeSeries series : result.timeSeries()) {
+        final TimeSeriesId id = series.id();
+        
+        buf = id.alias() == null ? null : id.alias().getBytes(Const.UTF8_CHARSET);
+        stream.write(Bytes.fromInt(buf == null ? 0 : buf.length));
+        if (buf != null) {
+          stream.write(buf);
+        }
+        
+        buf = id.namespace() == null ? null : id.namespace().getBytes(Const.UTF8_CHARSET);
+        stream.write(Bytes.fromInt(buf == null ? 0 : buf.length));
+        if (buf != null) {
+          stream.write(buf);
+        }
+        
+        buf = id.metric().getBytes(Const.UTF8_CHARSET);
         stream.write(Bytes.fromInt(buf.length));
         stream.write(buf);
-        buf = pair.getValue().getBytes(Const.UTF8_CHARSET);
-        stream.write(Bytes.fromInt(buf.length));
-        stream.write(buf);
+        
+        stream.write(Bytes.fromInt(id.tags().size()));
+        for (final Entry<String, String> pair : id.tags().entrySet()) {
+          buf = pair.getKey().getBytes(Const.UTF8_CHARSET);
+          stream.write(Bytes.fromInt(buf.length));
+          stream.write(buf);
+          buf = pair.getValue().getBytes(Const.UTF8_CHARSET);
+          stream.write(Bytes.fromInt(buf.length));
+          stream.write(buf);
+        }
+        
+        stream.write(Bytes.fromInt(id.aggregatedTags().size()));
+        for (final String tag : id.aggregatedTags()) {
+          buf = tag.getBytes(Const.UTF8_CHARSET);
+          stream.write(Bytes.fromInt(buf.length));
+          stream.write(buf);
+        }
+        
+        stream.write(Bytes.fromInt(id.disjointTags().size()));
+        for (final String tag : id.disjointTags()) {
+          buf = tag.getBytes(Const.UTF8_CHARSET);
+          stream.write(Bytes.fromInt(buf.length));
+          stream.write(buf);
+        }
+        
+        //((NumericMillisecondShard) data).serialize(stream);
+        stream.flush();
       }
-      
-      stream.write(Bytes.fromInt(id.aggregatedTags().size()));
-      for (final String tag : id.aggregatedTags()) {
-        buf = tag.getBytes(Const.UTF8_CHARSET);
-        stream.write(Bytes.fromInt(buf.length));
-        stream.write(buf);
-      }
-      
-      stream.write(Bytes.fromInt(id.disjointTags().size()));
-      for (final String tag : id.disjointTags()) {
-        buf = tag.getBytes(Const.UTF8_CHARSET);
-        stream.write(Bytes.fromInt(buf.length));
-        stream.write(buf);
-      }
-      
-      //((NumericMillisecondShard) data).serialize(stream);
-      stream.flush();
     } catch (IOException e) {
       throw new RuntimeException("Unexpected exception during "
-          + "serialization of: " + data, e);
+          + "serialization of: " + result, e);
     }
   }
 
   @Override
-  public TimeSeriesIterator<NumericType> deserialize(final SerdesOptions options,
-                                                     final InputStream stream) {
+  public QueryResult deserialize(final SerdesOptions options,
+                                 final InputStream stream) {
     if (stream == null) {
       throw new IllegalArgumentException("Input stream may not be null.");
     }

@@ -22,6 +22,7 @@ import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.processor.groupby.GroupByFactory;
+import net.opentsdb.storage.TimeSeriesDataStore;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 
 /**
@@ -69,8 +70,8 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
           .build();
       
       // TODO - get a proper source. For now just the default.
-      QueryNode node = tsdb.getRegistry()
-          .getQueryNodeFactory(null)
+      QueryNode node = ((QueryNodeFactory) tsdb.getRegistry()
+          .getDefaultPlugin(TimeSeriesDataStore.class))
           .newNode(this, config);
       addVertex(node);
       

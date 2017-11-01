@@ -26,11 +26,11 @@ public interface QueryStats {
    * is disabled. If the value is not null, {@link #querySpan()} <i>must</i>
    * return a non-null span.
    */
-  public Tracer tracer();
+  public Trace trace();
 
   /**
    * @return The optional upstream query Span for tracing. May be null if tracing
-   * is disabled. If the span is set, then {@link #tracer()} <i>must</i> return
+   * is disabled. If the span is set, then {@link #trace()} <i>must</i> return
    * a non-null tracer.
    */
   public Span querySpan();

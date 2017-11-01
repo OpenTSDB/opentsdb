@@ -81,7 +81,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
   private MockDownstream<IteratorGroups> cache_execution;
   private Config config;
   private QueryCachePlugin plugin;
-  private TimeSeriesSerdes<IteratorGroups> serdes;
+  private TimeSeriesSerdes serdes;
   private List<MockDownstream<IteratorGroups>> downstreams;
   private IteratorGroupsSlicePlanner planner;
   private ByteMap<byte[]> cache;
@@ -138,9 +138,9 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
       }
     });
     when(registry.getSerdes(anyString()))
-      .thenAnswer(new Answer<TimeSeriesSerdes<IteratorGroups>>() {
+      .thenAnswer(new Answer<TimeSeriesSerdes>() {
       @Override
-      public TimeSeriesSerdes<IteratorGroups> answer(
+      public TimeSeriesSerdes answer(
           final InvocationOnMock invocation) throws Throwable {
         return serdes;
       }
@@ -246,9 +246,9 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     } catch (IllegalArgumentException e) { }
     
     when(registry.getSerdes(anyString()))
-      .thenAnswer(new Answer<TimeSeriesSerdes<IteratorGroups>>() {
+      .thenAnswer(new Answer<TimeSeriesSerdes>() {
       @Override
-      public TimeSeriesSerdes<IteratorGroups> answer(
+      public TimeSeriesSerdes answer(
           final InvocationOnMock invocation) throws Throwable {
         return serdes;
       }

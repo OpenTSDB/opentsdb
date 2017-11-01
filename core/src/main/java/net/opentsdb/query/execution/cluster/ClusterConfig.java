@@ -36,6 +36,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.MultiClusterQueryExecutor;
 import net.opentsdb.query.execution.QueryExecutor;
@@ -108,7 +109,7 @@ public class ClusterConfig implements Comparable<ClusterConfig> {
    * @return A deferred to wait on for initialization to complete. Resolves to
    * null on success or an exception on failure.
    */
-  public Deferred<Object> initialize(final DefaultTSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb) {
     final String implementation_name;
     if (config.implementation().contains(".") || 
         config.implementation().endsWith("$Config")) {

@@ -15,7 +15,8 @@ package net.opentsdb.query.execution.serdes;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryResult;
 
 /**
  * TODO - better description and docs
@@ -24,25 +25,26 @@ import net.opentsdb.query.pojo.TimeSeriesQuery;
  * 
  * @since 3.0
  */
-public interface TimeSeriesSerdes<T> {
+public interface TimeSeriesSerdes {
 
   /**
    * Writes the given data to the stream.
-   * @param query A non-null query.
+   * @param context A non-null query context.
    * @param options Options for serialization.
    * @param stream A non-null stream to write to.
-   * @param data A non-null data set.
+   * @param result A non-null data set.
    */
-  public void serialize(final TimeSeriesQuery query,
+  public void serialize(final QueryContext context,
                         final SerdesOptions options,
                         final OutputStream stream, 
-                        final T data);
+                        final QueryResult result);
   
   /**
    * Parses the given stream into the proper data object.
    * @param options Options for deserialization.
    * @param stream A non-null stream. May be empty.
-   * @return A non-null data object.
+   * @return A non-null query result.
    */
-  public T deserialize(final SerdesOptions options, final InputStream stream);
+  public QueryResult deserialize(final SerdesOptions options, 
+                                 final InputStream stream);
 }

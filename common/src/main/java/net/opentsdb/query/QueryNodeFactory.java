@@ -18,6 +18,7 @@ import java.util.Map;
 
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -27,7 +28,7 @@ import net.opentsdb.data.TimeSeriesValue;
  * 
  * @since 3.0
  */
-public interface QueryNodeFactory {
+public interface QueryNodeFactory extends TSDBPlugin {
 
   /**
    * Instantiates a new node using the given context and config.

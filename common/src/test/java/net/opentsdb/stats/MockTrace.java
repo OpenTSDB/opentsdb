@@ -24,14 +24,19 @@ import net.opentsdb.stats.Span.SpanBuilder;
 /**
  * Class used for unit testing pipelines providing a mock tracer implementation.
  */
-public class MockTracer implements Tracer {
+public class MockTrace implements Trace {
   public final AtomicLong span_timestamp = new AtomicLong();
   public List<MockSpan> spans = Lists.newArrayList();
   public boolean is_debug;
+  public Span first_span;
   
   @Override
   public SpanBuilder newSpan(String id) {
-    return new Builder().buildSpan(id);
+    Builder builder = (Builder) new Builder().buildSpan(id);
+    if (first_span == null) {
+      builder.is_first = true;
+    }
+    return builder;
   }
 
   @Override
@@ -52,21 +57,24 @@ public class MockTracer implements Tracer {
   public class MockSpan implements Span {
     public String id;
     public Span parent;
+    public Object mock_span;
     public final long start;
     public long end;
     public Map<String, Object> tags;
+    public Map<String, Throwable> exceptions;
     
     protected MockSpan(final Builder builder) {
       start = span_timestamp.getAndIncrement();
       id = builder.id;
       parent = builder.parent;
       tags = builder.tags;
+      mock_span = new Object();
     }
     
     @Override
     public void finish() {
       end = span_timestamp.getAndIncrement();
-      synchronized(MockTracer.this) {
+      synchronized(MockTrace.this) {
         spans.add(this);
       }
     }
@@ -74,25 +82,27 @@ public class MockTracer implements Tracer {
     @Override
     public void finish(long duration) {
       end = duration;
-      synchronized(MockTracer.this) {
+      synchronized(MockTrace.this) {
         spans.add(this);
       }
     }
 
     @Override
-    public void setTag(String key, String value) {
+    public Span setTag(String key, String value) {
       if (tags == null) {
         tags = Maps.newHashMap();
       }
       tags.put(key, value);
+      return this;
     }
 
     @Override
-    public void setTag(String key, Number value) {
+    public Span setTag(String key, Number value) {
       if (tags == null) {
         tags = Maps.newHashMap();
       }
       tags.put(key, value);
+      return this;
     }
     
     @Override
@@ -110,12 +120,33 @@ public class MockTracer implements Tracer {
           .append(tags);
       return buf.toString();
     }
+    
+    @Override
+    public Object implementationSpan() {
+      return mock_span;
+    }
+
+    @Override
+    public Span log(String key, Throwable t) {
+      if (exceptions == null) {
+        exceptions = Maps.newHashMap();
+      }
+      exceptions.put(key, t);
+      return this;
+    }
+
+    @Override
+    public SpanBuilder newChild(final String id) {
+      return new Builder().buildSpan(id)
+          .asChildOf(this);
+    }
   }
   
   public class Builder implements SpanBuilder {
     private String id;
     private Span parent;
     private Map<String, Object> tags;
+    private boolean is_first;
     
     @Override
     public SpanBuilder asChildOf(Span parent) {
@@ -149,8 +180,22 @@ public class MockTracer implements Tracer {
 
     @Override
     public Span start() {
+      if (is_first) {
+        first_span = new MockSpan(this);
+        return first_span;
+      }
       return new MockSpan(this);
     }
     
+  }
+
+  @Override
+  public String traceId() {
+    return "ab";
+  }
+
+  @Override
+  public Span firstSpan() {
+    return first_span;
   }
 }

@@ -15,17 +15,18 @@ package net.opentsdb.query.execution.serdes;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Iterator;
 import java.util.Map.Entry;
+import java.util.Optional;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
+import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp.TimeStampComparator;
-import net.opentsdb.data.iterators.IteratorGroups;
-import net.opentsdb.data.iterators.IteratorStatus;
-import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryResult;
 
 /**
  * Simple serializer that outputs the time series in the same format as
@@ -36,7 +37,7 @@ import net.opentsdb.query.pojo.TimeSeriesQuery;
  * 
  * @since 3.0
  */
-public class JsonV2QuerySerdes implements TimeSeriesSerdes<IteratorGroups> {
+public class JsonV2QuerySerdes implements TimeSeriesSerdes {
 
   /** The JSON generator used for writing. */
   private final JsonGenerator json;
@@ -54,14 +55,14 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes<IteratorGroups> {
   
   @SuppressWarnings("unchecked")
   @Override
-  public void serialize(final TimeSeriesQuery query, 
+  public void serialize(final QueryContext context, 
                         final SerdesOptions options,
                         final OutputStream stream, 
-                        final IteratorGroups data) {
+                        final QueryResult result) {
     if (stream == null) {
       throw new IllegalArgumentException("Output stream may not be null.");
     }
-    if (data == null) {
+    if (result == null) {
       throw new IllegalArgumentException("Data may not be null.");
     }
     final JsonV2QuerySerdesOptions opts;
@@ -74,17 +75,48 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes<IteratorGroups> {
     } else {
       opts = null;
     }
+    final net.opentsdb.query.pojo.TimeSeriesQuery query = 
+        (net.opentsdb.query.pojo.TimeSeriesQuery) context.query();
+    
     try {
-      for (final TimeSeriesIterator<?> it : data.flattenedIterators()) {
+      for (final TimeSeries series : result.timeSeries()) {
+        final Optional<Iterator<TimeSeriesValue<?>>> optional = 
+            series.iterator(NumericType.TYPE);
+        if (!optional.isPresent()) {
+          continue;
+        }
+        final Iterator<TimeSeriesValue<?>> iterator = optional.get();
+        if (!iterator.hasNext()) {
+          continue;
+        }
+        
+        TimeSeriesValue<NumericType> value = 
+            (TimeSeriesValue<NumericType>) iterator.next();
+        while (value != null && value.timestamp().compare(TimeStampComparator.LT, 
+            query.getTime().startTime())) {
+          if (iterator.hasNext()) {
+            value = (TimeSeriesValue<NumericType>) iterator.next();
+          } else {
+            value = null;
+          }
+        }
+        if (value == null) {
+          continue;
+        }
+        if (value.timestamp().compare(TimeStampComparator.LT, query.getTime().startTime()) ||
+            value.timestamp().compare(TimeStampComparator.GT, query.getTime().endTime())) {
+          continue;
+        }
+        
         json.writeStartObject();
         
-        json.writeStringField("metric", it.id().metric());
+        json.writeStringField("metric", series.id().metric());
         json.writeObjectFieldStart("tags");
-        for (final Entry<String, String> entry : it.id().tags().entrySet()) {
+        for (final Entry<String, String> entry : series.id().tags().entrySet()) {
           json.writeStringField(entry.getKey(), entry.getValue());
         }
         json.writeArrayFieldStart("aggregateTags");
-        for (final String tag : it.id().aggregatedTags()) {
+        for (final String tag : series.id().aggregatedTags()) {
           json.writeString(tag);
         }
         json.writeEndArray();
@@ -92,24 +124,25 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes<IteratorGroups> {
         json.writeObjectFieldStart("dps");
         
         long ts = 0;
-        while (it.status() == IteratorStatus.HAS_DATA) {
-          final TimeSeriesValue<NumericType> v = 
-              (TimeSeriesValue<NumericType>) it.next();
-          if (v.timestamp().compare(TimeStampComparator.LT, query.getTime().startTime()) || 
-              v.timestamp().compare(TimeStampComparator.GT, query.getTime().endTime())) {
-            continue;
+        while(value != null) {
+          if (value.timestamp().compare(TimeStampComparator.GT, query.getTime().endTime())) {
+            break;
           }
-          
           ts = (opts != null && opts.msResolution()) 
-              ? v.timestamp().msEpoch() 
-              : v.timestamp().msEpoch() / 1000;
+              ? value.timestamp().msEpoch() 
+              : value.timestamp().msEpoch() / 1000;
           
-          if (v.value().isInteger()) {
+          if (value.value().isInteger()) {
             json.writeNumberField(Long.toString(ts), 
-                v.value().longValue());
+                value.value().longValue());
           } else {
             json.writeNumberField(Long.toString(ts), 
-                v.value().doubleValue());
+                value.value().doubleValue());
+          }
+          if (iterator.hasNext()) {
+            value = (TimeSeriesValue<NumericType>) iterator.next();
+          } else {
+            value = null;
           }
         }
         
@@ -120,12 +153,12 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes<IteratorGroups> {
       
       json.flush();
     } catch (IOException e) {
-      throw new RuntimeException("Unexpected exception serializing: " + data);
+      throw new RuntimeException("Unexpected exception serializing: " + result);
     }
   }
 
   @Override
-  public IteratorGroups deserialize(final SerdesOptions options,
+  public QueryResult deserialize(final SerdesOptions options,
                                     final InputStream stream) {
     throw new UnsupportedOperationException("Not implemented for this "
         + "class: " + getClass().getCanonicalName());
