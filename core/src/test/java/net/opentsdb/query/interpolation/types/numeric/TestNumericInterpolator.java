@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.query.processor;
+package net.opentsdb.query.interpolation.types.numeric;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -35,20 +35,25 @@ import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.types.numeric.BaseNumericFillPolicy;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.data.types.numeric.ScalarNumericFillPolicy;
-import net.opentsdb.query.QueryFillPolicy;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolator;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.interpolation.types.numeric.NumericLERP;
+import net.opentsdb.query.interpolation.types.numeric.ScalarNumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 
-public class TestNumericLERP {
-  private QueryFillPolicy<NumericType> fill;
+public class TestNumericInterpolator {
+  
+  private NumericInterpolatorConfig config;
   
   @Before
   public void before() throws Exception {
-    fill = new BaseNumericFillPolicy(FillPolicy.NOT_A_NUMBER);
+    config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build();
   }
   
   @Test
@@ -59,7 +64,7 @@ public class TestNumericLERP {
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     source.add(1000, 1000);
     
-    NumericLERP lerp = new NumericLERP(source, fill, FillWithRealPolicy.NONE);
+    NumericLERP lerp = new NumericLERP(source, config);
     assertTrue(lerp.has_next);
     assertEquals(1000, lerp.nextReal().msEpoch());
     
@@ -68,29 +73,29 @@ public class TestNumericLERP {
         BaseTimeSeriesId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
-    lerp = new NumericLERP(source, fill, FillWithRealPolicy.NONE);
+    lerp = new NumericLERP(source, config);
     assertFalse(lerp.has_next);
     
     // no such type in source
     TimeSeries mock_source = mock(TimeSeries.class);
     when(mock_source.iterator(any(TypeToken.class)))
         .thenReturn(Optional.<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>>empty());
-    lerp = new NumericLERP(source, fill, FillWithRealPolicy.NONE);
+    lerp = new NumericLERP(source, config);
     assertFalse(lerp.has_next);
     
     try {
-      new NumericLERP(null, fill, FillWithRealPolicy.NONE);
+      new NumericLERP(null, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new NumericLERP(source, null, FillWithRealPolicy.NONE);
+      new NumericLERP(source, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
-  public void lerpIntegers() throws Exception {
+  public void integers() throws Exception {
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesId.newBuilder()
         .setMetric("foo")
@@ -98,128 +103,42 @@ public class TestNumericLERP {
     source.add(1000, 1);
     source.add(3000, 10);
     
-    final NumericLERP lerp = new NumericLERP(source, fill, FillWithRealPolicy.NONE);
-    assertTrue(lerp.has_next);
-    TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
+    final NumericInterpolator interpolator = new NumericInterpolator(source, config);
+    assertTrue(interpolator.has_next);
+    TimeSeriesValue<NumericType> v = interpolator.next(new MillisecondTimeStamp(500));
     assertEquals(500, v.timestamp().msEpoch());
     assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(1000, lerp.nextReal().msEpoch());
+    assertEquals(1000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(1000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(1000));
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(2000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(2000));
     assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(5, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertTrue(Double.isNaN(v.value().doubleValue()));
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3000));
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(10, v.value().longValue());
     try {
-      lerp.nextReal();
+      interpolator.nextReal();
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    assertFalse(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3500));
+    assertFalse(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3500));
     assertEquals(3500, v.timestamp().msEpoch());
     assertTrue(Double.isNaN(v.value().doubleValue()));
   }
-  
+
   @Test
-  public void lerpIntegersPrecise() throws Exception {
-    NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
-        .setMetric("foo")
-        .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
-    source.add(1000, 1000);
-    source.add(3000, 3001);
-    
-    final NumericLERP lerp = new NumericLERP(source, fill, FillWithRealPolicy.NONE);
-    assertTrue(lerp.has_next);
-    TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
-    assertEquals(500, v.timestamp().msEpoch());
-    assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(1000, lerp.nextReal().msEpoch());
-    
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(1000));
-    assertEquals(1000, v.timestamp().msEpoch());
-    assertEquals(1000, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
-    
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(2000));
-    assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(2000, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
-    
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3000));
-    assertEquals(3000, v.timestamp().msEpoch());
-    assertEquals(3001, v.value().longValue());
-    try {
-      lerp.nextReal();
-      fail("Expected NoSuchElementException");
-    } catch (NoSuchElementException e) { }
-    
-    assertFalse(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3500));
-    assertEquals(3500, v.timestamp().msEpoch());
-    assertTrue(Double.isNaN(v.value().doubleValue()));
-  }
-  
-  @Test
-  public void lerpIntegersAlmostMax() throws Exception {
-    NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
-        .setMetric("foo")
-        .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
-    source.add(1000, Long.MAX_VALUE - 19);
-    source.add(3000, Long.MAX_VALUE - 10);
-    
-    final NumericLERP lerp = new NumericLERP(source, fill, FillWithRealPolicy.NONE);
-    assertTrue(lerp.has_next);
-    TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
-    assertEquals(500, v.timestamp().msEpoch());
-    assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(1000, lerp.nextReal().msEpoch());
-    
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(1000));
-    assertEquals(1000, v.timestamp().msEpoch());
-    assertEquals(Long.MAX_VALUE - 19, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
-    
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(2000));
-    assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(Long.MAX_VALUE - 15, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
-    
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3000));
-    assertEquals(3000, v.timestamp().msEpoch());
-    assertEquals(Long.MAX_VALUE - 10, v.value().longValue());
-    try {
-      lerp.nextReal();
-      fail("Expected NoSuchElementException");
-    } catch (NoSuchElementException e) { }
-    
-    assertFalse(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3500));
-    assertEquals(3500, v.timestamp().msEpoch());
-    assertTrue(Double.isNaN(v.value().doubleValue()));
-  }
-  
-  @Test
-  public void lerpIntegerThenFloat() throws Exception {
+  public void integerThenFloat() throws Exception {
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesId.newBuilder()
         .setMetric("foo")
@@ -227,42 +146,42 @@ public class TestNumericLERP {
     source.add(1000, 1);
     source.add(3000, 10.5);
     
-    final NumericLERP lerp = new NumericLERP(source, fill, FillWithRealPolicy.NONE);
-    assertTrue(lerp.has_next);
-    TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
+    final NumericInterpolator interpolator = new NumericInterpolator(source, config);
+    assertTrue(interpolator.has_next);
+    TimeSeriesValue<NumericType> v = interpolator.next(new MillisecondTimeStamp(500));
     assertEquals(500, v.timestamp().msEpoch());
     assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(1000, lerp.nextReal().msEpoch());
+    assertEquals(1000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(1000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(1000));
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(2000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(2000));
     assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(5.75, v.value().doubleValue(), 0.001);
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertTrue(Double.isNaN(v.value().doubleValue()));
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3000));
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(10.5, v.value().doubleValue(), 0.001);
     try {
-      lerp.nextReal();
+      interpolator.nextReal();
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    assertFalse(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3500));
+    assertFalse(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3500));
     assertEquals(3500, v.timestamp().msEpoch());
     assertTrue(Double.isNaN(v.value().doubleValue()));
   }
   
   @Test
-  public void lerpFloats() throws Exception {
+  public void floats() throws Exception {
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesId.newBuilder()
         .setMetric("foo")
@@ -270,42 +189,46 @@ public class TestNumericLERP {
     source.add(1000, 1.5);
     source.add(3000, 10.5);
     
-    final NumericLERP lerp = new NumericLERP(source, fill, FillWithRealPolicy.NONE);
-    assertTrue(lerp.has_next);
-    TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
+    final NumericInterpolator interpolator = new NumericInterpolator(source, config);
+    assertTrue(interpolator.has_next);
+    TimeSeriesValue<NumericType> v = interpolator.next(new MillisecondTimeStamp(500));
     assertEquals(500, v.timestamp().msEpoch());
     assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(1000, lerp.nextReal().msEpoch());
+    assertEquals(1000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(1000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(1000));
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(1.5, v.value().doubleValue(), 0.001);
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(2000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(2000));
     assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(6.0, v.value().doubleValue(), 0.001);
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertTrue(Double.isNaN(v.value().doubleValue()));
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3000));
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(10.5, v.value().doubleValue(), 0.001);
     try {
-      lerp.nextReal();
+      interpolator.nextReal();
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    assertFalse(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3500));
+    assertFalse(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3500));
     assertEquals(3500, v.timestamp().msEpoch());
     assertTrue(Double.isNaN(v.value().doubleValue()));
   }
-  
+
   @Test
   public void previousOnly() throws Exception {
+    config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREVIOUS_ONLY)
+        .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesId.newBuilder()
         .setMetric("foo")
@@ -313,42 +236,46 @@ public class TestNumericLERP {
     source.add(1000, 1);
     source.add(3000, 10);
     
-    final NumericLERP lerp = new NumericLERP(source, fill, FillWithRealPolicy.PREVIOUS_ONLY);
-    assertTrue(lerp.has_next);
-    TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
+    final NumericInterpolator interpolator = new NumericInterpolator(source, config);
+    assertTrue(interpolator.has_next);
+    TimeSeriesValue<NumericType> v = interpolator.next(new MillisecondTimeStamp(500));
     assertEquals(500, v.timestamp().msEpoch());
     assertTrue(Double.isNaN(v.value().doubleValue()));
-    assertEquals(1000, lerp.nextReal().msEpoch());
+    assertEquals(1000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(1000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(1000));
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(2000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(2000));
     assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(5, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(1, v.value().longValue());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3000));
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(10, v.value().longValue());
     try {
-      lerp.nextReal();
+      interpolator.nextReal();
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    assertFalse(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3500));
+    assertFalse(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3500));
     assertEquals(3500, v.timestamp().msEpoch());
     assertEquals(10, v.value().longValue());
   }
   
   @Test
   public void nextOnly() throws Exception {
+    config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+        .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesId.newBuilder()
         .setMetric("foo")
@@ -356,42 +283,46 @@ public class TestNumericLERP {
     source.add(1000, 1);
     source.add(3000, 10);
     
-    final NumericLERP lerp = new NumericLERP(source, fill, FillWithRealPolicy.NEXT_ONLY);
-    assertTrue(lerp.has_next);
-    TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
+    final NumericInterpolator interpolator = new NumericInterpolator(source, config);
+    assertTrue(interpolator.has_next);
+    TimeSeriesValue<NumericType> v = interpolator.next(new MillisecondTimeStamp(500));
     assertEquals(500, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1000, lerp.nextReal().msEpoch());
+    assertEquals(1000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(1000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(1000));
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(2000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(2000));
     assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(5, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(10, v.value().longValue());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3000));
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(10, v.value().longValue());
     try {
-      lerp.nextReal();
+      interpolator.nextReal();
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    assertFalse(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3500));
+    assertFalse(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3500));
     assertEquals(3500, v.timestamp().msEpoch());
     assertTrue(Double.isNaN(v.value().doubleValue()));
   }
-
+  
   @Test
   public void preferPrevious() throws Exception {
+    config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_PREVIOUS)
+        .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesId.newBuilder()
         .setMetric("foo")
@@ -399,42 +330,46 @@ public class TestNumericLERP {
     source.add(1000, 1);
     source.add(3000, 10);
     
-    final NumericLERP lerp = new NumericLERP(source, fill, FillWithRealPolicy.PREFER_PREVIOUS);
-    assertTrue(lerp.has_next);
-    TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
+    final NumericInterpolator interpolator = new NumericInterpolator(source, config);
+    assertTrue(interpolator.has_next);
+    TimeSeriesValue<NumericType> v = interpolator.next(new MillisecondTimeStamp(500));
     assertEquals(500, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1000, lerp.nextReal().msEpoch());
+    assertEquals(1000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(1000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(1000));
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(2000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(2000));
     assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(5, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(1, v.value().longValue());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3000));
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(10, v.value().longValue());
     try {
-      lerp.nextReal();
+      interpolator.nextReal();
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    assertFalse(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3500));
+    assertFalse(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3500));
     assertEquals(3500, v.timestamp().msEpoch());
     assertEquals(10, v.value().longValue());
   }
   
   @Test
   public void preferNext() throws Exception {
+    config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesId.newBuilder()
         .setMetric("foo")
@@ -442,43 +377,46 @@ public class TestNumericLERP {
     source.add(1000, 1);
     source.add(3000, 10);
     
-    final NumericLERP lerp = new NumericLERP(source, fill, FillWithRealPolicy.PREFER_NEXT);
-    assertTrue(lerp.has_next);
-    TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
+    final NumericInterpolator interpolator = new NumericInterpolator(source, config);
+    assertTrue(interpolator.has_next);
+    TimeSeriesValue<NumericType> v = interpolator.next(new MillisecondTimeStamp(500));
     assertEquals(500, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(1000, lerp.nextReal().msEpoch());
+    assertEquals(1000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(1000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(1000));
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(2000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(2000));
     assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(5, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(10, v.value().longValue());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3000));
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(10, v.value().longValue());
     try {
-      lerp.nextReal();
+      interpolator.nextReal();
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    assertFalse(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3500));
+    assertFalse(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3500));
     assertEquals(3500, v.timestamp().msEpoch());
-    assertEquals(10, v.value().longValue());
+    assertTrue(Double.isNaN(v.value().doubleValue()));
   }
   
   @Test
   public void fillNone() throws Exception {
-    fill = new BaseNumericFillPolicy(FillPolicy.NONE);
+    config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NONE)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesId.newBuilder()
         .setMetric("foo")
@@ -486,40 +424,42 @@ public class TestNumericLERP {
     source.add(1000, 1);
     source.add(3000, 10);
     
-    final NumericLERP lerp = new NumericLERP(source, fill, FillWithRealPolicy.NONE);
-    assertTrue(lerp.has_next);
-    TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
+    final NumericInterpolator interpolator = new NumericInterpolator(source, config);
+    assertTrue(interpolator.has_next);
+    TimeSeriesValue<NumericType> v = interpolator.next(new MillisecondTimeStamp(500));
     assertNull(v);
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(1000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(1000));
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(2000));
-    assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(5, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(2000));
+    assertNull(v);
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3000));
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(10, v.value().longValue());
     try {
-      lerp.nextReal();
+      interpolator.nextReal();
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    assertFalse(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3500));
+    assertFalse(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3500));
     assertNull(v);
   }
   
   @Test
   public void fillNull() throws Exception {
-    fill = new BaseNumericFillPolicy(FillPolicy.NULL);
+    config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NULL)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesId.newBuilder()
         .setMetric("foo")
@@ -527,40 +467,42 @@ public class TestNumericLERP {
     source.add(1000, 1);
     source.add(3000, 10);
     
-    final NumericLERP lerp = new NumericLERP(source, fill, FillWithRealPolicy.NONE);
-    assertTrue(lerp.has_next);
-    TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
+    final NumericInterpolator interpolator = new NumericInterpolator(source, config);
+    assertTrue(interpolator.has_next);
+    TimeSeriesValue<NumericType> v = interpolator.next(new MillisecondTimeStamp(500));
     assertNull(v);
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(1000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(1000));
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(2000));
-    assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(5, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(2000));
+    assertNull(v);
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3000));
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(10, v.value().longValue());
     try {
-      lerp.nextReal();
+      interpolator.nextReal();
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    assertFalse(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3500));
+    assertFalse(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3500));
     assertNull(v);
   }
   
   @Test
   public void fillZero() throws Exception {
-    fill = new BaseNumericFillPolicy(FillPolicy.ZERO);
+    config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.ZERO)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesId.newBuilder()
         .setMetric("foo")
@@ -568,42 +510,46 @@ public class TestNumericLERP {
     source.add(1000, 1);
     source.add(3000, 10);
     
-    final NumericLERP lerp = new NumericLERP(source, fill, FillWithRealPolicy.NONE);
-    assertTrue(lerp.has_next);
-    TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
+    final NumericInterpolator interpolator = new NumericInterpolator(source, config);
+    assertTrue(interpolator.has_next);
+    TimeSeriesValue<NumericType> v = interpolator.next(new MillisecondTimeStamp(500));
     assertEquals(500, v.timestamp().msEpoch());
     assertEquals(0, v.value().longValue());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(1000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(1000));
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(2000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(2000));
     assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(5, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(0, v.value().longValue());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3000));
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(10, v.value().longValue());
     try {
-      lerp.nextReal();
+      interpolator.nextReal();
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    assertFalse(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3500));
+    assertFalse(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3500));
     assertEquals(3500, v.timestamp().msEpoch());
     assertEquals(0, v.value().longValue());
   }
   
   @Test
   public void fillScalar() throws Exception {
-    fill = new ScalarNumericFillPolicy(42);
+    config = ScalarNumericInterpolatorConfig.newBuilder()
+        .setValue(42)
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesId.newBuilder()
         .setMetric("foo")
@@ -611,35 +557,35 @@ public class TestNumericLERP {
     source.add(1000, 1);
     source.add(3000, 10);
     
-    final NumericLERP lerp = new NumericLERP(source, fill, FillWithRealPolicy.NONE);
-    assertTrue(lerp.has_next);
-    TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
+    final NumericInterpolator interpolator = new NumericInterpolator(source, config);
+    assertTrue(interpolator.has_next);
+    TimeSeriesValue<NumericType> v = interpolator.next(new MillisecondTimeStamp(500));
     assertEquals(500, v.timestamp().msEpoch());
     assertEquals(42, v.value().longValue());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(1000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(1000));
     assertEquals(1000, v.timestamp().msEpoch());
     assertEquals(1, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(2000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(2000));
     assertEquals(2000, v.timestamp().msEpoch());
-    assertEquals(5, v.value().longValue());
-    assertEquals(3000, lerp.nextReal().msEpoch());
+    assertEquals(42, v.value().longValue());
+    assertEquals(3000, interpolator.nextReal().msEpoch());
     
-    assertTrue(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3000));
+    assertTrue(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3000));
     assertEquals(3000, v.timestamp().msEpoch());
     assertEquals(10, v.value().longValue());
     try {
-      lerp.nextReal();
+      interpolator.nextReal();
       fail("Expected NoSuchElementException");
     } catch (NoSuchElementException e) { }
     
-    assertFalse(lerp.has_next);
-    v = lerp.next(new MillisecondTimeStamp(3500));
+    assertFalse(interpolator.has_next);
+    v = interpolator.next(new MillisecondTimeStamp(3500));
     assertEquals(3500, v.timestamp().msEpoch());
     assertEquals(42, v.value().longValue());
   }
@@ -651,7 +597,7 @@ public class TestNumericLERP {
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     
-    final NumericLERP lerp = new NumericLERP(source, fill, FillWithRealPolicy.NONE);
+    final NumericLERP lerp = new NumericLERP(source, config);
     assertFalse(lerp.has_next);
     TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
     assertEquals(500, v.timestamp().msEpoch());
@@ -686,7 +632,7 @@ public class TestNumericLERP {
     when(mock_source.iterator(any(TypeToken.class)))
         .thenReturn(Optional.<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>>empty());
     
-    final NumericLERP lerp = new NumericLERP(mock_source, fill, FillWithRealPolicy.NONE);
+    final NumericLERP lerp = new NumericLERP(mock_source, config);
     assertFalse(lerp.has_next);
     TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
     assertEquals(500, v.timestamp().msEpoch());

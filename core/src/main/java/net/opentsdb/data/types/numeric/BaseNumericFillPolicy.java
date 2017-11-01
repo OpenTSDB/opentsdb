@@ -13,7 +13,7 @@
 package net.opentsdb.data.types.numeric;
 
 import net.opentsdb.query.QueryFillPolicy;
-import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 
 /**
  * A base class that implements some of the numeric fill policies. For those
@@ -25,24 +25,24 @@ import net.opentsdb.query.pojo.FillPolicy;
 public class BaseNumericFillPolicy implements QueryFillPolicy<NumericType>, 
     NumericType {
   
-  /** The fill policy for this implementation. */
-  protected final FillPolicy policy;
+  /** The fill policy config for this implementation. */
+  protected final NumericInterpolatorConfig config;
   
   /**
    * Default Ctor.
    * @param policy A non-null policy to implement.
    * @throws IllegalArgumentException if the policy was null.
    */
-  public BaseNumericFillPolicy(final FillPolicy policy) {
-    if (policy == null) {
-      throw new IllegalArgumentException("Policy cannot be null.");
+  public BaseNumericFillPolicy(final NumericInterpolatorConfig config) {
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null.");
     }
-    this.policy = policy;
+    this.config = config;
   }
   
   @Override
   public NumericType fill() {
-    switch(policy) {
+    switch(config.fillPolicy()) {
     case NONE:
     case NULL:
       return null;
@@ -57,7 +57,7 @@ public class BaseNumericFillPolicy implements QueryFillPolicy<NumericType>,
 
   @Override
   public boolean isInteger() {
-    switch(policy) {
+    switch(config.fillPolicy()) {
     case ZERO:
       return true;
     case NOT_A_NUMBER:
@@ -82,7 +82,7 @@ public class BaseNumericFillPolicy implements QueryFillPolicy<NumericType>,
 
   @Override
   public double toDouble() {
-    switch(policy) {
+    switch(config.fillPolicy()) {
     case ZERO:
       return 0D;
     case NOT_A_NUMBER:
@@ -92,12 +92,10 @@ public class BaseNumericFillPolicy implements QueryFillPolicy<NumericType>,
           + "support the policy.");
     }
   }
-
   
   @Override
-  public net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy realPolicy() {
-    // TODO Auto-generated method stub
-    return null;
+  public FillWithRealPolicy realPolicy() {
+    return config.realFillPolicy();
   }
 
 }

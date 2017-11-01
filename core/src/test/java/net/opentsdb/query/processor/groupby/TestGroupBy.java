@@ -31,11 +31,11 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.common.collect.Lists;
 
-import net.opentsdb.data.types.numeric.NumericInterpolatorFactories;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ GroupBy.class })
@@ -53,7 +53,7 @@ public class TestGroupBy {
         .setAggregator("sum")
         .setId("GB")
         .addTagKey("host")
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactories.Null())
+        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
         .build();
     upstream = mock(QueryNode.class);
     when(context.upstream(any(QueryNode.class))).thenReturn(Lists.newArrayList(upstream));

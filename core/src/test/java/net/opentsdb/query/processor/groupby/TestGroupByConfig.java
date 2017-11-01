@@ -21,18 +21,25 @@ import org.junit.Test;
 
 import com.google.common.collect.Sets;
 
-import net.opentsdb.data.types.numeric.NumericInterpolatorFactories;
 import net.opentsdb.query.QueryIteratorInterpolatorFactory;
-import net.opentsdb.query.processor.NumericInterpolator;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
+import net.opentsdb.query.interpolation.types.numeric.ScalarNumericInterpolatorConfig;
+import net.opentsdb.query.pojo.FillPolicy;
 
 public class TestGroupByConfig {
 
   @Test
   public void build() throws Exception {
     final QueryIteratorInterpolatorFactory interpolator = 
-        new NumericInterpolatorFactories.Scalar();
-    final NumericInterpolator.Config ic = new NumericInterpolator.Config();
-    ic.scalar = 42;
+        new NumericInterpolatorFactory.Default();
+    final NumericInterpolatorConfig interpolator_config = 
+        ScalarNumericInterpolatorConfig.newBuilder()
+        .setValue(42)
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build();
     
     GroupByConfig config = GroupByConfig.newBuilder()
         .setAggregator("sum")
@@ -40,7 +47,7 @@ public class TestGroupByConfig {
         .setTagKeys(Sets.newHashSet("host"))
         .addTagKey("dc")
         .setQueryIteratorInterpolatorFactory(interpolator)
-        .setQueryIteratorInterpolatorConfig(ic)
+        .setQueryIteratorInterpolatorConfig(interpolator_config)
         .build();
     
     assertEquals("sum", config.getAggregator());
@@ -48,7 +55,7 @@ public class TestGroupByConfig {
     assertTrue(config.getTagKeys().contains("host"));
     assertTrue(config.getTagKeys().contains("dc"));
     assertSame(interpolator, config.getInterpolator());
-    assertSame(ic, config.getInterpolatorConfig());
+    assertSame(interpolator_config, config.getInterpolatorConfig());
     
     try {
       GroupByConfig.newBuilder()
@@ -57,7 +64,7 @@ public class TestGroupByConfig {
         .setTagKeys(Sets.newHashSet("host"))
         .addTagKey("dc")
         .setQueryIteratorInterpolatorFactory(interpolator)
-        .setQueryIteratorInterpolatorConfig(ic)
+        .setQueryIteratorInterpolatorConfig(interpolator_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -69,7 +76,7 @@ public class TestGroupByConfig {
         .setTagKeys(Sets.newHashSet("host"))
         .addTagKey("dc")
         .setQueryIteratorInterpolatorFactory(interpolator)
-        .setQueryIteratorInterpolatorConfig(ic)
+        .setQueryIteratorInterpolatorConfig(interpolator_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -81,7 +88,7 @@ public class TestGroupByConfig {
         .setTagKeys(Sets.newHashSet("host"))
         .addTagKey("dc")
         .setQueryIteratorInterpolatorFactory(interpolator)
-        .setQueryIteratorInterpolatorConfig(ic)
+        .setQueryIteratorInterpolatorConfig(interpolator_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -93,7 +100,7 @@ public class TestGroupByConfig {
         .setTagKeys(Sets.newHashSet("host"))
         .addTagKey("dc")
         .setQueryIteratorInterpolatorFactory(interpolator)
-        .setQueryIteratorInterpolatorConfig(ic)
+        .setQueryIteratorInterpolatorConfig(interpolator_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -105,7 +112,7 @@ public class TestGroupByConfig {
         //.setTagKeys(Sets.newHashSet("host"))
         //.addTagKey("dc")
         .setQueryIteratorInterpolatorFactory(interpolator)
-        .setQueryIteratorInterpolatorConfig(ic)
+        .setQueryIteratorInterpolatorConfig(interpolator_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -117,7 +124,7 @@ public class TestGroupByConfig {
         .setTagKeys(Sets.newHashSet("host"))
         .addTagKey("dc")
         //.setQueryIteratorInterpolatorFactory(interpolator)
-        .setQueryIteratorInterpolatorConfig(ic)
+        .setQueryIteratorInterpolatorConfig(interpolator_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }

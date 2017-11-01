@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.query.processor;
+package net.opentsdb.query.interpolation.types.numeric;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
@@ -18,8 +18,6 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.TimeStampComparator;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.QueryFillPolicy;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 
 /**
  * An interpolator for numeric data points that implements linear 
@@ -42,17 +40,15 @@ public class NumericLERP extends NumericInterpolator {
   /**
    * Default ctor.
    * @param source A non-null source.
-   * @param fill_policy A non-null fill policy.
-   * @param first_or_last Whether or not to fill with the first or last values
-   * when times outside the iterator's time range are requested.
-   * @throws IllegalArgumentException if the source or policy were null.
+   * @param config The non-null config for the interpolator.
+   * @throws IllegalArgumentException if the source or config were null.
    */
   public NumericLERP(final TimeSeries source, 
-                     final QueryFillPolicy<NumericType> fill_policy,
-                     final FillWithRealPolicy real_policy) {
-    super(source, fill_policy, real_policy);
+                     final NumericInterpolatorConfig config) {
+    super(source, config);
   }
   
+  @SuppressWarnings("unchecked")
   @Override
   public TimeSeriesValue<NumericType> next(final TimeStamp timestamp) {
     // if the iterator is null or it was empty, the next is null and we just 

@@ -12,7 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.data.types.numeric;
 
-import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.query.interpolation.types.numeric.ScalarNumericInterpolatorConfig;
 
 /**
  * Implements a fixed numeric fill policy, returning the same value every time
@@ -22,30 +22,19 @@ import net.opentsdb.query.pojo.FillPolicy;
  */
 public class ScalarNumericFillPolicy extends BaseNumericFillPolicy {
   
-  /** Whether or not the value is an integer. */
-  protected boolean is_integer;
+  /** The config policy. */
+  protected ScalarNumericInterpolatorConfig config;
   
   /** The value to fill with. */
   protected long fill;
   
   /**
    * Ctor for integers.
-   * @param scalar An integer value.
+   * @param config The config policy that includes the value to fill with.
    */
-  public ScalarNumericFillPolicy(final long scalar) {
-    super(FillPolicy.SCALAR);
-    is_integer = true;
-    fill = scalar;
-  }
-  
-  /**
-   * Ctor for floats.
-   * @param scalar A double value.
-   */
-  public ScalarNumericFillPolicy(final double scalar) {
-    super(FillPolicy.SCALAR);
-    is_integer = false;
-    fill = Double.doubleToRawLongBits(scalar);
+  public ScalarNumericFillPolicy(final ScalarNumericInterpolatorConfig config) {
+    super(config);
+    this.config = config;
   }
   
   @Override
@@ -55,30 +44,21 @@ public class ScalarNumericFillPolicy extends BaseNumericFillPolicy {
   
   @Override
   public boolean isInteger() {
-    return is_integer;
+    return config.isInteger();
   }
   
   @Override
   public long longValue() {
-    if (!is_integer) {
-      throw new ClassCastException("Not a long in " + toString());
-    }
-    return fill;
+    return config.longValue();
   }
   
   @Override
   public double doubleValue() {
-    if (is_integer) {
-      throw new ClassCastException("Not a long in " + toString());
-    }
-    return Double.longBitsToDouble(fill);
+    return config.doubleValue();
   }
   
   @Override
   public double toDouble() {
-    if (is_integer) {
-      return (double) fill;
-    }
-    return Double.longBitsToDouble(fill);
+    return config.toDouble();
   }
 }

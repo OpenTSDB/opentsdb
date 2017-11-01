@@ -20,6 +20,8 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 
 public class TestBaseNumericFillPolicy {
@@ -27,7 +29,10 @@ public class TestBaseNumericFillPolicy {
   @Test
   public void ctor() throws Exception {
     final BaseNumericFillPolicy fill = 
-        new BaseNumericFillPolicy(FillPolicy.NOT_A_NUMBER);
+        new BaseNumericFillPolicy(NumericInterpolatorConfig.newBuilder()
+            .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+            .setRealFillPolicy(FillWithRealPolicy.NONE)
+            .build());
     assertTrue(Double.isNaN(fill.fill().doubleValue()));
     
     try {
@@ -38,33 +43,49 @@ public class TestBaseNumericFillPolicy {
   
   @Test
   public void fill() throws Exception {
-    BaseNumericFillPolicy fill = new BaseNumericFillPolicy(FillPolicy.NOT_A_NUMBER);
+    BaseNumericFillPolicy fill = new BaseNumericFillPolicy(
+        NumericInterpolatorConfig.newBuilder()
+          .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+          .setRealFillPolicy(FillWithRealPolicy.NONE)
+          .build());
     assertFalse(fill.isInteger());
     assertTrue(Double.isNaN(fill.fill().doubleValue()));
     assertTrue(Double.isNaN(fill.fill().toDouble()));
     assertEquals(0, fill.fill().longValue());
     
-    fill = new BaseNumericFillPolicy(FillPolicy.ZERO);
+    fill = new BaseNumericFillPolicy(NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.ZERO)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build());
     assertTrue(fill.isInteger());
     assertTrue(Double.isNaN(fill.fill().doubleValue()));
     assertEquals(0, fill.fill().toDouble(), 0.001);
     assertEquals(0, fill.fill().longValue());
     
-    fill = new BaseNumericFillPolicy(FillPolicy.NONE);
+    fill = new BaseNumericFillPolicy(NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NONE)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build());
     try {
       fill.isInteger();
       fail("Expected UnsupportedOperationException");
     } catch (UnsupportedOperationException e) { }
     assertNull(fill.fill());
     
-    fill = new BaseNumericFillPolicy(FillPolicy.NULL);
+    fill = new BaseNumericFillPolicy(NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NULL)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build());
     try {
       fill.isInteger();
       fail("Expected UnsupportedOperationException");
     } catch (UnsupportedOperationException e) { }
     assertNull(fill.fill());
     
-    fill = new BaseNumericFillPolicy(FillPolicy.SCALAR);
+    fill = new BaseNumericFillPolicy(NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.SCALAR)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build());
     try {
       fill.isInteger();
       fail("Expected UnsupportedOperationException");
