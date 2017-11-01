@@ -138,8 +138,8 @@ public class DefaultQueryContextBuilder implements QueryContextBuilder {
     private Span local_span;
     
     public LocalContext() {
-      if (stats != null && stats.tracer() != null) {
-        local_span = stats.tracer().newSpan("Query Context Initialization")
+      if (stats != null && stats.trace() != null) {
+        local_span = stats.trace().newSpan("Query Context Initialization")
             .asChildOf(stats.querySpan())
             .start();
       }
@@ -174,6 +174,12 @@ public class DefaultQueryContextBuilder implements QueryContextBuilder {
     @Override
     public QueryStats stats() {
       return stats;
+    }
+
+    
+    @Override
+    public TimeSeriesQuery query() {
+      return query;
     }
     
   }

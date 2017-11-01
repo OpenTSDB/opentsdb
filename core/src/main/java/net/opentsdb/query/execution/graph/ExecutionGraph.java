@@ -42,6 +42,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.QueryExecutorFactory;
 
@@ -76,7 +77,7 @@ import net.opentsdb.query.execution.QueryExecutorFactory;
 @JsonDeserialize(builder = ExecutionGraph.Builder.class)
 public class ExecutionGraph implements Comparable<ExecutionGraph> {
   /** The TSDB to which this graph belongs. */
-  protected DefaultTSDB tsdb;
+  protected TSDB tsdb;
   
   /** The ID of this execution graph. */
   protected String id;
@@ -116,25 +117,25 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
    * an exception if the graph does not conform to specs.
    * @throws IllegalArgumentException if the TSDB was null.
    */
-  public Deferred<Object> initialize(final DefaultTSDB tsdb) {
+  public Deferred<Object> initialize(final TSDB tsdb) {
     return initialize(tsdb, null);
   }
   
   /**
    * Initializes the graph as per the config, looking for factories and 
    * instantiating executors.
-   * @param tsdb A non-null TSDB to pull factories from.
+   * @param tsdb2 A non-null TSDB to pull factories from.
    * @param id_prefix An optional prefix to use if this graph belongs to an
    * executor such as a cluster executor.
    * @return A deferred to wait on for initialization to complete. May return
    * an exception if the graph does not conform to specs.
    * @throws IllegalArgumentException if the TSDB was null.
    */
-  public Deferred<Object> initialize(final DefaultTSDB tsdb, final String id_prefix) {
-    if (tsdb == null) {
+  public Deferred<Object> initialize(final TSDB tsdb2, final String id_prefix) {
+    if (tsdb2 == null) {
       throw new IllegalArgumentException("TSDB cannot be null.");
     }
-    this.tsdb = tsdb;
+    this.tsdb = tsdb2;
     try {
       final Map<String, ExecutionGraphNode> map = 
           Maps.newHashMapWithExpectedSize(nodes.size());
@@ -287,7 +288,7 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
   }
   
   /** The TSDB this graph belongs to. */
-  public DefaultTSDB tsdb() {
+  public TSDB tsdb() {
     return tsdb;
   }
   

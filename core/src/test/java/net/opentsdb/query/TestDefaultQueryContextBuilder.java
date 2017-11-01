@@ -26,7 +26,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.stats.MockStats;
-import net.opentsdb.stats.MockTracer;
+import net.opentsdb.stats.MockTrace;
 import net.opentsdb.stats.QueryStats;
 
 @RunWith(PowerMockRunner.class)
@@ -63,7 +63,7 @@ public class TestDefaultQueryContextBuilder {
   
   @Test
   public void buildWithStats() throws Exception {
-    final MockTracer tracer = new MockTracer();
+    final MockTrace tracer = new MockTrace();
     final QueryStats stats = new MockStats(tracer, tracer.newSpan("mock").start());
     
     final QueryContext context = DefaultQueryContextBuilder.newBuilder(tsdb)

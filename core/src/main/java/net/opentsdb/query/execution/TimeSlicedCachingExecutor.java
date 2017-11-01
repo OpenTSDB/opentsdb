@@ -100,7 +100,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
   private final QueryCachePlugin plugin;
   
   /** The serdes class to use. */
-  private final TimeSeriesSerdes<T> serdes;
+  private final TimeSeriesSerdes serdes;
   
   /** A key generator used for reading and writing the cache data. */
   private final TimeSeriesCacheKeyGenerator key_generator;
@@ -124,7 +124,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
       throw new IllegalArgumentException("Unable to find a caching plugin "
           + "for ID: " + ((Config) node.getDefaultConfig()).cache_id);
     }
-    serdes = (TimeSeriesSerdes<T>) ((DefaultRegistry) node.graph().tsdb()
+    serdes = (TimeSeriesSerdes) ((DefaultRegistry) node.graph().tsdb()
         .getRegistry()).getSerdes(
             ((Config) node.getDefaultConfig()).serdes_id);
     if (serdes == null) {
@@ -268,8 +268,8 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
               if (cache_data[i] != null) {
                 bytes += cache_data[i].length;
                 try {
-                  results.set(i, 
-                      serdes.deserialize(null, new ByteArrayInputStream(cache_data[i])));
+//                  results.set(i, 
+//                      serdes.deserialize(null, new ByteArrayInputStream(cache_data[i])));
                 } catch (Exception e) {
                   LOG.warn("Exception deserializing cache object at index: " + i, e);
                   fireDownstream(deferreds, i, i);
@@ -526,7 +526,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
           final long[] expirations = new long[slices.size()];
           for (int i = 0; i < slices.size(); i++) {
             final ByteArrayOutputStream output = new ByteArrayOutputStream();
-            serdes.serialize(query, null, output, slices.get(i));
+            //serdes.serialize(query, null, output, slices.get(i));
             output.close();
             data[i] = output.toByteArray();
             bytes += data[i].length;
@@ -842,7 +842,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
   }
   
   @VisibleForTesting
-  TimeSeriesSerdes<T> serdes() {
+  TimeSeriesSerdes serdes() {
     return serdes;
   }
   

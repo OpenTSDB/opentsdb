@@ -24,9 +24,10 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 import com.stumbleupon.async.Deferred;
 
-import io.opentracing.Tracer;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TSDBPlugin;
+import net.opentsdb.stats.BraveTrace.BraveTraceBuilder;
 import zipkin.BinaryAnnotation;
 import zipkin.Span;
 import zipkin.reporter.AsyncReporter;
@@ -41,7 +42,7 @@ import zipkin.reporter.okhttp3.OkHttpSender;
  * 
  * @since 3.0
  */
-public class BraveTracer extends TsdbTracer {
+public class BraveTracer implements Tracer {
   private static final Logger LOG = LoggerFactory.getLogger(BraveTracer.class);
   
   /** The default service name to set for traces. */
@@ -58,7 +59,6 @@ public class BraveTracer extends TsdbTracer {
     if (tsdb == null) {
       throw new IllegalArgumentException("TSDB cannot be null.");
     }
-    this.tsdb = tsdb;
     
     service_name = tsdb.getConfig().getString("tsdb.tracer.service_name");
     if (Strings.isNullOrEmpty(service_name)) {
@@ -79,25 +79,28 @@ public class BraveTracer extends TsdbTracer {
   }
   
   @Override
-  public TsdbTrace getTracer(final boolean report) {
-    return getTracer(report, null);
+  public Trace newTrace(final boolean report, final boolean debug) {
+    return newTrace(report, debug, this.service_name);
   }
   
   @Override
-  public TsdbTrace getTracer(final boolean report, final String service_name) {
-    final brave.Tracer.Builder builder = brave.Tracer.newBuilder();
-    builder.traceId128Bit(true);
+  public Trace newTrace(final boolean report, 
+                        final boolean debug, 
+                        final String service_name) {
     if (Strings.isNullOrEmpty(service_name)) {
-      builder.localServiceName(this.service_name);
-    } else {
-      builder.localServiceName(service_name);
+      throw new IllegalArgumentException("Service name cannot be null or empty.");
     }
-    final SpanCatcher span_catcher = new SpanCatcher(report);
-    builder.reporter(span_catcher);
-    return new Trace(brave.opentracing.BraveTracer.wrap(builder.build()),
-        span_catcher);
+    final BraveTraceBuilder builder = BraveTrace.newBuilder()
+        .setIs128(true)
+        .setIsDebug(debug)
+        .setId(service_name);
+    if (report) {
+      final SpanCatcher span_catcher = new SpanCatcher(report);
+      builder.setSpanCatcher(span_catcher);
+    }
+    return builder.build();
   }
-
+  
   @Override
   public String id() {
     return "Brave Tracer";
@@ -129,116 +132,14 @@ public class BraveTracer extends TsdbTracer {
     }
     return Deferred.fromResult(null);
   }
-
-  /**
-   * Implementation of the TsdbTrace that holds the span catcher so we can
-   * serialize the spans for this trace.
-   */
-  class Trace extends TsdbTrace {
-    
-    /** The span catcher associated with this trace. */
-    private final SpanCatcher catcher;
-    
-    /**
-     * Default ctor.
-     * @param tracer A non-null tracer;
-     * @param catcher A non-null span catcher.
-     */
-    Trace(final Tracer tracer, final SpanCatcher catcher) {
-      super(tracer);
-      this.catcher = catcher;
-    }
-
-    @Override
-    public void serializeJSON(final String name, final JsonGenerator json) {
-      Span last_span = null;
-      try {
-        json.writeArrayFieldStart(name);
-        for (final Span span : catcher.spans) {
-          last_span = span;
-          json.writeStartObject();
-          json.writeStringField("traceId", Long.toHexString(span.traceId));
-          json.writeStringField("id", Long.toHexString(span.id));
-          json.writeStringField("name", span.name);
-          if (span.parentId == null) {
-            json.writeNullField("parentId");
-          } else {
-            json.writeStringField("parentId", Long.toHexString(span.parentId));
-          }
-          // span timestamps could potentially be null.
-          if (span.timestamp != null) {
-            json.writeNumberField("timestamp", span.timestamp);
-            json.writeNumberField("duration", span.duration);
-          }
-          // TODO - binary annotations, etc.
-          if (span.binaryAnnotations != null) {
-            json.writeObjectFieldStart("tags");
-            for (final BinaryAnnotation tag : span.binaryAnnotations) {
-              switch (tag.type) {
-              case STRING:
-                json.writeStringField(tag.key, new String(tag.value));
-                break;
-              default:
-                if (LOG.isDebugEnabled()) {
-                  LOG.debug("Skipping span data type: " + tag.type);
-                }
-              }
-            }
-            json.writeEndObject();
-          }
-          json.writeEndObject();
-        }
-        json.writeEndArray();
-      } catch (NullPointerException e) {
-        LOG.error("WTF? NPE?: " + last_span);
-      } catch (IOException e) {
-        throw new RuntimeException("Unexpected exception", e);
-      }
-    }
-
-    @Override
-    public String serializeToString() {
-      final StringBuilder buf = new StringBuilder()
-          .append("[");
-      int i = 0;
-      for (final Span span : catcher.spans) {
-        if (i++ > 0) {
-          buf.append(",");
-        }
-        buf.append(span.toString());
-      }
-      buf.append("]");
-      return buf.toString();
-    }
-    
-    @Override
-    protected String extractTraceId(final io.opentracing.Span span) {
-      if (span == null) {
-        throw new IllegalArgumentException("Span cannot be null.");
-      }
-      if (!(span instanceof brave.opentracing.BraveSpan)) {
-        throw new IllegalArgumentException("Span was not a Brave span. Make "
-            + "sure you're using the proper tracing plugins");
-      }
-      if (span.context() == null) {
-        throw new IllegalStateException("WTF? Span context was null.");
-      }
-      if (!(span.context() instanceof brave.opentracing.BraveSpanContext)) {
-        throw new IllegalArgumentException("Span context was not a Brave span "
-            + "context. Make sure you're using the proper tracing plugins");
-      }
-      return ((brave.opentracing.BraveSpanContext) span.context())
-          .unwrap().traceIdString();
-    }
-  }
   
   /**
    * A means of capturing the spans so that we can serialize them later on
    * as part of the response. It can still forward to a reporter if configured.
    */
-  private class SpanCatcher implements Reporter<Span> {
+  class SpanCatcher implements Reporter<Span> {
     /** A set used to store spans as they come in. Should be thread safe. */
-    private final Set<Span> spans = Sets.newConcurrentHashSet();
+    final Set<Span> spans = Sets.newConcurrentHashSet();
     
     /** Whether or not we're to forward these spans. */
     private final boolean forward;

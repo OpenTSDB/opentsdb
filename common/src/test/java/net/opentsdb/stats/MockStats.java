@@ -16,7 +16,7 @@ package net.opentsdb.stats;
  * Class used for testing pipelines with a mock stats collector.
  */
 public class MockStats implements QueryStats {
-  private Tracer tracer;
+  private Trace tracer;
   private Span query_span;
   
   /**
@@ -24,13 +24,13 @@ public class MockStats implements QueryStats {
    * @param tracer The mock tracer, may be null.
    * @param parent_span The mock parent span, may be null.
    */
-  public MockStats(final Tracer tracer, final Span parent_span) {
+  public MockStats(final Trace tracer, final Span parent_span) {
     this.tracer = tracer;
     query_span = parent_span;
   }
   
   @Override
-  public Tracer tracer() {
+  public Trace trace() {
     return tracer;
   }
 

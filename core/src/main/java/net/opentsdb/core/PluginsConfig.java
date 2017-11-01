@@ -104,7 +104,7 @@ public class PluginsConfig extends Validatable {
   private boolean shutdown_reverse = true;
   
   /** The list of configured and instantiated plugins. */
-  private List<BaseTSDBPlugin> instantiated_plugins;
+  private List<TSDBPlugin> instantiated_plugins;
   
   /** The map of plugins loaded by the TSD. This includes the 
    * {@link #instantiated_plugins} as well as those registered. */
@@ -344,7 +344,7 @@ public class PluginsConfig extends Validatable {
               
               // load specific
               final Class<?> type = Class.forName(plugin_config.getType());
-              final BaseTSDBPlugin plugin = (BaseTSDBPlugin) PluginLoader
+              final TSDBPlugin plugin = (TSDBPlugin) PluginLoader
                   .loadSpecificPlugin(plugin_config.getPlugin(), type);
               if (plugin == null) {
                 throw new RuntimeException("No plugin found for type: " 
@@ -370,8 +370,8 @@ public class PluginsConfig extends Validatable {
             } else {
               // load all plugins of a type.
               final Class<?> type = Class.forName(plugin_config.getType());
-              final List<BaseTSDBPlugin> plugins = 
-                  (List<BaseTSDBPlugin>) PluginLoader.loadPlugins(type);
+              final List<TSDBPlugin> plugins = 
+                  (List<TSDBPlugin>) PluginLoader.loadPlugins(type);
               
               if (plugins == null || plugins.isEmpty()) {
                 LOG.info("No plugins found for type: " + type);
@@ -383,7 +383,7 @@ public class PluginsConfig extends Validatable {
               } else {
                 final List<Deferred<Object>> deferreds = 
                     Lists.newArrayListWithCapacity(plugins.size());
-                for (final BaseTSDBPlugin plugin : plugins) {
+                for (final TSDBPlugin plugin : plugins) {
                   deferreds.add(plugin.initialize(tsdb));
                   final PluginConfig waiting = new PluginConfig();
                   waiting.setPlugin(plugin.getClass().getCanonicalName());
@@ -647,7 +647,7 @@ public class PluginsConfig extends Validatable {
   }
   
   @VisibleForTesting
-  List<BaseTSDBPlugin> instantiatedPlugins() {
+  List<TSDBPlugin> instantiatedPlugins() {
     return instantiated_plugins;
   }
   
@@ -673,7 +673,7 @@ public class PluginsConfig extends Validatable {
     protected Class<?> clazz;
     
     /** Used by the initialization routine for storing the instantiated plugin. */
-    protected BaseTSDBPlugin instantiated_plugin;
+    protected TSDBPlugin instantiated_plugin;
     
     /** @return The canonical class name of the plugin implementation. */
     public String getPlugin() {

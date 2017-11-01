@@ -19,20 +19,21 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import net.opentsdb.stats.MockTracer.MockSpan;
+import net.opentsdb.stats.MockTrace.MockSpan;
 
-public class TestMockTracer {
+public class TestMockTrace {
 
   @Test
   public void ctor() {
-    final MockTracer tracer = new MockTracer();
+    final MockTrace tracer = new MockTrace();
     assertEquals(0, tracer.span_timestamp.get());
     assertTrue(tracer.spans.isEmpty());
   }
   
   @Test
   public void span() {
-    final MockTracer tracer = new MockTracer();
+    final Exception e = new RuntimeException("Boo!");
+    final MockTrace tracer = new MockTrace();
     Span span = tracer.newSpan("test_span")
         .withTag("key", "value")
         .start();
@@ -44,20 +45,54 @@ public class TestMockTracer {
     assertEquals("value", ((MockSpan) span).tags.get("key"));
     assertTrue(tracer.spans.isEmpty());
     
+    span.setTag("extra", "tag");
+    span.log("Error", e);
     span.finish();
     assertEquals(1, tracer.spans.size());
     assertSame(span, tracer.spans.get(0));
     assertEquals(1, ((MockSpan) span).end);
+    assertEquals(2, ((MockSpan) span).tags.size());
+    assertEquals(1, ((MockSpan) span).exceptions.size());
+    assertSame(span, tracer.firstSpan());
+    
+    tracer.newSpan("test_span2")
+      .withTag("key", "value")
+      .start();
+    assertSame(span, tracer.firstSpan());
   }
   
   @Test
   public void spanWithParent() {
-    final MockTracer tracer = new MockTracer();
+    final MockTrace tracer = new MockTrace();
     Span span = tracer.newSpan("parent")
         .withTag("key", "value")
         .start();
     
     Span child = tracer.newSpan("child")
+        .asChildOf(span)
+        .withTag("key", "kid")
+        .start();
+    
+    assertSame(span, ((MockSpan) child).parent);
+    
+    child.finish();
+    span.finish();
+    
+    assertEquals(2, tracer.spans.size());
+    assertSame(child, tracer.spans.get(0));
+    assertSame(span, tracer.spans.get(1));
+    assertEquals(2, ((MockSpan) child).end);
+    assertEquals(3, ((MockSpan) span).end);
+  }
+  
+  @Test
+  public void spanChild() {
+    final MockTrace tracer = new MockTrace();
+    Span span = tracer.newSpan("parent")
+        .withTag("key", "value")
+        .start();
+    
+    Span child = span.newChild("child")
         .asChildOf(span)
         .withTag("key", "kid")
         .start();

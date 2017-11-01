@@ -39,15 +39,38 @@ public interface Span {
    * Sets a tag on a span. May overwrite.
    * @param key A non-null and non-empty key.
    * @param value A non-null and non-empty value.
+   * @return The span.
    */
-  public void setTag(final String key, final String value);
+  public Span setTag(final String key, final String value);
   
   /**
    * Sets a tag on a span. May overwrite.
    * @param key A non-null and non-empty key.
    * @param value A numeric value.
+   * @return The span.
    */
-  public void setTag(final String key, final Number value);
+  public Span setTag(final String key, final Number value);
+  
+  /**
+   * Logs the given key and exception.
+   * @param key A non-null and non-empty key.
+   * @param t A non-null exception.
+   * @return The span.
+   */
+  public Span log(final String key, final Throwable t);
+  
+  /**
+   * @return The implementation's span object for chaining.
+   */
+  public Object implementationSpan();
+  
+  /**
+   * Creates a new child span from the current span.
+   * @param id A non-null and non-empty span ID.
+   * @return A new span builder with this span as the parent.
+   * @throws IllegalArgumentException if the ID was null or empty.
+   */
+  public SpanBuilder newChild(final String id);
   
   /**
    * The builder used to construct and start a span.

@@ -73,7 +73,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
   private final QueryCachePlugin plugin;
   
   /** The serdes class to use. */
-  private final TimeSeriesSerdes<T> serdes;
+  private final TimeSeriesSerdes serdes;
   
   /** A key generator used for reading and writing the cache data. */
   private final TimeSeriesCacheKeyGenerator key_generator;
@@ -93,7 +93,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
       throw new IllegalArgumentException("Unable to find a caching plugin "
           + "for ID: " + ((Config) node.getDefaultConfig()).cache_id);
     }
-    serdes = (TimeSeriesSerdes<T>) ((DefaultRegistry) node.graph().tsdb()
+    serdes = (TimeSeriesSerdes) ((DefaultRegistry) node.graph().tsdb()
         .getRegistry()).getSerdes(
             ((Config) node.getDefaultConfig()).serdes_id);
     if (serdes == null) {
@@ -224,7 +224,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
             // TODO - run this in another thread pool. Would let us hit cache
             // quicker if someone's firing off the same query.
             final ByteArrayOutputStream output = new ByteArrayOutputStream();
-            serdes.serialize(query, null, output, results);
+            //serdes.serialize(query, null, output, results);
             output.close();
             
             final byte[] data = output.toByteArray();
@@ -662,7 +662,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
   }
   
   @VisibleForTesting
-  TimeSeriesSerdes<T> serdes() {
+  TimeSeriesSerdes serdes() {
     return serdes;
   }
   

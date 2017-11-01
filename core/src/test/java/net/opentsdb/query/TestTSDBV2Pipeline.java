@@ -14,6 +14,7 @@ package net.opentsdb.query;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -28,7 +29,9 @@ import com.stumbleupon.async.TimeoutException;
 
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.filter.TagVFilter;
@@ -58,14 +61,11 @@ public class TestTSDBV2Pipeline {
     //config.overrideConfig("MockDataStore.threadpool.enable", "true");
     mds = new MockDataStore();
     mds.initialize(tsdb).join();
-    when(registry.getQueryNodeFactory(anyString())).thenReturn(mds);
+    when(registry.getDefaultPlugin(any(Class.class))).thenReturn(mds);
   }
   
   @Test
   public void foo() throws Exception {
-    MockDataStore mds = new MockDataStore();
-    mds.initialize(tsdb).join();
-    
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     

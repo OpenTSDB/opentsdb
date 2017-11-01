@@ -21,7 +21,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -151,5 +153,21 @@ public class GroupByFactory implements QueryNodeFactory {
       return new GroupByNumericIterator(node, sources);
     }
     
+  }
+
+  @Override
+  public Deferred<Object> initialize(TSDB tsdb) {
+    return Deferred.fromResult(null);
+  }
+
+  @Override
+  public Deferred<Object> shutdown() {
+    return Deferred.fromResult(null);
+  }
+
+  @Override
+  public String version() {
+    // TODO Auto-generated method stub
+    return null;
   }
 }

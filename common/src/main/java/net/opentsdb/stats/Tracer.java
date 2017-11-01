@@ -12,26 +12,35 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.stats;
 
-import net.opentsdb.stats.Span.SpanBuilder;
+import net.opentsdb.core.TSDBPlugin;
 
 /**
- * An implementation agnostic interface for tracing OpenTSDB code.
+ * A tracing implementation for OpenTSDB that abstracts the actual framework.
+ * This is meant to be implemented via plugins.
+ * 
+ * TODO - need APIs to pull from existing traces.
  * 
  * @since 3.0
  */
-public interface Tracer {
+public interface Tracer extends TSDBPlugin {
 
   /**
-   * Returns a new span builder for this tracer.
-   * @param id A non-null and non-empty span ID.
-   * @return A non-null span builder.
+   * Returns a new trace using the default service name.
+   * @param report Whether or not the trace should report externally.
+   * @param debug Whether or not to capture debug information.
+   * @return A non-null trace ready to record spans.
    */
-  public SpanBuilder newSpan(final String id);
+  public Trace newTrace(final boolean report, final boolean debug);
   
   /**
-   * Whether or not this tracer is in debug mode and should record detailed
-   * information.
-   * @return True if in debug mode, false if not.
+   * Returns a new trace.
+   * @param report Whether or not the trace should report externally.
+   * @param debug Whether or not to capture debug information.
+   * @param service_name A non-null and non-empty service name.
+   * @return A non-null trace ready to record spans.
    */
-  public boolean isDebug();
+  public Trace newTrace(final boolean report, 
+                        final boolean debug, 
+                        final String service_name);
+  
 }
