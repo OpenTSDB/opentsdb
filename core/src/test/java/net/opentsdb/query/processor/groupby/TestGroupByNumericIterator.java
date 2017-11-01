@@ -39,10 +39,13 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.types.numeric.NumericInterpolatorFactories;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.processor.NumericInterpolator;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
+import net.opentsdb.query.interpolation.types.numeric.ScalarNumericInterpolatorConfig;
+import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 
 public class TestGroupByNumericIterator {
@@ -53,15 +56,21 @@ public class TestGroupByNumericIterator {
   private NumericMillisecondShard ts2;
   private NumericMillisecondShard ts3;
   private Map<String, TimeSeries> source_map;
+  private NumericInterpolatorConfig interpolator_config;
   
   @Before
   public void before() throws Exception {
+    interpolator_config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build();
     config = GroupByConfig.newBuilder()
         .setAggregator("sum")
         .setId("Testing")
         .addTagKey("dc")
         .setQueryIteratorInterpolatorFactory(
-            new NumericInterpolatorFactories.Null())
+            new NumericInterpolatorFactory.Default())
+        .setQueryIteratorInterpolatorConfig(interpolator_config)
         .build();
     node = mock(GroupBy.class);
     when(node.config()).thenReturn(config);
@@ -141,7 +150,11 @@ public class TestGroupByNumericIterator {
         .setAggregator("nosuchagg")
         .setId("Testing")
         .addTagKey("dc")
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactories.Null())
+        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
+        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+            .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+            .setRealFillPolicy(FillWithRealPolicy.NONE)
+            .build())
         .build();
     when(node.config()).thenReturn(config);
     try {
@@ -229,15 +242,20 @@ public class TestGroupByNumericIterator {
   
   @Test
   public void iterateLongsOffsetsScalarFill() throws Exception {
-    NumericInterpolator.Config c = new NumericInterpolator.Config();
-    c.scalar = 42;
+    interpolator_config = 
+        ScalarNumericInterpolatorConfig.newBuilder()
+        .setValue(42)
+        .setFillPolicy(FillPolicy.SCALAR)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build();
+    
     config = GroupByConfig.newBuilder()
         .setAggregator("sum")
         .setId("Testing")
         .addTagKey("dc")
         .setQueryIteratorInterpolatorFactory(
-            new NumericInterpolatorFactories.Scalar())
-        .setQueryIteratorInterpolatorConfig(c)
+            new NumericInterpolatorFactory.Default())
+        .setQueryIteratorInterpolatorConfig(interpolator_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -448,7 +466,8 @@ public class TestGroupByNumericIterator {
         .addTagKey("dc")
         .setInfectiousNan(true)
         .setQueryIteratorInterpolatorFactory(
-            new NumericInterpolatorFactories.NaN())
+            new NumericInterpolatorFactory.Default())
+        .setQueryIteratorInterpolatorConfig(interpolator_config)
         .build();
     when(node.config()).thenReturn(config);
     

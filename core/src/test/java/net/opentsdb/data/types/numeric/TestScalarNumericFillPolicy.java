@@ -19,11 +19,20 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.types.numeric.ScalarNumericInterpolatorConfig;
+import net.opentsdb.query.pojo.FillPolicy;
+
 public class TestScalarNumericFillPolicy {
 
   @Test
   public void ctor() throws Exception {
-    ScalarNumericFillPolicy policy = new ScalarNumericFillPolicy(42);
+    ScalarNumericFillPolicy policy = new ScalarNumericFillPolicy(
+        (ScalarNumericInterpolatorConfig) ScalarNumericInterpolatorConfig.newBuilder()
+          .setValue(42)
+          .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+          .setRealFillPolicy(FillWithRealPolicy.NONE)
+          .build());
     assertTrue(policy.fill().isInteger());
     assertEquals(42, policy.fill().longValue());
     try {
@@ -32,7 +41,12 @@ public class TestScalarNumericFillPolicy {
     } catch (ClassCastException e) { }
     assertEquals(42, policy.fill().toDouble(), 0.001);
     
-    policy = new ScalarNumericFillPolicy(42.5D);
+    policy = new ScalarNumericFillPolicy(
+        (ScalarNumericInterpolatorConfig) ScalarNumericInterpolatorConfig.newBuilder()
+          .setValue(42.5D)
+          .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+          .setRealFillPolicy(FillWithRealPolicy.NONE)
+          .build());
     assertFalse(policy.fill().isInteger());
     try {
       policy.fill().longValue();

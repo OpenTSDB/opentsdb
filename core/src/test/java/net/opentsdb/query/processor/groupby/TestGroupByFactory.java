@@ -32,11 +32,14 @@ import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.types.numeric.NumericInterpolatorFactories;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
+import net.opentsdb.query.pojo.FillPolicy;
 
 public class TestGroupByFactory {
 
@@ -74,7 +77,11 @@ public class TestGroupByFactory {
         .setId("Test")
         .setAggregator("sum")
         .addTagKey("host")
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactories.NaN())
+        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
+        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+            .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+            .setRealFillPolicy(FillWithRealPolicy.NONE)
+            .build())
         .build();
     final NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesId.newBuilder()

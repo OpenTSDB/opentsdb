@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.query.processor;
+package net.opentsdb.query.interpolation.types.numeric;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -25,7 +25,6 @@ import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryIteratorInterpolator;
-import net.opentsdb.query.QueryIteratorInterpolatorConfig;
 
 /**
  * An interpolator for numeric data points that fills with the given 
@@ -43,12 +42,12 @@ import net.opentsdb.query.QueryIteratorInterpolatorConfig;
  */
 public class NumericInterpolator implements QueryIteratorInterpolator<NumericType> {
   
+  /** The config. */
+  protected final NumericInterpolatorConfig config;
+  
   /** The fill policy to use for timestamps before or after the values within
    * the iterator range if applicable */
   protected final QueryFillPolicy<NumericType> fill_policy;
-  
-  /** The real value fill policy. */
-  protected final FillWithRealPolicy real_policy;
   
   /** The iterator pulled from the source. May be null. */
   protected final Iterator<TimeSeriesValue<?>> iterator;
@@ -67,20 +66,15 @@ public class NumericInterpolator implements QueryIteratorInterpolator<NumericTyp
   
   @SuppressWarnings("unchecked")
   public NumericInterpolator(final TimeSeries source, 
-                             final QueryFillPolicy<NumericType> fill_policy,
-                             final FillWithRealPolicy real_policy) {
+                             final NumericInterpolatorConfig config) {
     if (source == null) {
       throw new IllegalArgumentException("Source cannot be null.");
     }
-    if (fill_policy == null) {
-      throw new IllegalArgumentException("Fill policy cannot be null.");
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null.");
     }
-    if (real_policy == null) {
-      throw new IllegalArgumentException("Fill with real cannot be null.");
-    }
-    this.real_policy = real_policy;
-    this.fill_policy = fill_policy;
-    
+    this.config = config;
+    fill_policy = config.queryFill();
     final Optional<Iterator<TimeSeriesValue<?>>> optional = 
         source.iterator(NumericType.TYPE);
     if (optional.isPresent()) {
@@ -113,8 +107,8 @@ public class NumericInterpolator implements QueryIteratorInterpolator<NumericTyp
     has_next = false;
     if (timestamp.compare(TimeStampComparator.EQ, next.timestamp())) {
       response.reset(next);
-      if (real_policy == FillWithRealPolicy.PREFER_PREVIOUS || 
-          real_policy == FillWithRealPolicy.PREVIOUS_ONLY) {
+      if (config.realFillPolicy() == FillWithRealPolicy.PREFER_PREVIOUS || 
+          config.realFillPolicy() == FillWithRealPolicy.PREVIOUS_ONLY) {
         if (previous == null) {
           previous = new MutableNumericType(next);
         } else {
@@ -152,7 +146,7 @@ public class NumericInterpolator implements QueryIteratorInterpolator<NumericTyp
   }
 
   protected TimeSeriesValue<NumericType> fill(final TimeStamp timestamp) {
-    switch (real_policy) {
+    switch (config.realFillPolicy()) {
     case PREVIOUS_ONLY:
       if (previous != null) {
         response.reset(timestamp, previous.value());
@@ -196,8 +190,5 @@ public class NumericInterpolator implements QueryIteratorInterpolator<NumericTyp
     response.reset(timestamp, fill);
     return response;
   }
-
-  public static class Config implements QueryIteratorInterpolatorConfig {
-    public long scalar;
-  }
+  
 }

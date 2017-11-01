@@ -156,7 +156,8 @@ public class GroupByConfig implements QueryNodeConfig {
      * @param interpolator The non-null interpolator factory to use.
      * @return The builder.
      */
-    public Builder setQueryIteratorInterpolatorFactory(final QueryIteratorInterpolatorFactory interpolator) {
+    public Builder setQueryIteratorInterpolatorFactory(
+        final QueryIteratorInterpolatorFactory interpolator) {
       this.interpolator = interpolator;
       return this;
     }
@@ -165,7 +166,8 @@ public class GroupByConfig implements QueryNodeConfig {
      * @param interpolator_config An optional interpolator config.
      * @return The builder.
      */
-    public Builder setQueryIteratorInterpolatorConfig(final QueryIteratorInterpolatorConfig interpolator_config) {
+    public Builder setQueryIteratorInterpolatorConfig(
+        final QueryIteratorInterpolatorConfig interpolator_config) {
       this.interpolator_config = interpolator_config;
       return this;
     }

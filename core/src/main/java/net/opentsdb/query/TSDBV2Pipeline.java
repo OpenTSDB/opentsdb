@@ -17,8 +17,9 @@ import java.util.Collection;
 import com.google.common.base.Strings;
 
 import net.opentsdb.core.DefaultTSDB;
-import net.opentsdb.data.types.numeric.NumericInterpolatorFactories;
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.processor.groupby.GroupByFactory;
@@ -80,9 +81,13 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
         GroupByConfig.Builder gb_config = null;
         for (TagVFilter v : filter.getTags()) {
           if (v.isGroupBy()) {
+            NumericInterpolatorConfig nic = NumericInterpolatorFactory.parse(
+                !Strings.isNullOrEmpty(metric.getAggregator()) ?
+                    metric.getAggregator() : q.getTime().getAggregator());
             if (gb_config == null) {
               gb_config = GroupByConfig.newBuilder()
-                  .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactories.Null())
+                  .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
+                  .setQueryIteratorInterpolatorConfig(nic)
                   .setId("groupBy_" + metric.getId());
             }
             gb_config.addTagKey(v.getTagk());
