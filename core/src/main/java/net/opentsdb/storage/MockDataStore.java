@@ -306,12 +306,21 @@ public class MockDataStore extends TimeSeriesDataStore {
     private AtomicInteger sequence_id = new AtomicInteger();
     private AtomicBoolean completed = new AtomicBoolean();
     private QuerySourceConfig config;
+    private final net.opentsdb.stats.Span trace_span;
     
     public LocalNode(final QueryNodeFactory factory,
                      final QueryPipelineContext context, 
                      final QuerySourceConfig config) {
       super(factory, context);
       this.config = config;
+      if (context.queryContext().stats() != null && 
+          context.queryContext().stats().trace() != null) {
+        trace_span = context.queryContext().stats().trace().firstSpan()
+            .newChild("MockDataStore")
+            .start();
+      } else {
+        trace_span = null;
+      }
     }
     
     @Override
@@ -328,7 +337,7 @@ public class MockDataStore extends TimeSeriesDataStore {
         }
         
         final LocalResult result = new LocalResult(context, this, config, 
-            sequence_id.getAndIncrement());
+            sequence_id.getAndIncrement(), trace_span);
         
         if (thread_pool == null) {
           result.run();
@@ -354,6 +363,9 @@ public class MockDataStore extends TimeSeriesDataStore {
         for (final QueryNode node : upstream) {
           node.onComplete(this, sequence_id.get() - 1, sequence_id.get());
         }
+      }
+      if (trace_span != null) {
+        trace_span.setSuccessTags().finish();
       }
     }
 
@@ -395,16 +407,27 @@ public class MockDataStore extends TimeSeriesDataStore {
     final long sequence_id;
     final List<TimeSeries> matched_series;
     final net.opentsdb.query.pojo.TimeSeriesQuery query;
+    final net.opentsdb.stats.Span trace_span;
     
     LocalResult(final QueryPipelineContext context, 
                 final LocalNode pipeline, 
                 final QuerySourceConfig config, 
-                final long sequence_id) {
+                final long sequence_id,
+                final net.opentsdb.stats.Span trace_span) {
       this.context = context;
       this.pipeline = pipeline;
       this.sequence_id = sequence_id;
       query = (net.opentsdb.query.pojo.TimeSeriesQuery) config.query();
       matched_series = Lists.newArrayList();
+      if (trace_span != null) {
+        this.trace_span = pipeline.pipelineContext().queryContext().stats()
+            .trace().newSpanWithThread("MockDataStore Query")
+            .asChildOf(trace_span)
+            .withTag("sequence", sequence_id)
+            .start();
+      } else {
+        this.trace_span = null;
+      }
     }
     
     @Override
@@ -622,9 +645,12 @@ public class MockDataStore extends TimeSeriesDataStore {
     public QueryNode source() {
       return pipeline;
     }
-  
+    
     @Override
     public void close() {
+      if (trace_span != null) {
+        trace_span.setSuccessTags().finish();
+      }
       if (context.queryContext().mode() == QueryMode.BOUNDED_SERVER_SYNC_STREAM || 
           context.queryContext().mode() == QueryMode.CONTINOUS_SERVER_SYNC_STREAM) {
         if (!hasNext(sequence_id + 1)) {
@@ -645,7 +671,6 @@ public class MockDataStore extends TimeSeriesDataStore {
       }
     }
   }
-
   
   @Override
   public void registerIteratorFactory(final TypeToken<?> type,
@@ -666,7 +691,6 @@ public class MockDataStore extends TimeSeriesDataStore {
                                                   final Map<String, TimeSeries> sources) {
     throw new UnsupportedOperationException("Not implemented.");
   }
-
   
   @Override
   public Collection<TypeToken<?>> types() {
