@@ -19,11 +19,10 @@ import java.util.Optional;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.TimeStampComparator;
+import net.opentsdb.data.TimeStamp.RelationalOperator;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
-import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.QueryIteratorInterpolator;
 
 /**
@@ -105,15 +104,12 @@ public class NumericInterpolator implements QueryIteratorInterpolator<NumericTyp
     }
     
     has_next = false;
-    if (timestamp.compare(TimeStampComparator.EQ, next.timestamp())) {
+    if (timestamp.compare(RelationalOperator.EQ, next.timestamp())) {
       response.reset(next);
-      if (config.realFillPolicy() == FillWithRealPolicy.PREFER_PREVIOUS || 
-          config.realFillPolicy() == FillWithRealPolicy.PREVIOUS_ONLY) {
-        if (previous == null) {
-          previous = new MutableNumericType(next);
-        } else {
-          previous.reset(next);
-        }
+      if (previous == null) {
+        previous = new MutableNumericType(next);
+      } else {
+        previous.reset(next);
       }
       
       if (iterator.hasNext()) {
@@ -185,9 +181,10 @@ public class NumericInterpolator implements QueryIteratorInterpolator<NumericTyp
     
     final NumericType fill = fill_policy.fill();
     if (fill == null) {
-      return null;
+      response.resetNull(timestamp);
+    } else {
+      response.reset(timestamp, fill);
     }
-    response.reset(timestamp, fill);
     return response;
   }
   

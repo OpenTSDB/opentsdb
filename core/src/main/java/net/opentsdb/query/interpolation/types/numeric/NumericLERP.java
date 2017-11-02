@@ -15,7 +15,7 @@ package net.opentsdb.query.interpolation.types.numeric;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.TimeStampComparator;
+import net.opentsdb.data.TimeStamp.RelationalOperator;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericType;
 
@@ -58,7 +58,7 @@ public class NumericLERP extends NumericInterpolator {
     }
     
     has_next = false;
-    if (timestamp.compare(TimeStampComparator.EQ, next.timestamp())) {
+    if (timestamp.compare(RelationalOperator.EQ, next.timestamp())) {
       if (previous == null) {
         previous = new MutableNumericType(next);
       } else {
@@ -71,7 +71,7 @@ public class NumericLERP extends NumericInterpolator {
         next = null;
       }
       return previous;
-    } else if (timestamp.compare(TimeStampComparator.LT, next.timestamp())) {
+    } else if (timestamp.compare(RelationalOperator.LT, next.timestamp())) {
       // lerp the lerp!
       if (previous == null) {
         if (next != null || iterator.hasNext()) {

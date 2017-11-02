@@ -408,7 +408,7 @@ public class TestNumericInterpolator {
     assertFalse(interpolator.has_next);
     v = interpolator.next(new MillisecondTimeStamp(3500));
     assertEquals(3500, v.timestamp().msEpoch());
-    assertTrue(Double.isNaN(v.value().doubleValue()));
+    assertEquals(10, v.value().longValue());
   }
   
   @Test
@@ -427,7 +427,9 @@ public class TestNumericInterpolator {
     final NumericInterpolator interpolator = new NumericInterpolator(source, config);
     assertTrue(interpolator.has_next);
     TimeSeriesValue<NumericType> v = interpolator.next(new MillisecondTimeStamp(500));
-    assertNull(v);
+    assertEquals(500, v.timestamp().msEpoch());
+    assertNull(v.value());
+    assertEquals(1000, interpolator.nextReal().msEpoch());
     
     assertTrue(interpolator.has_next);
     v = interpolator.next(new MillisecondTimeStamp(1000));
@@ -437,7 +439,8 @@ public class TestNumericInterpolator {
     
     assertTrue(interpolator.has_next);
     v = interpolator.next(new MillisecondTimeStamp(2000));
-    assertNull(v);
+    assertEquals(2000, v.timestamp().msEpoch());
+    assertNull(v.value());
     assertEquals(3000, interpolator.nextReal().msEpoch());
     
     assertTrue(interpolator.has_next);
@@ -451,7 +454,8 @@ public class TestNumericInterpolator {
     
     assertFalse(interpolator.has_next);
     v = interpolator.next(new MillisecondTimeStamp(3500));
-    assertNull(v);
+    assertEquals(3500, v.timestamp().msEpoch());
+    assertNull(v.value());
   }
   
   @Test
@@ -470,7 +474,9 @@ public class TestNumericInterpolator {
     final NumericInterpolator interpolator = new NumericInterpolator(source, config);
     assertTrue(interpolator.has_next);
     TimeSeriesValue<NumericType> v = interpolator.next(new MillisecondTimeStamp(500));
-    assertNull(v);
+    assertEquals(500, v.timestamp().msEpoch());
+    assertNull(v.value());
+    assertEquals(1000, interpolator.nextReal().msEpoch());
     
     assertTrue(interpolator.has_next);
     v = interpolator.next(new MillisecondTimeStamp(1000));
@@ -480,7 +486,8 @@ public class TestNumericInterpolator {
     
     assertTrue(interpolator.has_next);
     v = interpolator.next(new MillisecondTimeStamp(2000));
-    assertNull(v);
+    assertEquals(2000, v.timestamp().msEpoch());
+    assertNull(v.value());
     assertEquals(3000, interpolator.nextReal().msEpoch());
     
     assertTrue(interpolator.has_next);
@@ -494,7 +501,8 @@ public class TestNumericInterpolator {
     
     assertFalse(interpolator.has_next);
     v = interpolator.next(new MillisecondTimeStamp(3500));
-    assertNull(v);
+    assertEquals(3500, v.timestamp().msEpoch());
+    assertNull(v.value());
   }
   
   @Test

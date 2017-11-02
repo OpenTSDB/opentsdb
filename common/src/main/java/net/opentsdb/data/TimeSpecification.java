@@ -12,8 +12,9 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.data;
 
-import java.time.Duration;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
 
 /**
  * This interface is used with downsampled query results as a means of saving
@@ -44,14 +45,7 @@ public interface TimeSpecification {
    * than zero.
    * @return The non-null interval between timestamps.
    */
-  public Duration interval();
-  
-  /**
-   * The total number of intervals within this specification, including start
-   * and end time stamps. Must be greater than zero.
-   * @return The number of intervals in the specification.
-   */
-  public int intervals();
+  public TemporalAmount interval();
   
   /**
    * The units of time the interval represents.
@@ -60,12 +54,27 @@ public interface TimeSpecification {
   public ChronoUnit units();
   
   /**
+   * An optional timezone for use when aligning on calendar boundaries.
+   * @return A non-null timezone defaulting to UTC.
+   */
+  public ZoneId timezone();
+  
+  /**
    * A helper that updates the given timestamp with a new time based on the
    * interval offset from the start time. E.g. an offset of zero would set the
    * time at {@link #start()}. An offset of 1 would set the time at {@link #start()}
    * + {@link #interval()}.
    * @param offset A zero or greater interval offset.
    * @param timestamp A non-null timestamp to update with the new time.
+   * @throws IllegalArgumentException if the timestamp was null or offset was
+   * less than zero.
    */
   public void updateTimestamp(final int offset, final TimeStamp timestamp);
+  
+  /**
+   * Increments the given timestamp by the {@link #interval()}.
+   * @param timestamp A non-null timestamp to update with the new time.
+   * @throws IllegalArgumentException if the timestamp was null
+   */
+  public void nextTimestamp(final TimeStamp timestamp);
 }

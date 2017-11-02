@@ -24,7 +24,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.TimeStampComparator;
+import net.opentsdb.data.TimeStamp.RelationalOperator;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.query.context.QueryContext;
@@ -130,7 +130,7 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
           inner_index < data.get(outer_index).size()) {
         boolean end = false;
         while (data.get(outer_index).get(inner_index).timestamp().compare(
-            TimeStampComparator.LT, context.syncTimestamp())) {
+            RelationalOperator.LT, context.syncTimestamp())) {
           if (inner_index >= data.get(outer_index).size()) {
             outer_index++;
             inner_index = 0;
@@ -146,7 +146,7 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
         }
         
         if (!end && data.get(outer_index).get(inner_index).timestamp().compare(
-            TimeStampComparator.EQ, context.syncTimestamp())) {
+            RelationalOperator.EQ, context.syncTimestamp())) {
           result = data.get(outer_index).get(inner_index);
           if (inner_index >= data.get(outer_index).size()) {
             outer_index++;

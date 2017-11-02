@@ -14,6 +14,7 @@ package net.opentsdb.query.processor.groupby;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +36,9 @@ import net.opentsdb.query.QueryResult;
  */
 public class GroupByResult implements QueryResult {
   private static final Logger LOG = LoggerFactory.getLogger(GroupByResult.class);
+  
+  /** Used to denote when all of the upstreams are done with this result set. */
+  private final CountDownLatch latch;
   
   /** The parent node. */
   private final GroupBy node;
@@ -58,6 +62,7 @@ public class GroupByResult implements QueryResult {
     if (next == null) {
       throw new IllegalArgumentException("Query results cannot be null.");
     }
+    latch = new CountDownLatch(node.upstreams());
     this.node = node;
     this.next = next;
     groups = Maps.newHashMap();
@@ -116,6 +121,10 @@ public class GroupByResult implements QueryResult {
 
   @Override
   public void close() {
-    next.close();
+    // NOTE - a race here. Should be idempotent.
+    latch.countDown();
+    if (latch.getCount() <= 0) {
+      next.close();
+    }
   }
 }

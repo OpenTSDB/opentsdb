@@ -14,9 +14,14 @@ package net.opentsdb.utils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.time.Duration;
+import java.time.Period;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
 import java.util.HashMap;
 import java.util.TimeZone;
+
+import com.google.common.base.Strings;
 
 /**
  * Utility class that provides helpers for dealing with dates and timestamps.
@@ -71,7 +76,7 @@ public class DateTime {
    * @throws IllegalArgumentException if the request was malformed 
    */
   public static final long parseDateTimeString(final String datetime, 
-      final String tz) {
+                                               final String tz) {
     if (datetime == null || datetime.isEmpty())
       return -1;
 
@@ -122,9 +127,12 @@ public class DateTime {
             throw new IllegalArgumentException("Invalid absolute date: " 
                 + datetime);
         }
-        // TODO - WTF? Need to fix this. Can't set it statically!
-        if (tz != null && !tz.isEmpty())
+        
+        if (tz != null && !tz.isEmpty()) {
           setTimeZone(fmt, tz);
+        } else {
+          setTimeZone(fmt, "GMT");
+        }
         return fmt.parse(datetime).getTime();
       } catch (ParseException e) {
         throw new IllegalArgumentException("Invalid date: " + datetime  
@@ -233,6 +241,77 @@ public class DateTime {
   }
 
   /**
+   * Parses a human-readable duration (e.g, "10m", "3h", "14d") into seconds.
+   * <p>
+   * Formats supported:<ul>
+   * <li>{@code ns}: nanoseconds</li
+   * <li>{@code mu}: microseconds</li
+   * <li>{@code ms}: milliseconds</li>
+   * <li>{@code s}: seconds</li>
+   * <li>{@code m}: minutes</li>
+   * <li>{@code h}: hours</li>
+   * <li>{@code d}: days</li>
+   * <li>{@code w}: weeks</li> 
+   * <li>{@code n}: month</li>
+   * <li>{@code y}: years</li>
+   * <li>{@code all}: all time, returns 0 ms </li></ul>
+   * @param duration The human-readable duration to parse.
+   * @return A strictly positive number of milliseconds.
+   * @throws IllegalArgumentException if the interval was malformed.
+   * TODO - rename once we take care of parseDuration().
+   */
+  public static final TemporalAmount parseDuration2(final String duration) {
+    if (Strings.isNullOrEmpty(duration)) {
+      throw new IllegalArgumentException("Duration cannot be null or empty.");
+    }
+    final long interval;
+    int unit = 0;
+    while (Character.isDigit(duration.charAt(unit))) {
+      unit++;
+      if (unit >= duration.length()) {
+        throw new IllegalArgumentException("Invalid duration, must have an "
+            + "integer and unit: " + duration);
+      }
+    }
+    try {
+      interval = Long.parseLong(duration.substring(0, unit));
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("Invalid duration (number): " + duration);
+    }
+    if (interval <= 0 && !duration.toLowerCase().endsWith("all")) {
+      throw new IllegalArgumentException("Zero or negative duration: " + duration);
+    }
+    switch (duration.toLowerCase().charAt(duration.length() - 1)) {
+      case 'l':
+        if (duration.toLowerCase().endsWith("all")) {
+          return Duration.ZERO;
+        } else {
+          throw new IllegalArgumentException("Invalid duration (suffix): " + duration);
+        }
+      case 'u':
+        if (duration.toLowerCase().charAt(duration.length() - 2) != 'm') {
+          throw new IllegalArgumentException("Invalid duration (suffix): " + duration);
+        }
+        return Duration.of(interval, ChronoUnit.MICROS);
+      case 's': 
+        if (duration.toLowerCase().charAt(duration.length() - 2) == 'm') {
+          return Duration.of(interval, ChronoUnit.MILLIS);
+        }
+        if (duration.toLowerCase().charAt(duration.length() - 2) == 'n') {
+          return Duration.of(interval, ChronoUnit.NANOS);
+        }
+        return Duration.of(interval, ChronoUnit.SECONDS);
+      case 'm': return Duration.of(interval, ChronoUnit.MINUTES);    // minutes
+      case 'h': return Duration.of(interval, ChronoUnit.HOURS);      // hours
+      case 'd': return Period.ofDays((int) interval);       // days
+      case 'w': return Period.ofWeeks((int) interval);      // weeks
+      case 'n': return Period.ofMonths((int) interval);     // month (average)
+      case 'y': return Period.ofYears((int) interval);      // years (screw leap years)
+      default: throw new IllegalArgumentException("Invalid duration (suffix): " + duration);
+    }
+  }
+  
+  /**
    * Returns the suffix or "units" of the duration as a string. The result will
    * be ms, s, m, h, d, w, n or y.
    * @param duration The duration in the format #units, e.g. 1d or 6h
@@ -317,7 +396,7 @@ public class DateTime {
    * @throws NullPointerException if the format is null
    */
   public static void setTimeZone(final SimpleDateFormat fmt,
-                                  final String tzname) {
+                                 final String tzname) {
     if (tzname == null) {
       return;  // Use the default timezone.
     }
@@ -398,252 +477,41 @@ public class DateTime {
   }
   
   /**
-   * Returns a calendar set to the previous interval time based on the 
-   * units and UTC the timezone. This allows for snapping to day, week, 
-   * monthly, etc. boundaries. 
-   * NOTE: It uses a calendar for snapping so isn't as efficient as a simple
-   * modulo calculation.
-   * NOTE: For intervals that don't nicely divide into their given unit (e.g.
-   * a 23s interval where 60 seconds is not divisible by 23) the base time may
-   * start at the top of the day (for ms and s) or from Unix epoch 0. In the
-   * latter case, setting up the base timestamp may be slow if the caller does
-   * something silly like "23m" where we iterate 23 minutes at a time from 0
-   * till we find the proper timestamp.
-   * TODO - There is likely a better way to do all of this 
-   * @param ts The timestamp to find an interval for, in milliseconds as
-   * a Unix epoch.
-   * @param interval The interval as a measure of units.
-   * @param unit The unit. This must cast to a Calendar time unit.
-   * @return A calendar set to the timestamp aligned to the proper interval
-   * before the given ts
-   * @throws IllegalArgumentException if the timestamp is negative, if the 
-   * interval is less than 1 or the unit is unrecognized.
-   * @since 2.3
+   * Converts the given units to a {@link ChronoUnit}. Note that it does not
+   * support all units, just nanos through years excepting half days.
+   * @param units The units as a string.
+   * @return A {@link ChronoUnit} if the units were recognized, an exception
+   * if not.
+   * @throws IllegalArgumentException if the units were not recognized.
+   * @since 3.0
    */
-  public static Calendar previousInterval(final long ts, final int interval, 
-      final int unit) {
-    return previousInterval(ts, interval, unit, null);
-  }
-  
-  /**
-   * Returns a calendar set to the previous interval time based on the 
-   * units and timezone. This allows for snapping to day, week, monthly, etc.
-   * boundaries. 
-   * NOTE: It uses a calendar for snapping so isn't as efficient as a simple
-   * modulo calculation.
-   * NOTE: For intervals that don't nicely divide into their given unit (e.g.
-   * a 23s interval where 60 seconds is not divisible by 23) the base time may
-   * start at the top of the day (for ms and s) or from Unix epoch 0. In the
-   * latter case, setting up the base timestamp may be slow if the caller does
-   * something silly like "23m" where we iterate 23 minutes at a time from 0
-   * till we find the proper timestamp.
-   * TODO - There is likely a better way to do all of this 
-   * @param ts The timestamp to find an interval for, in milliseconds as
-   * a Unix epoch.
-   * @param interval The interval as a measure of units.
-   * @param unit The unit. This must cast to a Calendar time unit.
-   * @param tz An optional timezone.
-   * @return A calendar set to the timestamp aligned to the proper interval
-   * before the given ts
-   * @throws IllegalArgumentException if the timestamp is negative, if the 
-   * interval is less than 1 or the unit is unrecognized.
-   * @since 2.3
-   */
-  public static Calendar previousInterval(final long ts, final int interval, 
-      final int unit, final TimeZone tz) {
-    if (ts < 0) {
-      throw new IllegalArgumentException("Timestamp cannot be less than zero");
-    }
-    if (interval < 1) {
-      throw new IllegalArgumentException("Interval must be greater than zero");
-    }
-    
-    int unit_override = unit;
-    int interval_override = interval;
-    final Calendar calendar;
-    if (tz == null) {
-      calendar = Calendar.getInstance(timezones.get(UTC_ID));
-    } else {
-      calendar = Calendar.getInstance(tz);
-    }
-    
-    switch (unit_override) {
-    case Calendar.MILLISECOND:
-      if (1000 % interval_override == 0) {
-        calendar.setTimeInMillis(ts);
-        calendar.set(Calendar.MILLISECOND, 0);
-        if (interval_override > 1000) {
-          calendar.add(Calendar.MILLISECOND, -interval_override);
-        }
-      } else {
-        // from top of minute
-        calendar.setTimeInMillis(ts);
-        calendar.set(Calendar.MILLISECOND, 0);
-        calendar.set(Calendar.SECOND, 0);
-      }
-      break;
-    case Calendar.SECOND:
-      if (60 % interval_override == 0) {
-        calendar.setTimeInMillis(ts);
-        calendar.set(Calendar.MILLISECOND, 0);
-        calendar.set(Calendar.SECOND, 0);
-        if (interval_override > 60) {
-          calendar.add(Calendar.SECOND, -interval_override);
-        }
-      } else {
-        // from top of hour
-        calendar.setTimeInMillis(ts);
-        calendar.set(Calendar.MILLISECOND, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MINUTE, 0);
-      }
-      break;
-    case Calendar.MINUTE:
-      if (60 % interval_override == 0) {
-        calendar.setTimeInMillis(ts);
-        calendar.set(Calendar.MILLISECOND, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        if (interval_override > 60) {
-          calendar.add(Calendar.MINUTE, -interval_override);
-        }
-      } else {
-        // from top of day
-        calendar.setTimeInMillis(ts);
-        calendar.set(Calendar.MILLISECOND, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-      }
-      break;
-    case Calendar.HOUR_OF_DAY:
-      if (24 % interval_override == 0) {
-        calendar.setTimeInMillis(ts);
-        calendar.set(Calendar.MILLISECOND, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        if (interval_override > 24) {
-          calendar.add(Calendar.HOUR_OF_DAY, -interval_override);
-        }
-      } else {
-        // from top of month
-        calendar.setTimeInMillis(ts);
-        calendar.set(Calendar.MILLISECOND, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        calendar.set(Calendar.DAY_OF_MONTH, 1);
-      }
-      break;
-    case Calendar.DAY_OF_MONTH:
-      if (interval_override == 1) {
-        calendar.setTimeInMillis(ts);
-        calendar.set(Calendar.MILLISECOND, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        calendar.set(Calendar.DAY_OF_MONTH, 1);
-      } else {
-        // from top of year
-        calendar.setTimeInMillis(ts);
-        calendar.set(Calendar.MILLISECOND, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        calendar.set(Calendar.DAY_OF_MONTH, 1);
-        calendar.set(Calendar.MONTH, 0);
-      }
-      break;
-    case Calendar.DAY_OF_WEEK:
-      if (2 % interval_override == 0) {
-        calendar.setTimeInMillis(ts);
-        calendar.set(Calendar.MILLISECOND, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        calendar.set(Calendar.DAY_OF_WEEK, calendar.getFirstDayOfWeek());
-      } else {
-        // from top of year
-        calendar.setTimeInMillis(ts);
-        calendar.set(Calendar.MILLISECOND, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        calendar.set(Calendar.MONTH, 0);
-        calendar.set(Calendar.DAY_OF_WEEK, calendar.getFirstDayOfWeek());
-      }
-      unit_override = Calendar.DAY_OF_MONTH;
-      interval_override = 7;
-      break;
-    case Calendar.WEEK_OF_YEAR:
-      // from top of year
-      calendar.setTimeInMillis(ts);
-      calendar.set(Calendar.MILLISECOND, 0);
-      calendar.set(Calendar.SECOND, 0);
-      calendar.set(Calendar.MINUTE, 0);
-      calendar.set(Calendar.HOUR_OF_DAY, 0);
-      calendar.set(Calendar.DAY_OF_MONTH, 1);
-      calendar.set(Calendar.MONTH, 0);
-      break;
-    case Calendar.MONTH:
-    case Calendar.YEAR:
-      calendar.setTimeInMillis(ts);
-      calendar.set(Calendar.MILLISECOND, 0);
-      calendar.set(Calendar.SECOND, 0);
-      calendar.set(Calendar.MINUTE, 0);
-      calendar.set(Calendar.HOUR_OF_DAY, 0);
-      calendar.set(Calendar.DAY_OF_MONTH, 1);
-      calendar.set(Calendar.MONTH, 0);
-      break;
-    default:
-      throw new IllegalArgumentException("Unexpected unit_overrides of type: "
-          + unit_override);
-    }
-    
-    if (calendar.getTimeInMillis() == ts) {
-      return calendar;
-    }
-    // TODO optimize a bit. We probably don't need to go past then back.
-    while (calendar.getTimeInMillis() <= ts) {
-      calendar.add(unit_override, interval_override);
-    }
-    calendar.add(unit_override, -interval_override);
-    return calendar;
-  }
-
-  /**
-   * Return the proper Calendar time unit as an integer given the string
-   * @param units The unit to parse
-   * @return An integer matching a {@code Calendar.<Unit>} enum
-   * @throws IllegalArgumentException if the unit is null, empty or doesn't 
-   * match one of the configured units.
-   * @since 2.3
-   */
-  public static int unitsToCalendarType(final String units) {
-    if (units == null || units.isEmpty()) {
+  public static ChronoUnit unitsToChronoUnit(final String units) {
+    if (Strings.isNullOrEmpty(units)) {
       throw new IllegalArgumentException("Units cannot be null or empty");
     }
     
     final String lc = units.toLowerCase();
-    if (lc.equals("ms")) {
-      return Calendar.MILLISECOND;
+    if (lc.equals("ns")) {
+      return ChronoUnit.NANOS;
+    } else if (lc.equals("mu")) {
+      return ChronoUnit.MICROS;
+    } else if (lc.equals("ms")) {
+      return ChronoUnit.MILLIS;
     } else if (lc.equals("s")) {
-      return Calendar.SECOND;
+      return ChronoUnit.SECONDS;
     } else if (lc.equals("m")) {
-      return Calendar.MINUTE;
+      return ChronoUnit.MINUTES;
     } else if (lc.equals("h")) {
-      return Calendar.HOUR_OF_DAY;
+      return ChronoUnit.HOURS;
     } else if (lc.equals("d")) {
-      return Calendar.DAY_OF_MONTH;
+      return ChronoUnit.DAYS;
     } else if (lc.equals("w")) {
-      return Calendar.DAY_OF_WEEK;
+      return ChronoUnit.WEEKS;
     } else if (lc.equals("n")) {
-      return Calendar.MONTH;
+      return ChronoUnit.MONTHS;
     } else if (lc.equals("y")) {
-      return Calendar.YEAR;
+      return ChronoUnit.YEARS;
     }
     throw new IllegalArgumentException("Unrecognized unit type: " + units);
   }
-
 }
