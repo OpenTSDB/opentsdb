@@ -15,8 +15,11 @@ package net.opentsdb.data.types.numeric;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -96,6 +99,13 @@ public class TestMutableNumericType {
     assertFalse(dp.isInteger());
     assertEquals(42.5, dp.doubleValue(), 0.001);
     
+    TimeSeriesValue<NumericType> mock = mock(TimeSeriesValue.class);
+    when(mock.timestamp()).thenReturn(ts);
+    dp = new MutableNumericType(mock);
+    assertNotSame(ts, dp.timestamp());
+    assertEquals(1, dp.timestamp().msEpoch());
+    assertNull(dp.value());
+    
     try {
       new MutableNumericType(null, 42);
       fail("Expected IllegalArgumentException");
@@ -125,6 +135,9 @@ public class TestMutableNumericType {
   @Test
   public void reset() throws Exception {
     final MutableNumericType dp = new MutableNumericType(ts, 42.5);
+    dp.resetNull(ts);
+    assertEquals(1, dp.timestamp().msEpoch());
+    assertNull(dp.value());
     
     TimeStamp ts2 = new MillisecondTimeStamp(2);
     dp.reset(ts2, 42);
@@ -133,13 +146,17 @@ public class TestMutableNumericType {
     assertTrue(dp.isInteger());
     assertEquals(42, dp.longValue());
     
+    dp.resetNull(ts2);
+    assertEquals(2, dp.timestamp().msEpoch());
+    assertNull(dp.value());
+    
     ts2 = new MillisecondTimeStamp(3);
     dp.reset(ts2, 24.5);
     assertNotSame(ts, dp.timestamp());
     assertEquals(3, dp.timestamp().msEpoch());
     assertFalse(dp.isInteger());
     assertEquals(24.5, dp.doubleValue(), 0.001);
-    
+        
     final MutableNumericType dupe = new MutableNumericType();
     assertNotSame(ts, dupe.timestamp());
     assertEquals(0, dupe.timestamp().msEpoch());
@@ -172,6 +189,10 @@ public class TestMutableNumericType {
     assertTrue(dp.isInteger());
     assertEquals(42, dp.longValue());
     
+    dp.resetNull(ts);
+    assertEquals(1, dp.timestamp().msEpoch());
+    assertNull(dp.value());
+    
     class FloatDP implements NumericType {
       @Override
       public boolean isInteger() { return false; }
@@ -191,6 +212,13 @@ public class TestMutableNumericType {
     assertEquals(1, dp.timestamp().msEpoch());
     assertFalse(dp.isInteger());
     assertEquals(42.5, dp.doubleValue(), 0.001);
+    
+    TimeSeriesValue<NumericType> mock = mock(TimeSeriesValue.class);
+    when(mock.timestamp()).thenReturn(ts);
+    dp.reset(mock);
+    assertNotSame(ts, dp.timestamp());
+    assertEquals(1, dp.timestamp().msEpoch());
+    assertNull(dp.value());
     
     try {
       dp.reset(null, 42);
@@ -214,6 +242,11 @@ public class TestMutableNumericType {
     
     try {
       dp.reset(ts, (NumericType) null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      dp.resetNull(null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

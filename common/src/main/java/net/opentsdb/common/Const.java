@@ -13,7 +13,7 @@
 package net.opentsdb.common;
 
 import java.nio.charset.Charset;
-import java.util.TimeZone;
+import java.time.ZoneId;
 
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
@@ -56,7 +56,7 @@ public final class Const {
   public static final Charset UTF8_CHARSET = Charset.forName("UTF8");
   
   /** The UTC timezone used for rollup and calendar conversions */
-  public static final TimeZone UTC_TZ = TimeZone.getTimeZone("UTC");
+  public static final ZoneId UTC = ZoneId.of("UTC");
 
   /** Number of LSBs in time_deltas reserved for flags.  */
   public static final short FLAG_BITS = 4;

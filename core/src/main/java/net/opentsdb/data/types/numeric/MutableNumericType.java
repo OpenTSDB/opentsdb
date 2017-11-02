@@ -20,7 +20,9 @@ import net.opentsdb.data.TimeStamp;
 
 /**
  * A simple mutable data point for holding primitive signed numbers including 
- * {@link Long}s or {@link Double}s.
+ * {@link Long}s or {@link Double}s. The class is also nullable so that if the
+ * owner calls {@link #resetNull(TimeStamp)} then the calls to {@link #value()}
+ * will return null but the timestamp will be accurate.
  * 
  * @since 3.0
  */
@@ -39,10 +41,14 @@ public final class MutableNumericType implements NumericType,
   /** A long value or a double encoded on a long if {@code is_integer} is false. */
   private long value = 0;
   
+  /** Whether or not the current value is null. */
+  private boolean nulled; 
+  
   /**
    * Initialize a new mutable data point with a {@link Long} value of 0.
    */
   public MutableNumericType() {
+    nulled = false;
     timestamp = new MillisecondTimeStamp(0);
   }
   
@@ -59,6 +65,7 @@ public final class MutableNumericType implements NumericType,
     }
     this.timestamp = timestamp.getCopy();
     this.value = value;
+    nulled = false;
   }
   
   /**
@@ -75,6 +82,7 @@ public final class MutableNumericType implements NumericType,
     this.timestamp = timestamp.getCopy();
     this.value = Double.doubleToRawLongBits(value);
     is_integer = false;
+    nulled = false;
   }
 
   /**
@@ -99,6 +107,7 @@ public final class MutableNumericType implements NumericType,
       is_integer = false;
       this.value = Double.doubleToRawLongBits(value.doubleValue());
     }
+    nulled = false;
   }
   
   /**
@@ -112,9 +121,14 @@ public final class MutableNumericType implements NumericType,
       throw new IllegalArgumentException("Value cannot be null.");
     }
     timestamp = value.timestamp().getCopy();
-    is_integer = value.value().isInteger();
-    this.value = value.value().isInteger() ? value.value().longValue() : 
-      Double.doubleToRawLongBits(value.value().doubleValue());
+    if (value.value() == null) {
+      nulled = true;
+    } else {
+      is_integer = value.value().isInteger();
+      this.value = value.value().isInteger() ? value.value().longValue() : 
+        Double.doubleToRawLongBits(value.value().doubleValue());
+      nulled = false;
+    }
   }
   
   @Override
@@ -153,7 +167,7 @@ public final class MutableNumericType implements NumericType,
 
   @Override
   public NumericType value() {
-    return this;
+    return nulled ? null : this;
   }
   
   /**
@@ -169,6 +183,7 @@ public final class MutableNumericType implements NumericType,
     this.timestamp.update(timestamp);
     this.value = value;
     is_integer = true;
+    nulled = false;
   }
   
   /**
@@ -184,6 +199,7 @@ public final class MutableNumericType implements NumericType,
     this.timestamp.update(timestamp);
     this.value = Double.doubleToRawLongBits(value);
     is_integer = false;
+    nulled = false;
   }
   
   /**
@@ -201,9 +217,14 @@ public final class MutableNumericType implements NumericType,
       throw new IllegalArgumentException("Value's timestamp cannot be null");
     }
     timestamp.update(value.timestamp());
-    this.value = value.value().isInteger() ? value.value().longValue() : 
-      Double.doubleToRawLongBits(value.value().doubleValue());
-    is_integer = value.value().isInteger();
+    if (value.value() != null) {
+      this.value = value.value().isInteger() ? value.value().longValue() : 
+        Double.doubleToRawLongBits(value.value().doubleValue());
+      is_integer = value.value().isInteger();
+      nulled = false;
+    } else {
+      nulled = true;
+    }
   }
 
   /**
@@ -227,6 +248,20 @@ public final class MutableNumericType implements NumericType,
       is_integer = false;
       this.value = Double.doubleToRawLongBits(value.doubleValue());
     }
+    nulled = false;
+  }
+  
+  /**
+   * Resets the value to null with the given timestamp.
+   * @param timestamp A non-null timestamp to update from.
+   * @throws IllegalArgumentException if the timestamp was null.
+   */
+  public void resetNull(final TimeStamp timestamp) {
+    if (timestamp == null) {
+      throw new IllegalArgumentException("Timestamp cannot be null.");
+    }
+    this.timestamp.update(timestamp);
+    nulled = true;
   }
   
   @Override

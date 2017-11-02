@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.data;
 
+import java.util.Comparator;
+
 import com.google.common.reflect.TypeToken;
 
 /**
@@ -27,6 +29,10 @@ import com.google.common.reflect.TypeToken;
  * @since 3.0
  */
 public interface TimeSeriesValue<T extends TimeSeriesDataType> {
+  
+  /** Public singleton comparator. */
+  public static final TimeSeriesValueComparator COMPARATOR = 
+      new TimeSeriesValueComparator();
   
   /**
    * The timestamp associated with this value.
@@ -45,4 +51,30 @@ public interface TimeSeriesValue<T extends TimeSeriesDataType> {
    * @return A non-null type token for the given data type.
    */
   public TypeToken<T> type();
+  
+  /**
+   * A comparator for TimeSeriesValues that <b>only</b> compares the timestamps
+   * for sorting and ordering. Accepts null values.
+   */
+  public static class TimeSeriesValueComparator implements 
+    Comparator<TimeSeriesValue<?>> {
+
+    @Override
+    public int compare(final TimeSeriesValue<?> v1, final TimeSeriesValue<?> v2) {
+      if (v1 == null && v2 == null) {
+        return 0;
+      }
+      if (v1 != null && v2 == null) {
+        return -1;
+      }
+      if (v1 == null && v2 != null) {
+        return 1;
+      }
+      if (v1 == v2) {
+        return 0;
+      }
+      return TimeStamp.COMPARATOR.compare(v1.timestamp(), v2.timestamp());
+    }
+    
+  }
 }

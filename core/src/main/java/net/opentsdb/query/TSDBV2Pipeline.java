@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query;
 
+import java.time.ZoneId;
 import java.util.Collection;
 
 import com.google.common.base.Strings;
@@ -20,10 +21,13 @@ import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
+import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.processor.groupby.GroupByFactory;
 import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.query.processor.downsample.DownsampleConfig;
+import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 
 /**
@@ -75,6 +79,28 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
           .getDefaultPlugin(TimeSeriesDataStore.class))
           .newNode(this, config);
       addVertex(node);
+
+      final Downsampler downsampler = metric.getDownsampler() != null ? 
+          metric.getDownsampler() : q.getTime().getDownsampler();
+      // downsample
+      if (downsampler != null) {
+        DownsampleConfig.Builder ds = DownsampleConfig.newBuilder()
+            .setId("downsample_" + metric.getId())
+            .setAggregator(downsampler.getAggregator())
+            .setInterval(downsampler.getInterval())
+            .setQuery(q);
+        if (!Strings.isNullOrEmpty(downsampler.getTimezone())) {
+          ds.setTimeZone(ZoneId.of(downsampler.getTimezone()));
+        }
+        final NumericInterpolatorConfig nic = 
+            NumericInterpolatorFactory.parse(downsampler.getAggregator());
+        ds.setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
+          .setQueryIteratorInterpolatorConfig(nic);
+        QueryNode down = new DownsampleFactory("Downsample").newNode(this, ds.build());
+        addVertex(down);
+        addDagEdge(down, node);
+        node = down;
+      }
       
       Filter filter = Strings.isNullOrEmpty(metric.getFilter()) ? null : q.getFilter(metric.getFilter());
       if (filter != null) {
@@ -99,7 +125,7 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
               !Strings.isNullOrEmpty(metric.getAggregator()) ?
               metric.getAggregator() : q.getTime().getAggregator());
           
-          QueryNode gb = new GroupByFactory().newNode(this, gb_config.build());
+          QueryNode gb = new GroupByFactory("GroupBy").newNode(this, gb_config.build());
           addVertex(gb);
           addDagEdge(gb, node);
           node = gb;

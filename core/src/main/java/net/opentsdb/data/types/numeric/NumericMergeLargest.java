@@ -22,7 +22,7 @@ import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.TimeStampComparator;
+import net.opentsdb.data.TimeStamp.RelationalOperator;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.query.context.QueryContext;
@@ -88,7 +88,7 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
         if (last_ts == null) {
           last_ts = new MillisecondTimeStamp(values[i].timestamp().msEpoch());
         } else {
-          if (values[i].timestamp().compare(TimeStampComparator.LT, last_ts)) {
+          if (values[i].timestamp().compare(RelationalOperator.LT, last_ts)) {
             last_ts.update(values[i].timestamp());
           }
         }
@@ -123,7 +123,7 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
         }
         ++total_values;
         had_value++;
-        if (values[i].timestamp().compare(TimeStampComparator.EQ, last_ts)) {
+        if (values[i].timestamp().compare(RelationalOperator.EQ, last_ts)) {
           if (had_value == 1) {
             // start with the first value.
             v.reset(values[i]);
@@ -139,13 +139,13 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
           
           if (iterators[i].status() == IteratorStatus.HAS_DATA) {
             values[i] = iterators[i].next();
-            if (values[i].timestamp().compare(TimeStampComparator.LT, next)) {
+            if (values[i].timestamp().compare(RelationalOperator.LT, next)) {
               next.update(values[i].timestamp());
             }
           } else {
             values[i] = null;
           }
-        } else if (values[i].timestamp().compare(TimeStampComparator.LT, next)) {
+        } else if (values[i].timestamp().compare(RelationalOperator.LT, next)) {
           next.update(values[i].timestamp());
         }
       }

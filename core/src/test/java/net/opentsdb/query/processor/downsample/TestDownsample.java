@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.query.processor.groupby;
+package net.opentsdb.query.processor.downsample;
 
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
@@ -24,111 +24,130 @@ import static org.mockito.Mockito.when;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.query.QueryIteratorInterpolatorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
+import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.query.pojo.Metric;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.pojo.Timespan;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ GroupBy.class })
-public class TestGroupBy {
+public class TestDownsample {
   private QueryPipelineContext context;
   private QueryNodeFactory factory;
-  private GroupByConfig config;
+  private DownsampleConfig config;
   private QueryNode upstream;
+  private TimeSeriesQuery q;
   
   @Before
   public void before() throws Exception {
     context = mock(QueryPipelineContext.class);
-    factory = new GroupByFactory("GroupBy");
-    config = GroupByConfig.newBuilder()
-        .setAggregator("sum")
-        .setId("GB")
-        .addTagKey("host")
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .build();
+    factory = new DownsampleFactory("Downsample");
     upstream = mock(QueryNode.class);
     when(context.upstream(any(QueryNode.class))).thenReturn(Lists.newArrayList(upstream));
+    
+    q = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("1970/01/01-00:00:01")
+            .setEnd("1970/01/01-00:01:00")
+            .setAggregator("sum"))
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric("sys.cpu.user"))
+        .build();
+    
+    QueryIteratorInterpolatorFactory factory = 
+        new NumericInterpolatorFactory.Default();
+    NumericInterpolatorConfig factory_config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NONE)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build();
+    
+    config = DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("15s")
+        .setQuery(q)
+        .setQueryIteratorInterpolatorFactory(factory)
+        .setQueryIteratorInterpolatorConfig(factory_config)
+        .build();
   }
   
   @Test
   public void ctorAndInitialize() throws Exception {
-    GroupBy gb = new GroupBy(factory, context, config);
-    gb.initialize();
-    assertSame(config, gb.config());
-    verify(context, times(1)).upstream(gb);
-    verify(context, times(1)).downstream(gb);
+    Downsample ds = new Downsample(factory, context, config);
+    ds.initialize();
+    assertSame(config, ds.config());
+    verify(context, times(1)).upstream(ds);
+    verify(context, times(1)).downstream(ds);
     
     try {
-      new GroupBy(null, context, config);
+      new Downsample(null, context, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new GroupBy(factory, null, config);
+      new Downsample(factory, null, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new GroupBy(factory, context, null);
+      new Downsample(factory, context, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
   public void onComplete() throws Exception {
-    GroupBy gb = new GroupBy(factory, context, config);
-    gb.initialize();
+    Downsample ds = new Downsample(factory, context, config);
+    ds.initialize();
     
-    gb.onComplete(mock(QueryNode.class), 42, 42);
-    verify(upstream, times(1)).onComplete(gb, 42, 42);
+    ds.onComplete(mock(QueryNode.class), 42, 42);
+    verify(upstream, times(1)).onComplete(ds, 42, 42);
     
     doThrow(new IllegalArgumentException("Boo!")).when(upstream)
       .onComplete(any(QueryNode.class), anyLong(), anyLong());
-    gb.onComplete(mock(QueryNode.class), 42, 42);
-    verify(upstream, times(2)).onComplete(gb, 42, 42);
+    ds.onComplete(mock(QueryNode.class), 42, 42);
+    verify(upstream, times(2)).onComplete(ds, 42, 42);
   }
   
   @Test
   public void onNext() throws Exception {
-    final GroupByResult gb_results = mock(GroupByResult.class);
-    PowerMockito.whenNew(GroupByResult.class).withAnyArguments()
-      .thenReturn(gb_results);
+    Downsample ds = new Downsample(factory, context, config);
     final QueryResult results = mock(QueryResult.class);
     
-    GroupBy gb = new GroupBy(factory, context, config);
-    gb.initialize();
+    ds.initialize();
     
-    gb.onNext(results);
-    verify(upstream, times(1)).onNext(gb_results);
+    ds.onNext(results);
+    verify(upstream, times(1)).onNext(any());
     
     doThrow(new IllegalArgumentException("Boo!")).when(upstream)
       .onNext(any(QueryResult.class));
-    gb.onNext(results);
-    verify(upstream, times(2)).onNext(gb_results);
+    ds.onNext(results);
+    verify(upstream, times(2)).onNext(any());
   }
   
   @Test
   public void onError() throws Exception {
-    GroupBy gb = new GroupBy(factory, context, config);
-    gb.initialize();
+    Downsample ds = new Downsample(factory, context, config);
+    ds.initialize();
     
     final IllegalArgumentException ex = new IllegalArgumentException("Boo!");
     
-    gb.onError(ex);
+    ds.onError(ex);
     verify(upstream, times(1)).onError(ex);
     
     doThrow(new IllegalArgumentException("Boo!")).when(upstream)
       .onError(any(Throwable.class));
-    gb.onError(ex);
+    ds.onError(ex);
     verify(upstream, times(2)).onError(ex);
   }
 }

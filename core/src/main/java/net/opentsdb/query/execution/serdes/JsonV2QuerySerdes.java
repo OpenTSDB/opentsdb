@@ -23,7 +23,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp.TimeStampComparator;
+import net.opentsdb.data.TimeStamp.RelationalOperator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryResult;
@@ -92,7 +92,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
         
         TimeSeriesValue<NumericType> value = 
             (TimeSeriesValue<NumericType>) iterator.next();
-        while (value != null && value.timestamp().compare(TimeStampComparator.LT, 
+        while (value != null && value.timestamp().compare(RelationalOperator.LT, 
             query.getTime().startTime())) {
           if (iterator.hasNext()) {
             value = (TimeSeriesValue<NumericType>) iterator.next();
@@ -103,8 +103,8 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
         if (value == null) {
           continue;
         }
-        if (value.timestamp().compare(TimeStampComparator.LT, query.getTime().startTime()) ||
-            value.timestamp().compare(TimeStampComparator.GT, query.getTime().endTime())) {
+        if (value.timestamp().compare(RelationalOperator.LT, query.getTime().startTime()) ||
+            value.timestamp().compare(RelationalOperator.GT, query.getTime().endTime())) {
           continue;
         }
         
@@ -125,7 +125,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
         
         long ts = 0;
         while(value != null) {
-          if (value.timestamp().compare(TimeStampComparator.GT, query.getTime().endTime())) {
+          if (value.timestamp().compare(RelationalOperator.GT, query.getTime().endTime())) {
             break;
           }
           ts = (opts != null && opts.msResolution()) 

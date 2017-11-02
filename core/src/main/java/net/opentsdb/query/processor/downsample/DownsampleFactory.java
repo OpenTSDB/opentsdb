@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.query.processor.groupby;
+package net.opentsdb.query.processor.downsample;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -25,30 +25,22 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 
-/**
- * Factory for creating GroupBy iterators, aggregating multiple time series into
- * one.
- * 
- * @since 3.0
- */
-public class GroupByFactory extends BaseQueryNodeFactory {
-  /**
-   * Default ctor. Registers the numeric iterator.
-   */
-  public GroupByFactory(final String id) {
+public class DownsampleFactory extends BaseQueryNodeFactory {
+
+  public DownsampleFactory(final String id) {
     super(id);
     registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
   }
-  
+
   @Override
   public QueryNode newNode(final QueryPipelineContext context,
                            final QueryNodeConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    return new GroupBy(this, context, (GroupByConfig) config);
+    return new Downsample(this, context, (DownsampleConfig) config);
   }
-  
+
   /**
    * The default numeric iterator factory.
    */
@@ -57,13 +49,13 @@ public class GroupByFactory extends BaseQueryNodeFactory {
     @Override
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
                                                     final Collection<TimeSeries> sources) {
-      return new GroupByNumericIterator(node, sources);
+      return new DownsampleNumericIterator(node, sources.iterator().next());
     }
 
     @Override
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
                                                     final Map<String, TimeSeries> sources) {
-      return new GroupByNumericIterator(node, sources);
+      return new DownsampleNumericIterator(node, sources.values().iterator().next());
     }
     
   }

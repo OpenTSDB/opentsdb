@@ -77,11 +77,13 @@ public class GroupBy extends AbstractQueryNode {
 
   @Override
   public void onNext(final QueryResult next) {
+    final GroupByResult result = new GroupByResult(this, next);
     for (final QueryNode us : upstream) {
       try {
-        us.onNext(new GroupByResult(this, next));
+        us.onNext(result);
       } catch (Exception e) {
         LOG.error("Failed to call upstream onNext on Node: " + us, e);
+        result.close();
       }
     }
   }
@@ -107,4 +109,8 @@ public class GroupBy extends AbstractQueryNode {
     return config;
   }
   
+  /** @return The number of upstream consumers. */
+  protected int upstreams() {
+    return upstream.size();
+  }
 }

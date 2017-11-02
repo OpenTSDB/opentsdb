@@ -54,7 +54,7 @@ public class TestGroupByTimeSeries {
   
   @Before
   public void before() throws Exception {
-    factory = new GroupByFactory();
+    factory = new GroupByFactory("GroupBy");
     node = mock(GroupBy.class);
     config = GroupByConfig.newBuilder()
         .setAggregator("sum")

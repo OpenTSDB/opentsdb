@@ -512,7 +512,9 @@ public class TestNumericLERP {
     final NumericLERP lerp = new NumericLERP(source, config);
     assertTrue(lerp.has_next);
     TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
-    assertNull(v);
+    assertEquals(500, v.timestamp().msEpoch());
+    assertNull(v.value());
+    assertEquals(1000, lerp.nextReal().msEpoch());
     
     assertTrue(lerp.has_next);
     v = lerp.next(new MillisecondTimeStamp(1000));
@@ -537,7 +539,8 @@ public class TestNumericLERP {
     
     assertFalse(lerp.has_next);
     v = lerp.next(new MillisecondTimeStamp(3500));
-    assertNull(v);
+    assertEquals(3500, v.timestamp().msEpoch());
+    assertNull(v.value());
   }
   
   @Test
@@ -556,7 +559,9 @@ public class TestNumericLERP {
     final NumericLERP lerp = new NumericLERP(source, config);
     assertTrue(lerp.has_next);
     TimeSeriesValue<NumericType> v = lerp.next(new MillisecondTimeStamp(500));
-    assertNull(v);
+    assertEquals(500, v.timestamp().msEpoch());
+    assertNull(v.value());
+    assertEquals(1000, lerp.nextReal().msEpoch());
     
     assertTrue(lerp.has_next);
     v = lerp.next(new MillisecondTimeStamp(1000));
@@ -581,7 +586,8 @@ public class TestNumericLERP {
     
     assertFalse(lerp.has_next);
     v = lerp.next(new MillisecondTimeStamp(3500));
-    assertNull(v);
+    assertEquals(3500, v.timestamp().msEpoch());
+    assertNull(v.value());
   }
   
   @Test
