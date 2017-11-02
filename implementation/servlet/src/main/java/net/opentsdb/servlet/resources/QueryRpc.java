@@ -44,25 +44,18 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
-import com.stumbleupon.async.Callback;
 
 import jersey.repackaged.com.google.common.collect.ImmutableMap;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.Tags;
-import net.opentsdb.core.BaseTSDBPlugin;
-import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.DefaultQueryContextBuilder;
 import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.TSSubQuery;
-import net.opentsdb.query.context.DefaultQueryContext;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySink;
-import net.opentsdb.query.execution.HttpQueryV2Executor;
-import net.opentsdb.query.execution.QueryExecution;
-import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdes;
 import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 import net.opentsdb.query.filter.TagVFilter;
@@ -187,7 +180,7 @@ final public class QueryRpc {
     final Tracer tracer = (Tracer) tsdb.getRegistry().getDefaultPlugin(Tracer.class);
     if (tracer != null) {
       trace = tracer.newTrace(true, true);
-      query_span = trace.newSpan(this.getClass().getSimpleName())
+      query_span = trace.newSpanWithThread(this.getClass().getSimpleName())
           .withTag("endpoint", "/api/query")
           .withTag("startThread", Thread.currentThread().getName())
           // TODO - more useful info
@@ -200,7 +193,7 @@ final public class QueryRpc {
     
     Span parse_span = null;
     if (query_span != null) {
-      parse_span = trace.newSpan("parseAndValidate")
+      parse_span = trace.newSpanWithThread("parseAndValidate")
           .withTag("startThread", Thread.currentThread().getName())
           .asChildOf(query_span)
           .start();
@@ -227,7 +220,7 @@ final public class QueryRpc {
     
     Span convert_span = null;
     if (query_span != null) {
-      convert_span = trace.newSpan("convertAndValidate")
+      convert_span = trace.newSpanWithThread("convertAndValidate")
           .withTag("startThread", Thread.currentThread().getName())
           .asChildOf(query_span)
           .start();
@@ -266,7 +259,7 @@ final public class QueryRpc {
     
     Span setup_span = null;
     if (query_span != null) {
-      setup_span = trace.newSpan("setupContext")
+      setup_span = trace.newSpanWithThread("setupContext")
           .withTag("startThread", Thread.currentThread().getName())
           .asChildOf(query_span)
           .start();
@@ -362,7 +355,7 @@ final public class QueryRpc {
     
     Span execute_span = null;
     if (query_span != null) {
-      execute_span = trace.newSpan("startExecution")
+      execute_span = trace.newSpanWithThread("startExecution")
           .withTag("startThread", Thread.currentThread().getName())
           .asChildOf(query_span)
           .start();
@@ -404,7 +397,7 @@ final public class QueryRpc {
     final Span response_span;
     final Trace trace;
     if (context.stats().trace() != null) {
-      response_span = context.stats().trace().newSpan("responseHandler")
+      response_span = context.stats().trace().newSpanWithThread("responseHandler")
           .withTag("startThread", Thread.currentThread().getName())
           .asChildOf(context.stats().trace().firstSpan())
           .start();
@@ -428,7 +421,7 @@ final public class QueryRpc {
           throws IOException, WebApplicationException {
         Span serdes_span = null;
         if (response_span != null) {
-          serdes_span = context.stats().trace().newSpan("serdes")
+          serdes_span = context.stats().trace().newSpanWithThread("serdes")
               .withTag("startThread", Thread.currentThread().getName())
               .asChildOf(response_span)
               .start();

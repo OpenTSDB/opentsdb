@@ -13,9 +13,11 @@
 package net.opentsdb.stats;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
@@ -31,7 +33,7 @@ public class TestMockTrace {
   }
   
   @Test
-  public void span() {
+  public void newSpan() {
     final Exception e = new RuntimeException("Boo!");
     final MockTrace tracer = new MockTrace();
     Span span = tracer.newSpan("test_span")
@@ -54,11 +56,139 @@ public class TestMockTrace {
     assertEquals(2, ((MockSpan) span).tags.size());
     assertEquals(1, ((MockSpan) span).exceptions.size());
     assertSame(span, tracer.firstSpan());
+    assertEquals("value", ((MockSpan) span).tags.get("key"));
+    assertEquals("tag", ((MockSpan) span).tags.get("extra"));
     
     tracer.newSpan("test_span2")
       .withTag("key", "value")
       .start();
     assertSame(span, tracer.firstSpan());
+    
+    span = tracer.newSpan("test_span", "key2", "value2")
+        .start();
+    assertEquals(1, ((MockSpan) span).tags.size());
+    assertEquals("value2", ((MockSpan) span).tags.get("key2"));
+    
+    try {
+      tracer.newSpan(null).start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      tracer.newSpan("").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      tracer.newSpan("testspan", null).start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      tracer.newSpan("testspan", "key").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      tracer.newSpan("testspan", null, "value").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      tracer.newSpan("testspan", "", "value").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      tracer.newSpan("testspan", "key", null).start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      tracer.newSpan("testspan", "key", "").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+  }
+  
+  @Test
+  public void newSpanWithThread() {
+    final Exception e = new RuntimeException("Boo!");
+    final MockTrace tracer = new MockTrace();
+    Span span = tracer.newSpanWithThread("test_span")
+        .withTag("key", "value")
+        .start();
+    assertEquals("test_span", ((MockSpan) span).id);
+    assertNull(((MockSpan) span).parent);
+    assertEquals(0, ((MockSpan) span).start);
+    assertEquals(0, ((MockSpan) span).end);
+    assertEquals(2, ((MockSpan) span).tags.size());
+    assertEquals("value", ((MockSpan) span).tags.get("key"));
+    assertNotNull(((MockSpan) span).tags.get("startThread"));
+    assertTrue(tracer.spans.isEmpty());
+    
+    span.setTag("extra", "tag");
+    span.log("Error", e);
+    span.finish();
+    assertEquals(1, tracer.spans.size());
+    assertSame(span, tracer.spans.get(0));
+    assertEquals(1, ((MockSpan) span).end);
+    assertEquals(3, ((MockSpan) span).tags.size());
+    assertEquals(1, ((MockSpan) span).exceptions.size());
+    assertSame(span, tracer.firstSpan());
+    assertEquals("value", ((MockSpan) span).tags.get("key"));
+    assertEquals("tag", ((MockSpan) span).tags.get("extra"));
+    assertNotNull(((MockSpan) span).tags.get("startThread"));
+    
+    tracer.newSpanWithThread("test_span2")
+      .withTag("key", "value")
+      .start();
+    assertSame(span, tracer.firstSpan());
+    
+    span = tracer.newSpanWithThread("test_span", "key2", "value2")
+        .start();
+    assertEquals(2, ((MockSpan) span).tags.size());
+    assertEquals("value2", ((MockSpan) span).tags.get("key2"));
+    assertNotNull(((MockSpan) span).tags.get("startThread"));
+    
+    try {
+      tracer.newSpanWithThread(null).start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      tracer.newSpanWithThread("").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      tracer.newSpanWithThread("testspan", null).start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      tracer.newSpanWithThread("testspan", "key").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      tracer.newSpanWithThread("testspan", null, "value").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      tracer.newSpanWithThread("testspan", "", "value").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      tracer.newSpanWithThread("testspan", "key", null).start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      tracer.newSpanWithThread("testspan", "key", "").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
   }
   
   @Test

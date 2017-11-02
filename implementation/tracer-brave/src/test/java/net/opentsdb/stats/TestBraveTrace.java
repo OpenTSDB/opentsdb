@@ -19,6 +19,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -161,5 +162,116 @@ public class TestBraveTrace {
     
     span_builder2.start();
     assertSame(span1, trace.firstSpan());
+    
+    trace.newSpan("Foo", "key", "value").start();
+    verify(ot_builder_child, times(1)).withTag("key", "value");
+    
+    try {
+      trace.newSpan(null).start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      trace.newSpan("").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      trace.newSpan("testspan", null).start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      trace.newSpan("testspan", "key").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      trace.newSpan("testspan", null, "value").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      trace.newSpan("testspan", "", "value").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      trace.newSpan("testspan", "key", null).start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      trace.newSpan("testspan", "key", "").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+  }
+  
+  @Test
+  public void newSpanWithThread() throws Exception {
+    BraveTrace trace = (BraveTrace) BraveTrace.newBuilder()
+        .setId("MyTrace")
+        .setIs128(true)
+        .setIsDebug(true)
+        .setSpanCatcher(span_catcher)
+        .build();
+    
+    BraveSpanBuilder span_builder1 = trace.newSpanWithThread("Foo");
+    assertNull(trace.firstSpan());
+    verify(ot_builder, times(1)).withTag(eq("startThread"), anyString());
+    
+    BraveSpanBuilder span_builder2 = trace.newSpanWithThread("Foo");
+    assertNull(trace.firstSpan());
+    verify(ot_builder_child, times(1)).withTag(eq("startThread"), anyString());
+    
+    Span span1 = span_builder1.start();
+    assertSame(span1, trace.firstSpan());
+    
+    span_builder2.start();
+    assertSame(span1, trace.firstSpan());
+    
+    trace.newSpanWithThread("Foo", "key", "value").start();
+    verify(ot_builder_child, times(1)).withTag("key", "value");
+    verify(ot_builder_child, times(2)).withTag(eq("startThread"), anyString());
+    
+    try {
+      trace.newSpanWithThread(null).start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      trace.newSpanWithThread("").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      trace.newSpanWithThread("testspan", null).start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      trace.newSpanWithThread("testspan", "key").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      trace.newSpanWithThread("testspan", null, "value").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      trace.newSpanWithThread("testspan", "", "value").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      trace.newSpanWithThread("testspan", "key", null).start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
+    
+    try {
+      trace.newSpanWithThread("testspan", "key", "").start();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) { }
   }
 }

@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -31,8 +32,67 @@ public class MockTrace implements Trace {
   public Span first_span;
   
   @Override
-  public SpanBuilder newSpan(String id) {
+  public SpanBuilder newSpan(final String id) {
     Builder builder = (Builder) new Builder().buildSpan(id);
+    if (first_span == null) {
+      builder.is_first = true;
+    }
+    return builder;
+  }
+  
+  @Override
+  public SpanBuilder newSpan(final String id, final String... tags) {
+    if (tags == null) {
+      throw new IllegalArgumentException("Tags cannot be null.");
+    }
+    if (tags.length % 2 != 0) {
+      throw new IllegalArgumentException("Must have an even number of tags.");
+    }
+    Builder builder = (Builder) new Builder().buildSpan(id);
+    for (int i = 0; i < tags.length; i += 2) {
+      if (Strings.isNullOrEmpty(tags[i])) {
+        throw new IllegalArgumentException("Cannot have a null or empty tag key.");
+      }
+      if (Strings.isNullOrEmpty(tags[i + 1])) {
+        throw new IllegalArgumentException("Cannot have a null or empty tag value.");
+      }
+      builder.withTag(tags[i], tags[i + 1]);
+    }
+    if (first_span == null) {
+      builder.is_first = true;
+    }
+    return builder;
+  }
+  
+  @Override
+  public SpanBuilder newSpanWithThread(final String id) {
+    Builder builder = (Builder) new Builder().buildSpan(id);
+    builder.withTag("startThread", Thread.currentThread().getName());
+    if (first_span == null) {
+      builder.is_first = true;
+    }
+    return builder;
+  }
+  
+  @Override
+  public SpanBuilder newSpanWithThread(final String id, final String... tags) {
+    if (tags == null) {
+      throw new IllegalArgumentException("Tags cannot be null.");
+    }
+    if (tags.length % 2 != 0) {
+      throw new IllegalArgumentException("Must have an even number of tags.");
+    }
+    Builder builder = (Builder) new Builder().buildSpan(id);
+    for (int i = 0; i < tags.length; i += 2) {
+      if (Strings.isNullOrEmpty(tags[i])) {
+        throw new IllegalArgumentException("Cannot have a null or empty tag key.");
+      }
+      if (Strings.isNullOrEmpty(tags[i + 1])) {
+        throw new IllegalArgumentException("Cannot have a null or empty tag value.");
+      }
+      builder.withTag(tags[i], tags[i + 1]);
+    }
+    builder.withTag("startThread", Thread.currentThread().getName());
     if (first_span == null) {
       builder.is_first = true;
     }
@@ -64,6 +124,9 @@ public class MockTrace implements Trace {
     public Map<String, Throwable> exceptions;
     
     protected MockSpan(final Builder builder) {
+      if (Strings.isNullOrEmpty(builder.id)) {
+        throw new IllegalArgumentException("Span ID cannot be null.");
+      }
       start = span_timestamp.getAndIncrement();
       id = builder.id;
       parent = builder.parent;
@@ -87,6 +150,20 @@ public class MockTrace implements Trace {
       }
     }
 
+    @Override
+    public Span setSuccessTags() {
+      setTag("status", "OK");
+      setTag("finalThread", Thread.currentThread().getName());
+      return this;
+    }
+    
+    @Override
+    public Span setErrorTags() {
+      setTag("status", "Error");
+      setTag("finalThread", Thread.currentThread().getName());
+      return this;
+    }
+    
     @Override
     public Span setTag(String key, String value) {
       if (tags == null) {

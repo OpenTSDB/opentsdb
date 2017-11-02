@@ -24,11 +24,42 @@ import net.opentsdb.stats.Span.SpanBuilder;
 public interface Trace {
 
   /**
-   * Returns a new span builder for this tracer.
+   * Returns a new span builder for this tracer without any tags.
    * @param id A non-null and non-empty span ID.
    * @return A non-null span builder.
+   * @throws IllegalArgumentException if a required argument was invalid.
    */
   public SpanBuilder newSpan(final String id);
+  
+  /**
+   * Returns a new span builder for this tracer with the given tags set.
+   * @param id A non-null and non-empty span ID.
+   * @param tags A list of key/value pairs. Must be an even number of non-null
+   * and non-empty strings.
+   * @return A non-null span builder.
+   * @throws IllegalArgumentException if a required argument was invalid.
+   */
+  public SpanBuilder newSpan(final String id, final String... tags);
+  
+  /**
+   * Returns a new span builder for this tracer with the thread name set as in
+   * "startThread=&lt;local_thread_name&gt;".
+   * @param id A non-null and non-empty span ID.
+   * @return A non-null span builder.
+   * @throws IllegalArgumentException if a required argument was invalid.
+   */
+  public SpanBuilder newSpanWithThread(final String id);
+  
+  /**
+   * Returns a new span builder for this tracer with the given tags set and the
+   * thread name set as in "startThread=&lt;local_thread_name&gt;".
+   * @param id A non-null and non-empty span ID.
+   * @param tags A list of key/value pairs. Must be an even number of non-null
+   * and non-empty strings.
+   * @return A non-null span builder.
+   * @throws IllegalArgumentException if a required argument was invalid.
+   */
+  public SpanBuilder newSpanWithThread(final String id, final String... tags);
   
   /**
    * Whether or not this tracer is in debug mode and should record detailed

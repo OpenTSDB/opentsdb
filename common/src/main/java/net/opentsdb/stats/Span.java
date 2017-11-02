@@ -36,6 +36,18 @@ public interface Span {
   public void finish(final long duration);
   
   /**
+   * Sets the tags "status=OK" and "finalThread=&lt;local_thread_name&gt;".
+   * @return The span.
+   */
+  public Span setSuccessTags();
+  
+  /**
+   * Sets the tags "status=Error" and "finalThread=&lt;local_thread_name&gt;".
+   * @return The span.
+   */
+  public Span setErrorTags();
+  
+  /**
    * Sets a tag on a span. May overwrite.
    * @param key A non-null and non-empty key.
    * @param value A non-null and non-empty value.
@@ -52,7 +64,7 @@ public interface Span {
   public Span setTag(final String key, final Number value);
   
   /**
-   * Logs the given key and exception.
+   * Logs the given key and exception
    * @param key A non-null and non-empty key.
    * @param t A non-null exception.
    * @return The span.
