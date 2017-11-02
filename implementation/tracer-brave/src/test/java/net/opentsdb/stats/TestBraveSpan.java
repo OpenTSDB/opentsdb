@@ -16,6 +16,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -151,6 +152,24 @@ public class TestBraveSpan {
     verify(mock_span, times(1)).finish(42L);
   }
  
+  @Test
+  public void setSuccessTags() throws Exception {
+    BraveSpan span = (BraveSpan) BraveSpan.newBuilder(trace, "Test")
+        .start();
+    span.setSuccessTags();
+    verify(mock_span, times(1)).setTag("status", "OK");
+    verify(mock_span, times(1)).setTag(eq("finalThread"), anyString());
+  }
+  
+  @Test
+  public void setErrorTags() throws Exception {
+    BraveSpan span = (BraveSpan) BraveSpan.newBuilder(trace, "Test")
+        .start();
+    span.setErrorTags();
+    verify(mock_span, times(1)).setTag("status", "Error");
+    verify(mock_span, times(1)).setTag(eq("finalThread"), anyString());
+  }
+  
   @Test
   public void setTagsLogs() throws Exception {
     BraveSpan span = (BraveSpan) BraveSpan.newBuilder(trace, "Test")

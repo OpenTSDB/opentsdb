@@ -82,6 +82,86 @@ public class BraveTrace implements net.opentsdb.stats.Trace {
   }
 
   @Override
+  public BraveSpanBuilder newSpan(final String id, final String... tags) {
+    if (tags == null) {
+      throw new IllegalArgumentException("Tags cannot be null.");
+    }
+    if (tags.length % 2 != 0) {
+      throw new IllegalArgumentException("Must have an even number of tags.");
+    }
+    final BraveSpanBuilder builder = 
+        (BraveSpanBuilder) BraveSpan.newBuilder(this, id);
+    // double-check lock to avoid contention after the first span is set
+    if (!first_span_set) {
+      synchronized (this) {
+        if (!first_span_set) {
+          builder.isFirst(true);
+          first_span_set = true;
+        }
+      }
+    }
+    for (int i = 0; i < tags.length; i += 2) {
+      if (Strings.isNullOrEmpty(tags[i])) {
+        throw new IllegalArgumentException("Cannot have a null or empty tag key.");
+      }
+      if (Strings.isNullOrEmpty(tags[i + 1])) {
+        throw new IllegalArgumentException("Cannot have a null or empty tag value.");
+      }
+      builder.withTag(tags[i], tags[i + 1]);
+    }
+    return builder;
+  }
+  
+  @Override
+  public BraveSpanBuilder newSpanWithThread(final String id) {
+    final BraveSpanBuilder builder = 
+        (BraveSpanBuilder) BraveSpan.newBuilder(this, id);
+    // double-check lock to avoid contention after the first span is set
+    if (!first_span_set) {
+      synchronized (this) {
+        if (!first_span_set) {
+          builder.isFirst(true);
+          first_span_set = true;
+        }
+      }
+    }
+    builder.withTag("startThread", Thread.currentThread().getName());
+    return builder;
+  }
+
+  @Override
+  public BraveSpanBuilder newSpanWithThread(final String id, final String... tags) {
+    if (tags == null) {
+      throw new IllegalArgumentException("Tags cannot be null.");
+    }
+    if (tags.length % 2 != 0) {
+      throw new IllegalArgumentException("Must have an even number of tags.");
+    }
+    final BraveSpanBuilder builder = 
+        (BraveSpanBuilder) BraveSpan.newBuilder(this, id);
+    // double-check lock to avoid contention after the first span is set
+    if (!first_span_set) {
+      synchronized (this) {
+        if (!first_span_set) {
+          builder.isFirst(true);
+          first_span_set = true;
+        }
+      }
+    }
+    for (int i = 0; i < tags.length; i += 2) {
+      if (Strings.isNullOrEmpty(tags[i])) {
+        throw new IllegalArgumentException("Cannot have a null or empty tag key.");
+      }
+      if (Strings.isNullOrEmpty(tags[i + 1])) {
+        throw new IllegalArgumentException("Cannot have a null or empty tag value.");
+      }
+      builder.withTag(tags[i], tags[i + 1]);
+    }
+    builder.withTag("startThread", Thread.currentThread().getName());
+    return builder;
+  }
+  
+  @Override
   public boolean isDebug() {
     return is_debug;
   }

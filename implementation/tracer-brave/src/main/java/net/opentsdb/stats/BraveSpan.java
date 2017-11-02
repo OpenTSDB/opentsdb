@@ -51,6 +51,20 @@ public class BraveSpan implements net.opentsdb.stats.Span {
   }
 
   @Override
+  public Span setSuccessTags() {
+    setTag("status", "OK");
+    setTag("finalThread", Thread.currentThread().getName());
+    return this;
+  }
+  
+  @Override
+  public Span setErrorTags() {
+    setTag("status", "Error");
+    setTag("finalThread", Thread.currentThread().getName());
+    return this;
+  }
+  
+  @Override
   public Span setTag(final String key, final String value) {
     if (Strings.isNullOrEmpty(key)) {
       throw new IllegalArgumentException("Empty or null keys are not allowed.");
