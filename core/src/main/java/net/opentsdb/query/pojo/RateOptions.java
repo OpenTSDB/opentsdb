@@ -12,6 +12,9 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query.pojo;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -19,10 +22,13 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.hash.HashCode;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.utils.DateTime;
 
 /**
  * Provides additional options that will be used when calculating rates. These
@@ -37,11 +43,15 @@ import net.opentsdb.core.Const;
 @JsonInclude(Include.NON_DEFAULT)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonDeserialize(builder = RateOptions.Builder.class)
-public class RateOptions extends Validatable implements Comparable<RateOptions> {
+public class RateOptions extends Validatable implements Comparable<RateOptions>,
+  QueryNodeConfig {
   public static final long DEFAULT_RESET_VALUE = 0;
-  public static final long DEFAULT_INTERVAL = 60000;
+  public static final String DEFAULT_INTERVAL = "1s";
   public static final long DEFAULT_COUNTER_MAX = Long.MAX_VALUE;
 
+  /** The ID of this config. */
+  private String id;
+  
   /**
    * If true, then when calculating a rate of change assume that the metric
    * values are counters and thus non-zero, always increasing and wrap around at
@@ -65,9 +75,12 @@ public class RateOptions extends Validatable implements Comparable<RateOptions> 
    */
   private long reset_value;
   
-  /** The rate interval in milliseconds. Default is 60 seconds as per TSDB 1/2 */
-  private long interval = DEFAULT_INTERVAL;
+  /** The rate interval in duration format. Default is 1 seconds as per TSDB 1/2 */
+  private String interval = DEFAULT_INTERVAL;
 
+  private Duration duration;
+  private ChronoUnit units;
+  
   /** Used for Jackson non-default serdes. */
   protected RateOptions() {
     
@@ -77,11 +90,16 @@ public class RateOptions extends Validatable implements Comparable<RateOptions> 
    * Ctor
    */
   protected RateOptions(final Builder builder) {
+    id = builder.id;
     counter = builder.counter;
     drop_resets = builder.dropResets;
     counter_max = builder.counterMax;
     reset_value = builder.resetValue;
     interval = builder.interval;
+    
+    final long interval_part = DateTime.getDurationInterval(interval);
+    units = DateTime.unitsToChronoUnit(DateTime.getDurationUnits(interval));
+    duration = Duration.of(interval_part, units);
   }
   
   /** @return Whether or not the counter flag is set */
@@ -104,10 +122,26 @@ public class RateOptions extends Validatable implements Comparable<RateOptions> 
     return drop_resets;
   }
   
-  /** @return The rate interval in milliseconds. Default is 60 seconds as 
+  /** @return The rate interval in duration format. Default is 1 seconds as 
    * per TSDB 1/2. */
-  public long getInterval() {
+  public String getInterval() {
     return interval;
+  }
+
+  @Override
+  public String getId() {
+    return id;
+  }
+  
+  /** @return The duration of the rate to convert to. E.g. per second or per
+   * 8 seconds, etc. */
+  public Duration duration() {
+    return duration;
+  }
+  
+  /** @return The parsed units of the interval. */
+  public ChronoUnit units() {
+    return units;
   }
   
   /**
@@ -129,9 +163,10 @@ public class RateOptions extends Validatable implements Comparable<RateOptions> 
    * @throws IllegalArgumentException if one or more parameters were invalid
    */
   public void validate() {
-    if (interval < 1) {
-      throw new IllegalArgumentException("Interval cannot be less than 1 ms.");
+    if (Strings.isNullOrEmpty(interval)) {
+      throw new IllegalArgumentException("Interval cannot be null or empty.");
     }
+    DateTime.parseDuration2(interval);
   }
   
   @Override
@@ -160,7 +195,7 @@ public class RateOptions extends Validatable implements Comparable<RateOptions> 
         .putBoolean(drop_resets)
         .putLong(counter_max)
         .putLong(reset_value)
-        .putLong(interval)
+        .putString(interval, Const.UTF8_CHARSET)
         .hash();
   }
   
@@ -205,6 +240,7 @@ public class RateOptions extends Validatable implements Comparable<RateOptions> 
   @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonPOJOBuilder(buildMethodName = "build", withPrefix = "")
   public static final class Builder {
+    private String id;
     @JsonProperty
     private boolean counter;
     @JsonProperty
@@ -214,7 +250,12 @@ public class RateOptions extends Validatable implements Comparable<RateOptions> 
     @JsonProperty
     private long resetValue = DEFAULT_RESET_VALUE;
     @JsonProperty
-    private long interval = DEFAULT_INTERVAL;
+    private String interval = DEFAULT_INTERVAL;
+    
+    public Builder setId(final String id) {
+      this.id = id;
+      return this;
+    }
     
     public Builder setCounter(final boolean counter) {
       this.counter = counter;
@@ -236,7 +277,7 @@ public class RateOptions extends Validatable implements Comparable<RateOptions> 
       return this;
     }
     
-    public Builder setInterval(final long interval) {
+    public Builder setInterval(final String interval) {
       this.interval = interval;
       return this;
     }
@@ -245,4 +286,5 @@ public class RateOptions extends Validatable implements Comparable<RateOptions> 
       return new RateOptions(this);
     }
   }
+  
 }

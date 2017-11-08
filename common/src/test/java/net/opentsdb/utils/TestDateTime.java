@@ -406,6 +406,8 @@ public final class TestDateTime {
   
   @Test
   public void getDurationUnits() {
+    assertEquals("ns", DateTime.getDurationUnits("365ns"));
+    assertEquals("mu", DateTime.getDurationUnits("4mu"));
     assertEquals("ms", DateTime.getDurationUnits("5ms"));
     assertEquals("s", DateTime.getDurationUnits("30s"));
     assertEquals("m", DateTime.getDurationUnits("60m"));

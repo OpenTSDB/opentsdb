@@ -50,7 +50,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 @SuppressWarnings("unchecked")
-public class TestDownsampler {
+public class TestDownsampleNumericIterator {
 
   private TimeSeries source;
   private TimeSeriesQuery query;

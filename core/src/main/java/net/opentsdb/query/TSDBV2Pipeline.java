@@ -24,7 +24,9 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
+import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.processor.groupby.GroupByFactory;
+import net.opentsdb.query.processor.rate.RateFactory;
 import net.opentsdb.storage.TimeSeriesDataStore;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.downsample.DownsampleFactory;
@@ -80,28 +82,6 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
           .newNode(this, config);
       addVertex(node);
 
-      final Downsampler downsampler = metric.getDownsampler() != null ? 
-          metric.getDownsampler() : q.getTime().getDownsampler();
-      // downsample
-      if (downsampler != null) {
-        DownsampleConfig.Builder ds = DownsampleConfig.newBuilder()
-            .setId("downsample_" + metric.getId())
-            .setAggregator(downsampler.getAggregator())
-            .setInterval(downsampler.getInterval())
-            .setQuery(q);
-        if (!Strings.isNullOrEmpty(downsampler.getTimezone())) {
-          ds.setTimeZone(ZoneId.of(downsampler.getTimezone()));
-        }
-        final NumericInterpolatorConfig nic = 
-            NumericInterpolatorFactory.parse(downsampler.getAggregator());
-        ds.setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-          .setQueryIteratorInterpolatorConfig(nic);
-        QueryNode down = new DownsampleFactory("Downsample").newNode(this, ds.build());
-        addVertex(down);
-        addDagEdge(down, node);
-        node = down;
-      }
-      
       Filter filter = Strings.isNullOrEmpty(metric.getFilter()) ? null : q.getFilter(metric.getFilter());
       if (filter != null) {
         GroupByConfig.Builder gb_config = null;
@@ -130,6 +110,36 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
           addDagEdge(gb, node);
           node = gb;
         }
+      }
+
+      final Downsampler downsampler = metric.getDownsampler() != null ? 
+          metric.getDownsampler() : q.getTime().getDownsampler();
+      // downsample
+      if (downsampler != null) {
+        DownsampleConfig.Builder ds = DownsampleConfig.newBuilder()
+            .setId("downsample_" + metric.getId())
+            .setAggregator(downsampler.getAggregator())
+            .setInterval(downsampler.getInterval())
+            .setQuery(q);
+        if (!Strings.isNullOrEmpty(downsampler.getTimezone())) {
+          ds.setTimeZone(ZoneId.of(downsampler.getTimezone()));
+        }
+        final NumericInterpolatorConfig nic = 
+            NumericInterpolatorFactory.parse(downsampler.getAggregator());
+        ds.setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
+          .setQueryIteratorInterpolatorConfig(nic);
+        QueryNode down = new DownsampleFactory("Downsample").newNode(this, ds.build());
+        addVertex(down);
+        addDagEdge(down, node);
+        node = down;
+      }
+      
+      if (metric.isRate()) {
+        QueryNode rate = new RateFactory("Rate").newNode(this, 
+            metric.getRateOptions() == null ? RateOptions.newBuilder().build() : metric.getRateOptions());
+        addVertex(rate);
+        addDagEdge(rate, node);
+        node = rate;
       }
       
       addDagEdge(this, node);
