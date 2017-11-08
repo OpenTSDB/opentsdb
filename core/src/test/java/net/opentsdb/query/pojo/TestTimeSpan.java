@@ -225,7 +225,7 @@ public class TestTimeSpan {
             .setInterval("1h"))
         .setRate(true)
         .setRateOptions(RateOptions.newBuilder()
-            .setInterval(30000))
+            .setInterval("30s"))
         .setSliceConfig("50%")
         .build();
     
@@ -241,7 +241,7 @@ public class TestTimeSpan {
     assertEquals("UTC", clone.getTimezone());
     assertEquals("1h", clone.getDownsampler().getInterval());
     assertTrue(clone.isRate());
-    assertEquals(30000, clone.getRateOptions().getInterval());
+    assertEquals("30s", clone.getRateOptions().getInterval());
     assertEquals("50%", clone.getSliceConfig());
     assertEquals(start, clone.startTime().msEpoch());
     assertEquals(end, clone.endTime().msEpoch());
@@ -257,7 +257,7 @@ public class TestTimeSpan {
     assertEquals("UTC", clone.getTimezone());
     assertEquals("1h", clone.getDownsampler().getInterval());
     assertTrue(clone.isRate());
-    assertEquals(30000, clone.getRateOptions().getInterval());
+    assertEquals("30s", clone.getRateOptions().getInterval());
     assertEquals("50%", clone.getSliceConfig());
     assertEquals(start, clone.startTime().msEpoch());
     assertNotEquals(end, clone.endTime().msEpoch());
@@ -276,7 +276,7 @@ public class TestTimeSpan {
             .build())
         .setRate(true)
         .setRateOptions(RateOptions.newBuilder()
-            .setInterval(30000))
+            .setInterval("30s"))
         .setSliceConfig("50%")
         .build();
     
@@ -291,7 +291,7 @@ public class TestTimeSpan {
             .build())
         .setRate(true)
         .setRateOptions(RateOptions.newBuilder()
-            .setInterval(30000))
+            .setInterval("30s"))
         .setSliceConfig("50%")
         .build();
     assertEquals(t1.hashCode(), t2.hashCode());
@@ -311,7 +311,7 @@ public class TestTimeSpan {
             .build())
         .setRate(true)
         .setRateOptions(RateOptions.newBuilder()
-            .setInterval(30000))
+            .setInterval("30s"))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -331,7 +331,7 @@ public class TestTimeSpan {
             .build())
         .setRate(true)
         .setRateOptions(RateOptions.newBuilder()
-            .setInterval(30000))
+            .setInterval("30s"))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -351,7 +351,7 @@ public class TestTimeSpan {
             .build())
         .setRate(true)
         .setRateOptions(RateOptions.newBuilder()
-            .setInterval(30000))
+            .setInterval("30s"))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -371,7 +371,7 @@ public class TestTimeSpan {
             .build())
         .setRate(true)
         .setRateOptions(RateOptions.newBuilder()
-            .setInterval(30000))
+            .setInterval("30s"))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -392,7 +392,7 @@ public class TestTimeSpan {
             .build())
         .setRate(true)
         .setRateOptions(RateOptions.newBuilder()
-            .setInterval(30000))
+            .setInterval("30s"))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -410,7 +410,7 @@ public class TestTimeSpan {
             .build())
         .setRate(true)
         .setRateOptions(RateOptions.newBuilder()
-            .setInterval(30000))
+            .setInterval("30s"))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -428,7 +428,7 @@ public class TestTimeSpan {
             .build())
         .setRate(true)
         .setRateOptions(RateOptions.newBuilder()
-            .setInterval(30000))
+            .setInterval("30s"))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -446,7 +446,7 @@ public class TestTimeSpan {
         //    .build())
         .setRate(true)
         .setRateOptions(RateOptions.newBuilder()
-            .setInterval(30000))
+            .setInterval("30s"))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -464,7 +464,7 @@ public class TestTimeSpan {
             .build())
         .setRate(false)  // <-- diff
         .setRateOptions(RateOptions.newBuilder()
-            .setInterval(30000))
+            .setInterval("30s"))
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -482,7 +482,7 @@ public class TestTimeSpan {
             .build())
         .setRate(true)
         .setRateOptions(RateOptions.newBuilder()
-            .setInterval(15000))  // <-- diff
+            .setInterval("15s"))  // <-- diff
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -500,7 +500,7 @@ public class TestTimeSpan {
             .build())
         .setRate(true)
         //.setRateOptions(RateOptions.newBuilder()
-        //    .setInterval(30000))  // <-- diff
+        //    .setInterval("30s"))  // <-- diff
         .setSliceConfig("50%")
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -518,7 +518,7 @@ public class TestTimeSpan {
             .build())
         .setRate(true)
         .setRateOptions(RateOptions.newBuilder()
-            .setInterval(30000))
+            .setInterval("30s"))
         .setSliceConfig("75%")   // <-- diff
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());
@@ -536,7 +536,7 @@ public class TestTimeSpan {
             .build())
         .setRate(true)
         .setRateOptions(RateOptions.newBuilder()
-            .setInterval(30000))
+            .setInterval("30s"))
         //.setSliceConfig("50%")   // <-- diff
         .build();
     assertNotEquals(t1.hashCode(), t2.hashCode());

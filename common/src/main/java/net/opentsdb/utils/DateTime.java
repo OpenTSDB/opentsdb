@@ -330,9 +330,10 @@ public class DateTime {
       unit++;
     }
     final String units = duration.substring(unit).toLowerCase();
-    if (units.equals("ms") || units.equals("s") || units.equals("m") || 
-        units.equals("h") || units.equals("d") || units.equals("w") || 
-        units.equals("n") || units.equals("y")) {
+    if (units.equals("ns") || units.equals("mu") || units.equals("ms") || 
+        units.equals("s") || units.equals("m") || units.equals("h") || 
+        units.equals("d") || units.equals("w") || units.equals("n") || 
+        units.equals("y")) {
       return units;
     }
     throw new IllegalArgumentException("Invalid units in the duration: " + units);

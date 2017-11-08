@@ -180,7 +180,11 @@ public final class MutableNumericType implements NumericType,
     if (timestamp == null) {
       throw new IllegalArgumentException("Timestamp cannot be null");
     }
-    this.timestamp.update(timestamp);
+    if (timestamp.units().ordinal() < this.timestamp.units().ordinal()) {
+      this.timestamp = timestamp.getCopy();
+    } else {
+      this.timestamp.update(timestamp);
+    }
     this.value = value;
     is_integer = true;
     nulled = false;
@@ -196,7 +200,11 @@ public final class MutableNumericType implements NumericType,
     if (timestamp == null) {
       throw new IllegalArgumentException("Timestamp cannot be null");
     }
-    this.timestamp.update(timestamp);
+    if (timestamp.units().ordinal() < this.timestamp.units().ordinal()) {
+      this.timestamp = timestamp.getCopy();
+    } else {
+      this.timestamp.update(timestamp);
+    }
     this.value = Double.doubleToRawLongBits(value);
     is_integer = false;
     nulled = false;
@@ -216,7 +224,11 @@ public final class MutableNumericType implements NumericType,
     if (value.timestamp() == null) {
       throw new IllegalArgumentException("Value's timestamp cannot be null");
     }
-    timestamp.update(value.timestamp());
+    if (value.timestamp().units().ordinal() < this.timestamp.units().ordinal()) {
+      this.timestamp = value.timestamp().getCopy();
+    } else {
+      this.timestamp.update(value.timestamp());
+    }
     if (value.value() != null) {
       this.value = value.value().isInteger() ? value.value().longValue() : 
         Double.doubleToRawLongBits(value.value().doubleValue());
@@ -240,7 +252,11 @@ public final class MutableNumericType implements NumericType,
     if (value == null) {
       throw new IllegalArgumentException("Value cannot be null.");
     }
-    this.timestamp.update(timestamp);
+    if (timestamp.units().ordinal() < this.timestamp.units().ordinal()) {
+      this.timestamp = timestamp.getCopy();
+    } else {
+      this.timestamp.update(timestamp);
+    }
     if (value.isInteger()) {
       is_integer = true;
       this.value = value.longValue();
@@ -260,7 +276,11 @@ public final class MutableNumericType implements NumericType,
     if (timestamp == null) {
       throw new IllegalArgumentException("Timestamp cannot be null.");
     }
-    this.timestamp.update(timestamp);
+    if (timestamp.units().ordinal() < this.timestamp.units().ordinal()) {
+      this.timestamp = timestamp.getCopy();
+    } else {
+      this.timestamp.update(timestamp);
+    }
     nulled = true;
   }
   
