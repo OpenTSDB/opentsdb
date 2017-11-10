@@ -21,12 +21,16 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.time.ZoneId;
+
 import org.junit.Before;
 import org.junit.Test;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.ZonedNanoTimeStamp;
 
 /**
  * Tests {@link MutableNumericType}.
@@ -251,4 +255,59 @@ public class TestMutableNumericType {
     } catch (IllegalArgumentException e) { }
   }
 
+  @Test
+  public void resetWithHigherResolutionTimeStamp() throws Exception {
+    MutableNumericType dp = new MutableNumericType(ts, 42.5);
+    assertEquals(Const.UTC, dp.timestamp().timezone());
+    
+    final ZoneId denver = ZoneId.of("America/Denver");
+    
+    final TimeStamp zoned = new ZonedNanoTimeStamp(1000, 500, denver);
+    dp.reset(zoned, 42);
+    assertEquals(denver, dp.timestamp().timezone());
+    assertEquals(1000, dp.timestamp().epoch());
+    assertEquals(500, dp.timestamp().nanos());
+    
+    dp = new MutableNumericType(ts, 42.5);
+    dp.reset(zoned, 44.1);
+    assertEquals(denver, dp.timestamp().timezone());
+    assertEquals(1000, dp.timestamp().epoch());
+    assertEquals(500, dp.timestamp().nanos());
+    
+    dp = new MutableNumericType(ts, 42.5);
+    dp.resetNull(zoned);
+    assertEquals(denver, dp.timestamp().timezone());
+    assertEquals(1000, dp.timestamp().epoch());
+    assertEquals(500, dp.timestamp().nanos());
+    
+    class IntDP implements NumericType {
+      @Override
+      public boolean isInteger() { return true; }
+
+      @Override
+      public long longValue() { return 42; }
+
+      @Override
+      public double doubleValue() { throw new ClassCastException(); }
+
+      @Override
+      public double toDouble() { return 42D; }
+    }
+    dp = new MutableNumericType(ts, 42.5);
+    dp.reset(zoned, new IntDP());
+    assertEquals(denver, dp.timestamp().timezone());
+    assertEquals(1000, dp.timestamp().epoch());
+    assertEquals(500, dp.timestamp().nanos());
+    
+    MutableNumericType dupe = new MutableNumericType(dp);
+    assertEquals(denver, dupe.timestamp().timezone());
+    assertEquals(1000, dupe.timestamp().epoch());
+    assertEquals(500, dupe.timestamp().nanos());
+    
+    dp = new MutableNumericType(ts, 42.5);
+    dp.reset(dupe);
+    assertEquals(denver, dp.timestamp().timezone());
+    assertEquals(1000, dp.timestamp().epoch());
+    assertEquals(500, dp.timestamp().nanos());
+  }
 }

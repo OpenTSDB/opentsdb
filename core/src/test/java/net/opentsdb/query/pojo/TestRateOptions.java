@@ -26,7 +26,7 @@ public class TestRateOptions {
   @Test(expected = IllegalArgumentException.class)
   public void validationErrorWhenIntervalIsInvalid() throws Exception {
     RateOptions.newBuilder()
-      .setInterval(0)
+      .setInterval("")
     .build()
     .validate();
   }
@@ -41,20 +41,20 @@ public class TestRateOptions {
     
     options = RateOptions.newBuilder()
         .setCounter(true)
-        .setInterval(30000)
+        .setInterval("60s")
         .setCounterMax(Integer.MAX_VALUE)
         .build();
     json = JSON.serializeToString(options);
     assertTrue(json.contains("\"counter\":true"));
-    assertTrue(json.contains("\"interval\":30000"));
+    assertTrue(json.contains("\"interval\":\"60s\""));
     assertTrue(json.contains("\"counterMax\":" + Integer.MAX_VALUE));
     
-    json = "{\"counter\":true,\"interval\":15000,\"counterMax\":16,"
+    json = "{\"counter\":true,\"interval\":\"15s\",\"counterMax\":16,"
         + "\"resetValue\":-1,\"dropResets\":true,\"someOtherField\":\"Boo!\"}";
     options = JSON.parseToObject(json, RateOptions.class);
     assertTrue(options.isCounter());
     assertTrue(options.getDropResets());
-    assertEquals(15000, options.getInterval());
+    assertEquals("15s", options.getInterval());
     assertEquals(-1, options.getResetValue());
     assertEquals(16, options.getCounterMax());
   }
@@ -63,13 +63,13 @@ public class TestRateOptions {
   public void build() throws Exception {
     final RateOptions options = RateOptions.newBuilder()
         .setCounter(true)
-        .setInterval(30000)
+        .setInterval("60s")
         .setCounterMax(Integer.MAX_VALUE)
         .build();
     final RateOptions clone = RateOptions.newBuilder(options).build();
     assertTrue(clone.isCounter());
     assertFalse(clone.getDropResets());
-    assertEquals(30000, clone.getInterval());
+    assertEquals("60s", clone.getInterval());
     assertEquals(0, clone.getResetValue());
     assertEquals(Integer.MAX_VALUE, clone.getCounterMax());
   }
@@ -79,7 +79,7 @@ public class TestRateOptions {
     final RateOptions r1 = RateOptions.newBuilder()
         .setCounter(true)
         .setDropResets(true)
-        .setInterval(30000)
+        .setInterval("60s")
         .setCounterMax(Integer.MAX_VALUE)
         .setResetValue(-1)
         .build();
@@ -87,7 +87,7 @@ public class TestRateOptions {
     RateOptions r2 = RateOptions.newBuilder()
         .setCounter(true)
         .setDropResets(true)
-        .setInterval(30000)
+        .setInterval("60s")
         .setCounterMax(Integer.MAX_VALUE)
         .setResetValue(-1)
         .build();
@@ -98,7 +98,7 @@ public class TestRateOptions {
     r2 = RateOptions.newBuilder()
         //.setCounter(true) // <-- Diff
         .setDropResets(true)
-        .setInterval(30000)
+        .setInterval("60s")
         .setCounterMax(Integer.MAX_VALUE)
         .setResetValue(-1)
         .build();
@@ -109,7 +109,7 @@ public class TestRateOptions {
     r2 = RateOptions.newBuilder()
         .setCounter(true)
         //.setDropResets(true) // <-- Diff
-        .setInterval(30000)
+        .setInterval("60s")
         .setCounterMax(Integer.MAX_VALUE)
         .setResetValue(-1)
         .build();
@@ -120,7 +120,7 @@ public class TestRateOptions {
     r2 = RateOptions.newBuilder()
         .setCounter(true)
         .setDropResets(true)
-        .setInterval(15000) // <-- Diff
+        .setInterval("15s") // <-- Diff
         .setCounterMax(Integer.MAX_VALUE)
         .setResetValue(-1)
         .build();
@@ -131,18 +131,18 @@ public class TestRateOptions {
     r2 = RateOptions.newBuilder()
         .setCounter(true)
         .setDropResets(true)
-        //.setInterval(30000) // <-- Diff
+        //.setInterval("60s") // <-- Diff
         .setCounterMax(Integer.MAX_VALUE)
         .setResetValue(-1)
         .build();
     assertNotEquals(r1.hashCode(), r2.hashCode());
     assertNotEquals(r1, r2);
-    assertEquals(-1, r1.compareTo(r2));
+    assertEquals(1, r1.compareTo(r2));
     
     r2 = RateOptions.newBuilder()
         .setCounter(true)
         .setDropResets(true)
-        .setInterval(30000)
+        .setInterval("60s")
         .setCounterMax(Short.MAX_VALUE) // <-- Diff
         .setResetValue(-1)
         .build();
@@ -153,7 +153,7 @@ public class TestRateOptions {
     r2 = RateOptions.newBuilder()
         .setCounter(true)
         .setDropResets(true)
-        .setInterval(30000)
+        .setInterval("60s")
         //.setCounterMax(Integer.MAX_VALUE) // <-- Diff
         .setResetValue(-1)
         .build();
@@ -164,7 +164,7 @@ public class TestRateOptions {
     r2 = RateOptions.newBuilder()
         .setCounter(true)
         .setDropResets(true)
-        .setInterval(30000)
+        .setInterval("60s")
         .setCounterMax(Integer.MAX_VALUE)
         .setResetValue(100) // <-- Diff
         .build();
@@ -175,7 +175,7 @@ public class TestRateOptions {
     r2 = RateOptions.newBuilder()
         .setCounter(true)
         .setDropResets(true)
-        .setInterval(30000)
+        .setInterval("60s")
         .setCounterMax(Integer.MAX_VALUE)
         //.setResetValue(-1) // <-- Diff
         .build();

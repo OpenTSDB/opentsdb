@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.query.processor.downsample;
+package net.opentsdb.query.processor.rate;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -23,20 +23,21 @@ import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 
 /**
- * Simple class for generating Downsample processors.
+ * Simple Rate processor generating factory.
  * 
  * @since 3.0
  */
-public class DownsampleFactory extends BaseQueryNodeFactory {
+public class RateFactory extends BaseQueryNodeFactory {
 
   /**
    * Default ctor.
-   * @param id A non-null and non-empty ID.
+   * @param id A non-null and non-empty id.
    */
-  public DownsampleFactory(final String id) {
+  public RateFactory(final String id) {
     super(id);
     registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
   }
@@ -47,7 +48,7 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    return new Downsample(this, context, (DownsampleConfig) config);
+    return new Rate(this, context, (RateOptions) config);
   }
 
   /**
@@ -58,13 +59,13 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
     @Override
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
                                                     final Collection<TimeSeries> sources) {
-      return new DownsampleNumericIterator(node, sources.iterator().next());
+      return new RateNumericIterator(node, sources.iterator().next());
     }
 
     @Override
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
                                                     final Map<String, TimeSeries> sources) {
-      return new DownsampleNumericIterator(node, sources.values().iterator().next());
+      return new RateNumericIterator(node, sources.values().iterator().next());
     }
     
   }
