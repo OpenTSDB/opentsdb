@@ -33,12 +33,6 @@ JDK_DIRS="\
   /usr/lib/jvm/java-8-oracle /usr/lib/jvm/java-8-openjdk \
   /usr/lib/jvm/java-8-openjdk-amd64/ /usr/lib/jvm/java-8-openjdk-i386/ \
 	\
-  /usr/lib/jvm/java-7-oracle /usr/lib/jvm/java-7-openjdk \
-  /usr/lib/jvm/java-7-openjdk-amd64/ /usr/lib/jvm/java-7-openjdk-i386/ \
-	\
-  /usr/lib/jvm/java-6-sun /usr/lib/jvm/java-6-openjdk \
-  /usr/lib/jvm/java-6-openjdk-amd64/ /usr/lib/jvm/java-6-openjdk-i386/ \
-	\
   /usr/lib/jvm/default-java"
 
 # Look for the right JVM to use
