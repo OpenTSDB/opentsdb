@@ -89,7 +89,7 @@ public final class Branch implements Comparable<Branch> {
   private static final Logger LOG = LoggerFactory.getLogger(Branch.class);
   
   /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+  private static final Charset CHARSET = Charset.forName("UTF-8");
   /** Integer width in bytes */
   private static final short INT_WIDTH = 4;
   /** Name of the branch qualifier ID */

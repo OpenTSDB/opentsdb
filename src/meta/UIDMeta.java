@@ -71,7 +71,7 @@ public class UIDMeta {
   private static final Logger LOG = LoggerFactory.getLogger(UIDMeta.class);
   
   /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+  private static final Charset CHARSET = Charset.forName("UTF-8");
   
   /** The single column family used by this class. */
   private static final byte[] FAMILY = "name".getBytes(CHARSET);

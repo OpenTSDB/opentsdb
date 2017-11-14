@@ -85,7 +85,7 @@ public class TimeSeriesLookup {
       LoggerFactory.getLogger(TimeSeriesLookup.class);
   
   /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+  private static final Charset CHARSET = Charset.forName("UTF-8");
   
   /** The query with metrics and/or tags to use */
   private final SearchQuery query;

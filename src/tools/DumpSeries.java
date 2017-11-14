@@ -281,7 +281,7 @@ final class DumpSeries {
     .append("\t")
     .append(Internal.getOffsetFromQualifier(kv.qualifier(), 1) / 1000)
     .append("\t")
-    .append(new String(kv.value(), Charset.forName("ISO-8859-1")))
+    .append(new String(kv.value(), Charset.forName("UTF-8")))
     .append("\t")
     .append(timestamp)
     .append("\t")
