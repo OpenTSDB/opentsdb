@@ -1270,7 +1270,12 @@ public final class UniqueId implements UniqueIdInterface {
     StringBuilder sb = new StringBuilder();
     for (int i=0;i<bytes.length; i++) {
         int k = bytes[i] & 0xFF;
-        sb.append(Integer.toHexString(k));
+        String v = Integer.toHexString(k);
+        for (int j=0; j<2-v.length(); j++)
+        {
+            sb.append("0");
+        }
+        sb.append(v);
     }
     return sb.toString();
   }
