@@ -74,7 +74,11 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
   protected static final ArrayList<Boolean> EMPTY_DEFERREDS = 
       new ArrayList<Boolean>(0);
   protected static final AtomicLong telnet_requests = new AtomicLong();
+  protected static final AtomicLong telnet_requests_unauthorized = new AtomicLong();
+  protected static final AtomicLong telnet_requests_forbidden = new AtomicLong();
   protected static final AtomicLong http_requests = new AtomicLong();
+  protected static final AtomicLong http_requests_unauthorized = new AtomicLong();
+  protected static final AtomicLong http_requests_forbidden = new AtomicLong();
   protected static final AtomicLong raw_dps = new AtomicLong();
   protected static final AtomicLong raw_histograms = new AtomicLong();
   protected static final AtomicLong rollup_dps = new AtomicLong();
@@ -277,10 +281,10 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
 
     final List<IncomingDataPoint> dps;
     try {
-      checkAuthorization(tsdb, query.channel(), query.method().toString());
+      checkAuthorization(tsdb, query);
       dps = query.serializer()
               .parsePutV1(IncomingDataPoint.class, HttpJsonSerializer.TR_INCOMING);
-    } catch (IllegalArgumentException | BadRequestException e) {
+    } catch (IllegalArgumentException e) {
       illegal_arguments.incrementAndGet();
       throw e;
     }
@@ -679,6 +683,10 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @param collector The collector to use.
    */
   public static void collectStats(final StatsCollector collector) {
+    collector.record("rpc.forbidden", telnet_requests_forbidden, "type=telnet");
+    collector.record("rpc.unauthorized", telnet_requests_unauthorized, "type=telnet");
+    collector.record("rpc.forbidden", http_requests_forbidden, "type=http");
+    collector.record("rpc.unauthorized", http_requests_unauthorized, "type=http");
     collector.record("rpc.received", http_requests, "type=put");
     collector.record("rpc.errors", hbase_errors, "type=hbase_errors");
     collector.record("rpc.errors", invalid_values, "type=invalid_values");
@@ -800,14 +808,45 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
     }
   }
 
-  private void checkAuthorization(final TSDB tsdb, final Channel chan, String command) {
+  private void checkAuthorization(final TSDB tsdb, final HttpQuery query) {
     Authentication authentication = tsdb.getAuth();
-    if (authentication.isReady(tsdb, chan)) {
-      AuthState authState = (AuthState) chan.getAttachment();
-      Authorization authorization = authentication.authorization();
-      if ((authorization.hasPermission(authState, Permissions.TELNET_PUT).getStatus() != AuthState.AuthStatus.SUCCESS)) {
-        throw new IllegalArgumentException("Unauthorized command: " + command);
+    try {
+      if (authentication.isReady(tsdb, query.channel())) {
+        AuthState authState = (AuthState) query.channel().getAttachment();
+        Authorization authorization = authentication.authorization();
+        if ((authorization.hasPermission(authState, Permissions.TELNET_PUT).getStatus() != AuthState.AuthStatus.SUCCESS)) {
+          http_requests_forbidden.incrementAndGet();
+          throw new BadRequestException(HttpResponseStatus.FORBIDDEN, "Forbidden for " + query.getQueryPath());
+        }
+      } else {
+        http_requests_unauthorized.incrementAndGet();
+        throw new BadRequestException(HttpResponseStatus.UNAUTHORIZED, "Unauthorized for " + query.getQueryPath());
       }
+    } catch (BadRequestException e) {
+      http_requests_unauthorized.incrementAndGet();
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, "Unable to check Authentication for" + query.getQueryPath());
     }
+    // No exceptions thrown, everything is fine.
+  }
+
+  private void checkAuthorization(final TSDB tsdb, final Channel chan, final String command) {
+    Authentication authentication = tsdb.getAuth();
+    try {
+      if (authentication.isReady(tsdb, chan)) {
+        AuthState authState = (AuthState) chan.getAttachment();
+        Authorization authorization = authentication.authorization();
+        if ((authorization.hasPermission(authState, Permissions.TELNET_PUT).getStatus() != AuthState.AuthStatus.SUCCESS)) {
+          telnet_requests_forbidden.incrementAndGet();
+          throw new IllegalArgumentException("Unauthorized command: " + command);
+        }
+      } else {
+        telnet_requests_unauthorized.incrementAndGet();
+        throw new IllegalArgumentException("Unauthenticated command: " + command);
+      }
+    } catch (BadRequestException e) {
+      telnet_requests_unauthorized.incrementAndGet();
+      throw new IllegalArgumentException("Unable to check Authentication for command: " + command);
+    }
+    // No exceptions thrown, everything is fine.
   }
 }
