@@ -16,8 +16,10 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.tsd.BadRequestException;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 /**
  * A plugin interface for performing authentication for OpenTSDB API access.
@@ -33,7 +35,7 @@ import org.jboss.netty.handler.codec.http.HttpRequest;
  * 
  * @since 2.4
  */
-public abstract class Authentication {
+public interface Authentication {
 
   /**
    * Called by TSDB to initialize the plugin
@@ -111,5 +113,12 @@ public abstract class Authentication {
    * @return An authorization object or null;
    */
   public abstract Authorization authorization();
-  
+
+  /**
+   * Function to determine if the authorization and authentication system is valid for this channel.
+   * @param tsdb
+   * @param chan
+   * @return
+   */
+  public boolean isReady(final TSDB tsdb, final Channel chan);
 }

@@ -27,6 +27,7 @@ import org.hbase.async.HBaseException;
 import org.hbase.async.RpcTimedOutException;
 import org.hbase.async.Bytes.ByteMap;
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
@@ -73,6 +74,8 @@ final class QueryRpc implements HttpRpc {
   private static final Logger LOG = LoggerFactory.getLogger(QueryRpc.class);
   
   /** Various counters and metrics for reporting query stats */
+  static final AtomicLong query_forbidden = new AtomicLong();
+  static final AtomicLong query_unauthorized = new AtomicLong();
   static final AtomicLong query_invalid = new AtomicLong();
   static final AtomicLong query_exceptions = new AtomicLong();
   static final AtomicLong query_success = new AtomicLong();
@@ -158,32 +161,9 @@ final class QueryRpc implements HttpRpc {
       throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
           e.getMessage(), data_query.toString(), e);
     }
-    
-    if (tsdb.getAuth() != null && tsdb.getAuth().authorization() != null) {
-      if (query.channel().getAttachment() == null || 
-          !(query.channel().getAttachment() instanceof AuthState)) {
-        throw new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
-            "Authentication was enabled but the authentication state for "
-            + "this channel was not set properly");
-      }
-      final AuthState state = tsdb.getAuth().authorization().allowQuery(
-          (AuthState) query.channel().getAttachment(), data_query);
-      switch (state.getStatus()) {
-      case SUCCESS:
-        // cary on :)
-        break;
-      case UNAUTHORIZED:
-        throw new BadRequestException(HttpResponseStatus.UNAUTHORIZED, 
-            state.getMessage());
-      case FORBIDDEN:
-        throw new BadRequestException(HttpResponseStatus.FORBIDDEN, 
-            state.getMessage());
-      default:
-        throw new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
-            state.getMessage());
-      }
-    }
-    
+
+    checkAuthorization(tsdb, query.channel(), data_query);
+
     // if the user tried this query multiple times from the same IP and src port
     // they'll be rejected on subsequent calls
     final QueryStats query_stats = 
@@ -351,30 +331,9 @@ final class QueryRpc implements HttpRpc {
     final net.opentsdb.query.pojo.Query v2_query = 
         JSON.parseToObject(query.getContent(), net.opentsdb.query.pojo.Query.class);
     v2_query.validate();
-    if (tsdb.getAuth() != null && tsdb.getAuth().authorization() != null) {
-      if (query.channel().getAttachment() == null || 
-          !(query.channel().getAttachment() instanceof AuthState)) {
-        throw new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
-            "Authentication was enabled but the authentication state for "
-            + "this channel was not set properly");
-      }
-      final AuthState state = tsdb.getAuth().authorization().allowQuery(
-          (AuthState) query.channel().getAttachment(), v2_query);
-      switch (state.getStatus()) {
-      case SUCCESS:
-        // cary on :)
-        break;
-      case UNAUTHORIZED:
-        throw new BadRequestException(HttpResponseStatus.UNAUTHORIZED, 
-            state.getMessage());
-      case FORBIDDEN:
-        throw new BadRequestException(HttpResponseStatus.FORBIDDEN, 
-            state.getMessage());
-      default:
-        throw new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
-            state.getMessage());
-      }
-    }
+
+    checkAuthorization(tsdb, query.channel(), v2_query);
+
     final QueryExecutor executor = new QueryExecutor(tsdb, v2_query);
     executor.execute(query);
   }
@@ -883,7 +842,43 @@ final class QueryRpc implements HttpRpc {
     query.setQueries(sub_queries);
     return query;
   }
-  
+
+  private void checkAuthorization(final TSDB tsdb, final Channel chan, final net.opentsdb.query.pojo.Query data_query) {
+    if (tsdb.getAuth().isReady(tsdb, chan)) {
+      final AuthState state = tsdb.getAuth().authorization().allowQuery(
+              (AuthState) chan.getAttachment(), data_query);
+      handleAuthorization(state);
+    }
+  }
+
+  private void checkAuthorization(final TSDB tsdb, final Channel chan, final TSQuery data_query) {
+    if (tsdb.getAuth().isReady(tsdb, chan)) {
+      final AuthState state = tsdb.getAuth().authorization().allowQuery(
+              (AuthState) chan.getAttachment(), data_query);
+      handleAuthorization(state);
+    }
+  }
+
+  private void handleAuthorization(AuthState state) {
+    switch (state.getStatus()) {
+      case SUCCESS:
+        // cary on :)
+        break;
+      case UNAUTHORIZED:
+        query_unauthorized.incrementAndGet();
+        throw new BadRequestException(HttpResponseStatus.UNAUTHORIZED,
+                state.getMessage());
+      case FORBIDDEN:
+        query_forbidden.incrementAndGet();
+        throw new BadRequestException(HttpResponseStatus.FORBIDDEN,
+                state.getMessage());
+      default:
+        query_exceptions.incrementAndGet();
+        throw new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                state.getMessage());
+    }
+  }
+
   /**
    * Parse the "percentile" section of the query string and returns an list of
    * float that contains the percentile calculation paramters
@@ -914,6 +909,8 @@ final class QueryRpc implements HttpRpc {
   
   /** @param collector Populates the collector with statistics */
   public static void collectStats(final StatsCollector collector) {
+    collector.record("http.query.unauthorized", query_unauthorized);
+    collector.record("http.query.forbidden", query_forbidden);
     collector.record("http.query.invalid_requests", query_invalid);
     collector.record("http.query.exceptions", query_exceptions);
     collector.record("http.query.success", query_success);

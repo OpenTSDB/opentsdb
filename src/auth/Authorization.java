@@ -19,13 +19,15 @@ import net.opentsdb.core.TSQuery;
 import net.opentsdb.query.pojo.Query;
 import net.opentsdb.stats.StatsCollector;
 
+import java.util.EnumSet;
+
 /**
  * A plugin interface for authorization calls, allowing or disallowing operations
  * in OpenTSDB.
  * 
  * @since 2.4
  */
-public abstract class Authorization {
+public interface Authorization {
 
   /**
    * Called by TSDB to initialize the plugin
@@ -65,7 +67,23 @@ public abstract class Authorization {
    * @param collector The collector used for emitting statistics
    */
   public abstract void collectStats(final StatsCollector collector);
-  
+
+  /**
+   * Determines if the user has a specified permission
+   * @param state
+   * @param permission
+   * @return
+   */
+  public abstract AuthState hasPermission(final AuthState state, final Permissions permission);
+
+  /**
+   * Determines if the user has a specified role
+   * @param state
+   * @param role
+   * @return
+   */
+  public abstract AuthState hasRole(final AuthState state, final Roles role);
+
   /**
    * Determines if the user is allowed to execute the given query.
    * The returned state contains a status code regarding whether or not the query

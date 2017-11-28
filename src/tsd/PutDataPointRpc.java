@@ -26,6 +26,10 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
 
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.auth.Authentication;
+import net.opentsdb.auth.Authorization;
+import net.opentsdb.auth.Permissions;
 import org.hbase.async.HBaseException;
 import org.hbase.async.PleaseThrottleException;
 import org.jboss.netty.channel.Channel;
@@ -122,6 +126,7 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
     telnet_requests.incrementAndGet();
     final DataPointType type;
     final String command = cmd[0].toLowerCase();
+
     if (command.equals("put")) {
       type = DataPointType.PUT;
       raw_dps.incrementAndGet();
@@ -137,7 +142,9 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
 
     String errmsg = null;
     try {
-      
+
+      checkAuthorization(tsdb, chan, command);
+
       /**
        * Error callback that handles passing a data point to the storage 
        * exception handler as well as responding to the client when HBase
@@ -267,11 +274,13 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
           "Method not allowed", "The HTTP method [" + query.method().getName() +
           "] is not permitted for this endpoint");
     }
+
     final List<IncomingDataPoint> dps;
     try {
+      checkAuthorization(tsdb, query.channel(), query.method().toString());
       dps = query.serializer()
-          .parsePutV1(IncomingDataPoint.class, HttpJsonSerializer.TR_INCOMING);
-    } catch (BadRequestException e) {
+              .parsePutV1(IncomingDataPoint.class, HttpJsonSerializer.TR_INCOMING);
+    } catch (IllegalArgumentException | BadRequestException e) {
       illegal_arguments.incrementAndGet();
       throw e;
     }
@@ -788,6 +797,17 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
     final StorageExceptionHandler handler = tsdb.getStorageExceptionHandler();
     if (handler != null) {
       handler.handleError(dp, e);
+    }
+  }
+
+  private void checkAuthorization(final TSDB tsdb, final Channel chan, String command) {
+    Authentication authentication = tsdb.getAuth();
+    if (authentication.isReady(tsdb, chan)) {
+      AuthState authState = (AuthState) chan.getAttachment();
+      Authorization authorization = authentication.authorization();
+      if ((authorization.hasPermission(authState, Permissions.TELNET_PUT).getStatus() != AuthState.AuthStatus.SUCCESS)) {
+        throw new IllegalArgumentException("Unauthorized command: " + command);
+      }
     }
   }
 }
