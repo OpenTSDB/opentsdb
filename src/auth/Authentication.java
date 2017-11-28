@@ -16,10 +16,8 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.tsd.BadRequestException;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 /**
  * A plugin interface for performing authentication for OpenTSDB API access.
