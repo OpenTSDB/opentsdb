@@ -98,6 +98,7 @@ public class AuthenticationChannelHandler extends SimpleChannelUpstreamHandler {
         String auth_response = TELNET_AUTH_FAILURE;
         final AuthState state = authentication.authenticateTelnet(
             authEvent.getChannel(), (String[]) authCommand);
+
         if (state.getStatus() == AuthStatus.SUCCESS) {
           auth_response = TELNET_AUTH_SUCCESS;
           ctx.getPipeline().remove(this);

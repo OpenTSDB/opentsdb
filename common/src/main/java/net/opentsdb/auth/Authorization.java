@@ -37,5 +37,14 @@ public interface Authorization {
   public AuthState allowQuery(final AuthState state, 
                               final TimeSeriesQuery query);
   
+  /**
+   * Determines if the user has a specified permission
+   * @param state
+   * @param permission
+   * @return
+   */
+  public abstract AuthState hasPermission(final AuthState state, 
+                                          final Permissions permission);
+  
   // TODO - authenticate other calls.
 }
