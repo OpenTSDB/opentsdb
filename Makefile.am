@@ -63,7 +63,6 @@ tsdb_SRC := \
 	src/core/HistogramSeekableView.java	\
 	src/core/HistogramSpan.java	\
 	src/core/HistogramSpanGroup.java	\
-	src/core/HistogramRowSeq.java	\
 	src/core/iHistogramRowSeq.java	\
 	src/core/IncomingDataPoint.java	\
 	src/core/IncomingDataPoints.java	\
@@ -94,10 +93,16 @@ tsdb_SRC := \
 	src/core/WritableDataPoints.java	\
 	src/core/WriteableDataPointFilterPlugin.java	\
 	src/graph/Plot.java	\
-	src/auth/AuthenticationChannelHandler.java \
+	src/auth/AbstractAuthentication.java \
+	src/auth/AllowAllAuthenticator.java \
 	src/auth/Authentication.java \
+	src/auth/AuthenticationChannelHandler.java \
 	src/auth/Authorization.java \
 	src/auth/AuthState.java \
+	src/auth/Roles.java \
+	src/auth/SimpleAuthorizationImpl.java \
+	src/auth/SimpleAuthStateImpl.java \
+	src/auth/SimpleRolesImpl.java \
 	src/meta/Annotation.java	\
 	src/meta/MetaDataCache.java	\
 	src/meta/TSMeta.java	\
@@ -909,7 +914,7 @@ fat-jar-pom.xml: ./fat-jar/fat-jar-pom.xml.in Makefile
 	    -e 's/@ZOOKEEPER_VERSION@/$(ZOOKEEPER_VERSION)/' \
 	    -e 's/@APACHE_MATH_VERSION@/$(APACHE_MATH_VERSION)/' \
 	    -e 's/@JEXL_VERSION@/$(JEXL_VERSION)/' \
-	    -e 's/@JGRAPHT_VERSION@/$(JGRAPHT_VERSION)/' \	    
+	    -e 's/@JGRAPHT_VERSION@/$(JGRAPHT_VERSION)/' \
 	    -e 's/@spec_title@/$(spec_title)/' \
 	    -e 's/@spec_vendor@/$(spec_vendor)/' \
 	    -e 's/@spec_version@/$(PACKAGE_VERSION)/' \

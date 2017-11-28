@@ -67,11 +67,11 @@ public class AuthenticationChannelHandler extends SimpleChannelUpstreamHandler {
     if (tsdb == null) {
       throw new IllegalArgumentException("TSDB object cannot be null");
     }
-    if (tsdb.getAuth() == null) {
+    if (tsdb.getAuthentication() == null) {
       throw new IllegalArgumentException("Attempted to instantiate an "
           + "authentication handler but it was not configured in TSDB.");
     }
-    authentication = tsdb.getAuth();
+    authentication = tsdb.getAuthentication();
     LOG.info("Set up AuthenticationChannelHandler: " + authentication.getClass());
   }
 

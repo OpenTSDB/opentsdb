@@ -48,6 +48,7 @@ import org.jboss.netty.util.Timeout;
 import org.jboss.netty.util.Timer;
 
 import net.opentsdb.auth.Authentication;
+import net.opentsdb.auth.Authorization;
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.tsd.StorageExceptionHandler;
@@ -144,6 +145,9 @@ public final class TSDB {
 
   /** Authentication Plugin to use if configured */
   private Authentication authentication = null;
+
+  /** Authorization Plugin to use if configured */
+  private Authorization authorization = null;
 
   /** Search indexer to use if configured */
   private SearchPlugin search = null;
@@ -412,6 +416,20 @@ public final class TSDB {
 
     // load the authentication plugin if enabled
     if (config.getBoolean("tsd.core.authentication.enable")) {
+
+      authorization = PluginLoader.loadSpecificPlugin(
+           config.getString("tsd.core.authorization.plugin"), Authorization.class);
+      if (authorization == null) {
+        throw new IllegalArgumentException("Unable to locate authorization "
+            + "plugin: " + config.getString("tsd.core.authorization.plugin"));
+      }
+
+      try {
+        authorization.initialize(this);
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to initialize authorization plugin", e);
+      }
+
       authentication = PluginLoader.loadSpecificPlugin(
           config.getString("tsd.core.authentication.plugin"), Authentication.class);
       if (authentication == null) {
@@ -559,12 +577,40 @@ public final class TSDB {
   }
 
   /**
+   * Determines whether or not the Authentication and Authorization are valid
+   *
+   */
+  public final boolean useAuth() {
+    if (config.getBoolean("tsd.core.authentication.enable")) {
+      if (this.getAuthentication() == null) {
+        throw new RuntimeException(
+            "Authentication is enabled, but the Authentication plugin is null");
+      } else if (this.getAuthorization() == null) {
+        throw new RuntimeException(
+            "Authentication is enabled, but the Authorization plugin is null");
+      } else {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Returns the configured Authentication Plugin
    * @return The Authentication Plugin
    * @since 2.4
    */
-  public final Authentication getAuth() {
+  public final Authentication getAuthentication() {
     return this.authentication;
+  }
+
+  /**
+   * Returns the configured Authorization Plugin
+   * @return The Authorization Plugin
+   * @since 2.4
+   */
+  public final Authorization getAuthorization() {
+    return this.authorization;
   }
 
   /** 
