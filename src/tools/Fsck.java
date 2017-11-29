@@ -40,6 +40,7 @@ import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.Internal.Cell;
 import net.opentsdb.core.Query;
+import net.opentsdb.core.RequestBuilder;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
@@ -55,14 +56,14 @@ import net.opentsdb.utils.Config;
  * rows matching the query will be FSCK'd. Alternatively a full table scan can
  * be performed.
  * <p>
- * Scanning is done in three stages: 
+ * Scanning is done in three stages:
  * 1) Each row key is parsed to make sure it's a valid OpenTSDB row. If it isn't
  * then the user can decide to delete it. If one or more UIDs cannot be resolved
  * to names (metric or tags) then the user can decide to purge it.
- * 2) All key value pairs in a row are parsed to determine the type of object. 
- * If it's a single data point, it's added to a tree map based on the data point 
- * timestamp. If it's a compacted column, the data points are exploded and 
- * added to the data point map. If it's some other object it may be purged if 
+ * 2) All key value pairs in a row are parsed to determine the type of object.
+ * If it's a single data point, it's added to a tree map based on the data point
+ * timestamp. If it's a compacted column, the data points are exploded and
+ * added to the data point map. If it's some other object it may be purged if
  * told to, or if it's a known type (e.g. annotations) simply ignored.
  * 3) If any data points were found, we iterate over each one looking for
  * duplicates, malformed encodings or potential value-length-encoding savings.
@@ -80,13 +81,13 @@ import net.opentsdb.utils.Config;
  */
 final class Fsck {
   private static final Logger LOG = LoggerFactory.getLogger(Fsck.class);
-  
+
   /** The TSDB to use for access */
-  private final TSDB tsdb; 
+  private final TSDB tsdb;
 
   /** Options to use while iterating over rows */
   private final FsckOptions options;
-  
+
   /** Counters incremented during processing. They have to be atomic counters
    * as we may be running multiple fsck threads. */
   final AtomicLong kvs_processed = new AtomicLong();
@@ -115,17 +116,17 @@ final class Fsck {
   final AtomicLong vle = new AtomicLong();
   final AtomicLong vle_bytes = new AtomicLong();
   final AtomicLong vle_fixed = new AtomicLong();
-  
+
   /** Length of the metric + timestamp for key validation */
   private int key_prefix_length = Const.SALT_WIDTH() +
       TSDB.metrics_width() + Const.TIMESTAMP_BYTES;
-  
+
   /** Length of a tagk + tagv pair for key validation */
   private int key_tags_length = TSDB.tagk_width() + TSDB.tagv_width();
-  
+
   /** How often to report progress */
   private static long report_rows = 10000;
-  
+
   /**
    * Default Ctor
    * @param tsdb The TSDB to use for access
@@ -135,7 +136,7 @@ final class Fsck {
     this.tsdb = tsdb;
     this.options = options;
   }
-  
+
   /**
    * Fetches the max metric ID and splits the data table up amongst threads on
    * a naive split. By default we execute cores * 2 threads but the user can
@@ -147,7 +148,7 @@ final class Fsck {
     final long start_time = System.currentTimeMillis() / 1000;
     final int workers = options.threads() > 0 ? options.threads() :
       Runtime.getRuntime().availableProcessors() * 2;
-    
+
     final List<Scanner> scanners = CliUtils.getDataTableScanners(tsdb, workers);
     LOG.info("Spooling up [" + scanners.size() + "] worker threads");
     final List<Thread> threads = new ArrayList<Thread>(scanners.size());
@@ -166,12 +167,12 @@ final class Fsck {
       LOG.info("Thread [" + thread + "] Finished");
     }
     reporter.interrupt();
-    
+
     logResults();
     final long duration = (System.currentTimeMillis() / 1000) - start_time;
     LOG.info("Completed fsck in [" + duration + "] seconds");
   }
-  
+
   /**
    * Scans the rows matching one or more standard queries. An aggregator is still
    * required though it's ignored.
@@ -180,13 +181,13 @@ final class Fsck {
    */
   public void runQueries(final List<Query> queries) throws Exception {
     final long start_time = System.currentTimeMillis() / 1000;
-    
-    // TODO - threadify it. We *could* have hundreds of queries and we don't 
+
+    // TODO - threadify it. We *could* have hundreds of queries and we don't
     // want to create that many threads. For now we'll just execute each one
     // serially
     final Thread reporter = new ProgressReporter();
     reporter.start();
-    
+
     for (final Query query : queries) {
       final List<Scanner> scanners = Internal.getScanners(query);
       final List<Thread> threads = new ArrayList<Thread>(scanners.size());
@@ -204,35 +205,35 @@ final class Fsck {
       }
     }
     reporter.interrupt();
-    
+
     logResults();
     final long duration = (System.currentTimeMillis() / 1000) - start_time;
     LOG.info("Completed fsck in [" + duration + "] seconds");
   }
-  
+
   /** @return The total number of errors detected during the run */
   long totalErrors() {
     return bad_key.get() + duplicates.get() + orphans.get() + unknown.get() +
-        bad_values.get() + bad_compacted_columns.get() + 
+        bad_values.get() + bad_compacted_columns.get() +
         fixable_compacted_columns.get() + value_encoding.get();
   }
-  
+
   /** @return The total number of errors fixed during the run */
   long totalFixed() {
     return bad_key_fixed.get() + duplicates_fixed.get() + orphans_fixed.get() +
-        unknown_fixed.get() + value_encoding_fixed.get() + 
+        unknown_fixed.get() + value_encoding_fixed.get() +
         bad_values_deleted.get();
   }
-  
+
   /** @return The total number of errors that could be (or may have been) fixed */
   long correctable() {
     return bad_key.get() + duplicates.get() + orphans.get() + unknown.get() +
-        bad_values.get() + bad_compacted_columns.get() + 
+        bad_values.get() + bad_compacted_columns.get() +
         fixable_compacted_columns.get() + value_encoding.get();
   }
-  
+
   /**
-   * A worker thread that takes a query or a chunk of the main data table and 
+   * A worker thread that takes a query or a chunk of the main data table and
    * performs the actual FSCK process.
    */
   final class FsckWorker extends Thread {
@@ -245,7 +246,7 @@ final class Fsck {
     /** Set of TSUIDs this worker has seen. Used to avoid UID resolution for
      * previously processed row keys */
     final Set<String> tsuids = new HashSet<String>();
-    
+
     /** Shared flags and values for compiling a compacted column */
     byte[] compact_qualifier = null;
     int qualifier_index = 0;
@@ -254,7 +255,7 @@ final class Fsck {
     boolean compact_row = false;
     int qualifier_bytes = 0;
     int value_bytes = 0;
-    
+
     /**
      * Ctor for running a worker on a chunk of the data table
      * @param scanner The scanner to use for iterationg
@@ -265,25 +266,25 @@ final class Fsck {
       this.thread_id = thread_id;
       query = null;
     }
-    
+
     /**
      * Determines the type of scanner to use, i.e. a specific query scanner or
-     * for a portion of the whole table. It then performs the actual scan, 
-     * compiling a list of data points and fixing/compacting them when 
+     * for a portion of the whole table. It then performs the actual scan,
+     * compiling a list of data points and fixing/compacting them when
      * appropriate.
      */
     public void run() {
-      // store every data point for the row in here 
-      final TreeMap<Long, ArrayList<DP>> datapoints = 
+      // store every data point for the row in here
+      final TreeMap<Long, ArrayList<DP>> datapoints =
         new TreeMap<Long, ArrayList<DP>>();
       byte[] last_key = null;
       ArrayList<ArrayList<KeyValue>> rows;
-      
+
       try {
         while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
           // keep in mind that with annotations and millisecond values, a row
           // can now have more than 4069 key values, the default for a scanner.
-          // Since we don't know how many values may actually be in a row, we 
+          // Since we don't know how many values may actually be in a row, we
           // don't want to set the KV limit too high. Instead we'll just keep
           // working through the sets until we hit a different row key, then
           // process all of the data points. It puts more of a burden on fsck
@@ -305,7 +306,7 @@ final class Fsck {
             fsckRow(row, datapoints);
           }
         }
-        
+
         // handle the last row
         if (!datapoints.isEmpty()) {
           rows_processed.getAndIncrement();
@@ -317,36 +318,36 @@ final class Fsck {
         LOG.error("Shouldn't be here", e);
       }
     }
-    
+
     /**
      * Parses the row of KeyValues. First it validates the row key, then parses
-     * each KeyValue to determine what kind of object it is. Data points are 
+     * each KeyValue to determine what kind of object it is. Data points are
      * stored in the tree map and non-data point columns are handled per the
      * option flags
      * @param row The row of data to parse
      * @param datapoints The map of datapoints to append to.
      * @throws Exception If something goes pear shaped.
      */
-    private void fsckRow(final ArrayList<KeyValue> row, 
+    private void fsckRow(final ArrayList<KeyValue> row,
         final TreeMap<Long, ArrayList<DP>> datapoints) throws Exception {
       // The data table should contain only rows with a metric, timestamp and
-      // one or more tag pairs. Future version may use different prefixes or 
-      // key formats but for now, we can safely delete any rows with invalid 
+      // one or more tag pairs. Future version may use different prefixes or
+      // key formats but for now, we can safely delete any rows with invalid
       // keys. This may check the same row key multiple times but that's good
       // as it will keep the data points from being pushed to the dp map
       if (!fsckKey(row.get(0).key())) {
         return;
       }
-      
-      final long base_time = Bytes.getUnsignedInt(row.get(0).key(), 
+
+      final long base_time = Bytes.getUnsignedInt(row.get(0).key(),
           Const.SALT_WIDTH() + TSDB.metrics_width());
-      
+
       for (final KeyValue kv : row) {
         kvs_processed.getAndIncrement();
         // these are not final as they may be modified when fixing is enabled
-        byte[] value = kv.value(); 
+        byte[] value = kv.value();
         byte[] qual = kv.qualifier();
-        
+
         // all qualifiers must be at least 2 bytes long, i.e. a single data point
         if (qual.length < 2) {
           unknown.getAndIncrement();
@@ -358,13 +359,13 @@ final class Fsck {
           }
           continue;
         }
-        
+
         // All data point columns have an even number of bytes, so if we find
-        // one that has an odd length, it could be an OpenTSDB object or it 
+        // one that has an odd length, it could be an OpenTSDB object or it
         // could be junk that made it into the table.
         if (qual.length % 2 != 0) {
-          // If this test fails, the column is not a TSDB object such as an 
-          // annotation or blob. Future versions may be able to compact TSDB 
+          // If this test fails, the column is not a TSDB object such as an
+          // annotation or blob. Future versions may be able to compact TSDB
           // objects so that their qualifier would be of a different length, but
           // for now we'll consider it an error.
           if (qual.length != 3 && qual.length != 5) {
@@ -378,7 +379,7 @@ final class Fsck {
             }
             continue;
           }
-          
+
           // TODO - create a list of TSDB objects and fsck them. Maybe a plugin
           // or interface.
           // TODO - perform validation of the annotation
@@ -403,17 +404,17 @@ final class Fsck {
           future.getAndIncrement();
           continue;
         }
-        
-        // This is (hopefully) a compacted column with multiple data points. It 
+
+        // This is (hopefully) a compacted column with multiple data points. It
         // could have two points with second qualifiers or multiple points with
         // a mix of second and millisecond qualifiers
         if (qual.length == 4 && !Internal.inMilliseconds(qual[0])
             || qual.length > 4) {
           if (value[value.length - 1] > Const.MS_MIXED_COMPACT) {
-            // TODO - figure out a way to fix these. Maybe lookup a row before 
+            // TODO - figure out a way to fix these. Maybe lookup a row before
             // or after and try parsing this for values. If the values are
             // somewhat close to the others, then we could just set the last
-            // byte. Otherwise it could be a bad compaction and we'd need to 
+            // byte. Otherwise it could be a bad compaction and we'd need to
             // toss it.
             bad_compacted_columns.getAndIncrement();
             LOG.error("The last byte of a compacted should be 0 or 1. Either"
@@ -421,12 +422,12 @@ final class Fsck {
                       + " future version of OpenTSDB.\n\t" + kv);
             continue;
           }
-          
-          // add every cell in the compacted column to the data point tree so 
+
+          // add every cell in the compacted column to the data point tree so
           // that we can scan for duplicate timestamps
           try {
             final ArrayList<Cell> cells = Internal.extractDataPoints(kv);
-            
+
             // the extractDataPoints() method will automatically fix up some
             // issues such as setting proper lengths on floats and sorting the
             // cells to be in order. Rather than reproduce the extraction code or
@@ -446,11 +447,11 @@ final class Fsck {
               dps.add(new DP(kv, cell));
               qualifier_bytes += cell.qualifier().length;
               value_bytes += cell.value().length;
-              System.arraycopy(cell.qualifier(), 0, recompacted_qualifier, 
+              System.arraycopy(cell.qualifier(), 0, recompacted_qualifier,
                   qualifier_index, cell.qualifier().length);
               qualifier_index += cell.qualifier().length;
             }
-            
+
             if (Bytes.memcmp(recompacted_qualifier, kv.qualifier()) != 0) {
               LOG.error("Compacted column was out of order or requires a "
                   + "fixup: " + kv);
@@ -468,10 +469,10 @@ final class Fsck {
           }
           continue;
         }
-        
-        // at this point we *should* be dealing with a single data point encoded 
+
+        // at this point we *should* be dealing with a single data point encoded
         // in seconds or milliseconds.
-        final long timestamp = 
+        final long timestamp =
             Internal.getTimestampFromQualifier(qual, base_time);
         ArrayList<DP> dps = datapoints.get(timestamp);
         if (dps == null) {
@@ -485,7 +486,7 @@ final class Fsck {
     }
 
     /**
-     * Validates the row key. It must match the format 
+     * Validates the row key. It must match the format
      * {@code <metric><timestamp><tagpair>[...<tagpair>]}. If it doesn't, then
      * the row is considered an error. If the UIDs in a row key do not resolve
      * to a name, then the row is considered an orphan and the values contained
@@ -501,11 +502,11 @@ final class Fsck {
      * @throws Exception If something goes pear shaped.
      */
     private boolean fsckKey(final byte[] key) throws Exception {
-      if (key.length < key_prefix_length || 
+      if (key.length < key_prefix_length ||
           (key.length - key_prefix_length) % key_tags_length != 0) {
         LOG.error("Invalid row key.\n\tKey: " + UniqueId.uidToString(key));
         bad_key.getAndIncrement();
-        
+
         if (options.fix() && options.deleteBadRows()) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
           tsdb.getClient().delete(delete);
@@ -513,10 +514,10 @@ final class Fsck {
         }
         return false;
       }
-      
+
       // Process the time series ID by resolving the UIDs to names if we haven't
       // already seen this particular TSUID. Note that getTSUID accounts for salt
-      final byte[] tsuid = UniqueId.getTSUIDFromKey(key, TSDB.metrics_width(), 
+      final byte[] tsuid = UniqueId.getTSUIDFromKey(key, TSDB.metrics_width(),
           Const.TIMESTAMP_BYTES);
       if (!tsuids.contains(tsuid)) {
         try {
@@ -525,7 +526,7 @@ final class Fsck {
           LOG.error("Unable to resolve the metric from the row key.\n\tKey: "
               + UniqueId.uidToString(key) + "\n\t" + nsui.getMessage());
           orphans.getAndIncrement();
-          
+
           if (options.fix() && options.deleteOrphans()) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
             tsdb.getClient().delete(delete);
@@ -533,7 +534,7 @@ final class Fsck {
           }
           return false;
         }
-        
+
         try {
           Tags.resolveIds(tsdb, (ArrayList<byte[]>)
               UniqueId.getTagPairsFromTSUID(tsuid));
@@ -541,7 +542,7 @@ final class Fsck {
           LOG.error("Unable to resolve the a tagk or tagv from the row key.\n\tKey: "
               + UniqueId.uidToString(key) + "\n\t" + nsui.getMessage());
           orphans.getAndIncrement();
-          
+
           if (options.fix() && options.deleteOrphans()) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
             tsdb.getClient().delete(delete);
@@ -561,7 +562,7 @@ final class Fsck {
      * @param datapoints The list of data points parsed from the row
      * @throws Exception If something goes pear shaped.
      */
-    private void fsckDataPoints(final Map<Long, ArrayList<DP>> datapoints) 
+    private void fsckDataPoints(final Map<Long, ArrayList<DP>> datapoints)
         throws Exception {
 
       // store a unique set of qualifier/value columns to help us later when
@@ -572,12 +573,13 @@ final class Fsck {
       boolean has_milliseconds = false;
       boolean has_duplicates = false;
       boolean has_uncorrected_value_error = false;
-      
+      long timestamp = Long.MIN_VALUE;
+
       for (final Map.Entry<Long, ArrayList<DP>> time_map : datapoints.entrySet()) {
         if (key == null) {
           key = time_map.getValue().get(0).kv.key();
         }
-        
+
         if (time_map.getValue().size() < 2) {
           // there was only one data point for this timestamp, no conflicts
           final DP dp = time_map.getValue().get(0);
@@ -595,9 +597,9 @@ final class Fsck {
 
         // sort so we can figure out which one we're going to keep, i.e. oldest
         // or newest
-        Collections.sort(time_map.getValue());       
+        Collections.sort(time_map.getValue());
         has_duplicates = true;
-        // We want to keep either the first or the last incoming datapoint 
+        // We want to keep either the first or the last incoming datapoint
         // and ignore delete the middle.
 
         final StringBuilder buf = new StringBuilder();
@@ -629,6 +631,7 @@ final class Fsck {
         }
 
         unique_columns.put(dp_to_keep.kv.qualifier(), dp_to_keep.kv.value());
+        timestamp = Math.max(timestamp, dp_to_keep.kv.timestamp());
         valid_datapoints.getAndIncrement();
         has_uncorrected_value_error |= Internal.isFloat(dp_to_keep.qualifier()) ?
             fsckFloat(dp_to_keep) : fsckInteger(dp_to_keep);
@@ -639,7 +642,7 @@ final class Fsck {
           has_seconds = true;
         }
 
-        for (int dp_index = delete_range_start; dp_index < delete_range_stop; 
+        for (int dp_index = delete_range_start; dp_index < delete_range_stop;
             dp_index++) {
           duplicates.getAndIncrement();
           DP dp = time_map.getValue().get(dp_index);
@@ -684,20 +687,20 @@ final class Fsck {
         }
         LOG.info(buf.toString());
       }
-      
+
       // if an error was found in this row that was not marked for repair, then
       // we should bail at this point and not write a new compacted column.
-      if ((has_duplicates && !options.resolveDupes()) || 
+      if ((has_duplicates && !options.resolveDupes()) ||
           (has_uncorrected_value_error && !options.deleteBadValues())) {
         LOG.warn("One or more errors found in row that were not marked for repair");
         return;
       }
-      
-      if ((options.compact() || compact_row) && options.fix() 
+
+      if ((options.compact() || compact_row) && options.fix()
           && qualifier_index > 0) {
-        if (qualifier_index == 2 || (qualifier_index == 4 && 
+        if (qualifier_index == 2 || (qualifier_index == 4 &&
             Internal.inMilliseconds(compact_qualifier))) {
-          // we may have deleted all but one value from the row and that one 
+          // we may have deleted all but one value from the row and that one
           // value may have a different qualifier than it originally had. We
           // can't write a compacted column with a single data point as the length
           // will be off due to the flag at the end. Therefore we just rollback
@@ -708,13 +711,13 @@ final class Fsck {
           compact_value[value_index] = 1;
         }
         value_index++;
-        final byte[] new_qualifier = Arrays.copyOfRange(compact_qualifier, 0, 
+        final byte[] new_qualifier = Arrays.copyOfRange(compact_qualifier, 0,
             qualifier_index);
-        final byte[] new_value = Arrays.copyOfRange(compact_value, 0, 
+        final byte[] new_value = Arrays.copyOfRange(compact_value, 0,
             value_index);
-        final PutRequest put = new PutRequest(tsdb.dataTable(), key, 
-            TSDB.FAMILY(), new_qualifier, new_value);
-        
+        final PutRequest put = RequestBuilder.buildPutRequest(tsdb.getConfig(), tsdb.dataTable(), key,
+            TSDB.FAMILY(), new_qualifier, new_value, timestamp);
+
         // it's *possible* that the hash of our new compacted qualifier is in
         // the delete list so double check before we delete everything
         if (unique_columns.containsKey(new_qualifier)) {
@@ -750,11 +753,11 @@ final class Fsck {
           // proceeding with the deletes.
           tsdb.getClient().put(put).joinUninterruptibly();
         }
-        
-        final List<Deferred<Object>> deletes = 
+
+        final List<Deferred<Object>> deletes =
             new ArrayList<Deferred<Object>>(unique_columns.size());
         for (byte[] qualifier : unique_columns.keySet()) {
-          final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key, 
+          final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key,
               TSDB.FAMILY(), qualifier);
           if (LOG.isDebugEnabled()) {
             final StringBuilder buf = new StringBuilder();
@@ -772,9 +775,9 @@ final class Fsck {
         duplicates_fixed_comp.set(0);
       }
     }
-    
+
     /**
-     * Handles validating a floating point value. Floats must be encoded on 4 
+     * Handles validating a floating point value. Floats must be encoded on 4
      * bytes for a Float and 8 bytes for a Double. The qualifier is compared to
      * the actual length in the case of single data points. In previous versions
      * of OpenTSDB, the qualifier flag may have been on 4 bytes but the actual
@@ -810,8 +813,8 @@ final class Fsck {
             if (compact_row || options.compact()) {
               appendDP(qual, value, 4);
             } else if (!dp.compacted){
-              final PutRequest put = new PutRequest(tsdb.dataTable(), 
-                  dp.kv.key(), dp.kv.family(), qual, value);
+              final PutRequest put = RequestBuilder.buildPutRequest(tsdb.getConfig(), tsdb.dataTable(),
+                  dp.kv.key(), dp.kv.family(), qual, value, dp.kv.timestamp());
               tsdb.getClient().put(put);
             } else {
               LOG.error("SHOULDN'T be here as we didn't compact or fix a "
@@ -829,7 +832,7 @@ final class Fsck {
               + " not zeroed\n\t" + dp);
           bad_values.getAndIncrement();
           if (options.fix() && options.deleteBadValues() && !dp.compacted) {
-            final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
+            final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(),
                 dp.kv);
             tsdb.getClient().delete(delete);
             bad_values_deleted.getAndIncrement();
@@ -854,7 +857,7 @@ final class Fsck {
             if (compact_row || options.compact()) {
               appendDP(qual, value, 4);
             } else if (!dp.compacted) {
-              final PutRequest put = new PutRequest(tsdb.dataTable(), 
+              final PutRequest put = new PutRequest(tsdb.dataTable(),
                   dp.kv.key(), dp.kv.family(), qual, value);
               tsdb.getClient().put(put);
             } else {
@@ -906,10 +909,10 @@ final class Fsck {
       }
       return false;
     }
-    
+
     /**
      * Handles validating an integer value. Integers must be encoded on 1, 2, 4
-     * or 8 bytes. Older versions of OpenTSDB wrote all integers on 8 bytes 
+     * or 8 bytes. Older versions of OpenTSDB wrote all integers on 8 bytes
      * regardless of value. If the --fix flag is specified, this method will
      * attempt to re-encode small values to save space (up to 7 bytes!!). It also
      * makes sure the value length matches the length specified in the qualifier
@@ -921,7 +924,7 @@ final class Fsck {
     private boolean fsckInteger(final DP dp) throws Exception {
       byte[] qual = dp.qualifier();
       byte[] value = dp.value();
-      
+
       // this should be a single integer value. Check the encoding to make
       // sure it's the proper length, and if the flag is set to fix encoding
       // we can save space with VLE.
@@ -945,9 +948,9 @@ final class Fsck {
         }
         return false;
       }
-      
+
       // OpenTSDB had support for VLE decoding of integers but only wrote
-      // on 8 bytes originally. Lets see how much space we could save. 
+      // on 8 bytes originally. Lets see how much space we could save.
       // We'll assume that a length other than 8 bytes is already VLE'd
       if (length == 8) {
         final long decoded = Bytes.getLong(value);
@@ -959,7 +962,7 @@ final class Fsck {
           vle.getAndIncrement();
           vle_bytes.addAndGet(6);
           value = Bytes.fromShort((short) decoded);
-        } else if (Integer.MIN_VALUE <= decoded && 
+        } else if (Integer.MIN_VALUE <= decoded &&
             decoded <= Integer.MAX_VALUE) {
           vle.getAndIncrement();
           vle_bytes.addAndGet(4);
@@ -973,10 +976,10 @@ final class Fsck {
             appendDP(new_qualifier, value, value.length);
           } else {
             // put the new value, THEN delete the old
-            final PutRequest put = new PutRequest(tsdb.dataTable(), 
-                dp.kv.key(), dp.kv.family(), new_qualifier, value);
+            final PutRequest put = RequestBuilder.buildPutRequest(tsdb.getConfig(), tsdb.dataTable(),
+                dp.kv.key(), dp.kv.family(), new_qualifier, value, dp.kv.timestamp());
             tsdb.getClient().put(put).joinUninterruptibly();
-            final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
+            final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(),
                 dp.kv.key(), dp.kv.family(), qual);
             tsdb.getClient().delete(delete);
           }
@@ -991,27 +994,27 @@ final class Fsck {
     }
 
     /**
-     * Appends the given value to the running qualifier and value compaction 
+     * Appends the given value to the running qualifier and value compaction
      * byte arrays. It doesn't take a {@code DP} as we may be changing the
      * arrays before they're re-written.
      * @param new_qual The qualifier to append
      * @param new_value The value to append
      * @param value_length How much of the value to append
      */
-    private void appendDP(final byte[] new_qual, final byte[] new_value, 
+    private void appendDP(final byte[] new_qual, final byte[] new_value,
         final int value_length) {
       System.arraycopy(new_qual, 0, compact_qualifier, qualifier_index, new_qual.length);
       qualifier_index += new_qual.length;
       System.arraycopy(new_value, 0, compact_value, value_index, value_length);
-      value_index += value_length;  
+      value_index += value_length;
     }
-    
+
     /**
      * Appends a representation of a datapoint to a string buffer
      * @param buf The buffer to modify
      * @param msg An optional message to append
      */
-    private StringBuilder appendDatapointInfo(final StringBuilder buf, 
+    private StringBuilder appendDatapointInfo(final StringBuilder buf,
         final DP dp, final String msg) {
       buf.append("    ")
         .append("write time: (")
@@ -1026,7 +1029,7 @@ final class Fsck {
     }
 
     /**
-     * Resets the running compaction variables. This should be called AFTER a 
+     * Resets the running compaction variables. This should be called AFTER a
      * {@link fsckDataPoints()} has been run and before the next row of values
      * is processed. Note that we may overallocate some memory when creating
      * the arrays.
@@ -1055,7 +1058,7 @@ final class Fsck {
       boolean compacted;
       /** The specific data point qualifier/value if the data point was compacted */
       Cell cell;
-      
+
       /**
        * Default Ctor used for a single data point
        * @param kv The column where the value appeared.
@@ -1064,7 +1067,7 @@ final class Fsck {
         this.kv = kv;
         compacted = false;
       }
-      
+
       /**
        * Overload for a compacted data point
        * @param kv The column where the value appeared.
@@ -1075,7 +1078,7 @@ final class Fsck {
         this.cell = cell;
         compacted = true;
       }
-      
+
       /**
        * Compares data points.
        * @param dp The data point to compare to
@@ -1086,27 +1089,27 @@ final class Fsck {
       public int compareTo(final DP dp) {
         if (kv.timestamp() == dp.kv.timestamp()) {
           return 0;
-        } 
+        }
         return kv.timestamp() < dp.kv.timestamp() ? -1 : 1;
       }
-      
+
       /** @return The qualifier of the data point (from the compaction or column) */
       public byte[] qualifier() {
         return compacted ? cell.qualifier() : kv.qualifier();
       }
-      
+
       /** @return The value of the data point */
       public byte[] value() {
         return compacted ? cell.value() : kv.value();
       }
-      
+
       /** @return The cell or key value string */
       public String toString() {
         return compacted ? cell.toString() : kv.toString();
       }
     }
   }
-  
+
   /**
    * Silly little class to report the progress while fscking
    */
@@ -1122,8 +1125,8 @@ final class Fsck {
           processed_rows = (processed_rows - (processed_rows % report_rows));
           if (processed_rows - last_progress >= report_rows) {
             last_progress = processed_rows;
-            LOG.info("Processed " + processed_rows + " rows, " + 
-                valid_datapoints.get() + " valid datapoints");   
+            LOG.info("Processed " + processed_rows + " rows, " +
+                valid_datapoints.get() + " valid datapoints");
           }
           Thread.sleep(1000);
         } catch (InterruptedException e) {
@@ -1131,7 +1134,7 @@ final class Fsck {
       }
     }
   }
-  
+
   /** Prints usage and exits with the given retval. */
   private static void usage(final ArgP argp, final String errmsg,
                             final int retval) {
@@ -1169,19 +1172,19 @@ final class Fsck {
     LOG.info("Unparseable Datapoint Values: " + bad_values.get());
     LOG.info("Unparseable Datapoint Values Deleted: " + bad_values_deleted.get());
     LOG.info("Improperly Encoded Floating Point Values: " + value_encoding.get());
-    LOG.info("Improperly Encoded Floating Point Values Fixed: " + 
+    LOG.info("Improperly Encoded Floating Point Values Fixed: " +
         value_encoding_fixed.get());
     LOG.info("Unparseable Compacted Columns: " + bad_compacted_columns.get());
-    LOG.info("Unparseable Compacted Columns Deleted: " + 
+    LOG.info("Unparseable Compacted Columns Deleted: " +
         bad_compacted_columns_deleted.get());
     LOG.info("Datapoints Qualified for VLE : " + vle.get());
     LOG.info("Datapoints Compressed with VLE: " + vle_fixed.get());
-    LOG.info("Bytes Saved with VLE: " + vle_bytes.get());  
+    LOG.info("Bytes Saved with VLE: " + vle_bytes.get());
     LOG.info("Total Errors: " + totalErrors());
     LOG.info("Total Correctable Errors: " + correctable());
     LOG.info("Total Errors Fixed: " + totalFixed());
   }
-  
+
   /**
    * The main class executed from the "tsdb" script
    * @param args Command line arguments to parse
@@ -1209,7 +1212,7 @@ final class Fsck {
       usage(argp, "Must supply a query or use the '--full-scan' flag", 1);
     }
     tsdb.checkNecessaryTablesExist().joinUninterruptibly();
-     
+
     argp = null;
     final Fsck fsck = new Fsck(tsdb, options);
     try {

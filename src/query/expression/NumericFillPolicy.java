@@ -60,7 +60,7 @@ public class NumericFillPolicy {
     return "policy=" + policy + ", value=" + value;
   }
   
-  /** @returns a NumericFillPolicy builder */
+  /** @return a NumericFillPolicy builder */
   public static Builder Builder() {
     return new Builder();
   }

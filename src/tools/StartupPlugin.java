@@ -23,8 +23,9 @@ import net.opentsdb.stats.StatsCollector;
  * as soon as it is completely parsed, just before OpenTSDB begins to use it.
  * <p>
  * <b>Note:</b> Implementations must have a parameterless constructor. The
- * {@link #initialize(TSDB)} method will be called immediately after the plugin is
+ * {@link #initialize(Config)} method will be called immediately after the plugin is
  * instantiated and before any other methods are called.
+ * 
  * @since 2.3
  */
 public abstract class StartupPlugin {
@@ -36,7 +37,7 @@ public abstract class StartupPlugin {
    * <b>Note:</b> Implementations should throw exceptions if they can't start
    * up properly. The TSD will then shutdown so the operator can fix the
    * problem. Please use IllegalArgumentException for configuration issues.
-   * @param tsdb The parent TSDB object
+   * @param config The OpenTSDDB config object.
    * @return A reference to the same configuration object passed in the parameters
    * on success.
    * @throws IllegalArgumentException if required configuration parameters are

@@ -47,6 +47,9 @@ final class IncomingDataPoints implements WritableDataPoints {
 
   /** The {@code TSDB} instance we belong to. */
   private final TSDB tsdb;
+  
+  /** Whether or not to allow out of order data. */
+  private final boolean allow_out_of_order_data;
 
   /**
    * The row key. Optional salt + 3 bytes for the metric name, 4 bytes for 
@@ -88,11 +91,8 @@ final class IncomingDataPoints implements WritableDataPoints {
    */
   IncomingDataPoints(final TSDB tsdb) {
     this.tsdb = tsdb;
-    // the qualifiers and values were meant for pre-compacting the rows. We
-    // could implement this later, but for now we don't need to track the values
-    // as they'll just consume space during an import
-    // this.qualifiers = new short[3];
-    // this.values = new long[3];
+    allow_out_of_order_data = tsdb.getConfig()
+        .getBoolean("tsd.core.bulk.allow_out_of_order_timestamps");
   }
 
   /**
@@ -113,8 +113,10 @@ final class IncomingDataPoints implements WritableDataPoints {
 
     Tags.validateString("metric name", metric);
     for (final Map.Entry<String, String> tag : tags.entrySet()) {
-      Tags.validateString("tag name", tag.getKey());
-      Tags.validateString("tag value", tag.getValue());
+      Tags.validateString("tag name with value [" + tag.getValue() + "]", 
+          tag.getKey());
+      Tags.validateString("tag value with key [" + tag.getKey() + "]", 
+          tag.getValue());
     }
   }
 
@@ -284,10 +286,17 @@ final class IncomingDataPoints implements WritableDataPoints {
 
     // always maintain last_ts in milliseconds
     if ((ms_timestamp ? timestamp : timestamp * 1000) <= last_ts) {
-      throw new IllegalArgumentException("New timestamp=" + timestamp
-          + " is less than or equal to previous=" + last_ts
-          + " when trying to add value=" + Arrays.toString(value) + " to "
-          + this);
+      if (allow_out_of_order_data) {
+        // as we don't want to perform any funky calculations to find out if
+        // we're still in the same time range, just pass it off to the regular
+        // TSDB add function.
+        return tsdb.addPointInternal(metric, timestamp, value, tags, flags);
+      } else {
+        throw new IllegalArgumentException("New timestamp=" + timestamp
+            + " is less than or equal to previous=" + last_ts
+            + " when trying to add value=" + Arrays.toString(value) + " to "
+            + this);
+      }
     }
     
     /** Callback executed for chaining filter calls to see if the value
@@ -342,12 +351,12 @@ final class IncomingDataPoints implements WritableDataPoints {
         if (tsdb.getConfig().enable_appends()) {
           final AppendDataPoints kv = new AppendDataPoints(qualifier, value);
           final AppendRequest point = new AppendRequest(tsdb.table, row, TSDB.FAMILY, 
-              AppendDataPoints.APPEND_COLUMN_QUALIFIER, kv.getBytes());
+                  AppendDataPoints.APPEND_COLUMN_QUALIFIER, kv.getBytes());
           point.setDurable(!batch_import);
           return tsdb.client.append(point);/* .addBoth(cb) */
         } else {
-          final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY, 
-              qualifier, value);
+          final PutRequest point = RequestBuilder.buildPutRequest(tsdb.getConfig(), tsdb.table, row, TSDB.FAMILY,
+              qualifier, value, timestamp);
           point.setDurable(!batch_import);
           return tsdb.client.put(point)/* .addBoth(cb) */;
         }
@@ -594,5 +603,15 @@ final class IncomingDataPoints implements WritableDataPoints {
 
   public int getQueryIndex() {
     throw new UnsupportedOperationException("Not mapped to a query");
+  }
+
+  @Override
+  public boolean isPercentile() {
+    return false;
+  }
+
+  @Override
+  public float getPercentile() {
+    throw new UnsupportedOperationException("getPercentile not supported");
   }
 }

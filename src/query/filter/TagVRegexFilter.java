@@ -14,6 +14,7 @@ package net.opentsdb.query.filter;
 
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import com.google.common.base.Objects;
 import com.stumbleupon.async.Deferred;

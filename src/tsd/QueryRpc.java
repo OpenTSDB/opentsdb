@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2013-2017 The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -19,6 +19,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.LinkedHashSet;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.hbase.async.HBaseException;
@@ -34,6 +36,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import net.opentsdb.auth.AuthState;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.Query;
@@ -154,6 +157,31 @@ final class QueryRpc implements HttpRpc {
     } catch (Exception e) {
       throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
           e.getMessage(), data_query.toString(), e);
+    }
+    
+    if (tsdb.getAuth() != null && tsdb.getAuth().authorization() != null) {
+      if (query.channel().getAttachment() == null || 
+          !(query.channel().getAttachment() instanceof AuthState)) {
+        throw new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+            "Authentication was enabled but the authentication state for "
+            + "this channel was not set properly");
+      }
+      final AuthState state = tsdb.getAuth().authorization().allowQuery(
+          (AuthState) query.channel().getAttachment(), data_query);
+      switch (state.getStatus()) {
+      case SUCCESS:
+        // cary on :)
+        break;
+      case UNAUTHORIZED:
+        throw new BadRequestException(HttpResponseStatus.UNAUTHORIZED, 
+            state.getMessage());
+      case FORBIDDEN:
+        throw new BadRequestException(HttpResponseStatus.FORBIDDEN, 
+            state.getMessage());
+      default:
+        throw new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+            state.getMessage());
+      }
     }
     
     // if the user tried this query multiple times from the same IP and src port
@@ -281,7 +309,12 @@ final class QueryRpc implements HttpRpc {
         final ArrayList<Deferred<DataPoints[]>> deferreds = 
             new ArrayList<Deferred<DataPoints[]>>(queries.length);
         for (final Query query : queries) {
-          deferreds.add(query.runAsync());
+          // call different interfaces basing on whether it is a percentile query
+          if (!query.isHistogramQuery()) {
+            deferreds.add(query.runAsync());
+          } else {
+            deferreds.add(query.runHistogramAsync());
+          }
         }
         return Deferred.groupInOrder(deferreds).addCallback(new QueriesCB());
       }
@@ -318,6 +351,30 @@ final class QueryRpc implements HttpRpc {
     final net.opentsdb.query.pojo.Query v2_query = 
         JSON.parseToObject(query.getContent(), net.opentsdb.query.pojo.Query.class);
     v2_query.validate();
+    if (tsdb.getAuth() != null && tsdb.getAuth().authorization() != null) {
+      if (query.channel().getAttachment() == null || 
+          !(query.channel().getAttachment() instanceof AuthState)) {
+        throw new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+            "Authentication was enabled but the authentication state for "
+            + "this channel was not set properly");
+      }
+      final AuthState state = tsdb.getAuth().authorization().allowQuery(
+          (AuthState) query.channel().getAttachment(), v2_query);
+      switch (state.getStatus()) {
+      case SUCCESS:
+        // cary on :)
+        break;
+      case UNAUTHORIZED:
+        throw new BadRequestException(HttpResponseStatus.UNAUTHORIZED, 
+            state.getMessage());
+      case FORBIDDEN:
+        throw new BadRequestException(HttpResponseStatus.FORBIDDEN, 
+            state.getMessage());
+      default:
+        throw new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+            state.getMessage());
+      }
+    }
     final QueryExecutor executor = new QueryExecutor(tsdb, v2_query);
     executor.execute(query);
   }
@@ -597,6 +654,12 @@ final class QueryRpc implements HttpRpc {
     if (data_query.getQueries() == null || data_query.getQueries().size() < 1) {
       throw new BadRequestException("Missing sub queries");
     }
+
+    // Filter out duplicate queries
+    Set<TSSubQuery> query_set = new LinkedHashSet<TSSubQuery>(data_query.getQueries());
+    data_query.getQueries().clear();
+    data_query.getQueries().addAll(query_set);
+
     return data_query;
   }
   
@@ -643,6 +706,14 @@ final class QueryRpc implements HttpRpc {
         }
       } else if (Character.isDigit(parts[x].charAt(0))) {
         sub_query.setDownsample(parts[x]);
+      } else if (parts[x].equalsIgnoreCase("pre-agg")) {
+        sub_query.setPreAggregate(true);
+      } else if (parts[x].toLowerCase().startsWith("rollup_")) {
+        sub_query.setRollupUsage(parts[x]);
+      } else if (parts[x].toLowerCase().startsWith("percentiles")) {
+        sub_query.setPercentiles(QueryRpc.parsePercentiles(parts[x]));
+      } else if (parts[x].toLowerCase().startsWith("show-histogram-buckets")) {
+        sub_query.setShowHistogramBuckets(true);
       } else if (parts[x].toLowerCase().startsWith("explicit_tags")) {
         sub_query.setExplicitTags(true);
       }
@@ -698,6 +769,10 @@ final class QueryRpc implements HttpRpc {
         }
       } else if (Character.isDigit(parts[x].charAt(0))) {
         sub_query.setDownsample(parts[x]);
+      } else if (parts[x].toLowerCase().startsWith("percentiles")) {
+        sub_query.setPercentiles(QueryRpc.parsePercentiles(parts[x]));
+      } else if (parts[x].toLowerCase().startsWith("show-histogram-buckets")) {
+        sub_query.setShowHistogramBuckets(true);
       }
     }
     
@@ -807,6 +882,34 @@ final class QueryRpc implements HttpRpc {
     
     query.setQueries(sub_queries);
     return query;
+  }
+  
+  /**
+   * Parse the "percentile" section of the query string and returns an list of
+   * float that contains the percentile calculation paramters
+   * <p>
+   * the format of the section: percentile[xx,yy,zz]
+   * </p>
+   * <p>
+   * xx, yy, zz are the floats
+   * </p>
+   * @param spec
+   * @return
+   */
+  public static final List<Float> parsePercentiles(final String spec) {
+    List<Float> rs = new ArrayList<Float>();
+    int start_pos = spec.indexOf('[');
+    int end_pos = spec.indexOf(']');
+    if (start_pos == -1 || end_pos == -1) {
+      throw new BadRequestException("Malformated percentile query paramater: " + spec);
+    }
+    
+    String [] floats = Tags.splitString(spec.substring(start_pos + 1, end_pos), ',');
+    for (String s : floats) {
+      String trimed = s.trim();
+      rs.add(Float.valueOf(trimed));
+    }
+    return rs;
   }
   
   /** @param collector Populates the collector with statistics */
@@ -921,3 +1024,4 @@ final class QueryRpc implements HttpRpc {
     }
   }
 }
+

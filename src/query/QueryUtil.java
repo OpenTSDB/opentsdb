@@ -183,7 +183,7 @@ public class QueryUtil {
    * be null.
    * @param row_key_literals An optional list of key value pairs to filter on.
    * May be null.
-   * @param explicit_tag sWhether or not explicit tags are enabled so that the
+   * @param explicit_tags Whether or not explicit tags are enabled so that the
    * regex only picks out series with the specified tags
    * @param enable_fuzzy_filter Whether or not a fuzzy filter should be used
    * in combination with the explicit tags param. If explicit tags is disabled

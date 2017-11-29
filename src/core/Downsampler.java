@@ -12,9 +12,14 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 
+import net.opentsdb.core.Aggregator.Doubles;
+import net.opentsdb.rollup.RollupQuery;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -47,6 +52,9 @@ public class Downsampler implements SeekableView, DataPoint {
   
   /** Last value as a double */
   protected double value;
+  
+  /** An optional rollup query. */
+  protected RollupQuery rollup_query;
   
   /** Whether or not to merge all DPs in the source into one vaalue */
   protected final boolean run_all;
@@ -95,11 +103,30 @@ public class Downsampler implements SeekableView, DataPoint {
               final long query_start,
               final long query_end
       ) {
+    this(source, specification, query_start, query_end, null);
+  }
+
+  /**
+   * Ctor.
+   * @param source The iterator to access the underlying data.
+   * @param specification The downsampling spec to use
+   * @param query_start The start timestamp of the actual query for use with "all"
+   * @param query_end The end timestamp of the actual query for use with "all"
+   * @param rollup_query An optional rollup query.
+   * @since 2.4
+   */
+  Downsampler(final SeekableView source,
+              final DownsamplingSpecification specification,
+              final long query_start,
+              final long query_end,
+              final RollupQuery rollup_query
+      ) {
     this.source = source;
     this.specification = specification;
     values_in_interval = new ValuesInInterval();
     this.query_start = query_start;
     this.query_end = query_end;
+    this.rollup_query = rollup_query;
     
     final String s = specification.getStringInterval();
     if (s != null && s.toLowerCase().contains("all")) {
@@ -119,7 +146,7 @@ public class Downsampler implements SeekableView, DataPoint {
       interval = unit = 0;
     }
   }
-
+  
   // ------------------ //
   // Iterator interface //
   // ------------------ //
@@ -135,7 +162,67 @@ public class Downsampler implements SeekableView, DataPoint {
   @Override
   public DataPoint next() {
     if (hasNext()) {
-      value = specification.getFunction().runDouble(values_in_interval);
+      if (rollup_query != null && 
+          (rollup_query.getGroupBy() == Aggregators.AVG || 
+           rollup_query.getGroupBy() == Aggregators.DEV)) {
+        if (rollup_query.getGroupBy() == Aggregators.AVG) {
+          if (specification.getFunction() == Aggregators.AVG) {
+            double sum = 0;
+            long count = 0;
+            while (values_in_interval.hasNextValue()) {
+              count += values_in_interval.nextValueCount();
+              sum += values_in_interval.nextDoubleValue();
+            }
+            if (count == 0) { // avoid # / 0
+              value = 0;
+            } else {
+              value = sum / (double)count;
+            }
+          } else {
+            class Accumulator implements Doubles {
+              List<Double> values = new ArrayList<Double>();
+              Iterator<Double> iterator;
+              @Override
+              public boolean hasNextValue() {
+                return iterator.hasNext();
+              }
+              @Override
+              public double nextDoubleValue() {
+                return iterator.next();
+              }
+            }
+            
+            final Accumulator accumulator = new Accumulator();
+            while (values_in_interval.hasNextValue()) {
+              long count = values_in_interval.nextValueCount();
+              double sum = values_in_interval.nextDoubleValue();
+              if (count == 0) {
+                accumulator.values.add(0D);
+              } else {
+                accumulator.values.add(sum / (double) count);
+              }
+            }
+            accumulator.iterator = accumulator.values.iterator();
+            value = specification.getFunction().runDouble(accumulator);
+          }
+        } else if (rollup_query.getGroupBy() == Aggregators.DEV) {
+          throw new UnsupportedOperationException("Standard deviation over "
+              + "rolled up data is not supported at this time");
+        }
+      } else if (rollup_query != null && 
+          specification.getFunction() == Aggregators.COUNT) {
+        double count = 0;
+        while (values_in_interval.hasNextValue()) {
+          count += values_in_interval.nextValueCount();
+          // WARNING: consume and move next or we'll be stuck in an infinite
+          // loop here.
+          values_in_interval.nextDoubleValue(); 
+        }
+        value = count;
+      } else {
+        value = specification.getFunction().runDouble(values_in_interval);
+      }
+      
       timestamp = values_in_interval.getIntervalTimestamp();
       values_in_interval.moveToNextInterval();
       return this;
@@ -194,6 +281,7 @@ public class Downsampler implements SeekableView, DataPoint {
     final StringBuilder buf = new StringBuilder();
     buf.append("Downsampler: ")
        .append(", downsampler=").append(specification)
+       .append(", rollupQuery=").append(rollup_query)
        .append(", queryStart=").append(query_start)
        .append(", queryEnd=").append(query_end)
        .append(", runAll=").append(run_all)
@@ -393,6 +481,17 @@ public class Downsampler implements SeekableView, DataPoint {
           + timestamp_end_interval);
     }
 
+    // call me BEFORE you call nextDoubleValue
+    public long nextValueCount() {
+      if (hasNextValue()) {
+        if (next_dp != null) {
+          return next_dp.valueCount();
+        }
+      }
+      throw new NoSuchElementException("no more values in interval of "
+          + timestamp_end_interval);
+    }
+    
     @Override
     public String toString() {
       final StringBuilder buf = new StringBuilder();
@@ -410,5 +509,10 @@ public class Downsampler implements SeekableView, DataPoint {
       buf.append(", source=").append(source);
       return buf.toString();
     }
+  }
+  
+  @Override
+  public long valueCount() {
+    throw new UnsupportedOperationException();
   }
 }

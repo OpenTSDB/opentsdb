@@ -18,6 +18,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -675,7 +676,7 @@ public final class TestTSUIDQuery extends BaseTsdbTest {
     assertEquals(UniqueId.uidToString(tsuid), dp.getTSUID());
   }
   
-  @Test (expected = NoSuchUniqueId.class)
+  @Test
   public void getLastPointTSUIDTagkNSUI() throws Exception {
     Whitebox.setInternalState(config, "enable_tsuid_incrementing", false);
     Whitebox.setInternalState(config, "enable_realtime_ts", false);
@@ -686,7 +687,12 @@ public final class TestTSUIDQuery extends BaseTsdbTest {
     PowerMockito.mockStatic(DateTime.class);
     PowerMockito.when(DateTime.currentTimeMillis()).thenReturn(1356998400000L);
     query = new TSUIDQuery(tsdb, tsuid);
-    query.getLastPoint(true, 0).join();
+    try {
+      query.getLastPoint(true, 0).join();
+      fail("Expected DeferredGroupException");
+    } catch (DeferredGroupException e) {
+      assertTrue(e.getCause() instanceof NoSuchUniqueId);
+    }
   }
 
   @Test
@@ -708,7 +714,7 @@ public final class TestTSUIDQuery extends BaseTsdbTest {
     assertEquals(UniqueId.uidToString(tsuid), dp.getTSUID());
   }
   
-  @Test (expected = NoSuchUniqueId.class)
+  @Test
   public void getLastPoitTSUIDTagvNSUI() throws Exception {
     Whitebox.setInternalState(config, "enable_tsuid_incrementing", false);
     Whitebox.setInternalState(config, "enable_realtime_ts", false);
@@ -719,7 +725,12 @@ public final class TestTSUIDQuery extends BaseTsdbTest {
     PowerMockito.mockStatic(DateTime.class);
     PowerMockito.when(DateTime.currentTimeMillis()).thenReturn(1356998400000L);
     query = new TSUIDQuery(tsdb, tsuid);
-    query.getLastPoint(true, 0).join();
+    try {
+      query.getLastPoint(true, 0).join();
+      fail("Expected DeferredGroupException");
+    } catch (DeferredGroupException e) {
+      assertTrue(e.getCause() instanceof NoSuchUniqueId);
+    }
   }
   
   @Test

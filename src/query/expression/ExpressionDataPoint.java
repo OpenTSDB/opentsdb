@@ -250,4 +250,9 @@ public class ExpressionDataPoint implements DataPoint {
   public int getIndex() {
     return index;
   }
+
+  @Override
+  public long valueCount() {
+    return 1;
+  }
 }

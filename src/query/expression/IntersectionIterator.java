@@ -43,8 +43,8 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
  * <p>
  * The {@link #current_values} map will map the expression "variables" to the
  * proper iterator for each serie's array. E.g.
- *   <"A", [1, 2, 3, 4]>
- *   <"B", [1, 2, 3, 4]>
+ *   &lt;"A", [1, 2, 3, 4]&gt;
+ *   &lt;"B", [1, 2, 3, 4]&gt;
  * <p>
  * So to use it's you simply fetch the result map, call {@link #hasNext()} and
  * {@link #next()} to iterate and in a for loop, iterate {@link #getSeriesSize()}

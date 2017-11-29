@@ -23,6 +23,7 @@ import com.google.common.base.Objects;
 import com.stumbleupon.async.Deferred;
 
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
@@ -36,6 +37,7 @@ import org.jboss.netty.handler.codec.http.QueryStringDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.QueryStats;
 
@@ -113,7 +115,7 @@ public abstract class AbstractHttpQuery {
     return chan;
   }
 
-  /** @return The remote address and port in the format <ip>:<port> */
+  /** @return The remote address and port in the format &lt;ip&gt;:&lt;port&gt; */
   public String getRemoteAddress() {
     return chan.getRemoteAddress().toString();
   }
@@ -360,7 +362,10 @@ public abstract class AbstractHttpQuery {
    */
   public void internalError(final Exception cause) {
     logError("Internal Server Error on " + request().getUri(), cause);
-    sendStatusOnly(HttpResponseStatus.INTERNAL_SERVER_ERROR);
+    sendBuffer(HttpResponseStatus.INTERNAL_SERVER_ERROR,
+        ChannelBuffers.wrappedBuffer(
+            cause.toString().getBytes(Const.UTF8_CHARSET)),
+        "text/plain");
   }
 
   /**
@@ -369,7 +374,10 @@ public abstract class AbstractHttpQuery {
    */
   public void badRequest(final BadRequestException exception) {
     logWarn("Bad Request on " + request().getUri() + ": " + exception.getMessage());
-    sendStatusOnly(HttpResponseStatus.BAD_REQUEST);
+    sendBuffer(HttpResponseStatus.BAD_REQUEST,
+        ChannelBuffers.wrappedBuffer(
+            exception.toString().getBytes(Const.UTF8_CHARSET)),
+        "text/plain");
   }
 
   /**

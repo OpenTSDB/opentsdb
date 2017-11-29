@@ -18,13 +18,19 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Method;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.List;
 
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.auth.Authentication;
+import net.opentsdb.auth.Authorization;
+import net.opentsdb.auth.AuthState.AuthStatus;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
@@ -527,7 +533,7 @@ public final class TestQueryRpc {
   }
   
   @Test
-  public void execute() throws Exception {
+  public void executeURI() throws Exception {
     final DataPoints[] datapoints = new DataPoints[1];
     datapoints[0] = new MockDataPoints().getMock();
     when(query_result.runAsync()).thenReturn(
@@ -535,6 +541,23 @@ public final class TestQueryRpc {
     
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/query?start=1h-ago&m=sum:sys.cpu.user");
+    NettyMocks.mockChannelFuture(query);
+    rpc.execute(tsdb, query);
+    final String json = 
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
+  }
+  
+  @Test
+  public void executeURIDuplicates() throws Exception {
+    final DataPoints[] datapoints = new DataPoints[1];
+    datapoints[0] = new MockDataPoints().getMock();
+    when(query_result.runAsync()).thenReturn(
+        Deferred.fromResult(datapoints));
+    
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/query?start=1h-ago&m=sum:sys.cpu.user&m=sum:sys.cpu.user"
+        + "&m=sum:sys.cpu.user");
     NettyMocks.mockChannelFuture(query);
     rpc.execute(tsdb, query);
     final String json = 
@@ -576,6 +599,41 @@ public final class TestQueryRpc {
       assertTrue(exn.getMessage().startsWith(
           "Unrecognized fill policy: badbadbad"));
     }
+  }
+  
+  @Test
+  public void executePOST() throws Exception {
+    final DataPoints[] datapoints = new DataPoints[1];
+    datapoints[0] = new MockDataPoints().getMock();
+    when(query_result.runAsync()).thenReturn(
+        Deferred.fromResult(datapoints));
+    
+    final HttpQuery query = NettyMocks.postQuery(tsdb,"/api/query",
+        "{\"start\":\"1h-ago\",\"queries\":" +
+            "[{\"metric\":\"sys.cpu.user\",\"aggregator\":\"sum\"}]}");
+    NettyMocks.mockChannelFuture(query);
+    rpc.execute(tsdb, query);
+    final String json = 
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
+  }
+  
+  @Test
+  public void executePOSTDuplicates() throws Exception {
+    final DataPoints[] datapoints = new DataPoints[1];
+    datapoints[0] = new MockDataPoints().getMock();
+    when(query_result.runAsync()).thenReturn(
+        Deferred.fromResult(datapoints));
+    
+    final HttpQuery query = NettyMocks.postQuery(tsdb,"/api/query",
+        "{\"start\":\"1h-ago\",\"queries\":" +
+            "[{\"metric\":\"sys.cpu.user\",\"aggregator\":\"sum\"},"
+            + "{\"metric\":\"sys.cpu.user\",\"aggregator\":\"sum\"}]}");
+    NettyMocks.mockChannelFuture(query);
+    rpc.execute(tsdb, query);
+    final String json = 
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
   }
   
   @Test (expected = BadRequestException.class)
@@ -622,5 +680,92 @@ public final class TestQueryRpc {
     assertTrue(json.contains("factor"));
   }
   
+  @Test
+  public void testParsePercentile() {
+    final String s = "percentile[0.98,0.95,0.99]";
+    final String ss = "percentile [0.98,0.95,0.99]";
+    final String sss = "percentile[ 0.98,0.95,0.99]";
+    final String ssss = "percentile[0.98,0.95,0.99 ]";
+    final String sssss = "percentile[ 0.98, 0.95,0.99]";
+    List<String> strs = new ArrayList<String>();
+    strs.add(sssss);
+    strs.add(ssss);
+    strs.add(sss);
+    strs.add(ss);
+    strs.add(s);
+    
+    for (String str : strs) {
+      List<Float> fs = QueryRpc.parsePercentiles(str);
+      assertEquals(3, fs.size());
+      assertEquals(0.98, fs.get(0), 0.0001);
+      assertEquals(0.95, fs.get(1), 0.0001);
+      assertEquals(0.99, fs.get(2), 0.0001);
+    }
+  }
+  
+  @Test
+  public void parseHistogramQueryMType() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:percentiles[0.98]:msg.end2end.latency");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    assertNotNull(tsq);
+    assertEquals("1h-ago", tsq.getStart());
+    assertNotNull(tsq.getQueries());
+    TSSubQuery sub = tsq.getQueries().get(0);
+    
+    assertNotNull(sub);
+    assertEquals("sum", sub.getAggregator());
+    assertEquals("msg.end2end.latency", sub.getMetric());
+    assertEquals(0.98f, sub.getPercentiles().get(0).floatValue(), 0.0001);
+  }
+  
+  @Test
+  public void parseHistogramQueryTSUIDType() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&tsuid=sum:percentiles[0.98]:010101");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query, expressions);
+    assertNotNull(tsq);
+    assertEquals("1h-ago", tsq.getStart());
+    assertNotNull(tsq.getQueries());
+    TSSubQuery sub = tsq.getQueries().get(0);
+    assertNotNull(sub);
+    assertEquals("sum", sub.getAggregator());
+    assertEquals(1, sub.getTsuids().size());
+    assertEquals("010101", sub.getTsuids().get(0));
+    assertEquals(0.98f, sub.getPercentiles().get(0).floatValue(), 0.0001);
+  }
+  
+  @Test
+  public void v1Auth() throws Exception {
+    final DataPoints[] datapoints = new DataPoints[1];
+    datapoints[0] = new MockDataPoints().getMock();
+    when(query_result.runAsync()).thenReturn(
+        Deferred.fromResult(datapoints));
+    
+    final Authorization authorization = mock(Authorization.class);
+    final Authentication authentication = mock(Authentication.class);
+    final AuthState state = mock(AuthState.class);
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/query?start=1h-ago&m=sum:sys.cpu.user");
+    when(tsdb.getAuth()).thenReturn(authentication);
+    when(query.channel().getAttachment()).thenReturn(state);
+    when(state.getStatus()).thenReturn(AuthStatus.SUCCESS);
+    when(authentication.authorization()).thenReturn(authorization);
+    when(authorization.allowQuery(eq(state), any(TSQuery.class))).thenReturn(state);
+    TestHttpQuery.mockChannelFuture(query);
+    rpc.execute(tsdb, query);
+    String json = 
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
+    
+    when(state.getStatus()).thenReturn(AuthStatus.UNAUTHORIZED);
+    
+    try {
+      rpc.execute(tsdb, query);
+      fail("Expected BadRequestException");
+    } catch (BadRequestException e) {
+      assertEquals(e.getStatus(), HttpResponseStatus.UNAUTHORIZED);
+    }
+  }
   //TODO(cl) add unit tests for the rate options parsing
 }

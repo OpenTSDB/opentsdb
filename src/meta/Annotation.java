@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.Internal;
+import net.opentsdb.core.RequestBuilder;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UniqueId;
@@ -184,10 +185,10 @@ public class Annotation implements Comparable<Annotation> {
         
         final byte[] tsuid_byte = tsuid != null && !tsuid.isEmpty() ? 
             UniqueId.stringToUid(tsuid) : null;
-        final PutRequest put = new PutRequest(tsdb.dataTable(), 
+        final PutRequest put = RequestBuilder.buildPutRequest(tsdb.getConfig(), tsdb.dataTable(),
             getRowKey(start_time, tsuid_byte), FAMILY, 
             getQualifier(start_time), 
-            Annotation.this.getStorageJSON());
+            Annotation.this.getStorageJSON(), start_time);
         return tsdb.getClient().compareAndSet(put, original_note);
       }
       
@@ -275,7 +276,6 @@ public class Annotation implements Comparable<Annotation> {
         if (row == null || row.isEmpty()) {
           return Deferred.fromResult(null);
         }
-        
         Annotation note = JSON.parseToObject(row.get(0).value(),
             Annotation.class);
         return Deferred.fromResult(note);

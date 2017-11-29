@@ -17,35 +17,44 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.hbase.async.BinaryPrefixComparator;
 import org.hbase.async.Bytes;
-import org.hbase.async.DeleteRequest;
+import org.hbase.async.CompareFilter;
+import org.hbase.async.FilterList;
 import org.hbase.async.HBaseException;
-import org.hbase.async.KeyValue;
+import org.hbase.async.QualifierFilter;
+import org.hbase.async.ScanFilter;
 import org.hbase.async.Scanner;
 import org.hbase.async.Bytes.ByteMap;
+import org.hbase.async.FilterList.Operator;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.query.QueryUtil;
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.filter.TagVLiteralOrFilter;
+import net.opentsdb.rollup.NoSuchRollupForIntervalException;
+import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.RollupQuery;
+import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.QueryStats.QueryStat;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -76,6 +85,9 @@ final class TsdbQuery implements Query {
   
   /** The time, in ns, when we start scanning for data **/
   private long scan_start_time;
+  
+  /** Whether or not the query has any results. */
+  private Boolean no_results;
 
   /** Value used for timestamps that are uninitialized.  */
   private static final int UNSET = -1;
@@ -98,6 +110,9 @@ final class TsdbQuery implements Query {
   /** Whether or not to enable the fuzzy row filter for Hbase */
   private boolean enable_fuzzy_filter;
   
+  /** Whether or not the user wants to use the fuzzy filter */
+  private boolean override_fuzzy_filter;
+  
   /**
    * Tags by which we must group the results.
    * Each element is a tag ID.
@@ -109,6 +124,7 @@ final class TsdbQuery implements Query {
    * Tag key and values to use in the row key filter, all pre-sorted
    */
   private ByteMap<byte[][]> row_key_literals;
+  private List<ByteMap<byte[][]>> row_key_literals_list;
 
   /** If true, use rate of change instead of actual values. */
   private boolean rate;
@@ -122,6 +138,20 @@ final class TsdbQuery implements Query {
   /** Downsampling specification to use, if any (can be {@code null}). */
   private DownsamplingSpecification downsampler;
 
+  /** Rollup interval and aggregator, null if not applicable. */
+  private RollupQuery rollup_query;
+  
+  /** Map of RollupInterval objects in the order of next best match
+   * like 1d, 1h, 10m, 1m, for rollup of 1d. */
+  private List<RollupInterval> best_match_rollups;
+  
+  /** How to use the rollup data */
+  private ROLLUP_USAGE rollup_usage = ROLLUP_USAGE.ROLLUP_NOFALLBACK;
+  
+  /** Search the query on pre-aggregated table directly instead of post fetch 
+   * aggregation. */
+  private boolean pre_aggregate;
+  
   /** Optional list of TSUIDs to fetch and aggregate instead of a metric */
   private List<String> tsuids;
   
@@ -137,13 +167,96 @@ final class TsdbQuery implements Query {
   /** Whether or not to match series with ONLY the given tags */
   private boolean explicit_tags;
   
+  private List<Float> percentiles;
+  
+  private boolean show_histogram_buckets;
+  
+  /** Set at filter resolution time to determine if we can use multi-gets */
+  private boolean use_multi_gets;
+
+  /** Set by the user if they want to bypass multi-gets */
+  private boolean override_multi_get;
+  
+  /** Whether or not to use the search plugin for multi-get resolution. */
+  private boolean multiget_with_search;
+  
+  /** Whether or not to fall back on query failure. */
+  private boolean search_query_failure;
+  
+  /** The maximum number of bytes allowed per query. */
+  private long max_bytes = 0;
+  
+  /** The maximum number of data points allowed per query. */
+  private long max_data_points = 0;
+  
+  /**
+   * Enum for rollup fallback control.
+   * @since 2.4
+   */
+  public static enum ROLLUP_USAGE {
+    ROLLUP_RAW, //Don't use rollup data, instead use raw data
+    ROLLUP_NOFALLBACK, //Use rollup data, and don't fallback on no data
+    ROLLUP_FALLBACK, //Use rollup data and fallback to next best match on data
+    ROLLUP_FALLBACK_RAW; //Use rollup data and fallback to raw on no data
+    
+    /**
+     * Parse and transform a string to ROLLUP_USAGE object
+     * @param str String to be parsed
+     * @return enum param tells how to use the rollup data
+     */
+    public static ROLLUP_USAGE parse(String str) {
+      ROLLUP_USAGE def = ROLLUP_NOFALLBACK;
+      
+      if (str != null) {
+        try {
+          def = ROLLUP_USAGE.valueOf(str.toUpperCase());
+        }
+        catch(IllegalArgumentException ex) {
+          LOG.warn("Unknown rollup usage, " + str + ", use default usage - which"
+                  + "uses raw data but don't fallback on no data");
+        }
+      }
+      
+      return def;
+    }
+    
+    /**
+     * Whether to fallback to next best match or raw
+     * @return true means fall back else false
+     */
+    public boolean fallback() {
+      return this == ROLLUP_FALLBACK || this == ROLLUP_FALLBACK_RAW;
+    }
+  }
+  
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
     this.tsdb = tsdb;
+    this.downsampler = DownsamplingSpecification.NO_DOWNSAMPLER;
     enable_fuzzy_filter = tsdb.getConfig()
         .getBoolean("tsd.query.enable_fuzzy_filter");
+    use_multi_gets = tsdb.getConfig().getBoolean("tsd.query.multi_get.enable");
   }
 
+  /** Which rollup table it scanned to get the final result.
+   * @since 2.4 */
+  public String getRollupTable() {
+    if (RollupQuery.isValidQuery(rollup_query)) {
+      return rollup_query.getRollupInterval().getInterval();
+    }
+    else {
+      return "raw";
+    }
+  }
+  
+  /** Search the query on pre-aggregated table directly instead of post fetch 
+   * aggregation. 
+   * @since 2.4 
+   */
+  public boolean isPreAggregate() {
+      return this.pre_aggregate;
+  }
+  
   /**
    * Sets the start time for the query
    * @param timestamp Unix epoch timestamp in seconds or milliseconds
@@ -212,6 +325,11 @@ final class TsdbQuery implements Query {
   @Override
   public boolean getDelete() {
     return delete;
+  }
+  
+  @Override
+  public void setPercentiles(List<Float> percentiles) {
+    this.percentiles = percentiles;
   }
   
   @Override
@@ -336,8 +454,37 @@ final class TsdbQuery implements Query {
       rate_options = new RateOptions();
     }
     downsampler = sub_query.downsamplingSpecification();
+    pre_aggregate = sub_query.isPreAggregate();
+    rollup_usage = sub_query.getRollupUsage();
     filters = sub_query.getFilters();
     explicit_tags = sub_query.getExplicitTags();
+    override_fuzzy_filter = sub_query.getUseFuzzyFilter();
+    override_multi_get = sub_query.getUseMultiGets();
+    
+    max_bytes = tsdb.getQueryByteLimits().getByteLimit(sub_query.getMetric());
+    if (tsdb.getConfig().getBoolean("tsd.query.limits.bytes.allow_override") && 
+        query.overrideByteLimit()) {
+      max_bytes = 0;
+    }
+    max_data_points = tsdb.getQueryByteLimits().getDataPointLimit(sub_query.getMetric());
+    if (tsdb.getConfig().getBoolean("tsd.query.limits.data_points.allow_override") &&
+        query.overrideDataPointLimit()) {
+      max_data_points = 0;
+    }
+    
+    // set percentile options
+    percentiles = sub_query.getPercentiles();
+    show_histogram_buckets = sub_query.getShowHistogramBuckets();
+    
+    if (rollup_usage != ROLLUP_USAGE.ROLLUP_RAW) {
+      //Check whether the down sampler is set and rollup is enabled
+      transformDownSamplerToRollupQuery(aggregator, sub_query.getDownsample());
+    }
+    sub_query.setTsdbQuery(this);
+    
+    if (use_multi_gets && override_multi_get && multiget_with_search) {
+      row_key_literals_list = Lists.newArrayList();
+    }
     
     // if we have tsuids set, that takes precedence
     if (sub_query.getTsuids() != null && !sub_query.getTsuids().isEmpty()) {
@@ -375,15 +522,57 @@ final class TsdbQuery implements Query {
         public Deferred<Object> call(final byte[] uid) throws Exception {
           metric = uid;
           if (filters != null) {
-            final List<Deferred<byte[]>> deferreds = 
-                new ArrayList<Deferred<byte[]>>(filters.size());
-            for (final TagVFilter filter : filters) {
-              deferreds.add(filter.resolveTagkName(tsdb));
+            if (use_multi_gets && override_multi_get && multiget_with_search) {
+              class ErrorCB implements Callback<Deferred<Object>, Exception> {
+                @Override
+                public Deferred<Object> call(Exception arg) throws Exception {
+                 LOG.info("Doing scans because meta query is failed", arg);
+                 if (explicit_tags) {
+                   search_query_failure = true; 
+                 } else {
+                   override_multi_get = false;
+                   use_multi_gets = false;
+                 }
+                 return Deferred.group(resolveTagFilters()).addCallback(new FilterCB());
+                }
+              }
+              
+              class SuccessCB implements Callback<Deferred<Object>, List<ByteMap<byte[][]>>> {
+                @Override
+                public Deferred<Object> call(final List<ByteMap<byte[][]>> results) throws Exception {
+                  row_key_literals_list.addAll(results);
+                  return Deferred.fromResult(null);
+                }
+              }
+              
+              tsdb.getSearchPlugin().resolveTSQuery(query, index)
+                .addCallbackDeferring(new SuccessCB())
+                .addErrback(new ErrorCB());
             }
-            return Deferred.group(deferreds).addCallback(new FilterCB());
+            
+            return Deferred.group(resolveTagFilters()).addCallback(new FilterCB());
           } else {
             return Deferred.fromResult(null);
           }
+        }
+        
+        private List<Deferred<byte[]>> resolveTagFilters() {
+          final List<Deferred<byte[]>> deferreds = 
+              new ArrayList<Deferred<byte[]>>(filters.size());
+          for (final TagVFilter filter : filters) {
+            // determine if the user is asking for pre-agg data
+            if (filter instanceof TagVLiteralOrFilter && tsdb.getAggTagKey() != null) {
+              if (filter.getTagk().equals(tsdb.getAggTagKey())) {
+                if (tsdb.getRawTagValue() != null && 
+                    !filter.getFilter().equals(tsdb.getRawTagValue())) {
+                  pre_aggregate = true;
+                }
+              }
+            }
+            
+            deferreds.add(filter.resolveTagkName(tsdb));
+          }
+          return deferreds;
         }
       }
       
@@ -425,7 +614,13 @@ final class TsdbQuery implements Query {
       return;
     }
     
+    if ((use_multi_gets && override_multi_get) && !search_query_failure) {
+      
+    }
+    
     row_key_literals = new ByteMap<byte[][]>();
+    final int expansion_limit = tsdb.getConfig().getInt(
+        "tsd.query.filter.expansion_limit");
     
     Collections.sort(filters);
     final Iterator<TagVFilter> current_iterator = filters.iterator();
@@ -472,10 +667,10 @@ final class TsdbQuery implements Query {
       }
       
       if (literals.size() > 0) {
-        if (literals.size() + row_key_literals_count > 
-            tsdb.getConfig().getInt("tsd.query.filter.expansion_limit")) {
+        if (literals.size() + row_key_literals_count > expansion_limit) {
           LOG.debug("Skipping literals for " + current.getTagk() + 
               " as it exceedes the limit");
+          //has_filter_cannot_use_get = true;
         } else {
           final byte[][] values = new byte[literals.size()][];
           literals.keySet().toArray(values);
@@ -488,6 +683,23 @@ final class TsdbQuery implements Query {
         }
       } else {
         row_key_literals.put(current.getTagkBytes(), null);
+        // no literal values, just keys, so we can't multi-get
+        if (search_query_failure) {
+          use_multi_gets = false;
+        }
+      }
+      
+      // make sure the multi-get cardinality doesn't exceed our limit (or disable
+      // multi-gets)
+      if ((use_multi_gets && override_multi_get)) {
+        int multi_get_limit = tsdb.getConfig().getInt("tsd.query.multi_get.limit");
+        int cardinality = filters.size() * row_key_literals_count;
+        if (cardinality > multi_get_limit) {
+          use_multi_gets = false;
+        } else if (search_query_failure) {
+          row_key_literals_list.add(row_key_literals);
+        }
+        // TODO - account for time as well
       }
     }
   }
@@ -511,10 +723,63 @@ final class TsdbQuery implements Query {
   }
   
   @Override
+  public DataPoints[] runHistogram() throws HBaseException {
+    if (!isHistogramQuery()) {
+      throw new RuntimeException("Should never be here");
+    }
+    
+    try {
+      return runHistogramAsync().joinUninterruptibly();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
+    }
+  }
+  
+  @Override
   public Deferred<DataPoints[]> runAsync() throws HBaseException {
-    return findSpans().addCallback(new GroupByAndAggregateCB());
+    Deferred<DataPoints[]> result = null;
+    if (use_multi_gets && override_multi_get) {
+      result = this.findSpansWithMultiGetter().addCallback(new GroupByAndAggregateCB());
+    } else {
+      result = findSpans().addCallback(new GroupByAndAggregateCB());
+    }
+
+    if (rollup_usage != null && rollup_usage.fallback()) {
+      result.addCallback(new FallbackRollupOnEmptyResult());
+    }
+    
+    return result;
   }
 
+  @Override
+  public Deferred<DataPoints[]> runHistogramAsync() throws HBaseException {
+    if (!isHistogramQuery()) {
+      throw new RuntimeException("Should never be here");
+    }
+    
+    Deferred<DataPoints[]> result = null;
+    if (use_multi_gets && override_multi_get) {
+      result = findHistogramSpansWithMultiGetter()
+          .addCallback(new HistogramGroupByAndAggregateCB());
+    } else {
+      result = findHistogramSpans()
+          .addCallback(new HistogramGroupByAndAggregateCB());
+    }
+        
+    return result;
+  }
+  
+  @Override
+  public boolean isHistogramQuery() {
+    if ((this.percentiles != null && this.percentiles.size() > 0) || show_histogram_buckets) {
+      return true;
+    }
+    
+    return false;
+  }
+  
   /**
    * Finds all the {@link Span}s that match this query.
    * This is what actually scans the HBase table and loads the data into
@@ -554,335 +819,99 @@ final class TsdbQuery implements Query {
       }
       scan_start_time = DateTime.nanoTime();
       return new SaltScanner(tsdb, metric, scanners, spans, scanner_filters,
-          delete, query_stats, query_index).scan();
+          delete, rollup_query, query_stats, query_index, null, 
+          max_bytes, max_data_points).scan();
+    } else {
+      final List<Scanner> scanners = new ArrayList<Scanner>(1);
+      scanners.add(getScanner(0));
+      scan_start_time = DateTime.nanoTime();
+      return new SaltScanner(tsdb, metric, scanners, spans, scanner_filters,
+          delete, rollup_query, query_stats, query_index, null, max_bytes, 
+          max_data_points).scan();
     }
+  }
+  
+  private Deferred<TreeMap<byte[], Span>> findSpansWithMultiGetter() throws HBaseException {
+    final short metric_width = tsdb.metrics.width();
+    final TreeMap<byte[], Span> spans = // The key is a row key from HBase.
+    new TreeMap<byte[], Span>(new SpanCmp(metric_width));
+
+    scan_start_time = System.nanoTime();
     
-    scan_start_time = DateTime.nanoTime();
-    final Scanner scanner = getScanner();
-    if (query_stats != null) {
-      query_stats.addScannerId(query_index, 0, scanner.toString());
-    }
-    final Deferred<TreeMap<byte[], Span>> results =
-      new Deferred<TreeMap<byte[], Span>>();
+    return new MultiGetQuery(tsdb, this, metric, row_key_literals_list, 
+        getScanStartTimeSeconds(), getScanEndTimeSeconds(),
+        tableToBeScanned(), spans, null, 0, rollup_query, query_stats, query_index, 0,
+        false, search_query_failure).fetch();
+  }
+  
+  /**
+   * Finds all the {@link HistogramSpan}s that match this query.
+   * This is what actually scans the HBase table and loads the data into
+   * {@link HistogramSpan}s.
+   * 
+   * @return A map from HBase row key to the {@link HistogramSpan} for that row key.
+   * Since a {@link HistogramSpan} actually contains multiple HBase rows, the row key
+   * stored in the map has its timestamp zero'ed out.
+   * 
+   * @throws HBaseException if there was a problem communicating with HBase to
+   * perform the search.
+   * @throws IllegalArgumentException if bad data was retreived from HBase.
+   */
+  private Deferred<TreeMap<byte[], HistogramSpan>> findHistogramSpans() throws HBaseException {
+    final short metric_width = tsdb.metrics.width();
+    final TreeMap<byte[], HistogramSpan> histSpans = new TreeMap<byte[], HistogramSpan>(new SpanCmp(metric_width));
     
-    /**
-    * Scanner callback executed recursively each time we get a set of data
-    * from storage. This is responsible for determining what columns are
-    * returned and issuing requests to load leaf objects.
-    * When the scanner returns a null set of rows, the method initiates the
-    * final callback.
-    */
-    final class ScannerCB implements Callback<Object,
-      ArrayList<ArrayList<KeyValue>>> {
-      
-      int nrows = 0;
-      boolean seenAnnotation = false;
-      long scanner_start = DateTime.nanoTime();
-      long timeout = tsdb.getConfig().getLong("tsd.query.timeout");
-      private final Set<String> skips = new HashSet<String>();
-      private final Set<String> keepers = new HashSet<String>();
-      private final int index = 0;       // only used for salted scanners
-      /** nanosecond timestamps */
-      private long fetch_start = 0;      // reset each time we send an RPC to HBase
-      private long fetch_time = 0;       // cumulation of time waiting on HBase
-      private long uid_resolve_time = 0; // cumulation of time resolving UIDs
-      private long uids_resolved = 0; 
-      private long compaction_time = 0;  // cumulation of time compacting
-      private long dps_pre_filter = 0;
-      private long rows_pre_filter = 0;
-      private long dps_post_filter = 0;
-      private long rows_post_filter = 0;
-      
-      /** Error callback that will capture an exception from AsyncHBase and store
-       * it so we can bubble it up to the caller.
-       */
-      class ErrorCB implements Callback<Object, Exception> {
-        @Override
-        public Object call(final Exception e) throws Exception {
-          LOG.error("Scanner " + scanner + " threw an exception", e);
-          close(e);
-          return null;
+    // Copy only the filters that should trigger a tag resolution. If this list
+    // is empty due to literals or a wildcard star, then we'll save a TON of
+    // UID lookups
+    final List<TagVFilter> scanner_filters;
+    if (filters != null) {
+      scanner_filters = new ArrayList<TagVFilter>(filters.size());
+      for (final TagVFilter filter : filters) {
+        if (filter.postScan()) {
+          scanner_filters.add(filter);
         }
       }
-      
-      /**
-      * Starts the scanner and is called recursively to fetch the next set of
-      * rows from the scanner.
-      * @return The map of spans if loaded successfully, null if no data was
-      * found
-      */
-       public Object scan() {
-         fetch_start = DateTime.nanoTime();
-         return scanner.nextRows().addCallback(this).addErrback(new ErrorCB());
-       }
-  
-      /**
-      * Loops through each row of the scanner results and parses out data
-      * points and optional meta data
-      * @return null if no rows were found, otherwise the TreeMap with spans
-      */
-       @Override
-       public Object call(final ArrayList<ArrayList<KeyValue>> rows)
-         throws Exception {
-         fetch_time += DateTime.nanoTime() - fetch_start;
-         try {
-           if (rows == null) {
-             scanlatency.add((int)DateTime.msFromNano(fetch_time));
-             LOG.info(TsdbQuery.this + " matched " + nrows + " rows in " +
-                 spans.size() + " spans in " + DateTime.msFromNano(fetch_time) + "ms");
-             close(null);
-             return null;
-           }
-           
-           if (timeout > 0 && DateTime.msFromNanoDiff(
-               DateTime.nanoTime(), scanner_start) > timeout) {
-             throw new InterruptedException("Query timeout exceeded!");
-           }
-           
-           rows_pre_filter += rows.size();
-           
-           // used for UID resolution if a filter is involved
-           final List<Deferred<Object>> lookups = 
-               filters != null && !filters.isEmpty() ? 
-                   new ArrayList<Deferred<Object>>(rows.size()) : null;
-               
-           for (final ArrayList<KeyValue> row : rows) {
-             final byte[] key = row.get(0).key();
-             if (Bytes.memcmp(metric, key, 0, metric_width) != 0) {
-               scanner.close();
-               throw new IllegalDataException(
-                   "HBase returned a row that doesn't match"
-                   + " our scanner (" + scanner + ")! " + row + " does not start"
-                   + " with " + Arrays.toString(metric));
-             }
-             
-             // calculate estimated data point count. We don't want to deserialize
-             // the byte arrays so we'll just get a rough estimate of compacted
-             // columns.
-             for (final KeyValue kv : row) {
-               if (kv.qualifier().length % 2 == 0) {
-                 if (kv.qualifier().length == 2 || kv.qualifier().length == 4) {
-                   ++dps_pre_filter;
-                 } else {
-                   // for now we'll assume that all compacted columns are of the 
-                   // same precision. This is likely incorrect.
-                   if (Internal.inMilliseconds(kv.qualifier())) {
-                     dps_pre_filter += (kv.qualifier().length / 4);
-                   } else {
-                     dps_pre_filter += (kv.qualifier().length / 2);
-                   }
-                 }
-               } else if (kv.qualifier()[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
-                 // with appends we don't have a good rough estimate as the length
-                 // can vary widely with the value length variability. Therefore we
-                 // have to iterate.
-                 int idx = 0;
-                 int qlength = 0;
-                 while (idx < kv.value().length) {
-                   qlength = Internal.getQualifierLength(kv.value(), idx);
-                   idx += qlength + Internal.getValueLengthFromQualifier(kv.value(), idx);
-                   ++dps_pre_filter;
-                 }
-               }
-             }
-             
-             // If any filters have made it this far then we need to resolve
-             // the row key UIDs to their names for string comparison. We'll
-             // try to avoid the resolution with some sets but we may dupe
-             // resolve a few times.
-             // TODO - more efficient resolution
-             // TODO - byte set instead of a string for the uid may be faster
-             if (scanner_filters != null && !scanner_filters.isEmpty()) {
-               lookups.clear();
-               final String tsuid = 
-                   UniqueId.uidToString(UniqueId.getTSUIDFromKey(key, 
-                   TSDB.metrics_width(), Const.TIMESTAMP_BYTES));
-               if (skips.contains(tsuid)) {
-                 continue;
-               }
-               if (!keepers.contains(tsuid)) {
-                 final long uid_start = DateTime.nanoTime();
-                 
-                 /** CB to called after all of the UIDs have been resolved */
-                 class MatchCB implements Callback<Object, ArrayList<Boolean>> {
-                   @Override
-                   public Object call(final ArrayList<Boolean> matches) 
-                       throws Exception {
-                     for (final boolean matched : matches) {
-                       if (!matched) {
-                         skips.add(tsuid);
-                         return null;
-                       }
-                     }
-                     // matched all, good data
-                     keepers.add(tsuid);
-                     processRow(key, row);
-                     return null;
-                   }
-                 }
-
-                 /** Resolves all of the row key UIDs to their strings for filtering */
-                 class GetTagsCB implements
-                     Callback<Deferred<ArrayList<Boolean>>, Map<String, String>> {
-                   @Override
-                   public Deferred<ArrayList<Boolean>> call(
-                       final Map<String, String> tags) throws Exception {
-                     uid_resolve_time += (DateTime.nanoTime() - uid_start);
-                     uids_resolved += tags.size();
-                     final List<Deferred<Boolean>> matches =
-                         new ArrayList<Deferred<Boolean>>(scanner_filters.size());
-
-                     for (final TagVFilter filter : scanner_filters) {
-                       matches.add(filter.match(tags));
-                     }
-                     
-                     return Deferred.group(matches);
-                   }
-                 }
-    
-                 lookups.add(Tags.getTagsAsync(tsdb, key)
-                     .addCallbackDeferring(new GetTagsCB())
-                     .addBoth(new MatchCB()));
-               } else {
-                 processRow(key, row);
-               }
-             } else {
-               processRow(key, row);
-             }
-           }
-
-           // either we need to wait on the UID resolutions or we can go ahead
-           // if we don't have filters.
-           if (lookups != null && lookups.size() > 0) {
-             class GroupCB implements Callback<Object, ArrayList<Object>> {
-               @Override
-               public Object call(final ArrayList<Object> group) throws Exception {
-                 return scan();
-               }
-             }
-             return Deferred.group(lookups).addCallback(new GroupCB());
-           } else {
-             return scan();
-           }
-         } catch (Exception e) {
-           close(e);
-           return null;
-         }
-       }
-       
-       /**
-        * Finds or creates the span for this row, compacts it and stores it.
-        * @param key The row key to use for fetching the span
-        * @param row The row to add
-        */
-       void processRow(final byte[] key, final ArrayList<KeyValue> row) {
-         ++rows_post_filter;
-         if (delete) {
-           final DeleteRequest del = new DeleteRequest(tsdb.dataTable(), key);
-           tsdb.getClient().delete(del);
-         }
-         
-         // calculate estimated data point count. We don't want to deserialize
-         // the byte arrays so we'll just get a rough estimate of compacted
-         // columns.
-         for (final KeyValue kv : row) {
-           if (kv.qualifier().length % 2 == 0) {
-             if (kv.qualifier().length == 2 || kv.qualifier().length == 4) {
-               ++dps_post_filter;
-             } else {
-               // for now we'll assume that all compacted columns are of the 
-               // same precision. This is likely incorrect.
-               if (Internal.inMilliseconds(kv.qualifier())) {
-                 dps_post_filter += (kv.qualifier().length / 4);
-               } else {
-                 dps_post_filter += (kv.qualifier().length / 2);
-               }
-             }
-           } else if (kv.qualifier()[0] == AppendDataPoints.APPEND_COLUMN_PREFIX) {
-             // with appends we don't have a good rough estimate as the length
-             // can vary widely with the value length variability. Therefore we
-             // have to iterate.
-             int idx = 0;
-             int qlength = 0;
-             while (idx < kv.value().length) {
-               qlength = Internal.getQualifierLength(kv.value(), idx);
-               idx += qlength + Internal.getValueLengthFromQualifier(kv.value(), idx);
-               ++dps_post_filter;
-             }
-           }
-         }
-         
-         Span datapoints = spans.get(key);
-         if (datapoints == null) {
-           datapoints = new Span(tsdb);
-           spans.put(key, datapoints);
-         }
-         final long compaction_start = DateTime.nanoTime();
-         final KeyValue compacted = 
-           tsdb.compact(row, datapoints.getAnnotations());
-         compaction_time += (DateTime.nanoTime() - compaction_start);
-         seenAnnotation |= !datapoints.getAnnotations().isEmpty();
-         if (compacted != null) { // Can be null if we ignored all KVs.
-           datapoints.addRow(compacted);
-           ++nrows;
-         }
-       }
-     
-       void close(final Exception e) {
-         scanner.close();
-         
-         if (query_stats != null) {
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.SCANNER_TIME, DateTime.nanoTime() - scan_start_time);
-
-           // Scanner Stats
-           /* Uncomment when AsyncHBase has this feature:
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.ROWS_FROM_STORAGE, scanner.getRowsFetched());
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.COLUMNS_FROM_STORAGE, scanner.getColumnsFetched());
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.BYTES_FROM_STORAGE, scanner.getBytesFetched()); */
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.HBASE_TIME, fetch_time);
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.SUCCESSFUL_SCAN, e == null ? 1 : 0);
-           
-           // Post Scan stats
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.ROWS_PRE_FILTER, rows_pre_filter);
-           query_stats.addScannerStat(query_index, index,
-               QueryStat.DPS_PRE_FILTER, dps_pre_filter);
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.ROWS_POST_FILTER, rows_post_filter);
-           query_stats.addScannerStat(query_index, index,
-               QueryStat.DPS_POST_FILTER, dps_post_filter);
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.SCANNER_UID_TO_STRING_TIME, uid_resolve_time);
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.UID_PAIRS_RESOLVED, uids_resolved);
-           query_stats.addScannerStat(query_index, index, 
-               QueryStat.COMPACTION_TIME, compaction_time);
-         }
-         
-         if (e != null) {
-           results.callback(e);
-         } else if (nrows < 1 && !seenAnnotation) {
-           results.callback(null);
-         } else {
-           results.callback(spans);
-         }
-       }
+    } else {
+      scanner_filters = null;
     }
 
-     new ScannerCB().scan();
-     return results;
+    scan_start_time = System.nanoTime();
+    final List<Scanner> scanners;
+    if (Const.SALT_WIDTH() > 0) {
+      scanners = new ArrayList<Scanner>(Const.SALT_BUCKETS());
+      for (int i = 0; i < Const.SALT_BUCKETS(); i++) {
+        scanners.add(getScanner(i));
+      }
+      scan_start_time = DateTime.nanoTime();
+      return new SaltScanner(tsdb, metric, scanners, null, scanner_filters, 
+          delete, rollup_query, query_stats, query_index, histSpans, 
+          max_bytes, max_data_points).scanHistogram();
+    } else {
+      scanners = Lists.newArrayList(getScanner());
+      scan_start_time = DateTime.nanoTime();
+      return new SaltScanner(tsdb, metric, scanners, null, scanner_filters, 
+          delete, rollup_query, query_stats, query_index, histSpans, 
+          max_bytes, max_data_points).scanHistogram();
+    }
   }
+  
+  private Deferred<TreeMap<byte[], HistogramSpan>> findHistogramSpansWithMultiGetter() throws HBaseException {
+    final short metric_width = tsdb.metrics.width();
+    // The key is a row key from HBase
+    final TreeMap<byte[], HistogramSpan> histSpans = new TreeMap<byte[], HistogramSpan>(new SpanCmp(metric_width));
 
+    scan_start_time = System.nanoTime();
+    return new MultiGetQuery(tsdb, this, metric, row_key_literals_list, 
+        getScanStartTimeSeconds(), getScanEndTimeSeconds(),
+        tableToBeScanned(), null, histSpans, 0, rollup_query, query_stats, query_index, 0,
+        false, search_query_failure).fetchHistogram();
+  }
+  
   /**
-  * Callback that should be attached the the output of
-  * {@link TsdbQuery#findSpans} to group and sort the results.
-  */
+   * Callback that should be attached the the output of
+   * {@link TsdbQuery#findSpans} to group and sort the results.
+   */
   private class GroupByAndAggregateCB implements 
     Callback<DataPoints[], TreeMap<byte[], Span>>{
     
@@ -923,7 +952,8 @@ final class TsdbQuery implements Query {
               downsampler,
               getStartTime(), 
               getEndTime(),
-              query_index);
+              query_index,
+              rollup_query);
           group.add(span);
           groups[i++] = group;
         }
@@ -942,7 +972,8 @@ final class TsdbQuery implements Query {
                                               downsampler,
                                               getStartTime(), 
                                               getEndTime(),
-                                              query_index);
+                                              query_index,
+                                              rollup_query);
         if (query_stats != null) {
           query_stats.addStat(query_index, QueryStat.GROUP_BY_TIME, 0);
         }
@@ -992,7 +1023,8 @@ final class TsdbQuery implements Query {
                                    downsampler,
                                    getStartTime(), 
                                    getEndTime(),
-                                   query_index);
+                                   query_index,
+                                   rollup_query);
           // Copy the array because we're going to keep `group' and overwrite
           // its contents. So we want the collection to have an immutable copy.
           final byte[] group_copy = new byte[group.length];
@@ -1011,6 +1043,315 @@ final class TsdbQuery implements Query {
     }
   }
 
+  /**
+   * Callback that should be attached the the output of
+   * {@link TsdbQuery#findHistogramSpans} to group and sort the results.
+   */
+   private class HistogramGroupByAndAggregateCB implements 
+     Callback<DataPoints[], TreeMap<byte[], HistogramSpan>>{
+
+     /**
+     * Creates the {@link HistogramSpanGroup}s to form the final results of this query.
+     * @param spans The {@link HistogramSpan}s found for this query ({@link #findHistogramSpans}).
+     * Can be {@code null}, in which case the array returned will be empty.
+     * @return A possibly empty array of {@link HistogramSpanGroup}s built according to
+     * any 'GROUP BY' formulated in this query.
+     */
+     public DataPoints[] call(final TreeMap<byte[], HistogramSpan> spans) throws Exception {
+       if (query_stats != null) {
+         query_stats.addStat(query_index, QueryStat.QUERY_SCAN_TIME, 
+                 (System.nanoTime() - TsdbQuery.this.scan_start_time));
+       }
+       
+       final long group_build = System.nanoTime();
+       if (spans == null || spans.size() <= 0) {
+         if (query_stats != null) {
+           query_stats.addStat(query_index, QueryStat.GROUP_BY_TIME, 0);
+         }
+         return NO_RESULT;
+       }
+       final ByteSet query_tags = null;
+       // TODO
+//       if (agg_tag_promotion && group_bys != null && !group_bys.isEmpty()) {
+//         query_tags = new ByteSet();
+//         query_tags.addAll(group_bys);
+//       } else {
+//         query_tags = null;
+//       }
+       
+       final ArrayList<DataPoints> result_dp_groups = new ArrayList<DataPoints>();
+       // The raw aggregator skips group bys and ignores downsampling
+       if (aggregator == Aggregators.NONE) {
+         for (final HistogramSpan span : spans.values()) {
+           final HistogramSpanGroup group = new HistogramSpanGroup(tsdb, 
+                                                 getScanStartTimeSeconds(),
+                                                 getScanEndTimeSeconds(),
+                                                 null,
+                                                 null,
+                                                 downsampler,
+                                                 getStartTime(), 
+                                                 getEndTime(),
+                                                 query_index,
+                                                 RollupQuery.isValidQuery(rollup_query),
+                                                 query_tags);
+           group.add(span);
+           
+           // create histogram data points to data points adaptor for each percentile calculation
+           if (null != percentiles && percentiles.size() > 0) {
+             List<DataPoints> percentile_datapoints_list = generateHistogramPercentileDataPoints(group);
+             if (null != percentile_datapoints_list && percentile_datapoints_list.size() > 0)
+               result_dp_groups.addAll(percentile_datapoints_list);
+           }
+           
+           
+           // create bucket metric 
+           if (show_histogram_buckets) {
+             List<DataPoints> bucket_datapoints_list = generateHistogramBucketDataPoints(group);
+             if (null != bucket_datapoints_list && bucket_datapoints_list.size() > 0) {
+               result_dp_groups.addAll(bucket_datapoints_list);
+             }
+           }
+         } // end for
+         
+         int i = 0;
+         DataPoints[] result = new DataPoints[result_dp_groups.size()];
+         for (DataPoints item : result_dp_groups) {
+           result[i++] = item;
+         }
+         return result;
+       }
+       
+       if (group_bys == null) {
+         // We haven't been asked to find groups, so let's put all the spans
+         // together in the same group.
+         final HistogramSpanGroup group = new HistogramSpanGroup(tsdb,
+                                               getScanStartTimeSeconds(),
+                                               getScanEndTimeSeconds(),
+                                               spans.values(),
+                                               HistogramAggregation.SUM, // only SUM is applicable for histogram metric
+                                               downsampler,
+                                               getStartTime(),
+                                               getEndTime(),
+                                               query_index,
+                                               RollupQuery.isValidQuery(rollup_query),
+                                               query_tags);
+         if (query_stats != null) {
+           query_stats.addStat(query_index, QueryStat.GROUP_BY_TIME, 
+               (System.nanoTime() - group_build));
+         }
+         
+         // create histogram data points to data points adaptor for each percentile calculation
+         if (null != percentiles && percentiles.size() > 0) {
+           List<DataPoints> percentile_datapoints_list = generateHistogramPercentileDataPoints(group);
+           if (null != percentile_datapoints_list && percentile_datapoints_list.size() > 0)
+             result_dp_groups.addAll(percentile_datapoints_list);
+         }
+         
+         // create bucket metric 
+         if (show_histogram_buckets) {
+           List<DataPoints> bucket_datapoints_list = generateHistogramBucketDataPoints(group);
+           if (null != bucket_datapoints_list && bucket_datapoints_list.size() > 0) {
+             result_dp_groups.addAll(bucket_datapoints_list);
+           }
+         }
+         
+         int i = 0;
+         DataPoints[] result = new DataPoints[result_dp_groups.size()];
+         for (DataPoints item : result_dp_groups) {
+           result[i++] = item;
+         }
+         return result;
+       }
+   
+       // Maps group value IDs to the SpanGroup for those values. Say we've
+       // been asked to group by two things: foo=* bar=* Then the keys in this
+       // map will contain all the value IDs combinations we've seen. If the
+       // name IDs for `foo' and `bar' are respectively [0, 0, 7] and [0, 0, 2]
+       // then we'll have group_bys=[[0, 0, 2], [0, 0, 7]] (notice it's sorted
+       // by ID, so bar is first) and say we find foo=LOL bar=OMG as well as
+       // foo=LOL bar=WTF and that the IDs of the tag values are:
+       // LOL=[0, 0, 1] OMG=[0, 0, 4] WTF=[0, 0, 3]
+       // then the map will have two keys:
+       // - one for the LOL-OMG combination: [0, 0, 1, 0, 0, 4] and,
+       // - one for the LOL-WTF combination: [0, 0, 1, 0, 0, 3].
+       final ByteMap<HistogramSpanGroup> groups = new ByteMap<HistogramSpanGroup>();
+       final short value_width = tsdb.tag_values.width();
+       final byte[] group = new byte[group_bys.size() * value_width];
+       for (final Map.Entry<byte[], HistogramSpan> entry : spans.entrySet()) {
+         final byte[] row = entry.getKey();
+         byte[] value_id = null;
+         int i = 0;
+         // TODO(tsuna): The following loop has a quadratic behavior. We can
+         // make it much better since both the row key and group_bys are sorted.
+         for (final byte[] tag_id : group_bys) {
+           value_id = Tags.getValueId(tsdb, row, tag_id);
+           if (value_id == null) {
+             break;
+           }
+           System.arraycopy(value_id, 0, group, i, value_width);
+           i += value_width;
+         }
+         if (value_id == null) {
+           LOG.error("WTF? Dropping span for row " + Arrays.toString(row)
+                    + " as it had no matching tag from the requested groups,"
+                    + " which is unexpected. Query=" + this);
+           continue;
+         }
+         
+         //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
+         HistogramSpanGroup thegroup = groups.get(group);
+         if (thegroup == null) {
+           thegroup = new HistogramSpanGroup(tsdb, 
+                                             getScanStartTimeSeconds(),
+                                             getScanEndTimeSeconds(),
+                                             null,
+                                             HistogramAggregation.SUM, // only SUM is applicable for histogram metric
+                                             downsampler, 
+                                             getStartTime(), 
+                                             getEndTime(),
+                                             query_index,
+                                             RollupQuery.isValidQuery(rollup_query),
+                                             query_tags);
+           
+           // Copy the array because we're going to keep `group' and overwrite
+           // its contents. So we want the collection to have an immutable copy.
+           final byte[] group_copy = new byte[group.length];
+           System.arraycopy(group, 0, group_copy, 0, group.length);
+           groups.put(group_copy, thegroup);
+         }
+         thegroup.add(entry.getValue());
+       }
+       
+       if (query_stats != null) {
+         query_stats.addStat(query_index, QueryStat.GROUP_BY_TIME, 
+             (System.nanoTime() - group_build));
+       }
+       
+       
+       for (final Map.Entry<byte[], HistogramSpanGroup> entry : groups.entrySet()) {
+         // create histogram data points to data points adaptor for each percentile calculation
+         if (null != percentiles && percentiles.size() > 0) {
+           List<DataPoints> percentile_datapoints_list = generateHistogramPercentileDataPoints(entry.getValue());
+           if (null != percentile_datapoints_list && percentile_datapoints_list.size() > 0)
+             result_dp_groups.addAll(percentile_datapoints_list);
+         }
+         
+         // create bucket metric 
+         if (show_histogram_buckets) {
+           List<DataPoints> bucket_datapoints_list = generateHistogramBucketDataPoints(entry.getValue());
+           if (null != bucket_datapoints_list && bucket_datapoints_list.size() > 0) {
+             result_dp_groups.addAll(bucket_datapoints_list);
+           }
+         }
+       } // end for
+      
+       int i = 0;
+       DataPoints[] result = new DataPoints[result_dp_groups.size()];
+       for (DataPoints item : result_dp_groups) {
+         result[i++] = item;
+       }
+       return result;
+     }
+
+    private List<DataPoints> generateHistogramPercentileDataPoints(final HistogramSpanGroup group) {
+      ArrayList<DataPoints> result_dp_groups = new ArrayList<DataPoints>();
+      for (final Float percentil : percentiles) {
+        final HistogramDataPointsToDataPointsAdaptor dp_adaptor = new HistogramDataPointsToDataPointsAdaptor(group,
+            percentil.floatValue());
+        result_dp_groups.add(dp_adaptor);
+      } // end for
+
+      return result_dp_groups;
+    }
+
+    private List<DataPoints> generateHistogramBucketDataPoints(final HistogramSpanGroup group) {
+      ArrayList<DataPoints> result_dp_groups = new ArrayList<DataPoints>();
+      try {
+        HistogramSeekableView seek_view = group.iterator();
+        if (seek_view.hasNext()) {
+          HistogramDataPoint hdp = seek_view.next();
+          Map<HistogramDataPoint.HistogramBucket, Long> buckets = hdp.getHistogramBucketsIfHas();
+          if (null != buckets) {
+            for (Map.Entry<HistogramDataPoint.HistogramBucket, Long> bucket : buckets.entrySet()) {
+              final HistogramBucketDataPointsAdaptor dp_bucket_adaptor = new HistogramBucketDataPointsAdaptor(group, bucket.getKey());
+              result_dp_groups.add(dp_bucket_adaptor);
+            } // end for
+          } // end if
+        }
+      } catch (UnsupportedOperationException e) {
+        // Just Ignore
+      }
+
+      return result_dp_groups;
+    }
+   }
+  
+  /**
+   * Scan the tables again with the next best rollup match, on empty result set
+   */
+  private class FallbackRollupOnEmptyResult implements 
+     Callback<Deferred<DataPoints[]>, DataPoints[]>{
+
+     /**
+     * Creates the {@link SpanGroup}s to form the final results of this query.
+     * @param spans The {@link Span}s found for this query ({@link #findSpans}).
+     * Can be {@code null}, in which case the array returned will be empty.
+     * @return A possibly empty array of {@link SpanGroup}s built according to
+     * any 'GROUP BY' formulated in this query.
+     */
+     public Deferred<DataPoints[]> call(final DataPoints[] datapoints) throws Exception {
+      //TODO review this logic during spatial aggregation implementation
+       
+      if (datapoints == NO_RESULT && RollupQuery.isValidQuery(rollup_query)) {
+        //There are no datapoints for this query and it is a rollup query
+        //but not the default interval (default interval means raw).
+        //This will prevent redundant scan on raw data on the presense of
+        //default rollup interval
+        
+        //If the rollup usage is to fallback directly to raw data
+        //then nullyfy the rollup query, so that the recursive scan will use
+        //raw data and this will not called again because of isValida check
+        //If the rollup usage is to fallback to next best match then pupup
+        //next best match and attach that to the rollup query
+        if (rollup_usage == ROLLUP_USAGE.ROLLUP_FALLBACK_RAW) {
+          transformRollupQueryToDownSampler();
+          return runAsync();
+        }
+        else if (best_match_rollups != null && best_match_rollups.size() > 0) {
+          RollupInterval interval = best_match_rollups.remove(0);
+          
+          if (interval.isDefaultInterval()) {
+            transformRollupQueryToDownSampler();
+          }
+          else {
+            rollup_query = new RollupQuery(interval, 
+                  rollup_query.getRollupAgg(),
+                  rollup_query.getSampleIntervalInMS(),
+                  aggregator);
+            //Here the requested sampling rate will be higher than
+            //resulted result. So downsample it
+            if (!rollup_query.isLowerSamplingRate()) {
+//               sample_interval_ms = rollup_query.getSampleIntervalInMS();
+//               downsampler = rollup_query.getRollupAgg();
+              // TODO - default fill
+              downsampler = new DownsamplingSpecification(
+                  rollup_query.getSampleIntervalInMS(), 
+                  rollup_query.getRollupAgg(),
+                  (downsampler != null ? downsampler.getFillPolicy() : 
+                    FillPolicy.ZERO));
+            }
+          }
+          
+          return runAsync();
+        }
+        return Deferred.fromResult(NO_RESULT);
+      }
+      else {
+        return Deferred.fromResult(datapoints);
+      }
+    }
+  }
+  
   /**
    * Returns a scanner set for the given metric (from {@link #metric} or from
    * the first TSUID in the {@link #tsuids}s list. If one or more tags are 
@@ -1042,6 +1383,8 @@ final class TsdbQuery implements Query {
       metric = UniqueId.stringToUid(metric_uid);
     }
     
+    final boolean is_rollup = RollupQuery.isValidQuery(rollup_query);
+    
     // We search at least one row before and one row after the start & end
     // time we've been given as it's quite likely that the exact timestamp
     // we're looking for is in the middle of a row.  Plus, a number of things
@@ -1051,15 +1394,108 @@ final class TsdbQuery implements Query {
     final Scanner scanner = QueryUtil.getMetricScanner(tsdb, salt_bucket, metric, 
         (int) getScanStartTimeSeconds(), end_time == UNSET
         ? -1  // Will scan until the end (0xFFF...).
-        : (int) getScanEndTimeSeconds(), tsdb.table, TSDB.FAMILY());
+        : (int) getScanEndTimeSeconds(), 
+        tableToBeScanned(), 
+        TSDB.FAMILY());
+    if(tsdb.getConfig().use_otsdb_timestamp()) {
+      long stTime = (getScanStartTimeSeconds() * 1000);
+      long endTime = end_time == UNSET ? -1 : (getScanEndTimeSeconds() * 1000);
+      if (tsdb.getConfig().get_date_tiered_compaction_start() <= stTime) {
+        scanner.setTimeRange(stTime, endTime);
+      }
+    }
     if (tsuids != null && !tsuids.isEmpty()) {
       createAndSetTSUIDFilter(scanner);
     } else if (filters.size() > 0) {
       createAndSetFilter(scanner);
     }
+
+    if (is_rollup) {
+      ScanFilter existing = scanner.getFilter();
+      // TODO - need some UTs around this!
+      // Set the Scanners column qualifier pattern with rollup aggregator
+      // HBase allows only a single filter so if we have a row key filter, keep
+      // it. If not, then we can do this
+      if (!rollup_query.getGroupBy().toString().equals("avg")) {
+        if (existing != null) {
+          final List<ScanFilter> filters = new ArrayList<ScanFilter>(3);
+          filters.add(existing);
+          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+              new BinaryPrefixComparator(rollup_query.getGroupBy().toString()
+                      .getBytes(Const.ASCII_CHARSET))));
+          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+              new BinaryPrefixComparator(new byte[] { 
+                  (byte) tsdb.getRollupConfig().getIdForAggregator(
+                      rollup_query.getRollupAgg().toString())
+              })));
+          scanner.setFilter(new FilterList(filters, Operator.MUST_PASS_ONE));
+        } else {
+          final List<ScanFilter> filters = new ArrayList<ScanFilter>(2);
+          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+              new BinaryPrefixComparator(rollup_query.getRollupAgg().toString()
+                  .getBytes(Const.ASCII_CHARSET))));
+          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+              new BinaryPrefixComparator(new byte[] { 
+                  (byte) tsdb.getRollupConfig().getIdForAggregator(
+                      rollup_query.getRollupAgg().toString())
+              })));
+          scanner.setFilter(new FilterList(filters, Operator.MUST_PASS_ONE));
+        }
+      } else {
+        final List<ScanFilter> filters = new ArrayList<ScanFilter>(4);
+        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+            new BinaryPrefixComparator("sum".getBytes())));
+        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+            new BinaryPrefixComparator("count".getBytes())));
+        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+            new BinaryPrefixComparator(new byte[] { 
+                (byte) tsdb.getRollupConfig().getIdForAggregator("sum")
+            })));
+        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+            new BinaryPrefixComparator(new byte[] { 
+                (byte) tsdb.getRollupConfig().getIdForAggregator("count")
+            })));
+        
+        if (existing != null) {
+          final List<ScanFilter> combined = new ArrayList<ScanFilter>(2);
+          combined.add(existing);
+          combined.add(new FilterList(filters, Operator.MUST_PASS_ONE));
+          scanner.setFilter(new FilterList(combined, Operator.MUST_PASS_ALL));
+        } else {
+          scanner.setFilter(new FilterList(filters, Operator.MUST_PASS_ONE));
+        }
+      }
+    }
     return scanner;
   }
 
+  /**
+   * Identify the table to be scanned based on the roll up and pre-aggregate 
+   * query parameters
+   * @return table name as byte array
+   * @since 2.4
+   */
+  private byte[] tableToBeScanned() {
+    final byte[] tableName;
+    
+    if (RollupQuery.isValidQuery(rollup_query)) {
+      if (pre_aggregate) {
+        tableName= rollup_query.getRollupInterval().getGroupbyTable();
+      }
+      else {
+        tableName= rollup_query.getRollupInterval().getTemporalTable();
+      }
+    }
+    else if (pre_aggregate) {
+      tableName = tsdb.getDefaultInterval().getGroupbyTable();
+    }
+    else {
+      tableName = tsdb.dataTable();
+    }
+    
+    return tableName;
+  }
+  
   /** Returns the UNIX timestamp from which we must start scanning.  */
   private long getScanStartTimeSeconds() {
     // Begin with the raw query start time.
@@ -1068,6 +1504,19 @@ final class TsdbQuery implements Query {
     // Convert to seconds if we have a query in ms.
     if ((start & Const.SECOND_MASK) != 0L) {
       start /= 1000L;
+    }
+    
+    // if we have a rollup query, we have different row key start times so find
+    // the base time from which we need to search
+    if (rollup_query != null) {
+      long base_time = RollupUtils.getRollupBasetime(start, 
+          rollup_query.getRollupInterval());
+      if (rate) {
+        // scan one row back so we can get the first rate value.
+        base_time = RollupUtils.getRollupBasetime(base_time - 1, 
+            rollup_query.getRollupInterval());
+      }
+      return base_time;
     }
 
     // First, we align the start timestamp to its representative value for the
@@ -1172,6 +1621,89 @@ final class TsdbQuery implements Query {
     scanner.setKeyRegexp(regex, CHARSET);
   }
   
+  /**
+   * Return the query index that maps this datapoints to the original subquery 
+   * @return index of the query in the TSQuery class
+   * @since 2.4
+   */
+  @Override
+  public int getQueryIdx() {
+    return query_index;
+  }
+  
+  /**
+   * set the index that link this query to the original index.
+   * @param idx query index idx
+   * @since 2.4
+   */
+  public void setQueryIdx(int idx) {
+    query_index = idx;
+  }
+  
+  /**
+   * Transform downsampler properties to rollup properties, if the rollup
+   * is enabled at configuration level and down sampler is set.
+   * It falls back to raw data and down sampling if there is no 
+   * RollupInterval is configured against this down sample interval
+   * @param group_by The group by aggregator.
+   * @param str_interval String representation of the  interval, for logging
+   * @since 2.4
+   */
+  public void transformDownSamplerToRollupQuery(final Aggregator group_by, 
+      final String str_interval)  {
+    
+    if (downsampler != null && downsampler.getInterval() > 0) {
+      if (tsdb.getRollupConfig() != null) {
+        try {
+          best_match_rollups = tsdb.getRollupConfig().
+              getRollupInterval(downsampler.getInterval() / 1000, str_interval);
+          //It is thread safe as each thread will be working on unique 
+          // TsdbQuery object
+          //RollupConfig.getRollupInterval guarantees that, 
+          //  it always return a non-empty list
+          // TODO
+          rollup_query = new RollupQuery(best_match_rollups.remove(0), 
+                  downsampler.getFunction(), downsampler.getInterval(),
+                  group_by);
+          if (group_by == Aggregators.COUNT) {
+            aggregator = Aggregators.SUM;
+          }
+        }
+        catch (NoSuchRollupForIntervalException nre) {
+          LOG.error("There is no such rollup for the downsample interval "
+            + str_interval + ". So fall back to the  default tsdb down"
+            + " sampling approach and it requires raw data scan." );
+          //nullify the rollup_query if this api is called explicitly
+          rollup_query = null;
+          return;
+        }
+        
+        if (rollup_query.getRollupInterval().isDefaultInterval()) {
+          //Anyways it is a scan on raw data
+          rollup_query = null;
+        }
+      }       
+    }
+  }
+  
+  /**
+   * Transform rollup query to downsampler
+   * It is mainly useful when it scan on raw data on fallback.
+   * @since 2.4
+   */
+  private void transformRollupQueryToDownSampler()  {
+    
+    if (rollup_query != null) {
+      // TODO - clean up and handle fill
+      downsampler = new DownsamplingSpecification(
+          rollup_query.getRollupInterval().getIntervalSeconds() * 1000, 
+          rollup_query.getRollupAgg(),
+          (downsampler != null ? downsampler.getFillPolicy() : 
+            FillPolicy.ZERO));
+      rollup_query = null;
+    }
+  }
+  
   @Override
   public String toString() {
     final StringBuilder buf = new StringBuilder();
@@ -1231,14 +1763,25 @@ final class TsdbQuery implements Query {
         }
       }
     }
-    buf.append("))");
+    buf.append(")")
+     .append(", rollup=")
+     .append(RollupQuery.isValidQuery(rollup_query))
+     .append("))");
     return buf.toString();
   }
+  
+  public Boolean getNoResults() {
+    return no_results;
+  }
 
+  public void setNoResults(Boolean noResults) {
+    this.no_results = noResults;
+  }
+  
   /**
    * Comparator that ignores timestamps in row keys.
    */
-  private static final class SpanCmp implements Comparator<byte[]> {
+  static final class SpanCmp implements Comparator<byte[]> {
 
     private final short metric_width;
 
@@ -1309,5 +1852,13 @@ final class TsdbQuery implements Query {
       return query.row_key_literals;
     }
   
+    static long maxBytes(final TsdbQuery query) {
+      return query.max_bytes;
+    }
+    
+    static long maxDataPoints(final TsdbQuery query) {
+      return query.max_data_points;
+    }
+    
   }
 }

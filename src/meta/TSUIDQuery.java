@@ -25,6 +25,7 @@ import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
+import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -523,7 +524,7 @@ public class TSUIDQuery {
 
   /**
    * Attempts to retrieve the last data point for the given TSUID. 
-   * This operates by checking the meta table for the {@link #COUNTER_QUALIFIER}
+   * This operates by checking the meta table for the {@code COUNTER_QUALIFIER}
    * and if found, parses the HBase timestamp for the counter (i.e. the time when
    * the counter was written) and tries to load the row in the data table for
    * the hour where that timestamp would have landed. If the counter does not

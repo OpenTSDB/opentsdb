@@ -200,6 +200,16 @@ public class PostAggregatedDataPoints implements DataPoints {
     return points[i].doubleValue();
   }
   
+  @Override
+  public boolean isPercentile() {
+    return false;
+  }
+
+  @Override
+  public float getPercentile() {
+    throw new UnsupportedOperationException("getPercentile not supported");
+  }
+  
   /**
    * An iterator working over the data points resulting from the expression
    * calculation.

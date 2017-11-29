@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.uid.NoSuchUniqueId;
+import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.JSON;

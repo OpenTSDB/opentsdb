@@ -71,7 +71,7 @@ public final class TSQuery {
   private boolean show_tsuids;
   
   /** A list of parsed sub queries, must have one or more to fetch data */
-  private ArrayList<TSSubQuery> queries;
+  private List<TSSubQuery> queries;
 
   /** The parsed start time value 
    * <b>Do not set directly</b> */
@@ -101,6 +101,12 @@ public final class TSQuery {
   
   /** The query status for tracking over all performance of this query */
   private QueryStats query_stats;
+  
+  /** Override default max byte limit */
+  private boolean override_byte_limit;
+  
+  /** Override default max row count limit */
+  private boolean override_data_point_limit;
   
   /**
    * Default constructor necessary for POJO de/serialization
@@ -445,7 +451,7 @@ public final class TSQuery {
   }
   
   /** @param queries a list of {@link TSSubQuery} objects to store*/
-  public void setQueries(ArrayList<TSSubQuery> queries) {
+  public void setQueries(final List<TSSubQuery> queries) {
     this.queries = queries;
   }
 
@@ -484,4 +490,27 @@ public final class TSQuery {
   public void setQueryStats(final QueryStats query_stats) {
     this.query_stats = query_stats;
   }
+
+  /** @return Whether or not the query would like to override the byte limiter. */
+  public boolean overrideByteLimit() {
+    return override_byte_limit;
+  }
+
+  /** @param override_byte_limit Whether or not the query would like to override 
+   * the byte limiter. */
+  public void setOverrideByteLimit(boolean override_byte_limit) {
+    this.override_byte_limit = override_byte_limit;
+  }
+
+  /** @return Whether or not the query would like to override the data point limit. */
+  public boolean overrideDataPointLimit() {
+    return override_data_point_limit;
+  }
+
+  /** @param override_data_point_limit Whether or not the query would like to 
+   * override the data point limit. */
+  public void setOverrideDataPointLimit(boolean override_data_point_limit) {
+    this.override_data_point_limit = override_data_point_limit;
+  }
+
 }
