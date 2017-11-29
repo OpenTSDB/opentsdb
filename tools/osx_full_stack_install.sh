@@ -31,9 +31,9 @@ export INSTALL_DIR=$BASE_DIR/$SUBBASE_DIR;
 /bin/echo "Installing into $INSTALL_DIR";
 /bin/mkdir -p $INSTALL_DIR;
 cd $INSTALL_DIR;
-/usr/bin/curl -q http://mirror.cogentco.com/pub/apache/hbase/1.1.2/hbase-1.1.2-bin.tar.gz -o $INSTALL_DIR/hbase-1.1.2-bin.tar.gz 2>/dev/null;
-/usr/bin/tar -xzvf hbase-1.1.2-bin.tar.gz -C $INSTALL_DIR/;
-cd $INSTALL_DIR/hbase-1.1.2;
+/usr/bin/curl -q http://mirror.cogentco.com/pub/apache/hbase/1.2.5/hbase-1.2.5-bin.tar.gz -o $INSTALL_DIR/hbase-1.2.5-bin.tar.gz 2>/dev/null;
+/usr/bin/tar -xzvf hbase-1.2.5-bin.tar.gz -C $INSTALL_DIR/;
+cd $INSTALL_DIR/hbase-1.2.5;
 /bin/mkdir -p $INSTALL_DIR/data/hbase;
 /bin/mkdir -p $INSTALL_DIR/data/zookeeper;
 /bin/cat <<EOF > conf/hbase-site.xml
@@ -70,13 +70,13 @@ cd $INSTALL_DIR/hbase-1.1.2;
   </property>
 </configuration>
 EOF
-$INSTALL_DIR/hbase-1.1.2/bin/start-hbase.sh;
+$INSTALL_DIR/hbase-1.2.5/bin/start-hbase.sh;
 cd $INSTALL_DIR
 /usr/bin/git clone https://github.com/OpenTSDB/opentsdb.git;
 cd opentsdb
 $INSTALL_DIR/opentsdb/build.sh clean; $INSTALL_DIR/opentsdb/build.sh;
 /bin/mkdir $INSTALL_DIR/opentsdb/build/cache;
-export HBASE_HOME=$INSTALL_DIR/hbase-1.1.2;
+export HBASE_HOME=$INSTALL_DIR/hbase-1.2.5;
 export COMPRESSION=NONE;
 $INSTALL_DIR/opentsdb/src/create_table.sh;
 $INSTALL_DIR/opentsdb/build/tsdb tsd --config=$INSTALL_DIR/opentsdb/src/opentsdb.conf --staticroot=$INSTALL_DIR/opentsdb/build/staticroot --cachedir=$INSTALL_DIR/opentsdb/build/cache --port=4242 --zkquorum=localhost:2181 --zkbasedir=/hbase --auto-metric &
