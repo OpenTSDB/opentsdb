@@ -36,6 +36,8 @@ AGGREGATORS = ('avg', 'count', 'dev',
         'p50', 'p75', 'p90', 'p95', 'p99', 'p999',
         'sum', 'zimsum')
 
+FILL_POLICIES = ('none','nan','null','zero')
+
 def main(argv):
     """Pulls data out of the TSDB and do very simple alerting from Nagios."""
 
@@ -54,6 +56,8 @@ def main(argv):
             help='Downsample function, e.g. one of avg, min, sum, or max.')
     parser.add_option('-W', '--downsample-window', type='int', default=60,
             metavar='SECONDS', help='Window size over which to downsample.')
+    parser.add_option('-F', '--downsample-fill-policy', default='none', metavar='POLICY',
+            help='Fill Policies, e.g. one of none, nan, null, or zero.')
     parser.add_option('-a', '--aggregator', default='sum', metavar='METHOD',
             help='Aggregation method: avg, min, sum (default), max.')
     parser.add_option('-x', '--method', dest='comparator', default='gt',
@@ -93,6 +97,8 @@ def main(argv):
         parser.error("Comparator '%s' not valid." % options.comparator)
     elif options.downsample not in ('none',)+AGGREGATORS:
         parser.error("Downsample '%s' not valid." % options.downsample)
+    elif options.downsample_fill_policy not in FILL_POLICIES:
+        parser.error("Downsample Fill policy '%s' not valid." % options.downsample_fill_policy)
     elif options.aggregator not in AGGREGATORS:
         parser.error("Aggregator '%s' not valid." % options.aggregator)
     elif not options.metric:
@@ -125,8 +131,8 @@ def main(argv):
     if options.downsample == 'none':
         downsampling = ''
     else:
-        downsampling = '%ds-%s:' % (options.downsample_window,
-                                    options.downsample)
+        downsampling = '%ds-%s-%s:' % (options.downsample_window,
+                                    options.downsample, options.downsample_fill_policy)
     if options.rate:
         rate = 'rate:'
     else:
