@@ -47,7 +47,7 @@ public final class Const {
    * Charset to use with our server-side row-filter.
    * We use this one because it preserves every possible byte unchanged.
    */
-  public static final Charset ASCII_CHARSET = Charset.forName("UTF-8");
+  public static final Charset ASCII_CHARSET = Charset.forName("ISO-8859-1");
   
   /** Used for metrics, tags names and tag values */
   public static final Charset UTF8_CHARSET = Charset.forName("UTF8");
