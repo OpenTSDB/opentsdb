@@ -73,7 +73,7 @@ public final class Tree {
   private static final Logger LOG = LoggerFactory.getLogger(Tree.class);
   
   /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+  private static final Charset CHARSET = Charset.forName("UTF-8");
   /** Width of tree IDs in bytes */
   private static final short TREE_ID_WIDTH = 2;
   /** Name of the CF where trees and branches are stored */

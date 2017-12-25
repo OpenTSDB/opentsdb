@@ -58,7 +58,7 @@ public final class Leaf implements Comparable<Leaf> {
   private static final Logger LOG = LoggerFactory.getLogger(Leaf.class);
   
   /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+  private static final Charset CHARSET = Charset.forName("UTF-8");
   /** ASCII Leaf prefix */
   private static final byte[] LEAF_PREFIX = "leaf:".getBytes(CHARSET);
 
