@@ -79,7 +79,7 @@ public final class TSDB {
   static final byte[] FAMILY = { 't' };
 
   /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+  private static final Charset CHARSET = Charset.forName("UTF-8");
   private static final String METRICS_QUAL = "metrics";
   private static short METRICS_WIDTH = 3;
   private static final String TAG_NAME_QUAL = "tagk";

@@ -66,7 +66,7 @@ public final class TreeRule {
   
   private static final Logger LOG = LoggerFactory.getLogger(TreeRule.class);
   /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+  private static final Charset CHARSET = Charset.forName("UTF-8");
   /** ASCII Rule prefix. Qualifier is tree_rule:<level>:<order> */
   private static final byte[] RULE_PREFIX = "tree_rule:".getBytes(CHARSET);
   

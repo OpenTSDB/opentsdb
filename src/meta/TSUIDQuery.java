@@ -54,7 +54,7 @@ public class TSUIDQuery {
    * Charset to use with our server-side row-filter.
    * We use this one because it preserves every possible byte unchanged.
    */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+  private static final Charset CHARSET = Charset.forName("UTF-8");
 
   /** The TSUID that can be set by the caller or after processing the metric */
   private byte[] tsuid;

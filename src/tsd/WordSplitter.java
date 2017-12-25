@@ -26,7 +26,7 @@ import net.opentsdb.core.Tags;
  */
 final class WordSplitter extends OneToOneDecoder {
 
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+  private static final Charset CHARSET = Charset.forName("UTF-8");
 
   /** Constructor. */
   public WordSplitter() {

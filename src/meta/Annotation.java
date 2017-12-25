@@ -79,7 +79,7 @@ public final class Annotation implements Comparable<Annotation> {
   private static final Logger LOG = LoggerFactory.getLogger(Annotation.class);
   
   /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+  private static final Charset CHARSET = Charset.forName("UTF-8");
   
   /** Byte used for the qualifier prefix to indicate this is an annotation */
   private static final byte PREFIX = 0x01;
