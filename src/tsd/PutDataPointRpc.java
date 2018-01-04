@@ -26,6 +26,10 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
 
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.auth.Authentication;
+import net.opentsdb.auth.Authorization;
+import net.opentsdb.auth.Roles;
 import org.hbase.async.HBaseException;
 import org.hbase.async.PleaseThrottleException;
 import org.jboss.netty.channel.Channel;
@@ -70,7 +74,11 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
   protected static final ArrayList<Boolean> EMPTY_DEFERREDS = 
       new ArrayList<Boolean>(0);
   protected static final AtomicLong telnet_requests = new AtomicLong();
+  protected static final AtomicLong telnet_requests_unauthorized = new AtomicLong();
+  protected static final AtomicLong telnet_requests_forbidden = new AtomicLong();
   protected static final AtomicLong http_requests = new AtomicLong();
+  protected static final AtomicLong http_requests_unauthorized = new AtomicLong();
+  protected static final AtomicLong http_requests_forbidden = new AtomicLong();
   protected static final AtomicLong raw_dps = new AtomicLong();
   protected static final AtomicLong raw_histograms = new AtomicLong();
   protected static final AtomicLong rollup_dps = new AtomicLong();
@@ -137,7 +145,8 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
 
     String errmsg = null;
     try {
-      
+        checkAuthorization(tsdb, chan, command);
+
       /**
        * Error callback that handles passing a data point to the storage 
        * exception handler as well as responding to the client when HBase
@@ -205,9 +214,15 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
       
       // Rollups and histos override this method in their implementation so 
       // that it will route properly.
-      return importDataPoint(tsdb, cmd)
-          .addCallback(new SuccessCB())
-          .addErrback(new PutErrback());
+      if (tsdb.useAuth()) {
+        return importDataPointWithAuthentication(tsdb, chan, cmd)
+            .addCallback(new SuccessCB())
+            .addErrback(new PutErrback());
+      } else {
+        return importDataPoint(tsdb, cmd)
+            .addCallback(new SuccessCB())
+            .addErrback(new PutErrback());
+      }
     } catch (NumberFormatException x) {
       x.printStackTrace();
       errmsg = type + ": invalid value: " + x.getMessage() + '\n';
@@ -269,9 +284,10 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
     }
     final List<IncomingDataPoint> dps;
     try {
+      checkAuthorization(tsdb, query);
       dps = query.serializer()
-          .parsePutV1(IncomingDataPoint.class, HttpJsonSerializer.TR_INCOMING);
-    } catch (BadRequestException e) {
+              .parsePutV1(IncomingDataPoint.class, HttpJsonSerializer.TR_INCOMING);
+    } catch (IllegalArgumentException e) {
       illegal_arguments.incrementAndGet();
       throw e;
     }
@@ -369,6 +385,20 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
       }
       
       try {
+        if (tsdb.useAuth()) {
+          Authentication authentication = tsdb.getAuthentication();
+          if (authentication.isReady(tsdb, query.channel())) {
+            AuthState authState = (AuthState) query.channel().getAttachment();
+            Authorization authorization = tsdb.getAuthorization();
+            if (authorization.allowWrite(authState, dp).getStatus() != AuthState.AuthStatus.SUCCESS) {
+              http_requests_unauthorized.incrementAndGet();
+              continue;
+            }
+          } else {
+            http_requests_unauthorized.incrementAndGet();
+            continue;
+          }
+        }
         if (!dp.validate(details)) {
           illegal_arguments.incrementAndGet();
           continue;
@@ -670,6 +700,10 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @param collector The collector to use.
    */
   public static void collectStats(final StatsCollector collector) {
+    collector.record("rpc.forbidden", telnet_requests_forbidden, "type=telnet");
+    collector.record("rpc.unauthorized", telnet_requests_unauthorized, "type=telnet");
+    collector.record("rpc.forbidden", http_requests_forbidden, "type=http");
+    collector.record("rpc.unauthorized", http_requests_unauthorized, "type=http");
     collector.record("rpc.received", http_requests, "type=put");
     collector.record("rpc.errors", hbase_errors, "type=hbase_errors");
     collector.record("rpc.errors", invalid_values, "type=invalid_values");
@@ -679,48 +713,72 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
   }
 
   /**
-   * Imports a single data point.
-   * @param tsdb The TSDB to import the data point into.
+   * Checks that the current user is authorized to write the provided datapoint and then returns importDataPoint
+   * to complete the process.
+   *
+   * @param tsdb  The TSDB to import the data point into.
    * @param words The words describing the data point to import, in
-   * the following format: {@code [metric, timestamp, value, ..tags..]}
+   *              the following format: {@code [metric, timestamp, value, ..tags..]}
    * @return A deferred object that indicates the completion of the request.
-   * @throws NumberFormatException if the timestamp or value is invalid.
+   * @throws NumberFormatException    if the timestamp or value is invalid.
    * @throws IllegalArgumentException if any other argument is invalid.
-   * @throws NoSuchUniqueName if the metric isn't registered.
+   * @throws NoSuchUniqueName         if the metric isn't registered.
    */
-  protected Deferred<Object> importDataPoint(final TSDB tsdb, 
-                                             final String[] words) {
-    words[0] = null; // Ditch the "put".
-    if (words.length < 5) {  // Need at least: metric timestamp value tag
-      //               ^ 5 and not 4 because words[0] is "put".
-      throw new IllegalArgumentException("not enough arguments"
-                                         + " (need least 4, got " 
-                                         + (words.length - 1) + ')');
-    }
-    final String metric = words[1];
-    if (metric.length() <= 0) {
-      throw new IllegalArgumentException("empty metric name");
-    }
-    final long timestamp;
-    if (words[2].contains(".")) {
-      timestamp = Tags.parseLong(words[2].replace(".", "")); 
-    } else {
-      timestamp = Tags.parseLong(words[2]);
-    }
-    if (timestamp <= 0) {
-      throw new IllegalArgumentException("invalid timestamp: " + timestamp);
-    }
-    final String value = words[3];
-    if (value.length() <= 0) {
-      throw new IllegalArgumentException("empty value");
-    }
-    final HashMap<String, String> tags = new HashMap<String, String>();
-    for (int i = 4; i < words.length; i++) {
-      if (!words[i].isEmpty()) {
-        Tags.parse(tags, words[i]);
+  protected Deferred<Object> importDataPointWithAuthentication(final TSDB tsdb,
+                                                               final Channel chan,
+                                                               final String[] words) {
+    Authentication authentication = tsdb.getAuthentication();
+    if (authentication.isReady(tsdb, chan)) {
+      AuthState authState = (AuthState) chan.getAttachment();
+      Authorization authorization = tsdb.getAuthorization();
+      IncomingDataPoint incomingDataPoint = getDataPointFromString(tsdb, words);
+      if (authorization.allowWrite(authState, incomingDataPoint).getStatus() == AuthState.AuthStatus.SUCCESS) {
+        return importDataPoint(tsdb, incomingDataPoint);
+      } else {
+        telnet_requests_unauthorized.incrementAndGet();
+        throw new IllegalArgumentException("Not-Authorized for put to metric: " + incomingDataPoint.getMetric());
       }
+    } else {
+      telnet_requests_unauthorized.incrementAndGet();
+      throw new IllegalArgumentException("Unable to check authorization, not ready");
     }
-    if (Tags.looksLikeInteger(value)) {
+  }
+
+  /**
+   * Imports a single data point.
+   *
+   * @param tsdb  The TSDB to import the data point into.
+   * @param words The words describing the data point to import, in
+   *              the following format: {@code [metric, timestamp, value, ..tags..]}
+   * @return A deferred object that indicates the completion of the request.
+   * @throws NumberFormatException    if the timestamp or value is invalid.
+   * @throws IllegalArgumentException if any other argument is invalid.
+   * @throws NoSuchUniqueName         if the metric isn't registered.
+   */
+  protected Deferred<Object> importDataPoint(final TSDB tsdb,
+                                             final String[] words) {
+    IncomingDataPoint incomingDataPoint = getDataPointFromString(tsdb, words);
+    return importDataPoint(tsdb, incomingDataPoint);
+  }
+
+  /**
+   * Imports a single data point.
+   *
+   * @param tsdb              The TSDB to import the data point into.
+   * @param incomingDataPoint the IncomingDataPoint object parsed from the incoming line
+   * @return A deferred object that indicates the completion of the request.
+   * @throws NumberFormatException    if the timestamp or value is invalid.
+   * @throws IllegalArgumentException if any other argument is invalid.
+   * @throws NoSuchUniqueName         if the metric isn't registered.
+   */
+  protected Deferred<Object> importDataPoint(final TSDB tsdb,
+                                             final IncomingDataPoint incomingDataPoint) {
+    String metric = incomingDataPoint.getMetric();
+    long timestamp = incomingDataPoint.getTimestamp();
+    String value = incomingDataPoint.getValue();
+    Map<String, String> tags = incomingDataPoint.getTags();
+
+    if (Tags.looksLikeInteger(incomingDataPoint.getValue())) {
       return tsdb.addPoint(metric, timestamp, Tags.parseLong(value), tags);
     } else if (Tags.fitsInFloat(value)) {  // floating point value
       return tsdb.addPoint(metric, timestamp, Float.parseFloat(value), tags);
@@ -728,29 +786,45 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
       return tsdb.addPoint(metric, timestamp, Double.parseDouble(value), tags);
     }
   }
-  
+
   /**
-   * Converts the string array to an IncomingDataPoint. WARNING: This method
-   * does not perform validation. It should only be used by the Telnet style
-   * {@code execute} above within the error callback. At that point it means
-   * the array parsed correctly as per {@code importDataPoint}.
-   * @param tsdb The TSDB for encoding/decoding.
+   * Provides validation of the String[] words to see if it looks like a datapoint should.
+   * Converts the string array to an IncomingDataPoint.
+   *
+   * @param tsdb  The TSDB for encoding/decoding.
    * @param words The array of strings representing a data point
    * @return An incoming data point object.
    */
-  protected IncomingDataPoint getDataPointFromString(final TSDB tsdb, 
-                                                     final String[] words) {
+  protected IncomingDataPoint getDataPointFromString(final TSDB tsdb, final String[] words) {
     final IncomingDataPoint dp = new IncomingDataPoint();
-    dp.setMetric(words[1]);
-    
-    if (words[2].contains(".")) {
-      dp.setTimestamp(Tags.parseLong(words[2].replace(".", ""))); 
-    } else {
-      dp.setTimestamp(Tags.parseLong(words[2]));
+
+    words[0] = null; // Ditch the "put".
+    if (words.length < 5) {  // Need at least: metric timestamp value tag
+      //               ^ 5 and not 4 because words[0] is "put".
+      throw new IllegalArgumentException("not enough arguments"
+                                         + " (need least 4, got "
+                                         + (words.length - 1) + ')');
     }
-    
-    dp.setValue(words[3]);
-    
+    final String metric = words[1];
+    if (metric.length() <= 0) {
+      throw new IllegalArgumentException("empty metric name");
+    }
+    dp.setMetric(metric);
+    final long timestamp;
+    if (words[2].contains(".")) {
+      timestamp = Tags.parseLong(words[2].replace(".", ""));
+    } else {
+      timestamp = Tags.parseLong(words[2]);
+    }
+    if (timestamp <= 0) {
+      throw new IllegalArgumentException("invalid timestamp: " + timestamp);
+    }
+    dp.setTimestamp(timestamp);
+    final String value = words[3];
+    if (value.length() <= 0) {
+      throw new IllegalArgumentException("empty value");
+    }
+    dp.setValue(value);
     final HashMap<String, String> tags = new HashMap<String, String>();
     for (int i = 4; i < words.length; i++) {
       if (!words[i].isEmpty()) {
@@ -789,5 +863,49 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
     if (handler != null) {
       handler.handleError(dp, e);
     }
+  }
+
+  private void checkAuthorization(final TSDB tsdb, final HttpQuery query) {
+    if (tsdb.useAuth()) {
+      try {
+        if (tsdb.getAuthentication().isReady(tsdb, query.channel())) {
+          AuthState authState = (AuthState) query.channel().getAttachment();
+          Authorization authorization = tsdb.getAuthorization();
+          if (authorization.hasPermission(authState, Roles.Permissions.HTTP_PUT)) {
+            http_requests_forbidden.incrementAndGet();
+            throw new BadRequestException(HttpResponseStatus.FORBIDDEN, "Forbidden for " + query.getQueryPath());
+          }
+        } else {
+          http_requests_unauthorized.incrementAndGet();
+          throw new BadRequestException(HttpResponseStatus.UNAUTHORIZED, "Unauthorized for " + query.getQueryPath());
+        }
+      } catch (BadRequestException e) {
+        http_requests_unauthorized.incrementAndGet();
+        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, "Unable to check Authentication for" + query.getQueryPath());
+      }
+    }
+    // No exceptions thrown, everything is fine.
+  }
+
+  private void checkAuthorization(final TSDB tsdb, final Channel chan, final String command) {
+    if (tsdb.useAuth()) {
+      try {
+        if (tsdb.getAuthentication().isReady(tsdb, chan)) {
+          AuthState authState = (AuthState) chan.getAttachment();
+          Authorization authorization = tsdb.getAuthorization();
+          if (authorization.hasPermission(authState, Roles.Permissions.TELNET_PUT)) {
+            telnet_requests_forbidden.incrementAndGet();
+            throw new IllegalArgumentException("Unauthorized command: " + command);
+          }
+        } else {
+          telnet_requests_unauthorized.incrementAndGet();
+          throw new IllegalArgumentException("Unauthenticated command: " + command);
+        }
+      } catch (BadRequestException e) {
+        telnet_requests_unauthorized.incrementAndGet();
+        throw new IllegalArgumentException("Unable to check Authentication for command: " + command);
+      }
+    }
+    // No exceptions thrown, everything is fine.
   }
 }

@@ -14,13 +14,15 @@ package net.opentsdb.auth;
 
 import org.jboss.netty.channel.Channel;
 
+import java.util.Set;
+
 /**
  * An interface for use in authentication and authorization of calls.
  * <p>
- * When used for successful authentication, this stage object will be attached 
+ * When used for successful authentication, this stage object will be attached
  * to the Netty Channel via it's attachment method. It can then be read out of
  * the channel and used for authorization calls.
- * 
+ *
  * @since 2.4
  */
 public interface AuthState {
@@ -36,7 +38,7 @@ public interface AuthState {
     ERROR,
     REVOKED
   }
-  
+
   /**
    * Returns the user associated with this state as a string object. This should
    * always return a non-null value. If authentication is enabled but anonymous
@@ -44,27 +46,41 @@ public interface AuthState {
    * @return A non-null user ID.
    */
   public String getUser();
-  
+
+  /**
+   * Returns the roles associated with the current user.
+   * @return a Set of Roles
+   */
+  public Set<Roles> getRoles();
+
+  void setRoles(Set<Roles> roles);
+
   /**
    * The status associated with this authentication or authorization state.
    * @return A non-null auth status enumerator value.
    */
   public AuthStatus getStatus();
-  
+
   /**
-   * An optional message associated with the authentication or authorization 
+   * Sets the status
+   * @param authStatus A non-null auth status enumerator value.
+   */
+  public void setStatus(AuthStatus authStatus);
+
+  /**
+   * An optional message associated with the authentication or authorization
    * attempt. If successful, this may be null. On an error or failure, this
    * message should be populated.
    * @return A useful message regarding the action taken. May be null.
    */
   public String getMessage();
-  
+
   /**
    * An optional exception if an error occurred during the operation.
    * @return An optional exception; may be null.
    */
   public Throwable getException();
-  
+
   /**
    * Sets the channel associated with this state when used for authentication
    * and attached to a channel. Useful for associating connection information
@@ -72,7 +88,7 @@ public interface AuthState {
    * @param channel A non-null channel.
    */
   public void setChannel(final Channel channel);
-  
+
   /**
    * An optional token to use with an authentication system for validating that
    * the user key is still valid.

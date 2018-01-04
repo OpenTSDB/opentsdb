@@ -747,10 +747,10 @@ public final class TestQueryRpc {
     final AuthState state = mock(AuthState.class);
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/query?start=1h-ago&m=sum:sys.cpu.user");
-    when(tsdb.getAuth()).thenReturn(authentication);
+    when(tsdb.getAuthentication()).thenReturn(authentication);
     when(query.channel().getAttachment()).thenReturn(state);
     when(state.getStatus()).thenReturn(AuthStatus.SUCCESS);
-    when(authentication.authorization()).thenReturn(authorization);
+    when(tsdb.getAuthorization()).thenReturn(authorization);
     when(authorization.allowQuery(eq(state), any(TSQuery.class))).thenReturn(state);
     TestHttpQuery.mockChannelFuture(query);
     rpc.execute(tsdb, query);
