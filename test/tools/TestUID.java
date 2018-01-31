@@ -15,19 +15,24 @@ package net.opentsdb.tools;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNull;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyString;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Method;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.BaseTsdbTest.FakeTaskTimer;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.Threads;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
+import org.jboss.netty.util.HashedWheelTimer;
 import org.junit.Before;
 import org.junit.After;
 import org.junit.Test;
@@ -41,13 +46,14 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*", "com.sum.*", "org.xml.*"})
 @PrepareForTest({TSDB.class, Config.class, HBaseClient.class,
-  KeyValue.class, UidManager.class,
+  KeyValue.class, UidManager.class, HashedWheelTimer.class, Threads.class,
   Scanner.class, DeleteRequest.class })
 public class TestUID {
   private Config config;
   private TSDB tsdb = null;
   private HBaseClient client = mock(HBaseClient.class);
   private MockBase storage;
+  private FakeTaskTimer timer = new FakeTaskTimer();
 
   // names used for testing
   private byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
@@ -69,8 +75,15 @@ public class TestUID {
 
   @Before
   public void before() throws Exception {
-
-    PowerMockito.whenNew(HBaseClient.class).withAnyArguments().thenReturn(client);
+    PowerMockito.mockStatic(Threads.class);
+    PowerMockito.when(Threads.newTimer(anyString())).thenReturn(timer);
+    PowerMockito.when(Threads.newTimer(anyInt(), anyString())).thenReturn(timer);
+    
+    PowerMockito.whenNew(HashedWheelTimer.class).withNoArguments()
+      .thenReturn(timer);
+    PowerMockito.whenNew(HBaseClient.class).withAnyArguments()
+      .thenReturn(client);
+    
     config = new Config(false);
     tsdb = new TSDB(client, config);
     PowerMockito.spy(System.class);

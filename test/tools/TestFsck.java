@@ -16,6 +16,8 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -27,12 +29,14 @@ import java.util.List;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
+import net.opentsdb.core.BaseTsdbTest.FakeTaskTimer;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.Threads;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
@@ -40,6 +44,7 @@ import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
+import org.jboss.netty.util.HashedWheelTimer;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -56,7 +61,8 @@ import com.stumbleupon.async.Deferred;
   "com.sum.*", "org.xml.*"})
 @PrepareForTest({ TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   GetRequest.class, PutRequest.class, KeyValue.class, Fsck.class,
-  FsckOptions.class, Scanner.class, Annotation.class, Tags.class })
+  FsckOptions.class, Scanner.class, Annotation.class, Tags.class,
+  HashedWheelTimer.class, Threads.class })
 public class TestFsck {
   protected byte[] GLOBAL_ROW = 
       new byte[] {0, 0, 0, 0x52, (byte)0xC3, 0x5A, (byte)0x80};
@@ -66,12 +72,13 @@ public class TestFsck {
   protected byte[] BAD_KEY = { 0x00, 0x00, 0x01 };
   protected Config config;
   protected TSDB tsdb = null;
-  protected HBaseClient client = mock(HBaseClient.class);
-  protected UniqueId metrics = mock(UniqueId.class);
-  protected UniqueId tag_names = mock(UniqueId.class);
-  protected UniqueId tag_values = mock(UniqueId.class);
+  protected HBaseClient client;
+  protected UniqueId metrics;
+  protected UniqueId tag_names;
+  protected UniqueId tag_values;
   protected MockBase storage;
-  protected FsckOptions options = mock(FsckOptions.class);
+  protected FsckOptions options;
+  protected FakeTaskTimer timer;
   protected final static List<byte[]> tags = new ArrayList<byte[]>(1);
   static {
     tags.add(new byte[] { 0, 0, 1, 0, 0, 1});
@@ -80,6 +87,22 @@ public class TestFsck {
   @SuppressWarnings("unchecked")
   @Before
   public void before() throws Exception {
+    client = mock(HBaseClient.class);
+    metrics = mock(UniqueId.class);
+    tag_names = mock(UniqueId.class);
+    tag_values = mock(UniqueId.class);
+    options = mock(FsckOptions.class);
+    timer = new FakeTaskTimer();
+    
+    PowerMockito.mockStatic(Threads.class);
+    PowerMockito.when(Threads.newTimer(anyString())).thenReturn(timer);
+    PowerMockito.when(Threads.newTimer(anyInt(), anyString())).thenReturn(timer);
+    
+    PowerMockito.whenNew(HashedWheelTimer.class).withNoArguments()
+      .thenReturn(timer);
+    PowerMockito.whenNew(HBaseClient.class).withAnyArguments()
+      .thenReturn(client);
+    
     config = new Config(false);
     tsdb = new TSDB(client, config);
     when(client.flush()).thenReturn(Deferred.fromResult(null));

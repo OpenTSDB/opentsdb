@@ -1,11 +1,16 @@
 package net.opentsdb.tools;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 
+import org.hbase.async.HBaseClient;
+import org.jboss.netty.util.HashedWheelTimer;
 import org.junit.Before;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -15,15 +20,35 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
+import net.opentsdb.core.BaseTsdbTest.FakeTaskTimer;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueName;
+import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.Threads;
 
 @PrepareForTest({ Const.class })
 public class TestFsckSalted extends TestFsck {
 
+  @SuppressWarnings("unchecked")
   @Before
   public void before() throws Exception {
+    client = mock(HBaseClient.class);
+    metrics = mock(UniqueId.class);
+    tag_names = mock(UniqueId.class);
+    tag_values = mock(UniqueId.class);
+    options = mock(FsckOptions.class);
+    timer = new FakeTaskTimer();
+    
+    PowerMockito.mockStatic(Threads.class);
+    PowerMockito.when(Threads.newTimer(anyString())).thenReturn(timer);
+    PowerMockito.when(Threads.newTimer(anyInt(), anyString())).thenReturn(timer);
+    
+    PowerMockito.whenNew(HashedWheelTimer.class).withNoArguments()
+      .thenReturn(timer);
+    PowerMockito.whenNew(HBaseClient.class).withAnyArguments()
+      .thenReturn(client);
+    
     PowerMockito.mockStatic(Const.class);
     PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(2);
     PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
