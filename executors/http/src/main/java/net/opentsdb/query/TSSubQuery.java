@@ -268,10 +268,10 @@ public final class TSSubQuery {
     }
     
     // only support SUM in downsampling
-    if (DownsamplingSpecification.NO_DOWNSAMPLER != downsample_specifier && 
-        downsample_specifier.getHistogramAggregation() != HistogramAggregation.SUM) {
-      throw new IllegalArgumentException("Only SUM downsampling aggregation supported for histogram query");
-    }
+//    if (DownsamplingSpecification.NO_DOWNSAMPLER != downsample_specifier && 
+//        downsample_specifier.getHistogramAggregation() != HistogramAggregation.SUM) {
+//      throw new IllegalArgumentException("Only SUM downsampling aggregation supported for histogram query");
+//    }
     
     
     if (null != percentiles && percentiles.size() > 0) {

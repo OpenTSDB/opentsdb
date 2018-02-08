@@ -42,7 +42,7 @@ public final class DownsamplingSpecification {
   /** The default fill policy. */
   public static final FillPolicy DEFAULT_FILL_POLICY = FillPolicy.NONE;
 
-  public static final HistogramAggregation NO_HIST_AGG = null;
+  //public static final HistogramAggregation NO_HIST_AGG = null;
   
   // Parsed downsample interval.
   private final long interval;
@@ -62,7 +62,7 @@ public final class DownsamplingSpecification {
   // The user provided timezone for calendar alignment (defaults to UTC)
   private TimeZone timezone;
 
-  private final HistogramAggregation hist_agg;
+  //private final HistogramAggregation hist_agg;
   
   /**
    * A specification indicating no downsampling is requested.
@@ -74,7 +74,7 @@ public final class DownsamplingSpecification {
     string_interval = null;
     use_calendar = false;
     timezone = DateTime.timezones.get(DateTime.UTC_ID);
-    hist_agg = NO_HIST_AGG;
+    //hist_agg = NO_HIST_AGG;
   }
 
   /**
@@ -107,7 +107,7 @@ public final class DownsamplingSpecification {
     string_interval = null;
     use_calendar = false;
     timezone = DateTime.timezones.get(DateTime.UTC_ID);
-    hist_agg = NO_HIST_AGG;
+    //hist_agg = NO_HIST_AGG;
   }
 
   /**
@@ -156,11 +156,11 @@ public final class DownsamplingSpecification {
       string_interval = parts[0];
     }
 
-    if (parts[1].toLowerCase().equals("sum")) {
-      hist_agg = HistogramAggregation.SUM;
-    } else {
-      hist_agg = null;
-    }
+//    if (parts[1].toLowerCase().equals("sum")) {
+//      hist_agg = HistogramAggregation.SUM;
+//    } else {
+//      hist_agg = null;
+//    }
     
     // FUNCTION.
     try {
@@ -254,9 +254,9 @@ public final class DownsamplingSpecification {
     return timezone;
   }
   
-  public HistogramAggregation getHistogramAggregation() {
-    return hist_agg;
-  }
+//  public HistogramAggregation getHistogramAggregation() {
+//    return hist_agg;
+//  }
   
   @Override
   public String toString() {

@@ -190,12 +190,4 @@ public final class Const {
     SALT_WIDTH = width;
   }
 
-  /**
-   * A global function to use for NON-SECURE hashing of things like queries and
-   * cache objects. Used for deterministic hashing.
-   */
-  private static HashFunction HASH_FUNCTION = Hashing.murmur3_128();
-  public static HashFunction HASH_FUNCTION() {
-    return HASH_FUNCTION;
-  }
 }
