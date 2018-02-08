@@ -94,6 +94,18 @@ public final class TSSubQuery {
   /** Whether or not to match series with ONLY the given tags */
   private boolean explicit_tags;
   
+  /** Whether or not to enable fuzzy scanning if explicit tags is set */
+  private boolean use_fuzzy_filter;
+
+  /** List of percentiles if fetching histogram data */
+  private List<Float> percentiles;
+  
+  /** Whether or not to return the raw histogram buckets for a histo query. */
+  private boolean show_histogram_buckets;
+  
+  /** Whether or not to override multi-gets for explicit tag queries */
+  private boolean use_multi_gets;
+  
   /** Index of the sub query */
   private int index;
   
@@ -103,6 +115,8 @@ public final class TSSubQuery {
   public TSSubQuery() {
     // Assume no downsampling until told otherwise.
     //downsample_specifier = DownsamplingSpecification.NO_DOWNSAMPLER;
+    use_fuzzy_filter = true;
+    use_multi_gets = true;
   }
 
   @Override
@@ -135,7 +149,13 @@ public final class TSSubQuery {
         && Objects.equal(rate, query.rate)
         //&& Objects.equal(rate_options, query.rate_options)
         && Objects.equal(filters, query.filters) 
-        && Objects.equal(explicit_tags, query.explicit_tags);
+        && Objects.equal(explicit_tags, query.explicit_tags)
+        && Objects.equal(pre_aggregate, query.pre_aggregate)
+        && Objects.equal(use_fuzzy_filter, query.use_fuzzy_filter)
+        && Objects.equal(percentiles, query.percentiles)
+        && Objects.equal(show_histogram_buckets, query.show_histogram_buckets)
+        && Objects.equal(use_fuzzy_filter, query.use_fuzzy_filter)
+        && Objects.equal(use_multi_gets, query.use_multi_gets);
   }
   
   public String toString() {
@@ -178,6 +198,10 @@ public final class TSSubQuery {
       .append("explicit_tags")
       .append(", index=")
       .append(index)
+      .append(", percentiles=")
+      .append(percentiles)
+      .append(", show_histogram_buckets=")
+      .append(show_histogram_buckets)
       .append(")");
     return buf.toString();
   }
@@ -222,8 +246,43 @@ public final class TSSubQuery {
 //      // no downsampler
 //      downsample_specifier = DownsamplingSpecification.NO_DOWNSAMPLER;
 //    }
+    checkHistogramQuery();
   }
 
+  /**
+   * Make sure the parameters for histogram query are valid.
+   * <ul>
+   *    <li> aggregation function: only NONE and SUM supported </li>
+   *    <li> aggregation function in downsampling: only SUM supported </li>
+   *    <li> percentile: only in rage (0,100) </li>
+   * </ul>
+   */
+  private void checkHistogramQuery() {
+    if (!isHistogramQuery()) {
+      return;
+    }
+
+    // only support NONE and SUM 
+    if (agg != null && agg != Aggregators.NONE && agg != Aggregators.SUM) {
+      throw new IllegalArgumentException("Only NONE or SUM aggregation function supported for histogram query");
+    }
+    
+    // only support SUM in downsampling
+    if (DownsamplingSpecification.NO_DOWNSAMPLER != downsample_specifier && 
+        downsample_specifier.getHistogramAggregation() != HistogramAggregation.SUM) {
+      throw new IllegalArgumentException("Only SUM downsampling aggregation supported for histogram query");
+    }
+    
+    
+    if (null != percentiles && percentiles.size() > 0) {
+      for (Float parameter : percentiles) {
+        if (parameter < 0 || parameter > 100) {
+          throw new IllegalArgumentException("Invalid percentile parameters: " + parameter);
+        }
+      }
+    }
+  }
+  
   /** @return the parsed aggregation function */
   public NumericAggregator aggregator() {
     return this.agg;
@@ -360,6 +419,19 @@ public final class TSSubQuery {
     this.tsuids = tsuids;
   }
 
+  /** @return The percentile parameters */
+  public List<Float> getPercentiles() {
+    return percentiles;
+  }
+
+  /** @param percentiles The percentile parameters*/
+  public void setPercentiles(List<Float> percentiles) {
+    this.percentiles = percentiles;
+    if (this.percentiles != null && !this.percentiles.isEmpty()) {
+      Collections.sort(this.percentiles);
+    }
+  }
+  
   /** @param tags an optional list of tags for specificity or grouping
    * As of 2.2 this will convert the existing tags to filter
    * @deprecated */
@@ -397,6 +469,16 @@ public final class TSSubQuery {
    * @since 2.3 */
   public void setExplicitTags(final boolean explicit_tags) {
     this.explicit_tags = explicit_tags;
+  }
+  
+  /** @return Whether or not the fuzzy filter is enabled. */
+  public boolean getUseFuzzyFilter() {
+    return use_fuzzy_filter;
+  }
+  
+  /** @param use_fuzzy_filter Whether or not to enable the fuzzy filter. */
+  public void setUseFuzzyFilter(final boolean use_fuzzy_filter) {
+    this.use_fuzzy_filter = use_fuzzy_filter;
   }
   
   /** @param index the index of the sub query
@@ -456,4 +538,29 @@ public final class TSSubQuery {
 //    this.tsdb_query = tsdb_query;
 //  }
 
+  /**
+   * Whether this query is towards histogram data points.
+   * @return true if this query is toward histogram data points, false otherwise.
+     */
+  public boolean isHistogramQuery() {
+    return ((percentiles != null && percentiles.size() > 0) || this.show_histogram_buckets);
+  }
+  
+  public boolean getShowHistogramBuckets() {
+    return this.show_histogram_buckets;
+  }
+  
+  public void setShowHistogramBuckets(final boolean show_histogram_buckets) {
+    this.show_histogram_buckets = show_histogram_buckets;
+  }
+
+  /** @return Whether or not to use multi gets for explicit tag queries */
+  public boolean getUseMultiGets() {
+    return use_multi_gets;
+  }
+  
+  /** @param use_multi_gets Whether or not to use multi gets for explicit tag queries */
+  public void setUseMultiGets(final boolean use_multi_gets) {
+    this.use_multi_gets = use_multi_gets;
+  }
 }

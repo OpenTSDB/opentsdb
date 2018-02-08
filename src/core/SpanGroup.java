@@ -28,6 +28,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.rollup.RollupQuery;
 
 /**
  * Groups multiple spans together and offers a dynamic "view" on them.
@@ -103,8 +104,8 @@ final class SpanGroup implements DataPoints {
   /** Index of the query in the TSQuery class */
   private final int query_index;
   
-  /** Whether or not the query is for rolled up data */
-  private final boolean is_rollup;
+  /** An optional rollup query. */
+  private final RollupQuery rollup_query;
   
   /** The TSDB to which we belong, used for resolution */
   private final TSDB tsdb;
@@ -230,7 +231,7 @@ final class SpanGroup implements DataPoints {
             final long query_end,
             final int query_index) {
      this(tsdb, start_time, end_time, spans, rate, rate_options, aggregator, 
-         downsampler, query_start, query_end, query_index, false);
+         downsampler, query_start, query_end, query_index, null);
   }
   
   /**
@@ -250,7 +251,7 @@ final class SpanGroup implements DataPoints {
    * @param query_start Start of the actual query
    * @param query_end End of the actual query
    * @param query_index index of the original query
-   * @param is_rollup Whether or not this query is handling rolled up data
+   * @param rollup_query An optional rollup query.
    * @since 2.4
    */
   SpanGroup(final TSDB tsdb,
@@ -264,7 +265,7 @@ final class SpanGroup implements DataPoints {
             final long query_start,
             final long query_end,
             final int query_index,
-            final boolean is_rollup) {
+            final RollupQuery rollup_query) {
      annotations = new ArrayList<Annotation>();
      this.start_time = (start_time & Const.SECOND_MASK) == 0 ? 
          start_time * 1000 : start_time;
@@ -282,7 +283,7 @@ final class SpanGroup implements DataPoints {
      this.query_start = query_start;
      this.query_end = query_end;
      this.query_index = query_index;
-     this.is_rollup = is_rollup;
+     this.rollup_query = rollup_query;
      this.tsdb = tsdb;
   }
   
@@ -527,7 +528,7 @@ final class SpanGroup implements DataPoints {
     return AggregationIterator.create(spans, start_time, end_time, aggregator,
                                   aggregator.interpolationMethod(),
                                   downsampler, query_start, query_end,
-                                  rate, rate_options, is_rollup);
+                                  rate, rate_options, rollup_query);
   }
 
   /**
@@ -591,7 +592,17 @@ final class SpanGroup implements DataPoints {
   public int getQueryIndex() {
     return query_index;
   }
+  
+  @Override
+  public boolean isPercentile() {
+    return false;
+  }
 
+  @Override
+  public float getPercentile() {
+    throw new UnsupportedOperationException("getPercentile not supported");
+  }
+  
   /**
    * Resolves the set of tag keys to their string names.
    * @param tagks The set of unique tag names

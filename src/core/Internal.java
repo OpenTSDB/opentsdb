@@ -30,8 +30,10 @@ import com.stumbleupon.async.Callback;
 
 /**
  * <strong>This class is not part of the public API.</strong>
- * <p><pre>
- * ,____________________________,
+ */
+
+/**-
+ *  ,____________________________,
  * | This class is reserved for |
  * | OpenTSDB's internal usage! |
  * `----------------------------'
@@ -52,8 +54,10 @@ import com.stumbleupon.async.Callback;
  *                ///-._ _ _ _ _ _ _}^ - - - - ~                     ~-- ,.-~
  *                                                                   /.-~
  *              You've been warned by the dragon!
- * </pre><p>
- * This class is reserved for OpenTSDB's own internal usage only.  If you use
+ * 
+ */
+
+/** This class is reserved for OpenTSDB's own internal usage only.  If you use
  * anything from this package outside of OpenTSDB, a dragon will spontaneously
  * appear and eat you.  You've been warned.
  * <p>
@@ -816,7 +820,7 @@ public final class Internal {
    * the timestamp is in seconds, this returns a 2 byte qualifier. If it's in
    * milliseconds, returns a 4 byte qualifier 
    * @param timestamp A Unix epoch timestamp in seconds or milliseconds
-   * @param flags Flags to set on the qualifier (length &| float)
+   * @param flags Flags to set on the qualifier (length &#38;| float)
    * @return A 2 or 4 byte qualifier for storage in column or compacted column
    * @since 2.0
    */
@@ -912,7 +916,7 @@ public final class Internal {
    * Simple helper to calculate the max value for any width of long from 0 to 8
    * bytes. 
    * @param width The width of the byte array we're comparing
-   * @return The maximum unsigned integer value on {@link width} bytes. Note:
+   * @return The maximum unsigned integer value on {@code width} bytes. Note:
    * If you ask for 8 bytes, it will return the max signed value. This is due
    * to Java lacking unsigned integers... *sigh*.
    * @since 2.2
@@ -986,4 +990,96 @@ public final class Internal {
 
     return true;
   }
+
+  /**
+   * Calculates and returns the column qualifier. The qualifier is the offset
+   * of the {@code #timestamp} from the row key's base time stamp in seconds
+   * with a prefix of {@code #PREFIX}. Thus if the offset is 0 and the prefix is
+   * 1 and the timestamp is in seconds, the qualifier would be [1, 0, 0].
+   * Millisecond timestamps will have a 5 byte qualifier.
+   * @param timestamp The base timestamp.
+   * @param prefix The prefix to set at the start of the array.
+   * @return The column qualifier as a byte array
+   * @throws IllegalArgumentException if the start_time has not been set
+   * @since 2.4
+   */
+  public static byte[] getQualifier(final long timestamp, final byte prefix) {
+    if (timestamp < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
+    }
+
+    final long base_time;
+    final byte[] qualifier;
+    if ((timestamp & Const.SECOND_MASK) != 0) {
+      // drop the ms timestamp to seconds to calculate the base timestamp
+      base_time = ((timestamp / 1000) -
+              ((timestamp / 1000) % Const.MAX_TIMESPAN));
+      qualifier = new byte[5];
+      final int offset = (int) (timestamp - (base_time * 1000));
+      System.arraycopy(Bytes.fromInt(offset), 0, qualifier, 1, 4);
+    } else {
+      base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+      qualifier = new byte[3];
+      final short offset = (short) (timestamp - base_time);
+      System.arraycopy(Bytes.fromShort(offset), 0, qualifier, 1, 2);
+    }
+    qualifier[0] = prefix;
+    return qualifier;
+  }
+  
+  /**
+   * Get timestamp from base time and quantifier for non datapoints. The returned time
+   * will always be in ms.
+   * @param base_time the base time of the point
+   * @param quantifier the quantifier of the point, it is expected to be either length of
+   *                   3 or length of 5 (the first byte represents the type of the point)
+   * @return The timestamp in ms
+   */
+  public static long getTimeStampFromNonDP(final long base_time, byte[] quantifier) {
+    long ret = base_time;
+    if (quantifier.length == 3) {
+      ret += quantifier[1] << 8 | (quantifier[2] & 0xFF);
+      ret *= 1000;
+    } else if (quantifier.length == 5) {
+      ret *= 1000;
+      ret += (quantifier[1] & 0xFF) << 24 | (quantifier[2] & 0xFF) << 16
+              | (quantifier[3] & 0xFF) << 8 | quantifier[4] & 0xFF;
+    } else {
+      throw new IllegalArgumentException("Quantifier is not valid: " + Bytes.pretty(quantifier));
+    }
+
+    return ret;
+
+  }
+
+  /**
+   * Decode the histogram point from the given key value
+   * @param kv the key value that contains a histogram
+   * @return the decoded {@code HistogramDataPoint}
+     */
+  public static HistogramDataPoint decodeHistogramDataPoint(final TSDB tsdb,
+                                                            final KeyValue kv) {
+    long timestamp = Internal.baseTime(kv.key());
+    return decodeHistogramDataPoint(tsdb, timestamp, kv.qualifier(), kv.value());
+  }
+
+  /**
+   * Decode the histogram point from the given key and values
+   * @param tsdb The TSDB to use when fetching the decoder manager.
+   * @param base_time the base time of the histogram
+   * @param qualifier the qualifier used to store the histogram
+   * @param value the encoded value of the histogram
+   * @return the decoded {@code HistogramDataPoint}
+   */
+  public static HistogramDataPoint decodeHistogramDataPoint(final TSDB tsdb,
+                                                            final long base_time, 
+                                                            final byte[] qualifier,
+                                                            final byte[] value) {
+    final HistogramDataPointCodec decoder =
+            tsdb.histogramManager().getCodec((int) value[0]);
+    long timestamp = getTimeStampFromNonDP(base_time, qualifier);
+    final Histogram histogram = decoder.decode(value, true);
+    return new SimpleHistogramDataPointAdapter(histogram, timestamp);
+  }
+
 }

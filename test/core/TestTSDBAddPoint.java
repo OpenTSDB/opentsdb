@@ -27,6 +27,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.HashMap;
+import java.util.Map.Entry;
+import java.util.TreeMap;
 
 import org.hbase.async.Bytes;
 import org.junit.Before;
@@ -558,5 +560,31 @@ public class TestTSDBAddPoint extends BaseTsdbTest {
     verify(filter, times(1)).filterDataPoints();
     verify(filter, times(1)).allowDataPoint(eq(METRIC_STRING), anyLong(), 
         any(byte[].class), eq(tags), anyShort());
+  }
+
+  @Test
+  public void addPointWithOTSDBTimeStamp() throws Exception {
+    long ts = 1356998400;
+    tsdb.getConfig().overrideConfig("tsd.storage.use_otsdb_timestamp", "true");
+    tsdb.addPoint(METRIC_STRING, ts, 42, tags).joinUninterruptibly();
+    TreeMap<Long, byte[]> result = storage.getFullColumn(tsdb.dataTable(), row, tsdb.FAMILY(), new byte[] { 0, 0 });
+    assert (result != null);
+    for (Entry<Long, byte[]> e : result.entrySet()) {
+      long retrievedTs = e.getKey();
+      assert ((ts * 1000) == retrievedTs);
+    }
+  }
+
+  @Test
+  public void addPointWithoutOTSDBTimeStamp() throws Exception {
+    long ts = 1356998400;
+    tsdb.getConfig().overrideConfig("tsd.storage.use_otsdb_timestamp", "false");
+    tsdb.addPoint(METRIC_STRING, ts, 42, tags).joinUninterruptibly();
+    TreeMap<Long, byte[]> result = storage.getFullColumn(tsdb.dataTable(), row, tsdb.FAMILY(), new byte[] { 0, 0 });
+    assert(result != null);
+    for (Entry<Long, byte[]> e : result.entrySet()) {
+      long retrievedTs = e.getKey();
+      assert((ts * 1000) != retrievedTs);
+    }
   }
 }

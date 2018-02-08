@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015  The OpenTSDB Authors.
+// Copyright (C) 2013  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -12,23 +12,15 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.rollup;
 
+import net.opentsdb.core.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
-
-import net.opentsdb.core.Aggregators;
-import net.opentsdb.core.Const;
-import net.opentsdb.core.DataPoint;
-import net.opentsdb.core.IllegalDataException;
-import net.opentsdb.core.Internal;
-import net.opentsdb.core.RowKey;
-import net.opentsdb.core.SeekableView;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TestRowSeq;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
@@ -36,7 +28,6 @@ import org.hbase.async.KeyValue;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -54,41 +45,105 @@ import java.util.Arrays;
                "com.sum.*", "org.xml.*"})
 @PrepareForTest({ RollupSeq.class, TSDB.class, UniqueId.class, KeyValue.class, 
   Config.class, RowKey.class, Const.class })
-public final class TestRollupSeq {
-  private TSDB tsdb = mock(TSDB.class);
-  private Config config = mock(Config.class);
-  private UniqueId metrics = mock(UniqueId.class);
-  private static final byte[] TABLE = { 't', 'a', 'b', 'l', 'e' };
-  private static final byte[] KEY = 
-      new byte[] { 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
+public class TestRollupSeq {
+  protected TSDB tsdb = mock(TSDB.class);
+  protected Config config = mock(Config.class);
+  protected UniqueId metrics = mock(UniqueId.class);
+  protected RollupConfig rollup_config;
+  protected static final byte[] TABLE = { 't', 'a', 'b', 'l', 'e' };
   public static final byte[] FAMILY = { 't' };
-  private static final RollupQuery rollup_query_sum = 
-    new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "1s", "1h"), 
-    Aggregators.SUM, 1000);
-  private static final RollupQuery rollup_query_avg = 
-      new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "1s", "1h"), 
-      Aggregators.AVG, 1000);
-  private static final RollupQuery rollup_query_sum_mimmax = 
-    new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "1s", "1h"), 
-    Aggregators.MIMMAX, 1000);
-  private static final RollupQuery rollup_query_10m_sum = 
-    new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "10m", "6h"), 
-    Aggregators.SUM, 600000);
-  private static final RollupQuery rollup_query_10m_avg = 
-      new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "10m", "6h"), 
-      Aggregators.AVG, 600000);
-  private static final RollupQuery rollup_query_10m_count = 
-      new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "10m", "6h"), 
-      Aggregators.COUNT, 600000);
-  private static final RollupQuery rollup_query_1h_sum = 
-    new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "1h", "1d"), 
-    Aggregators.SUM, 3600000);
-  private static final RollupQuery rollup_query_1h_avg = 
-      new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "1h", "1d"), 
-      Aggregators.AVG, 3600000);
-  private static final RollupQuery rollup_query_1h_count = 
-      new RollupQuery(new RollupInterval("tsdb", "tsdb-agg", "1h", "1d"), 
-      Aggregators.COUNT, 3600000);
+  protected byte[] key = null;
+  
+  protected static final RollupQuery rollup_query_sum = 
+      new RollupQuery(RollupInterval.builder()
+          .setTable("tsdb")
+          .setPreAggregationTable("tsdb-agg")
+          .setInterval("1s")
+          .setRowSpan("1h")
+          .build(), 
+      Aggregators.SUM, 
+      1000,
+      Aggregators.SUM);
+  protected static final RollupQuery rollup_query_avg = 
+      new RollupQuery(RollupInterval.builder()
+          .setTable("tsdb")
+          .setPreAggregationTable("tsdb-agg")
+          .setInterval("1s")
+          .setRowSpan("1h")
+          .build(), 
+      Aggregators.AVG, 
+      1000,
+      Aggregators.AVG);
+  protected static final RollupQuery rollup_query_sum_mimmax = 
+    new RollupQuery(RollupInterval.builder()
+        .setTable("tsdb")
+        .setPreAggregationTable("tsdb-agg")
+        .setInterval("1s")
+        .setRowSpan("1h")
+        .build(), 
+    Aggregators.MIMMAX, 
+    1000,
+    Aggregators.MIMMAX);
+  protected static final RollupQuery rollup_query_10m_sum = 
+    new RollupQuery(RollupInterval.builder()
+        .setTable("tsdb")
+        .setPreAggregationTable("tsdb-agg")
+        .setInterval("10m")
+        .setRowSpan("6h")
+        .build(), 
+    Aggregators.SUM, 
+    600000,
+    Aggregators.SUM);
+  protected static final RollupQuery rollup_query_10m_avg = 
+      new RollupQuery(RollupInterval.builder()
+          .setTable("tsdb")
+          .setPreAggregationTable("tsdb-agg")
+          .setInterval("10m")
+          .setRowSpan("6h")
+          .build(), 
+      Aggregators.AVG, 
+      600000,
+      Aggregators.AVG);
+  protected static final RollupQuery rollup_query_10m_count = 
+      new RollupQuery(RollupInterval.builder()
+          .setTable("tsdb")
+          .setPreAggregationTable("tsdb-agg")
+          .setInterval("10m")
+          .setRowSpan("6h")
+          .build(), 
+      Aggregators.COUNT, 
+      600000,
+      Aggregators.COUNT);
+  protected static final RollupQuery rollup_query_1h_sum = 
+    new RollupQuery(RollupInterval.builder()
+        .setTable("tsdb")
+        .setPreAggregationTable("tsdb-agg")
+        .setInterval("1h")
+        .setRowSpan("1d")
+        .build(), 
+    Aggregators.SUM, 
+    3600000,
+    Aggregators.SUM);
+  protected static final RollupQuery rollup_query_1h_avg = 
+      new RollupQuery(RollupInterval.builder()
+          .setTable("tsdb")
+          .setPreAggregationTable("tsdb-agg")
+          .setInterval("1h")
+          .setRowSpan("1d")
+          .build(), 
+      Aggregators.AVG, 
+      3600000,
+      Aggregators.AVG);
+  protected static final RollupQuery rollup_query_1h_count = 
+      new RollupQuery(RollupInterval.builder()
+          .setTable("tsdb")
+          .setPreAggregationTable("tsdb-agg")
+          .setInterval("1h")
+          .setRowSpan("1d")
+          .build(), 
+      Aggregators.COUNT, 
+      3600000,
+      Aggregators.COUNT);
   
   @Before
   public void before() throws Exception {
@@ -97,13 +152,43 @@ public final class TestRollupSeq {
     Whitebox.setInternalState(tsdb, "table", TABLE);
     Whitebox.setInternalState(tsdb, "config", config);
     when(tsdb.getConfig()).thenReturn(config);
-    when(RowKey.metricNameAsync(tsdb, TestRowSeq.KEY))
+    key = BaseTsdbTest.getRowKey(
+        BaseTsdbTest.generateUID(UniqueIdType.METRIC, (byte) 1), 
+        1356998400, 
+        BaseTsdbTest.generateUID(UniqueIdType.TAGK, (byte) 1),
+        BaseTsdbTest.generateUID(UniqueIdType.TAGV, (byte) 1));
+    when(RowKey.metricNameAsync(tsdb, key))
       .thenReturn(Deferred.fromResult("sys.cpu.user"));
+    
+    rollup_config = RollupConfig.builder()
+        .addAggregationId("sum", 0)
+        .addAggregationId("count", 1)
+        .addAggregationId("max", 2)
+        .addAggregationId("min", 3)
+        .addAggregationId("avg", 4)
+        .addInterval(RollupInterval.builder()
+            .setTable("tsdb-rollup-10m")
+            .setPreAggregationTable("tsdb-rollup-agg-10m")
+            .setInterval("10m")
+            .setRowSpan("6h"))
+        .addInterval(RollupInterval.builder()
+            .setTable("tsdb-rollup-1h")
+            .setPreAggregationTable("tsdb-rollup-agg-1h")
+            .setInterval("1h")
+            .setRowSpan("1d"))
+        .addInterval(RollupInterval.builder()
+            .setTable("tsdb-rollup-1d")
+            .setPreAggregationTable("tsdb-rollup-agg-1d")
+            .setInterval("1d")
+            .setRowSpan("1n"))
+        .build();
+    when(tsdb.getRollupConfig()).thenReturn(rollup_config);
   }
   
   @Test
   public void setRow() throws Exception {
-    final KeyValue kv = getRollupKeyValue(1356998400000L, 4L, rollup_query_sum);
+    final KeyValue kv = getRollupKeyValue(key, 1356998400000L, 4L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_sum);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum);
     rs.setRow(kv);
     assertEquals(1, rs.size());
@@ -113,26 +198,30 @@ public final class TestRollupSeq {
     assertTrue(dp.isInteger());
     assertEquals(4, dp.longValue());
     assertEquals(1356998400000L, dp.timestamp());
-    assertEquals(-1, dp.valueCount());
+    assertEquals(1, dp.valueCount());
     assertFalse(it.hasNext());
   }
    
   @Test (expected = IllegalStateException.class)
   public void setRowAlreadySet() throws Exception {
-    final KeyValue kv = getRollupKeyValue(1356998400000L, 4L, rollup_query_sum);
+    final KeyValue kv = getRollupKeyValue(key, 1356998400000L, 4L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_sum);
     
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum);
     rs.setRow(kv);
     assertEquals(1, rs.size());
     //Expects an IllegalStateException
-    final KeyValue kv1 = getRollupKeyValue(1356998500000L, 5L, rollup_query_sum);
+    final KeyValue kv1 = getRollupKeyValue(key, 1356998500000L, 5L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_sum);
     rs.setRow(kv1);
   }
   
   @Test
   public void addRow() throws Exception {
-    final KeyValue kv1 = getRollupKeyValue(1356998400000L, 4L, rollup_query_sum);
-    final KeyValue kv2 = getRollupKeyValue(1356998500000L, 5L, rollup_query_sum);
+    final KeyValue kv1 = getRollupKeyValue(key, 1356998400000L, 4L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_sum);
+    final KeyValue kv2 = getRollupKeyValue(key, 1356998500000L, 5L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_sum);
 
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum);
     rs.setRow(kv1);
@@ -147,59 +236,15 @@ public final class TestRollupSeq {
     assertTrue(dp.isInteger());
     assertEquals(1356998400000L, dp.timestamp());
     assertEquals(4, dp.longValue());
-    assertEquals(-1, dp.valueCount());
+    assertEquals(1, dp.valueCount());
     
     assertTrue(it.hasNext());
     dp = it.next();
     assertTrue(dp.isInteger());
     assertEquals(1356998500000L, dp.timestamp());
     assertEquals(5, dp.longValue());
-    assertEquals(-1, dp.valueCount());
+    assertEquals(1, dp.valueCount());
     assertFalse(it.hasNext());
-  }
-  
-  // This should never happen
-  @Test
-  public void addRowMergeDifferentSalt() throws Exception {
-    PowerMockito.mockStatic(Const.class);
-    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
-    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(20);
-     
-    final byte[] key = new byte[TestRowSeq.KEY.length + 1];
-    key[0] = 1;
-    System.arraycopy(TestRowSeq.KEY, 0, key, 1, TestRowSeq.KEY.length);
-    final byte[] qual1 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x17 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum);
-    rs.setRow(TestRowSeq.makekv(qual1, val1));
-    rs.addRow(TestRowSeq.makekv(qual2, val2));
-    assertEquals(2, rs.size());
-    
-    final byte[] qual3 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 };
-    final byte[] val3 = Bytes.fromLong(6L);
-    final byte[] qual4 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x37 };
-    final byte[] val4 = Bytes.fromLong(7L);
-    final byte[] key2 = Arrays.copyOf(key, key.length);
-    key2[0] = 2;
-    rs.addRow(TestRowSeq.makekv(key2, qual3, val3));
-    rs.addRow(TestRowSeq.makekv(key2, qual4, val4));
-
-    assertEquals(4, rs.size());
-    
-    final SeekableView it = rs.iterator();
-    long value = 4;
-    long ts = 1356998400000L;
-    while (it.hasNext()) {
-      final DataPoint dp = it.next();
-      assertEquals(ts, dp.timestamp());
-      assertTrue(dp.isInteger());
-      assertEquals(value, dp.longValue());
-      assertEquals(-1, dp.valueCount());
-      ++value;
-      ts += 1000;
-    }
   }
   
   @Test
@@ -210,16 +255,16 @@ public final class TestRollupSeq {
     final byte[] qual2 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x17 };
     final byte[] val2 = Bytes.fromLong(5L);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum);
-    rs.setRow(TestRowSeq.makekv(qual1, val1));
-    rs.addRow(TestRowSeq.makekv(qual2, val2));
+    rs.setRow(TestRowSeq.makekv(key, qual1, val1));
+    rs.addRow(TestRowSeq.makekv(key, qual2, val2));
     assertEquals(2, rs.size());
     
     final byte[] qual3 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 };
     final byte[] val3 = Bytes.fromLong(6L);
     final byte[] qual4 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x37 };
     final byte[] val4 = Bytes.fromLong(7L);
-    rs.addRow(TestRowSeq.makekv(qual3, val3));
-    rs.addRow(TestRowSeq.makekv(qual4, val4));
+    rs.addRow(TestRowSeq.makekv(key, qual3, val3));
+    rs.addRow(TestRowSeq.makekv(key, qual4, val4));
     
     assertEquals(4, rs.size());
     final SeekableView it = rs.iterator();
@@ -230,7 +275,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertTrue(dp.isInteger());
       assertEquals(value, dp.longValue());
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       ++value;
       ts += 1000;
     }
@@ -244,13 +289,13 @@ public final class TestRollupSeq {
     final byte[] qual2 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x37 };
     final byte[] val2 = Bytes.fromLong(7L);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum);
-    rs.setRow(TestRowSeq.makekv(qual1, val1));
-    rs.addRow(TestRowSeq.makekv(qual2, val2));
+    rs.setRow(TestRowSeq.makekv(key, qual1, val1));
+    rs.addRow(TestRowSeq.makekv(key, qual2, val2));
     assertEquals(2, rs.size());
     
     final byte[] qual3 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 };
     final byte[] val3 = Bytes.fromLong(4L);
-    rs.addRow(TestRowSeq.makekv( qual3, val3));
+    rs.addRow(TestRowSeq.makekv(key, qual3, val3));
   }
   
   @Test (expected = IllegalDataException.class)
@@ -261,21 +306,21 @@ public final class TestRollupSeq {
     final byte[] qual2 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x17 };
     final byte[] val2 = Bytes.fromLong(5L);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum);
-    rs.setRow(TestRowSeq.makekv(qual1, val1));
-    rs.addRow(TestRowSeq.makekv(qual2, val2));
+    rs.setRow(TestRowSeq.makekv(key, qual1, val1));
+    rs.addRow(TestRowSeq.makekv(key, qual2, val2));
     assertEquals(2, rs.size());
     
     final byte[] qual3 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x47 };
     final byte[] val3 = Bytes.fromLong(8L);
     final byte[] qual4 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x57 };
     final byte[] val4 = Bytes.fromLong(9L);
-    rs.addRow(TestRowSeq.makekv( qual3, val3));
-    rs.addRow(TestRowSeq.makekv(qual4, val4));
+    rs.addRow(TestRowSeq.makekv(key, qual3, val3));
+    rs.addRow(TestRowSeq.makekv(key, qual4, val4));
     assertEquals(4, rs.size());
     
     final byte[] qual5 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 };
     final byte[] val5 = Bytes.fromLong(6L);
-    rs.addRow(TestRowSeq.makekv( qual5, val5));
+    rs.addRow(TestRowSeq.makekv(key, qual5, val5));
   }
   
   @Test (expected = IllegalDataException.class)
@@ -288,17 +333,16 @@ public final class TestRollupSeq {
     final byte[] qual3 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 };
     final byte[] val3 = Bytes.fromLong(6L);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum);
-    rs.setRow(TestRowSeq.makekv(qual1, val1));
-    rs.addRow(TestRowSeq.makekv(qual2, val2));
-    rs.addRow(TestRowSeq.makekv(qual3, val3));
+    rs.setRow(TestRowSeq.makekv(key, qual1, val1));
+    rs.addRow(TestRowSeq.makekv(key, qual2, val2));
+    rs.addRow(TestRowSeq.makekv(key, qual3, val3));
     assertEquals(3, rs.size());
-    rs.addRow(TestRowSeq.makekv(qual3, val3));
+    rs.addRow(TestRowSeq.makekv(key, qual3, val3));
   }
   
   @Test
   public void addRowMergeDuplicateLaterRepair() throws Exception {
     when(config.fix_duplicates()).thenReturn(true);
-    
     // this happens if the same row key is used for the addRow call
     final byte[] qual1 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -307,9 +351,9 @@ public final class TestRollupSeq {
     final byte[] qual3 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 };
     final byte[] val3 = Bytes.fromLong(6L);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum);
-    rs.setRow(new KeyValue(KEY, FAMILY, qual1, 1, val1));
-    rs.addRow(new KeyValue(KEY, FAMILY, qual2, 2, val2));
-    rs.addRow(new KeyValue(KEY, FAMILY, qual3, 3, val3));
+    rs.setRow(new KeyValue(key, FAMILY, qual1, 1, val1));
+    rs.addRow(new KeyValue(key, FAMILY, qual2, 2, val2));
+    rs.addRow(new KeyValue(key, FAMILY, qual3, 3, val3));
     assertEquals(3, rs.size());
     SeekableView it = rs.iterator();
     long ts = 1356998400000L;
@@ -321,7 +365,7 @@ public final class TestRollupSeq {
       ts += 1000;
       ++value;
     }
-    rs.addRow(new KeyValue(KEY, FAMILY, qual3, 8, Bytes.fromLong(7L)));
+    rs.addRow(new KeyValue(key, FAMILY, qual3, 8, Bytes.fromLong(7L)));
     assertEquals(3, rs.size());
 
     it = rs.iterator();
@@ -350,14 +394,14 @@ public final class TestRollupSeq {
     final byte[] qual2 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x37 };
     final byte[] val2 = Bytes.fromLong(7L);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum);
-    rs.setRow(TestRowSeq.makekv(qual4, val4));
-    rs.addRow(TestRowSeq.makekv(qual1, val1));
-    rs.addRow(TestRowSeq.makekv(qual2, val2));
+    rs.setRow(TestRowSeq.makekv(key, qual4, val4));
+    rs.addRow(TestRowSeq.makekv(key, qual1, val1));
+    rs.addRow(TestRowSeq.makekv(key, qual2, val2));
     assertEquals(3, rs.size());
     
     final byte[] qual3 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x07 };
     final byte[] val3 = Bytes.fromLong(4L);
-    rs.addRow(TestRowSeq.makekv(qual3, val3));
+    rs.addRow(TestRowSeq.makekv(key, qual3, val3));
   }
   
   @Test
@@ -371,9 +415,9 @@ public final class TestRollupSeq {
     final byte[] qual3 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 };
     final byte[] val3 = Bytes.fromLong(6L);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum);
-    rs.setRow(new KeyValue(KEY, FAMILY, qual1, 1, val1));
-    rs.addRow(new KeyValue(KEY, FAMILY, qual2, 2, val2));
-    rs.addRow(new KeyValue(KEY, FAMILY, qual3, 3, val3));
+    rs.setRow(new KeyValue(key, FAMILY, qual1, 1, val1));
+    rs.addRow(new KeyValue(key, FAMILY, qual2, 2, val2));
+    rs.addRow(new KeyValue(key, FAMILY, qual3, 3, val3));
     assertEquals(3, rs.size());
     SeekableView it = rs.iterator();
     long ts = 1356998400000L;
@@ -386,7 +430,7 @@ public final class TestRollupSeq {
       ++value;
     }
     
-    rs.addRow(new KeyValue(KEY, FAMILY, qual3, 1, Bytes.fromLong(7L)));
+    rs.addRow(new KeyValue(key, FAMILY, qual3, 1, Bytes.fromLong(7L)));
     assertEquals(3, rs.size());
     
     it = rs.iterator();
@@ -411,11 +455,11 @@ public final class TestRollupSeq {
     final byte[] qual3 = { 0x63, 0x6F, 0x75, 0x6E, 0x74,  0x3A, 0x00, 0x27 };
     final byte[] val3 = Bytes.fromLong(6L);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_avg);
-    rs.setRow(TestRowSeq.makekv(qual1, val1));
-    rs.addRow(TestRowSeq.makekv(qual2, val2));
-    rs.addRow(TestRowSeq.makekv(qual3, val3));
+    rs.setRow(TestRowSeq.makekv(key, qual1, val1));
+    rs.addRow(TestRowSeq.makekv(key, qual2, val2));
+    rs.addRow(TestRowSeq.makekv(key, qual3, val3));
     assertEquals(0, rs.size());
-    rs.addRow(TestRowSeq.makekv(qual3, val3));
+    rs.addRow(TestRowSeq.makekv(key, qual3, val3));
   }
   
   @Test
@@ -429,13 +473,13 @@ public final class TestRollupSeq {
     final byte[] qual3 = { 0x63, 0x6F, 0x75, 0x6E, 0x74,  0x3A, 0x00, 0x27 };
     final byte[] val3 = Bytes.fromLong(6L);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_avg);
-    rs.setRow(new KeyValue(KEY, FAMILY, qual1, 1, val1));
-    rs.addRow(new KeyValue(KEY, FAMILY, qual2, 2, val2));
-    rs.addRow(new KeyValue(KEY, FAMILY, qual3, 3, val3));
+    rs.setRow(new KeyValue(key, FAMILY, qual1, 1, val1));
+    rs.addRow(new KeyValue(key, FAMILY, qual2, 2, val2));
+    rs.addRow(new KeyValue(key, FAMILY, qual3, 3, val3));
     assertEquals(6, rs.count_values[23]);
     assertEquals(0, rs.size());
     
-    rs.addRow(new KeyValue(KEY, FAMILY, qual3, 8, Bytes.fromLong(7L)));
+    rs.addRow(new KeyValue(key, FAMILY, qual3, 8, Bytes.fromLong(7L)));
     assertEquals(7, rs.count_values[23]);
   }
   
@@ -449,14 +493,14 @@ public final class TestRollupSeq {
     final byte[] qual2 = { 0x63, 0x6F, 0x75, 0x6E, 0x74, 0x3A, 0x00, 0x37 };
     final byte[] val2 = Bytes.fromLong(7L);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_avg);
-    rs.setRow(TestRowSeq.makekv(qual4, val4));
-    rs.addRow(TestRowSeq.makekv(qual1, val1));
-    rs.addRow(TestRowSeq.makekv(qual2, val2));
+    rs.setRow(TestRowSeq.makekv(key, qual4, val4));
+    rs.addRow(TestRowSeq.makekv(key, qual1, val1));
+    rs.addRow(TestRowSeq.makekv(key, qual2, val2));
     assertEquals(0, rs.size());
     
     final byte[] qual3 = { 0x63, 0x6F, 0x75, 0x6E, 0x74, 0x3A, 0x00, 0x07 };
     final byte[] val3 = Bytes.fromLong(4L);
-    rs.addRow(TestRowSeq.makekv(qual3, val3));
+    rs.addRow(TestRowSeq.makekv(key, qual3, val3));
   }
   
   @Test
@@ -470,13 +514,13 @@ public final class TestRollupSeq {
     final byte[] qual3 = { 0x63, 0x6F, 0x75, 0x6E, 0x74, 0x3A, 0x00, 0x27 };
     final byte[] val3 = Bytes.fromLong(6L);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_avg);
-    rs.setRow(new KeyValue(KEY, FAMILY, qual1, 1, val1));
-    rs.addRow(new KeyValue(KEY, FAMILY, qual2, 2, val2));
-    rs.addRow(new KeyValue(KEY, FAMILY, qual3, 3, val3));
+    rs.setRow(new KeyValue(key, FAMILY, qual1, 1, val1));
+    rs.addRow(new KeyValue(key, FAMILY, qual2, 2, val2));
+    rs.addRow(new KeyValue(key, FAMILY, qual3, 3, val3));
     assertEquals(0, rs.size());
     assertEquals(6, rs.count_values[23]);
     
-    rs.addRow(new KeyValue(KEY, FAMILY, qual3, 1, Bytes.fromLong(7L)));
+    rs.addRow(new KeyValue(key, FAMILY, qual3, 1, Bytes.fromLong(7L)));
     assertEquals(6, rs.count_values[23]);
   }
   
@@ -487,8 +531,8 @@ public final class TestRollupSeq {
     final byte[] qual2 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum);
-    rs.setRow(TestRowSeq.makekv(qual1, val1));
-    rs.addRow(TestRowSeq.makekv(qual2, val2));
+    rs.setRow(TestRowSeq.makekv(key, qual1, val1));
+    rs.addRow(TestRowSeq.makekv(key, qual2, val2));
     assertEquals(2, rs.size());
     
     final byte[] qual3 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x37 };
@@ -507,8 +551,8 @@ public final class TestRollupSeq {
     final byte[] qual2 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum);
-    rs.addRow(TestRowSeq.makekv(qual1, val1));
-    rs.addRow(TestRowSeq.makekv(qual2, val2));
+    rs.addRow(TestRowSeq.makekv(key, qual1, val1));
+    rs.addRow(TestRowSeq.makekv(key, qual2, val2));
     
   }
   
@@ -519,15 +563,15 @@ public final class TestRollupSeq {
     final byte[] qual2 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum);
-    rs.setRow(TestRowSeq.makekv(qual1, val1));
-    rs.addRow(TestRowSeq.makekv(qual2, val2));
+    rs.setRow(TestRowSeq.makekv(key, qual1, val1));
+    rs.addRow(TestRowSeq.makekv(key, qual2, val2));
     assertEquals(2, rs.size());
     
     final byte[] qual3 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x37 };
     final byte[] val3 = Bytes.fromLong(6L);
     final byte[] qual4 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x47 };
     final byte[] val4 = Bytes.fromLong(7L);
-    final byte[] key2 = Arrays.copyOf(TestRowSeq.KEY, TestRowSeq.KEY.length);
+    final byte[] key2 = Arrays.copyOf(key, key.length);
     key2[key2.length - 1] = 3;
     rs.addRow(TestRowSeq.makekv(key2, qual3, val3));
     rs.addRow(TestRowSeq.makekv(key2, qual4, val4)); 
@@ -540,15 +584,15 @@ public final class TestRollupSeq {
     final byte[] qual2 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum);
-    rs.setRow(TestRowSeq.makekv(qual1, val1));
-    rs.addRow(TestRowSeq.makekv(qual2, val2));
+    rs.setRow(TestRowSeq.makekv(key, qual1, val1));
+    rs.addRow(TestRowSeq.makekv(key, qual2, val2));
     assertEquals(2, rs.size());
     
     final byte[] qual3 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x37 };
     final byte[] val3 = Bytes.fromLong(6L);
     final byte[] qual4 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x47 };
     final byte[] val4 = Bytes.fromLong(7L);
-    final byte[] key2 = Arrays.copyOf(TestRowSeq.KEY, TestRowSeq.KEY.length);
+    final byte[] key2 = Arrays.copyOf(key, key.length);
     key2[0] = 2;
     key2[key2.length - 1] = 3;
     rs.addRow(TestRowSeq.makekv(key2, qual3, val3));
@@ -562,15 +606,15 @@ public final class TestRollupSeq {
     final byte[] qual2 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum);
-    rs.setRow(TestRowSeq.makekv(qual1, val1));
-    rs.addRow(TestRowSeq.makekv(qual2, val2));
+    rs.setRow(TestRowSeq.makekv(key, qual1, val1));
+    rs.addRow(TestRowSeq.makekv(key, qual2, val2));
     assertEquals(2, rs.size());
     
     final byte[] qual3 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x37 };
     final byte[] val3 = Bytes.fromLong(6L);
     final byte[] qual4 = { 0x73, 0x75, 0x6D, 0x3A, 0x00, 0x47 };
     final byte[] val4 = Bytes.fromLong(7L);
-    final byte[] key2 = Arrays.copyOf(TestRowSeq.KEY, TestRowSeq.KEY.length);
+    final byte[] key2 = Arrays.copyOf(key, key.length);
     key2[7] = 3;
     rs.addRow(TestRowSeq.makekv(key2, qual3, val3));
     rs.addRow(TestRowSeq.makekv(key2, qual4, val4)); 
@@ -578,7 +622,8 @@ public final class TestRollupSeq {
  
   @Test
   public void timestamp() throws Exception {
-    final KeyValue kv = getRollupKeyValue(1356998400000L, 7L, rollup_query_sum_mimmax);
+    final KeyValue kv = getRollupKeyValue(key,1356998400000L, 7L, 
+        rollup_config.getIdForAggregator("max"), rollup_query_sum_mimmax);
     
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_sum_mimmax);
     rs.setRow(kv);
@@ -590,20 +635,26 @@ public final class TestRollupSeq {
     assertTrue(dp.isInteger());
     assertEquals(7, dp.longValue());
     assertEquals(1356998400000L, dp.timestamp());
-    assertEquals(-1, dp.valueCount());
+    assertEquals(1, dp.valueCount());
     assertFalse(it.hasNext());
   }
+  
   // NOTE: many of the tests below also test RollupSeq.size()
   @Test
   public void rollup10m() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_sum);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 3L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 4L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072800, 5L, rollup_query_10m_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 3L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 4L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072800, 5L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
     
     assertEquals(5, rs.size());
     final SeekableView it = rs.iterator();
@@ -614,7 +665,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertTrue(dp.isInteger());
       assertEquals(value, dp.longValue());
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       ++value;
       ts += 600000;
     }
@@ -622,14 +673,19 @@ public final class TestRollupSeq {
 
   @Test
   public void rollup10mDouble() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_sum);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 0.25, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 0.50, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 0.75, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 1.00, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072800, 1.25, rollup_query_10m_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 0.25, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 0.50, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 0.75, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 1.00, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072800, 1.25, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
     
     assertEquals(5, rs.size());
     final SeekableView it = rs.iterator();
@@ -640,7 +696,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertFalse(dp.isInteger());
       assertEquals(value, dp.doubleValue(), 0.0001);
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       value += 0.25;
       ts += 600000;
     }
@@ -648,14 +704,18 @@ public final class TestRollupSeq {
 
   @Test
   public void rollup10mFloat() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_sum);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 10.25F, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 10.75F, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 11.25F, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 11.75F, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072800, 12.25F, rollup_query_10m_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 10.25F, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 10.75F, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 11.25F, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 11.75F, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072800, 12.25F, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
     
     assertEquals(5, rs.size());
     final SeekableView it = rs.iterator();
@@ -666,7 +726,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertFalse(dp.isInteger());
       assertEquals(value, dp.doubleValue(), 0.0001);
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       value += 0.50;
       ts += 600000;
     }
@@ -674,15 +734,20 @@ public final class TestRollupSeq {
 
   @Test
   public void rollup10mMixFloatAndLong() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_sum);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 10.50F, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 11.50F, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072800, 22, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420073400, 12.50F, rollup_query_10m_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 10.50F, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 21, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 11.50F, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072800, 22, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420073400, 12.50F, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
     
     assertEquals(6, rs.size());
     final SeekableView it = rs.iterator();
@@ -698,7 +763,7 @@ public final class TestRollupSeq {
       } else {
         assertEquals(dvalue, dp.doubleValue(), 0.0001);
       }
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       if (toggle) {
         dvalue += 1;
       } else {
@@ -711,17 +776,25 @@ public final class TestRollupSeq {
 
   @Test
   public void rollupAvg10mWithCount() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420070400, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 21, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(4, rs.size());
     final SeekableView it = rs.iterator();
@@ -739,17 +812,25 @@ public final class TestRollupSeq {
   
   @Test
   public void rollupAvg10mWithCountFirst() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 21, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
 
     assertEquals(4, rs.size());
     final SeekableView it = rs.iterator();
@@ -767,13 +848,17 @@ public final class TestRollupSeq {
 
   @Test
   public void rollupAvg10mMissingCount() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 21, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
 
     assertEquals(0, rs.size());
     final SeekableView it = rs.iterator();
@@ -782,17 +867,25 @@ public final class TestRollupSeq {
   
   @Test
   public void rollupAvg10mSkipFirstCount() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    //rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    //rs.addRow(getRollupKeyValue(key, 1420070400, 2, 
+    //    rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 21, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(3, rs.size());
     final SeekableView it = rs.iterator();
@@ -810,17 +903,25 @@ public final class TestRollupSeq {
   
   @Test
   public void rollupAvg10mSkipLastCount() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    //rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420070400, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 21, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    //rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+    //    rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(3, rs.size());
     final SeekableView it = rs.iterator();
@@ -838,17 +939,24 @@ public final class TestRollupSeq {
   
   @Test
   public void rollupAvg10mSkipMiddleCount() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    //rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420070400, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 21, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    //rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+    //    rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(3, rs.size());
     final SeekableView it = rs.iterator();
@@ -871,13 +979,16 @@ public final class TestRollupSeq {
   
   @Test
   public void rollupAvg10mMissingSum() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(0, rs.size());
     final SeekableView it = rs.iterator();
@@ -885,17 +996,24 @@ public final class TestRollupSeq {
   }
   
   public void rollupAvg10mSkipFirstSum() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    //rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    //rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+    //    rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420070400, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 21, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(3, rs.size());
     final SeekableView it = rs.iterator();
@@ -913,17 +1031,24 @@ public final class TestRollupSeq {
   
   @Test
   public void rollupAvg10mSkipLastSum() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    //rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420070400, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 21, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    //rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+    //    rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(3, rs.size());
     final SeekableView it = rs.iterator();
@@ -941,17 +1066,25 @@ public final class TestRollupSeq {
   
   @Test
   public void rollupAvg10mSkipMiddleSum() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
-    //rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420070400, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    //rs.addRow(getRollupKeyValue(key, 1420071000, 21, 
+    //    rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(3, rs.size());
     final SeekableView it = rs.iterator();
@@ -974,17 +1107,25 @@ public final class TestRollupSeq {
   
   @Test
   public void rollupAvg10mUnaligned() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    //rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
-    //rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
-    //rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    //rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    //rs.addRow(getRollupKeyValue(key, 1420070400, 2, 
+    //    rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    //rs.addRow(getRollupKeyValue(key, 1420071000, 21, 
+    //    rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    //rs.addRow(getRollupKeyValue(key, 1420071600, 2, 
+    //    rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    //rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+    //    rollup_config.getIdForAggregator("SUM"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(0, rs.size());
     final SeekableView it = rs.iterator();
@@ -994,7 +1135,7 @@ public final class TestRollupSeq {
   @Test
   public void endOfArrayDivergence() throws Exception {
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     
     int[]indices = new int[4];
@@ -1021,7 +1162,7 @@ public final class TestRollupSeq {
   @Test
   public void arrayOverflowAvoidance() throws Exception {
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     
     final int[]indices = new int[4];
@@ -1046,14 +1187,19 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup1hLong() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_1h_sum);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420074000, 2L, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420077600, 3L, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420081200, 4L, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420084800, 5L, rollup_query_1h_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420074000, 2L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420077600, 3L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420081200, 4L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420084800, 5L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_1h_sum));
 
     assertEquals(5, rs.size());
     final SeekableView it = rs.iterator();
@@ -1064,7 +1210,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertTrue(dp.isInteger());
       assertEquals(value, dp.longValue());
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       ++value;
       ts += 3600000;
     }
@@ -1072,14 +1218,19 @@ public final class TestRollupSeq {
 
   @Test
   public void rollup1hFloat() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_1h_sum);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 0.25, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420074000, 0.5, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420077600, 0.75, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420081200, 1.0, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420084800, 1.25, rollup_query_1h_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 0.25, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420074000, 0.5, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420077600, 0.75, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420081200, 1.0, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420084800, 1.25, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_1h_sum));
 
     assertEquals(5, rs.size());
     final SeekableView it = rs.iterator();
@@ -1090,7 +1241,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertFalse(dp.isInteger());
       assertEquals(value, dp.doubleValue(), 0.0001);
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       value += 0.25;
       ts += 3600000;
     }
@@ -1098,19 +1249,29 @@ public final class TestRollupSeq {
 
   @Test
   public void rollup1hLongWithCount() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_1h_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420070400, 2L, rollup_query_1h_count));
-    rs.addRow(getRollupKeyValue(key, 1420074000, 2L, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420074000, 2L, rollup_query_1h_count));
-    rs.addRow(getRollupKeyValue(key, 1420077600, 3L, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420077600, 2L, rollup_query_1h_count));
-    rs.addRow(getRollupKeyValue(key, 1420081200, 4L, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420081200, 2L, rollup_query_1h_count));
-    rs.addRow(getRollupKeyValue(key, 1420084800, 5L, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420084800, 2L, rollup_query_1h_count));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420070400, 2L, 
+        rollup_config.getIdForAggregator("count"), rollup_query_1h_count));
+    rs.addRow(getRollupKeyValue(key, 1420074000, 2L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420074000, 2L, 
+        rollup_config.getIdForAggregator("count"), rollup_query_1h_count));
+    rs.addRow(getRollupKeyValue(key, 1420077600, 3L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420077600, 2L, 
+        rollup_config.getIdForAggregator("count"), rollup_query_1h_count));
+    rs.addRow(getRollupKeyValue(key, 1420081200, 4L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420081200, 2L, 
+        rollup_config.getIdForAggregator("count"), rollup_query_1h_count));
+    rs.addRow(getRollupKeyValue(key, 1420084800, 5L, 
+        rollup_config.getIdForAggregator("SUM"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420084800, 2L, 
+        rollup_config.getIdForAggregator("count"), rollup_query_1h_count));
 
     assertEquals(5, rs.size());
     final SeekableView it = rs.iterator();
@@ -1129,19 +1290,29 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup1hLongWithCountWithDoubles() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_1h_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420070400, 2L, rollup_query_1h_count));
-    rs.addRow(getRollupKeyValue(key, 1420074000, 2L, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420074000, 2D, rollup_query_1h_count));
-    rs.addRow(getRollupKeyValue(key, 1420077600, 3L, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420077600, 2D, rollup_query_1h_count));
-    rs.addRow(getRollupKeyValue(key, 1420081200, 4L, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420081200, 2D, rollup_query_1h_count));
-    rs.addRow(getRollupKeyValue(key, 1420084800, 5L, rollup_query_1h_sum));
-    rs.addRow(getRollupKeyValue(key, 1420084800, 2L, rollup_query_1h_count));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420070400, 2L, 
+        rollup_config.getIdForAggregator("count"), rollup_query_1h_count));
+    rs.addRow(getRollupKeyValue(key, 1420074000, 2L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420074000, 2D, 
+        rollup_config.getIdForAggregator("count"), rollup_query_1h_count));
+    rs.addRow(getRollupKeyValue(key, 1420077600, 3L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420077600, 2D, 
+        rollup_config.getIdForAggregator("count"), rollup_query_1h_count));
+    rs.addRow(getRollupKeyValue(key, 1420081200, 4L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420081200, 2D, 
+        rollup_config.getIdForAggregator("count"), rollup_query_1h_count));
+    rs.addRow(getRollupKeyValue(key, 1420084800, 5L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_1h_sum));
+    rs.addRow(getRollupKeyValue(key, 1420084800, 2L, 
+        rollup_config.getIdForAggregator("count"), rollup_query_1h_count));
 
     assertEquals(5, rs.size());
     final SeekableView it = rs.iterator();
@@ -1160,17 +1331,25 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup10mSeekTop() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_sum);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 3L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 4L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072800, 5L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420073400, 6L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420074000, 7L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420074600, 8L, rollup_query_10m_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 3L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 4L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072800, 5L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420073400, 6L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420074000, 7L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420074600, 8L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
 
     assertEquals(8, rs.size());
     final SeekableView it = rs.iterator();
@@ -1182,7 +1361,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertTrue(dp.isInteger());
       assertEquals(value, dp.longValue());
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       ++value;
       ts += 600000;
     }
@@ -1190,17 +1369,25 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup10mSeek() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_sum);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 3L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 4L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072800, 5L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420073400, 6L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420074000, 7L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420074600, 8L, rollup_query_10m_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 3L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 4L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072800, 5L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420073400, 6L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420074000, 7L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420074600, 8L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
 
     assertEquals(8, rs.size());
     final SeekableView it = rs.iterator();
@@ -1212,7 +1399,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertTrue(dp.isInteger());
       assertEquals(value, dp.longValue());
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       ++value;
       ts += 600000;
     }
@@ -1220,17 +1407,25 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup10mSeekOOB() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_sum);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 3L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 4L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072800, 5L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420073400, 6L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420074000, 7L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420074600, 8L, rollup_query_10m_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 3L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 4L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072800, 5L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420073400, 6L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420074000, 7L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420074600, 8L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
 
     assertEquals(8, rs.size());
     final SeekableView it = rs.iterator();
@@ -1240,17 +1435,25 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup10mSeekSeconds() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_sum);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 3L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 4L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072800, 5L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420073400, 6L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420074000, 7L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420074600, 8L, rollup_query_10m_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 3L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 4L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072800, 5L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420073400, 6L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420074000, 7L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420074600, 8L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
 
     assertEquals(8, rs.size());
     final SeekableView it = rs.iterator();
@@ -1262,7 +1465,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertTrue(dp.isInteger());
       assertEquals(value, dp.longValue());
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       ++value;
       ts += 600000;
     }
@@ -1270,17 +1473,25 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup10mSeekUnaligned() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_sum);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 3L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 4L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072800, 5L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420073400, 6L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420074000, 7L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420074600, 8L, rollup_query_10m_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 3L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 4L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072800, 5L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420073400, 6L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420074000, 7L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420074600, 8L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
 
     assertEquals(8, rs.size());
     final SeekableView it = rs.iterator();
@@ -1292,7 +1503,7 @@ public final class TestRollupSeq {
       assertEquals(ts, dp.timestamp());
       assertTrue(dp.isInteger());
       assertEquals(value, dp.longValue());
-      assertEquals(-1, dp.valueCount());
+      assertEquals(1, dp.valueCount());
       ++value;
       ts += 600000;
     }
@@ -1300,17 +1511,25 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup10mAvgSeekTopAligned() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420070400, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 21, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(4, rs.size());
     final SeekableView it = rs.iterator();
@@ -1331,17 +1550,23 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup10mAvgSeekTopUnaligned() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420070400, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
     //rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
     //rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(2, rs.size());
     final SeekableView it = rs.iterator();
@@ -1361,17 +1586,24 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup10mAvgSeekTopUnalignedMissingTop() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
     //rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 21, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(3, rs.size());
     final SeekableView it = rs.iterator();
@@ -1392,17 +1624,25 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup10mAvgSeekAligned() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420070400, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 21, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(4, rs.size());
     final SeekableView it = rs.iterator();
@@ -1423,17 +1663,23 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup10mAvgSeekUnaligned() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420070400, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
     //rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
     //rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(2, rs.size());
     final SeekableView it = rs.iterator();
@@ -1454,17 +1700,21 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup10mAvgSeekUnalignedEmpty() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
     //rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
     //rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
     //rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
     //rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(0, rs.size());
     final SeekableView it = rs.iterator();
@@ -1474,17 +1724,25 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup10mAvgSeekTopAlignedOOB() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420070400, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 21, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(4, rs.size());
     final SeekableView it = rs.iterator();
@@ -1494,17 +1752,23 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup10mAvgSeekTopUnalignedOOB() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420070400, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
     //rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
     //rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 23, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(2, rs.size());
     final SeekableView it = rs.iterator();
@@ -1514,17 +1778,21 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup10mAvgSeekTopUnalignedEmptyOOB() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_avg);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 20, rollup_query_10m_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 20, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
     //rs.addRow(getRollupKeyValue(key, 1420070400, 2, rollup_query_10m_count));
     //rs.addRow(getRollupKeyValue(key, 1420071000, 21, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2, rollup_query_10m_count));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 22, rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 22, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
     //rs.addRow(getRollupKeyValue(key, 1420071600, 2, rollup_query_10m_count));
     //rs.addRow(getRollupKeyValue(key, 1420072200, 23, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420072200, 2, rollup_query_10m_count));
+    rs.addRow(getRollupKeyValue(key, 1420072200, 2, 
+        rollup_config.getIdForAggregator("count"), rollup_query_10m_count));
 
     assertEquals(0, rs.size());
     final SeekableView it = rs.iterator();
@@ -1534,12 +1802,15 @@ public final class TestRollupSeq {
   
   @Test
   public void rollup10mTimestamp() throws Exception {
-    byte[] key = Arrays.copyOf(KEY, KEY.length);
+    
     Internal.setBaseTime(key, 1420070400);
     final RollupSeq rs = new RollupSeq(tsdb, rollup_query_10m_sum);
-    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071000, 2L, rollup_query_10m_sum));
-    rs.addRow(getRollupKeyValue(key, 1420071600, 3L, rollup_query_10m_sum));
+    rs.setRow(getRollupKeyValue(key, 1420070400, 1L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071000, 2L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
+    rs.addRow(getRollupKeyValue(key, 1420071600, 3L, 
+        rollup_config.getIdForAggregator("sum"), rollup_query_10m_sum));
     
     assertEquals(1420070400000L, rs.timestamp(0));
     assertEquals(1420071000000L, rs.timestamp(1));
@@ -1556,52 +1827,50 @@ public final class TestRollupSeq {
     } catch (IndexOutOfBoundsException e) { }
   }
   
-  private static KeyValue getRollupKeyValue(final long timestamp, 
-          final long value, 
-          final RollupQuery rollup_query) {
-    return getRollupKeyValue(TestRowSeq.KEY, timestamp, value, rollup_query);
-  }
-  
   private static KeyValue getRollupKeyValue(final byte[] key,
-          final long timestamp, 
-          final long value, 
-          final RollupQuery rollup_query) {
+                                            final long timestamp, 
+                                            final long value, 
+                                            final int agg_id,
+                                            final RollupQuery rollup_query) {
     
     final byte[] val = Internal.vleEncodeLong(value);
     final short flags = (short) (val.length - 1);  // Just the length.
     return new KeyValue(key, TestRowSeq.FAMILY, getQualifier(timestamp, flags, 
-            rollup_query), val);
+            agg_id, rollup_query), val);
   }
 
   private static KeyValue getRollupKeyValue(final byte[] key,
-          final long timestamp, 
-          final float value, 
-          final RollupQuery rollup_query) {
+                                            final long timestamp, 
+                                            final float value, 
+                                            final int agg_id,
+                                            final RollupQuery rollup_query) {
     
     final short flags = Const.FLAG_FLOAT | 0x3;  // A float stored on 4 bytes.
     final byte[] val = Bytes.fromInt(Float.floatToRawIntBits(value));
     return new KeyValue(key, TestRowSeq.FAMILY, getQualifier(timestamp, flags, 
-            rollup_query), val);
+            agg_id, rollup_query), val);
   }
   
   private static KeyValue getRollupKeyValue(final byte[] key,
-          final long timestamp, 
-          final double value, 
-          final RollupQuery rollup_query) {
+                                            final long timestamp, 
+                                            final double value, 
+                                            final int agg_id,
+                                            final RollupQuery rollup_query) {
     
     final short flags = Const.FLAG_FLOAT | 0x7;  // A double stored on 8 bytes.
     final byte[] val = Bytes.fromLong(Double.doubleToRawLongBits(value));
     return new KeyValue(key, TestRowSeq.FAMILY, getQualifier(timestamp, flags, 
-            rollup_query), val);
+            agg_id, rollup_query), val);
   }
 
   private static byte[] getQualifier(final long timestamp, 
-          final short flags, RollupQuery rollup_query) {
+                                     final short flags,
+                                     final int agg_id,
+                                     final RollupQuery rollup_query) {
     
     final int base_time = RollupUtils.getRollupBasetime(timestamp, 
             rollup_query.getRollupInterval());
     return RollupUtils.buildRollupQualifier(timestamp, base_time, flags, 
-            rollup_query.getRollupAgg().toString(), 
-            rollup_query.getRollupInterval());
+            agg_id, rollup_query.getRollupInterval());
   }
 }

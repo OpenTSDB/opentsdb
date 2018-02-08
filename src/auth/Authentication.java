@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2016  The OpenTSDB Authors.
+// Copyright (C) 2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -15,14 +15,25 @@ package net.opentsdb.auth;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
 import com.stumbleupon.async.Deferred;
+
+import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
-import java.util.Map;
-
 /**
+ * A plugin interface for performing authentication for OpenTSDB API access.
+ * The plugin is embedded within the Netty pipeline and intercepts requests
+ * on new channels. Once a channel is authenticated successfully, the plugin is
+ * removed from the pipeline so further calls on that channel are not evaluated.
+ * <p>
+ * An AuthState object is attached to the channel for evaluation later in the
+ * pipeline. This state cannot be changed but cane be replaced.
+ * <p>
+ * The plugin also includes an acessor to an Authorization plugin to allow or 
+ * disallow operations per user.  
+ * 
  * @since 2.4
  */
-public abstract class AuthenticationPlugin {
+public abstract class Authentication {
 
   /**
    * Called by TSDB to initialize the plugin
@@ -34,7 +45,7 @@ public abstract class AuthenticationPlugin {
    * @param tsdb The parent TSDB object
    * @throws IllegalArgumentException if required configuration parameters are
    * missing
-   * @throws Exception if something else goes wrong
+   * @throws RuntimeException if something else goes wrong
    */
   public abstract void initialize(final TSDB tsdb);
 
@@ -66,34 +77,39 @@ public abstract class AuthenticationPlugin {
   /**
    * Authenticate Telnet connections, provides the first line of the incoming
    * connection.
-   * @param command
-   * @return returns a Boolean indicating whether or not the incoming connection
-   * was successfully authenticated.
+   * <p>
+   * NOTE: This method should not throw exceptions, rather return a state object
+   * with the AuthStatus.ERROR status.
+   * 
+   * @param channel A non-null Netty channel to associate with the request.
+   * @param command A non-null list of "words" from a Telnet style command 
+   * (strings or numbers separated by spaces)
+   * @return A non-null AuthState object with a valid AuthStatus to evaluate for
+   * a successful or unsuccessful authentication.
    */
-  public abstract Boolean authenticateTelnet(final String[] command);
+  public abstract AuthState authenticateTelnet(final Channel channel, 
+      final String[] command);
 
   /**
    * Authenticate HTTP connections, provides the HTTPRequest object for the
    * incoming connection.
-   * @param req
-   * @return returns a Boolean indicating whether or not the incoming connection
-   * was successfully authenticated.
+   * <p>
+   * NOTE: This method should not throw exceptions, rather return a state object
+   * with the AuthStatus.ERROR status.
+   * 
+   * @param channel A non-null Netty channel to associate with the request.
+   * @param req A non-null HTTP request.
+   * @return A non-null AuthState object with a valid AuthStatus to evaluate for
+   * a successful or unsuccessful authentication.
    */
-  public abstract Boolean authenticateHTTP(final HttpRequest req);
-
+  public abstract AuthState authenticateHTTP(final Channel channel,
+      final HttpRequest req);
+  
   /**
-   * Allow OpenTSDB to create valid credentials
-   * @param fields
-   * @return returns a Boolean indicating whether or not the credentials
-   * were successfully created.
+   * An optional authorization object. If authorization is not enabled, this 
+   * call may return null.
+   * @return An authorization object or null;
    */
-  public abstract Boolean storeCredentials(final Map fields);
-
-  /**
-   * Allow OpenTSDB to destroy credentials
-   * @param fields
-   * @return returns a Boolean indicating whether or not the credentials
-   * were successfully destroyed.
-   */
-  public abstract Boolean removeCredentials(final Map fields);
+  public abstract Authorization authorization();
+  
 }

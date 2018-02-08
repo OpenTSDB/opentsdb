@@ -35,6 +35,7 @@ import org.hbase.async.PleaseThrottleException;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.Pair;
 
 /**
  * "Queue" of rows to compact.
@@ -99,6 +100,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     min_flush_threshold = tsdb.config.getInt("tsd.storage.compaction.min_flush_threshold");
     max_concurrent_flushes = tsdb.config.getInt("tsd.storage.compaction.max_concurrent_flushes");
     flush_speed = tsdb.config.getInt("tsd.storage.compaction.flush_speed");
+
     if (tsdb.config.enable_compactions()) {
       startCompactionThread();
     }
@@ -178,7 +180,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       if (seed == row.hashCode() % 3) {
         continue;
       }
-      final long base_time = Bytes.getUnsignedInt(row, 
+      final long base_time = Bytes.getUnsignedInt(row,
           Const.SALT_WIDTH() + metric_width);
       if (base_time > cut_off) {
         break;
@@ -233,7 +235,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   private final class CompactCB implements Callback<Object, ArrayList<KeyValue>> {
     @Override
     public Object call(final ArrayList<KeyValue> row) {
-      return compact(row, null);
+      return compact(row, null, null, null);
     }
     @Override
     public String toString() {
@@ -248,9 +250,10 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    * @return A compacted version of this row.
    */
   KeyValue compact(final ArrayList<KeyValue> row,
-      List<Annotation> annotations) {
+      List<Annotation> annotations,
+      List<HistogramDataPoint> histograms) {
     final KeyValue[] compacted = { null };
-    compact(row, compacted, annotations);
+    compact(row, compacted, annotations, histograms);
     return compacted[0];
   }
 
@@ -258,7 +261,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    * Maintains state for a single compaction; exists to break the steps down into manageable
    * pieces without having to worry about returning multiple values and passing many parameters
    * around.
-   * 
+   *
    * @since 2.1
    */
   private class Compaction {
@@ -267,6 +270,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     private final ArrayList<KeyValue> row;
     private final KeyValue[] compacted;
     private final List<Annotation> annotations;
+    private final List<HistogramDataPoint> histograms;
+    private long compactedKVTimestamp;
 
     private final int nkvs;
 
@@ -285,17 +290,19 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     // KeyValue containing the longest qualifier for the datapoint, used to optimize
     // checking if the compacted qualifier already exists.
     private KeyValue longest;
-    
+
     // the latest append column. If set then we don't want to re-write the row
     // and if we only had a single column with a single value, we return this.
     private KeyValue last_append_column;
 
-    public Compaction(ArrayList<KeyValue> row, KeyValue[] compacted, List<Annotation> annotations) {
+    public Compaction(ArrayList<KeyValue> row, KeyValue[] compacted, List<Annotation> annotations, List<HistogramDataPoint> histograms) {
       nkvs = row.size();
       this.row = row;
       this.compacted = compacted;
       this.annotations = annotations;
+      this.histograms = histograms;
       to_delete = new ArrayList<KeyValue>(nkvs);
+      compactedKVTimestamp = Long.MIN_VALUE;
     }
 
     /**
@@ -336,6 +343,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         return null;
       }
 
+      compactedKVTimestamp = Long.MIN_VALUE;
       // go through all the columns, process annotations, and
       heap = new PriorityQueue<ColumnDatapointIterator>(nkvs);
       int tot_values = buildHeapProcessAnnotations();
@@ -367,7 +375,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
       if (compacted != null) {  // Caller is interested in the compacted form.
         compacted[0] = compact;
-        final long base_time = Bytes.getUnsignedInt(compact.key(), 
+        final long base_time = Bytes.getUnsignedInt(compact.key(),
             Const.SALT_WIDTH() + metric_width);
         final long cut_off = System.currentTimeMillis() / 1000
             - Const.MAX_TIMESPAN - 1;
@@ -385,7 +393,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       deleted_cells.addAndGet(to_delete.size());  // We're going to delete this.
       if (write) {
         written_cells.incrementAndGet();
-        Deferred<Object> deferred = tsdb.put(key, compact.qualifier(), compact.value());
+        Deferred<Object> deferred = tsdb.put(key, compact.qualifier(), compact.value(), compactedKVTimestamp);
         if (!to_delete.isEmpty()) {
           deferred = deferred.addCallbacks(new DeleteCompactedCB(to_delete), handle_write_error);
         }
@@ -426,6 +434,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
      */
     private int buildHeapProcessAnnotations() {
       int tot_values = 0;
+
       for (final KeyValue kv : row) {
         byte[] qual = kv.qualifier();
         int len = qual.length;
@@ -433,16 +442,25 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           // process annotations and other extended formats
           if (qual[0] == Annotation.PREFIX()) {
             annotations.add(JSON.parseToObject(kv.value(), Annotation.class));
+          } else if (qual[0] == HistogramDataPoint.PREFIX) {
+            try {
+              HistogramDataPoint histogram = 
+                  Internal.decodeHistogramDataPoint(tsdb, kv);
+              histograms.add(histogram);
+            } catch (Throwable t) {
+              LOG.error("Failed to decode histogram data point", t);
+            }
           } else if (qual[0] == AppendDataPoints.APPEND_COLUMN_PREFIX){
+            compactedKVTimestamp = Math.max(compactedKVTimestamp, kv.timestamp());
             final AppendDataPoints adp = new AppendDataPoints();
             tot_values += adp.parseKeyValue(tsdb, kv).size();
-            last_append_column = new KeyValue(kv.key(), kv.family(), 
+            last_append_column = new KeyValue(kv.key(), kv.family(),
                 adp.qualifier(), kv.timestamp(), adp.value());
-            if (longest == null || 
+            if (longest == null ||
                 longest.qualifier().length < last_append_column.qualifier().length) {
               longest = last_append_column;
             }
-            final ColumnDatapointIterator col = 
+            final ColumnDatapointIterator col =
                 new ColumnDatapointIterator(last_append_column);
             if (col.hasMoreData()) {
               heap.add(col);
@@ -461,6 +479,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           longest = kv;
         }
         ColumnDatapointIterator col = new ColumnDatapointIterator(kv);
+        compactedKVTimestamp = Math.max(compactedKVTimestamp, kv.timestamp());
         if (col.hasMoreData()) {
           heap.add(col);
         }
@@ -476,8 +495,59 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
      * @param compacted_qual qualifiers for sorted datapoints
      * @param compacted_val values for sorted datapoints
      */
-    private void mergeDatapoints(ByteBufferList compacted_qual, 
+
+    private void mergeDatapoints(ByteBufferList compacted_qual,
         ByteBufferList compacted_val) {
+      if (tsdb.getConfig().use_otsdb_timestamp()) {
+        dtcsMergeDataPoints(compacted_qual, compacted_val);
+      } else {
+        defaultMergeDataPoints(compacted_qual, compacted_val);
+      }
+    }
+
+    private void dtcsMergeDataPoints(ByteBufferList compacted_qual, ByteBufferList compacted_val) {
+      // Compare timestamps for two KeyValues at the same time, if they are same compare their values
+      // Return maximum or minimum value depending upon tsd.storage.use_max_value parameter
+      // This function is called once for every RowKey, so we only care about comparing offsets, which
+      // are a part of column qualifier
+      ColumnDatapointIterator col1 = null;
+      ColumnDatapointIterator col2 = null;
+      while (!heap.isEmpty()) {
+        col1 = heap.remove();
+        Pair<Integer, Integer> offsets = col1.getOffsets();
+        Pair<Integer, Integer> offsetLengths = col1.getOffsetLengths();
+        int ts1 = col1.getTimestampOffsetMs();
+        double val1 = col1.getCellValueAsDouble();
+        if (col1.advance()) {
+          heap.add(col1);
+        }
+        int ts2 = ts1;
+        while (ts1 == ts2) {
+          col2 = heap.peek();
+          ts2 = col2 != null ? col2.getTimestampOffsetMs() : ts2;
+          if (col2 == null || ts1 != ts2)
+            break;
+          double val2 = col2.getCellValueAsDouble();
+          if ((tsdb.config.use_max_value() && val2 > val1) || (!tsdb.config.use_max_value() && val1 > val2)) {
+            // Reduce copying of byte arrays by just using col1 variable to reference to either max or min KeyValue
+            col1 = col2;
+            val1 = val2;
+            offsets = col2.getOffsets();
+            offsetLengths = col2.getOffsetLengths();
+          }
+          heap.remove();
+          if (col2.advance()) {
+            heap.add(col2);
+          }
+        }
+        col1.writeToBuffersFromOffset(compacted_qual, compacted_val, offsets, offsetLengths);
+        ms_in_row |= col1.isMilliseconds();
+        s_in_row |= !col1.isMilliseconds();
+      }
+    }
+
+    private void defaultMergeDataPoints(ByteBufferList compacted_qual,
+            ByteBufferList compacted_val) {
       int prevTs = -1;
       while (!heap.isEmpty()) {
         final ColumnDatapointIterator col = heap.remove();
@@ -512,7 +582,6 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         }
       }
     }
-
     /**
      * Build the compacted column from the list of byte buffers that were
      * merged together.
@@ -539,7 +608,11 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       }
 
       final KeyValue first = row.get(0);
-      return new KeyValue(first.key(), first.family(), cq, cv);
+      if(tsdb.getConfig().getBoolean("tsd.storage.use_otsdb_timestamp")) {
+        return new KeyValue(first.key(), first.family(), cq, compactedKVTimestamp, cv);
+      } else {
+        return new KeyValue(first.key(), first.family(), cq, cv);
+      }
     }
 
     /**
@@ -553,11 +626,11 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
      */
     private boolean updateDeletesCheckForWrite(KeyValue compact) {
       if (last_append_column != null) {
-        // TODO appends are involved so we may want to squash dps into the 
-        // append or vice-versa. 
+        // TODO appends are involved so we may want to squash dps into the
+        // append or vice-versa.
         return false;
       }
-      
+
       // if the longest entry isn't as long as the compacted one, obviously the compacted
       // one can't have already existed
       if (longest != null && longest.qualifier().length >= compact.qualifier().length) {
@@ -607,8 +680,9 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    */
   Deferred<Object> compact(final ArrayList<KeyValue> row,
       final KeyValue[] compacted,
-      List<Annotation> annotations) {
-    return new Compaction(row, compacted, annotations).compact();
+      List<Annotation> annotations,
+      List<HistogramDataPoint> histograms) {
+    return new Compaction(row, compacted, annotations, histograms).compact();
   }
 
   /**

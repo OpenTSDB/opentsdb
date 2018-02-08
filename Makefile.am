@@ -47,19 +47,43 @@ tsdb_SRC := \
 	src/core/DownsamplingSpecification.java \
 	src/core/FillingDownsampler.java \
 	src/core/FillPolicy.java \
+	src/core/Histogram.java	\
+	src/core/HistogramAggregation.java	\
+	src/core/HistogramAggregationIterator.java	\
+	src/core/HistogramAggregator.java	\
+	src/core/HistogramBucketDataPointsAdaptor.java	\
+	src/core/HistogramCodecManager.java	\
+	src/core/HistogramDataPoint.java	\
+	src/core/HistogramDataPointCodec.java	\
+	src/core/HistogramDataPoints.java	\
+	src/core/HistogramDataPointsToDataPointsAdaptor.java	\
+	src/core/HistogramDownsampler.java	\
+	src/core/HistogramPojo.java	\
+	src/core/HistogramRowSeq.java	\
+	src/core/HistogramSeekableView.java	\
+	src/core/HistogramSpan.java	\
+	src/core/HistogramSpanGroup.java	\
+	src/core/HistogramRowSeq.java	\
+	src/core/iHistogramRowSeq.java	\
 	src/core/IncomingDataPoint.java	\
 	src/core/IncomingDataPoints.java	\
 	src/core/IllegalDataException.java	\
 	src/core/Internal.java	\
+	src/core/MultiGetQuery.java	\
 	src/core/MutableDataPoint.java \
 	src/core/Query.java	\
 	src/core/QueryException.java	\
-	src/core/RateOptions.java  \
-	src/core/RateSpan.java  \
+	src/core/RateOptions.java	\
+	src/core/RateSpan.java	\
+	src/core/RequestBuilder.java	\
 	src/core/RowKey.java	\
 	src/core/RowSeq.java	\
+	src/core/iRowSeq.java	\
 	src/core/SaltScanner.java	\
 	src/core/SeekableView.java	\
+	src/core/SimpleHistogram.java	\
+	src/core/SimpleHistogramDataPointAdapter.java	\
+	src/core/SimpleHistogramDecoder.java	\
 	src/core/Span.java	\
 	src/core/SpanGroup.java	\
 	src/core/TSDB.java	\
@@ -71,13 +95,16 @@ tsdb_SRC := \
 	src/core/WriteableDataPointFilterPlugin.java	\
 	src/graph/Plot.java	\
 	src/auth/AuthenticationChannelHandler.java \
-	src/auth/AuthenticationPlugin.java \
+	src/auth/Authentication.java \
+	src/auth/Authorization.java \
+	src/auth/AuthState.java \
 	src/meta/Annotation.java	\
 	src/meta/MetaDataCache.java	\
 	src/meta/TSMeta.java	\
 	src/meta/TSUIDQuery.java	\
 	src/meta/UIDMeta.java	\
 	src/query/QueryUtil.java	\
+	src/query/QueryLimitOverride.java	\
 	src/query/expression/Absolute.java	\
 	src/query/expression/Alias.java	\
 	src/query/expression/DiffSeries.java	\
@@ -119,6 +146,15 @@ tsdb_SRC := \
 	src/query/pojo/Query.java	\
 	src/query/pojo/Timespan.java	\
 	src/query/pojo/Validatable.java	\
+	src/rollup/NoSuchRollupForIntervalException.java	\
+	src/rollup/NoSuchRollupForTableException.java	\
+	src/rollup/RollupConfig.java	\
+	src/rollup/RollUpDataPoint.java	\
+	src/rollup/RollupInterval.java	\
+	src/rollup/RollupQuery.java	\
+	src/rollup/RollupSeq.java	\
+	src/rollup/RollupSpan.java	\
+	src/rollup/RollupUtils.java	\
 	src/search/SearchPlugin.java	\
 	src/search/SearchQuery.java	\
 	src/search/TimeSeriesLookup.java	\
@@ -157,6 +193,7 @@ tsdb_SRC := \
 	src/tsd/DropCachesRpc.java \
 	src/tsd/GnuplotException.java	\
 	src/tsd/GraphHandler.java	\
+	src/tsd/HistogramDataPointRpc.java	\
 	src/tsd/HttpJsonSerializer.java	\
 	src/tsd/HttpSerializer.java	\
 	src/tsd/HttpQuery.java	\
@@ -169,6 +206,7 @@ tsdb_SRC := \
 	src/tsd/PutDataPointRpc.java	\
 	src/tsd/QueryExecutor.java	\
 	src/tsd/QueryRpc.java	\
+	src/tsd/RollupDataPointRpc.java	\
 	src/tsd/RpcHandler.java	\
 	src/tsd/RpcPlugin.java	\
 	src/tsd/RpcManager.java	\
@@ -200,9 +238,10 @@ tsdb_SRC := \
 	src/utils/JSONException.java	\
 	src/utils/Pair.java	\
 	src/utils/PluginLoader.java	\
-	src/utils/Threads.java
+	src/utils/Threads.java 
 
 tsdb_DEPS = \
+	$(ASM)	\
 	$(COMMONS_LOGGING)	\
 	$(GUAVA)	\
 	$(LOG4J_OVER_SLF4J)	\
@@ -214,7 +253,10 @@ tsdb_DEPS = \
 	$(JAVACC)	\
 	$(JEXL)	\
 	$(JGRAPHT)	\
+	$(KRYO)	\
+	$(MINLOG)	\
 	$(NETTY)	\
+	$(REFLECTASM)	\
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
 	$(APACHE_MATH)
@@ -246,6 +288,9 @@ endif
 test_SRC := \
 	test/core/SeekableViewsForTest.java \
 	test/core/BaseTsdbTest.java \
+	test/core/HistogramSeekableViewForTest.java \
+	test/core/LongHistogramDataPointForTest.java \
+	test/core/LongHistogramDataPointForTestDecoder.java \
 	test/core/TestAggregationIterator.java \
 	test/core/TestAggregators.java \
 	test/core/TestAppendDataPoints.java \
@@ -254,6 +299,14 @@ test_SRC := \
 	test/core/TestDownsampler.java \
 	test/core/TestDownsamplingSpecification.java \
 	test/core/TestFillingDownsampler.java \
+	test/core/TestHistogramAggregationIterator.java \
+	test/core/TestHistogramCodecManager.java \
+	test/core/TestHistogramDataPointsToDataPointsAdaptor.java \
+	test/core/TestHistogramDownsampler.java \
+	test/core/TestHistogramPojo.java \
+	test/core/TestHistogramRowSeq.java \
+	test/core/TestHistogramSpan.java \
+	test/core/TestHistogramSpanGroup.java \
 	test/core/TestIncomingDataPoints.java	\
 	test/core/TestInternal.java	\
 	test/core/TestMutableDataPoint.java	\
@@ -277,6 +330,7 @@ test_SRC := \
 	test/core/TestTsdbQuerySaltedAppend.java	\
 	test/core/TestTSQuery.java	\
 	test/core/TestTSSubQuery.java	\
+	test/core/TestTsdbTSConfig.java \
 	test/plugin/DummyPlugin.java \
 	test/meta/TestAnnotation.java	\
 	test/meta/TestTSMeta.java	\
@@ -317,6 +371,10 @@ test_SRC := \
 	test/query/pojo/TestOutput.java	\
 	test/query/pojo/TestQuery.java	\
 	test/query/pojo/TestTimeSpan.java	\
+	test/rollup/TestRollupConfig.java	\
+	test/rollup/TestRollupInterval.java	\
+	test/rollup/TestRollupSeq.java	\
+	test/rollup/TestRollupUtils.java	\
 	test/search/TestSearchPlugin.java	\
 	test/search/TestSearchQuery.java	\
 	test/search/TestTimeSeriesLookup.java	\
@@ -335,6 +393,7 @@ test_SRC := \
 	test/tree/TestTree.java	\
 	test/tree/TestTreeBuilder.java	\
 	test/tree/TestTreeRule.java	\
+	test/tsd/BaseTestPutRpc.java	\
 	test/tsd/NettyMocks.java	\
 	test/tsd/TestAnnotationRpc.java	\
 	test/tsd/TestGraphHandler.java	\
@@ -345,6 +404,7 @@ test_SRC := \
 	test/tsd/TestQueryExecutor.java	\
 	test/tsd/TestQueryRpc.java	\
 	test/tsd/TestQueryRpcLastDataPoint.java	\
+	test/tsd/TestRollupRpc.java	\
 	test/tsd/TestRpcHandler.java	\
 	test/tsd/TestRpcPlugin.java	\
 	test/tsd/TestRpcManager.java	\
@@ -607,11 +667,13 @@ install-data-tools: $(tsdb_DEPS) $(jar)
 	destdatatoolsdir="$(DESTDIR)$(pkgdatadir)/tools" ; \
 	echo " $(mkdir_p) $$destdatatoolsdir"; \
 	$(mkdir_p) "$$destdatatoolsdir" || exit 1; \
-	tools="$$tools $(top_srcdir)/tools/*" ; \
 	tools="$$tools $(top_srcdir)/src/create_table.sh" ; \
 	tools="$$tools $(top_srcdir)/src/upgrade_1to2.sh" ; \
 	echo " $(INSTALL_SCRIPT)" $$tools "$$destdatatoolsdir" ; \
-	$(INSTALL_SCRIPT) $$tools "$$destdatatoolsdir" || exit 1;
+	$(INSTALL_SCRIPT) $$tools "$$destdatatoolsdir" || exit 1; \
+	tools="-r $(top_srcdir)/tools/*" ; \
+	echo " cp" $$tools "$$destdatatoolsdir" ; \
+	cp $$tools "$$destdatatoolsdir" || exit 1; 
 
 uninstall-data-tools:
 	@$(NORMAL_UNINSTALL)
@@ -834,6 +896,7 @@ fat-jar-pom.xml: ./fat-jar/fat-jar-pom.xml.in Makefile
 	    -e 's/@JACKSON_VERSION@/$(JACKSON_VERSION)/' \
 	    -e 's/@JAVASSIST_VERSION@/$(JAVASSIST_VERSION)/' \
 	    -e 's/@JUNIT_VERSION@/$(JUNIT_VERSION)/' \
+	    -e 's/@KRYO_VERSION@/$(KRYO_VERSION)/' \
 	    -e 's/@LOG4J_OVER_SLF4J_VERSION@/$(LOG4J_OVER_SLF4J_VERSION)/' \
 	    -e 's/@LOGBACK_CLASSIC_VERSION@/$(LOGBACK_CLASSIC_VERSION)/' \
 	    -e 's/@LOGBACK_CORE_VERSION@/$(LOGBACK_CORE_VERSION)/' \

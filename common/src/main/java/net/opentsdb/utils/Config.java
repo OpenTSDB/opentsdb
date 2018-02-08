@@ -30,18 +30,18 @@ import com.google.common.collect.ImmutableMap;
 
 /**
  * OpenTSDB Configuration Class
- * 
+ *
  * This handles all of the user configurable variables for a TSD. On
  * initialization default values are configured for all variables. Then
  * implementations should call the {@link #loadConfig()} methods to search for a
  * default configuration or try to load one provided by the user.
- * 
+ *
  * To add a configuration, simply set a default value in {@link #setDefaults()}.
  * Wherever you need to access the config value, use the proper helper to fetch
  * the value, accounting for exceptions that may be thrown if necessary.
- * 
+ *
  * The get &lt;type&gt; number helpers will return NumberFormatExceptions if the
- * requested property is null or unparseable. The {@link #getString(String)} 
+ * requested property is null or unparseable. The {@link #getString(String)}
  * helper will return a NullPointerException if the property isn't found.
  * <p>
  * Plugins can extend this class and copy the properties from the main
@@ -55,11 +55,11 @@ public class Config {
   private static final Logger LOG = LoggerFactory.getLogger(Config.class);
 
   /** Flag to determine if we're running under Windows or not */
-  public static final boolean IS_WINDOWS = 
+  public static final boolean IS_WINDOWS =
       System.getProperty("os.name", "").contains("Windows");
-  
+
   // These are accessed often so need a set address for fast access (faster
-  // than accessing the map. Their value will be changed when the config is 
+  // than accessing the map. Their value will be changed when the config is
   // loaded
   // NOTE: edit the setDefaults() method if you add a public field
 
@@ -68,60 +68,74 @@ public class Config {
 
   /** tsd.core.auto_create_tagk */
   private boolean auto_tagk = true;
-  
+
   /** tsd.core.auto_create_tagv */
   private boolean auto_tagv = true;
-  
+
   /** tsd.storage.enable_compaction */
   private boolean enable_compactions = true;
-  
+
   /** tsd.storage.enable_appends */
   private boolean enable_appends = false;
-  
+
   /** tsd.storage.repair_appends */
   private boolean repair_appends = false;
-  
+
   /** tsd.core.meta.enable_realtime_ts */
   private boolean enable_realtime_ts = false;
-  
+
   /** tsd.core.meta.enable_realtime_uid */
   private boolean enable_realtime_uid = false;
-  
+
   /** tsd.core.meta.enable_tsuid_incrementing */
   private boolean enable_tsuid_incrementing = false;
-  
+
   /** tsd.core.meta.enable_tsuid_tracking */
   private boolean enable_tsuid_tracking = false;
-  
+
   /** tsd.http.request.enable_chunked */
   private boolean enable_chunked_requests = false;
-  
+
   /** tsd.storage.fix_duplicates */
   private boolean fix_duplicates = false;
 
   /** tsd.http.request.max_chunk */
-  private int max_chunked_requests = 4096; 
-  
+  private int max_chunked_requests = 4096;
+
   /** tsd.core.tree.enable_processing */
   private boolean enable_tree_processing = false;
 
   /** tsd.storage.hbase.scanner.maxNumRows */
   private int scanner_max_num_rows = 128;
   
-  private int mul_get_batch_size = 1024;
-  
-  private int mul_get_cocurrency_number = 16;
+  /** tsd.storage.use_otsdb_timestamp */
+  /** Sets the HBase cell timestamp equal to metric timestamp */
+  private boolean use_otsdb_timestamp = true;
+
+  /** tsd.storage.get_date_tiered_compaction_start */
+  /** Sets the time at which you started using use_otsdb_timestamp
+   * this value is overriden if you have existing data in your tsdb table
+   * but don't want to re-write the cell timestamps, therefore you can start
+   * set this timestamp to when you start using use_otsdb_timestamp
+   * */
+  private long get_date_tiered_compaction_start = 0;
+
+
+  /** tsd.storage.use_max_value */
+  /** Used for resolving between data coming in at same timestamp */
+  /** If set to true, the maximum value will be returned, minimum */
+  private boolean use_max_value = true;
   
   /**
    * The list of properties configured to their defaults or modified by users
    */
-  protected final HashMap<String, String> properties = 
+  protected final HashMap<String, String> properties =
     new HashMap<String, String>();
 
   /** Holds default values for the config */
-  protected static final HashMap<String, String> default_map = 
+  protected static final HashMap<String, String> default_map =
     new HashMap<String, String>();
-  
+
   /** Tracks the location of the file that was actually loaded */
   protected String config_location;
 
@@ -154,7 +168,7 @@ public class Config {
   /**
    * Constructor for plugins or overloaders who want a copy of the parent
    * properties but without the ability to modify them
-   * 
+   *
    * This constructor will not re-read the file, but it will copy the location
    * so if a child wants to reload the properties periodically, they may do so
    * @param parent Parent configuration object to load from
@@ -177,60 +191,60 @@ public class Config {
   public String configLocation() {
     return config_location;
   }
-  
+
   /** @return the auto_metric value */
   public boolean auto_metric() {
     return auto_metric;
   }
-  
+
   /** @return the auto_tagk value */
   public boolean auto_tagk() {
     return auto_tagk;
   }
-  
+
   /** @return the auto_tagv value */
   public boolean auto_tagv() {
     return auto_tagv;
   }
-  
+
   /** @param auto_metric whether or not to auto create metrics */
   public void setAutoMetric(boolean auto_metric) {
     this.auto_metric = auto_metric;
-    properties.put("tsd.core.auto_create_metrics", 
+    properties.put("tsd.core.auto_create_metrics",
         Boolean.toString(auto_metric));
   }
-  
+
   /** @return the enable_compaction value */
   public boolean enable_compactions() {
     return enable_compactions;
   }
-  
+
   /** @return whether or not to write data in the append format */
   public boolean enable_appends() {
     return enable_appends;
   }
-  
+
   /** @return whether or not to re-write appends with duplicates or out of order
    * data when queried. */
   public boolean repair_appends() {
     return repair_appends;
   }
-  
+
   /** @return whether or not to record new TSMeta objects in real time */
-  public boolean enable_realtime_ts() { 
+  public boolean enable_realtime_ts() {
     return enable_realtime_ts;
   }
-  
+
   /** @return whether or not record new UIDMeta objects in real time */
-  public boolean enable_realtime_uid() { 
+  public boolean enable_realtime_uid() {
     return enable_realtime_uid;
   }
-  
+
   /** @return whether or not to increment TSUID counters */
-  public boolean enable_tsuid_incrementing() { 
+  public boolean enable_tsuid_incrementing() {
     return enable_tsuid_incrementing;
   }
-  
+
   /** @return whether or not to record a 1 for every TSUID */
   public boolean enable_tsuid_tracking() {
     return enable_tsuid_tracking;
@@ -240,17 +254,17 @@ public class Config {
   public int scanner_maxNumRows() {
     return scanner_max_num_rows;
   }
-  
+
   /** @return whether or not chunked requests are supported */
   public boolean enable_chunked_requests() {
     return enable_chunked_requests;
   }
-  
+
   /** @return max incoming chunk size in bytes */
   public int max_chunked_requests() {
     return max_chunked_requests;
   }
-  
+
   /** @return true if duplicate values should be fixed */
   public boolean fix_duplicates() {
     return fix_duplicates;
@@ -266,21 +280,26 @@ public class Config {
     return enable_tree_processing;
   }
   
-  public int mul_get_batch_size() {
-    return mul_get_batch_size;
+  public boolean use_otsdb_timestamp() {
+    return use_otsdb_timestamp;
+  }
+
+  /** @return the time at which you started storing data using otsdb_timestamp(), if not set defaults to 0 */
+  public long get_date_tiered_compaction_start() {
+    return get_date_tiered_compaction_start;
+  }
+
+  public boolean use_max_value() {
+    return use_max_value;
   }
   
-  public int mul_get_concurrency_number() {
-    return mul_get_cocurrency_number;
-  }
-    
   /**
    * Allows for modifying properties after creation or loading.
-   * 
-   * WARNING: This should only be used on initialization and is meant for 
-   * command line overrides. Also note that it will reset all static config 
+   *
+   * WARNING: This should only be used on initialization and is meant for
+   * command line overrides. Also note that it will reset all static config
    * variables when called.
-   * 
+   *
    * @param property The name of the property to override
    * @param value The value to store
    */
@@ -311,10 +330,10 @@ public class Config {
   }
 
   /**
-   * Returns the given string trimed or null if is null 
-   * @param string The string be trimmed of 
+   * Returns the given string trimed or null if is null
+   * @param string The string be trimmed of
    * @return The string trimed or null
-  */  
+  */
   private final String sanitize(final String string) {
     if (string == null) {
       return null;
@@ -369,12 +388,12 @@ public class Config {
 
   /**
    * Returns the given property as a boolean
-   * 
+   *
    * Property values are case insensitive and the following values will result
    * in a True return value: - 1 - True - Yes
-   * 
+   *
    * Any other values, including an empty string, will result in a False
-   * 
+   *
    * @param property The property to load
    * @return A parsed boolean
    * @throws NullPointerException if the property was not found
@@ -404,7 +423,7 @@ public class Config {
     if (IS_WINDOWS) {
       // Windows swings both ways. If a forward slash was already used, we'll
       // add one at the end if missing. Otherwise use the windows default of \
-      if (directory.charAt(directory.length() - 1) == '\\' || 
+      if (directory.charAt(directory.length() - 1) == '\\' ||
           directory.charAt(directory.length() - 1) == '/') {
         return directory;
       }
@@ -417,17 +436,17 @@ public class Config {
       throw new IllegalArgumentException(
           "Unix path names cannot contain a back slash");
     }
-    
+
     if (directory == null || directory.isEmpty()){
     	return null;
     }
-    
+
     if (directory.charAt(directory.length() - 1) == '/') {
       return directory;
     }
     return directory + "/";
   }
-  
+
   /**
    * Determines if the given propery is in the map
    * @param property The property to search for
@@ -487,10 +506,10 @@ public class Config {
   public final void disableCompactions() {
     this.enable_compactions = false;
   }
-  
+
   /**
    * Loads default entries that were not provided by a file or command line
-   * 
+   *
    * This should be called in the constructor
    */
   protected void setDefaults() {
@@ -513,6 +532,7 @@ public class Config {
     default_map.put("tsd.core.connections.limit", "0");
     default_map.put("tsd.core.enable_api", "true");
     default_map.put("tsd.core.enable_ui", "true");
+    default_map.put("tsd.core.hist_decoder", "net.opentsdb.core.SimpleHistogramDecoder");
     default_map.put("tsd.core.meta.enable_realtime_ts", "false");
     default_map.put("tsd.core.meta.enable_realtime_uid", "false");
     default_map.put("tsd.core.meta.enable_tsuid_incrementing", "false");
@@ -530,6 +550,16 @@ public class Config {
     default_map.put("tsd.query.skip_unresolved_tagvs", "false");
     default_map.put("tsd.query.allow_simultaneous_duplicates", "true");
     default_map.put("tsd.query.enable_fuzzy_filter", "true");
+    default_map.put("tsd.query.limits.bytes.default", "0");
+    default_map.put("tsd.query.limits.bytes.allow_override", "false");
+    default_map.put("tsd.query.limits.data_points.default", "0");
+    default_map.put("tsd.query.limits.data_points.allow_override", "false");
+    default_map.put("tsd.query.limits.overrides.interval", "60000");
+    default_map.put("tsd.query.multi_get.enable", "false");
+    default_map.put("tsd.query.multi_get.limit", "131072");
+    default_map.put("tsd.query.multi_get.batch_size", "1024");
+    default_map.put("tsd.query.multi_get.concurrent", "20");
+    default_map.put("tsd.query.multi_get.get_all_salts", "false");
     default_map.put("tsd.rpc.telnet.return_errors", "true");
     // Rollup related settings
     default_map.put("tsd.rollups.enable", "false");
@@ -562,8 +592,12 @@ public class Config {
     default_map.put("tsd.storage.compaction.max_concurrent_flushes", "10000");
     default_map.put("tsd.storage.compaction.flush_speed", "2");
     default_map.put("tsd.timeseriesfilter.enable", "false");
+    default_map.put("tsd.uid.use_mode", "false");
+    default_map.put("tsd.uid.lru.enable", "false");
+    default_map.put("tsd.uid.lru.name.size", "5000000");
+    default_map.put("tsd.uid.lru.id.size", "5000000");
     default_map.put("tsd.uidfilter.enable", "false");
-    default_map.put("tsd.core.stats_with_port", "false");    
+    default_map.put("tsd.core.stats_with_port", "false");
     default_map.put("tsd.http.show_stack_trace", "true");
     default_map.put("tsd.http.query.allow_delete", "false");
     default_map.put("tsd.http.request.enable_chunked", "false");
@@ -573,8 +607,9 @@ public class Config {
       + "Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, "
       + "X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since");
     default_map.put("tsd.query.timeout", "0");
-    default_map.put("tsd.core.mul_get_batch_size", "1024");
-    default_map.put("tsd.core.mul_get_cocurrency_number", "20");
+    default_map.put("tsd.storage.use_otsdb_timestamp", "true");
+    default_map.put("tsd.storage.use_max_value", "true");
+    default_map.put("tsd.storage.get_date_tiered_compaction_start", "0");
 
     for (Map.Entry<String, String> entry : default_map.entrySet()) {
       if (!properties.containsKey(entry.getKey()))
@@ -586,14 +621,14 @@ public class Config {
 
   /**
    * Searches a list of locations for a valid opentsdb.conf file
-   * 
+   *
    * The config file must be a standard JAVA properties formatted file. If none
    * of the locations have a config file, then the defaults or command line
    * arguments will be used for the configuration
-   * 
+   *
    * Defaults for Linux based systems are: ./opentsdb.conf /etc/opentsdb.conf
    * /etc/opentsdb/opentdsb.conf /opt/opentsdb/opentsdb.conf
-   * 
+   *
    * @throws IOException Thrown if there was an issue reading a file
    */
   protected void loadConfig() throws IOException {
@@ -623,9 +658,9 @@ public class Config {
         file_stream = new FileInputStream(file);
         Properties props = new Properties();
         props.load(file_stream);
-        
+
         // load the hash map
-        loadHashMap(props);        
+        loadHashMap(props);
       } catch (FileNotFoundException e) {
         // don't do anything, the file may be missing and that's fine
         LOG.warn(e.getMessage());
@@ -657,10 +692,10 @@ public class Config {
       file_stream = new FileInputStream(file);
       final Properties props = new Properties();
       props.load(file_stream);
-  
+
       // load the hash map
       loadHashMap(props);
-  
+
       // no exceptions thrown, so save the valid path and exit
       LOG.info("Successfully loaded configuration file: " + file);
       config_location = file;
@@ -685,9 +720,9 @@ public class Config {
     enable_chunked_requests = this.getBoolean("tsd.http.request.enable_chunked");
     enable_realtime_ts = this.getBoolean("tsd.core.meta.enable_realtime_ts");
     enable_realtime_uid = this.getBoolean("tsd.core.meta.enable_realtime_uid");
-    enable_tsuid_incrementing = 
+    enable_tsuid_incrementing =
       this.getBoolean("tsd.core.meta.enable_tsuid_incrementing");
-    enable_tsuid_tracking = 
+    enable_tsuid_tracking =
       this.getBoolean("tsd.core.meta.enable_tsuid_tracking");
     if (this.hasProperty("tsd.http.request.max_chunk")) {
       max_chunked_requests = this.getInt("tsd.http.request.max_chunk");
@@ -695,20 +730,21 @@ public class Config {
     enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
     fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
     scanner_max_num_rows = this.getInt("tsd.storage.hbase.scanner.maxNumRows");
-    mul_get_batch_size = this.getInt("tsd.core.mul_get_batch_size");
-    mul_get_cocurrency_number = this.getInt("tsd.core.mul_get_cocurrency_number");
+    use_otsdb_timestamp = this.getBoolean("tsd.storage.use_otsdb_timestamp");
+    get_date_tiered_compaction_start = this.getLong("tsd.storage.get_date_tiered_compaction_start");
+    use_max_value = this.getBoolean("tsd.storage.use_max_value");
   }
-  
+
   /**
    * Called from {@link #loadConfig} to copy the properties into the hash map
    * Tsuna points out that the Properties class is much slower than a hash
    * map so if we'll be looking up config values more than once, a hash map
-   * is the way to go 
+   * is the way to go
    * @param props The loaded Properties object to copy
    */
   private void loadHashMap(final Properties props) {
     properties.clear();
-    
+
     @SuppressWarnings("rawtypes")
     Enumeration e = props.propertyNames();
     while (e.hasMoreElements()) {

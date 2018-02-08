@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.rollup.RollupQuery;
+import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
@@ -226,7 +228,8 @@ public class Span implements DataPoints {
    */
   static long lastTimestampInRow(final short metric_width,
                                  final KeyValue row) {
-    final long base_time = Bytes.getUnsignedInt(row.key(), metric_width);
+    final long base_time = Bytes.getUnsignedInt(row.key(), metric_width + 
+        Const.SALT_WIDTH());
     final byte[] qual = row.qualifier();
     if (qual.length >= 4 && Internal.inMilliseconds(qual[qual.length - 4])) {
       return (base_time * 1000) + ((Bytes.getUnsignedInt(qual, qual.length - 4) & 
@@ -535,7 +538,7 @@ public class Span implements DataPoints {
    * @param downsampler The downsampling specification to use
    * @param query_start Start of the actual query
    * @param query_end End of the actual query
-   * @param is_rollup Whether or not the downsampler is handling rolled up data.
+   * @param rollup_query An optional rollup query.
    * @return A new downsampler.
    * @since 2.4
    */
@@ -544,16 +547,16 @@ public class Span implements DataPoints {
       final DownsamplingSpecification downsampler,
       final long query_start,
       final long query_end,
-      final boolean is_rollup) {
+      final RollupQuery rollup_query) {
     if (downsampler == null) {
       return null;
     }
     if (FillPolicy.NONE == downsampler.getFillPolicy()) {
       return new Downsampler(spanIterator(), downsampler, 
-          query_start, query_end, is_rollup);  
+          query_start, query_end, rollup_query);  
     }
     return new FillingDownsampler(spanIterator(), start_time, end_time, 
-        downsampler, query_start, query_end, is_rollup);
+        downsampler, query_start, query_end, rollup_query);
   }
 
   /**
@@ -569,5 +572,14 @@ public class Span implements DataPoints {
   
   public int getQueryIndex() {
     throw new UnsupportedOperationException("Not mapped to a query");
+  }
+  @Override
+  public boolean isPercentile() {
+    return false;
+  }
+
+  @Override
+  public float getPercentile() {
+    throw new UnsupportedOperationException("getPercentile not supported");
   }
 }

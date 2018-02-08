@@ -42,7 +42,7 @@ public final class RollupSpan extends Span {
   public RollupSpan(final TSDB tsdb, RollupQuery rollup_query) {
     super(tsdb);
 
-    if (rollup_query.getRollupInterval().isDefaultRollupInterval()) {
+    if (rollup_query.getRollupInterval().isDefaultInterval()) {
       throw new IllegalStateException("Rolup Span is not applicable to default "
         + "rollup interval. Default rollup interval is encoded in the same way"
         + " as the raw data.");

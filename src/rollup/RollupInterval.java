@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -13,7 +13,12 @@
 package net.opentsdb.rollup;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Objects;
+import com.google.common.hash.HashCode;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.utils.DateTime;
@@ -23,6 +28,7 @@ import net.opentsdb.utils.DateTime;
  * are validated.
  * @since 2.4
  */
+@JsonDeserialize(builder = RollupInterval.Builder.class)
 public class RollupInterval {
   /** Static intervals */
   private static final int MAX_SECONDS_IN_HOUR = 60 * 60;
@@ -50,6 +56,9 @@ public class RollupInterval {
    */
   private final String string_interval;
   
+  /** How wide the row will be in values. */
+  private final String row_span;
+  
   /** Width of the row as a time unit, e.g. 'h' for hour, 'd' for day, 'm' for
    * month and 'y' for year
    */
@@ -71,59 +80,26 @@ public class RollupInterval {
    * Default interval is of 1m interval, and will be stored in normal
    * tsdb table/s. So if true, which means the raw cell column qualifier format 
    * also it might be compacted.
-   * TODO. This will be changed when the spatial aggregation logic is in place.
-   * Here it is added to handle the pre-aggregated data on raw data
    */
-  private final boolean default_interval;
+  private final boolean is_default_interval;
   
   /**
-   * Default Ctor used when configuring rollups
-   * @param temporal_table_name The rollup only table name
-   * @param groupby_table_name The pre-agg rollup table name
-   * @param interval The rollup interval, e.g. 10m or 15m or 1h
-   * @param span The row span, e.g. 1h, 6h, 1d, 1m, 1y. Values greater than 1
-   * are only allowed with the 'h' unit.
-   * @throws IllegalArgumentException if milliseconds were passed in the interval
-   * or the interval couldn't be parsed, the tables are missing, or if the 
-   * duration is too large, too large for the span or the interval is too 
-   * large or small for the span or if the span is invalid.
-   * @throws NullPointerException if the interval is empty or null
+   * Protected ctor used by the builder.
+   * @param builder The non-null builder to load from.
    */
-  public RollupInterval(final String temporal_table_name, 
-      final String groupby_table_name, final String interval, 
-      final String span) {
-    this(temporal_table_name, groupby_table_name, interval, span, false);
-  }
-
-  /**
-   * Default Ctor used when configuring rollups
-   * @param temporal_table_name The rollup only table name
-   * @param groupby_table_name The pre-agg rollup table name
-   * @param interval The rollup interval, e.g. 10m or 15m or 1h
-   * @param span The row span, e.g. 1h, 6h, 1d, 1m, 1y. Values greater than 1
-   * are only allowed with the 'h' unit.
-   * @param default_interval Tells whether it is the default rollup interval
-   *     that needs to be written into default tsdb table
-   * @throws IllegalArgumentException if milliseconds were passed in the interval
-   * or the interval couldn't be parsed, the tables are missing, or if the 
-   * duration is too large, too large for the span or the interval is too 
-   * large or small for the span or if the span is invalid.
-   * @throws NullPointerException if the interval is empty or null
-   */
-  public RollupInterval(final String temporal_table_name, 
-      final String groupby_table_name, final String interval, 
-      final String span, boolean default_interval) {
-    this.temporal_table_name = temporal_table_name;
-    this.groupby_table_name = groupby_table_name;
-    this.string_interval = interval;
-    this.default_interval = default_interval;
+  protected RollupInterval(final Builder builder) {
+    temporal_table_name = builder.table;
+    groupby_table_name = builder.preAggregationTable;
+    string_interval = builder.interval;
+    row_span = builder.rowSpan;
+    is_default_interval = builder.defaultInterval;
     
-    final String parsed_units = DateTime.getDurationUnits(span);
+    final String parsed_units = DateTime.getDurationUnits(row_span);
     if (parsed_units.length() > 1) {
       throw new IllegalArgumentException("Milliseconds are not supported");
     }
     units = parsed_units.charAt(0);
-    this.unit_multiplier = DateTime.getDurationInterval(span);
+    this.unit_multiplier = DateTime.getDurationInterval(row_span);
     
     validateAndCompile();
   }
@@ -132,7 +108,9 @@ public class RollupInterval {
   public String toString() {
     final StringBuilder buf = new StringBuilder();
     buf.append("table=").append(temporal_table_name)
-       .append(", agg_table=").append(groupby_table_name)
+       .append(", preAggTable=").append(groupby_table_name)
+       .append(", rowSpan=").append(row_span)
+       .append(", isDefaultInterval=").append(is_default_interval)
        .append(", interval=").append(string_interval)
        .append(", units=").append(units)
        .append(", unit_multipier=").append(unit_multiplier)
@@ -144,8 +122,18 @@ public class RollupInterval {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(temporal_table_name, groupby_table_name, units,
-        unit_multiplier, string_interval, default_interval);
+    return buildHashCode().asInt();
+  }
+  
+  /** @return A HashCode object for deterministic, non-secure hashing */
+  public HashCode buildHashCode() {
+    return Const.HASH_FUNCTION().newHasher()
+        .putString(temporal_table_name, Const.UTF8_CHARSET)
+        .putString(groupby_table_name, Const.UTF8_CHARSET)
+        .putString(string_interval, Const.UTF8_CHARSET)
+        .putString(row_span, Const.UTF8_CHARSET)
+        .putBoolean(is_default_interval)
+        .hash();
   }
   
   @Override
@@ -162,10 +150,9 @@ public class RollupInterval {
     final RollupInterval interval = (RollupInterval)obj;
     return Objects.equal(temporal_table_name, interval.temporal_table_name) 
         && Objects.equal(groupby_table_name, interval.groupby_table_name)
-        && Objects.equal(units, interval.units)
-        && Objects.equal(unit_multiplier, interval.unit_multiplier)
+        && Objects.equal(row_span, interval.row_span)
         && Objects.equal(string_interval, interval.string_interval)
-        && Objects.equal(default_interval, interval.default_interval);
+        && Objects.equal(is_default_interval, interval.is_default_interval);
   }
   
   /**
@@ -215,7 +202,7 @@ public class RollupInterval {
     case 'd':
       num_span = MAX_SECONDS_IN_DAY;
       break;
-    case 'm':
+    case 'n':
       num_span = MAX_SECONDS_IN_MONTH;
       break;
     case 'y':
@@ -245,7 +232,7 @@ public class RollupInterval {
   }
   
   /** @return the string name of the temporal rollup table */
-  public String getTemporalTableName() {
+  public String getTable() {
     return temporal_table_name;
   }
   
@@ -256,7 +243,7 @@ public class RollupInterval {
   }
   
   /** @return the string name of the group by rollup table */
-  public String getGroupbyTableName() {
+  public String getPreAggregationTable() {
     return groupby_table_name;
   }
   
@@ -267,31 +254,36 @@ public class RollupInterval {
   }
 
   /** @return the configured interval as a string */
-  public String getStringInterval() {
+  public String getInterval() {
     return string_interval;
   }
 
   /** @return the character describing the span of this interval */
+  @JsonIgnore
   public char getUnits() {
     return units;
   }
   
   /** @return the unit multiplier */
+  @JsonIgnore
   public int getUnitMultiplier() {
     return unit_multiplier;
   }
 
   /** @return the interval units character */
+  @JsonIgnore
   public char getIntervalUnits() {
     return interval_units;
   }
 
   /** @return the interval for this span in seconds */
-  public int getInterval() {
+  @JsonIgnore
+  public int getIntervalSeconds() {
     return interval;
   }
 
   /** @return the count of intervals in this span */
+  @JsonIgnore
   public int getIntervals() {
     return intervals;
   }
@@ -303,7 +295,60 @@ public class RollupInterval {
    * compacted
    * @return true if it is default rollup interval
    */
-  public boolean isDefaultRollupInterval() {
-    return default_interval;
+  public boolean isDefaultInterval() {
+    return is_default_interval;
+  }
+
+  /** @return The width of each row as an interval string. */
+  public String getRowSpan() {
+    return row_span;
+  }
+  
+  public static Builder builder() {
+    return new Builder();
+  }
+  
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  @JsonPOJOBuilder(buildMethodName = "build", withPrefix = "")
+  public static class Builder {
+    @JsonProperty
+    private String table;
+    @JsonProperty
+    private String preAggregationTable;
+    @JsonProperty
+    private String interval;
+    @JsonProperty
+    private String rowSpan;
+    @JsonProperty
+    private boolean defaultInterval;
+    
+    public Builder setTable(final String table) {
+      this.table = table;
+      return this;
+    }
+    
+    public Builder setPreAggregationTable(final String preAggregationTable) {
+      this.preAggregationTable = preAggregationTable;
+      return this;
+    }
+    
+    public Builder setInterval(final String interval) {
+      this.interval = interval;
+      return this;
+    }
+    
+    public Builder setRowSpan(final String rowSpan) {
+      this.rowSpan = rowSpan;
+      return this;
+    }
+    
+    public Builder setDefaultInterval(final boolean defaultInterval) {
+      this.defaultInterval = defaultInterval;
+      return this;
+    }
+    
+    public RollupInterval build() {
+      return new RollupInterval(this);
+    }
   }
 }

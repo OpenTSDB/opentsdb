@@ -43,7 +43,7 @@ public final class TestHttpRpcPluginQuery {
   
   @Test
   public void getQueryBaseRoute() {
-    assertEquals("test/this/path", makeQuery("/plugin/test/this/path").getQueryBaseRoute());
+    assertEquals("test", makeQuery("/plugin/test/this/path").getQueryBaseRoute());
     assertEquals("test", makeQuery("/plugin/test/").getQueryBaseRoute());
     assertEquals("test", makeQuery("/plugin/test?some=else&this=that").getQueryBaseRoute());
   }

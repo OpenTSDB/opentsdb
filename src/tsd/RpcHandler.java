@@ -91,9 +91,8 @@ final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
     this.rpc_manager = manager;
 
     final String cors = tsdb.getConfig().getString("tsd.http.request.cors_domains");
-    final String mode = tsdb.getConfig().getString("tsd.mode");
 
-    LOG.info("TSD is in " + mode + " mode");
+    LOG.info("TSD is in " + tsdb.getMode() + " mode");
 
     if (cors == null || cors.isEmpty()) {
       cors_domains = null;

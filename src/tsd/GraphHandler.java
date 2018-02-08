@@ -180,6 +180,15 @@ final class GraphHandler implements HttpRpc {
     } else if (options.size() != tsdbqueries.length) {
       throw new BadRequestException(options.size() + " `o' parameters, but "
         + tsdbqueries.length + " `m' parameters.");
+    } else {
+      for (final String option : options) {
+        // TODO - far from perfect, should help a little.
+        if (option.contains("`") || option.contains("%60") || 
+            option.contains("&#96;")) {
+          throw new BadRequestException("Option contained a back-tick. "
+              + "That's a no-no.");
+        }
+      }
     }
     for (final Query tsdbquery : tsdbqueries) {
       try {
@@ -628,6 +637,12 @@ final class GraphHandler implements HttpRpc {
   static void setPlotDimensions(final HttpQuery query, final Plot plot) {
     final String wxh = query.getQueryStringParam("wxh");
     if (wxh != null && !wxh.isEmpty()) {
+      // TODO - far from perfect, should help a little.
+      if (wxh.contains("`") || wxh.contains("%60") || 
+          wxh.contains("&#96;")) {
+        throw new BadRequestException("WXH contained a back-tick. "
+            + "That's a no-no.");
+      }
       final int wxhlength = wxh.length();
       if (wxhlength < 7) {  // 100x100 minimum.
         throw new BadRequestException("Parameter wxh too short: " + wxh);
@@ -678,7 +693,14 @@ final class GraphHandler implements HttpRpc {
     if (params == null) {
       return null;
     }
-    return params.get(params.size() - 1);
+    final String given = params.get(params.size() - 1);
+    // TODO - far from perfect, should help a little.
+    if (given.contains("`") || given.contains("%60") || 
+        given.contains("&#96;")) {
+      throw new BadRequestException("Parameter " + param + " contained a "
+          + "back-tick. That's a no-no.");
+    }
+    return given;
   }
 
   /**

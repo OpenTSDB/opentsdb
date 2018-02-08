@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import net.opentsdb.tools.BuildData;
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TSDB.OperationMode;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.Config;
@@ -132,8 +133,7 @@ public final class RpcManager {
     }
 
     final RpcManager manager = new RpcManager(tsdb);
-    final String mode = Strings.nullToEmpty(tsdb.getConfig().getString("tsd.mode"));
-
+    
     // Load any plugins that are enabled via Config.  Fail if any plugin cannot be loaded.
 
     final ImmutableList.Builder<RpcPlugin> rpcBuilder = ImmutableList.builder();
@@ -145,14 +145,14 @@ public final class RpcManager {
 
     final ImmutableMap.Builder<String, TelnetRpc> telnetBuilder = ImmutableMap.builder();
     final ImmutableMap.Builder<String, HttpRpc> httpBuilder = ImmutableMap.builder();
-    manager.initializeBuiltinRpcs(mode, telnetBuilder, httpBuilder);
+    manager.initializeBuiltinRpcs(tsdb.getMode(), telnetBuilder, httpBuilder);
     manager.telnet_commands = telnetBuilder.build();
     manager.http_commands = httpBuilder.build();
 
     final ImmutableMap.Builder<String, HttpRpcPlugin> httpPluginsBuilder = ImmutableMap.builder();
     if (tsdb.getConfig().hasProperty("tsd.http.rpc.plugins")) {
       final String[] plugins = tsdb.getConfig().getString("tsd.http.rpc.plugins").split(",");
-      manager.initializeHttpRpcPlugins(mode, plugins, httpPluginsBuilder);
+      manager.initializeHttpRpcPlugins(tsdb.getMode(), plugins, httpPluginsBuilder);
     }
     manager.http_plugin_commands = httpPluginsBuilder.build();
 
@@ -248,7 +248,7 @@ public final class RpcManager {
    * instances.
    * @param http a map of API endpoints to {@link HttpRpc} instances.
    */
-  private void initializeBuiltinRpcs(final String mode,
+  private void initializeBuiltinRpcs(final OperationMode mode,
         final ImmutableMap.Builder<String, TelnetRpc> telnet,
         final ImmutableMap.Builder<String, HttpRpc> http) {
 
@@ -258,61 +258,100 @@ public final class RpcManager {
 
     LOG.info("Mode: {}, HTTP UI Enabled: {}, HTTP API Enabled: {}", mode, enableUi, enableApi);
 
-    if (mode.equals("rw") || mode.equals("wo")) {
-      final PutDataPointRpc put = new PutDataPointRpc(tsdb.getConfig());
-      final RollupDataPointRpc rollups = new RollupDataPointRpc(tsdb.getConfig());
+    // defaults common to every mode
+    final StatsRpc stats = new StatsRpc();
+    final ListAggregators aggregators = new ListAggregators();
+    final DropCachesRpc dropcaches = new DropCachesRpc();
+    final Version version = new Version();
+    
+    telnet.put("stats", stats);
+    telnet.put("dropcaches", dropcaches);
+    telnet.put("version", version);
+    telnet.put("exit", new Exit());
+    telnet.put("help", new Help());
+    
+    if (enableUi) {
+      http.put("aggregators", aggregators);
+      http.put("logs", new LogsRpc());
+      http.put("stats", stats);
+      http.put("version", version);
+    }
+    
+    if (enableApi) {
+      http.put("api/aggregators", aggregators);
+      http.put("api/config", new ShowConfig());
+      http.put("api/dropcaches", dropcaches);
+      http.put("api/stats", stats);
+      http.put("api/version", version);
+    }
+    
+    final PutDataPointRpc put = new PutDataPointRpc(tsdb.getConfig());
+    final RollupDataPointRpc rollups = new RollupDataPointRpc(tsdb.getConfig());
+    final HistogramDataPointRpc histos = new HistogramDataPointRpc(tsdb.getConfig());
+    final SuggestRpc suggest_rpc = new SuggestRpc();
+    final AnnotationRpc annotation_rpc = new AnnotationRpc();
+    final StaticFileRpc staticfile = new StaticFileRpc();
+    
+    switch(mode) {
+    case WRITEONLY:
       telnet.put("put", put);
       telnet.put("rollup", rollups);
+      telnet.put("histogram", histos);
+      
       if (enableApi) {
-        http.put("api/put", put);
-        http.put("api/rollup", rollups);
-      }
-    }
-
-    if (mode.equals("rw") || mode.equals("ro")) {
-      final StaticFileRpc staticfile = new StaticFileRpc();
-      final StatsRpc stats = new StatsRpc();
-      final DropCachesRpc dropcaches = new DropCachesRpc();
-      final ListAggregators aggregators = new ListAggregators();
-      final SuggestRpc suggest_rpc = new SuggestRpc();
-      final AnnotationRpc annotation_rpc = new AnnotationRpc();
-      final Version version = new Version();
-
-      telnet.put("stats", stats);
-      telnet.put("dropcaches", dropcaches);
-      telnet.put("version", version);
-      telnet.put("exit", new Exit());
-      telnet.put("help", new Help());
-
-      if (enableUi) {
-        http.put("", new HomePage());
-        http.put("aggregators", aggregators);
-        http.put("dropcaches", dropcaches);
-        http.put("favicon.ico", staticfile);
-        http.put("logs", new LogsRpc());
-        http.put("q", new GraphHandler());
-        http.put("s", staticfile);
-        http.put("stats", stats);
-        http.put("suggest", suggest_rpc);
-        http.put("version", version);
-      }
-
-      if (enableApi) {
-        http.put("api/aggregators", aggregators);
         http.put("api/annotation", annotation_rpc);
         http.put("api/annotations", annotation_rpc);
-        http.put("api/config", new ShowConfig());
-        http.put("api/dropcaches", dropcaches);
-        http.put("api/query", new QueryRpc());
-        http.put("api/search", new SearchRpc());
-        http.put("api/serializers", new Serializers());
-        http.put("api/stats", stats);
-        http.put("api/suggest", suggest_rpc);
+        http.put("api/put", put);
+        http.put("api/rollup", rollups);
+        http.put("api/histogram", histos);
         http.put("api/tree", new TreeRpc());
         http.put("api/uid", new UniqueIdRpc());
-        http.put("api/version", version);
+      }
+      break;
+    case READONLY:
+      if (enableUi) {
+        http.put("", new HomePage());
+        http.put("s", staticfile);
+        http.put("favicon.ico", staticfile);
+        http.put("suggest", suggest_rpc);
+        http.put("q", new GraphHandler());
+      }
+      
+      if (enableApi) {
+        http.put("api/query", new QueryRpc());
+        http.put("api/search", new SearchRpc());
+        http.put("api/suggest", suggest_rpc);
+      }
+      
+      break;
+    case READWRITE:
+      telnet.put("put", put);
+      telnet.put("rollup", rollups);
+      telnet.put("histogram", histos);
+      
+      if (enableUi) {
+        http.put("", new HomePage());
+        http.put("s", staticfile);
+        http.put("favicon.ico", staticfile);
+        http.put("suggest", suggest_rpc);
+        http.put("q", new GraphHandler());
+      }
+      
+      if (enableApi) {
+        http.put("api/query", new QueryRpc());
+        http.put("api/search", new SearchRpc());
+        http.put("api/annotation", annotation_rpc);
+        http.put("api/annotations", annotation_rpc);
+        http.put("api/suggest", suggest_rpc);
+        http.put("api/put", put);
+        http.put("api/rollup", rollups);
+        http.put("api/histogram", histos);
+        http.put("api/tree", new TreeRpc());
+        http.put("api/uid", new UniqueIdRpc());
       }
     }
+    
+    
 
     if (enableDieDieDie) {
       final DieDieDie diediedie = new DieDieDie();
@@ -335,7 +374,7 @@ public final class RpcManager {
    * to {@link HttpRpcPlugin} instance.
    */
   @VisibleForTesting
-  protected void initializeHttpRpcPlugins(final String mode,
+  protected void initializeHttpRpcPlugins(final OperationMode mode,
         final String[] pluginClassNames,
         final ImmutableMap.Builder<String, HttpRpcPlugin> http) {
     for (final String plugin : pluginClassNames) {

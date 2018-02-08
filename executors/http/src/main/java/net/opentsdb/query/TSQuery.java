@@ -104,6 +104,12 @@ public final class TSQuery {
   /** A flag denoting whether or not to align intervals based on the calendar */
   private boolean use_calendar;
   
+  /** Override default max byte limit */
+  private boolean override_byte_limit;
+  
+  /** Override default max row count limit */
+  private boolean override_data_point_limit;
+  
   /**
    * Default constructor necessary for POJO de/serialization
    */
@@ -539,4 +545,27 @@ public final class TSQuery {
     
     return q.build();
   }
+
+  /** @return Whether or not the query would like to override the byte limiter. */
+  public boolean overrideByteLimit() {
+    return override_byte_limit;
+  }
+
+  /** @param override_byte_limit Whether or not the query would like to override 
+   * the byte limiter. */
+  public void setOverrideByteLimit(boolean override_byte_limit) {
+    this.override_byte_limit = override_byte_limit;
+  }
+
+  /** @return Whether or not the query would like to override the data point limit. */
+  public boolean overrideDataPointLimit() {
+    return override_data_point_limit;
+  }
+
+  /** @param override_data_point_limit Whether or not the query would like to 
+   * override the data point limit. */
+  public void setOverrideDataPointLimit(boolean override_data_point_limit) {
+    this.override_data_point_limit = override_data_point_limit;
+  }
+
 }

@@ -73,7 +73,7 @@ final public class CliOptions {
     config.setAutoMetric(config.getBoolean("tsd.core.auto_create_metrics"));
     return config;
   }
-  
+
   /**
    * Copies the parsed command line options to the {@link Config} class
    * @param argp Options to parse in the given args.
@@ -119,8 +119,12 @@ final public class CliOptions {
         config.overrideConfig("tsd.network.async_io", entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--worker-threads")) {
         config.overrideConfig("tsd.network.worker_threads", entry.getValue());
-      } 	  
+      } else if(entry.getKey().toLowerCase().equals("--use-otsdb-ts")) {
+        config.overrideConfig("tsd.storage.use_otsdb_timestamp", "true");
+      } else if (entry.getKey().toLowerCase().equals("--dtc-ts")) {
+        config.overrideConfig("tsd.storage.get_date_tiered_compaction_start", entry.getValue());
+      }
     }
   }
-  
+
 }

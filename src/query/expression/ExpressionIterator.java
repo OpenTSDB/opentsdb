@@ -21,11 +21,13 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import net.opentsdb.core.FillPolicy;
+import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.query.expression.VariableIterator.SetOperator;
 import net.opentsdb.utils.ByteSet;
 
 import org.apache.commons.jexl2.JexlContext;
 import org.apache.commons.jexl2.JexlEngine;
+import org.apache.commons.jexl2.JexlException;
 import org.apache.commons.jexl2.MapContext;
 import org.apache.commons.jexl2.Script;
 import org.apache.commons.jexl2.scripting.JexlScriptEngineFactory;
@@ -46,7 +48,7 @@ import com.google.common.collect.ImmutableSet;
  *   intersection of the series.
  * - Call {@link #values()} and store the reference. Results for each
  *   series will be written here as you iterate.
- * - Call {@link #hasNext()} and {@link #next()} to iterate over results.
+ * - Call {@link #hasNext()} and {@link #next(int)} to iterate over results.
  * - At each iteration, fetch the timestamp and value from the data points array.
  * <p>
  * Iteration is performed across all series supplied to the iterator, synchronizing
@@ -356,7 +358,7 @@ public class ExpressionIterator implements ITimeSyncedIterator {
   }
   
   /** @return a list of expression results. You can keep this list and check the 
-   * results on each call to {@link #next()} */
+   * results on each call to {@link #next(int)} */
   @Override
   public ExpressionDataPoint[] values() {
     return dps;

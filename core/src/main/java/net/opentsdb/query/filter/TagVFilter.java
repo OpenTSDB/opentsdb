@@ -491,7 +491,7 @@ public abstract class TagVFilter implements Comparable<TagVFilter> {
   }
 
   /** @return the tag key UID associated with this filter. 
-   * Call {@code resolveName} first */
+   * Call {@link #resolveTagkName(TSDB)} first */
   @JsonIgnore
   public byte[] getTagkBytes() {
     return tagk_bytes;

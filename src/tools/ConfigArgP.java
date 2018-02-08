@@ -73,9 +73,13 @@ public class ConfigArgP {
   /** The raw configuration items loaded from the json file  */
   protected final TreeSet<ConfigurationItem> configItemsByCl = new TreeSet<ConfigurationItem>();
   
-  /** The regex pattern to perform a substitution for <b><pre><code>${&lt;sysprop&gt;:&lt;default&gt;}</code></pre></b> patterns in strings */
+  /** The regex pattern to perform a substitution for <b>
+   * <code>${&lt;sysprop&gt;:&lt;default&gt;}</code>
+   * </b> patterns in strings */
   public static final Pattern SYS_PROP_PATTERN = Pattern.compile("\\$\\{(.*?)(?::(.*?))??\\}");
-  /** The regex pattern to perform a substitution for <b><pre><code>$[&lt;javascript snippet&gt;]</code></pre></b> patterns in strings */
+  /** The regex pattern to perform a substitution for <b>
+   * <code>$[&lt;javascript snippet&gt;]</code>
+   * </b> patterns in strings */
   public static final Pattern JS_PATTERN = Pattern.compile("\\$\\[(.*?)\\]", Pattern.MULTILINE);
   
   /** The config key for the TSD RPC addin classes */
@@ -503,9 +507,9 @@ public class ConfigArgP {
   
   /**
    * Attempts to decode the passed dot delimited as a system property, and if not found, attempts a decode as an 
-   * environmental variable, replacing the dots with underscores. e.g. for the key: <b><code>buffer.size.max</b></code>,
-   * a system property named <b><code>buffer.size.max</b></code> will be looked up, and then an environmental variable
-   * named <b><code>buffer.size.max</b></code> will be looked up.
+   * environmental variable, replacing the dots with underscores. e.g. for the key: <b><code>buffer.size.max</code></b>,
+   * a system property named <b><code>buffer.size.max</code></b> will be looked up, and then an environmental variable
+   * named <b><code>buffer.size.max</code></b> will be looked up.
    * @param key The dot delimited key to decode
    * @param defaultValue The default value returned if neither source can decode the key
    * @return the decoded value or the default value if neither source can decode the key
@@ -807,10 +811,10 @@ public class ConfigArgP {
   }
 
   /**
-   * Checks the <b><source>opentsdb.conf.json</source></b> document to see if it has a <b><source>bindings</source></b> segment
+   * Checks the <b><code>opentsdb.conf.json</code></b> document to see if it has a <b><code>bindings</code></b> segment
    * which contains JS statements to evaluate which will prime variables used by the configuration. 
    * @param jsonMapper The JSON mapper
-   * @param root The root <b><source>opentsdb.conf.json</source></b> document 
+   * @param root The root <b><code>opentsdb.conf.json</code></b> document 
    */
   protected void processBindings(ObjectMapper jsonMapper, JsonNode root) {
     String script = null;

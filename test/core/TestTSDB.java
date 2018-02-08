@@ -15,16 +15,14 @@ package net.opentsdb.core;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.util.HashMap;
-import java.util.List;
 
-import net.opentsdb.rollup.RollupConfig;
-import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -45,18 +43,17 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
 
-import com.google.common.collect.Lists;
+import com.google.common.io.Files;
 import com.stumbleupon.async.Deferred;
 
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
+@PrepareForTest({ TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   CompactionQueue.class, GetRequest.class, PutRequest.class, KeyValue.class, 
-  Scanner.class, AtomicIncrementRequest.class, Const.class})
+  Scanner.class, AtomicIncrementRequest.class, Const.class, Files.class })
 public final class TestTSDB extends BaseTsdbTest {
   
   @Before
@@ -72,50 +69,6 @@ public final class TestTSDB extends BaseTsdbTest {
   @Test (expected = NullPointerException.class)
   public void ctorNullConfig() throws Exception {
     new TSDB(client, null);
-  }
-  
-  @Test
-  public void ctorRollups() throws Exception {
-    TSDB tsdb = new TSDB(client, config);
-    assertNull(Whitebox.getInternalState(tsdb, "rollup_config"));
-    assertNull(Whitebox.getInternalState(tsdb, "default_interval"));
-    
-    List<RollupInterval> intervals = Lists.newArrayList(
-        new RollupInterval("tsdb", "tsdb-agg", "1m", "1h", true));
-    RollupConfig rollups = new RollupConfig(intervals);
-    PowerMockito.whenNew(RollupConfig.class).withAnyArguments()
-      .thenReturn(rollups);
-    
-    config.overrideConfig("tsd.rollups.enable", "true");
-    tsdb = new TSDB(client, config);
-    assertSame(rollups, Whitebox.getInternalState(tsdb, "rollup_config"));
-    assertSame(intervals.get(0), Whitebox.getInternalState(tsdb, 
-        "default_interval"));
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void ctorRollupsNoDefault() throws Exception {
-    // no default
-    List<RollupInterval> intervals = Lists.newArrayList(
-        new RollupInterval("tsdb", "tsdb-agg", "1m", "1h"));
-    RollupConfig rollups = new RollupConfig(intervals);
-    PowerMockito.whenNew(RollupConfig.class).withAnyArguments()
-      .thenReturn(rollups);
-    
-    config.overrideConfig("tsd.rollups.enable", "true");
-    new TSDB(client, config);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void ctorRollupsEmpty() throws Exception {
-    // no default
-    List<RollupInterval> intervals = Lists.newArrayList();
-    RollupConfig rollups = new RollupConfig(intervals);
-    PowerMockito.whenNew(RollupConfig.class).withAnyArguments()
-      .thenReturn(rollups);
-    
-    config.overrideConfig("tsd.rollups.enable", "true");
-    new TSDB(client, config);
   }
   
   @Test
@@ -270,6 +223,63 @@ public final class TestTSDB extends BaseTsdbTest {
     config.overrideConfig(
         "tsd.core.storage_exception_handler.DummySEHPlugin.hosts", "localhost");
     tsdb.initializePlugins(true);
+  }
+  
+  @Test
+  public void loadRollupConfig() throws Exception {
+    config.overrideConfig("tsd.rollups.enable", "true");
+    config.overrideConfig("tsd.rollups.config", 
+        "{\"intervals\":[{\"interval\":\"1m\",\"table\":\"tsdb\","
+        + "\"preAggregationTable\":\"tsdb\",\"defaultInterval\":true,"
+        + "\"rowSpan\":\"1h\"},{\"interval\":\"10m\",\"table\":"
+        + "\"tsdb-rollup-10m\",\"preAggregationTable\":\"tsdb-rollup-agg-10m\","
+        + "\"defaultInterval\":false,\"rowSpan\":\"1d\"}],\"aggregationIds\":"
+        + "{\"sum\":0,\"max\":1}}");
+    tsdb = new TSDB(config);
+    assertEquals(2, tsdb.getRollupConfig().getRollups().size());
+    assertEquals("sum", tsdb.getRollupConfig().getAggregatorForId(0));
+    assertEquals("max", tsdb.getRollupConfig().getAggregatorForId(1));
+  }
+  
+  @Test
+  public void loadRollupConfigFile() throws Exception {
+    config.overrideConfig("tsd.rollups.enable", "true");
+    config.overrideConfig("tsd.rollups.config", "nosuchfile.json");
+    PowerMockito.mockStatic(Files.class);
+    when(Files.toString(any(File.class), eq(Const.UTF8_CHARSET))).thenReturn(
+        "{\"intervals\":[{\"interval\":\"1m\",\"table\":\"tsdb\","
+            + "\"preAggregationTable\":\"tsdb\",\"defaultInterval\":true,"
+            + "\"rowSpan\":\"1h\"},{\"interval\":\"10m\",\"table\":"
+            + "\"tsdb-rollup-10m\",\"preAggregationTable\":\"tsdb-rollup-agg-10m\","
+            + "\"defaultInterval\":false,\"rowSpan\":\"1d\"}],\"aggregationIds\":"
+            + "{\"sum\":0,\"max\":1}}");
+    tsdb = new TSDB(config);
+    assertEquals(2, tsdb.getRollupConfig().getRollups().size());
+    assertEquals("sum", tsdb.getRollupConfig().getAggregatorForId(0));
+    assertEquals("max", tsdb.getRollupConfig().getAggregatorForId(1));
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void loadRollupConfigFileCorruptJson() throws Exception {
+    config.overrideConfig("tsd.rollups.enable", "true");
+    config.overrideConfig("tsd.rollups.config", "nosuchfile.json");
+    PowerMockito.mockStatic(Files.class);
+    when(Files.toString(any(File.class), eq(Const.UTF8_CHARSET))).thenReturn(
+        "{\"intervals\":[{\"interval\":\"1m\",\"ta");
+    new TSDB(config);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void loadRollupConfigNoDefault() throws Exception {
+    config.overrideConfig("tsd.rollups.enable", "true");
+    config.overrideConfig("tsd.rollups.config", 
+        "{\"intervals\":[{\"interval\":\"1m\",\"table\":\"tsdb\","
+        + "\"preAggregationTable\":\"tsdb\",\"defaultInterval\":false,"
+        + "\"rowSpan\":\"1h\"},{\"interval\":\"10m\",\"table\":"
+        + "\"tsdb-rollup-10m\",\"preAggregationTable\":\"tsdb-rollup-agg-10m\","
+        + "\"defaultInterval\":false,\"rowSpan\":\"1d\"}],\"aggregationIds\":"
+        + "{\"sum\":0,\"max\":1}}");
+    tsdb = new TSDB(config);
   }
   
   @Test

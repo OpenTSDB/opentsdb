@@ -351,12 +351,12 @@ final class IncomingDataPoints implements WritableDataPoints {
         if (tsdb.getConfig().enable_appends()) {
           final AppendDataPoints kv = new AppendDataPoints(qualifier, value);
           final AppendRequest point = new AppendRequest(tsdb.table, row, TSDB.FAMILY, 
-              AppendDataPoints.APPEND_COLUMN_QUALIFIER, kv.getBytes());
+                  AppendDataPoints.APPEND_COLUMN_QUALIFIER, kv.getBytes());
           point.setDurable(!batch_import);
           return tsdb.client.append(point);/* .addBoth(cb) */
         } else {
-          final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY, 
-              qualifier, value);
+          final PutRequest point = RequestBuilder.buildPutRequest(tsdb.getConfig(), tsdb.table, row, TSDB.FAMILY,
+              qualifier, value, timestamp);
           point.setDurable(!batch_import);
           return tsdb.client.put(point)/* .addBoth(cb) */;
         }
@@ -603,5 +603,15 @@ final class IncomingDataPoints implements WritableDataPoints {
 
   public int getQueryIndex() {
     throw new UnsupportedOperationException("Not mapped to a query");
+  }
+
+  @Override
+  public boolean isPercentile() {
+    return false;
+  }
+
+  @Override
+  public float getPercentile() {
+    throw new UnsupportedOperationException("getPercentile not supported");
   }
 }

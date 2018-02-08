@@ -48,7 +48,7 @@ public abstract class RTPublisher {
    * @param tsdb The parent TSDB object
    * @throws IllegalArgumentException if required configuration parameters are 
    * missing
-   * @throws Exception if something else goes wrong
+   * @throws RuntimeException if something else goes wrong
    */
   public abstract void initialize(final TSDB tsdb);
   
@@ -144,5 +144,23 @@ public abstract class RTPublisher {
    * value may be null but a Deferred must be returned.
    */
   public abstract Deferred<Object> publishAnnotation(Annotation annotation);
+  
+  /**
+   * Called any time a new histogram point is published
+   * @param metric The name of the metric associated with the data point
+   * @param timestamp Timestamp as a Unix epoch in seconds or milliseconds
+   * (depending on the TSD's configuration)
+   * @param value Encoded raw data blob for the histogram point
+   * @param tags Tagk/v pairs
+   * @param tsuid Time series UID for the value
+   * @return A deferred without special meaning to wait on if necessary. The
+   * value may be null but a Deferred must be returned.
+   */
+  public Deferred<Object> publishHistogramPoint(final String metric,
+                                                   final long timestamp, final byte[] value,
+                                                   final Map<String, String> tags,
+                                                   final byte[] tsuid) {
+    throw new UnsupportedOperationException("Not yet implemented");
+  }
   
 }

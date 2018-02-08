@@ -527,6 +527,12 @@
       <artifactId>jgrapht-core</artifactId>
       <version>@JGRAPHT_VERSION@</version>
     </dependency>
+    
+    <dependency>
+      <groupId>com.esotericsoftware.kryo</groupId>
+      <artifactId>kryo</artifactId>
+      <version>2.21.1</version>
+    </dependency>
 
     <!-- runtime dependencies -->
 

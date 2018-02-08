@@ -25,15 +25,12 @@ import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.opentsdb.storage.MockBase;
-import net.opentsdb.storage.MockBase.MockScanner;
-import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.utils.Config;
-
+import net.opentsdb.rollup.RollupInterval;
 import org.hbase.async.Bytes;
 import org.hbase.async.FilterList;
 import org.hbase.async.Scanner;
@@ -42,12 +39,18 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.powermock.reflect.Whitebox;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.MockBase.MockScanner;
+import net.opentsdb.uid.NoSuchUniqueId;
+import net.opentsdb.utils.Config;
+
 /**
  * An integration test class that makes sure our query path is up to snuff.
- * This class should have tests for different data point types, rates, 
+ * This class should have tests for different data point types, rates,
  * compactions, etc. Other files can cover salting, aggregation and downsampling.
  */
 @RunWith(PowerMockRunner.class)
@@ -59,7 +62,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
   public void beforeLocal() throws Exception {
     query = new TsdbQuery(tsdb);
   }
-  
+
   @Test
   public void runLongSingleTS() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
@@ -70,7 +73,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
 
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     int value = 1;
     long timestamp = 1356998430000L;
     verify(tag_values, times(1)).getNameAsync(TAGV_BYTES);
@@ -94,7 +97,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
 
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     int value = 1;
     long timestamp = 1356998400500L;
     for (DataPoint dp : dps[0]) {
@@ -105,7 +108,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].aggregatedSize());
   }
-  
+
   @Test
   public void runLongSingleTSNoData() throws Exception {
     setDataPointStorage();
@@ -113,24 +116,24 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
-    
+
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
     assertEquals(0, dps.length);
   }
-  
+
   @Test
   public void runLongTwoAggSum() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400L);
     query.setEndTime(1357041600L);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long timestamp = 1356998430000L;
     for (DataPoint dp : dps[0]) {
       assertEquals(301, dp.longValue());
@@ -139,19 +142,19 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runLongTwoAggSumMs() throws Exception {
     storeLongTimeSeriesMs();
-    
+
     tags.clear();
     query.setStartTime(1356998400L);
     query.setEndTime(1357041600L);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long timestamp = 1356998400500L;
     for (DataPoint dp : dps[0]) {
       assertEquals(301, dp.longValue());
@@ -160,22 +163,22 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runLongTwoGroup() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
-    
+
     tags.clear();
     tags.put(TAGK_STRING , "*");
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
     assertMeta(dps, 1, false);
     assertEquals(2, dps.length);
-    
+
     int value = 1;
     long timestamp = 1356998430000L;
     for (DataPoint dp : dps[0]) {
@@ -185,7 +188,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
       timestamp += 30000;
     }
     assertEquals(300, dps[0].size());
-    
+
     value = 300;
     timestamp = 1356998430000L;
     for (DataPoint dp : dps[1]) {
@@ -196,7 +199,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[1].size());
   }
-  
+
   @Test
   public void runLongSingleTSRate() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
@@ -204,10 +207,10 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, true);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     long timestamp = 1356998460000L;
     for (DataPoint dp : dps[0]) {
       assertEquals(0.033F, dp.doubleValue(), 0.001);
@@ -216,7 +219,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(299, dps[0].size());
   }
-  
+
   @Test
   public void runLongSingleTSRateMs() throws Exception {
     storeLongTimeSeriesMs();
@@ -224,10 +227,10 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, true);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     long timestamp = 1356998401000L;
     for (DataPoint dp : dps[0]) {
       assertEquals(2.0F, dp.doubleValue(), 0.001);
@@ -244,10 +247,10 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     double value = 1.25D;
     long timestamp = 1356998430000L;
     for (DataPoint dp : dps[0]) {
@@ -258,7 +261,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runFloatSingleTSMs() throws Exception {
     storeFloatTimeSeriesMs();
@@ -266,10 +269,10 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     double value = 1.25D;
     long timestamp = 1356998400500L;
     for (DataPoint dp : dps[0]) {
@@ -280,19 +283,19 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runFloatTwoAggSum() throws Exception {
     storeFloatTimeSeriesSeconds(true, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long timestamp = 1356998430000L;
     for (DataPoint dp : dps[0]) {
       assertEquals(76.25, dp.doubleValue(), 0.00001);
@@ -301,16 +304,16 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runFloatTwoAggNoneAgg() throws Exception {
     storeFloatTimeSeriesSeconds(true, false);
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.NONE, false);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
     assertMeta(dps, 1, false);
@@ -325,7 +328,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
       timestamp += 30000;
     }
     assertEquals(300, dps[0].size());
-    
+
     value = 75D;
     timestamp = 1356998430000L;
     for (DataPoint dp : dps[1]) {
@@ -336,7 +339,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[1].size());
   }
-  
+
   @Test
   public void runFloatTwoAggSumMs() throws Exception {
     storeFloatTimeSeriesMs();
@@ -345,10 +348,10 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long timestamp = 1356998400500L;
     for (DataPoint dp : dps[0]) {
       assertEquals(76.25, dp.doubleValue(), 0.00001);
@@ -357,7 +360,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runFloatTwoGroup() throws Exception {
     storeFloatTimeSeriesSeconds(true, false);
@@ -366,7 +369,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
     assertMeta(dps, 1, false);
@@ -381,7 +384,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
       timestamp += 30000;
     }
     assertEquals(300, dps[0].size());
-    
+
     value = 75D;
     timestamp = 1356998430000L;
     for (DataPoint dp : dps[1]) {
@@ -392,7 +395,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[1].size());
   }
-  
+
   @Test
   public void runFloatSingleTSRate() throws Exception {
     storeFloatTimeSeriesSeconds(true, false);
@@ -400,10 +403,10 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, true);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     long timestamp = 1356998460000L;
     for (DataPoint dp : dps[0]) {
       assertEquals(0.00833F, dp.doubleValue(), 0.00001);
@@ -412,7 +415,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(299, dps[0].size());
   }
-  
+
   @Test
   public void runFloatSingleTSRateMs() throws Exception {
     storeFloatTimeSeriesMs();
@@ -420,10 +423,10 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, true);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     long timestamp = 1356998401000L;
     for (DataPoint dp : dps[0]) {
       assertEquals(0.5F, dp.doubleValue(), 0.00001);
@@ -441,10 +444,10 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     long timestamp = 1356998430000L;
     double value = 1.25D;
     for (DataPoint dp : dps[0]) {
@@ -455,7 +458,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runMixedSingleTS() throws Exception {
     storeMixedTimeSeriesSeconds();
@@ -463,10 +466,10 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.AVG, false);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     long timestamp = 1356998430000L;
     double float_value = 1.25D;
     int int_value = 76;
@@ -487,7 +490,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runMixedSingleTSMsAndS() throws Exception {
     storeMixedTimeSeriesMsAndS();
@@ -495,10 +498,10 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.AVG, false);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     long timestamp = 1356998400500L;
     double float_value = 1.25D;
     int int_value = 76;
@@ -519,11 +522,11 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runMixedSingleTSPostCompaction() throws Exception {
     storeMixedTimeSeriesSeconds();
-    
+
     final Field compact = Config.class.getDeclaredField("enable_compactions");
     compact.setAccessible(true);
     compact.set(config, true);
@@ -534,24 +537,24 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
 
     // this should only compact the rows for the time series that we fetched and
     // leave the others alone
-    
-    final byte[] key = 
+
+    final byte[] key =
         IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags);
     RowKey.prefixKeyWithSalt(key);
-    System.arraycopy(Bytes.fromInt(1356998400), 0, key, 
+    System.arraycopy(Bytes.fromInt(1356998400), 0, key,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     assertEquals(1, storage.numColumns(key));
-    System.arraycopy(Bytes.fromInt(1357002000), 0, key, 
+    System.arraycopy(Bytes.fromInt(1357002000), 0, key,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     assertEquals(1, storage.numColumns(key));
-    System.arraycopy(Bytes.fromInt(1357005600), 0, key, 
+    System.arraycopy(Bytes.fromInt(1357005600), 0, key,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     assertEquals(1, storage.numColumns(key));
 
     // run it again to verify the compacted data uncompacts properly
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     long timestamp = 1356998430000L;
     double float_value = 1.25D;
     int int_value = 76;
@@ -572,7 +575,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
- 
+
   @Test
   public void runEndTime() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
@@ -582,7 +585,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     int value = 1;
     long timestamp = 1356998430000L;
     for (DataPoint dp : dps[0]) {
@@ -593,11 +596,11 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(119, dps[0].size());
   }
-  
+
   @Test
   public void runCompactPostQuery() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
-    
+
     final Field compact = Config.class.getDeclaredField("enable_compactions");
     compact.setAccessible(true);
     compact.set(config, true);
@@ -607,47 +610,47 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
     DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-  
+
     // this should only compact the rows for the time series that we fetched and
     // leave the others alone
-    final byte[] key_a = 
+    final byte[] key_a =
         IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags);
     RowKey.prefixKeyWithSalt(key_a);
     final Map<String, String> tags_copy = new HashMap<String, String>(tags);
     tags_copy.put(TAGK_STRING, TAGV_B_STRING);
-    final byte[] key_b = 
+    final byte[] key_b =
         IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags_copy);
     RowKey.prefixKeyWithSalt(key_b);
-    
-    System.arraycopy(Bytes.fromInt(1356998400), 0, key_a, 
+
+    System.arraycopy(Bytes.fromInt(1356998400), 0, key_a,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     assertEquals(1, storage.numColumns(key_a));
-    
-    System.arraycopy(Bytes.fromInt(1356998400), 0, key_b, 
+
+    System.arraycopy(Bytes.fromInt(1356998400), 0, key_b,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     if (config.enable_appends()) {
       assertEquals(1, storage.numColumns(key_b));
     } else {
       assertEquals(119, storage.numColumns(key_b));
     }
-    
-    System.arraycopy(Bytes.fromInt(1357002000), 0, key_a, 
+
+    System.arraycopy(Bytes.fromInt(1357002000), 0, key_a,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     assertEquals(1, storage.numColumns(key_a));
-    
-    System.arraycopy(Bytes.fromInt(1357002000), 0, key_b, 
+
+    System.arraycopy(Bytes.fromInt(1357002000), 0, key_b,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     if (config.enable_appends()) {
       assertEquals(1, storage.numColumns(key_b));
     } else {
       assertEquals(120, storage.numColumns(key_b));
     }
-    
-    System.arraycopy(Bytes.fromInt(1357005600), 0, key_a, 
+
+    System.arraycopy(Bytes.fromInt(1357005600), 0, key_a,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     assertEquals(1, storage.numColumns(key_a));
-    
-    System.arraycopy(Bytes.fromInt(1357005600), 0, key_b, 
+
+    System.arraycopy(Bytes.fromInt(1357005600), 0, key_b,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     if (config.enable_appends()) {
       assertEquals(1, storage.numColumns(key_b));
@@ -658,7 +661,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     // run it again to verify the compacted data uncompacts properly
     dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     int value = 1;
     long timestamp = 1356998430000L;
     for (DataPoint dp : dps[0]) {
@@ -669,7 +672,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test (expected = IllegalStateException.class)
   public void runStartNotSet() throws Exception {
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
@@ -678,21 +681,25 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
 
   @Test
   public void runFloatAndIntSameTSNoFix() throws Exception {
+    tsdb.config.overrideConfig("tsd.storage.use_otsdb_timestamp", "true");
     // if a row has an integer and a float for the same timestamp, there will be
-    // two different qualifiers that will resolve to the same offset. This no
-    // will throw the IllegalDataException as querytime fixes are disabled by
-    // default
+    // two different qualifiers that will resolve to the same offset. With DTCS enabled
+	// the conflicts are auto resolved i.e. either the maximum or the minimum value of
+	// data is returned depending on the configuration tsd.storage.use_max_value
+	// If DTCS is disabled, it will fall throw the exception.
+	// DTCS -> Date Tiered Compaction Strategy (tsd.storage.use_otsdb_timestamp config parameter)
+
     storeLongTimeSeriesSeconds(true, false);
 
     tsdb.addPoint(METRIC_STRING, 1356998430, 42.5F, tags).joinUninterruptibly();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
-    
-    if (config.enable_appends()) {
+
+    if (config.enable_appends() || config.use_otsdb_timestamp()) {
       DataPoints[] dps = query.run();
       assertMeta(dps, 0, false, false);
-      
+
       int value = 1;
       long timestamp = 1356998430000L;
       for (DataPoint dp : dps[0]) {
@@ -707,29 +714,33 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
         timestamp += 30000;
       }
       assertEquals(300, dps[0].size());
-    } else {
-      try {
+    }
+
+    tsdb.config.overrideConfig("tsd.storage.use_otsdb_timestamp", "false");
+    try {
         query.run();
         fail("Expected an IllegalDataException");
       } catch (IllegalDataException ide) { }
-    }
+
   }
-  
+
   @Test
   public void runFloatAndIntSameTSFix() throws Exception {
     config.setFixDuplicates(true);
     // if a row has an integer and a float for the same timestamp, there will be
-    // two different qualifiers that will resolve to the same offset. This no
-    // longer tosses an exception, and keeps the last value
+    // two different qualifiers that owill resolve to the same offset. This no
+    // longer tosses an exception, and keeps the maximum of all values
+    // This can also be configured via tsdb.storage.use_max_value config
     storeLongTimeSeriesSeconds(true, false);
 
     tsdb.addPoint(METRIC_STRING, 1356998430, 42.5F, tags).joinUninterruptibly();
+
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     int value = 1;
     long timestamp = 1356998430000L;
     for (DataPoint dp : dps[0]) {
@@ -744,7 +755,61 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].aggregatedSize());
   }
-  
+
+  @Test
+  public void multipleValuesAtSameTimestampShouldReturnMaxValueDefault() throws Exception {
+    tsdb.config.overrideConfig("tsd.storage.use_otsdb_timestamp", "true");
+    config.setFixDuplicates(true);
+    // if a row has an integer and a float for the same timestamp, there will be
+    // two different qualifiers that will resolve to the same offset. This no
+    // longer tosses an exception, and keeps the maximum of all values
+    // This can also be configured via tsdb.storage.use_max_value config
+    setDataPointStorage();
+
+    tsdb.addPoint(METRIC_STRING, 1356998430, 69755263, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998430, 62500.52F, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998430, 2533, tags).joinUninterruptibly();
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
+    final DataPoints[] dps = query.run();
+    assertMeta(dps, 0, false);
+
+    long timestamp = 1356998430000L;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(69755263, dp.longValue());
+      assertEquals(timestamp, dp.timestamp());
+    }
+    assertEquals(1, dps[0].aggregatedSize());
+  }
+
+  @Test
+  public void multipleValuesAtSameTimestampShouldReturnMinValueIfConfigured() throws Exception {
+    tsdb.config.overrideConfig("tsd.storage.use_otsdb_timestamp", "true");
+	// This test explicitly configures the use_max_value as false thus when different data type values
+	// are written at same timestamp, the minimum of all will be provided in output
+	tsdb.getConfig().overrideConfig("tsd.storage.use_max_value", "false");
+    config.setFixDuplicates(true);
+    setDataPointStorage();
+
+    tsdb.addPoint(METRIC_STRING, 1356998430, 69755263, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998430, 62500.52F, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998430, 2533, tags).joinUninterruptibly();
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
+    final DataPoints[] dps = query.run();
+    assertMeta(dps, 0, false);
+
+    long timestamp = 1356998430000L;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(2533, dp.longValue());
+      assertEquals(timestamp, dp.timestamp());
+    }
+    assertEquals(1, dps[0].aggregatedSize());
+  }
+
+
   @Test
   public void runWithAnnotation() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
@@ -756,7 +821,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
 
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false, true);
-    
+
     int value = 1;
     long timestamp = 1356998430000L;
     for (DataPoint dp : dps[0]) {
@@ -767,7 +832,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runWithAnnotationPostCompact() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
@@ -785,32 +850,32 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
 
     // this should only compact the rows for the time series that we fetched and
     // leave the others alone
-    final byte[] key_a = 
+    final byte[] key_a =
         IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags);
     RowKey.prefixKeyWithSalt(key_a);
     final Map<String, String> tags_copy = new HashMap<String, String>(tags);
     tags_copy.put(TAGK_STRING, TAGV_B_STRING);
-    final byte[] key_b = 
+    final byte[] key_b =
         IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags_copy);
     RowKey.prefixKeyWithSalt(key_b);
 
-    System.arraycopy(Bytes.fromInt(1356998400), 0, key_a, 
+    System.arraycopy(Bytes.fromInt(1356998400), 0, key_a,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     assertEquals(2, storage.numColumns(key_a));
-    
-    System.arraycopy(Bytes.fromInt(1356998400), 0, key_b, 
+
+    System.arraycopy(Bytes.fromInt(1356998400), 0, key_b,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     if (config.enable_appends()) {
       assertEquals(1, storage.numColumns(key_b));
     } else {
       assertEquals(119, storage.numColumns(key_b));
     }
-    
-    System.arraycopy(Bytes.fromInt(1357002000), 0, key_a, 
+
+    System.arraycopy(Bytes.fromInt(1357002000), 0, key_a,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     assertEquals(1, storage.numColumns(key_a));
-    
-    System.arraycopy(Bytes.fromInt(1357002000), 0, key_b, 
+
+    System.arraycopy(Bytes.fromInt(1357002000), 0, key_b,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     if (config.enable_appends()) {
       assertEquals(1, storage.numColumns(key_b));
@@ -818,21 +883,21 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
       assertEquals(120, storage.numColumns(key_b));
     }
 
-    System.arraycopy(Bytes.fromInt(1357005600), 0, key_a, 
+    System.arraycopy(Bytes.fromInt(1357005600), 0, key_a,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     assertEquals(1, storage.numColumns(key_a));
-    
-    System.arraycopy(Bytes.fromInt(1357005600), 0, key_b, 
+
+    System.arraycopy(Bytes.fromInt(1357005600), 0, key_b,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     if (config.enable_appends()) {
       assertEquals(1, storage.numColumns(key_b));
     } else {
       assertEquals(61, storage.numColumns(key_b));
     }
-    
+
     dps = query.run();
     assertMeta(dps, 0, false, true);
-    
+
     int value = 1;
     long timestamp = 1356998430000L;
     for (DataPoint dp : dps[0]) {
@@ -850,15 +915,15 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
 
     // verifies that we can pickup an annotation stored all by it's lonesome
     // in a row without any data
-    final byte[] key = 
+    final byte[] key =
         IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags);
     RowKey.prefixKeyWithSalt(key);
-    System.arraycopy(Bytes.fromInt(1357002000), 0, key, 
+    System.arraycopy(Bytes.fromInt(1357002000), 0, key,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     storage.flushRow(key);
-    
+
     storeAnnotation(1357002090);
-    
+
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
@@ -891,13 +956,13 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
 
     // verifies that we can pickup an annotation stored all by it's lonesome
     // in a row without any data
-    final byte[] key = 
+    final byte[] key =
         IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags);
     RowKey.prefixKeyWithSalt(key);
-    System.arraycopy(Bytes.fromInt(1357002000), 0, key, 
+    System.arraycopy(Bytes.fromInt(1357002000), 0, key,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     storage.flushRow(key);
-    
+
     storeAnnotation(1357002090);
 
     query.setStartTime(1356998400);
@@ -905,7 +970,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
 
     final DataPoints[] dps = query.run();
-    // TODO - apparently if you only fetch annotations, the metric and tags 
+    // TODO - apparently if you only fetch annotations, the metric and tags
     // may not be set. Check this
     //assertMeta(dps, 0, false, true);
     assertEquals(1, dps[0].getAnnotations().size());
@@ -920,14 +985,14 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     setDataPointStorage();
     long timestamp = 1356998410;
     tsdb.addPoint(METRIC_STRING, timestamp, 42, tags).joinUninterruptibly();
-    
+
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
     storage.dumpToSystemOut();
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     assertEquals(1, dps[0].size());
     assertEquals(42, dps[0].longValue(0));
     assertEquals(1356998410000L, dps[0].timestamp(0));
@@ -938,23 +1003,23 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     setDataPointStorage();
     long timestamp = 1356998410;
     tsdb.addPoint(METRIC_STRING, timestamp, 42, tags).joinUninterruptibly();
-    
-    final byte[] key = 
+
+    final byte[] key =
         IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags);
     RowKey.prefixKeyWithSalt(key);
-    System.arraycopy(Bytes.fromInt(1357002000), 0, key, 
+    System.arraycopy(Bytes.fromInt(1357002000), 0, key,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
     storage.flushRow(key);
-    
+
     storeAnnotation(1357002090);
 
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false, true);
-    
+
     assertEquals(1, dps[0].size());
     assertEquals(42, dps[0].longValue(0));
     assertEquals(1356998410000L, dps[0].timestamp(0));
@@ -963,16 +1028,16 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
   @Test
   public void runTSUIDQuery() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
-    
+
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     final List<String> tsuids = new ArrayList<String>(1);
     tsuids.add("000001000001000001");
     query.setTimeSeries(tsuids, Aggregators.SUM, false);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     int value = 1;
     long timestamp = 1356998430000L;
     for (DataPoint dp : dps[0]) {
@@ -983,21 +1048,21 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].aggregatedSize());
   }
-  
+
   @Test
   public void runTSUIDsAggSum() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
-    
+
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     final List<String> tsuids = new ArrayList<String>(1);
     tsuids.add("000001000001000001");
     tsuids.add("000001000001000002");
     query.setTimeSeries(tsuids, Aggregators.SUM, false);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long timestamp = 1356998430000L;
     for (DataPoint dp : dps[0]) {
       assertEquals(301, dp.longValue());
@@ -1006,57 +1071,57 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].size());
   }
-  
+
   @Test
   public void runTSUIDQueryNoData() throws Exception {
     setDataPointStorage();
-    
+
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
-    
+
     final List<String> tsuids = new ArrayList<String>(1);
     tsuids.add("000001000001000001");
     query.setTimeSeries(tsuids, Aggregators.SUM, false);
-    
+
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
     assertEquals(0, dps.length);
   }
-  
+
   @Test
   public void runTSUIDQueryNoDataForTSUID() throws Exception {
     // this doesn't throw an exception since the UIDs are only looked for when
     // the query completes.
     setDataPointStorage();
-    
+
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     final List<String> tsuids = new ArrayList<String>(1);
     tsuids.add("000001000001000005");
     query.setTimeSeries(tsuids, Aggregators.SUM, false);
-    
+
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
     assertEquals(0, dps.length);
   }
-  
+
   @Test (expected = NoSuchUniqueId.class)
   public void runTSUIDQueryNSU() throws Exception {
     when(metrics.getNameAsync(new byte[] { 0, 0, 1 }))
       .thenThrow(new NoSuchUniqueId("metrics", new byte[] { 0, 0, 1 }));
     storeLongTimeSeriesSeconds(true, false);
-    
+
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     final List<String> tsuids = new ArrayList<String>(1);
     tsuids.add("000001000001000001");
     query.setTimeSeries(tsuids, Aggregators.SUM, false);
-    
+
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
     dps[0].metricName();
   }
-  
+
   @Test
   public void runRateCounterDefault() throws Exception {
     setDataPointStorage();
@@ -1066,14 +1131,14 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     tsdb.addPoint(METRIC_STRING, timestamp += 30, Long.MAX_VALUE - 25, tags)
       .joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, timestamp += 30, 5, tags).joinUninterruptibly();
-    
+
     final RateOptions ro = new RateOptions(true, Long.MAX_VALUE, 0);
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, true, ro);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     timestamp = 1356998460000L;
     for (DataPoint dp : dps[0]) {
       assertEquals(1.0, dp.doubleValue(), 0.001);
@@ -1082,7 +1147,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(2, dps[0].size());
   }
-  
+
   @Test
   public void runRateCounterDefaultNoOp() throws Exception {
     setDataPointStorage();
@@ -1090,14 +1155,14 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     tsdb.addPoint(METRIC_STRING, timestamp += 30, 30, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, timestamp += 30, 60, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, timestamp += 30, 90, tags).joinUninterruptibly();
-    
+
     final RateOptions ro = new RateOptions(true, Long.MAX_VALUE, 0);
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, true, ro);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     timestamp = 1356998460000L;
     for (DataPoint dp : dps[0]) {
       assertEquals(1.0, dp.doubleValue(), 0.001);
@@ -1106,7 +1171,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(2, dps[0].size());
   }
-  
+
   @Test
   public void runRateCounterMaxSet() throws Exception {
     setDataPointStorage();
@@ -1114,7 +1179,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     tsdb.addPoint(METRIC_STRING, timestamp += 30, 45, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, timestamp += 30, 75, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, timestamp += 30, 5, tags).joinUninterruptibly();
-    
+
     final RateOptions ro = new RateOptions(true, 100, 0);
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
@@ -1130,7 +1195,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(2, dps[0].size());
   }
-  
+
   @Test
   public void runRateCounterAnomally() throws Exception {
     setDataPointStorage();
@@ -1138,7 +1203,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     tsdb.addPoint(METRIC_STRING, timestamp += 30, 45, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, timestamp += 30, 75, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, timestamp += 30, 25, tags).joinUninterruptibly();
-    
+
     final RateOptions ro = new RateOptions(true, 10000, 35);
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
@@ -1161,7 +1226,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     tsdb.addPoint(METRIC_STRING, timestamp += 30, 75, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, timestamp += 30, 25, tags).joinUninterruptibly();
     tsdb.addPoint(METRIC_STRING, timestamp += 30, 55, tags).joinUninterruptibly();
-    
+
     final RateOptions ro = new RateOptions(true, 10000, 35, true);
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
@@ -1175,7 +1240,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     assertEquals(1356998520000L, dps[0].timestamp(1));
     assertEquals(2, dps[0].size());
   }
-  
+
   @Test
   public void runMultiCompact() throws Exception {
     final byte[] qual1 = { 0x00, 0x17 };
@@ -1197,20 +1262,20 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
 
     final byte[] key = IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags);
     RowKey.prefixKeyWithSalt(key);
-    System.arraycopy(Bytes.fromInt(1356998400), 0, key, 
+    System.arraycopy(Bytes.fromInt(1356998400), 0, key,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
-    
+
     setDataPointStorage();
-    storage.addColumn(key, 
-        MockBase.concatByteArrays(qual1, qual2), 
+    storage.addColumn(key,
+        MockBase.concatByteArrays(qual1, qual2),
         MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(key, 
-        MockBase.concatByteArrays(qual3, qual4), 
+    storage.addColumn(key,
+        MockBase.concatByteArrays(qual3, qual4),
         MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
-    storage.addColumn(key, 
-        MockBase.concatByteArrays(qual5, qual6), 
+    storage.addColumn(key,
+        MockBase.concatByteArrays(qual5, qual6),
         MockBase.concatByteArrays(val5, val6, new byte[] { 0 }));
-    
+
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(TAGK_STRING , TAGV_STRING );
     query.setStartTime(1356998400);
@@ -1219,7 +1284,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
 
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     int value = 1;
     long timestamp = 1356998401000L;
     for (DataPoint dp : dps[0]) {
@@ -1252,26 +1317,26 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
 
     final byte[] key = IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags);
     RowKey.prefixKeyWithSalt(key);
-    System.arraycopy(Bytes.fromInt(1356998400), 0, key, 
+    System.arraycopy(Bytes.fromInt(1356998400), 0, key,
         Const.SALT_WIDTH() + TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
-    
+
     setDataPointStorage();
-    storage.addColumn(key, 
-        MockBase.concatByteArrays(qual1, qual2), 
+    storage.addColumn(key,
+        MockBase.concatByteArrays(qual1, qual2),
         MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
     storage.addColumn(key, qual3, val3);
     storage.addColumn(key, qual4, val4);
-    storage.addColumn(key, 
-        MockBase.concatByteArrays(qual5, qual6), 
+    storage.addColumn(key,
+        MockBase.concatByteArrays(qual5, qual6),
         MockBase.concatByteArrays(val5, val6, new byte[] { 0 }));
-    
+
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
 
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, false);
-    
+
     int value = 1;
     long timestamp = 1356998401000L;
     for (DataPoint dp : dps[0]) {
@@ -1282,7 +1347,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(6, dps[0].aggregatedSize());
   }
-  
+
   @Test
   public void runInterpolationSeconds() throws Exception {
     setDataPointStorage();
@@ -1298,21 +1363,21 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
       tsdb.addPoint(METRIC_STRING, timestamp += 30, i, tags)
         .joinUninterruptibly();
     }
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long v = 1;
     long ts = 1356998430000L;
     for (DataPoint dp : dps[0]) {
       assertEquals(ts, dp.timestamp());
       ts += 15000;
       assertEquals(v, dp.longValue());
-      
+
       if (dp.timestamp() == 1357007400000L) {
         v = 1;
       } else if (v == 1 || v == 302) {
@@ -1323,7 +1388,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   @Test
   public void runInterpolationMs() throws Exception {
     setDataPointStorage();
@@ -1339,21 +1404,21 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
       tsdb.addPoint(METRIC_STRING, timestamp += 500, i, tags)
         .joinUninterruptibly();
     }
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
-    
+
     long v = 1;
     long ts = 1356998400500L;
     for (DataPoint dp : dps[0]) {
       assertEquals(ts, dp.timestamp());
       ts += 250;
       assertEquals(v, dp.longValue());
-      
+
       if (dp.timestamp() == 1356998550000L) {
         v = 1;
       } else if (v == 1 || v == 302) {
@@ -1364,7 +1429,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   @Test
   public void runInterpolationMsDownsampled() throws Exception {
     setDataPointStorage();
@@ -1387,7 +1452,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
       tsdb.addPoint(METRIC_STRING, timestamp, i, tags)
         .joinUninterruptibly();
     }
-    
+
     // ts = 1356998400750, v = 300
     // ts = 1356998401250, v = 299
     // ts = 1356998401750, v = 298
@@ -1404,13 +1469,13 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
       tsdb.addPoint(METRIC_STRING, timestamp += 500, i, tags)
         .joinUninterruptibly();
     }
-    
+
     tags.clear();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
     query.downsample(1000, Aggregators.SUM);
-    
+
     final DataPoints[] dps = query.run();
     assertMeta(dps, 0, true);
 
@@ -1471,7 +1536,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(300, dps[0].aggregatedSize());
   }
-  
+
   @Test
   public void runRegexpNoMatch() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
@@ -1489,6 +1554,58 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
   }
 
   @Test
+  public void runPreAggregate() throws Exception {
+    storeLongTimeSeriesSeconds(false, false);
+    final List<byte[]> families = new ArrayList<byte[]>();
+    families.add("t".getBytes(MockBase.ASCII()));
+    storage.addTable("tsdb-agg".getBytes(), families);
+    setupGroupByTagValues();
+    long start_timestamp = 1356998400L;
+    Whitebox.setInternalState(tsdb, "agg_tag_key", 
+        config.getString("tsd.rollups.agg_tag_key"));
+    Whitebox.setInternalState(tsdb, "raw_agg_tag_value", 
+        config.getString("tsd.rollups.raw_agg_tag_value"));
+    Whitebox.setInternalState(tsdb, "default_interval",
+        RollupInterval.builder()
+        .setTable("tsdb")
+        .setPreAggregationTable("tsdb-agg")
+        .setInterval("1m")
+        .setRowSpan("1h")
+        .build());
+    
+    tsdb.addAggregatePoint(METRIC_STRING, start_timestamp, 42L, tags, true, null, 
+        null, "SUM");
+    
+    tags.put(config.getString("tsd.rollups.agg_tag_key"), "SUM");
+    TSQuery ts_query = new TSQuery();
+    ts_query.setStart("1356998400");
+    ts_query.setEnd("1357041600");
+    
+    final TSSubQuery sub = new TSSubQuery();
+    sub.setMetric(METRIC_STRING);
+    sub.setTags(new HashMap<String, String>(tags));
+    sub.setAggregator("sum");
+
+    ts_query.setQueries(Arrays.asList(sub));
+    ts_query.validateAndSetQuery();
+    query.configureFromQuery(ts_query, 0);
+
+    final DataPoints[] dps = query.run();
+    assertEquals(1, dps.length);
+    assertEquals(METRIC_STRING, dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals(TAGV_STRING, dps[0].getTags().get(TAGK_STRING));
+
+    long ts = start_timestamp * 1000;
+    final DataPoint dp = dps[0].iterator().next();
+    assertTrue(dp.isInteger());
+    assertEquals(42, dp.longValue());
+    assertEquals(ts, dp.timestamp());
+    assertEquals(1, dps[0].size());
+  }
+  
+  @Test
   public void filterExplicitTagsOK() throws Exception {
     tsdb.getConfig().overrideConfig("tsd.query.enable_fuzzy", "true");
     storeLongTimeSeriesSeconds(true, false);
@@ -1500,13 +1617,13 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
 
     final DataPoints[] dps = query.run();
-    
+
     assertNotNull(dps);
     assertEquals("sys.cpu.user", dps[0].metricName());
     assertTrue(dps[0].getAggregatedTags().isEmpty());
     assertNull(dps[0].getAnnotations());
     assertEquals("web01", dps[0].getTags().get("host"));
-    
+
     int value = 1;
     for (DataPoint dp : dps[0]) {
       assertEquals(value, dp.longValue());
@@ -1518,7 +1635,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
       assertTrue(scanner.getFilter() instanceof FilterList);
     }
   }
-  
+
   @Test
   public void filterExplicitTagsGroupByOK() throws Exception {
     tsdb.getConfig().overrideConfig("tsd.query.enable_fuzzy", "true");
@@ -1531,13 +1648,13 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
 
     final DataPoints[] dps = query.run();
-    
+
     assertNotNull(dps);
     assertEquals("sys.cpu.user", dps[0].metricName());
     assertTrue(dps[0].getAggregatedTags().isEmpty());
     assertNull(dps[0].getAnnotations());
     assertEquals("web01", dps[0].getTags().get("host"));
-    
+
     int value = 1;
     for (DataPoint dp : dps[0]) {
       assertEquals(value, dp.longValue());
@@ -1549,7 +1666,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
       assertTrue(scanner.getFilter() instanceof FilterList);
     }
   }
-  
+
   @Test
   public void filterExplicitTagsMissing() throws Exception {
     tsdb.getConfig().overrideConfig("tsd.query.enable_fuzzy", "true");
@@ -1567,7 +1684,7 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
 
     final DataPoints[] dps = query.run();
-    
+
     assertNotNull(dps);
     assertEquals(0, dps.length);
     // assert fuzzy
@@ -1575,5 +1692,5 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
       assertTrue(scanner.getFilter() instanceof FilterList);
     }
   }
-  
+
 }
