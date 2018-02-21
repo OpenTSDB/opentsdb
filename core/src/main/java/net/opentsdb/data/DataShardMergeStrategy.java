@@ -28,12 +28,12 @@ import net.opentsdb.query.context.QueryContext;
  * <b>Invariant:</b>
  * All of the shards must be of the same type. If any of the shards are of the
  * wrong type for this implementation, 
- * {@link #merge(TimeSeriesId, List, QueryContext, Span)} should throw an 
+ * {@link #merge(TimeSeriesStringId, List, QueryContext, Span)} should throw an 
  * {@link IllegalArgumentException} exception.
  * <p>
- * Note that implementations are not expected to check the {@link TimeSeriesId} 
+ * Note that implementations are not expected to check the {@link TimeSeriesStringId} 
  * of the individual shards during merge. Instead the ID of the resulting shard
- * is passed in to the {@link #merge(TimeSeriesId, List, QueryContext, Span)} 
+ * is passed in to the {@link #merge(TimeSeriesStringId, List, QueryContext, Span)} 
  * method. 
  * 
  * @param <T> The type of data that this merger will work on.
@@ -55,7 +55,7 @@ public interface DataShardMergeStrategy<T extends TimeSeriesDataType> {
    * or more of the shards had the wrong time or one or more shards were null
    * in the list.
    */
-  public TimeSeriesIterator<T> merge(final TimeSeriesId id, 
+  public TimeSeriesIterator<T> merge(final TimeSeriesStringId id, 
                             final List<TimeSeriesIterator<?>> shards, 
                             final QueryContext context, 
                             final Span tracer_span);

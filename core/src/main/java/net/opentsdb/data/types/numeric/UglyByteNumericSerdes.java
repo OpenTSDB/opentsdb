@@ -22,7 +22,7 @@ import java.util.Map.Entry;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryResult;
@@ -60,7 +60,7 @@ public class UglyByteNumericSerdes implements TimeSeriesSerdes {
       stream.write(buf);
       
       for (final TimeSeries series : result.timeSeries()) {
-        final TimeSeriesId id = series.id();
+        final TimeSeriesStringId id = series.id();
         
         buf = id.alias() == null ? null : id.alias().getBytes(Const.UTF8_CHARSET);
         stream.write(Bytes.fromInt(buf == null ? 0 : buf.length));

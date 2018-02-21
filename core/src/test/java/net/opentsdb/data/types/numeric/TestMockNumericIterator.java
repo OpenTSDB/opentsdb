@@ -34,7 +34,7 @@ import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesGroupId;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.query.context.DefaultQueryContext;
@@ -52,7 +52,7 @@ public class TestMockNumericIterator {
   private QueryContext context;
   private TimeSeriesProcessor processor;
   private TimeSeriesGroupId group;
-  private TimeSeriesId id;
+  private TimeSeriesStringId id;
   private List<List<MutableNumericType>> data;
   
   @Before

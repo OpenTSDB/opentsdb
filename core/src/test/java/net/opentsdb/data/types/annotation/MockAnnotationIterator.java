@@ -19,7 +19,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.IteratorStatus;
@@ -48,11 +48,11 @@ public class MockAnnotationIterator extends
     return initialize_deferred;
   }
   
-  public MockAnnotationIterator(final TimeSeriesId id) {
+  public MockAnnotationIterator(final TimeSeriesStringId id) {
     super(id);
   }
   
-  public MockAnnotationIterator(final TimeSeriesId id, final int order) {
+  public MockAnnotationIterator(final TimeSeriesStringId id, final int order) {
     super(id);
     this.order = order;
   }
@@ -63,7 +63,7 @@ public class MockAnnotationIterator extends
   }
 
   @Override
-  public TimeSeriesId id() {
+  public TimeSeriesStringId id() {
     return id;
   }
 

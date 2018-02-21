@@ -39,7 +39,7 @@ import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.BaseTimeSeriesId;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.DefaultIteratorGroup;
 import net.opentsdb.data.iterators.DefaultIteratorGroups;
@@ -58,7 +58,7 @@ public class TestDataShardMerger {
 
   private QueryContext context;
   private TimeSeriesGroupId group_id;
-  private TimeSeriesId id;
+  private TimeSeriesStringId id;
   private TimeStamp start;
   private TimeStamp end;
   

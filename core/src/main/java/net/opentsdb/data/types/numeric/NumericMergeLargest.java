@@ -21,7 +21,7 @@ import com.google.common.reflect.TypeToken;
 import io.opentracing.Span;
 import net.opentsdb.data.DataShardMergeStrategy;
 import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.RelationalOperator;
@@ -52,7 +52,7 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
 
   @SuppressWarnings("unchecked")
   @Override
-  public TimeSeriesIterator<NumericType> merge(final TimeSeriesId id, 
+  public TimeSeriesIterator<NumericType> merge(final TimeSeriesStringId id, 
                                       final List<TimeSeriesIterator<?>> shards,
                                       final QueryContext context,
                                       final Span tracer_span) {

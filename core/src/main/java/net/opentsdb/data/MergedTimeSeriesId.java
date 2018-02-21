@@ -28,7 +28,7 @@ import com.google.common.collect.Sets;
 /**
  * An ID that can be used to merge multiple time series into one. Use by
  * calling {@link #newBuilder()}, setting an opitonal Alias and calling 
- * {@link Builder#addSeries(TimeSeriesId)} as many times as needed. It has the
+ * {@link Builder#addSeries(TimeSeriesStringId)} as many times as needed. It has the
  * following logic:
  * <p>
  * <ul>
@@ -58,7 +58,7 @@ public class MergedTimeSeriesId {
   }
 
   public static class Builder {
-    private List<TimeSeriesId> ids;
+    private List<TimeSeriesStringId> ids;
     private String alias;
     private String namespace;
     private String metric;
@@ -78,7 +78,7 @@ public class MergedTimeSeriesId {
       return this;
     }
     
-    public Builder addSeries(final TimeSeriesId id) {
+    public Builder addSeries(final TimeSeriesStringId id) {
       if (id == null) {
         throw new IllegalArgumentException("ID cannot be null.");
       }
@@ -89,7 +89,7 @@ public class MergedTimeSeriesId {
       return this;
     }
 
-    public TimeSeriesId build() {
+    public TimeSeriesStringId build() {
       return merge();
     }
     
@@ -98,7 +98,7 @@ public class MergedTimeSeriesId {
      * disjoint tags and combining namespaces, metrics and unique IDs.
      * @return A non-null time series ID.
      */
-    private TimeSeriesId merge() {
+    private TimeSeriesStringId merge() {
       // TODO shortcircuit if there is only a single ID
       
       String first_namespace = null;
@@ -109,7 +109,7 @@ public class MergedTimeSeriesId {
       Set<String> unique_ids = null;
       
       int i = 0;
-      for (final TimeSeriesId id : ids) {
+      for (final TimeSeriesStringId id : ids) {
         if (Strings.isNullOrEmpty(first_namespace)) {
           first_namespace = id.namespace();
         }

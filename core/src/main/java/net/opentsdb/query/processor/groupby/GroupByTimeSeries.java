@@ -28,7 +28,7 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.MergedTimeSeriesId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 
 /**
@@ -57,7 +57,7 @@ public class GroupByTimeSeries implements TimeSeries {
   private boolean types_unioned = false;
   
   /** The constructed time series ID. */
-  private TimeSeriesId id;
+  private TimeSeriesStringId id;
   
   /** Whether or not an iterator or iterators have been fetched. */
   private boolean iterators_returned;
@@ -99,7 +99,7 @@ public class GroupByTimeSeries implements TimeSeries {
   }
   
   @Override
-  public TimeSeriesId id() {
+  public TimeSeriesStringId id() {
     if (id == null) {
       id = merging_id.build();
     }

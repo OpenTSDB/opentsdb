@@ -24,16 +24,16 @@ public class TestMergedTimeSeriesId {
 
   @Test
   public void alias() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .setAlias("Series A")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .setAlias("Series B")
         .setMetric("ice.dragon")
         .build();
     
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -77,15 +77,15 @@ public class TestMergedTimeSeriesId {
   
   @Test
   public void mergeNameSpaces() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .setNamespace("Tyrell")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .setNamespace("Lanister")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -101,13 +101,13 @@ public class TestMergedTimeSeriesId {
 
   @Test
   public void mergeMetrics() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .setMetric("Tyrell")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .setMetric("Lanister")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -123,17 +123,17 @@ public class TestMergedTimeSeriesId {
   
   @Test
   public void mergeTagsSame() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -148,17 +148,17 @@ public class TestMergedTimeSeriesId {
   
   @Test
   public void mergeTagsAgg1() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web02")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -174,17 +174,17 @@ public class TestMergedTimeSeriesId {
   
   @Test
   public void mergeTagsAgg2() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web02")
         .addTags("colo", "lga")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -199,17 +199,17 @@ public class TestMergedTimeSeriesId {
   
   @Test
   public void mergeTagsExistingAgg() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .addAggregatedTag("host")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web02")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -224,17 +224,17 @@ public class TestMergedTimeSeriesId {
   
   @Test
   public void mergeTagsIncomingAgg() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .addAggregatedTag("host")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -249,17 +249,17 @@ public class TestMergedTimeSeriesId {
   
   @Test
   public void mergeTagsExistingDisjoint() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .addDisjointTag("host")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web02")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -274,17 +274,17 @@ public class TestMergedTimeSeriesId {
   
   @Test
   public void mergeTagsIncomingDisjoint() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .addDisjointTag("host")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -299,17 +299,17 @@ public class TestMergedTimeSeriesId {
   
   @Test
   public void mergeTagsDisjoint1() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("owner", "Lanister")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -326,17 +326,17 @@ public class TestMergedTimeSeriesId {
   
   @Test
   public void mergeTagsDisjoint2() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .addTags("dept", "KingsGaurd")
         .addTags("owner", "Lanister")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -356,17 +356,17 @@ public class TestMergedTimeSeriesId {
 
   @Test
   public void mergeTagsAlreadyAgged() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addAggregatedTag("colo")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -381,17 +381,17 @@ public class TestMergedTimeSeriesId {
   
   @Test
   public void mergeTagsAlreadyDisjoint() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addDisjointTag("colo")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -406,22 +406,22 @@ public class TestMergedTimeSeriesId {
 
   @Test
   public void mergeTagsAlreadyAggedToDisjoint() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addAggregatedTag("colo")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("colo", "lax")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId c = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId c = BaseTimeSeriesId.newBuilder()
         .addTags("host", "web01")
         .addTags("dept", "KingsGaurd")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .addSeries(c)
@@ -439,17 +439,17 @@ public class TestMergedTimeSeriesId {
   
   @Test
   public void mergeAggTagsSame() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .addAggregatedTag("host")
         .addAggregatedTag("colo")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .addAggregatedTag("host")
         .addAggregatedTag("colo")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -464,17 +464,17 @@ public class TestMergedTimeSeriesId {
   
   @Test
   public void mergeAggTagsDisjoint1() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .addAggregatedTag("host")
         .addAggregatedTag("colo")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .addAggregatedTag("host")
         .addAggregatedTag("owner")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -491,17 +491,17 @@ public class TestMergedTimeSeriesId {
   
   @Test
   public void mergeAggTagsDisjoint2() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .addAggregatedTag("host")
         .addAggregatedTag("colo")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .addAggregatedTag("dept")
         .addAggregatedTag("owner")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();
@@ -520,17 +520,17 @@ public class TestMergedTimeSeriesId {
 
   @Test
   public void mergeDisjointTags() throws Exception {
-    TimeSeriesId a = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId a = BaseTimeSeriesId.newBuilder()
         .addDisjointTag("host")
         .addDisjointTag("colo")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId b = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId b = BaseTimeSeriesId.newBuilder()
         .addDisjointTag("host")
         .addDisjointTag("owner")
         .setMetric("ice.dragon")
         .build();
-    TimeSeriesId merged = MergedTimeSeriesId.newBuilder()
+    TimeSeriesStringId merged = MergedTimeSeriesId.newBuilder()
         .addSeries(a)
         .addSeries(b)
         .build();

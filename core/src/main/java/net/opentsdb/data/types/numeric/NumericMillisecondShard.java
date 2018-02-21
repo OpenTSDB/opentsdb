@@ -29,7 +29,7 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.utils.Bytes;
@@ -47,7 +47,7 @@ public class NumericMillisecondShard implements TimeSeries,
     Iterable<TimeSeriesValue<?>> {
   
   /** ID of the time series. */
-  private final TimeSeriesId id;  
+  private final TimeSeriesStringId id;  
   
   /** The *width* of the data (in ms) to be stored in this shard so we can 
    * calculate how many bytes are needed to store offsets from the base time. */
@@ -89,7 +89,7 @@ public class NumericMillisecondShard implements TimeSeries,
    * @param end The end of the data shard.
    * @throws IllegalArgumentException if the ID was null or span was less than 1.
    */
-  public NumericMillisecondShard(final TimeSeriesId id, 
+  public NumericMillisecondShard(final TimeSeriesStringId id, 
                                  final TimeStamp start,
                                  final TimeStamp end) {
     this(id, start, end, -1, 1);
@@ -106,7 +106,7 @@ public class NumericMillisecondShard implements TimeSeries,
    * @throws IllegalArgumentException if the ID was null or span was less than
    * 1 or the count was less than zero.
    */
-  public NumericMillisecondShard(final TimeSeriesId id, 
+  public NumericMillisecondShard(final TimeSeriesStringId id, 
                                  final TimeStamp start,
                                  final TimeStamp end, 
                                  final int order) {
@@ -125,7 +125,7 @@ public class NumericMillisecondShard implements TimeSeries,
    * @throws IllegalArgumentException if the ID was null or span was less than
    * 1 or the count was less than zero.
    */
-  public NumericMillisecondShard(final TimeSeriesId id, 
+  public NumericMillisecondShard(final TimeSeriesStringId id, 
                                  final TimeStamp start,
                                  final TimeStamp end, 
                                  final int order, 
@@ -324,7 +324,7 @@ public class NumericMillisecondShard implements TimeSeries,
   }
   
   @Override
-  public TimeSeriesId id() {
+  public TimeSeriesStringId id() {
     return id;
   }
 
@@ -380,7 +380,7 @@ public class NumericMillisecondShard implements TimeSeries,
    * @param stream A non-null input stream.
    * @return An instantiated shard.
    */
-  public static NumericMillisecondShard parseFrom(final TimeSeriesId id, 
+  public static NumericMillisecondShard parseFrom(final TimeSeriesStringId id, 
                                                   final InputStream stream) {
     try {
       byte[] array = new byte[8];

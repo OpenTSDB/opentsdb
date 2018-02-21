@@ -37,7 +37,7 @@ import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesGroupId;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
@@ -51,8 +51,8 @@ import net.opentsdb.query.execution.graph.ExecutionGraph;
 public class TestDefaultTimeSeriesProcessor {
   private DefaultTSDB tsdb;
   private TimeSeriesGroupId group_id;
-  private TimeSeriesId id_a;
-  private TimeSeriesId id_b;
+  private TimeSeriesStringId id_a;
+  private TimeSeriesStringId id_b;
   
   private List<List<MutableNumericType>> data_a;
   private List<List<MutableNumericType>> data_b;

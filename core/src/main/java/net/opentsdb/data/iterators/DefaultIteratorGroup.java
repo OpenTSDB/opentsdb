@@ -23,13 +23,13 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.TimeSeriesGroupId;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.utils.Deferreds;
 
 /**
  * A collection of zero or more unique time series sets 
- * (different {@link TimeSeriesId}s) under the same {@link TimeSeriesGroupId}.
+ * (different {@link TimeSeriesStringId}s) under the same {@link TimeSeriesGroupId}.
  *
  * @since 3.0
  */

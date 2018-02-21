@@ -22,7 +22,7 @@ import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.utils.Deferreds;
 
@@ -42,7 +42,7 @@ public class DefaultTimeSeriesIterators extends TimeSeriesIterators {
    * @param id A non-null ID associated with all series in the set.
    * @throws IllegalArgumentException if the ID was null.
    */
-  public DefaultTimeSeriesIterators(final TimeSeriesId id) {
+  public DefaultTimeSeriesIterators(final TimeSeriesStringId id) {
     super(id);
     iterators = Lists.newArrayListWithExpectedSize(1);
   }

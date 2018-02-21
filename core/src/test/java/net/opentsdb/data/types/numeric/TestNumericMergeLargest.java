@@ -39,7 +39,7 @@ import com.google.common.reflect.TypeToken;
 import io.opentracing.Span;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.BaseTimeSeriesId;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
@@ -49,7 +49,7 @@ import net.opentsdb.query.context.QueryContext;
 public class TestNumericMergeLargest {
 
   private QueryContext context;
-  private TimeSeriesId id;
+  private TimeSeriesStringId id;
   private TimeStamp start;
   private TimeStamp end;
   

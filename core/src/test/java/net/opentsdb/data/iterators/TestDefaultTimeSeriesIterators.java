@@ -38,7 +38,7 @@ import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.data.BaseTimeSeriesId;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.annotation.MockAnnotationIterator;
 import net.opentsdb.data.types.numeric.MockNumericIterator;
@@ -47,7 +47,7 @@ import net.opentsdb.query.context.QueryContext;
 
 public class TestDefaultTimeSeriesIterators {
 
-  private TimeSeriesId id;
+  private TimeSeriesStringId id;
   private QueryContext context;
   
   @Before
@@ -154,7 +154,7 @@ public class TestDefaultTimeSeriesIterators {
     } catch (IllegalArgumentException e) { }
     
     // clear and add different ID
-    TimeSeriesId id2 = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId id2 = BaseTimeSeriesId.newBuilder()
         .setMetric("sys.cpu.user")
         .build();
     note_it = new MockAnnotationIterator(id2);

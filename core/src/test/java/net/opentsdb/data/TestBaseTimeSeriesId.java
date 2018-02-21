@@ -34,7 +34,7 @@ public class TestBaseTimeSeriesId {
 
   @Test
   public void alias() throws Exception {
-    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId id = BaseTimeSeriesId.newBuilder()
         .setAlias("MyID!")
         .setMetric("sys.cpu.user")
         .build();
@@ -60,7 +60,7 @@ public class TestBaseTimeSeriesId {
 
   @Test
   public void namespace() throws Exception {
-    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId id = BaseTimeSeriesId.newBuilder()
         .setNamespace("Tyrell")
         .setMetric("sys.cpu.user")
         .build();
@@ -86,7 +86,7 @@ public class TestBaseTimeSeriesId {
   
   @Test
   public void metric() throws Exception {
-    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId id = BaseTimeSeriesId.newBuilder()
         .setMetric("sys.cpu.user")
         .build();
     assertEquals("sys.cpu.user", id.metric());
@@ -117,7 +117,7 @@ public class TestBaseTimeSeriesId {
     Map<String, String> tags = Maps.newHashMap();
     tags.put("host", "web01");
     tags.put("colo", "lax");
-    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId id = BaseTimeSeriesId.newBuilder()
         .setTags(tags)
         .setMetric("sys.cpu.user")
         .build();
@@ -239,7 +239,7 @@ public class TestBaseTimeSeriesId {
   
   @Test
   public void aggregatedTags() throws Exception {
-    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId id = BaseTimeSeriesId.newBuilder()
         .setAggregatedTags(Lists.newArrayList("Tyrell", "Frey", "Casterly"))
         .setMetric("sys.cpu.user")
         .build();
@@ -317,7 +317,7 @@ public class TestBaseTimeSeriesId {
   
   @Test
   public void disjointTags() throws Exception {
-    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId id = BaseTimeSeriesId.newBuilder()
         .setDisjointTags(Lists.newArrayList("Tyrell", "Frey", "Casterly"))
         .setMetric("sys.cpu.user")
         .build();
@@ -396,7 +396,7 @@ public class TestBaseTimeSeriesId {
   @Test
   public void uniqueIds() throws Exception {
     Set<String> ids = Sets.newHashSet("000001", "000002");
-    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId id = BaseTimeSeriesId.newBuilder()
         .setUniqueId(ids)
         .setMetric("sys.cpu.user")
         .build();

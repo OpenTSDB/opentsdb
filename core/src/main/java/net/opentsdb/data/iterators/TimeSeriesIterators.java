@@ -19,7 +19,7 @@ import java.util.List;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.query.context.QueryContext;
 
 /**
@@ -33,7 +33,7 @@ public abstract class TimeSeriesIterators
     implements Iterable<TimeSeriesIterator<?>> {
   
   /** The ID shared by all time series in this group. */
-  protected final TimeSeriesId id;
+  protected final TimeSeriesStringId id;
   
   /** An order if shard is part of a slice config. */
   protected int order;
@@ -43,7 +43,7 @@ public abstract class TimeSeriesIterators
    * @param id A non-null ID for the series in this set.
    * @throws IllegalArgumentException if the ID was null.
    */
-  public TimeSeriesIterators(final TimeSeriesId id) {
+  public TimeSeriesIterators(final TimeSeriesStringId id) {
     if (id == null) {
       throw new IllegalArgumentException("ID cannot be null.");
     }
@@ -52,7 +52,7 @@ public abstract class TimeSeriesIterators
   }
   
   /** @return The ID shared by all time series in this group. */
-  public TimeSeriesId id() {
+  public TimeSeriesStringId id() {
     return id;
   }
   

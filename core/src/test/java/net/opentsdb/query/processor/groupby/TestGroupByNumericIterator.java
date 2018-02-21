@@ -39,7 +39,7 @@ import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -506,7 +506,7 @@ public class TestGroupByNumericIterator {
   class MockSeries implements TimeSeries {
 
     @Override
-    public TimeSeriesId id() {
+    public TimeSeriesStringId id() {
       return BaseTimeSeriesId.newBuilder()
           .setMetric("a")
           .build();
