@@ -1,5 +1,5 @@
 //This file is part of OpenTSDB.
-//Copyright (C) 2017  The OpenTSDB Authors.
+//Copyright (C) 2018  The OpenTSDB Authors.
 //
 //This program is free software: you can redistribute it and/or modify it
 //under the terms of the GNU Lesser General Public License as published by
@@ -13,8 +13,11 @@
 package net.opentsdb.data;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.utils.Bytes.ByteMap;
 
 /**
  * An identifier for a time series. The identity can be as simple as the alias
@@ -24,33 +27,35 @@ import java.util.Set;
  * 
  * @since 3.0
  */
-public interface TimeSeriesStringId extends TimeSeriesId, 
-                                            Comparable<TimeSeriesStringId> {
+public interface TimeSeriesByteId extends TimeSeriesId, 
+                                          Comparable<TimeSeriesByteId> {
+
+  //public StorageSchema schema();
   
   /**
-   * A simple string for identifying the time series. The alias may be null or
+   * A simple id for identifying the time series. The alias may be null or
    * empty. If a value is present, the alias must be unique within a set of
    * time series.
    * 
-   * @return A string or null if not used.
+   * @return A non-empty byte array or null if not used.
    */
-  public String alias();
+  public byte[] alias();
   
   /**
    * An optional tenant or group name for the time series.
    * May be null or empty if namespaces are not in use for the platform.
    *  
-   * @return A string if set, null if not used.
+   * @return A non-empty byte array if set, null if not used.
    */
-  public String namespace();
+  public byte[] namespace();
   
   /**
    * The metric component of the time series ID. This is a required value and
    * may not be null or empty.
    *  
-   * @return A non-null and non-empty string.
+   * @return A non-null and non-empty byte array.
    */
-  public String metric();
+  public byte[] metric();
   
   /**
    * A map of tag name and value pairs included in the sources for this time 
@@ -63,8 +68,8 @@ public interface TimeSeriesStringId extends TimeSeriesId,
    * 
    * @return A non-null map of zero or more tag pairs.
    */
-  public Map<String, String> tags();
-
+  public ByteMap<byte[]> tags();
+  
   /**
    * A list of tag names (tagk) that were represented in every source series
    * but had one or more differing tag values (tagv). This list may be empty if
@@ -77,7 +82,7 @@ public interface TimeSeriesStringId extends TimeSeriesId,
    * 
    * @return A non-null list of zero or more tag names.
    */
-  public List<String> aggregatedTags();
+  public List<byte[]> aggregatedTags();
   
   /**
    * A list of tag names (tagk) that were represented in one or more source time
@@ -94,13 +99,20 @@ public interface TimeSeriesStringId extends TimeSeriesId,
    * 
    * @return A non-null list of zero or more tag names.
    */
-  public List<String> disjointTags();
+  public List<byte[]> disjointTags();
   
   /**
    * A flattened list of unique identifiers for the time series that can be used
    * to determine the count of real series underlying the data.
    * @return A non-null set of unique identifiers.
    */
-  public Set<String> uniqueIds();
+  public Set<byte[]> uniqueIds();
   
+  /**
+   * Returns the string version of the time series ID based on the schema
+   * used to encode the byte IDs.
+   * 
+   * @return A non-null deferred resolving to either an ID or an exception. 
+   */
+  public Deferred<TimeSeriesStringId> decode();
 }
