@@ -38,7 +38,7 @@ import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesGroupId;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.annotation.MockAnnotationIterator;
 import net.opentsdb.data.types.numeric.MockNumericIterator;
@@ -49,8 +49,8 @@ public class TestDefaultIteratorGroups {
 
   private TimeSeriesGroupId group_id_a;
   private TimeSeriesGroupId group_id_b;
-  private TimeSeriesId id_a;
-  private TimeSeriesId id_b;
+  private TimeSeriesStringId id_a;
+  private TimeSeriesStringId id_b;
   private QueryContext context;
   
   @Before

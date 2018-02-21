@@ -233,8 +233,8 @@ public class DataShardMerger implements DataMerger<IteratorGroups> {
               continue;
             }
             // temp build
-            final TimeSeriesId temp_id = id.build();
-            final TimeSeriesId local_id = groups.get(y).iterators().get(z).id();
+            final TimeSeriesStringId temp_id = id.build();
+            final TimeSeriesStringId local_id = groups.get(y).iterators().get(z).id();
             
             // alias check first
             if (!Objects.equals(local_id.alias(), temp_id.alias())) {
@@ -372,7 +372,7 @@ public class DataShardMerger implements DataMerger<IteratorGroups> {
    */
   protected TimeSeriesIterators mergeData(
                             final TimeSeriesIterators[] to_merge, 
-                                 final TimeSeriesId id, 
+                                 final TimeSeriesStringId id, 
                                  final QueryContext context, 
                                  final Span tracer_span) {
     if (context == null) {

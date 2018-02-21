@@ -43,7 +43,7 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
@@ -85,7 +85,7 @@ public class MockDataStore extends TimeSeriesDataStore {
       "sys.cpu.user", "sys.if.out", "sys.if.in", "web.requests");
 
   /** The super inefficient and thread unsafe in-memory db. */
-  private Map<TimeSeriesId, MockSpan> database;
+  private Map<TimeSeriesStringId, MockSpan> database;
   
   /** Thread pool used by the executions. */
   private ExecutorService thread_pool;
@@ -116,7 +116,7 @@ public class MockDataStore extends TimeSeriesDataStore {
   }
   
   @Override
-  public Deferred<Object> write(final TimeSeriesId id,
+  public Deferred<Object> write(final TimeSeriesStringId id,
                                 final TimeSeriesValue<?> value, 
                                 final TsdbTrace trace,
                                 final Span upstream_span) {    
@@ -142,9 +142,9 @@ public class MockDataStore extends TimeSeriesDataStore {
 
   class MockSpan {
     private List<MockRow> rows = Lists.newArrayList();
-    private final TimeSeriesId id;
+    private final TimeSeriesStringId id;
     
-    public MockSpan(final TimeSeriesId id) {
+    public MockSpan(final TimeSeriesStringId id) {
       this.id = id;
     }
     
@@ -170,11 +170,11 @@ public class MockDataStore extends TimeSeriesDataStore {
   }
   
   class MockRow implements TimeSeries {
-    private TimeSeriesId id;
+    private TimeSeriesStringId id;
     public long base_timestamp;
     public Map<TypeToken<?>, TimeSeries> sources;
     
-    public MockRow(final TimeSeriesId id, 
+    public MockRow(final TimeSeriesStringId id, 
                    final TimeSeriesValue<?> value) {
       this.id = id;
       base_timestamp = value.timestamp().msEpoch() - 
@@ -213,7 +213,7 @@ public class MockDataStore extends TimeSeriesDataStore {
     }
 
     @Override
-    public TimeSeriesId id() {
+    public TimeSeriesStringId id() {
       return id;
     }
 
@@ -278,7 +278,7 @@ public class MockDataStore extends TimeSeriesDataStore {
       for (final String metric : METRICS) {
         for (final String dc : DATACENTERS) {
           for (int h = 0; h < hosts; h++) {
-            TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+            TimeSeriesStringId id = BaseTimeSeriesId.newBuilder()
                 .setMetric(metric)
                 .addTags("dc", dc)
                 .addTags("host", String.format("web%02d", h + 1))
@@ -297,7 +297,7 @@ public class MockDataStore extends TimeSeriesDataStore {
     }
   }
 
-  Map<TimeSeriesId, MockSpan> getDatabase() {
+  Map<TimeSeriesStringId, MockSpan> getDatabase() {
     return database;
   }
   
@@ -475,7 +475,7 @@ public class MockDataStore extends TimeSeriesDataStore {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Running the filter: " + query);
         }
-        for (final Entry<TimeSeriesId, MockSpan> entry : database.entrySet()) {
+        for (final Entry<TimeSeriesStringId, MockSpan> entry : database.entrySet()) {
           final Metric m = query.getMetrics().get(0);
           if (!m.getMetric().equals(entry.getKey().metric())) {
             continue;

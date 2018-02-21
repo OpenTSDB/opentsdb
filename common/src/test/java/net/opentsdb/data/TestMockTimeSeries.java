@@ -37,7 +37,7 @@ public class TestMockTimeSeries {
 
   @Test
   public void ctor() throws Exception {
-    MockTimeSeries series = new MockTimeSeries(mock(TimeSeriesId.class));
+    MockTimeSeries series = new MockTimeSeries(mock(TimeSeriesStringId.class));
     assertNotNull(series.id());
     
     try {
@@ -48,7 +48,7 @@ public class TestMockTimeSeries {
   
   @Test
   public void add() throws Exception {
-    MockTimeSeries series = new MockTimeSeries(mock(TimeSeriesId.class));
+    MockTimeSeries series = new MockTimeSeries(mock(TimeSeriesStringId.class));
     
     TypeToken<?> type1 = mock(TypeToken.class);
     TypeToken<?> type2 = mock(TypeToken.class);
@@ -98,7 +98,7 @@ public class TestMockTimeSeries {
   
   @Test
   public void iterators() throws Exception {
-    MockTimeSeries series = new MockTimeSeries(mock(TimeSeriesId.class));
+    MockTimeSeries series = new MockTimeSeries(mock(TimeSeriesStringId.class));
     
     TypeToken<?> type1 = mock(TypeToken.class);
     TypeToken<?> type2 = mock(TypeToken.class);

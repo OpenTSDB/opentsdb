@@ -35,7 +35,7 @@ import java.util.Optional;
 import com.google.common.reflect.TypeToken;
 
 /**
- * A collection of data for a specific time series, i.e. {@link TimeSeriesId}.
+ * A collection of data for a specific time series, i.e. {@link TimeSeriesStringId}.
  * The collection may contain multiple data types, e.g. a series of numeric
  * values and a series of strings or annotations.
  * <p>
@@ -54,9 +54,9 @@ public interface TimeSeries {
 
   /**
    * A reference to the time series ID associated with this value.
-   * @return A non-null {@link TimeSeriesId}.
+   * @return A non-null {@link TimeSeriesStringId}.
    */
-  public TimeSeriesId id();
+  public TimeSeriesStringId id();
   
   /**
    * Returns a new iterator for the type of time series data denoted by {code type}

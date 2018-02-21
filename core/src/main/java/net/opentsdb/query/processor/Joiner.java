@@ -31,7 +31,7 @@ import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesGroupId;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.iterators.DefaultIteratorGroups;
 import net.opentsdb.data.iterators.IteratorGroup;
 import net.opentsdb.data.iterators.IteratorGroups;
@@ -136,17 +136,17 @@ public class Joiner {
     
     // Ugly but since the iterator sets are immutable, we have to convert to
     // a map, then back.
-    final Map<String, Map<TimeSeriesGroupId, Map<TimeSeriesId, 
+    final Map<String, Map<TimeSeriesGroupId, Map<TimeSeriesStringId, 
       Map<TypeToken<?>, TimeSeriesIterator<?>>>>> joined = Maps.newHashMap();
     
     for (final Entry<String, IteratorGroups> join : joins.entrySet()) {
-      final Map<TimeSeriesGroupId, Map<TimeSeriesId, 
+      final Map<TimeSeriesGroupId, Map<TimeSeriesStringId, 
         Map<TypeToken<?>, TimeSeriesIterator<?>>>> group = Maps.newHashMap();
       joined.put(join.getKey(), group);
       
       for (final Entry<TimeSeriesGroupId, IteratorGroup> iterators : 
           join.getValue()) {
-        final Map<TimeSeriesId, Map<TypeToken<?>, 
+        final Map<TimeSeriesStringId, Map<TypeToken<?>, 
           TimeSeriesIterator<?>>> timeseries = Maps.newHashMap();
         group.put(iterators.getKey(), timeseries);
         for (final TimeSeriesIterators types : iterators.getValue()) {
@@ -161,30 +161,30 @@ public class Joiner {
     }
     
     // now compute the intersections.
-    final Iterator<Entry<String, Map<TimeSeriesGroupId, Map<TimeSeriesId, 
+    final Iterator<Entry<String, Map<TimeSeriesGroupId, Map<TimeSeriesStringId, 
       Map<TypeToken<?>, TimeSeriesIterator<?>>>>>> top_iterator = 
         joined.entrySet().iterator();
     while (top_iterator.hasNext()) {
-      final Entry<String, Map<TimeSeriesGroupId, Map<TimeSeriesId, 
+      final Entry<String, Map<TimeSeriesGroupId, Map<TimeSeriesStringId, 
         Map<TypeToken<?>, TimeSeriesIterator<?>>>>> join = top_iterator.next();
       
-      final Iterator<Entry<TimeSeriesGroupId, Map<TimeSeriesId, 
+      final Iterator<Entry<TimeSeriesGroupId, Map<TimeSeriesStringId, 
         Map<TypeToken<?>, TimeSeriesIterator<?>>>>> group_iterator = 
           join.getValue().entrySet().iterator();
       while (group_iterator.hasNext()) {
-        final Entry<TimeSeriesGroupId, Map<TimeSeriesId, 
+        final Entry<TimeSeriesGroupId, Map<TimeSeriesStringId, 
           Map<TypeToken<?>, TimeSeriesIterator<?>>>> group = 
           group_iterator.next();
         
-        final Iterator<Entry<TimeSeriesId, 
+        final Iterator<Entry<TimeSeriesStringId, 
           Map<TypeToken<?>, TimeSeriesIterator<?>>>> ts_iterator =
             group.getValue().entrySet().iterator();
         while (ts_iterator.hasNext()) {
-          final Entry<TimeSeriesId, Map<TypeToken<?>, 
+          final Entry<TimeSeriesStringId, Map<TypeToken<?>, 
             TimeSeriesIterator<?>>> timeseries = ts_iterator.next();
           
           // now check the other groups to see if they have data.
-          for (final Entry<TimeSeriesGroupId, Map<TimeSeriesId, 
+          for (final Entry<TimeSeriesGroupId, Map<TimeSeriesStringId, 
               Map<TypeToken<?>, TimeSeriesIterator<?>>>> other_group : 
                   join.getValue().entrySet()) {
             if (other_group.getKey().equals(group.getKey())) {
@@ -237,15 +237,15 @@ public class Joiner {
     
     final Map<String, IteratorGroups> final_joins = Maps.newHashMap();
     // reverse
-    for (final Entry<String, Map<TimeSeriesGroupId, Map<TimeSeriesId, 
+    for (final Entry<String, Map<TimeSeriesGroupId, Map<TimeSeriesStringId, 
         Map<TypeToken<?>, TimeSeriesIterator<?>>>>> groups : joined.entrySet()) {
       final IteratorGroups final_groups = new DefaultIteratorGroups();
       final_joins.put(groups.getKey(), final_groups);
-      for (final Entry<TimeSeriesGroupId, Map<TimeSeriesId, 
+      for (final Entry<TimeSeriesGroupId, Map<TimeSeriesStringId, 
           Map<TypeToken<?>, TimeSeriesIterator<?>>>> group : 
             groups.getValue().entrySet()) {
         
-        for (final Entry<TimeSeriesId, 
+        for (final Entry<TimeSeriesStringId, 
             Map<TypeToken<?>, TimeSeriesIterator<?>>> typed : 
           group.getValue().entrySet()) {
           for (final TimeSeriesIterator<?> iterator : typed.getValue().values()) {
@@ -266,7 +266,7 @@ public class Joiner {
    * @throws IOException If the ID was null.
    */
   @VisibleForTesting
-  String joinKey(final TimeSeriesId id) throws IOException {
+  String joinKey(final TimeSeriesStringId id) throws IOException {
     if (id == null) {
       throw new IllegalArgumentException("ID cannot be null");
     }

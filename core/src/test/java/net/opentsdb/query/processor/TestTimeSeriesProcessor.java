@@ -42,7 +42,7 @@ import com.stumbleupon.async.TimeoutException;
 import net.opentsdb.data.SimpleStringGroupId;
 import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.TimeSeriesGroupId;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.iterators.DefaultIteratorGroups;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -52,7 +52,7 @@ import net.opentsdb.query.context.QueryContext;
 @PrepareForTest({ TimeSeriesProcessor.class })
 public class TestTimeSeriesProcessor {
   
-  private TimeSeriesId id;
+  private TimeSeriesStringId id;
   
   @Before
   public void before() throws Exception {

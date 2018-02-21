@@ -33,7 +33,7 @@ import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.BaseTimeSeriesId;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.MutableNumericType;
@@ -82,7 +82,7 @@ public class TestMockDataStore {
     mds.initialize(tsdb).join();
     assertEquals(4 * 4 * 4, mds.getDatabase().size());
     
-    for (final Entry<TimeSeriesId, MockSpan> series : mds.getDatabase().entrySet()) {
+    for (final Entry<TimeSeriesStringId, MockSpan> series : mds.getDatabase().entrySet()) {
       assertEquals(24, series.getValue().rows().size());
       
       long ts = 1483228800000L;
@@ -108,7 +108,7 @@ public class TestMockDataStore {
     mds.initialize(tsdb).join();
     assertEquals(4 * 4 * 4, mds.getDatabase().size());
     
-    TimeSeriesId id = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId id = BaseTimeSeriesId.newBuilder()
         .setMetric("unit.test")
         .addTags("dc", "lga")
         .addTags("host", "db01")

@@ -28,13 +28,13 @@ import org.junit.Test;
 
 import net.opentsdb.data.BaseTimeSeriesId;
 import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericType;
 
 public class TestNumericMillisecondShard {
-  private TimeSeriesId id;
+  private TimeSeriesStringId id;
   private TimeStamp start;
   private TimeStamp end;
   

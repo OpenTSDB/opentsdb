@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.BaseTSDBPlugin;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.Bytes;
 
@@ -228,7 +228,7 @@ public abstract class UniqueId extends BaseTSDBPlugin {
    * @param id A non-null and non-empty byte array ID associated with that name.
    * @return A deferred resolving to the string if found, {@link NoSuchUniqueId}
    * if not found (or null) or an exception from the data store.
-   * @see #getOrCreateId(String, TimeSeriesId)
+   * @see #getOrCreateId(String, TimeSeriesStringId)
    * @see #throwsNoSuchUniques()
    * @throws IllegalArgumentException if the ID given in argument is encoded
    * on the wrong number of bytes or it was null or empty.
@@ -245,7 +245,7 @@ public abstract class UniqueId extends BaseTSDBPlugin {
    * @param span An optional span for tracing.
    * @return A deferred resolving to the string if found, {@link NoSuchUniqueId}
    * if not found (or null) or an exception from the data store.
-   * @see #getOrCreateId(String, TimeSeriesId)
+   * @see #getOrCreateId(String, TimeSeriesStringId)
    * @see #throwsNoSuchUniques()
    * @throws IllegalArgumentException if the ID given in argument is encoded
    * on the wrong number of bytes or it was null or empty.
@@ -737,7 +737,7 @@ public abstract class UniqueId extends BaseTSDBPlugin {
    * @since 3.0
    */
   public Deferred<byte[]> getOrCreateId(final String name, 
-                                        final TimeSeriesId id) {
+                                        final TimeSeriesStringId id) {
     return getOrCreateId(name, id, null, null);
   }
   
@@ -755,7 +755,7 @@ public abstract class UniqueId extends BaseTSDBPlugin {
    * @since 3.0
    */
   public abstract Deferred<byte[]> getOrCreateId(final String name, 
-                                                 final TimeSeriesId id,
+                                                 final TimeSeriesStringId id,
                                                  final TsdbTrace trace,
                                                  final Span span);
   
@@ -774,7 +774,7 @@ public abstract class UniqueId extends BaseTSDBPlugin {
    * @since 3.0
    */
   public Deferred<byte[][]> getOrCreateId(final List<String> names, 
-                                          final List<TimeSeriesId> ids) {
+                                          final List<TimeSeriesStringId> ids) {
     return getOrCreateId(names, ids, null, null);
   }
   
@@ -795,7 +795,7 @@ public abstract class UniqueId extends BaseTSDBPlugin {
    * @since 3.0
    */
   public abstract Deferred<byte[][]> getOrCreateId(final List<String> names, 
-                                                   final List<TimeSeriesId> ids, 
+                                                   final List<TimeSeriesStringId> ids, 
                                                    final TsdbTrace trace, 
                                                    final Span span);
   

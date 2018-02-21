@@ -30,7 +30,7 @@ import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.query.QueryIteratorFactory;
@@ -106,7 +106,7 @@ public class AsyncHBaseDataStore extends TimeSeriesDataStore {
   }
   
   @Override
-  public Deferred<Object> write(TimeSeriesId id, 
+  public Deferred<Object> write(TimeSeriesStringId id, 
       TimeSeriesValue<?> value, TsdbTrace trace,
       Span upstream_span) {
     // TODO Auto-generated method stub

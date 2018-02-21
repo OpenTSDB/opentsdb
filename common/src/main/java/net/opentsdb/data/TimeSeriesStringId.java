@@ -24,7 +24,7 @@ import java.util.Set;
  * 
  * @since 3.0
  */
-public interface TimeSeriesId extends Comparable<TimeSeriesId> {
+public interface TimeSeriesStringId extends Comparable<TimeSeriesStringId> {
   /**
    * @return True if the fields are encoded using a format specified by the 
    * storage engine.

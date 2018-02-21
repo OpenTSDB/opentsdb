@@ -35,7 +35,7 @@ import com.google.common.reflect.TypeToken;
 public class MockTimeSeries implements TimeSeries {
 
   /** The non-null ID. */
-  protected final TimeSeriesId id;
+  protected final TimeSeriesStringId id;
   
   /** Whether or not closed has been called. */
   protected boolean closed;
@@ -47,7 +47,7 @@ public class MockTimeSeries implements TimeSeries {
    * Default ctor.
    * @param id A non-null Id.
    */
-  public MockTimeSeries(final TimeSeriesId id) {
+  public MockTimeSeries(final TimeSeriesStringId id) {
     if (id == null) {
       throw new IllegalArgumentException("ID cannot be null.");
     }
@@ -71,7 +71,7 @@ public class MockTimeSeries implements TimeSeries {
   }
   
   @Override
-  public TimeSeriesId id() {
+  public TimeSeriesStringId id() {
     return id;
   }
 

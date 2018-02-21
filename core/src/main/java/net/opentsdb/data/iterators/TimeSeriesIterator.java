@@ -20,7 +20,7 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.context.QueryContext;
@@ -48,7 +48,7 @@ import net.opentsdb.query.context.QueryContext;
  */
 public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
   /** The ID of the time series represented by this iterator. */
-  protected TimeSeriesId id;
+  protected TimeSeriesStringId id;
 
   /** An order if iterator is part of a slice config. */
   protected int order;
@@ -76,7 +76,7 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
    * @param id A non-null time series ID.
    * @throws IllegalArgumentException if the ID was null.
    */
-  public TimeSeriesIterator(final TimeSeriesId id) {
+  public TimeSeriesIterator(final TimeSeriesStringId id) {
     if (id == null) {
       throw new IllegalArgumentException("ID cannot be null.");
     }
@@ -90,7 +90,7 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
    * @param context A context to register with.
    * @throws IllegalArgumentException if the ID was null.
    */
-  public TimeSeriesIterator(final TimeSeriesId id, final QueryContext context) {
+  public TimeSeriesIterator(final TimeSeriesStringId id, final QueryContext context) {
     if (id == null) {
       throw new IllegalArgumentException("ID cannot be null.");
     }
@@ -157,9 +157,9 @@ public abstract class TimeSeriesIterator<T extends TimeSeriesDataType> {
   /**
    * A reference to the time series ID associated with all data points returned
    * by this iterator.
-   * @return A non-null {@link TimeSeriesId}.
+   * @return A non-null {@link TimeSeriesStringId}.
    */
-  public TimeSeriesId id() {
+  public TimeSeriesStringId id() {
     return id;
   }
   
