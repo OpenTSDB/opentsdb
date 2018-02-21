@@ -29,6 +29,7 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.reflect.TypeToken;
 
 public class TestBaseTimeSeriesId {
 
@@ -699,5 +700,14 @@ public class TestBaseTimeSeriesId {
     assertEquals(id1.hashCode(), id2.hashCode());
     assertEquals(id1, id2);
     assertEquals(0, id1.compareTo(id2));
+  }
+
+  @Test
+  public void type() throws Exception {
+    TimeSeriesStringId id = BaseTimeSeriesId.newBuilder()
+        .setAlias("MyID!")
+        .setMetric("sys.cpu.user")
+        .build();
+    assertEquals(TypeToken.of(TimeSeriesStringId.class), id.type());
   }
 }

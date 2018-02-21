@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
+import com.google.common.reflect.TypeToken;
 
 import net.openhft.hashing.LongHashFunction;
 
@@ -48,6 +49,8 @@ import net.openhft.hashing.LongHashFunction;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonDeserialize(builder = BaseTimeSeriesId.Builder.class)
 public class BaseTimeSeriesId implements TimeSeriesStringId {
+  private static final TypeToken<? extends TimeSeriesId> TYPE = 
+      TypeToken.of(TimeSeriesStringId.class);
   
   /** Whether or not the strings are specially encoded values. */
   protected boolean encoded;
@@ -280,6 +283,11 @@ public class BaseTimeSeriesId implements TimeSeriesStringId {
     return buf.toString();
   }
   
+  @Override
+  public TypeToken<? extends TimeSeriesId> type() {
+    return TYPE;
+  }
+  
   /** @return A new builder or the SimpleStringTimeSeriesID. */
   public static Builder newBuilder() {
     return new Builder();
@@ -430,4 +438,5 @@ public class BaseTimeSeriesId implements TimeSeriesStringId {
       return 0;
     }
   }
+
 }
