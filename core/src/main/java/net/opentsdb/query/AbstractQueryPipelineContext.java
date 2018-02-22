@@ -29,10 +29,12 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
 
 /**
@@ -390,9 +392,13 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     /** The accumulation of time series. */
     private final List<TimeSeries> series;
     
+    /** The type of ID token pulled from the result. */
+    private final TypeToken<? extends TimeSeriesId> id_type;
+    
     public CumulativeQueryResult(final QueryResult result) {
       series = Lists.newArrayList(result.timeSeries());
       time_specification = result.timeSpecification();
+      id_type = result.idType();
     }
     
     @Override
@@ -415,6 +421,11 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
       return AbstractQueryPipelineContext.this;
     }
 
+    @Override
+    public TypeToken<? extends TimeSeriesId> idType() {
+      return id_type;
+    }
+    
     @Override
     public void close() {
       // No-Op

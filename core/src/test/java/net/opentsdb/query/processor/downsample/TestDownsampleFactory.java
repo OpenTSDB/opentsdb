@@ -30,7 +30,7 @@ import org.junit.Test;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
@@ -119,7 +119,7 @@ public class TestDownsampleFactory {
     final DownsampleFactory factory = new DownsampleFactory("Downsample");
     
     final NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(60000));
     source.add(30000, 42);

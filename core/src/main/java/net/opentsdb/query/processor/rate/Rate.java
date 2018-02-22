@@ -28,7 +28,7 @@ import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -162,6 +162,11 @@ public class Rate extends AbstractQueryNode {
     }
 
     @Override
+    public TypeToken<? extends TimeSeriesId> idType() {
+      return results.idType();
+    }
+    
+    @Override
     public void close() {
       // NOTE - a race here. Should be idempotent.
       latch.countDown();
@@ -169,6 +174,7 @@ public class Rate extends AbstractQueryNode {
         results.close();
       }
     }
+
     
   }
   
@@ -189,7 +195,7 @@ public class Rate extends AbstractQueryNode {
     }
     
     @Override
-    public TimeSeriesStringId id() {
+    public TimeSeriesId id() {
       return source.id();
     }
 

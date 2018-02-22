@@ -57,7 +57,7 @@ import com.stumbleupon.async.Callback;
 import io.opentracing.Span;
 import net.opentsdb.core.Const;
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.iterators.DefaultIteratorGroup;
 import net.opentsdb.data.iterators.DefaultIteratorGroups;
 import net.opentsdb.data.iterators.IteratorGroup;
@@ -211,8 +211,8 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
-    final BaseTimeSeriesId.Builder id = 
-        BaseTimeSeriesId.newBuilder();
+    final BaseTimeSeriesStringId.Builder id = 
+        BaseTimeSeriesStringId.newBuilder();
     
     final String metric;
     if (node.has("metric")) {
@@ -289,7 +289,7 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
    * @param tags A pointer to the tags node in the JSON tree.
    * @throws JSONException if any key or value in the tag map is null.
    */
-  private void parseTags(final BaseTimeSeriesId.Builder id, 
+  private void parseTags(final BaseTimeSeriesStringId.Builder id, 
       final JsonNode tags) {
     if (tags != null) {
       final Iterator<Entry<String, JsonNode>> pairs = tags.fields();
@@ -310,7 +310,7 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
    * @param agg_tags A pointer to the aggregated tags node in the JSON tree.
    * @throws JSONException if any of the tags are null.
    */
-  private void parseAggTags(final BaseTimeSeriesId.Builder id, 
+  private void parseAggTags(final BaseTimeSeriesStringId.Builder id, 
       final JsonNode agg_tags) {
     if (agg_tags != null) {
       for (final JsonNode tag : agg_tags) {

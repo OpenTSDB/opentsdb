@@ -19,13 +19,23 @@ import java.time.ZoneId;
 
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
+import com.google.common.reflect.TypeToken;
 
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
+import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 
 /** Constants used in various places.  */
 public final class Const {
 
+  /** The type token for string time series IDs. */
+  public static final TypeToken<? extends TimeSeriesId> TS_STRING_ID = 
+      TypeToken.of(TimeSeriesStringId.class);
+  
+  /** The type token for byte time series IDs. */
+  public static final TypeToken<? extends TimeSeriesId> TS_BYTE_ID = 
+      TypeToken.of(TimeSeriesByteId.class);
+  
   /** Number of bytes on which a timestamp is encoded.  */
   public static final short TIMESTAMP_BYTES = 4;
 

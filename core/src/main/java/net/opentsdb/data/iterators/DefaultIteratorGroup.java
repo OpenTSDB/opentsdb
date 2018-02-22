@@ -85,11 +85,12 @@ public class DefaultIteratorGroup extends IteratorGroup {
         return;
       }
     }
-    
-    final TimeSeriesIterators set = 
-        new DefaultTimeSeriesIterators(iterator.id());
-    set.addIterator(iterator);
-    iterators.add(set);
+
+    // TODO - will be getting rid of this class.
+//    final TimeSeriesIterators set = 
+//        new DefaultTimeSeriesIterators(iterator.id());
+//    set.addIterator(iterator);
+//    iterators.add(set);
   }
 
   @Override

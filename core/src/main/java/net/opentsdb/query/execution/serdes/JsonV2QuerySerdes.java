@@ -23,7 +23,9 @@ import java.util.Optional;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp.RelationalOperator;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -112,13 +114,19 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
         
         json.writeStartObject();
         
-        json.writeStringField("metric", series.id().metric());
+        if (!series.id().type().equals(Const.TS_STRING_ID)) {
+          throw new RuntimeException("Cannot serialize IDs of the type: " 
+              + series.id().type());
+        }
+        final TimeSeriesStringId id = (TimeSeriesStringId) series.id();
+        
+        json.writeStringField("metric", id.metric());
         json.writeObjectFieldStart("tags");
-        for (final Entry<String, String> entry : series.id().tags().entrySet()) {
+        for (final Entry<String, String> entry : id.tags().entrySet()) {
           json.writeStringField(entry.getKey(), entry.getValue());
         }
         json.writeArrayFieldStart("aggregateTags");
-        for (final String tag : series.id().aggregatedTags()) {
+        for (final String tag : id.aggregatedTags()) {
           json.writeString(tag);
         }
         json.writeEndArray();

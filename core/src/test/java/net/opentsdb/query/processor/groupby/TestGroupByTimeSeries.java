@@ -32,7 +32,7 @@ import org.junit.Test;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesStringId;
@@ -72,12 +72,12 @@ public class TestGroupByTimeSeries {
     when(node.factory()).thenReturn(factory);
     when(node.config()).thenReturn(config);
     
-    id_a = BaseTimeSeriesId.newBuilder()
+    id_a = BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .addTags("host", "web01")
         .build();
     
-    id_b = BaseTimeSeriesId.newBuilder()
+    id_b = BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .addTags("host", "web02")
         .build();
@@ -137,7 +137,7 @@ public class TestGroupByTimeSeries {
     ts.addSource(source_a);
     ts.addSource(source_b);
     
-    TimeSeriesStringId id = ts.id();
+    TimeSeriesStringId id = (TimeSeriesStringId) ts.id();
     assertEquals("a", id.metric());
     assertTrue(id.tags().isEmpty());
     assertTrue(id.aggregatedTags().contains("host"));

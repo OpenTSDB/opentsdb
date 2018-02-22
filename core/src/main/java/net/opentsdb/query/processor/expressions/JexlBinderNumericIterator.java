@@ -32,7 +32,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.MergedTimeSeriesId;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.IteratorStatus;
@@ -213,7 +213,7 @@ public class JexlBinderNumericIterator extends
   }
 
   @Override
-  public TimeSeriesStringId id() {
+  public TimeSeriesId id() {
     return id;
   }
   

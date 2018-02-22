@@ -21,7 +21,7 @@ import org.junit.Ignore;
 
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.SimpleStringGroupId;
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
@@ -35,10 +35,10 @@ import net.opentsdb.data.types.numeric.NumericType;
 @Ignore
 public class IteratorTestUtils {
 
-  public static  TimeSeriesStringId ID_A = BaseTimeSeriesId.newBuilder()
+  public static  TimeSeriesStringId ID_A = BaseTimeSeriesStringId.newBuilder()
       .setMetric("system.cpu.user")
       .build();
-  public static TimeSeriesStringId ID_B = BaseTimeSeriesId.newBuilder()
+  public static TimeSeriesStringId ID_B = BaseTimeSeriesStringId.newBuilder()
       .setMetric("system.cpu.idle")
       .build();
   

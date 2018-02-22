@@ -26,7 +26,7 @@ import java.time.Period;
 import java.time.ZoneId;
 import java.util.Iterator;
 
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.TimeSeries;
@@ -78,7 +78,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void ctor() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
       new MillisecondTimeStamp(BASE_TIME), 
@@ -133,7 +133,7 @@ public class TestDownsampleNumericIterator {
   public void downsample1000seconds() {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -275,7 +275,7 @@ public class TestDownsampleNumericIterator {
   public void downsample10Seconds() {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -354,7 +354,7 @@ public class TestDownsampleNumericIterator {
   public void downsample15Seconds() {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -418,7 +418,7 @@ public class TestDownsampleNumericIterator {
   public void downsampleDoubles() {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -482,7 +482,7 @@ public class TestDownsampleNumericIterator {
   public void downsampleLoneDouble() {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -546,7 +546,7 @@ public class TestDownsampleNumericIterator {
   public void downsampleLongAndDoubleAgged() {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -610,7 +610,7 @@ public class TestDownsampleNumericIterator {
   public void downsampleDoubleAndLongAgged() {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -672,7 +672,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsample10SecondsFilterOnQuery() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
       new MillisecondTimeStamp(BASE_TIME), 
@@ -778,7 +778,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsample10SecondsFilterOnQueryLate() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
       new MillisecondTimeStamp(BASE_TIME), 
@@ -884,7 +884,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsample10SecondsFilterOnQueryEarly() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
       new MillisecondTimeStamp(BASE_TIME), 
@@ -975,7 +975,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsample10SecondsFilterOnQueryOutOfRangeLate() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
       new MillisecondTimeStamp(BASE_TIME), 
@@ -1041,7 +1041,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsample10SecondsFilterOnQueryOutOfRangeEarly() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
       new MillisecondTimeStamp(BASE_TIME), 
@@ -1111,7 +1111,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsampleAll() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -1184,7 +1184,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsampleAllFilterOnQuery() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -1257,7 +1257,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsampleAllFilterOnQueryOutOfRangeEarly() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -1320,7 +1320,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsampleAllFilterOnQueryOutOfRangeLate() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -1383,7 +1383,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsampleCalendar() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -1431,7 +1431,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsampleCalendarHour() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -1612,7 +1612,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsampleCalendarDay() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -1845,7 +1845,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsampleCalendarWeek() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
         new MillisecondTimeStamp(DST_TS), 
@@ -2096,7 +2096,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsampleCalendarMonth() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
         new MillisecondTimeStamp(1448928000000L), 
@@ -2280,7 +2280,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsampleCalendarYears() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
         new MillisecondTimeStamp(1356998400000L), 
@@ -2496,7 +2496,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsamplerNoData() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
         new MillisecondTimeStamp(1448928000000L), 
@@ -2566,7 +2566,7 @@ public class TestDownsampleNumericIterator {
     1406865600 -> 2014-08-01T04:00:00Z
     1409544000 -> 2014-09-01T04:00:00Z
     */
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
         new MillisecondTimeStamp(1380585600000L), 
@@ -2662,7 +2662,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsamplerSkipPartialInterval() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -2779,7 +2779,7 @@ public class TestDownsampleNumericIterator {
   public void downsampleNullAtStart() {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
-    source = new MockTimeSeries(BaseTimeSeriesId.newBuilder()
+    source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
     MutableNumericType nully = new MutableNumericType();
@@ -2916,7 +2916,7 @@ public class TestDownsampleNumericIterator {
   public void downsampleNullInMiddleOnBoundary() {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
-    source = new MockTimeSeries(BaseTimeSeriesId.newBuilder()
+    source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
     ((MockTimeSeries) source).addValue(new MutableNumericType(
@@ -3009,7 +3009,7 @@ public class TestDownsampleNumericIterator {
   public void downsampleNullInMiddleInBoundary() {
     // behaves the same with the difference that the old version would return the
     // first value at BASE_TIME but now we skip it.
-    source = new MockTimeSeries(BaseTimeSeriesId.newBuilder()
+    source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
     ((MockTimeSeries) source).addValue(new MutableNumericType(
@@ -3144,7 +3144,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsampleFillNaNs() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -3242,7 +3242,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsampleFillNulls() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -3340,7 +3340,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsampleFillZeros() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -3438,7 +3438,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsampleFillScalar() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -3537,7 +3537,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsampleFillPreferNext() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -3635,7 +3635,7 @@ public class TestDownsampleNumericIterator {
   
   @Test
   public void downsampleFillPreferPrevious() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 

@@ -27,7 +27,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
@@ -44,6 +44,8 @@ public class TestUglyByteNumericSerdes {
     start = new MillisecondTimeStamp(1486045800000L);
     end = new MillisecondTimeStamp(1486046000000L);
   }
+  
+  // TODO - test byte serdes
   
 //  @SuppressWarnings("unchecked")
 //  @Test

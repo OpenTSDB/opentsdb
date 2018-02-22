@@ -32,7 +32,7 @@ import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
@@ -108,7 +108,7 @@ public class TestMockDataStore {
     mds.initialize(tsdb).join();
     assertEquals(4 * 4 * 4, mds.getDatabase().size());
     
-    TimeSeriesStringId id = BaseTimeSeriesId.newBuilder()
+    TimeSeriesStringId id = BaseTimeSeriesStringId.newBuilder()
         .setMetric("unit.test")
         .addTags("dc", "lga")
         .addTags("host", "db01")
