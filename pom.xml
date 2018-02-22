@@ -97,7 +97,7 @@
     <module>distribution</module>
   </modules>
 
-  <!-- Dependencies shared by all modules in the OpenTSDB project. -->
+  <!-- Dependencies shared by all (or most) modules in the OpenTSDB project. -->
   <dependencyManagement>
     <dependencies>
         <dependency>
@@ -129,6 +129,22 @@
           <version>1.4.1</version>
         </dependency>
         
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>2.4.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>2.4.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.4.3</version>
+        </dependency>
+		
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-core</artifactId>
