@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2017  The OpenTSDB Authors.
+// Copyright (C) 2010-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package net.opentsdb.utils;
 
 import java.nio.charset.Charset;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -25,6 +26,7 @@ import java.util.Map.Entry;
 
 import javax.xml.bind.DatatypeConverter;
 
+import com.google.common.collect.Lists;
 import com.google.common.hash.Funnel;
 import com.google.common.hash.PrimitiveSink;
 
@@ -480,6 +482,24 @@ public final class Bytes {
   }
 
   /**
+   * A singleton {@link Comparator} for optionally {@code null} byte arrays.
+   * @see #memcmpMaybeNull
+   */
+  public static final MemCmpNulls MEMCMPNULLS = new MemCmpNulls();
+  
+  /** {@link Comparator} for optionally {@code null} byte arrays.  */
+  private final static class MemCmpNulls implements Comparator<byte[]> {
+    private MemCmpNulls() {  // Can't instantiate outside of this class.
+    }
+    
+    @Override
+    public int compare(final byte[] a, final byte[] b) {
+      return memcmpMaybeNull(a, b);
+    }
+    
+  }
+  
+  /**
    * {@code memcmp} in Java, hooray.
    * @param a First non-{@code null} byte array to compare.
    * @param b Second non-{@code null} byte array to compare.
@@ -740,6 +760,55 @@ public final class Bytes {
             .putBytes(entry.getValue());
       }
     }
+  }
+  
+  /**
+   * A singleton {@link Comparator} for List&lt;byte[]&gt; lists. Support nulls.
+   */
+  public static final ByteListComparator BYTE_LIST_CMP = new ByteListComparator();
+  
+  /** {@link Comparator} for List&lt;byte[]&gt;s .Support nulls. 
+   * <b>NOTE:</b> Super inefficient as it makes copies of the arrays, 
+   * sorts them then compares, accounting for dupes. */
+  public static class ByteListComparator implements Comparator<List<byte[]>> {
+    private ByteListComparator() { }
+
+    @Override
+    public int compare(final List<byte[]> a, final List<byte[]> b) {
+      if (a == b || a == null && b == null) {
+        return 0;
+      }
+      if (a == null && b != null) {
+        return -1;
+      }
+      if (b == null && a != null) {
+        return 1;
+      }
+      if (a == b) {
+        return 0;
+      }
+      if (a.size() > b.size()) {
+        return -1;
+      }
+      if (b.size() > a.size()) {
+        return 1;
+      }
+      
+      // TODO - MUST be a better way than this
+      final List<byte[]> a_clone = Lists.newArrayList(a);
+      final List<byte[]> b_clone = Lists.newArrayList(b);
+      Collections.sort(a_clone, MEMCMPNULLS);
+      Collections.sort(b_clone, MEMCMPNULLS);
+      int cmp = 0;
+      for (int i = 0; i < a_clone.size(); i++) {
+        cmp = memcmpMaybeNull(a_clone.get(i), b_clone.get(i));
+        if (cmp != 0) {
+          return cmp;
+        }
+      }
+      return 0;
+    }
+    
   }
   
   /**
