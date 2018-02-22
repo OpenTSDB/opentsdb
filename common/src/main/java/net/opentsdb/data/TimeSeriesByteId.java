@@ -17,6 +17,7 @@ import java.util.Set;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes.ByteMap;
 
 /**
@@ -106,7 +107,7 @@ public interface TimeSeriesByteId extends TimeSeriesId,
    * to determine the count of real series underlying the data.
    * @return A non-null set of unique identifiers.
    */
-  public Set<byte[]> uniqueIds();
+  public ByteSet uniqueIds();
   
   /**
    * Returns the string version of the time series ID based on the schema
