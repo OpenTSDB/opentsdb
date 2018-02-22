@@ -336,6 +336,16 @@ public final class Bytes {
     return DatatypeConverter.parseHexBinary(hex);
   }
   
+  /**
+   * Determines if the array is null or has a length of 0. The array may
+   * be full of zero's though and return false.
+   * @param array An array to test for null or a length of 0.
+   * @return True if the array was null or had a length of 0.
+   */
+  public static boolean isNullOrEmpty(final byte[] array) {
+    return (array == null || array.length < 1);
+  }
+  
   // ---------------------------- //
   // Pretty-printing byte arrays. //
   // ---------------------------- //

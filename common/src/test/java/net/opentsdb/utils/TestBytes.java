@@ -16,6 +16,8 @@ package net.opentsdb.utils;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import org.junit.Test;
@@ -111,5 +113,13 @@ public class TestBytes {
       Bytes.stringToByteArray("2A80180");
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+  }
+
+  @Test
+  public void isNullOrEmpty() throws Exception {
+    assertTrue(Bytes.isNullOrEmpty(null));
+    assertTrue(Bytes.isNullOrEmpty(new byte[] { }));
+    assertFalse(Bytes.isNullOrEmpty(new byte[] { 0 }));
+    assertFalse(Bytes.isNullOrEmpty(new byte[] { 'h', 'i', '!' }));
   }
 }
