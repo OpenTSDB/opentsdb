@@ -23,8 +23,10 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.common.Const;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
@@ -58,7 +60,7 @@ public class TestGroupByResult {
     when(node.config()).thenReturn(config);
     
     ts1 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .addTags("host", "web01")
         .addTags("dc", "lga")
@@ -67,7 +69,7 @@ public class TestGroupByResult {
     ts1.add(3000, 5);
     
     ts2 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .addTags("host", "web02")
         .addTags("dc", "lga")
@@ -76,7 +78,7 @@ public class TestGroupByResult {
     ts2.add(3000, 10);
     
     ts3 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .addTags("host", "web01")
         .addTags("dc", "phx")
@@ -85,7 +87,7 @@ public class TestGroupByResult {
     ts3.add(3000, 7);
     
     ts4 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .addTags("host", "web02")
         .addTags("dc", "phx")
@@ -96,6 +98,7 @@ public class TestGroupByResult {
     when(result.timeSeries()).thenReturn(Lists.newArrayList(ts1, ts2, ts3, ts4));
     when(result.sequenceId()).thenReturn(42l);
     when(result.timeSpecification()).thenReturn(time_spec);
+    when(result.idType()).thenReturn((TypeToken) Const.TS_STRING_ID);
   }
   
   @Test

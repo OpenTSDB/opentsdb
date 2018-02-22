@@ -26,7 +26,7 @@ import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 
 /**
@@ -81,7 +81,7 @@ public class SlicedTimeSeries implements TimeSeries {
   }
   
   @Override
-  public TimeSeriesStringId id() {
+  public TimeSeriesId id() {
     return sources.isEmpty() ? null : sources.get(0).id();
   }
   

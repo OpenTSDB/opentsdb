@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -22,9 +24,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 
 import net.openhft.hashing.LongHashFunction;
+import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
@@ -69,35 +76,90 @@ public class GroupByResult implements QueryResult {
     this.next = next;
     groups = Maps.newHashMap();
     
-    for (final TimeSeries series : next.timeSeries()) {
-      final StringBuilder buf = new StringBuilder()
-          .append(series.id().metric());
-      
-      boolean matched = true;
-      for (final String key : ((GroupByConfig) node.config()).getTagKeys()) {
-        final String tagv = series.id().tags().get(key);
-        if (tagv == null) {
-          if (LOG.isDebugEnabled()) {
-            LOG.debug("Dropping series from group by due to missing tag key: " 
-                + key + "  " + series.id());
+    if (next.idType().equals(Const.TS_STRING_ID)) {
+      for (final TimeSeries series : next.timeSeries()) {
+        final TimeSeriesStringId id = (TimeSeriesStringId) series.id();
+        final StringBuilder buf = new StringBuilder()
+            .append(id.metric());
+        
+        boolean matched = true;
+        for (final String key : ((GroupByConfig) node.config()).getTagKeys()) {
+          final String tagv = id.tags().get(key);
+          if (tagv == null) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Dropping series from group by due to missing tag key: " 
+                  + key + "  " + series.id());
+            }
+            matched = false;
+            break;
           }
-          matched = false;
-          break;
+          buf.append(tagv);
         }
-        buf.append(tagv);
+        
+        if (!matched) {
+          continue;
+        }
+        
+        final long hash = LongHashFunction.xx_r39().hashChars(buf.toString());
+        GroupByTimeSeries group = (GroupByTimeSeries) groups.get(hash);
+        if (group == null) {
+          group = new GroupByTimeSeries(node);
+          groups.put(hash, group);
+        }
+        group.addSource(series);
       }
-      
-      if (!matched) {
-        continue;
+    } else if (next.idType().equals(Const.TS_BYTE_ID)) {
+      if (((GroupByConfig) node.config()).getEncodedTagKeys() == null) {
+        // TODO - proper exception
+        throw new RuntimeException("Time series IDs were returned as "
+            + "bytes but no encoded tags were provided in the group-by config.");
       }
-      
-      final long hash = LongHashFunction.xx_r39().hashChars(buf.toString());
-      GroupByTimeSeries group = (GroupByTimeSeries) groups.get(hash);
-      if (group == null) {
-        group = new GroupByTimeSeries(node);
-        groups.put(hash, group);
+      for (final TimeSeries series : next.timeSeries()) {
+        final TimeSeriesByteId id = (TimeSeriesByteId) series.id();
+        // TODO - bench me, may be a better way
+        final ByteArrayOutputStream buf = new ByteArrayOutputStream();
+        
+        try {
+          buf.write(id.metric());
+          boolean matched = true;
+          for (final byte[] key : ((GroupByConfig) node.config()).getEncodedTagKeys()) {
+            if (id.tags() == null || id.tags().size() < 1) {
+              matched = false;
+              break;
+            }
+            
+            final byte[] tagv = id.tags().get(key);
+            if (tagv == null) {
+              if (LOG.isDebugEnabled()) {
+                LOG.debug("Dropping series from group by due to missing tag key: " 
+                    + key + "  " + series.id());
+              }
+              matched = false;
+              break;
+            }
+            buf.write(tagv);
+          }
+          
+          if (!matched) {
+            continue;
+          }
+          
+          final long hash = LongHashFunction.xx_r39().hashBytes(buf.toByteArray());
+          GroupByTimeSeries group = (GroupByTimeSeries) groups.get(hash);
+          if (group == null) {
+            group = new GroupByTimeSeries(node);
+            groups.put(hash, group);
+          }
+          group.addSource(series);
+          
+        } catch (IOException e) {
+          throw new RuntimeException("Failed to build the group-by hash", e);
+        }
+        
       }
-      group.addSource(series);
+    } else {
+      // TODO - proper exception type
+      throw new RuntimeException("Unhandled time series ID type: " + next.idType());
     }
   }
   
@@ -122,6 +184,11 @@ public class GroupByResult implements QueryResult {
   }
 
   @Override
+  public TypeToken<? extends TimeSeriesId> idType() {
+    return next.idType();
+  }
+  
+  @Override
   public void close() {
     // NOTE - a race here. Should be idempotent.
     latch.countDown();
@@ -129,4 +196,5 @@ public class GroupByResult implements QueryResult {
       next.close();
     }
   }
+  
 }

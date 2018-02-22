@@ -14,6 +14,11 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesStringId;
+
 /**
  * TODO - doc!
  * 
@@ -21,4 +26,5 @@ package net.opentsdb.storage;
  */
 public interface StorageSchema {
 
+  public Deferred<TimeSeriesStringId> resolveByteId(final TimeSeriesByteId id);
 }

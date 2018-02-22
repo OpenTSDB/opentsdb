@@ -13,10 +13,10 @@
 package net.opentsdb.data;
 
 import java.util.List;
-import java.util.Set;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.storage.StorageSchema;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes.ByteMap;
 
@@ -31,7 +31,12 @@ import net.opentsdb.utils.Bytes.ByteMap;
 public interface TimeSeriesByteId extends TimeSeriesId, 
                                           Comparable<TimeSeriesByteId> {
 
-  //public StorageSchema schema();
+  /**
+   * The storage schema associated with this time series byte id.
+   * 
+   * @return A non-null storage schema.
+   */
+  public StorageSchema schema();
   
   /**
    * A simple id for identifying the time series. The alias may be null or

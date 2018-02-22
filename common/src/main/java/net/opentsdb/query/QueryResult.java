@@ -16,7 +16,10 @@ package net.opentsdb.query;
 
 import java.util.Collection;
 
+import com.google.common.reflect.TypeToken;
+
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
 
 /**
@@ -54,6 +57,14 @@ public interface QueryResult {
    */
   public QueryNode source();
 
+  /**
+   * The type of time series ID used to describe the time series in this
+   * result set. 
+   * <b>Invariant:</b> All series in the set must share the same type.
+   * @return A non-null type token.
+   */
+  public TypeToken<? extends TimeSeriesId> idType();
+  
   /**
    * Closes and releases resources used by this result set. Should be called
    * by the API consumer or {@link QueryPipelineContext} when the listeners are

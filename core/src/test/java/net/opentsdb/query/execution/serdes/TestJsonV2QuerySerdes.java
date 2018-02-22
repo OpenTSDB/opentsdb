@@ -32,7 +32,7 @@ import com.google.common.collect.Lists;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryResult;
@@ -60,7 +60,7 @@ public class TestJsonV2QuerySerdes {
     when(context.query()).thenReturn(query);
     
     ts1 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("sys.cpu.user")
         .addTags("host", "web01")
         .addTags("dc", "phx")
@@ -72,7 +72,7 @@ public class TestJsonV2QuerySerdes {
     ts1.add(1486045860000L, 5.75);
     
     ts2 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("sys.cpu.user")
         .addTags("host", "web02")
         .addTags("dc", "phx")

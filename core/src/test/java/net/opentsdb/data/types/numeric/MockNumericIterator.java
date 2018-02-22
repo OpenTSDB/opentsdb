@@ -23,6 +23,7 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
@@ -60,7 +61,7 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
   private int outer_index = 0;
   private int inner_index = 0;
   
-  public MockNumericIterator(final TimeSeriesStringId id) {
+  public MockNumericIterator(final TimeSeriesId id) {
     super(id);
     fill = NumericFillPolicy
         .newBuilder()
@@ -92,7 +93,7 @@ public class MockNumericIterator extends TimeSeriesIterator<NumericType> {
   }
 
   @Override
-  public TimeSeriesStringId id() {
+  public TimeSeriesId id() {
     return id;
   }
 

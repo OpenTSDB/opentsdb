@@ -17,7 +17,6 @@ package net.opentsdb.query;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -31,9 +30,8 @@ import com.stumbleupon.async.TimeoutException;
 
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.DefaultTSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.filter.TagVFilter;
@@ -65,89 +63,7 @@ public class TestTSDBV2Pipeline {
     mds.initialize(tsdb).join();
     when(registry.getDefaultPlugin(any(Class.class))).thenReturn(mds);
   }
-  
-  @Test
-  public void foo() throws Exception {
-    long start_ts = 1483228800000L;
-    long end_ts = 1483236000000l;
     
-    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
-        .setTime(Timespan.newBuilder()
-            .setStart(Long.toString(start_ts))
-            .setEnd(Long.toString(end_ts)))
-        .addMetric(Metric.newBuilder()
-            .setMetric("sys.cpu.user")
-            .setAggregator("mult")
-            .setFilter("f1")
-            .setId("m1"))
-        .addFilter(Filter.newBuilder()
-            .setId("f1")
-            .addFilter(TagVFilter.newBuilder()
-                .setFilter("*")
-                .setType("wildcard")
-                .setTagk("dc")
-                .setGroupBy(true)
-                )
-            )
-        .build();
-    
-    class TestListener implements QuerySink {
-      int on_next = 0;
-      int on_error = 0;
-      Deferred<Object> completed = new Deferred<Object>();
-      Deferred<Object> call_limit = new Deferred<Object>();
-      
-      @Override
-      public void onComplete() {
-        completed.callback(null);
-      }
-
-      @Override
-      public void onNext(QueryResult next) {
-        for (TimeSeries ts : next.timeSeries()) {
-          long timestamp = start_ts;
-          int values = 0;
-          System.out.println(ts.id());
-//          assertEquals("sys.cpu.user", ts.id().metric());
-          Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
-          while (it.hasNext()) {
-            TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-            System.out.println("  " + v.timestamp().msEpoch() + " " + v.value().toDouble());
-//            assertEquals(timestamp, v.timestamp().msEpoch());
-//            timestamp += MockDataStore.INTERVAL;
-//            values++;
-          }
-//          assertEquals((end_ts - start_ts) / MockDataStore.INTERVAL, values);
-        }
-        next.close();
-        on_next++;
-        if (on_next == 1) {
-          call_limit.callback(null);
-        }
-      }
-
-      @Override
-      public void onError(Throwable t) {
-        on_error++;
-      }
-      
-    }
-    
-    TestListener listener = new TestListener();
-    QueryContext ctx = DefaultQueryContextBuilder.newBuilder(tsdb)
-        .setQuery(query)
-        .setMode(QueryMode.SINGLE)
-        .addQuerySink(listener)
-        .build();
-    ctx.fetchNext();
-    
-    listener.completed.join(1000);
-    listener.call_limit.join(1000);
-    assertEquals(1, listener.on_next);
-    assertEquals(0, listener.on_error);
-    mds.shutdown().join();
-  }
-  
   @Test
   public void querySingleOneMetric() throws Exception {
     MockDataStore mds = new MockDataStore();
@@ -192,7 +108,7 @@ public class TestTSDBV2Pipeline {
           long timestamp = start_ts;
           int values = 0;
           
-          assertEquals("sys.cpu.user", ts.id().metric());
+          assertEquals("sys.cpu.user", ((TimeSeriesStringId) ts.id()).metric());
           Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
           while (it.hasNext()) {
             TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
@@ -349,9 +265,9 @@ public class TestTSDBV2Pipeline {
           long timestamp = start_ts;
           int values = 0;
           if (idx++ > 3) {
-            assertEquals("sys.cpu.user", ts.id().metric());
+            assertEquals("sys.cpu.user", ((TimeSeriesStringId) ts.id()).metric());
           } else {
-            assertEquals("web.requests", ts.id().metric());
+            assertEquals("web.requests", ((TimeSeriesStringId) ts.id()).metric());
           }
           Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
           while (it.hasNext()) {
@@ -514,9 +430,9 @@ public class TestTSDBV2Pipeline {
           int values = 0;
           
           if (on_next % 2 == 0) {
-            assertEquals("web.requests", ts.id().metric());
+            assertEquals("web.requests", ((TimeSeriesStringId) ts.id()).metric());
           } else {
-            assertEquals("sys.cpu.user", ts.id().metric());
+            assertEquals("sys.cpu.user", ((TimeSeriesStringId) ts.id()).metric());
           }
           Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
           while (it.hasNext()) {
@@ -684,9 +600,9 @@ public class TestTSDBV2Pipeline {
           int values = 0;
           
           if (on_next % 2 == 0) {
-            assertEquals("web.requests", ts.id().metric());
+            assertEquals("web.requests", ((TimeSeriesStringId) ts.id()).metric());
           } else {
-            assertEquals("sys.cpu.user", ts.id().metric());
+            assertEquals("sys.cpu.user", ((TimeSeriesStringId) ts.id()).metric());
           }
           Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
           while (it.hasNext()) {
@@ -781,9 +697,9 @@ public class TestTSDBV2Pipeline {
           int values = 0;
           
           if (on_next < 2) {
-            assertEquals("web.requests", ts.id().metric());
+            assertEquals("web.requests", ((TimeSeriesStringId) ts.id()).metric());
           } else {
-            assertEquals("sys.cpu.user", ts.id().metric());
+            assertEquals("sys.cpu.user", ((TimeSeriesStringId) ts.id()).metric());
           }
           Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
           while (it.hasNext()) {
@@ -874,9 +790,9 @@ public class TestTSDBV2Pipeline {
           int values = 0;
           
           if (on_next < 2) {
-            assertEquals("web.requests", ts.id().metric());
+            assertEquals("web.requests", ((TimeSeriesStringId) ts.id()).metric());
           } else {
-            assertEquals("sys.cpu.user", ts.id().metric());
+            assertEquals("sys.cpu.user", ((TimeSeriesStringId) ts.id()).metric());
           }
           Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
           while (it.hasNext()) {
@@ -970,9 +886,9 @@ public class TestTSDBV2Pipeline {
           int values = 0;
           
           if (on_next < 2) {
-            assertEquals("web.requests", ts.id().metric());
+            assertEquals("web.requests", ((TimeSeriesStringId) ts.id()).metric());
           } else {
-            assertEquals("sys.cpu.user", ts.id().metric());
+            assertEquals("sys.cpu.user", ((TimeSeriesStringId) ts.id()).metric());
           }
           Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
           while (it.hasNext()) {
@@ -1063,9 +979,9 @@ public class TestTSDBV2Pipeline {
           int values = 0;
           
           if (on_next < 2) {
-            assertEquals("web.requests", ts.id().metric());
+            assertEquals("web.requests", ((TimeSeriesStringId) ts.id()).metric());
           } else {
-            assertEquals("sys.cpu.user", ts.id().metric());
+            assertEquals("sys.cpu.user", ((TimeSeriesStringId) ts.id()).metric());
           }
           Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
           while (it.hasNext()) {

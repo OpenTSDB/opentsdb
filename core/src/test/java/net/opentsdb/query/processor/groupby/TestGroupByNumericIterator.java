@@ -35,7 +35,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -78,21 +78,21 @@ public class TestGroupByNumericIterator {
     when(node.config()).thenReturn(config);
     
     ts1 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     ts1.add(1000, 1);
     ts1.add(3000, 5);
     
     ts2 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     ts2.add(1000, 4);
     ts2.add(3000, 10);
     
     ts3 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     ts3.add(1000, 0);
@@ -188,14 +188,14 @@ public class TestGroupByNumericIterator {
   @Test
   public void iterateLongsOffsets() throws Exception {
     ts2 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     ts2.add(1000, 4);
     ts2.add(2000, 10);
     
     ts3 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     ts3.add(4000, 0);
@@ -262,14 +262,14 @@ public class TestGroupByNumericIterator {
     when(node.config()).thenReturn(config);
     
     ts2 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     ts2.add(1000, 4);
     ts2.add(2000, 10);
     
     ts3 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     ts3.add(4000, 0);
@@ -319,7 +319,7 @@ public class TestGroupByNumericIterator {
   @Test
   public void iterateLongsEmptySeries() throws Exception {
     ts2 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     
@@ -349,7 +349,7 @@ public class TestGroupByNumericIterator {
   @Test
   public void iterateLongsAndDoubles() throws Exception {
     ts2 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     ts2.add(1000, 4.0);
@@ -381,21 +381,21 @@ public class TestGroupByNumericIterator {
   @Test
   public void iterateDoubles() throws Exception {
     ts1 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     ts1.add(1000, 1.5);
     ts1.add(3000, 5.75);
     
     ts2 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     ts2.add(1000, 4.1);
     ts2.add(3000, 10.25);
     
     ts3 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     ts3.add(1000, 0.4);
@@ -474,7 +474,7 @@ public class TestGroupByNumericIterator {
     when(node.config()).thenReturn(config);
     
     ts2 = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     ts2.add(1000, 4);
@@ -507,7 +507,7 @@ public class TestGroupByNumericIterator {
 
     @Override
     public TimeSeriesStringId id() {
-      return BaseTimeSeriesId.newBuilder()
+      return BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build();
     }

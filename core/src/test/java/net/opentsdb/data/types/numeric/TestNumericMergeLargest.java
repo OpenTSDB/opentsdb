@@ -38,7 +38,7 @@ import com.google.common.reflect.TypeToken;
 
 import io.opentracing.Span;
 import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
@@ -56,7 +56,7 @@ public class TestNumericMergeLargest {
   @Before
   public void before() throws Exception {
     context = mock(QueryContext.class);
-    id = BaseTimeSeriesId.newBuilder()
+    id = BaseTimeSeriesStringId.newBuilder()
         .setAlias("a")
         .setMetric("sys.cpu.user")
         .build();

@@ -32,7 +32,7 @@ import org.junit.Test;
 
 import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -60,7 +60,7 @@ public class TestNumericLERP {
   @Test
   public void ctor() throws Exception {
     NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     source.add(1000, 1000);
@@ -71,7 +71,7 @@ public class TestNumericLERP {
     
     // empty source
     source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     lerp = new NumericLERP(source, config);
@@ -98,7 +98,7 @@ public class TestNumericLERP {
   @Test
   public void lerpIntegers() throws Exception {
     NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     source.add(1000, 1);
@@ -141,7 +141,7 @@ public class TestNumericLERP {
   @Test
   public void lerpIntegersPrecise() throws Exception {
     NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     source.add(1000, 1000);
@@ -184,7 +184,7 @@ public class TestNumericLERP {
   @Test
   public void lerpIntegersAlmostMax() throws Exception {
     NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     source.add(1000, Long.MAX_VALUE - 19);
@@ -227,7 +227,7 @@ public class TestNumericLERP {
   @Test
   public void lerpIntegerThenFloat() throws Exception {
     NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     source.add(1000, 1);
@@ -270,7 +270,7 @@ public class TestNumericLERP {
   @Test
   public void lerpFloats() throws Exception {
     NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     source.add(1000, 1.5);
@@ -317,7 +317,7 @@ public class TestNumericLERP {
         .setRealFillPolicy(FillWithRealPolicy.PREVIOUS_ONLY)
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     source.add(1000, 1);
@@ -364,7 +364,7 @@ public class TestNumericLERP {
         .setRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     source.add(1000, 1);
@@ -411,7 +411,7 @@ public class TestNumericLERP {
         .setRealFillPolicy(FillWithRealPolicy.PREFER_PREVIOUS)
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     source.add(1000, 1);
@@ -458,7 +458,7 @@ public class TestNumericLERP {
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     source.add(1000, 1);
@@ -505,7 +505,7 @@ public class TestNumericLERP {
         .setRealFillPolicy(FillWithRealPolicy.NONE)
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     source.add(1000, 1);
@@ -552,7 +552,7 @@ public class TestNumericLERP {
         .setRealFillPolicy(FillWithRealPolicy.NONE)
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     source.add(1000, 1);
@@ -599,7 +599,7 @@ public class TestNumericLERP {
         .setRealFillPolicy(FillWithRealPolicy.NONE)
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     source.add(1000, 1);
@@ -646,7 +646,7 @@ public class TestNumericLERP {
         .setRealFillPolicy(FillWithRealPolicy.NONE)
         .build();
     NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     source.add(1000, 1);
@@ -688,7 +688,7 @@ public class TestNumericLERP {
   @Test
   public void emptySource() throws Exception {
     NumericMillisecondShard source = new NumericMillisecondShard(
-        BaseTimeSeriesId.newBuilder()
+        BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     

@@ -37,6 +37,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.reflect.TypeToken;
 
 import net.openhft.hashing.LongHashFunction;
+import net.opentsdb.common.Const;
 
 /**
  * A basic {@link TimeSeriesStringId} implementation that accepts strings for all
@@ -47,10 +48,8 @@ import net.openhft.hashing.LongHashFunction;
  */
 @JsonInclude(Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
-@JsonDeserialize(builder = BaseTimeSeriesId.Builder.class)
-public class BaseTimeSeriesId implements TimeSeriesStringId {
-  private static final TypeToken<? extends TimeSeriesId> TYPE = 
-      TypeToken.of(TimeSeriesStringId.class);
+@JsonDeserialize(builder = BaseTimeSeriesStringId.Builder.class)
+public class BaseTimeSeriesStringId implements TimeSeriesStringId {
   
   /** Whether or not the strings are specially encoded values. */
   protected boolean encoded;
@@ -77,14 +76,14 @@ public class BaseTimeSeriesId implements TimeSeriesStringId {
   protected Set<String> unique_ids;
   
   /** A cached hash code ID. */
-  protected long cached_hash; 
+  protected volatile long cached_hash; 
   
   /**
    * Private CTor used by the builder. Converts the Strings to byte arrays
    * using UTF8.
    * @param builder A non-null builder.
    */
-  private BaseTimeSeriesId(final Builder builder) {
+  private BaseTimeSeriesStringId(final Builder builder) {
     encoded = builder.encoded;
     alias = builder.alias;
     namespace = builder.namespace;
@@ -285,7 +284,7 @@ public class BaseTimeSeriesId implements TimeSeriesStringId {
   
   @Override
   public TypeToken<? extends TimeSeriesId> type() {
-    return TYPE;
+    return Const.TS_STRING_ID;
   }
   
   /** @return A new builder or the SimpleStringTimeSeriesID. */
@@ -395,8 +394,8 @@ public class BaseTimeSeriesId implements TimeSeriesStringId {
       return this;
     }
     
-    public BaseTimeSeriesId build() {
-      return new BaseTimeSeriesId(this);
+    public BaseTimeSeriesStringId build() {
+      return new BaseTimeSeriesStringId(this);
     }
   }
 

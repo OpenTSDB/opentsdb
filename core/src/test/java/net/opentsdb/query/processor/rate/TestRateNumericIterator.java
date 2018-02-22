@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Optional;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.TimeSeries;
@@ -56,7 +56,7 @@ public class TestRateNumericIterator {
   
   @Test
   public void oneSecondLongs() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -107,7 +107,7 @@ public class TestRateNumericIterator {
   
   @Test
   public void oneSecondDoubles() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -158,7 +158,7 @@ public class TestRateNumericIterator {
   
   @Test
   public void oneSecondMix() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -209,7 +209,7 @@ public class TestRateNumericIterator {
   
   @Test
   public void oneNano() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -260,7 +260,7 @@ public class TestRateNumericIterator {
   
   @Test
   public void tenSeconds() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -311,7 +311,7 @@ public class TestRateNumericIterator {
   
   @Test
   public void oneMinute() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -362,7 +362,7 @@ public class TestRateNumericIterator {
   
   @Test
   public void nullsAtStart() {
-    source = new MockTimeSeries(BaseTimeSeriesId.newBuilder()
+    source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
     MutableNumericType nully = new MutableNumericType();
@@ -414,7 +414,7 @@ public class TestRateNumericIterator {
   
   @Test
   public void nullsInMiddle() {
-    source = new MockTimeSeries(BaseTimeSeriesId.newBuilder()
+    source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
     ((MockTimeSeries) source).addValue(new MutableNumericType(
@@ -466,7 +466,7 @@ public class TestRateNumericIterator {
   
   @Test
   public void nullsAtEnd() {
-    source = new MockTimeSeries(BaseTimeSeriesId.newBuilder()
+    source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
     ((MockTimeSeries) source).addValue(new MutableNumericType(
@@ -520,7 +520,7 @@ public class TestRateNumericIterator {
   
   @Test
   public void oneValue() throws Exception {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -540,7 +540,7 @@ public class TestRateNumericIterator {
   
   @Test
   public void noData() throws Exception {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -593,7 +593,7 @@ public class TestRateNumericIterator {
 
   @Test
   public void bigLongValues() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -619,7 +619,7 @@ public class TestRateNumericIterator {
 
   @Test
   public void counter() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -671,7 +671,7 @@ public class TestRateNumericIterator {
 
   @Test
   public void counterLongMax() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -704,7 +704,7 @@ public class TestRateNumericIterator {
 
   @Test
   public void counterWithResetValue() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -739,7 +739,7 @@ public class TestRateNumericIterator {
   
   @Test
   public void counterDropResets() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -774,7 +774,7 @@ public class TestRateNumericIterator {
   
   @Test
   public void counterDroResetsNothingAfter() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -803,7 +803,7 @@ public class TestRateNumericIterator {
   
   @Test
   public void counterDroResetsFirst() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -832,7 +832,7 @@ public class TestRateNumericIterator {
   
   @Test
   public void counterDroResetsOnly() {
-    source = new NumericMillisecondShard(BaseTimeSeriesId.newBuilder()
+    source = new NumericMillisecondShard(BaseTimeSeriesStringId.newBuilder()
           .setMetric("a")
           .build(), 
         new MillisecondTimeStamp(BASE_TIME), 
@@ -855,7 +855,7 @@ public class TestRateNumericIterator {
   
   @Test
   public void nanoRollover() {
-    source = new MockTimeSeries(BaseTimeSeriesId.newBuilder()
+    source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
     

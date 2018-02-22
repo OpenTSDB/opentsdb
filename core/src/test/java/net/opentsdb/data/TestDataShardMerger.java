@@ -38,7 +38,7 @@ import io.opentracing.Span;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
 import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.DefaultIteratorGroup;
@@ -66,7 +66,7 @@ public class TestDataShardMerger {
   public void before() throws Exception {
     context = mock(QueryContext.class);
     group_id = new SimpleStringGroupId("a");
-    id = BaseTimeSeriesId.newBuilder()
+    id = BaseTimeSeriesStringId.newBuilder()
         .setAlias("a")
         .setMetric("sys.cpu.user")
         .build();

@@ -26,7 +26,7 @@ import java.util.NoSuchElementException;
 import org.junit.Before;
 import org.junit.Test;
 
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
@@ -40,7 +40,7 @@ public class TestNumericMillisecondShard {
   
   @Before
   public void before() throws Exception {
-    id = BaseTimeSeriesId.newBuilder()
+    id = BaseTimeSeriesStringId.newBuilder()
         .setMetric("Samwell")
         .build();
     start = new MillisecondTimeStamp(0L);

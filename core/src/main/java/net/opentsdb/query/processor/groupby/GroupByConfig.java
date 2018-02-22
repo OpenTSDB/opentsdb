@@ -22,6 +22,7 @@ import com.google.common.collect.Sets;
 import net.opentsdb.query.QueryIteratorInterpolatorConfig;
 import net.opentsdb.query.QueryIteratorInterpolatorFactory;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.utils.ByteSet;
 
 /**
  * The configuration class for a {@link GroupBy} query node.
@@ -31,6 +32,7 @@ import net.opentsdb.query.QueryNodeConfig;
 public class GroupByConfig implements QueryNodeConfig {
   private final String id;
   private final Set<String> tag_keys;
+  private final ByteSet encoded_tag_keys;
   private final String aggregator;
   private final boolean infectious_nan;
   private final QueryIteratorInterpolatorFactory interpolator;
@@ -54,6 +56,7 @@ public class GroupByConfig implements QueryNodeConfig {
     }
     id = builder.id;
     tag_keys = builder.tag_keys;
+    encoded_tag_keys = builder.encoded_tag_keys;
     aggregator = builder.aggregator;
     infectious_nan = builder.infectious_nan;
     interpolator = builder.interpolator;
@@ -68,6 +71,12 @@ public class GroupByConfig implements QueryNodeConfig {
   /** @return The non-empty list of tag keys to group on. */
   public Set<String> getTagKeys() {
     return tag_keys;
+  }
+  
+  /** @return An optional encoded tag key list. May be null if encoding
+   * is not used in the pipeline. */
+  public ByteSet getEncodedTagKeys() {
+    return encoded_tag_keys;
   }
   
   /** @return The non-null and non-empty aggregation function name. */
@@ -99,6 +108,7 @@ public class GroupByConfig implements QueryNodeConfig {
   public static class Builder {
     private String id;
     private Set<String> tag_keys;
+    private ByteSet encoded_tag_keys;
     private String aggregator;
     private boolean infectious_nan;
     private QueryIteratorInterpolatorFactory interpolator;
@@ -124,6 +134,17 @@ public class GroupByConfig implements QueryNodeConfig {
     }
     
     /**
+     * @param encoded_tag_keys A non-null and non-empty set of encoded 
+     * tag keys based on the schema this pipeline will work on. If no
+     * schema in use then use {@link #setTagKeys(Set)}.
+     * @return The builder.
+     */
+    public Builder setTagKeys(final ByteSet encoded_tag_keys) {
+      this.encoded_tag_keys = encoded_tag_keys;
+      return this;
+    }
+    
+    /**
      * @param tag_key A non-null and non-empty tag key to group on.
      * @return The builder.
      */
@@ -132,6 +153,19 @@ public class GroupByConfig implements QueryNodeConfig {
         tag_keys = Sets.newHashSet();
       }
       tag_keys.add(tag_key);
+      return this;
+    }
+    
+    /**
+     * @param encoded_tag_key A non-null and non-empty encoded tag key 
+     * to group on.
+     * @return The builder.
+     */
+    public Builder addTagKey(final byte[] encoded_tag_key) {
+      if (encoded_tag_keys == null) {
+        encoded_tag_keys = new ByteSet();
+      }
+      encoded_tag_keys.add(encoded_tag_key);
       return this;
     }
     

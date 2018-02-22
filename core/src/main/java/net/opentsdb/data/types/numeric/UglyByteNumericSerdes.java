@@ -20,15 +20,14 @@ import java.io.OutputStream;
 import java.util.Map.Entry;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesStringId;
-import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.execution.serdes.SerdesOptions;
 import net.opentsdb.query.execution.serdes.TimeSeriesSerdes;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.utils.Bytes;
 
 /**
@@ -60,46 +59,88 @@ public class UglyByteNumericSerdes implements TimeSeriesSerdes {
       stream.write(buf);
       
       for (final TimeSeries series : result.timeSeries()) {
-        final TimeSeriesStringId id = series.id();
-        
-        buf = id.alias() == null ? null : id.alias().getBytes(Const.UTF8_CHARSET);
-        stream.write(Bytes.fromInt(buf == null ? 0 : buf.length));
-        if (buf != null) {
-          stream.write(buf);
-        }
-        
-        buf = id.namespace() == null ? null : id.namespace().getBytes(Const.UTF8_CHARSET);
-        stream.write(Bytes.fromInt(buf == null ? 0 : buf.length));
-        if (buf != null) {
-          stream.write(buf);
-        }
-        
-        buf = id.metric().getBytes(Const.UTF8_CHARSET);
-        stream.write(Bytes.fromInt(buf.length));
-        stream.write(buf);
-        
-        stream.write(Bytes.fromInt(id.tags().size()));
-        for (final Entry<String, String> pair : id.tags().entrySet()) {
-          buf = pair.getKey().getBytes(Const.UTF8_CHARSET);
+        if (series.id().type().equals(Const.TS_STRING_ID)) {
+          final TimeSeriesStringId id = (TimeSeriesStringId) series.id();
+          buf = id.alias() == null ? null : id.alias().getBytes(Const.UTF8_CHARSET);
+          stream.write(Bytes.fromInt(buf == null ? 0 : buf.length));
+          if (buf != null) {
+            stream.write(buf);
+          }
+          
+          buf = id.namespace() == null ? null : id.namespace().getBytes(Const.UTF8_CHARSET);
+          stream.write(Bytes.fromInt(buf == null ? 0 : buf.length));
+          if (buf != null) {
+            stream.write(buf);
+          }
+          
+          buf = id.metric().getBytes(Const.UTF8_CHARSET);
           stream.write(Bytes.fromInt(buf.length));
           stream.write(buf);
-          buf = pair.getValue().getBytes(Const.UTF8_CHARSET);
+          
+          stream.write(Bytes.fromInt(id.tags().size()));
+          for (final Entry<String, String> pair : id.tags().entrySet()) {
+            buf = pair.getKey().getBytes(Const.UTF8_CHARSET);
+            stream.write(Bytes.fromInt(buf.length));
+            stream.write(buf);
+            buf = pair.getValue().getBytes(Const.UTF8_CHARSET);
+            stream.write(Bytes.fromInt(buf.length));
+            stream.write(buf);
+          }
+          
+          stream.write(Bytes.fromInt(id.aggregatedTags().size()));
+          for (final String tag : id.aggregatedTags()) {
+            buf = tag.getBytes(Const.UTF8_CHARSET);
+            stream.write(Bytes.fromInt(buf.length));
+            stream.write(buf);
+          }
+          
+          stream.write(Bytes.fromInt(id.disjointTags().size()));
+          for (final String tag : id.disjointTags()) {
+            buf = tag.getBytes(Const.UTF8_CHARSET);
+            stream.write(Bytes.fromInt(buf.length));
+            stream.write(buf);
+          }
+        } else if (series.id().type().equals(Const.TS_BYTE_ID)) {
+          final TimeSeriesByteId id = (TimeSeriesByteId) series.id();
+          buf = id.alias() == null ? null : id.alias();
+          stream.write(Bytes.fromInt(buf == null ? 0 : buf.length));
+          if (buf != null) {
+            stream.write(buf);
+          }
+          
+          buf = id.namespace() == null ? null : id.namespace();
+          stream.write(Bytes.fromInt(buf == null ? 0 : buf.length));
+          if (buf != null) {
+            stream.write(buf);
+          }
+          
+          buf = id.metric();
           stream.write(Bytes.fromInt(buf.length));
           stream.write(buf);
-        }
-        
-        stream.write(Bytes.fromInt(id.aggregatedTags().size()));
-        for (final String tag : id.aggregatedTags()) {
-          buf = tag.getBytes(Const.UTF8_CHARSET);
-          stream.write(Bytes.fromInt(buf.length));
-          stream.write(buf);
-        }
-        
-        stream.write(Bytes.fromInt(id.disjointTags().size()));
-        for (final String tag : id.disjointTags()) {
-          buf = tag.getBytes(Const.UTF8_CHARSET);
-          stream.write(Bytes.fromInt(buf.length));
-          stream.write(buf);
+          
+          stream.write(Bytes.fromInt(id.tags().size()));
+          for (final Entry<byte[], byte[]> pair : id.tags().entrySet()) {
+            buf = pair.getKey();
+            stream.write(Bytes.fromInt(buf.length));
+            stream.write(buf);
+            buf = pair.getValue();
+            stream.write(Bytes.fromInt(buf.length));
+            stream.write(buf);
+          }
+          
+          stream.write(Bytes.fromInt(id.aggregatedTags().size()));
+          for (final byte[] tag : id.aggregatedTags()) {
+            buf = tag;
+            stream.write(Bytes.fromInt(buf.length));
+            stream.write(buf);
+          }
+          
+          stream.write(Bytes.fromInt(id.disjointTags().size()));
+          for (final byte[] tag : id.disjointTags()) {
+            buf = tag;
+            stream.write(Bytes.fromInt(buf.length));
+            stream.write(buf);
+          }
         }
         
         //((NumericMillisecondShard) data).serialize(stream);
@@ -118,8 +159,8 @@ public class UglyByteNumericSerdes implements TimeSeriesSerdes {
       throw new IllegalArgumentException("Input stream may not be null.");
     }
     try {
-      final BaseTimeSeriesId.Builder id = 
-          BaseTimeSeriesId.newBuilder();
+      final BaseTimeSeriesStringId.Builder id = 
+          BaseTimeSeriesStringId.newBuilder();
       byte[] buf = new byte[4];
       stream.read(buf);
       int len = Bytes.getInt(buf);

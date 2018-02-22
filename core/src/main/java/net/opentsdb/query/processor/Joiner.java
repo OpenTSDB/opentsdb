@@ -88,21 +88,22 @@ public class Joiner {
     final Map<String, IteratorGroups> joined = Maps.newHashMap();
     for (final IteratorGroup group : source.groups()) {
       for (final TimeSeriesIterator<?> it : group.flattenedIterators()) {
-        try {
-          final String join_key = joinKey(it.id());
-          if (join_key != null) {
-            // find the proper map to dump it in
-            IteratorGroups joined_group = joined.get(join_key);
-            if (joined_group == null) {
-              joined_group = new DefaultIteratorGroups();
-              joined.put(join_key, joined_group);
-            }
-            
-            joined_group.addIterator(group.id(), it);
-          }
-        } catch (IOException e) {
-          throw new RuntimeException("Unexpected exception while joining", e);
-        }
+        // TODO - fix up this joiner
+//        try {
+//          final String join_key = joinKey(it.id());
+//          if (join_key != null) {
+//            // find the proper map to dump it in
+//            IteratorGroups joined_group = joined.get(join_key);
+//            if (joined_group == null) {
+//              joined_group = new DefaultIteratorGroups();
+//              joined.put(join_key, joined_group);
+//            }
+//            
+//            joined_group.addIterator(group.id(), it);
+//          }
+//        } catch (IOException e) {
+//          throw new RuntimeException("Unexpected exception while joining", e);
+//        }
       }
     }
     

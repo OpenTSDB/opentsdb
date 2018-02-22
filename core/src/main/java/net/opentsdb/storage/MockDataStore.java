@@ -37,12 +37,14 @@ import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Span;
+import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
-import net.opentsdb.data.BaseTimeSeriesId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
@@ -278,7 +280,7 @@ public class MockDataStore extends TimeSeriesDataStore {
       for (final String metric : METRICS) {
         for (final String dc : DATACENTERS) {
           for (int h = 0; h < hosts; h++) {
-            TimeSeriesStringId id = BaseTimeSeriesId.newBuilder()
+            TimeSeriesStringId id = BaseTimeSeriesStringId.newBuilder()
                 .setMetric(metric)
                 .addTags("dc", dc)
                 .addTags("host", String.format("web%02d", h + 1))
@@ -646,6 +648,11 @@ public class MockDataStore extends TimeSeriesDataStore {
     @Override
     public QueryNode source() {
       return pipeline;
+    }
+    
+    @Override
+    public TypeToken<? extends TimeSeriesId> idType() {
+      return Const.TS_STRING_ID;
     }
     
     @Override
