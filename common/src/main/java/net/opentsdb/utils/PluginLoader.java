@@ -19,12 +19,12 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.Set;
 
@@ -164,11 +164,28 @@ public final class PluginLoader {
   }
   
   /**
+   * See {@link #loadPlugins(Class, String)}. Searches from the current
+   * thread's class path recursively.
+   * 
+   * @param type The class type to search for
+   * @return An instantiated list of objects of the given type if found, null 
+   * if no implementations of the type were found
+   * @throws java.util.ServiceConfigurationError if any of the plugins could not be 
+   * instantiated
+   * @param <T> The type of plugin to load.
+   */
+  public static <T> List<T> loadPlugins(final Class<T> type) {
+    return loadPlugins(type, "net.opentsdb");
+  }
+  
+  /**
    * Searches the {@link ServiceLoader} and class path for implementations of 
    * the given type, returning a list of all plugins that were found.
    * <p>
    * <b>Note:</b> As of 3.0 both ServiceLoader and local class loader are 
-   * searched and the results merged.
+   * searched and the results merged. Interface implementations are also
+   * now supported as opposed to just abstracts. (Though they must be 
+   * top-level or static to load).
    * <p>
    * <b>Note:</b> If you want to load JARs dynamically, you need to call 
    * {@link #loadJAR} or {@link #loadJARs} methods with the proper file
@@ -185,6 +202,8 @@ public final class PluginLoader {
    * on the class path or fat-jar'd. 
    * 
    * @param type The class type to search for
+   * @param namespace A non-null and non-empty namespace to search
+   * recursively under.
    * @return An instantiated list of objects of the given type if found, null 
    * if no implementations of the type were found
    * @throws java.util.ServiceConfigurationError if any of the plugins could not be 
@@ -192,7 +211,11 @@ public final class PluginLoader {
    * @param <T> The type of plugin to load.
    */
   @SuppressWarnings("unchecked")
-  public static <T> List<T> loadPlugins(final Class<T> type) {
+  public static <T> List<T> loadPlugins(final Class<T> type, 
+                                        final String namespace) {
+    if (Strings.isNullOrEmpty(namespace)) {
+      throw new IllegalArgumentException("Namespace cannot be null.");
+    }
     final ServiceLoader<T> serviceLoader = ServiceLoader.load(type);
     final Iterator<T> it = serviceLoader.iterator();
     
@@ -213,7 +236,7 @@ public final class PluginLoader {
       classpath = ClassPath.from(
           Thread.currentThread().getContextClassLoader());
       for (final ClassPath.ClassInfo info : 
-        classpath.getTopLevelClasses(type.getPackage().getName())) {
+        classpath.getTopLevelClassesRecursive(namespace)) {
         recursiveSearch(matches, info.load(), type);
       }
       
@@ -243,7 +266,9 @@ public final class PluginLoader {
       return plugins;
     }
     
-    LOG.warn("Unable to locate plugins for type: " + type.getName());
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Unable to locate plugins for type: " + type.getName());
+    }
     return null;
   }
   
@@ -381,7 +406,8 @@ public final class PluginLoader {
   /**
    * A helper method for searching for multiple implementations of a plugin 
    * type. Plugins can be declared inside a class (not recommended) and this
-   * method will ferret them out.
+   * method will ferret them out. It also catches any implementations of
+   * an interface.
    * @param matches A non-null list of classes that will be populated with
    * matches.
    * @param haystack The current class being searched.
@@ -393,11 +419,18 @@ public final class PluginLoader {
     final Class<?> superclass = haystack.getSuperclass();
     if (superclass != null && superclass.equals(needle)) {
       matches.add(haystack);
+      return;
     }
     
     final Class<?>[] nested_classes = haystack.getDeclaredClasses();
     for (final Class<?> nested_class : nested_classes) {
       recursiveSearch(matches, nested_class, needle);
+    }
+    
+    if (needle.isAssignableFrom(haystack) && 
+        !needle.equals(haystack) && 
+        !Modifier.isAbstract(haystack.getModifiers())) {
+      matches.add(haystack);
     }
   }
 }

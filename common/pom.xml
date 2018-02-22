@@ -41,6 +41,11 @@
         <artifactId>async</artifactId>
       </dependency>
       
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+      </dependency>
+      
       <!-- TESTING Deps -->    
       <dependency>
         <groupId>junit</groupId>
@@ -60,6 +65,17 @@
       <dependency>
         <groupId>org.powermock</groupId>
         <artifactId>powermock-module-junit4</artifactId>
+        <scope>test</scope>
+      </dependency>
+      
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-core</artifactId>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-classic</artifactId>
         <scope>test</scope>
       </dependency>
     </dependencies>

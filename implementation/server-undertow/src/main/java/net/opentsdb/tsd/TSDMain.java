@@ -78,7 +78,7 @@ public class TSDMain {
       LOG.warn("Failed to close stdin", e);
     }
     
-    final ArgP argp = new ArgP();
+    final ArgP argp = new ArgP(true);
     CliOptions.addCommon(argp);
     argp.addOption("--port", "NUM", "TCP port to listen on.");
     argp.addOption("--bind", "ADDR", "Address to bind to (default: 0.0.0.0).");
