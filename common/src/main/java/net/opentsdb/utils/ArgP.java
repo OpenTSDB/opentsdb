@@ -18,9 +18,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 
+import com.google.common.base.Strings;
+
 /**
  * A dead simple command-line argument parser.
  * Because I couldn't find any one in Java that wasn't horribly bloated.
+ * <b>Note:</b> This will only parse key/value pairs of the format
+ * {@code --key=value}. 
  * <p>
  * Example:
  * <pre>{@literal
@@ -44,6 +48,8 @@ import java.util.HashMap;
  * "stop parsing options".
  * <p>
  * This class is not thread-safe.
+ * <p>
+ * Note that quoted args are not stripped of their quotes.
  * 
  * @since 1.0
  */
@@ -62,8 +68,14 @@ public final class ArgP {
    */
   private HashMap<String, String> parsed;
 
+  /**
+   * Whether to throw exceptions when params are not configured. 
+   */
+  private final boolean strict;
+  
   /** Constructor.  */
-  public ArgP() {
+  public ArgP(final boolean strict) {
+    this.strict = strict;
   }
 
   /**
@@ -78,13 +90,13 @@ public final class ArgP {
   public void addOption(final String name,
                         final String meta,
                         final String help) {
-    if (name.isEmpty()) {
+    if (Strings.isNullOrEmpty(name)) {
       throw new IllegalArgumentException("empty name");
     } else if (name.charAt(0) != '-') {
       throw new IllegalArgumentException("name must start with a `-': " + name);
     } else if (meta != null && meta.isEmpty()) {
       throw new IllegalArgumentException("empty meta");
-    } else if (help.isEmpty()) {
+    } else if (Strings.isNullOrEmpty(help)) {
       throw new IllegalArgumentException("empty help");
     }
     final String[] prev = options.put(name, new String[] { meta, help });
@@ -125,6 +137,9 @@ public final class ArgP {
    * @throws IllegalArgumentException if the given command line wasn't valid.
    */
   public String[] parse(final String[] args) {
+    if (args == null) {
+      throw new IllegalArgumentException("Args cannot be null.");
+    }
     parsed = new HashMap<String, String>(options.size());
     ArrayList<String> unparsed = null;
     for (int i = 0; i < args.length; i++) {
@@ -142,6 +157,7 @@ public final class ArgP {
         }
         continue;
       }
+      
       // Is it a --foo=blah?
       final int equal = arg.indexOf('=', 1);
       if (equal > 0) {  // Looks like so.
@@ -163,7 +179,9 @@ public final class ArgP {
           }
           break;
         }
-        throw new IllegalArgumentException("Unrecognized option " + arg);
+        if (strict) {
+          throw new IllegalArgumentException("Unrecognized option " + arg);
+        }
       }
       unparsed.add(arg);
     }
@@ -185,7 +203,10 @@ public final class ArgP {
    */
   public String get(final String name) {
     if (!options.containsKey(name)) {
-      throw new IllegalArgumentException("Unknown option " + name);
+      if (strict) {
+        throw new IllegalArgumentException("Unknown option " + name);
+      }
+      return null;
     } else if (parsed == null) {
       throw new IllegalStateException("parse() wasn't called");
     }
@@ -214,7 +235,10 @@ public final class ArgP {
    */
   public boolean has(final String name) {
     if (!options.containsKey(name)) {
-      throw new IllegalArgumentException("Unknown option " + name);
+      if (strict) {
+        throw new IllegalArgumentException("Unknown option " + name);
+      }
+      return false;
     } else if (parsed == null) {
       throw new IllegalStateException("parse() wasn't called");
     }
