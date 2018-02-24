@@ -1,16 +1,18 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2016  The OpenTSDB Authors.
+// Copyright (C) 2010-2018  The OpenTSDB Authors.
 //
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
-package net.opentsdb.tools;
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+package net.opentsdb.config;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -43,10 +45,6 @@ import net.opentsdb.utils.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 /**
  * <p>Title: ConfigArgP</p>
  * <p>Description: Wraps {@link Config} and {@link ArgP} instances for a consolidated configuration and command line handler</p> 
@@ -55,18 +53,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class ConfigArgP {
   /** Static class logger */
   protected static final Logger LOG = LoggerFactory.getLogger(ConfigArgP.class);
-  /** The command line argument holder for all (default and extended) options */
-  protected final ArgP argp = new ArgP();
-  /** The command line argument holder for default options */
-  protected final ArgP dargp = new ArgP();
+  
   /** The non config option arguments */
   protected String[] nonOptionArgs = {};
   /** The base configuration */
   protected Config config;
   /** The default configuration items keyed by the item key and cl-option */
-  protected final Map<String, ConfigurationItem> defaultConfItems;
+  protected /*final*/ Map<String, ConfigurationItem> defaultConfItems;
   /** The command line args */
-  protected final Set<String> commandLineArgs;
+  protected /*final*/ Set<String> commandLineArgs;
   
   /** The raw configuration items loaded from the json file */
   protected final TreeSet<ConfigurationItem> configItemsByKey = new TreeSet<ConfigurationItem>();
@@ -119,61 +114,61 @@ public class ConfigArgP {
     try {
       config = new NoLoadConfig();
       is = ConfigArgP.class.getClassLoader().getResourceAsStream("opentsdb.conf.json");
-      ObjectMapper jsonMapper = new ObjectMapper();
-      JsonNode root = jsonMapper.reader().readTree(is);
-      JsonNode configRoot = root.get("config-items");
-      scriptEngine.eval("var config = " + configRoot.toString() + ";");
-      processBindings(jsonMapper, root);
-      // Contains all the defaults
-      final ConfigurationItem[] loadedItems = jsonMapper.reader(ConfigurationItem[].class).readValue(configRoot);
-      // Contains all the defaults
-      final TreeSet<ConfigurationItem> items = new TreeSet<ConfigurationItem>(Arrays.asList(loadedItems));
-      
-      Map<String, ConfigurationItem> tmpItems = new HashMap<String, ConfigurationItem>(items.size());
-      for(Iterator<ConfigurationItem> iter = items.iterator(); iter.hasNext();) {
-        ConfigurationItem item = iter.next();
-        if(tmpItems.containsKey(item.getKey())) throw new RuntimeException("opentsdb.conf.json contains duplicate key: [" + item.getKey() + "]");
-        if(tmpItems.containsKey(item.getClOption())) throw new RuntimeException("opentsdb.conf.json contains duplicate clOption: [" + item.getClOption() + "]");
-        tmpItems.put(item.getKey(), item);
-        tmpItems.put(item.getClOption(), item);
-//        if("BOOL".equals(item.getMeta())) iter.remove();
-      }
-      defaultConfItems = Collections.unmodifiableMap(tmpItems);
-      LOG.debug("Loaded [{}] Configuration Items from opentsdb.conf.json", items.size());
-      if(LOG.isDebugEnabled()) {
-        StringBuilder b = new StringBuilder("Configs:");
-        for(ConfigurationItem ci: items) {
-          b.append("\n\t").append(ci.toString());
-        }
-        b.append("\n");
-        LOG.debug(b.toString());
-      }
-      for(ConfigurationItem ci: items) {
-        LOG.debug("Processing CI [{}]", ci.getKey());
-        if(ci.meta!=null) {
-          argp.addOption(ci.clOption, ci.meta, ci.description);
-          LOG.debug("Registered Meta ArgP cl:[{}], meta:[{}]", ci.clOption, ci.meta); 
-          if("default".equals(ci.help)) dargp.addOption(ci.clOption, ci.meta, ci.description);
-        } else {
-          argp.addOption(ci.clOption, ci.description);
-          LOG.debug("Registered No Meta ArgP cl:[{}]", ci.clOption);
-          if("default".equals(ci.help)) dargp.addOption(ci.clOption, ci.description);
-        }
-        if(!configItemsByKey.add(ci)) {
-          throw new RuntimeException("Duplicate configuration key [" + ci.key + "] in opentsdb.conf.json. Programmer Error.");
-        }
-        if(!configItemsByCl.add(ci)) {
-          throw new RuntimeException("Duplicate configuration command line option [" + ci.clOption + "] in opentsdb.conf.json. Programmer Error.");
-        }       
-        if(ci.getDefaultValue()!=null && !ci.getDefaultValue().trim().isEmpty()) {
-          ci.setValue(processConfigValue(ci.getDefaultValue()));                
-          config.overrideConfig(ci.key, processConfigValue(ci.getValue()));
-        }
-      }
-      nonOptionArgs = applyArgs(args);
-      loadExternalConfigs(items);
-      config = new Config(config);
-      
+//      ObjectMapper jsonMapper = new ObjectMapper();
+//      JsonNode root = jsonMapper.reader().readTree(is);
+//      JsonNode configRoot = root.get("config-items");
+//      scriptEngine.eval("var config = " + configRoot.toString() + ";");
+//      processBindings(jsonMapper, root);
+//      // Contains all the defaults
+//      final ConfigurationItem[] loadedItems = jsonMapper.reader(ConfigurationItem[].class).readValue(configRoot);
+//      // Contains all the defaults
+//      final TreeSet<ConfigurationItem> items = new TreeSet<ConfigurationItem>(Arrays.asList(loadedItems));
+//      
+//      Map<String, ConfigurationItem> tmpItems = new HashMap<String, ConfigurationItem>(items.size());
+//      for(Iterator<ConfigurationItem> iter = items.iterator(); iter.hasNext();) {
+//        ConfigurationItem item = iter.next();
+//        if(tmpItems.containsKey(item.getKey())) throw new RuntimeException("opentsdb.conf.json contains duplicate key: [" + item.getKey() + "]");
+//        if(tmpItems.containsKey(item.getClOption())) throw new RuntimeException("opentsdb.conf.json contains duplicate clOption: [" + item.getClOption() + "]");
+//        tmpItems.put(item.getKey(), item);
+//        tmpItems.put(item.getClOption(), item);
+////        if("BOOL".equals(item.getMeta())) iter.remove();
+//      }
+//      defaultConfItems = Collections.unmodifiableMap(tmpItems);
+//      LOG.debug("Loaded [{}] Configuration Items from opentsdb.conf.json", items.size());
+//      if(LOG.isDebugEnabled()) {
+//        StringBuilder b = new StringBuilder("Configs:");
+//        for(ConfigurationItem ci: items) {
+//          b.append("\n\t").append(ci.toString());
+//        }
+//        b.append("\n");
+//        LOG.debug(b.toString());
+//      }
+//      for(ConfigurationItem ci: items) {
+//        LOG.debug("Processing CI [{}]", ci.getKey());
+//        if(ci.meta!=null) {
+//          argp.addOption(ci.clOption, ci.meta, ci.description);
+//          LOG.debug("Registered Meta ArgP cl:[{}], meta:[{}]", ci.clOption, ci.meta); 
+//          if("default".equals(ci.help)) dargp.addOption(ci.clOption, ci.meta, ci.description);
+//        } else {
+//          argp.addOption(ci.clOption, ci.description);
+//          LOG.debug("Registered No Meta ArgP cl:[{}]", ci.clOption);
+//          if("default".equals(ci.help)) dargp.addOption(ci.clOption, ci.description);
+//        }
+//        if(!configItemsByKey.add(ci)) {
+//          throw new RuntimeException("Duplicate configuration key [" + ci.key + "] in opentsdb.conf.json. Programmer Error.");
+//        }
+//        if(!configItemsByCl.add(ci)) {
+//          throw new RuntimeException("Duplicate configuration command line option [" + ci.clOption + "] in opentsdb.conf.json. Programmer Error.");
+//        }       
+//        if(ci.getDefaultValue()!=null && !ci.getDefaultValue().trim().isEmpty()) {
+//          ci.setValue(processConfigValue(ci.getDefaultValue()));                
+//          config.overrideConfig(ci.key, processConfigValue(ci.getValue()));
+//        }
+//      }
+//      nonOptionArgs = applyArgs(args);
+//      loadExternalConfigs(items);
+//      config = new Config(config);
+//      
     } catch (Exception ex) {
       if(ex instanceof IllegalArgumentException) {
         throw (IllegalArgumentException)ex;
@@ -323,24 +318,25 @@ public class ConfigArgP {
     extractAndApplyFlags(nonFlagArgs);
     
     String[] args = nonFlagArgs.toArray(new String[0]);
-    String[] nonArgs = argp.parse(args);
-    LOG.debug("Applying Command Line ArgP {}", argp);
-    LOG.debug("configItemsByCl Keys: [{}]", configItemsByCl.toString());
-    for(Map.Entry<String, String> entry: argp.getParsed().entrySet()) {
-      String key = entry.getKey(), value = entry.getValue();
-      ConfigurationItem citem = getConfigurationItemByClOpt(key);
-      LOG.debug("Loaded CI for command line option [{}]: Found:{}", key, citem!=null);
-      if("BOOL".equals(citem.getMeta())) {        
-        citem.setValue(value!=null ? value : "true");
-      } else {
-        if(value!=null) {
-          citem.setValue(processConfigValue(value));              
-        }
-      }
-//      log("CL Override [%s] --> [%s]", citem.getKey(), citem.getValue());
-      config.overrideConfig(citem.getKey(), citem.getValue());                    
-    }
-    return nonArgs;
+//    String[] nonArgs = argp.parse(args);
+//    LOG.debug("Applying Command Line ArgP {}", argp);
+//    LOG.debug("configItemsByCl Keys: [{}]", configItemsByCl.toString());
+//    for(Map.Entry<String, String> entry: argp.getParsed().entrySet()) {
+//      String key = entry.getKey(), value = entry.getValue();
+//      ConfigurationItem citem = getConfigurationItemByClOpt(key);
+//      LOG.debug("Loaded CI for command line option [{}]: Found:{}", key, citem!=null);
+//      if("BOOL".equals(citem.getMeta())) {        
+//        citem.setValue(value!=null ? value : "true");
+//      } else {
+//        if(value!=null) {
+//          citem.setValue(processConfigValue(value));              
+//        }
+//      }
+////      log("CL Override [%s] --> [%s]", citem.getKey(), citem.getValue());
+//      config.overrideConfig(citem.getKey(), citem.getValue());                    
+//    }
+//    return nonArgs;
+    return null;
   }
   
   private void extractAndApplyFlags(final List<String> args) {
@@ -410,7 +406,7 @@ public class ConfigArgP {
     for(String msg: msgs) {
       b.append(msg).append("\n");
     }
-    b.append(dargp.usage());
+    //b.append(dargp.usage());
     return b.toString();
   }
 
@@ -424,7 +420,7 @@ public class ConfigArgP {
     for(String msg: msgs) {
       b.append(msg).append("\n");
     }
-    b.append(argp.usage());
+    //b.append(argp.usage());
     return b.toString();
   }
   
@@ -526,22 +522,22 @@ public class ConfigArgP {
    */
   public static class ConfigurationItem implements Comparable<ConfigurationItem> {
     /** The internal configuration key */
-    @JsonProperty("key")
+    //@JsonProperty("key")
     protected String key;
     /** The command line option key that maps to this item */
-    @JsonProperty("cl-option")
+    //@JsonProperty("cl-option")
     protected String clOption;
     /** The original value, loaded from opentsdb.conf.json, and never overwritten */
-    @JsonProperty("defaultValue")
+    //@JsonProperty("defaultValue")
     protected String defaultValue;
     /** A description of the configuration item */
-    @JsonProperty("description")
+    //@JsonProperty("description")
     protected String description;
     /** The command line help level at which this item will be displayed ('default' or 'extended') */
-    @JsonProperty("help")
+    //@JsonProperty("help")
     protected String help;
     /** The meta symbol representing the type of value expected for a parameterized command line arg */
-    @JsonProperty("meta")
+    //@JsonProperty("meta")
     protected String meta;
     
     /** The decoded or overriden value */   
@@ -577,7 +573,7 @@ public class ConfigArgP {
      */
     public void validate() {
       if(meta!=null && value!=null) {
-        ConfigMetaType.byName(meta, key).validate(this); 
+        //ConfigMetaType.byName(meta, key).validate(this); 
       }
     }
     
@@ -736,13 +732,14 @@ public class ConfigArgP {
         return -1;
       }
       
-      final ConfigMetaType otherType = ConfigMetaType.byName(other.meta, other.key); 
-      final ConfigMetaType thisType = ConfigMetaType.byName(meta, key);
-      int c = thisType.compareTo(otherType);
-      if(c==0) {
-        c = this.key.compareTo(other.key);
-      }
-      return c;
+//      final ConfigMetaType otherType = ConfigMetaType.byName(other.meta, other.key); 
+//      final ConfigMetaType thisType = ConfigMetaType.byName(meta, key);
+//      int c = thisType.compareTo(otherType);
+//      if(c==0) {
+//        c = this.key.compareTo(other.key);
+//      }
+//      return c;
+      return 0;
     }
   }
 
@@ -751,17 +748,17 @@ public class ConfigArgP {
    * Returns the command line argument processor
    * @return the argp
    */
-  public ArgP getArgp() {
-    return argp;
-  }
+//  public ArgP getArgp() {
+//    return argp;
+//  }
 
   /**
    * Returns the command line argument holder for default options
    * @return the command line argument holder 
    */
-  public ArgP getDargp() {
-    return dargp;
-  }
+//  public ArgP getDargp() {
+//    return dargp;
+//  }
 
   /**
    * Returns the TSDB config instance
@@ -816,26 +813,26 @@ public class ConfigArgP {
    * @param jsonMapper The JSON mapper
    * @param root The root <b><code>opentsdb.conf.json</code></b> document 
    */
-  protected void processBindings(ObjectMapper jsonMapper, JsonNode root) {
-    String script = null;
-    try {
-      if(root.has("bindings")) {
-        JsonNode bindingsNode = root.get("bindings");
-        if(bindingsNode.isArray()) {
-          String[] jsLines = jsonMapper.reader(String[].class).readValue(bindingsNode);
-          StringBuilder b = new StringBuilder();
-          for(String s: jsLines) {
-            b.append(s).append("\n");
-          }
-          script = b.toString();
-          scriptEngine.eval(script);
-          LOG.debug("Successfully evaluated [{}] lines of JS in bindings", jsLines.length);
-        }
-      }
-    } catch (Exception ex) {
-      throw new IllegalArgumentException("Failed to evaluate opentsdb.conf.json javascript binding [" + script + "]", ex);
-    }
-  }
-  
-  
+//  protected void processBindings(ObjectMapper jsonMapper, JsonNode root) {
+//    String script = null;
+//    try {
+//      if(root.has("bindings")) {
+//        JsonNode bindingsNode = root.get("bindings");
+//        if(bindingsNode.isArray()) {
+//          String[] jsLines = jsonMapper.reader(String[].class).readValue(bindingsNode);
+//          StringBuilder b = new StringBuilder();
+//          for(String s: jsLines) {
+//            b.append(s).append("\n");
+//          }
+//          script = b.toString();
+//          scriptEngine.eval(script);
+//          LOG.debug("Successfully evaluated [{}] lines of JS in bindings", jsLines.length);
+//        }
+//      }
+//    } catch (Exception ex) {
+//      throw new IllegalArgumentException("Failed to evaluate opentsdb.conf.json javascript binding [" + script + "]", ex);
+//    }
+//  }
+//  
+//  
 }
