@@ -45,8 +45,9 @@ public class ConfigurationEntrySchema {
   /** A validator for the config entry. */
   protected final ConfigurationValueValidator validator;
   
-  /** The default value for this config entry. */
-  protected final Object default_value;
+  /** The default value for this config entry. 
+   * NOTE: not final to allow the UnitTestConfiguration class access. */
+  protected Object default_value;
   
   /** Whether or not the value can be dynamically refreshed or overridden. */
   protected final boolean dynamic;

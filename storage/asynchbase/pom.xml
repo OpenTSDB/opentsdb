@@ -39,7 +39,7 @@
         <dependency>
           <groupId>org.hbase</groupId>
           <artifactId>asynchbase</artifactId>
-          <version>1.7.2</version>
+          <version>1.8.0</version>
         </dependency>
                 
       </dependencies>

@@ -21,6 +21,9 @@ import static org.mockito.Mockito.when;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
@@ -49,4 +52,5 @@ public class TestTsdb1xHBaseDataStore {
     assertArrayEquals("tsdb".getBytes(Const.ASCII_CHARSET), store.dataTable());
     assertArrayEquals("tsdb-uid".getBytes(Const.ASCII_CHARSET), store.uidTable());
   }
+  
 }

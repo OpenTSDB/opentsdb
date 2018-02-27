@@ -22,7 +22,7 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageSchema;
-import net.opentsdb.uid.UniqueId.UniqueIdType;
+import net.opentsdb.uid.UniqueIdType;
 
 /**
  * The interface for an OpenTSDB version 1 and version 2 schema where 

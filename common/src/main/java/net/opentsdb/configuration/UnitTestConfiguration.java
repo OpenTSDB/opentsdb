@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 
 import io.netty.util.HashedWheelTimer;
+import net.opentsdb.configuration.ConfigurationValueValidator.ValidationResult;
 import net.opentsdb.configuration.provider.Provider;
 import net.opentsdb.configuration.provider.ProviderFactory;
 import net.opentsdb.configuration.provider.RuntimeOverrideProvider;
@@ -33,8 +34,12 @@ import net.opentsdb.configuration.provider.RuntimeOverrideProvider;
  * 
  * @since 3.0
  */
-public class UnitTestConfiguration {
+public class UnitTestConfiguration extends Configuration {
 
+  public UnitTestConfiguration(final String[] providers) {
+    super(providers);
+  }
+  
   /**
    * Helper function that returns a Configuration instance with a dead
    * timer and only the {@link RuntimeOverrideProvider} given.
@@ -45,7 +50,7 @@ public class UnitTestConfiguration {
     final String[] providers = new String[] {
         "--" + Configuration.CONFIG_PROVIDERS_KEY + "=RuntimeOverride"
     };
-    return new Configuration(providers);
+    return new UnitTestConfiguration(providers);
   }
   
   /**
@@ -56,13 +61,14 @@ public class UnitTestConfiguration {
    * @param settings A map of key values to load.
    * @return A non-null config.
    */
-  public static Configuration getConfiguration(
+  public static UnitTestConfiguration getConfiguration(
       final Map<String, String> settings) {
     final String[] providers = new String[] {
         "--" + Configuration.CONFIG_PROVIDERS_KEY 
         + "=UnitTest,RuntimeOverride"
     };
-    final Configuration config = new Configuration(providers);
+    final UnitTestConfiguration config = 
+        new UnitTestConfiguration(providers);
     for (final Provider provider : config.providers()) {
       if (provider instanceof UnitTestProvider) {
         ((UnitTestProvider) provider).kvs = settings;
@@ -71,6 +77,32 @@ public class UnitTestConfiguration {
     return config;
   }
 
+  /**
+   * Allows a UnitTest to inject a value into the config as either the
+   * default value in the schema or an override. It still requires that
+   * a config key be registered.
+   * 
+   * @param key A non-null and non-empty key.
+   * @param value A value to inject.
+   * @throws IllegalArgumentException if the value failed validation.
+   */
+  public void override(final String key, final Object value) {
+    final ConfigurationEntry entry = merged_config.get(key);
+    if (entry == null) {
+      throw new IllegalArgumentException("Register this config first!");
+    }
+    final ValidationResult result = entry.schema().validate(value);
+    if (!result.isValid()) {
+      throw new IllegalArgumentException("Vad value: " + result.getMessage());
+    }
+    if (entry.settings() == null || entry.settings().isEmpty()) {
+      entry.schema().default_value = value;
+    } else {
+      final ConfigurationOverride override = entry.settings().get(0);
+      override.value = value;
+    }
+  }
+  
   public static class UnitTestProvider extends Provider {
     private Map<String, String> kvs;
     
