@@ -24,6 +24,8 @@ import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.common.Const;
+import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -33,6 +35,7 @@ import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 
@@ -43,24 +46,67 @@ import net.opentsdb.storage.schemas.tsdb1x.Schema;
  */
 public class Tsdb1xHBaseDataStore extends TimeSeriesDataStore {
 
+  /** Config keys */
+  public static final String CONFIG_PREFIX = "tsd.storage.";
+  public static final String DATA_TABLE_KEY = "data_table";
+  public static final String UID_TABLE_KEY = "uid_table";
+  public static final String TREE_TABLE_KEY = "tree_table";
+  public static final String META_TABLE_KEY = "meta_table";
+  
   /** The AsyncHBase client. */
   private HBaseClient client;
   
   private Schema schema;
   
+  /** Name of the table in which timeseries are stored.  */
+  private final byte[] data_table;
+  
+  /** Name of the table in which UID information is stored. */
+  private final byte[] uid_table;
+  
+  /** Name of the table where tree data is stored. */
+  private final byte[] tree_table;
+  
+  /** Name of the table where meta data is stored. */
+  private final byte[] meta_table;
+  
   public Tsdb1xHBaseDataStore(final TSDB tsdb, final String id) {
     super(tsdb, id);
+    
+    // TODO - flatten the config and pass it down to the client lib.
     final org.hbase.async.Config async_config = new org.hbase.async.Config();
-    if (Strings.isNullOrEmpty(
-        async_config.getString("asynchbase.zk.base_path"))) {
-      async_config.overrideConfig("asynchbase.zk.base_path", 
-          tsdb.getConfig().getString("tsd.storage.hbase.zk_basedir"));
-    }
-    if (Strings.isNullOrEmpty(async_config.getString("asynchbase.zk.quorum"))) {
-      async_config.overrideConfig("asynchbase.zk.quorum", 
-          tsdb.getConfig().getString("tsd.storage.hbase.zk_quorum"));
+    
+    // We'll sync on the config object to avoid race conditions if 
+    // multiple instances of this client are being loaded.
+    final Configuration config = tsdb.getConfig();
+    synchronized(config) {
+      if (!config.hasProperty(getConfigKey(DATA_TABLE_KEY))) {
+        config.register(getConfigKey(DATA_TABLE_KEY), "tsdb", false, 
+            "The name of the raw data table for OpenTSDB.");
+      }
+      data_table = config.getString(getConfigKey(DATA_TABLE_KEY))
+          .getBytes(Const.ASCII_CHARSET);
+      if (!config.hasProperty(getConfigKey(UID_TABLE_KEY))) {
+        config.register(getConfigKey(UID_TABLE_KEY), "tsdb-uid", false, 
+            "The name of the UID mapping table for OpenTSDB.");
+      }
+      uid_table = config.getString(getConfigKey(UID_TABLE_KEY))
+          .getBytes(Const.ASCII_CHARSET);
+      if (!config.hasProperty(getConfigKey(TREE_TABLE_KEY))) {
+        config.register(getConfigKey(TREE_TABLE_KEY), "tsdb-tree", false, 
+            "The name of the Tree table for OpenTSDB.");
+      }
+      tree_table = config.getString(getConfigKey(TREE_TABLE_KEY))
+          .getBytes(Const.ASCII_CHARSET);
+      if (!config.hasProperty(getConfigKey(META_TABLE_KEY))) {
+        config.register(getConfigKey(META_TABLE_KEY), "tsdb-meta", false, 
+            "The name of the Meta data table for OpenTSDB.");
+      }
+      meta_table = config.getString(getConfigKey(META_TABLE_KEY))
+          .getBytes(Const.ASCII_CHARSET);
     }
     
+    // TODO - shared client!
     client = new HBaseClient(async_config);
   }
   
@@ -91,10 +137,9 @@ public class Tsdb1xHBaseDataStore extends TimeSeriesDataStore {
   }
   
   @Override
-  public QueryNode newNode(QueryPipelineContext context,
-      QueryNodeConfig config) {
-    // TODO Auto-generated method stub
-    return null;
+  public QueryNode newNode(final QueryPipelineContext context,
+                           final QueryNodeConfig config) {
+    return new Tsdb1xQueryNode(this, context, (QuerySourceConfig) config);
   }
 
   @Override
@@ -123,5 +168,33 @@ public class Tsdb1xHBaseDataStore extends TimeSeriesDataStore {
     // TODO Auto-generated method stub
     return null;
   }
-
+  
+  /**
+   * Prepends the {@link #CONFIG_PREFIX} and the current data store ID to
+   * the given suffix.
+   * @param suffix A non-null and non-empty suffix.
+   * @return A non-null and non-empty config string.
+   */
+  public String getConfigKey(final String suffix) {
+    if (Strings.isNullOrEmpty(suffix)) {
+      throw new IllegalArgumentException("Suffix cannot be null.");
+    }
+    return CONFIG_PREFIX + id + "." + suffix;
+  }
+  
+  /** @return The schema assigned to this store. */
+  Schema schema() {
+    return schema;
+  }
+  
+  /** @return The data table. */
+  byte[] dataTable() {
+    return data_table;
+  }
+  
+  /** @return The UID table. */
+  byte[] uidTable() {
+    return uid_table;
+  }
+  
 }

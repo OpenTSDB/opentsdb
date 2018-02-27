@@ -100,16 +100,7 @@ public class DefaultTSDB implements TSDB {
 //
 //  /** Client for the HBase cluster to use.  */
 //  final HBaseClient client;
-//
-//  /** Name of the table in which timeseries are stored.  */
-//  final byte[] table;
-//  /** Name of the table in which UID information is stored. */
-//  final byte[] uidtable;
-//  /** Name of the table where tree data is stored. */
-//  final byte[] treetable;
-//  /** Name of the table where meta data is stored. */
-//  final byte[] meta_table;
-//
+
 //  /** Unique IDs for the metric names. */
 //  final UniqueId metrics;
 //  /** Unique IDs for the tag names. */
