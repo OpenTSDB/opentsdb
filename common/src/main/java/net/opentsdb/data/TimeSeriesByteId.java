@@ -16,6 +16,7 @@ import java.util.List;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageSchema;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes.ByteMap;
@@ -118,7 +119,8 @@ public interface TimeSeriesByteId extends TimeSeriesId,
    * Returns the string version of the time series ID based on the schema
    * used to encode the byte IDs.
    * 
+   * @param span An optional tracing span.
    * @return A non-null deferred resolving to either an ID or an exception. 
    */
-  public Deferred<TimeSeriesStringId> decode();
+  public Deferred<TimeSeriesStringId> decode(final Span span);
 }

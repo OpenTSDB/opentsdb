@@ -26,6 +26,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.common.Const;
+import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageSchema;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
@@ -291,8 +292,8 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
   }
   
   @Override
-  public Deferred<TimeSeriesStringId> decode() {
-    return schema.resolveByteId(this);
+  public Deferred<TimeSeriesStringId> decode(final Span span) {
+    return schema.resolveByteId(this, span);
   }
   
   /**

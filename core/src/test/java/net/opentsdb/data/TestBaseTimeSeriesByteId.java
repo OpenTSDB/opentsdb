@@ -35,6 +35,7 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageSchema;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes.ByteMap;
@@ -473,7 +474,7 @@ public class TestBaseTimeSeriesByteId {
 
   @Test
   public void decode() throws Exception {
-    when(schema.resolveByteId(any(TimeSeriesByteId.class)))
+    when(schema.resolveByteId(any(TimeSeriesByteId.class), any(Span.class)))
       .thenReturn(Deferred.fromResult(null));
     final BaseTimeSeriesByteId id1 = BaseTimeSeriesByteId.newBuilder(schema)
         .setAlias(ARRAY)
@@ -484,6 +485,6 @@ public class TestBaseTimeSeriesByteId {
         .setDisjointTags(LIST)
         .setUniqueId(SET)
         .build();
-    assertNull(id1.decode().join());
+    assertNull(id1.decode(null).join());
   }
 }
