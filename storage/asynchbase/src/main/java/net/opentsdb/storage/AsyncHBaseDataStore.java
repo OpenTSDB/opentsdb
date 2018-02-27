@@ -57,17 +57,7 @@ public class AsyncHBaseDataStore extends TimeSeriesDataStore {
   public Deferred<Object> initialize(final TSDB tsdb) {
     this.tsdb = tsdb;
     
-    final org.hbase.async.Config async_config;
-    if (tsdb.getConfig().configLocation() != null && !tsdb.getConfig().configLocation().isEmpty()) {
-      try {
-        async_config = new org.hbase.async.Config(tsdb.getConfig().configLocation());
-      } catch (final IOException e) {
-        throw new RuntimeException("Failed to read the config file: " + 
-            tsdb.getConfig().configLocation(), e);
-      }
-    } else {
-      async_config = new org.hbase.async.Config();
-    }
+    final org.hbase.async.Config async_config = new org.hbase.async.Config();
     if (Strings.isNullOrEmpty(
         async_config.getString("asynchbase.zk.base_path"))) {
       async_config.overrideConfig("asynchbase.zk.base_path", 

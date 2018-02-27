@@ -14,23 +14,19 @@
 // limitations under the License.
 package net.opentsdb.stats;
 
-import java.io.IOException;
 import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.configuration.ConfigurationCallback;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.stats.BraveTrace.BraveTraceBuilder;
-import zipkin.BinaryAnnotation;
 import zipkin.Span;
 import zipkin.reporter.AsyncReporter;
 import zipkin.reporter.Reporter;
@@ -47,36 +43,40 @@ import zipkin.reporter.okhttp3.OkHttpSender;
 public class BraveTracer implements Tracer {
   private static final Logger LOG = LoggerFactory.getLogger(BraveTracer.class);
   
+  /** Configuration keys. */
+  public static final String SERVICE_NAME_KEY = "tsdb.tracer.service_name";
+  public static final String ENDPOINT_KEY = "tracer.brave.zipkin.endpoint";
+  
   /** The default service name to set for traces. */
   private String service_name;
   
+  /** The endpoint to send traces to. */
+  private volatile String zipkin_endpoint;
+  
   /** The sender to use when publishing to a Zipkin server. */
-  private OkHttpSender zipkin_sender;
+  private volatile OkHttpSender zipkin_sender;
   
   /** The reporter the sender is attached to. */
-  private AsyncReporter<zipkin.Span> zipkin_reporter;
+  private volatile AsyncReporter<zipkin.Span> zipkin_reporter;
   
   @Override
   public Deferred<Object> initialize(final TSDB tsdb) {
     if (tsdb == null) {
       throw new IllegalArgumentException("TSDB cannot be null.");
     }
+    tsdb.getConfig().register(SERVICE_NAME_KEY, null, false, 
+        "A name for the service logged in traces coming from this"
+        + " application.");
+    tsdb.getConfig().register(ENDPOINT_KEY, null, true, 
+        "The host and endpoint to send traces to.");
     
-    service_name = tsdb.getConfig().getString("tsdb.tracer.service_name");
+    service_name = tsdb.getConfig().getString(SERVICE_NAME_KEY);
     if (Strings.isNullOrEmpty(service_name)) {
       throw new IllegalArgumentException("Cannot instantiate tracer plugin "
-          + "without a valid 'tsdb.tracer.service_name'");
+          + "without a valid '" + SERVICE_NAME_KEY + "'");
     }
     
-    final String zipkin_endpoint = 
-        tsdb.getConfig().getString("tracer.brave.zipkin.endpoint");
-    if (!Strings.isNullOrEmpty(zipkin_endpoint)) {
-      zipkin_sender = OkHttpSender.create(zipkin_endpoint);
-      zipkin_reporter = AsyncReporter
-          .builder(zipkin_sender)
-          .build();
-      LOG.info("Setup OkHTTPSender for reporting to Zipkin: " + zipkin_endpoint);
-    }
+    tsdb.getConfig().bind(ENDPOINT_KEY, new EndpointCallback());
     return Deferred.fromResult(null);
   }
   
@@ -156,6 +156,10 @@ public class BraveTracer implements Tracer {
     
     public void report(final Span span) {
       spans.add(span);
+      
+      // catch the volatile state.
+      final AsyncReporter<zipkin.Span> zipkin_reporter = 
+          BraveTracer.this.zipkin_reporter;
       if (forward && zipkin_reporter != null) {
         zipkin_reporter.report(span);
       }
@@ -165,5 +169,87 @@ public class BraveTracer implements Tracer {
   @VisibleForTesting
   String serviceName() {
     return service_name;
+  }
+
+  @VisibleForTesting
+  String endpoint() {
+    return zipkin_endpoint;
+  }
+  
+  @VisibleForTesting
+  OkHttpSender sender() {
+    return zipkin_sender;
+  }
+  
+  @VisibleForTesting
+  AsyncReporter<zipkin.Span> reporter() {
+    return zipkin_reporter;
+  }
+  
+  /** A callback used to instantiate or update the sender and reporter
+   * whenever the configuration changes. */
+  private class EndpointCallback implements ConfigurationCallback<String> {
+    @Override
+    public void update(final String key, final String value) {
+      if (zipkin_endpoint == null && value == null) {
+        // no change.
+        return;
+      }
+      if (zipkin_endpoint != null && value != null && 
+          zipkin_endpoint.equals(value)) {
+        // no change
+        return;
+      }
+      
+      // otherwise, there was a change in the endpoint.
+      OkHttpSender extant_sender = null;
+      AsyncReporter<zipkin.Span> extant_reporter = null;
+      
+      try {
+        synchronized (BraveTracer.this) {
+          extant_sender = zipkin_sender;
+          extant_reporter = zipkin_reporter;
+          
+          if (Strings.isNullOrEmpty(value)) {
+            zipkin_sender = null;
+            zipkin_reporter = null;
+            LOG.info("New Zipkin endpoint is null. Stopping the sender.");
+          } else {
+            zipkin_sender = OkHttpSender.create(value);
+            zipkin_reporter = AsyncReporter
+                .builder(zipkin_sender)
+                .build();
+            LOG.info("Created a new Zipkin reporter with endpoint [" 
+                + value + "]");
+          }
+        }
+      } catch (Exception e) {
+        LOG.error("Failed to initialize the sender", e);
+        zipkin_sender = null;
+        zipkin_reporter = null;
+      }
+      
+      // now we need to release the old resources
+      if (extant_reporter != null) {
+        try {
+          extant_reporter.close();
+        } catch (Exception e) {
+          LOG.warn("Failed to close the reporter", e);
+        }
+      }
+      
+      if (extant_sender != null) {
+        try {
+          extant_sender.close();
+        } catch (Exception e) {
+          LOG.warn("Failed to close the sender", e);
+        }
+      }
+    }
+    
+    @Override
+    public String toString() {
+      return "Brave Tracer Endpoint Callback";
+    }
   }
 }

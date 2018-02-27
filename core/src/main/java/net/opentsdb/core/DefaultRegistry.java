@@ -74,6 +74,11 @@ import net.opentsdb.utils.JSON;
 public class DefaultRegistry implements Registry {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultRegistry.class);
   
+  /** Configuration keys. */
+  public static final String PLUGIN_CONFIG_KEY = "tsd.plugin.config";
+  public static final String DEFAULT_CLUSTERS_KEY = "tsd.query.default_clusters";
+  public static final String DEFAULT_GRAPHS_KEY = "tsd.query.default_execution_graphs";
+  
   /** The TSDB to which this registry belongs. Used for reading the config. */
   private final TSDB tsdb;
   
@@ -116,6 +121,13 @@ public class DefaultRegistry implements Registry {
     if (tsdb == null) {
       throw new IllegalArgumentException("TSDB cannot be null.");
     }
+    
+    tsdb.getConfig().register(PLUGIN_CONFIG_KEY, null, false, 
+        "The path to a plugin configuration file.");
+    tsdb.getConfig().register(DEFAULT_CLUSTERS_KEY, null, false, 
+        "TODO");
+    tsdb.getConfig().register(DEFAULT_GRAPHS_KEY, null, false, "TODO");
+    
     this.tsdb = tsdb;
     data_mergers = 
         Maps.<String, DataMerger<?>>newHashMapWithExpectedSize(1);
@@ -431,7 +443,7 @@ public class DefaultRegistry implements Registry {
    * @return A deferred to wait on for results.
    */
   public Deferred<Object> loadPlugins() {
-    final String config = tsdb.getConfig().getString("tsd.plugin.config");
+    final String config = tsdb.getConfig().getString(PLUGIN_CONFIG_KEY);
     if (Strings.isNullOrEmpty(config)) {
       if (plugins == null) {
         LOG.info("No plugin config provided. Instantiating empty plugin config.");
@@ -546,7 +558,7 @@ public class DefaultRegistry implements Registry {
     try {
       // load default cluster BEFORE execution graphs as they may depend on
       // cluster configs.
-      String clusters = tsdb.getConfig().getString("tsd.query.default_clusters");
+      String clusters = tsdb.getConfig().getString(DEFAULT_CLUSTERS_KEY);
       if (!Strings.isNullOrEmpty(clusters)) {
         if (clusters.toLowerCase().endsWith(".json") ||
             clusters.toLowerCase().endsWith(".conf")) {
@@ -576,8 +588,7 @@ public class DefaultRegistry implements Registry {
       }
       
       // load default execution graphs
-      String exec_graphs = tsdb.getConfig().getString(
-          "tsd.query.default_execution_graphs");
+      String exec_graphs = tsdb.getConfig().getString(DEFAULT_GRAPHS_KEY);
       if (!Strings.isNullOrEmpty(exec_graphs)) {
         if (exec_graphs.toLowerCase().endsWith(".json") || 
             exec_graphs.toLowerCase().endsWith(".conf")) {

@@ -93,6 +93,9 @@ import net.opentsdb.utils.PluginLoader;
 public class PluginsConfig extends Validatable {
   private static final Logger LOG = LoggerFactory.getLogger(PluginsConfig.class);
   
+  /** The key used for finding the plugin directory. */
+  public static final String PLUGIN_PATH_KEY = "tsd.core.plugin_path";
+  
   /** The list of plugin configs. */
   private List<PluginConfig> configs;
   
@@ -240,8 +243,15 @@ public class PluginsConfig extends Validatable {
    */
   public Deferred<Object> initialize(final TSDB tsdb) {
     // backwards compatibility.
-    final String plugin_path = tsdb.getConfig()
-        .getDirectoryName("tsd.core.plugin_path");
+    if (!tsdb.getConfig().hasProperty(PLUGIN_PATH_KEY)) {
+      tsdb.getConfig().register(PLUGIN_PATH_KEY, null, false, 
+          "An optional directory that is checked for .JAR files "
+          + "containing plugin implementations. When found, the files "
+          + "are loaded so that plugins can be instantiated.");
+    }
+//    final String plugin_path = tsdb.getConfig()
+//        .getDirectoryName("tsd.core.plugin_path");
+    final String plugin_path = tsdb.getConfig().getString("tsd.core.plugin_path");
     if (plugin_locations == null && !Strings.isNullOrEmpty(plugin_path)) {
       plugin_locations = Lists.newArrayListWithCapacity(1);
       plugin_locations.add(plugin_path);

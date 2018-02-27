@@ -28,7 +28,6 @@ import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Span;
-import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
@@ -49,6 +48,11 @@ public class RedisClusterQueryCache extends QueryCachePlugin {
   private static final Logger LOG = LoggerFactory.getLogger(
       RedisClusterQueryCache.class);
 
+  /** Configuration keys. */
+  public static final String HOSTS_KEY = "redis.query.cache.hosts";
+  public static final String SHARED_OBJECT_KEY = 
+      "redis.query.cache.shared_object";
+  
   /** Redis flag: Write if the key does not exist. */
   static final byte[] NX = new byte[] { 'N', 'X' };
   
@@ -69,10 +73,22 @@ public class RedisClusterQueryCache extends QueryCachePlugin {
   
   @Override
   public Deferred<Object> initialize(final TSDB tsdb) {
-    String hosts = tsdb.getConfig().getString("redis.query.cache.hosts");
+    // Two or more implementations may be in play so check first
+    if (!tsdb.getConfig().hasProperty(HOSTS_KEY)) {
+      tsdb.getConfig().register(HOSTS_KEY, (String) null, false /* todo */, 
+          "A comma separated list of hosts in the format "
+          + "<host>:<port>,<host>:<port>.");
+    }
+    if (!tsdb.getConfig().hasProperty(SHARED_OBJECT_KEY)) {
+      tsdb.getConfig().register(SHARED_OBJECT_KEY, (String) null, false, 
+          "The string ID of an optional shared object to use for "
+          + "sharing a client connection pool.");
+    }
+    
+    String hosts = tsdb.getConfig().getString(HOSTS_KEY);
     if (hosts == null || hosts.isEmpty()) {
       return Deferred.fromError(new IllegalArgumentException("Missing the "
-          + "'redis.query.cache.hosts' config"));
+          + "'" + HOSTS_KEY +"' config"));
     }
     final Set<HostAndPort> nodes = new HashSet<HostAndPort>();
     try {
@@ -87,8 +103,7 @@ public class RedisClusterQueryCache extends QueryCachePlugin {
           "Failure parsing host and ports for redis cluster: " + hosts, e));
     }
     
-    final String shared_object = 
-        tsdb.getConfig().getString("redis.query.cache.shared_object");
+    final String shared_object = tsdb.getConfig().getString(SHARED_OBJECT_KEY);
     if (!Strings.isNullOrEmpty(shared_object)) {
       final Object obj = tsdb.getRegistry().getSharedObject(shared_object);
       if (obj != null) {
@@ -128,7 +143,6 @@ public class RedisClusterQueryCache extends QueryCachePlugin {
     }
     return Deferred.fromResult(null);
   }
-
 
   @Override
   public QueryExecution<byte[]> fetch(final QueryContext context, 

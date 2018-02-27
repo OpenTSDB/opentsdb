@@ -201,7 +201,7 @@ public class TestConfiguration {
   }
   
   @Test
-  public void registerSchema() throws Exception {
+  public void register() throws Exception {
     final String[] cli_args = new String[] {
         "--my.custom.key=42",
         "--another.key=50.75",
@@ -211,7 +211,7 @@ public class TestConfiguration {
     
     try (final Configuration config = new Configuration(cli_args)) {
       try {
-        config.registerSchema((ConfigurationEntrySchema) null);
+        config.register((ConfigurationEntrySchema) null);
         fail("Expected IllegalArgumentException");
       } catch (IllegalArgumentException e) { }
       
@@ -221,7 +221,7 @@ public class TestConfiguration {
           .setType(long.class)
           .setSource("ut")
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       assertEquals(1L, (long) config.getTyped("tsd.conf", long.class));
       
       // register and pull from previous
@@ -231,7 +231,7 @@ public class TestConfiguration {
           .setType(long.class)
           .setSource("ut")
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       assertEquals(42L, (long) config.getTyped("my.custom.key", long.class));
       
       schema = ConfigurationEntrySchema.newBuilder()
@@ -240,11 +240,11 @@ public class TestConfiguration {
           .setType(double.class)
           .setSource("ut")
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       assertEquals(50.75, (double) config.getTyped(
           "another.key", double.class), 0.001);
       
-      config.registerSchema(ConfigurationEntrySchema.newBuilder()
+      config.register(ConfigurationEntrySchema.newBuilder()
           .setKey("builder.key")
           .setDefaultValue(0L)
           .setType(long.class)
@@ -259,14 +259,199 @@ public class TestConfiguration {
           .setSource("ut")
           .build();
       try {
-        config.registerSchema(schema);
+        config.register(schema);
         fail("Expected ConfigurationException");
       } catch (ConfigurationException e) { }
+      
+      // test primitive registrations
+      assertFalse(config.hasProperty("key.string"));
+      config.register("key.string", "Beeblebrox", true, "Testing");
+      ConfigurationEntry entry = config.getEntry("key.string");
+      assertEquals("Beeblebrox", entry.schema().getDefaultValue());
+      assertEquals("Testing", entry.schema().getDescription());
+      assertEquals(getClass().getCanonicalName(), entry.schema().getSource());
+      assertNull(entry.schema().getTypeReference());
+      assertEquals(String.class, entry.schema().getType());
+      assertTrue(entry.schema().isNullable());
+      assertTrue(entry.schema().isDynamic());
+      assertFalse(entry.schema().isSecret());
+      
+      assertFalse(config.hasProperty("key.string2"));
+      config.register("key.string2",null, true, "Testing");
+      entry = config.getEntry("key.string2");
+      assertNull(entry.schema().getDefaultValue());
+      assertEquals("Testing", entry.schema().getDescription());
+      assertEquals(getClass().getCanonicalName(), entry.schema().getSource());
+      assertNull(entry.schema().getTypeReference());
+      assertEquals(String.class, entry.schema().getType());
+      assertTrue(entry.schema().isNullable());
+      assertTrue(entry.schema().isDynamic());
+      assertFalse(entry.schema().isSecret());
+      
+      assertFalse(config.hasProperty("key.int"));
+      config.register("key.int", 42, true, "Testing");
+      entry = config.getEntry("key.int");
+      assertEquals(42, entry.schema().getDefaultValue());
+      assertEquals("Testing", entry.schema().getDescription());
+      assertEquals(getClass().getCanonicalName(), entry.schema().getSource());
+      assertNull(entry.schema().getTypeReference());
+      assertEquals(int.class, entry.schema().getType());
+      assertFalse(entry.schema().isNullable());
+      assertTrue(entry.schema().isDynamic());
+      assertFalse(entry.schema().isSecret());
+      
+      assertFalse(config.hasProperty("key.long"));
+      config.register("key.long", 42L, true, "Testing");
+      entry = config.getEntry("key.long");
+      assertEquals(42L, entry.schema().getDefaultValue());
+      assertEquals("Testing", entry.schema().getDescription());
+      assertEquals(getClass().getCanonicalName(), entry.schema().getSource());
+      assertNull(entry.schema().getTypeReference());
+      assertEquals(long.class, entry.schema().getType());
+      assertFalse(entry.schema().isNullable());
+      assertTrue(entry.schema().isDynamic());
+      assertFalse(entry.schema().isSecret());
+      
+      assertFalse(config.hasProperty("key.double"));
+      config.register("key.double", 42.5D, true, "Testing");
+      entry = config.getEntry("key.double");
+      assertEquals(42.5D, (double) entry.schema().getDefaultValue(), 0.001);
+      assertEquals("Testing", entry.schema().getDescription());
+      assertEquals(getClass().getCanonicalName(), entry.schema().getSource());
+      assertNull(entry.schema().getTypeReference());
+      assertEquals(double.class, entry.schema().getType());
+      assertFalse(entry.schema().isNullable());
+      assertTrue(entry.schema().isDynamic());
+      assertFalse(entry.schema().isSecret());
+      
+      assertFalse(config.hasProperty("key.bool"));
+      config.register("key.bool", true, true, "Testing");
+      entry = config.getEntry("key.bool");
+      assertTrue((boolean) entry.schema().getDefaultValue());
+      assertEquals("Testing", entry.schema().getDescription());
+      assertEquals(getClass().getCanonicalName(), entry.schema().getSource());
+      assertNull(entry.schema().getTypeReference());
+      assertEquals(boolean.class, entry.schema().getType());
+      assertFalse(entry.schema().isNullable());
+      assertTrue(entry.schema().isDynamic());
+      assertFalse(entry.schema().isSecret());
+      
+      assertFalse(config.hasProperty("key.bool2"));
+      config.register("key.bool2", false, true, "Testing");
+      entry = config.getEntry("key.bool2");
+      assertFalse((boolean) entry.schema().getDefaultValue());
+      assertEquals("Testing", entry.schema().getDescription());
+      assertEquals(getClass().getCanonicalName(), entry.schema().getSource());
+      assertNull(entry.schema().getTypeReference());
+      assertEquals(boolean.class, entry.schema().getType());
+      assertFalse(entry.schema().isNullable());
+      assertTrue(entry.schema().isDynamic());
+      assertFalse(entry.schema().isSecret());
+      
+      try {
+        config.register(null, "Hi", false, "Testing");
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register("", "Hi", false, "Testing");
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register("key.foo", "Hi", false, null);
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register("key.foo", "Hi", false, "");
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register(null, 42, false, "Testing");
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register("", 42, false, "Testing");
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register("key.foo", 42, false, null);
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register("key.foo", 42, false, "");
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register(null, 42L, false, "Testing");
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register("", 42L, false, "Testing");
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register("key.foo", 42L, false, null);
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register("key.foo", 42L, false, "");
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register(null, 42.5, false, "Testing");
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register("", 42.5, false, "Testing");
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register("key.foo", 42.5, false, null);
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register("key.foo", 42.5, false, "");
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register(null, true, false, "Testing");
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register("", true, false, "Testing");
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register("key.foo", true, false, null);
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
+      
+      try {
+        config.register("key.foo", true, false, "");
+        fail("Expected IllegalArgumentException");
+      } catch (IllegalArgumentException e) { }
     }
   }
   
   @Test
-  public void setOverride() throws Exception {
+  public void addOverride() throws Exception {
     final String[] cli_args = new String[] {
         "--my.custom.key=42",
         "--another.key=50.75",
@@ -282,7 +467,7 @@ public class TestConfiguration {
           .setSource("ut")
           .isDynamic()
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       assertEquals(42L, (long) config.getTyped("my.custom.key", long.class));
       
       schema = ConfigurationEntrySchema.newBuilder()
@@ -290,9 +475,14 @@ public class TestConfiguration {
           .setDefaultValue(0L)
           .setType(double.class)
           .setSource("ut")
+          .isDynamic()
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       assertEquals(50.75, (double) config.getTyped(
+          "another.key", double.class), 0.001);
+      
+      config.addOverride("another.key", 42.42);
+      assertEquals(42.42, (double) config.getTyped(
           "another.key", double.class), 0.001);
       
       ConfigurationOverride setting = ConfigurationOverride.newBuilder()
@@ -341,7 +531,7 @@ public class TestConfiguration {
           .setType(long.class)
           .setSource("ut")
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       
       schema = ConfigurationEntrySchema.newBuilder()
           .setKey("another.key")
@@ -350,7 +540,7 @@ public class TestConfiguration {
           .setSource("ut")
           .isDynamic()
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       assertEquals(0L, (long) config.getTyped("another.key", long.class));
       assertFalse(config.removeRuntimeOverride("another.key"));
       
@@ -394,7 +584,7 @@ public class TestConfiguration {
           .setSource("ut")
           .isDynamic()
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       assertEquals(0L, (long) config.getTyped("another.key", long.class));
       assertFalse(config.removeRuntimeOverride("another.key"));
       
@@ -435,7 +625,7 @@ public class TestConfiguration {
           .setSource("ut")
           .isNullable()
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       assertNull(config.getTyped("my.null.key", String.class));
       
       final String[] string_value = new String[] { "Hi!" };
@@ -489,7 +679,7 @@ public class TestConfiguration {
           .isNullable()
           .isDynamic()
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       assertEquals(42L, (long) config.getTyped("another.key", long.class));
       assertEquals("42", config.getTyped("another.key", String.class));
       
@@ -518,7 +708,7 @@ public class TestConfiguration {
           .isNullable()
           .isDynamic()
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       assertNull(config.getTyped("map.key", type_ref));
       
       result = config.addOverride("map.key", 
@@ -575,7 +765,7 @@ public class TestConfiguration {
           .isNullable()
           .isDynamic()
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       assertEquals("Kanakeredes", config.getString("another.key"));
       
       ValidationResult result = config.addOverride("another.key", 
@@ -613,7 +803,7 @@ public class TestConfiguration {
           .setSource("ut")
           .isDynamic()
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       assertEquals(42, config.getInt("another.key"));
       
       ValidationResult result = config.addOverride("another.key", 
@@ -659,7 +849,7 @@ public class TestConfiguration {
           .setSource("ut")
           .isDynamic()
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       assertEquals(42, config.getLong("another.key"));
       
       ValidationResult result = config.addOverride("another.key", 
@@ -706,7 +896,7 @@ public class TestConfiguration {
           .setSource("ut")
           .isDynamic()
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       assertEquals(42., config.getFloat("another.key"), 0.001);
       
       ValidationResult result = config.addOverride("another.key", 
@@ -752,7 +942,7 @@ public class TestConfiguration {
           .setSource("ut")
           .isDynamic()
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       assertEquals(42., config.getDouble("another.key"), 0.001);
       
       ValidationResult result = config.addOverride("another.key", 
@@ -798,7 +988,7 @@ public class TestConfiguration {
           .setSource("ut")
           .isDynamic()
           .build();
-      config.registerSchema(schema);
+      config.register(schema);
       assertTrue(config.getBoolean("another.key"));
       
       ValidationResult result = config.addOverride("another.key", 
@@ -852,17 +1042,17 @@ public class TestConfiguration {
           .setSource("ut")
           .isDynamic()
           .build();
-      config.registerSchema(schema);
-      assertTrue(config.hasKey("another.key"));
-      assertFalse(config.hasKey("no.such.key"));
+      config.register(schema);
+      assertTrue(config.hasProperty("another.key"));
+      assertFalse(config.hasProperty("no.such.key"));
       
       try {
-        config.hasKey(null);
+        config.hasProperty(null);
         fail("Expected IllegalArgumentException");
       } catch (IllegalArgumentException e) { }
       
       try {
-        config.hasKey("");
+        config.hasProperty("");
         fail("Expected IllegalArgumentException");
       } catch (IllegalArgumentException e) { }
     }

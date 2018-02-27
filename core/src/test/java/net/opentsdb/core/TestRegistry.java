@@ -21,6 +21,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -31,24 +32,29 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import com.google.common.collect.Maps;
+
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.TestPluginsConfig.MockPluginBase;
 import net.opentsdb.query.execution.QueryExecutorFactory;
 import net.opentsdb.query.execution.cluster.ClusterConfig;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
-import net.opentsdb.utils.Config;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ DefaultRegistry.class, Executors.class })
 public class TestRegistry {
 
   private DefaultTSDB tsdb;
-  private Config config;
+  private Map<String, String> config_map;
+  private Configuration config;
   private ExecutorService cleanup_pool;
   
   @Before
   public void before() throws Exception {
     tsdb = mock(DefaultTSDB.class);
-    config = new Config(false);
+    config_map = Maps.newHashMap();
+    config = UnitTestConfiguration.getConfiguration(config_map);
     cleanup_pool = mock(ExecutorService.class);
     
     when(tsdb.getConfig()).thenReturn(config);
@@ -229,7 +235,7 @@ public class TestRegistry {
         + "\"net.opentsdb.core.TestPluginsConfig$MockPluginBase\"}],"
         + "\"pluginLocations\": [],\"continueOnError\": false,"
         + "\"shutdownReverse\": true}";
-    config.overrideConfig("tsd.plugin.config", json);
+    config_map.put("tsd.plugin.config", json);
     
     final DefaultRegistry registry = new DefaultRegistry(tsdb);
     assertNull(registry.loadPlugins().join(1));

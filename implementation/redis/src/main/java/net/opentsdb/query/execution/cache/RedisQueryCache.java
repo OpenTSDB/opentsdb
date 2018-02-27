@@ -26,7 +26,7 @@ import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import io.opentracing.Span;
-import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
@@ -48,7 +48,15 @@ import redis.clients.jedis.Protocol;
 public class RedisQueryCache extends QueryCachePlugin {
   private static final Logger LOG = LoggerFactory.getLogger(
       RedisQueryCache.class);
-
+  
+  /** Configuration keys. */
+  public static final String HOSTS_KEY = "redis.query.cache.hosts";
+  public static final String SHARED_OBJECT_KEY = 
+      "redis.query.cache.shared_object";
+  public static final String MAX_POOL_KEY = "redis.query.cache.max_pool";
+  public static final String WAIT_TIME_KEY = "redis.query.cache.wait_time";
+  public static final String AUTH_KEY = "redis.query.cache.auth";
+  
   /** Redis flag: Write if the key does not exist. */
   static final byte[] NX = new byte[] { 'N', 'X' };
   
@@ -78,10 +86,41 @@ public class RedisQueryCache extends QueryCachePlugin {
   
   @Override
   public Deferred<Object> initialize(final TSDB tsdb) {
-    String host = tsdb.getConfig().getString("redis.query.cache.hosts");
+ // Two or more implementations may be in play so check first
+    if (!tsdb.getConfig().hasProperty(HOSTS_KEY)) {
+      tsdb.getConfig().register(HOSTS_KEY, (String) null, false /* todo */, 
+          "A comma separated list of hosts in the format "
+          + "<host>:<port>,<host>:<port>.");
+    }
+    if (!tsdb.getConfig().hasProperty(SHARED_OBJECT_KEY)) {
+      tsdb.getConfig().register(SHARED_OBJECT_KEY, (String) null, false, 
+          "The string ID of an optional shared object to use for "
+          + "sharing a client connection pool.");
+    }
+    if (!tsdb.getConfig().hasProperty(MAX_POOL_KEY)) {
+      tsdb.getConfig().register(MAX_POOL_KEY, DEFAULT_MAX_POOL, false, 
+          "The maximium number of clients to have in the connection pool.");
+    }
+    if (!tsdb.getConfig().hasProperty(WAIT_TIME_KEY)) {
+      tsdb.getConfig().register(WAIT_TIME_KEY, DEFAULT_WAIT_TIME, false, 
+          "How long to wait on a connection from the pool in milliseconds.");
+    }
+    if (!tsdb.getConfig().hasProperty(AUTH_KEY)) {
+      tsdb.getConfig().register(ConfigurationEntrySchema.newBuilder()
+          .setKey(AUTH_KEY)
+          .setType(String.class)
+          .isSecret()
+          .isNullable()
+          .setSource(getClass().getCanonicalName())
+          .setDescription("An optional authorization key for the "
+              + "redis server.")
+          );
+    }
+    
+    String host = tsdb.getConfig().getString(HOSTS_KEY);
     if (host == null || host.isEmpty()) {
       return Deferred.fromError(new IllegalArgumentException("Missing the "
-          + "'redis.query.cache.hosts' config"));
+          + "'" + HOSTS_KEY + "' config"));
     }
     int port = Protocol.DEFAULT_PORT;
     if (host.contains(":")) {
@@ -90,16 +129,15 @@ public class RedisQueryCache extends QueryCachePlugin {
     }
     
     int maxPool = DEFAULT_MAX_POOL;
-    if (tsdb.getConfig().hasProperty("redis.query.cache.max_pool")) {
-      maxPool = tsdb.getConfig().getInt("redis.query.cache.max_pool");
+    if (tsdb.getConfig().hasProperty(MAX_POOL_KEY)) {
+      maxPool = tsdb.getConfig().getInt(MAX_POOL_KEY);
     }
     long maxWait = DEFAULT_WAIT_TIME;
-    if (tsdb.getConfig().hasProperty("redis.query.cache.wait_time")) {
-      maxWait = tsdb.getConfig().getLong("redis.query.cache.wait_time");
+    if (tsdb.getConfig().hasProperty(WAIT_TIME_KEY)) {
+      maxWait = tsdb.getConfig().getLong(WAIT_TIME_KEY);
     }
     
-    final String shared_object = 
-        tsdb.getConfig().getString("redis.query.cache.shared_object");
+    final String shared_object = tsdb.getConfig().getString(SHARED_OBJECT_KEY);
     if (!Strings.isNullOrEmpty(shared_object)) {
       final Object obj = tsdb.getRegistry().getSharedObject(shared_object);
       if (obj != null) {
@@ -119,7 +157,7 @@ public class RedisQueryCache extends QueryCachePlugin {
       config.setMaxTotal(maxPool);
       config.setMaxWaitMillis(maxWait);
       
-      final String pass = tsdb.getConfig().getString("redis.query.cache.auth");
+      final String pass = tsdb.getConfig().getString(AUTH_KEY);
       
       connection_pool = (pass != null && !pass.isEmpty() ? 
           new JedisPool(config, host, port, Protocol.DEFAULT_TIMEOUT, pass) : 

@@ -27,6 +27,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Map;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -34,10 +36,14 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.stats.BraveTrace.BraveTraceBuilder;
 import net.opentsdb.stats.BraveTracer.SpanCatcher;
-import net.opentsdb.utils.Config;
 import zipkin.reporter.AsyncReporter;
 import zipkin.reporter.okhttp3.OkHttpSender;
 
@@ -47,18 +53,20 @@ import zipkin.reporter.okhttp3.OkHttpSender;
 public class TestBraveTracer {
 
   private DefaultTSDB tsdb;
-  private Config config;
+  private Configuration config;
   private OkHttpSender sender;
   private AsyncReporter<zipkin.Span> reporter;
   private AsyncReporter.Builder reporter_builder;
   private Trace trace;
   private BraveTraceBuilder tracer_builder;
+  private Map<String, String> config_map;
   
   @SuppressWarnings("unchecked")
   @Before
   public void before() throws Exception {
     tsdb = mock(DefaultTSDB.class);
-    config = new Config(false);
+    config_map = Maps.newHashMap();
+    config = UnitTestConfiguration.getConfiguration(config_map);
     sender = mock(OkHttpSender.class);
     reporter = mock(AsyncReporter.class);
     reporter_builder = PowerMockito.mock(AsyncReporter.Builder.class);
@@ -74,8 +82,8 @@ public class TestBraveTracer {
     PowerMockito.mockStatic(BraveTrace.class);
     when(BraveTrace.newBuilder()).thenReturn(tracer_builder);
     
-    config.overrideConfig("tsdb.tracer.service_name", "UnitTest");
-    config.overrideConfig("tracer.brave.zipkin.endpoint", 
+    config_map.put(BraveTracer.SERVICE_NAME_KEY, "UnitTest");
+    config_map.put(BraveTracer.ENDPOINT_KEY, 
         "http://127.0.0.1:9411/api/v1/spans");
     
     when(tracer_builder.setIs128(anyBoolean())).thenReturn(tracer_builder);
@@ -86,7 +94,7 @@ public class TestBraveTracer {
   
   @Test
   public void initializeWithoutReporting() throws Exception {
-    config.overrideConfig("tracer.brave.zipkin.endpoint", null);
+    config_map.put(BraveTracer.ENDPOINT_KEY, (String) null);
     
     BraveTracer plugin = new BraveTracer();
     assertNull(plugin.initialize(tsdb).join());
@@ -107,32 +115,40 @@ public class TestBraveTracer {
   }
   
   @Test
-  public void initializeExceptions() throws Exception {
-    BraveTracer plugin = new BraveTracer();
+  public void initializeNullTSD() throws Exception {
     try {
-      plugin.initialize(null);
+      new BraveTracer().initialize(null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
-    
-    config.overrideConfig("tsdb.tracer.service_name", null);
+  }
+  
+  @Test
+  public void initializeNoServiceName() throws Exception {
+    config_map.put("tsdb.tracer.service_name", null);
     try {
-      plugin.initialize(tsdb);
+      new BraveTracer().initialize(tsdb);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
-    
-    config.overrideConfig("tsdb.tracer.service_name", "");
+  }
+  
+  @Test
+  public void initializeEmptyServiceName() throws Exception {
+    config_map.put("tsdb.tracer.service_name", "");
     try {
-      plugin.initialize(tsdb);
+      new BraveTracer().initialize(tsdb);
       fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    config.overrideConfig("tsdb.tracer.service_name", "UnitTest");
+    } catch (IllegalArgumentException e) { } 
+  }
+  
+  @Test
+  public void initializationSenderException() throws Exception {
+    config_map.put("tsdb.tracer.service_name", "UnitTest");
     when(OkHttpSender.create(anyString()))
       .thenThrow(new IllegalArgumentException("Boo!"));
-    try {
-      plugin.initialize(tsdb);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+    BraveTracer plugin = new BraveTracer();
+    plugin.initialize(tsdb);
+    assertNull(plugin.sender());
+    assertNull(plugin.reporter());
   }
   
   @Test
@@ -199,10 +215,13 @@ public class TestBraveTracer {
     verify(reporter, times(1)).flush();
     verify(reporter, times(1)).close();
     verify(sender, times(1)).close();
-    
+  }
+  
+  @Test
+  public void shutdownNotStarted() throws Exception {
     // no problems if reporting isn't configured.
-    config.overrideConfig("tracer.brave.zipkin.endpoint", null);
-    plugin = new BraveTracer();
+    config_map.put("tracer.brave.zipkin.endpoint", null);
+    BraveTracer plugin = new BraveTracer();
     plugin.initialize(tsdb).join();
   }
 }

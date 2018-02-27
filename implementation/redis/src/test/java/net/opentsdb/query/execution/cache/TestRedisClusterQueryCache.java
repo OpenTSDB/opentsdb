@@ -30,6 +30,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -43,12 +44,14 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
-import net.opentsdb.utils.Config;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.JedisCluster;
 
@@ -57,7 +60,8 @@ import redis.clients.jedis.JedisCluster;
 public class TestRedisClusterQueryCache {
   private TSDB tsdb;
   private DefaultRegistry registry;
-  private Config config;
+  private Map<String, String> config_map;
+  private Configuration config;
   private JedisCluster cluster;
   private Set<HostAndPort> nodes;
   private QueryContext context;
@@ -66,12 +70,13 @@ public class TestRedisClusterQueryCache {
   public void before() throws Exception {
     tsdb = mock(TSDB.class);
     registry = mock(DefaultRegistry.class);
-    config = new Config(false);
     cluster = mock(JedisCluster.class);
     context = mock(QueryContext.class);
     
-    config.overrideConfig("redis.query.cache.hosts", 
+    config_map = Maps.newHashMap();
+    config_map.put("redis.query.cache.hosts", 
         "localhost:2424,localhost:4242");
+    config = UnitTestConfiguration.getConfiguration(config_map);
     
     when(tsdb.getConfig()).thenReturn(config);
     when(tsdb.getRegistry()).thenReturn(registry);
@@ -110,7 +115,7 @@ public class TestRedisClusterQueryCache {
   
   @Test
   public void initializeShared() throws Exception {
-    config.overrideConfig("redis.query.cache.shared_object", "RedisCache");
+    config_map.put("redis.query.cache.shared_object", "RedisCache");
     final RedisClusterQueryCache cache = new RedisClusterQueryCache();
     assertNull(cache.initialize(tsdb).join(1));
     PowerMockito.verifyNew(JedisCluster.class, times(1)).withArguments(anySet());
@@ -125,7 +130,7 @@ public class TestRedisClusterQueryCache {
   
   @Test
   public void initializeSharedAlreadyThere() throws Exception {
-    config.overrideConfig("redis.query.cache.shared_object", "RedisCache");
+    config_map.put("redis.query.cache.shared_object", "RedisCache");
     when(registry.getSharedObject("RedisCache")).thenReturn(cluster);
     
     final RedisClusterQueryCache cache = new RedisClusterQueryCache();
@@ -138,7 +143,7 @@ public class TestRedisClusterQueryCache {
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeSharedWrongType() throws Exception {
-    config.overrideConfig("redis.query.cache.shared_object", "RedisCache");
+    config_map.put("redis.query.cache.shared_object", "RedisCache");
     when(registry.getSharedObject("RedisCache")).thenReturn(tsdb);
     
     final RedisClusterQueryCache cache = new RedisClusterQueryCache();
@@ -147,7 +152,7 @@ public class TestRedisClusterQueryCache {
   
   @Test
   public void initializeSharedRace() throws Exception {
-    config.overrideConfig("redis.query.cache.shared_object", "RedisCache");
+    config_map.put("redis.query.cache.shared_object", "RedisCache");
     final JedisCluster extant = mock(JedisCluster.class);
     when(registry.registerSharedObject("RedisCache", cluster))
       .thenReturn(extant);
@@ -167,22 +172,21 @@ public class TestRedisClusterQueryCache {
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeNullHosts() throws Exception {
-    config.overrideConfig("redis.query.cache.hosts", null);
+    config_map.put("redis.query.cache.hosts", null);
     new RedisClusterQueryCache().initialize(tsdb).join(1);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeEmptyHost() throws Exception {
-    config.overrideConfig("redis.query.cache.hosts", "");
+    config_map.put("redis.query.cache.hosts", "");
     new RedisClusterQueryCache().initialize(tsdb).join(1);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeBadHostPort() throws Exception {
-    config.overrideConfig("redis.query.cache.hosts", "localhost:notanum");
+    config_map.put("redis.query.cache.hosts", "localhost:notanum");
     new RedisClusterQueryCache().initialize(tsdb).join(1);
   }
-  
   
   @Test
   public void shutdown() throws Exception {

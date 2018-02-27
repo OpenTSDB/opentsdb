@@ -49,7 +49,7 @@ import com.stumbleupon.async.DeferredGroupException;
 import com.stumbleupon.async.TimeoutException;
 
 import io.opentracing.Span;
-import net.opentsdb.data.iterators.DefaultIteratorGroups;
+import net.opentsdb.configuration.Configuration;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.iterators.IteratorTestUtils;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
@@ -73,6 +73,7 @@ public class TestTimeBasedRoutingExecutor extends BaseExecutorTest {
   private Map<String, QueryExecutor<IteratorGroups>> executors;
   private Map<String, MockDownstream<IteratorGroups>> downstream_executions;
   private List<TimeRange> ranges;
+  private Configuration tsd_config;
   private Config config;
   private Set<String> executor_ids;
   private IteratorGroupsSlicePlanner planner;
@@ -119,8 +120,10 @@ public class TestTimeBasedRoutingExecutor extends BaseExecutorTest {
     executors = Maps.newHashMap();
     downstream_executions = Maps.newHashMap();
     plan_factory = mock(QueryPlannnerFactory.class);
-        
-    when(tsdb.getConfig()).thenReturn(new net.opentsdb.utils.Config(false));
+    
+    tsd_config = new Configuration(new String[] { 
+        "--" + Configuration.CONFIG_PROVIDERS_KEY + "=RuntimeOverride" });
+    when(tsdb.getConfig()).thenReturn(tsd_config);
     when(node.graph()).thenReturn(graph);
     when(node.getDefaultConfig()).thenReturn(config);
     when(graph.getDownstreamExecutor(anyString()))
