@@ -36,7 +36,6 @@ import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
-import io.opentracing.Span;
 import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
@@ -64,7 +63,7 @@ import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Metric;
-import net.opentsdb.stats.TsdbTrace;
+import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -92,21 +91,20 @@ public class MockDataStore extends TimeSeriesDataStore {
   /** Thread pool used by the executions. */
   private ExecutorService thread_pool;
   
-  @Override
-  public QueryNode newNode(final QueryPipelineContext context,
-                           final QueryNodeConfig config) {
-    return new LocalNode(this, context, (QuerySourceConfig) config);
-  }
-  
-  @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
+  public MockDataStore(final TSDB tsdb, final String id) {
+    super(tsdb, id);
     database = Maps.newHashMap();
-    generateMockData(tsdb);
+    generateMockData();
     if (tsdb.getConfig().hasProperty("MockDataStore.threadpool.enable") && 
         tsdb.getConfig().getBoolean("MockDataStore.threadpool.enable")) {
       thread_pool = Executors.newCachedThreadPool();
     }
-    return Deferred.fromResult(null);
+  }
+  
+  @Override
+  public QueryNode newNode(final QueryPipelineContext context,
+                           final QueryNodeConfig config) {
+    return new LocalNode(this, context, (QuerySourceConfig) config);
   }
   
   @Override
@@ -120,15 +118,14 @@ public class MockDataStore extends TimeSeriesDataStore {
   @Override
   public Deferred<Object> write(final TimeSeriesStringId id,
                                 final TimeSeriesValue<?> value, 
-                                final TsdbTrace trace,
-                                final Span upstream_span) {    
-    MockSpan span = database.get(id);
-    if (span == null) {
-      span = new MockSpan(id);
-      database.put(id, span);
+                                final Span span) {    
+    MockSpan data_span = database.get(id);
+    if (data_span == null) {
+      data_span = new MockSpan(id);
+      database.put(id, data_span);
     }
     
-    span.addValue(value);
+    data_span.addValue(value);
     return Deferred.fromResult(null);
   }
   
@@ -251,7 +248,7 @@ public class MockDataStore extends TimeSeriesDataStore {
     
   }
   
-  private void generateMockData(final TSDB tsdb) {
+  private void generateMockData() {
     long start_timestamp = DateTime.currentTimeMillis() - 2 * ROW_WIDTH;
     start_timestamp = start_timestamp - start_timestamp % ROW_WIDTH;
     if (tsdb.getConfig().hasProperty("MockDataStore.timestamp")) {
@@ -290,7 +287,7 @@ public class MockDataStore extends TimeSeriesDataStore {
             for (long i = 0; i < (ROW_WIDTH / interval); i++) {
               ts.updateMsEpoch(start_timestamp + (i * interval) + (t * ROW_WIDTH));
               dp.reset(ts, t + h + i);
-              write(id, dp, null, null);
+              write(id, dp, null);
             }
           }
         }

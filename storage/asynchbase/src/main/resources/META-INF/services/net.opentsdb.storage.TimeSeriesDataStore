@@ -1,1 +1,1 @@
-net.opentsdb.storage.AsyncHBaseDataStore
+net.opentsdb.storage.Tsdb1xHBaseDataStore

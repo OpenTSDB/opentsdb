@@ -26,33 +26,19 @@ import java.util.Map.Entry;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
-import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericType;
-import net.opentsdb.query.DefaultQueryContextBuilder;
-import net.opentsdb.query.QueryContext;
-import net.opentsdb.query.QuerySink;
-import net.opentsdb.query.QueryMode;
-import net.opentsdb.query.QueryResult;
-import net.opentsdb.query.filter.TagVFilter;
-import net.opentsdb.query.pojo.Filter;
-import net.opentsdb.query.pojo.Metric;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.storage.MockDataStore.MockRow;
 import net.opentsdb.storage.MockDataStore.MockSpan;
-import net.opentsdb.utils.Config;
 
 public class TestMockDataStore {
 
@@ -72,15 +58,13 @@ public class TestMockDataStore {
     config.register("MockDataStore.timestamp", 1483228800000L, false, "UT");
     config.register("MockDataStore.threadpool.enable", true, false, "UT");
     config.register("MockDataStore.sysout.enable", true, false, "UT");
-    mds = new MockDataStore();
-    mds.initialize(tsdb).join();
+    
+    mds = new MockDataStore(tsdb, "Mock");
     when(registry.getQueryNodeFactory(anyString())).thenReturn(mds);
   }
   
   @Test
   public void initialize() throws Exception {
-    MockDataStore mds = new MockDataStore();
-    mds.initialize(tsdb).join();
     assertEquals(4 * 4 * 4, mds.getDatabase().size());
     
     for (final Entry<TimeSeriesStringId, MockSpan> series : mds.getDatabase().entrySet()) {
@@ -105,8 +89,6 @@ public class TestMockDataStore {
   
   @Test
   public void write() throws Exception {
-    MockDataStore mds = new MockDataStore();
-    mds.initialize(tsdb).join();
     assertEquals(4 * 4 * 4, mds.getDatabase().size());
     
     TimeSeriesStringId id = BaseTimeSeriesStringId.newBuilder()
@@ -117,18 +99,18 @@ public class TestMockDataStore {
     MutableNumericType dp = new MutableNumericType();
     TimeStamp ts = new MillisecondTimeStamp(1483228800000L);
     dp.reset(ts, 42.5);
-    mds.write(id, dp, null, null);
+    mds.write(id, dp, null);
     assertEquals((4 * 4 * 4) + 1, mds.getDatabase().size());
     
     ts.updateMsEpoch(1483228800000L + 60000L);
     dp.reset(ts, 24.5);
-    mds.write(id, dp, null, null);
+    mds.write(id, dp, null);
     
     // no out-of-order timestamps per series for now. at least within a "row".
     ts.updateMsEpoch(1483228800000L + 30000L);
     dp.reset(ts, -1);
     try {
-      mds.write(id, dp, null, null);
+      mds.write(id, dp, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

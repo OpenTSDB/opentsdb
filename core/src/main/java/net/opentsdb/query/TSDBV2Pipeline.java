@@ -80,7 +80,7 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
       
       // TODO - get a proper source. For now just the default.
       QueryNode node = ((QueryNodeFactory) tsdb.getRegistry()
-          .getDefaultPlugin(TimeSeriesDataStore.class))
+          .getDefaultStore())
           .newNode(this, config);
       addVertex(node);
 

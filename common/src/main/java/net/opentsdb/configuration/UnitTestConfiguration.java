@@ -71,7 +71,7 @@ public class UnitTestConfiguration {
     return config;
   }
 
-  static class UnitTestProvider extends Provider {
+  public static class UnitTestProvider extends Provider {
     private Map<String, String> kvs;
     
     public UnitTestProvider(final ProviderFactory factory, 
@@ -109,7 +109,7 @@ public class UnitTestConfiguration {
     
   }
   
-  static class UnitTest implements ProviderFactory {
+  public static class UnitTest implements ProviderFactory {
 
     @Override
     public void close() throws IOException {
