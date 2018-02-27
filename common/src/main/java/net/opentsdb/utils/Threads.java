@@ -60,4 +60,27 @@ public class Threads {
         ticks, MILLISECONDS, ticks_per_wheel);
   }
   
+  /**
+   * When used in a method, pulls the caller's class name from the 
+   * stack trace. Thanks to:
+   * https://stackoverflow.com/questions/11306811/how-to-get-the-caller-class-in-java
+   * 
+   * @return A non-null string.
+   */
+  public static String getCallerCallerClassName() { 
+    final StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+    String caller = null;
+    for (int i=1; i<stack.length; i++) {
+      final StackTraceElement ste = stack[i];
+      if (!ste.getClassName().equals(Threads.class.getName()) && 
+        ste.getClassName().indexOf("java.lang.Thread") != 0) {
+        if (caller==null) {
+          caller = ste.getClassName();
+        } else if (!caller.equals(ste.getClassName())) {
+          return ste.getClassName();
+        }
+      }
+    }
+    return null;
+ }
 }

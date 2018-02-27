@@ -41,6 +41,7 @@ import org.mockito.stubbing.Answer;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
 import io.opentracing.Span;
+import net.opentsdb.configuration.Configuration;
 import net.opentsdb.data.iterators.DefaultIteratorGroups;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.exceptions.QueryExecutionException;
@@ -61,6 +62,7 @@ import net.opentsdb.utils.JSON;
 public class TestCachingQueryExecutor extends BaseExecutorTest {
   private QueryExecutor<IteratorGroups> executor;
   private MockDownstream<IteratorGroups> cache_execution;
+  private Configuration tsd_config;
   private Config config;
   private QueryCachePlugin plugin;
   private TimeSeriesSerdes serdes;
@@ -81,7 +83,10 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         .setExecutorType("CachingQueryExecutor")
         .build();
     
-    when(tsdb.getConfig()).thenReturn(new net.opentsdb.utils.Config(false));
+    tsd_config = new Configuration(new String[] { 
+        "--" + Configuration.CONFIG_PROVIDERS_KEY + "=RuntimeOverride" });
+    
+    when(tsdb.getConfig()).thenReturn(tsd_config);
     key_generator = new DefaultTimeSeriesCacheKeyGenerator();
     key_generator.initialize(tsdb).join();
     when(node.graph()).thenReturn(graph);

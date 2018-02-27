@@ -250,7 +250,7 @@ final public class QueryRpc {
         // TODO - possible upstream headers
         .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
         .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
-        .put("traceId", trace != null ? trace.traceId() : null)
+        .put("traceId", trace != null ? trace.traceId() : "")
         .put("query", ts_query)
         .build()));
     if (convert_span != null) {
@@ -304,7 +304,7 @@ final public class QueryRpc {
                   // TODO - possible upstream headers
                   .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
                   .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
-                  .put("traceId", trace != null ? trace.traceId() : null)
+                  .put("traceId", trace != null ? trace.traceId() : "")
                   .put("query", ts_query)
                   .build()));
         }
@@ -527,7 +527,7 @@ final public class QueryRpc {
       // TODO - possible upstream headers
       .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
       .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
-      .put("traceId", trace != null ? trace.traceId() : null)
+      .put("traceId", trace != null ? trace.traceId() : "")
       .put("status", Response.Status.OK)
       .put("query", request.getAttribute(V2_QUERY_KEY))
       .build()));
@@ -538,7 +538,7 @@ final public class QueryRpc {
       // TODO - possible upstream headers
       .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))
       .put("queryHash", Bytes.byteArrayToString(query.buildTimelessHashCode().asBytes()))
-      .put("traceId", trace != null ? trace.traceId() : null)
+      .put("traceId", trace != null ? trace.traceId() : "")
       .put("status", Response.Status.OK)
       //.put("trace", trace.serializeToString())
       .put("query", request.getAttribute(V2_QUERY_KEY))

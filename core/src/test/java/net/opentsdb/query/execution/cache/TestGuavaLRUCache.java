@@ -30,12 +30,11 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import com.stumbleupon.async.Deferred;
-
 import io.opentracing.Span;
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 
 @RunWith(PowerMockRunner.class)
@@ -43,14 +42,14 @@ import net.opentsdb.utils.DateTime;
 public class TestGuavaLRUCache {
 
   private DefaultTSDB tsdb;
-  private Config config;
+  private Configuration config;
   private QueryContext context;
   private Span span;
   
   @Before
   public void before() throws Exception {
     tsdb = mock(DefaultTSDB.class);
-    config = new Config(false);
+    config = UnitTestConfiguration.getConfiguration();
     context = mock(QueryContext.class);
     span = mock(Span.class);
     when(tsdb.getConfig()).thenReturn(config);
@@ -65,7 +64,7 @@ public class TestGuavaLRUCache {
     assertEquals(0, cache.bytesStored());
     assertEquals(0, cache.cache().size());
     
-    config.overrideConfig("tsd.executor.plugin.guava.limit.objects", "42");
+    config.register("tsd.executor.plugin.guava.limit.objects", 42, false, "UT");
     cache = new GuavaLRUCache();
     cache.initialize(tsdb).join();
     assertEquals(GuavaLRUCache.DEFAULT_SIZE_LIMIT, cache.sizeLimit());
@@ -73,20 +72,13 @@ public class TestGuavaLRUCache {
     assertEquals(0, cache.bytesStored());
     assertEquals(0, cache.cache().size());
     
-    config.overrideConfig("tsd.executor.plugin.guava.limit.bytes", "16");
+    config.register("tsd.executor.plugin.guava.limit.bytes", 16, false, "UT");
     cache = new GuavaLRUCache();
     cache.initialize(tsdb).join();
     assertEquals(16, cache.sizeLimit());
     assertEquals(42, cache.maxObjects());
     assertEquals(0, cache.bytesStored());
     assertEquals(0, cache.cache().size());
-    
-    config.overrideConfig("tsd.executor.plugin.guava.limit.bytes", "NotANumber");
-    final Deferred<Object> deferred = cache.initialize(tsdb);
-    try {
-      deferred.join();
-      fail("Expected NumberFormatException");
-    } catch (NumberFormatException e) { }
   }
   
   @Test

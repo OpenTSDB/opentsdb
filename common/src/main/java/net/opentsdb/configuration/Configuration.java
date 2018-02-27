@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -41,10 +42,13 @@ import net.opentsdb.configuration.provider.EnvironmentProvider;
 import net.opentsdb.configuration.provider.ProtocolProviderFactory;
 import net.opentsdb.configuration.provider.Provider;
 import net.opentsdb.configuration.provider.ProviderFactory;
+import net.opentsdb.configuration.provider.RuntimeOverrideProvider;
+import net.opentsdb.configuration.provider.RuntimeOverrideProvider.RuntimeOverride;
 import net.opentsdb.configuration.provider.SystemPropertiesProvider;
 import net.opentsdb.utils.ArgP;
 import net.opentsdb.utils.PluginLoader;
 import net.opentsdb.utils.StringUtils;
+import net.opentsdb.utils.Threads;
 
 /**
  * A configuration framework that provides overriding and flattening of
@@ -241,14 +245,14 @@ public class Configuration implements Closeable {
 
   /**
    * Helper to register a schema builder. 
-   * See {@link #registerSchema(ConfigurationEntrySchema)}
+   * See {@link #register(ConfigurationEntrySchema)}
    * @param builder A non-null builder.
    */
-  public void registerSchema(final ConfigurationEntrySchema.Builder builder) {
+  public void register(final ConfigurationEntrySchema.Builder builder) {
     if (builder == null) {
       throw new IllegalArgumentException("Builder cannot be null.");
     }
-    registerSchema(builder.build());
+    register(builder.build());
   }
   
   /**
@@ -264,7 +268,7 @@ public class Configuration implements Closeable {
    * @throws IllegalArgumentException if the given schema was null.
    * @throws ConfigurationException if the schema was already registered.
    */
-  public void registerSchema(final ConfigurationEntrySchema schema) {
+  public void register(final ConfigurationEntrySchema schema) {
     if (schema == null) {
       throw new IllegalArgumentException("Schema cannot be null.");
     }
@@ -292,6 +296,197 @@ public class Configuration implements Closeable {
   }
 
   /**
+   * Registers a configuration schema with the type {@link String} with
+   * the source set to the class name of the caller and the schema
+   * marked as nullable.
+   * 
+   * @param key A non-null and non-empty key.
+   * @param default_value A default value, may be null.
+   * @param is_dynamic Whether or not the value can be overridden.
+   * @param description A non-null and non-empty description.
+   * @throws IllegalArgumentException if the key or description was 
+   * null or empty.
+   * @throws ConfigurationException if the key was already registered. 
+   */
+  public void register(final String key, 
+                       final String default_value, 
+                       final boolean is_dynamic,
+                       final String description) {
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    if (Strings.isNullOrEmpty(description)) {
+      throw new IllegalArgumentException("Description cannot be null or "
+          + "empty. Help the users!");
+    }
+    final ConfigurationEntrySchema.Builder builder = 
+        ConfigurationEntrySchema.newBuilder()
+        .setKey(key)
+        .setDefaultValue(default_value)
+        .setType(String.class)
+        .setSource(Threads.getCallerCallerClassName())
+        .isNullable()
+        .setDescription(description);
+    if (is_dynamic) {
+      builder.isDynamic();
+    }
+    
+    register(builder.build());
+  }
+  
+  /**
+   * Registers a configuration schema with the type {@link int} with
+   * the source set to the class name of the caller and the schema
+   * marked as not-nullable.
+   * 
+   * @param key A non-null and non-empty key.
+   * @param default_value A default value.
+   * @param is_dynamic Whether or not the value can be overridden.
+   * @param description A non-null and non-empty description.
+   * @throws IllegalArgumentException if the key or description was 
+   * null or empty.
+   * @throws ConfigurationException if the key was already registered. 
+   */
+  public void register(final String key, 
+                       final int default_value, 
+                       final boolean is_dynamic,
+                       final String description) {
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    if (Strings.isNullOrEmpty(description)) {
+      throw new IllegalArgumentException("Description cannot be null or "
+          + "empty. Help the users!");
+    }
+    final ConfigurationEntrySchema.Builder builder = 
+        ConfigurationEntrySchema.newBuilder()
+        .setKey(key)
+        .setDefaultValue(default_value)
+        .setType(int.class)
+        .setSource(Threads.getCallerCallerClassName())
+        .setDescription(description);
+    if (is_dynamic) {
+      builder.isDynamic();
+    }
+    
+    register(builder.build());
+  }
+  
+  /**
+   * Registers a configuration schema with the type {@link long} with
+   * the source set to the class name of the caller and the schema
+   * marked as not-nullable.
+   * 
+   * @param key A non-null and non-empty key.
+   * @param default_value A default value.
+   * @param is_dynamic Whether or not the value can be overridden.
+   * @param description A non-null and non-empty description.
+   * @throws IllegalArgumentException if the key or description was 
+   * null or empty.
+   * @throws ConfigurationException if the key was already registered. 
+   */
+  public void register(final String key, 
+                       final long default_value, 
+                       final boolean is_dynamic,
+                       final String description) {
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    if (Strings.isNullOrEmpty(description)) {
+      throw new IllegalArgumentException("Description cannot be null or "
+          + "empty. Help the users!");
+    }
+    final ConfigurationEntrySchema.Builder builder = 
+        ConfigurationEntrySchema.newBuilder()
+        .setKey(key)
+        .setDefaultValue(default_value)
+        .setType(long.class)
+        .setSource(Threads.getCallerCallerClassName())
+        .setDescription(description);
+    if (is_dynamic) {
+      builder.isDynamic();
+    }
+    
+    register(builder.build());
+  }
+  
+  /**
+   * Registers a configuration schema with the type {@link double} with
+   * the source set to the class name of the caller and the schema
+   * marked as not-nullable.
+   * 
+   * @param key A non-null and non-empty key.
+   * @param default_value A default value.
+   * @param is_dynamic Whether or not the value can be overridden.
+   * @param description A non-null and non-empty description.
+   * @throws IllegalArgumentException if the key or description was 
+   * null or empty.
+   * @throws ConfigurationException if the key was already registered. 
+   */
+  public void register(final String key, 
+                       final double default_value, 
+                       final boolean is_dynamic,
+                       final String description) {
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    if (Strings.isNullOrEmpty(description)) {
+      throw new IllegalArgumentException("Description cannot be null or "
+          + "empty. Help the users!");
+    }
+    final ConfigurationEntrySchema.Builder builder = 
+        ConfigurationEntrySchema.newBuilder()
+        .setKey(key)
+        .setDefaultValue(default_value)
+        .setType(double.class)
+        .setSource(Threads.getCallerCallerClassName())
+        .setDescription(description);
+    if (is_dynamic) {
+      builder.isDynamic();
+    }
+    
+    register(builder.build());
+  }
+  
+  /**
+   * Registers a configuration schema with the type {@link boolean} with
+   * the source set to the class name of the caller and the schema
+   * marked as not-nullable.
+   * 
+   * @param key A non-null and non-empty key.
+   * @param default_value A default value.
+   * @param is_dynamic Whether or not the value can be overridden.
+   * @param description A non-null and non-empty description.
+   * @throws IllegalArgumentException if the key or description was 
+   * null or empty.
+   * @throws ConfigurationException if the key was already registered. 
+   */
+  public void register(final String key, 
+                       final boolean default_value, 
+                       final boolean is_dynamic,
+                       final String description) {
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    if (Strings.isNullOrEmpty(description)) {
+      throw new IllegalArgumentException("Description cannot be null or "
+          + "empty. Help the users!");
+    }
+    final ConfigurationEntrySchema.Builder builder = 
+        ConfigurationEntrySchema.newBuilder()
+        .setKey(key)
+        .setDefaultValue(default_value)
+        .setType(boolean.class)
+        .setSource(Threads.getCallerCallerClassName())
+        .setDescription(description);
+    if (is_dynamic) {
+      builder.isDynamic();
+    }
+    
+    register(builder.build());
+  }
+  
+  /**
    * Helper to register an override builder. See 
    * {@link #addOverride(String, ConfigurationOverride)}.
    * 
@@ -314,6 +509,9 @@ public class Configuration implements Closeable {
    * or not the override passed validation or failed. On failure, the
    * override is NOT saved in the config. See 
    * {@link ValidationResult#isValid()}.
+   * <b>Note:</b> This should only be used by {@link Provider} 
+   * implementations on reloads. For runtime overrides, use 
+   * {@link #addOverride(String, Object)}.
    * 
    * @param key A non-null and non-empty key.
    * @param override A non-null setting.
@@ -337,6 +535,35 @@ public class Configuration implements Closeable {
           + "storing a schema.");
     }
     return entry.addOverride(override);
+  }
+  
+  /**
+   * Registers an override with the config as a {@link RuntimeOverrideProvider#SOURCE}.
+   * The response includes whether or not the override passed validation 
+   * or failed. On failure, the override is NOT saved in the config. See 
+   * {@link ValidationResult#isValid()}.
+   * 
+   * @param key A non-null and non-empty key.
+   * @param value The override. May be null when appropriate.
+   * IllegalArgumentException if the key was null or empty, or
+   * the setting was null.
+   * @throws ConfigurationException if no schema was present for the 
+   * given key.
+   */
+  public ValidationResult addOverride(final String key, 
+                                      final Object value) {
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    final ConfigurationEntry entry = merged_config.get(key);
+    if (entry == null) {
+      throw new ConfigurationException("Cannot store a override before "
+          + "storing a schema.");
+    }
+    return entry.addOverride(ConfigurationOverride.newBuilder()
+        .setSource(RuntimeOverrideProvider.SOURCE)
+        .setValue(value)
+        .build());
   }
   
   /**
@@ -585,7 +812,7 @@ public class Configuration implements Closeable {
    * to read methods would throw an exception.
    * @throws IllegalArgumentException if the key was null or empty.
    */
-  public boolean hasKey(final String key) {
+  public boolean hasProperty(final String key) {
     if (Strings.isNullOrEmpty(key)) {
       throw new IllegalArgumentException("Key cannot be null or empty.");
     }
@@ -892,7 +1119,7 @@ public class Configuration implements Closeable {
         
       } else {
         if (CommandLine.class.getName().endsWith(source)) {
-          // this is the only outlier as it needs the cli args.
+          // this is an outlier as it needs the cli args.
           providers.add(new CommandLineProvider(new CommandLine(), 
                                                 this, 
                                                 timer, 
@@ -901,7 +1128,25 @@ public class Configuration implements Closeable {
           if (LOG.isDebugEnabled()) {
             LOG.debug("Instantiated the [CommandLine] provider.");
           }
-        } else {
+        } else if (RuntimeOverride.class.getName().endsWith(source)) {
+          // another outlier as unit tests that use Mockito or PowerMockito
+          // may fail as it will prevent the implementations from loading
+          // properly. Here we force instantiation.
+          providers.add(new RuntimeOverrideProvider(new CommandLine(), 
+                                                    this, 
+                                                    timer, 
+                                                    reload_keys));
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Instantiated the [CommandLine] provider.");
+          }
+        } else if (source.equals("UnitTest")) {
+          // another outlier for unit tests.
+          providers.add(new UnitTestConfiguration.UnitTest()
+              .newInstance(this, timer, reload_keys));
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Instantiated the [UnitTest] provider.");
+          }
+        } else if (factories != null && !factories.isEmpty()) {
           boolean matched = false;
           // plugin source so find the plugin
           for (final ProviderFactory factory : factories) {
@@ -927,6 +1172,9 @@ public class Configuration implements Closeable {
             throw new ConfigurationException("Unable to find a plugin "
                 + "factory for source: " + source);
           }
+        } else {
+          throw new ConfigurationException("Unable to find a plugin "
+              + "factory for source: " + source);
         }
       }
     }
@@ -949,7 +1197,7 @@ public class Configuration implements Closeable {
         .setDescription("How often to refresh reloadable configuration "
             + "providers in seconds.")
         .build();
-    registerSchema(schema);
+    register(schema);
     
     // start reloads for providers so configured.
     final long reload_interval = getTyped(CONFIG_RELOAD_INTERVAL_KEY, long.class);
@@ -978,19 +1226,33 @@ public class Configuration implements Closeable {
     }
   }
   
+  @VisibleForTesting
   List<Provider> sources() {
     return providers;
   }
 
+  @VisibleForTesting
   HashedWheelTimer timer() {
     return timer;
   }
 
+  @VisibleForTesting
   Set<String> reloadKeys() {
     return this.reloadKeys();
   }
   
+  @VisibleForTesting
   List<ProviderFactory> factories() {
     return factories;
+  }
+
+  @VisibleForTesting
+  List<Provider> providers() {
+    return providers;
+  }
+  
+  @VisibleForTesting
+  ConfigurationEntry getEntry(final String key) {
+    return merged_config.get(key);
   }
 }

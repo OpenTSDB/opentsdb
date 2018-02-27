@@ -14,7 +14,7 @@
 // limitations under the License.
 package net.opentsdb.core;
 
-import net.opentsdb.utils.Config;
+import net.opentsdb.configuration.Configuration;
 
 /**
  * The core interface for an OpenTSDB client.
@@ -24,7 +24,7 @@ import net.opentsdb.utils.Config;
 public interface TSDB {
 
   /** @return The non-null OpenTSDB config repository. */
-  public Config getConfig();
+  public Configuration getConfig();
   
   /** @return The non-null registry for components. */
   public Registry getRegistry();

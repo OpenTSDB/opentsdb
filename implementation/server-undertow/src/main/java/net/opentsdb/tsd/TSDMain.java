@@ -42,11 +42,10 @@ import io.undertow.server.handlers.PathHandler;
 import io.undertow.servlet.Servlets;
 import io.undertow.servlet.api.DeploymentInfo;
 import io.undertow.servlet.api.DeploymentManager;
+import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.utils.ArgP;
-import net.opentsdb.utils.CliOptions;
-import net.opentsdb.utils.Config;
 
 /**
  * A simple main method that instantiates a TSD and the TSD servlet package
@@ -57,7 +56,14 @@ import net.opentsdb.utils.Config;
 public class TSDMain {
   private static Logger LOG = LoggerFactory.getLogger(TSDMain.class);
   
-  /** The default HTTP path. */
+  /** Property keys */
+  public static final String HTTP_PORT_KEY = "tsd.network.port";
+  public static final String TLS_PORT_KEY = "tsd.network.ssl_port";
+  public static final String BIND_KEY = "tsd.network.bind";
+  public static final String ROOT_KEY = "tsd.http.root";
+  public static final String LOAD_PLUGINS_KEY = "tsd.core.load_plugins";
+  
+  /** Defaults */
   public static final String DEFAULT_PATH = "/";
   
   /** The TSD reference. Static so we can shutdown gracefully. */
@@ -78,47 +84,28 @@ public class TSDMain {
       LOG.warn("Failed to close stdin", e);
     }
     
-    final ArgP argp = new ArgP(true);
-    CliOptions.addCommon(argp);
-    argp.addOption("--port", "NUM", "TCP port to listen on.");
-    argp.addOption("--bind", "ADDR", "Address to bind to (default: 0.0.0.0).");
-    CliOptions.parse(argp, args);
+    final Configuration config = new Configuration(args);
     
-    final Config config;
-    try {
-      config = CliOptions.getConfig(argp);
-    } catch (IOException e) {
-      LOG.error("Failed to load config file", e);
-      usage(argp, "Failed to load config file", 1);
-      return; // returns in usage but this makes IDEs happy.
-    }
+    config.register(HTTP_PORT_KEY, 0, false, 
+        "A port to listen on for HTTP requests.");
+    config.register(TLS_PORT_KEY, 0, false, 
+        "A port to listen on for HTTP over TLS requests");
+    config.register(BIND_KEY, "0.0.0.0", false, 
+        "The IP to bind listeners to.");
+    config.register(ROOT_KEY, DEFAULT_PATH, false, 
+        "The root path for HTTP requests.");
+    config.register(LOAD_PLUGINS_KEY, true, false, 
+        "Whether or not to load plugins on startup.");
     
-    int port = 0;
-    int ssl_port = 0;
-    try {
-      if (!config.hasProperty("tsd.network.port") && 
-          !config.hasProperty("tsd.network.ssl_port"))
-        usage(argp, "Missing network port and ssl port. Add one.", 1);
-      if (config.hasProperty("tsd.network.port")) {
-        port = config.getInt("tsd.network.port");
-      }
-      if (config.hasProperty("tsd.network.ssl_port")) {
-        ssl_port = config.getInt("tsd.network.ssl_port");
-      }
-      
-    } catch (NumberFormatException nfe) {
-      usage(argp, "Invalid network port setting", 1);
+    int port = config.getInt(HTTP_PORT_KEY);
+    int ssl_port = config.getInt(TLS_PORT_KEY);
+    if (port < 1 && ssl_port < 1) {
+      System.err.println("Must provide an HTTP or SSL port.");
     }
-    String bind = config.getString("tsd.network.bind");
-    if (Strings.isNullOrEmpty(bind)) {
-      bind = "0.0.0.0";
-    }
-    String root = config.getString("tsd.http.root");
-    if (Strings.isNullOrEmpty(root)) {
-      root = DEFAULT_PATH;
-    }
-    boolean load_plugins = config.hasProperty("tsd.core.load_plugins") ? 
-        config.getBoolean("tsd.core.load_plugins") : true;
+  
+    String bind = config.getString(BIND_KEY);
+    String root = config.getString(ROOT_KEY);
+    boolean load_plugins = config.getBoolean(LOAD_PLUGINS_KEY);
     
     tsdb = new DefaultTSDB(config);
     if (load_plugins) {
@@ -222,12 +209,9 @@ public class TSDMain {
       LOG.error("WTF! Unexpected exception in keystore: " + keystore_location, e);
     } catch (IllegalArgumentException e) {
       LOG.error("Invalid configuration", e);
-      usage(argp, "Invalid configuration: " + e.getMessage(), 1);
     } catch (Exception e) {
       LOG.error("WTF! Unexpected exception starting server", e);
     }
-    usage(argp, "Unable to start the server. Check log, stdout and stderr "
-        + "for details.", 1);
   }
   
   /** Prints usage and exits with the given retval. */

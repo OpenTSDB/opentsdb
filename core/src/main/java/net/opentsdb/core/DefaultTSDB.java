@@ -61,6 +61,7 @@ import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.PluginLoader;
 import net.opentsdb.utils.Threads;
+import net.opentsdb.configuration.Configuration;
 //import net.opentsdb.meta.Annotation;
 //import net.opentsdb.meta.MetaDataCache;
 //import net.opentsdb.meta.TSMeta;
@@ -117,7 +118,7 @@ public class DefaultTSDB implements TSDB {
 //  final UniqueId tag_values;
 
   /** Configuration object for all TSDB components */
-  final Config config;
+  final Configuration config;
   
   /** The plugin and object regsitry used by OpenTSDB. */
   final Registry registry;
@@ -309,9 +310,9 @@ public class DefaultTSDB implements TSDB {
   /**
    * Constructor
    * @param config An initialized configuration object
-   * @since 2.0
+   * @since 3.0
    */
-  public DefaultTSDB(final Config config) {
+  public DefaultTSDB(final Configuration config) {
     this.config = config;
     registry = new DefaultRegistry(this);
     timer = Threads.newTimer("MainTSDBTimer");
@@ -563,7 +564,7 @@ public class DefaultTSDB implements TSDB {
    * @return The configuration object
    * @since 2.0 
    */
-  public Config getConfig() {
+  public Configuration getConfig() {
     return config;
   }
   

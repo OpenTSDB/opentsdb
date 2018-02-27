@@ -28,6 +28,8 @@ import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
@@ -35,7 +37,6 @@ import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.utils.Bytes;
-import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 
 @RunWith(PowerMockRunner.class)
@@ -43,12 +44,12 @@ import net.opentsdb.utils.DateTime;
 public class TestRedisClusterKeyGenerator {
 
   private DefaultTSDB tsdb;
-  private Config config;
+  private Configuration config;
   
   @Before
   public void before() throws Exception {
     tsdb = mock(DefaultTSDB.class);
-    config = new Config(false);
+    config = UnitTestConfiguration.getConfiguration();
     when(tsdb.getConfig()).thenReturn(config);
   }
   

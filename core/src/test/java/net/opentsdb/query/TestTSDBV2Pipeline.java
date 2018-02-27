@@ -28,6 +28,8 @@ import org.junit.Test;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
 
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.TimeSeries;
@@ -40,24 +42,23 @@ import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.storage.MockDataStore;
-import net.opentsdb.utils.Config;
 
 public class TestTSDBV2Pipeline {
 
   private DefaultTSDB tsdb;
-  private Config config;
+  private Configuration config;
   private DefaultRegistry registry;
   private MockDataStore mds;
   
   @Before
   public void before() throws Exception {
     tsdb = mock(DefaultTSDB.class);
-    config = new Config(false);
+    config = UnitTestConfiguration.getConfiguration();
     registry = mock(DefaultRegistry.class);
     when(tsdb.getConfig()).thenReturn(config);
     when(tsdb.getRegistry()).thenReturn(registry);
     
-    config.overrideConfig("MockDataStore.timestamp", "1483228800000");
+    config.register("MockDataStore.timestamp", 1483228800000L, false, "UT");
     //config.overrideConfig("MockDataStore.threadpool.enable", "true");
     mds = new MockDataStore();
     mds.initialize(tsdb).join();

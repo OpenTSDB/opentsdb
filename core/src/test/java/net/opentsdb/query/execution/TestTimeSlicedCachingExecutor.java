@@ -49,6 +49,7 @@ import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
 import io.opentracing.Span;
+import net.opentsdb.configuration.Configuration;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.IteratorGroup;
 import net.opentsdb.data.iterators.IteratorGroups;
@@ -81,6 +82,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
 
   private QueryExecutor<IteratorGroups> executor;
   private MockDownstream<IteratorGroups> cache_execution;
+  private Configuration tsd_config;
   private Config config;
   private QueryCachePlugin plugin;
   private TimeSeriesSerdes serdes;
@@ -113,7 +115,9 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     
     plan_factory = mock(QueryPlannnerFactory.class);
     
-    when(tsdb.getConfig()).thenReturn(new net.opentsdb.utils.Config(false));
+    tsd_config = new Configuration(new String[] { 
+        "--" + Configuration.CONFIG_PROVIDERS_KEY + "=RuntimeOverride" });
+    when(tsdb.getConfig()).thenReturn(tsd_config);
     key_generator = new DefaultTimeSeriesCacheKeyGenerator();
     key_generator.initialize(tsdb).join();
     when(node.graph()).thenReturn(graph);

@@ -91,7 +91,7 @@ public abstract class Provider implements Closeable, TimerTask {
   /**
    * Called by the {@link Configuration} class to load the current value for the
    * given key when a schema is registered via 
-   * {@link Configuration#registerSchema(net.opentsdb.configuration.ConfigurationEntrySchema)}.
+   * {@link Configuration#register(net.opentsdb.configuration.ConfigurationEntrySchema)}.
    * @param key A non-null and non-empty key.
    * @return A configuration override if the provider had data for the 
    * key (even if it was null) or null if the provider did not have any

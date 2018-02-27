@@ -28,6 +28,8 @@ import org.junit.Test;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
@@ -55,26 +57,25 @@ import net.opentsdb.utils.Config;
 public class TestMockDataStore {
 
   private DefaultTSDB tsdb;
-  private Config config;
+  private Configuration config;
   private DefaultRegistry registry;
   private MockDataStore mds;
   
   @Before
   public void before() throws Exception {
     tsdb = mock(DefaultTSDB.class);
-    config = new Config(false);
+    config = UnitTestConfiguration.getConfiguration();
     registry = mock(DefaultRegistry.class);
     when(tsdb.getConfig()).thenReturn(config);
     when(tsdb.getRegistry()).thenReturn(registry);
     
-    config.overrideConfig("MockDataStore.timestamp", "1483228800000");
-    config.overrideConfig("MockDataStore.threadpool.enable", "true");
-    config.overrideConfig("MockDataStore.sysout.enable", "true");
+    config.register("MockDataStore.timestamp", 1483228800000L, false, "UT");
+    config.register("MockDataStore.threadpool.enable", true, false, "UT");
+    config.register("MockDataStore.sysout.enable", true, false, "UT");
     mds = new MockDataStore();
     mds.initialize(tsdb).join();
     when(registry.getQueryNodeFactory(anyString())).thenReturn(mds);
   }
-
   
   @Test
   public void initialize() throws Exception {

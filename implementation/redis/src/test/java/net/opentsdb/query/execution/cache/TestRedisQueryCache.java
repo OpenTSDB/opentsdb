@@ -30,6 +30,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
@@ -40,12 +41,14 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
-import net.opentsdb.utils.Config;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
@@ -56,7 +59,8 @@ import redis.clients.jedis.Protocol;
 public class TestRedisQueryCache {
   private TSDB tsdb;
   private DefaultRegistry registry;
-  private Config config;
+  private Map<String, String> config_map;
+  private Configuration config;
   private JedisPool connection_pool;
   private Jedis instance;
   private QueryContext context;
@@ -65,12 +69,13 @@ public class TestRedisQueryCache {
   public void before() throws Exception {
     tsdb = mock(TSDB.class);
     registry = mock(DefaultRegistry.class);
-    config = new Config(false);
     connection_pool = mock(JedisPool.class);
     instance = mock(Jedis.class);
     context = mock(QueryContext.class);
     
-    config.overrideConfig("redis.query.cache.hosts", "localhost");
+    config_map = Maps.newHashMap();
+    config = UnitTestConfiguration.getConfiguration(config_map);
+    config_map.put("redis.query.cache.hosts", "localhost");
     
     when(tsdb.getConfig()).thenReturn(config);
     when(tsdb.getRegistry()).thenReturn(registry);
@@ -109,7 +114,7 @@ public class TestRedisQueryCache {
   
   @Test
   public void initializeShared() throws Exception {
-    config.overrideConfig("redis.query.cache.shared_object", "RedisCache");
+    config_map.put("redis.query.cache.shared_object", "RedisCache");
     final RedisQueryCache cache = new RedisQueryCache();
     assertNull(cache.initialize(tsdb).join(1));
     PowerMockito.verifyNew(JedisPool.class, times(1)).withArguments(
@@ -126,7 +131,7 @@ public class TestRedisQueryCache {
   
   @Test
   public void initializeSharedAlreadyThere() throws Exception {
-    config.overrideConfig("redis.query.cache.shared_object", "RedisCache");
+    config_map.put("redis.query.cache.shared_object", "RedisCache");
     when(registry.getSharedObject("RedisCache")).thenReturn(connection_pool);
     
     final RedisQueryCache cache = new RedisQueryCache();
@@ -142,7 +147,7 @@ public class TestRedisQueryCache {
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeSharedWrongType() throws Exception {
-    config.overrideConfig("redis.query.cache.shared_object", "RedisCache");
+    config_map.put("redis.query.cache.shared_object", "RedisCache");
     when(registry.getSharedObject("RedisCache")).thenReturn(tsdb);
     
     final RedisQueryCache cache = new RedisQueryCache();
@@ -151,7 +156,7 @@ public class TestRedisQueryCache {
   
   @Test
   public void initializeSharedRace() throws Exception {
-    config.overrideConfig("redis.query.cache.shared_object", "RedisCache");
+    config_map.put("redis.query.cache.shared_object", "RedisCache");
     final JedisPool extant = mock(JedisPool.class);
     when(registry.registerSharedObject("RedisCache", connection_pool))
       .thenReturn(extant);
@@ -170,8 +175,8 @@ public class TestRedisQueryCache {
   
   @Test
   public void initializeOverrides() throws Exception {
-    config.overrideConfig("redis.query.cache.max_pool", "42");
-    config.overrideConfig("redis.query.cache.wait_time", "60000");
+    config_map.put("redis.query.cache.max_pool", "42");
+    config_map.put("redis.query.cache.wait_time", "60000");
     
     final RedisQueryCache cache = new RedisQueryCache();
     assertNull(cache.initialize(tsdb).join(1));
@@ -186,7 +191,7 @@ public class TestRedisQueryCache {
   
   @Test
   public void initializeHostWithPort() throws Exception {
-    config.overrideConfig("redis.query.cache.hosts", "redis.mysite.com:2424");
+    config_map.put("redis.query.cache.hosts", "redis.mysite.com:2424");
     
     final RedisQueryCache cache = new RedisQueryCache();
     assertNull(cache.initialize(tsdb).join(1));
@@ -203,7 +208,7 @@ public class TestRedisQueryCache {
   
   @Test
   public void initializeAuth() throws Exception {
-    config.overrideConfig("redis.query.cache.auth", "foobar");
+    config_map.put("redis.query.cache.auth", "foobar");
     
     final RedisQueryCache cache = new RedisQueryCache();
     assertNull(cache.initialize(tsdb).join(1));
@@ -221,31 +226,19 @@ public class TestRedisQueryCache {
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeNullHosts() throws Exception {
-    config.overrideConfig("redis.query.cache.hosts", null);
+    config_map.put("redis.query.cache.hosts", null);
     new RedisQueryCache().initialize(tsdb).join(1);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeEmptyHost() throws Exception {
-    config.overrideConfig("redis.query.cache.hosts", "");
+    config_map.put("redis.query.cache.hosts", "");
     new RedisQueryCache().initialize(tsdb).join(1);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeBadHostPort() throws Exception {
-    config.overrideConfig("redis.query.cache.hosts", "localhost:notanum");
-    new RedisQueryCache().initialize(tsdb).join(1);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void initializeInvalidMaxPool() throws Exception {
-    config.overrideConfig("redis.query.cache.max_pool", "notanumber");
-    new RedisQueryCache().initialize(tsdb).join(1);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void initializeWaitTime() throws Exception {
-    config.overrideConfig("redis.query.cache.wait_time", "notanumber");
+    config_map.put("redis.query.cache.hosts", "localhost:notanum");
     new RedisQueryCache().initialize(tsdb).join(1);
   }
   

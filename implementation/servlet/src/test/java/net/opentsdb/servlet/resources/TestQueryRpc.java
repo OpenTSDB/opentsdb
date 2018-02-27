@@ -34,6 +34,8 @@ import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.WebApplicationException;
 
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.filter.TagVLiteralOrFilter;
@@ -66,7 +68,7 @@ import com.stumbleupon.async.DeferredGroupException;
   Deferred.class, TSQuery.class, DateTime.class, DeferredGroupException.class })
 public final class TestQueryRpc {
   private DefaultTSDB tsdb;
-  private Config config;
+  private Configuration config;
   private QueryRpc rpc;
   private ServletConfig servlet_config;
   private ServletContext context;
@@ -80,7 +82,7 @@ public final class TestQueryRpc {
   @Before
   public void before() throws Exception {
     tsdb = PowerMockito.mock(DefaultTSDB.class);
-    config = new Config(false);
+    config = UnitTestConfiguration.getConfiguration();
 //    empty_query = mock(Query.class);
 //    query_result = mock(Query.class);
     rpc = new QueryRpc();

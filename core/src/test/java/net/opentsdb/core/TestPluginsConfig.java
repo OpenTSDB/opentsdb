@@ -37,12 +37,13 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.PluginsConfig.PluginConfig;
 import net.opentsdb.exceptions.PluginLoadException;
 import net.opentsdb.query.execution.cache.GuavaLRUCache;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cluster.ClusterConfigPlugin;
-import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.PluginLoader;
 
@@ -54,15 +55,14 @@ import net.opentsdb.utils.PluginLoader;
 public class TestPluginsConfig {
   private static int ORDER = 0;
   private TSDB tsdb;
-  private Config tsd_config;
+  private Configuration tsd_config;
   private PluginsConfig config;
   
   @Before
   public void before() throws Exception {
     ORDER = 0;
     tsdb = mock(TSDB.class);
-    tsd_config = new Config(false);
-    
+    tsd_config = UnitTestConfiguration.getConfiguration();
     when(tsdb.getConfig()).thenReturn(tsd_config);
     config = spy(new PluginsConfig());
   }
