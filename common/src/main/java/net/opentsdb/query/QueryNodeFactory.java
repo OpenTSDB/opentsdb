@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import java.util.Map;
 
 import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -30,7 +29,7 @@ import net.opentsdb.data.TimeSeriesValue;
  * 
  * @since 3.0
  */
-public interface QueryNodeFactory extends TSDBPlugin {
+public interface QueryNodeFactory {
 
   /**
    * Instantiates a new node using the given context and config.

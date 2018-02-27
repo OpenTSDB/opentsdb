@@ -46,7 +46,7 @@ import net.opentsdb.configuration.provider.SystemPropertiesProvider;
 
 public class TestConfiguration {
   
-  private static final int BUILT_IN_FACTORIES = 8;
+  private static final int BUILT_IN_FACTORIES = 9;
   private static final int BUILT_IN_SCHEMAS = 3;
   
   final String[] cli_args = new String[] {

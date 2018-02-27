@@ -24,9 +24,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
-import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -137,19 +135,5 @@ public abstract class BaseQueryNodeFactory implements QueryNodeFactory {
     }
     return factory.newIterator(node, sources);
   }
-  
-  @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
-    return Deferred.fromResult(null);
-  }
 
-  @Override
-  public Deferred<Object> shutdown() {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public String version() {
-    return "3.0.0";
-  }
 }

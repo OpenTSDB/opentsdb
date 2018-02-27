@@ -16,7 +16,6 @@ package net.opentsdb.query;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -59,16 +58,13 @@ public class TestTSDBV2Pipeline {
     when(tsdb.getRegistry()).thenReturn(registry);
     
     config.register("MockDataStore.timestamp", 1483228800000L, false, "UT");
-    //config.overrideConfig("MockDataStore.threadpool.enable", "true");
-    mds = new MockDataStore();
-    mds.initialize(tsdb).join();
-    when(registry.getDefaultPlugin(any(Class.class))).thenReturn(mds);
+    mds = new MockDataStore(tsdb, "mock");
+    when(registry.getDefaultStore()).thenReturn(mds);
   }
     
   @Test
   public void querySingleOneMetric() throws Exception {
-    MockDataStore mds = new MockDataStore();
-    mds.initialize(tsdb).join();
+    MockDataStore mds = new MockDataStore(tsdb, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -150,8 +146,7 @@ public class TestTSDBV2Pipeline {
 
   @Test
   public void querySingleOneMetricNoMatch() throws Exception {
-    MockDataStore mds = new MockDataStore();
-    mds.initialize(tsdb).join();
+    MockDataStore mds = new MockDataStore(tsdb, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -219,8 +214,7 @@ public class TestTSDBV2Pipeline {
   
   @Test
   public void querySingleTwoMetrics() throws Exception {
-    MockDataStore mds = new MockDataStore();
-    mds.initialize(tsdb).join();
+    MockDataStore mds = new MockDataStore(tsdb, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -310,8 +304,7 @@ public class TestTSDBV2Pipeline {
   
   @Test
   public void querySingleTwoMetricsNoMatch() throws Exception {
-    MockDataStore mds = new MockDataStore();
-    mds.initialize(tsdb).join();
+    MockDataStore mds = new MockDataStore(tsdb, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -383,8 +376,7 @@ public class TestTSDBV2Pipeline {
   
   @Test
   public void queryBoundedClientStream() throws Exception {
-    MockDataStore mds = new MockDataStore();
-    mds.initialize(tsdb).join();
+    MockDataStore mds = new MockDataStore(tsdb, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -477,8 +469,7 @@ public class TestTSDBV2Pipeline {
 
   @Test
   public void queryBoundedClientStreamNoMatch() throws Exception {
-    MockDataStore mds = new MockDataStore();
-    mds.initialize(tsdb).join();
+    MockDataStore mds = new MockDataStore(tsdb, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -553,8 +544,7 @@ public class TestTSDBV2Pipeline {
 
   @Test
   public void queryContinousClientStream() throws Exception {
-    MockDataStore mds = new MockDataStore();
-    mds.initialize(tsdb).join();
+    MockDataStore mds = new MockDataStore(tsdb, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -650,8 +640,7 @@ public class TestTSDBV2Pipeline {
 
   @Test
   public void queryBoundedServerSyncStream() throws Exception {
-    MockDataStore mds = new MockDataStore();
-    mds.initialize(tsdb).join();
+    MockDataStore mds = new MockDataStore(tsdb, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -743,8 +732,7 @@ public class TestTSDBV2Pipeline {
   
   @Test
   public void queryContinousServerSyncStream() throws Exception {
-    MockDataStore mds = new MockDataStore();
-    mds.initialize(tsdb).join();
+    MockDataStore mds = new MockDataStore(tsdb, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -839,8 +827,7 @@ public class TestTSDBV2Pipeline {
 
   @Test
   public void queryBoundedServerAsyncStream() throws Exception {
-    MockDataStore mds = new MockDataStore();
-    mds.initialize(tsdb).join();
+    MockDataStore mds = new MockDataStore(tsdb, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -932,8 +919,7 @@ public class TestTSDBV2Pipeline {
   
   @Test
   public void queryContinousServerAsyncStream() throws Exception {
-    MockDataStore mds = new MockDataStore();
-    mds.initialize(tsdb).join();
+    MockDataStore mds = new MockDataStore(tsdb, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;

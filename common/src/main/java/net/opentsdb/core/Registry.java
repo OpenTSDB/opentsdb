@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryIteratorInterpolatorFactory;
 import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.storage.TimeSeriesDataStore;
 
 /**
  * A shared location for registering context, mergers, plugins, etc.
@@ -119,6 +120,10 @@ public interface Registry {
    * @return The factory if found, null if such an iterator does not exist.
    */
   public QueryIteratorFactory getQueryIteratorFactory(final String id);
+  
+  public TimeSeriesDataStore getDefaultStore();
+  
+  public TimeSeriesDataStore getStore(final String id);
   
   /** @return Package private shutdown returning the deferred to wait on. */
   public Deferred<Object> shutdown();

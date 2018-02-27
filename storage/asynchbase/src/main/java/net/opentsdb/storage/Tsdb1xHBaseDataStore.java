@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
@@ -25,38 +24,32 @@ import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
-import io.opentracing.Span;
-import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
-import net.opentsdb.query.context.QueryContext;
-import net.opentsdb.query.execution.QueryExecution;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.stats.TsdbTrace;
+import net.opentsdb.stats.Span;
+import net.opentsdb.storage.schemas.tsdb1x.Schema;
 
 /**
  * TODO - complete.
  * 
  * @since 3.0
  */
-public class AsyncHBaseDataStore extends TimeSeriesDataStore {
+public class Tsdb1xHBaseDataStore extends TimeSeriesDataStore {
 
   /** The AsyncHBase client. */
   private HBaseClient client;
   
-  @Override
-  public Deferred<Object> initialize(final TSDB tsdb) {
-    this.tsdb = tsdb;
-    
+  private Schema schema;
+  
+  public Tsdb1xHBaseDataStore(final TSDB tsdb, final String id) {
+    super(tsdb, id);
     final org.hbase.async.Config async_config = new org.hbase.async.Config();
     if (Strings.isNullOrEmpty(
         async_config.getString("asynchbase.zk.base_path"))) {
@@ -69,12 +62,6 @@ public class AsyncHBaseDataStore extends TimeSeriesDataStore {
     }
     
     client = new HBaseClient(async_config);
-    return Deferred.fromResult(null);
-  }
-  
-  @Override
-  public void collectStats(final StatsCollector collector) {
-    
   }
   
   @Override
@@ -96,13 +83,12 @@ public class AsyncHBaseDataStore extends TimeSeriesDataStore {
   }
   
   @Override
-  public Deferred<Object> write(TimeSeriesStringId id, 
-      TimeSeriesValue<?> value, TsdbTrace trace,
-      Span upstream_span) {
+  public Deferred<Object> write(final TimeSeriesStringId id, 
+                                final TimeSeriesValue<?> value, 
+                                final Span span) {
     // TODO Auto-generated method stub
     return null;
   }
-
   
   @Override
   public QueryNode newNode(QueryPipelineContext context,

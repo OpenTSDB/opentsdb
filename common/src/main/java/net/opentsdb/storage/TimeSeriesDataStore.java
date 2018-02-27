@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,14 +14,14 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
-import io.opentracing.Span;
-import net.opentsdb.core.BaseTSDBPlugin;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.query.QueryNodeFactory;
-import net.opentsdb.stats.TsdbTrace;
+import net.opentsdb.stats.Span;
 
 /**
  * The class for reading or writing time series data to a local data store. 
@@ -38,21 +38,48 @@ import net.opentsdb.stats.TsdbTrace;
  * 
  * @since 3.0
  */
-public abstract class TimeSeriesDataStore extends BaseTSDBPlugin implements 
-  QueryNodeFactory {
+public abstract class TimeSeriesDataStore implements QueryNodeFactory {
+  
+  /** The TSDB this instance belongs to. */
+  protected final TSDB tsdb;
+  
+  /** The ID of this store. Must be set prior to initializing the plugin. */
+  protected final String id;
+  
+  /**
+   * The ID of this storage implementation.
+   * @param id 
+   */
+  public TimeSeriesDataStore(final TSDB tsdb, final String id) {
+    if (tsdb == null) {
+      throw new IllegalArgumentException("TSDB cannot be null.");
+    }
+    if (Strings.isNullOrEmpty(id)) {
+      throw new IllegalArgumentException(
+          "The store ID cannot be null or empty.");
+    }
+    this.tsdb = tsdb;
+    this.id = id;
+  }
+  
+  public String id() {
+    return id;
+  }
   
   /**
    * Writes the given value to the data store.
    * @param id A non-null ID for the value.
    * @param value A non-null value to write.
    * @param trace An optional tracer.
-   * @param upstream_span An optional span for tracing.
+   * @param span An optional span for tracing.
    * @return A deferred resolving to null on success or an exception if the 
    * value was unable to be written.
    */
   public abstract Deferred<Object> write(final TimeSeriesStringId id,
                                          final TimeSeriesValue<?> value, 
-                                         final TsdbTrace trace, 
-                                         final Span upstream_span);
+                                         final Span span);
   
+  public abstract Deferred<Object> shutdown();
+  
+  public abstract String version();
 }
