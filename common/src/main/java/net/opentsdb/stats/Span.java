@@ -86,6 +86,10 @@ public interface Span {
    */
   public SpanBuilder newChild(final String id);
   
+  /** @return Whether or not the trace is debugging and should contain
+   * a ton of detail. */
+  public boolean isDebug();
+  
   /**
    * The builder used to construct and start a span.
    * 

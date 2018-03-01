@@ -33,6 +33,14 @@ public class MockTrace implements Trace {
   public boolean is_debug;
   public Span first_span;
   
+  public MockTrace() {
+    // no-op
+  }
+  
+  public MockTrace(final boolean is_debug) {
+    this.is_debug = is_debug;
+  }
+  
   @Override
   public SpanBuilder newSpan(final String id) {
     Builder builder = (Builder) new Builder().buildSpan(id);
@@ -218,6 +226,11 @@ public class MockTrace implements Trace {
     public SpanBuilder newChild(final String id) {
       return new Builder().buildSpan(id)
           .asChildOf(this);
+    }
+    
+    @Override
+    public boolean isDebug() {
+      return is_debug;
     }
   }
   

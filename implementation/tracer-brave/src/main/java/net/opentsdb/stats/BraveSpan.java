@@ -112,6 +112,11 @@ public class BraveSpan implements net.opentsdb.stats.Span {
         .asChildOf(this);
   }
   
+  @Override
+  public boolean isDebug() {
+    return trace.isDebug();
+  }
+  
   /**
    * Helper to return a new span builder.
    * @param trace A non-null trace.
@@ -201,4 +206,5 @@ public class BraveSpan implements net.opentsdb.stats.Span {
     }
   }
 
+  
 }

@@ -197,4 +197,8 @@ public class Tsdb1xHBaseDataStore extends TimeSeriesDataStore {
     return uid_table;
   }
   
+  /** @return The HBase client. */
+  HBaseClient client() {
+    return client;
+  }
 }

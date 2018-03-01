@@ -82,4 +82,8 @@ public abstract class TimeSeriesDataStore implements QueryNodeFactory {
   public abstract Deferred<Object> shutdown();
   
   public abstract String version();
+
+  public TSDB tsdb() {
+    return tsdb;
+  }
 }

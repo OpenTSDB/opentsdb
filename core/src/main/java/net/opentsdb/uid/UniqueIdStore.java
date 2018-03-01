@@ -18,10 +18,10 @@ import java.util.List;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.schemas.tsdb1x.ResolvedFilter;
-import net.opentsdb.uid.UniqueId.UniqueIdType;
 
 /**
  * An interface used to make calls to storage for resolving Strings to
@@ -48,30 +48,66 @@ public interface UniqueIdStore {
   
   /**
    * Converts the given string to it's UID value based on the type.
+   * 
    * @param type A non-null UID type.
-   * @param id A non-null and non-empty string.
+   * @param name A non-null and non-empty string.
    * @param span An optional tracing span.
    * @return A deferred resolving to the UID if successful or an exception.
    * @throws IllegalArgumentException if the type was null or the string
    * was null or empty.
    */
-  public Deferred<byte[]> stringToId(final UniqueIdType type, 
-                                     final String id,
-                                     final Span span);
+  public Deferred<byte[]> getId(final UniqueIdType type, 
+                                final String name,
+                                final Span span);
   
   /**
    * Converts the list of strings to their IDs, maintaining order.
+   * 
    * @param type A non-null UID type.
-   * @param ids A non-null and non-empty list of strings.
+   * @param names A non-null and non-empty list of strings.
    * @param span An optional tracing span.
    * @return A deferred resolving to the list of UIDs in order if 
    * successful or an exception.
    * @throws IllegalArgumentException if the type was null or the
    * IDs was null or an ID in the list was null or empty.
    */
-  public Deferred<List<byte[]>> stringsToId(final UniqueIdType type, 
-                                            final List<String> ids,
-                                            final Span span);
+  public Deferred<List<byte[]>> getIds(final UniqueIdType type, 
+                                       final List<String> names,
+                                       final Span span);
+  
+  /**
+   * Converts the given string to it's UID value based on the type. If 
+   * the string didn't have an assigned UID in storage, creates it.
+   * 
+   * @param type A non-null UID type.
+   * @param name A non-null and non-empty string.
+   * @param id A non-null ID for logging and abuse prevention purposes.   
+   * @param span An optional tracing span.
+   * @return A deferred resolving to the UID if successful or an exception.
+   * @throws IllegalArgumentException if the type was null or the string
+   * was null or empty.
+   */
+  public Deferred<byte[]> getOrCreateId(final UniqueIdType type, 
+                                        final String name,
+                                        final TimeSeriesId id,
+                                        final Span span);
+  
+  /**
+   * Converts the given strings to their UID values based on the type. If 
+   * the strings didn't have assigned UIDs in storage, they're assigned.
+   * 
+   * @param type A non-null UID type.
+   * @param names A non-null and non-empty list of strings.
+   * @param id A non-null ID for logging and abuse prevention purposes.   
+   * @param span An optional tracing span.
+   * @return A deferred resolving to the UIDs if successful or an exception.
+   * @throws IllegalArgumentException if the type was null or the string
+   * was null or empty.
+   */
+  public Deferred<List<byte[]>> getOrCreateIds(final UniqueIdType type, 
+                                              final List<String> names,
+                                              final TimeSeriesId id,
+                                              final Span span);
   
   /**
    * Converts the UID to the equivalent string name.
@@ -83,23 +119,27 @@ public interface UniqueIdStore {
    * @throws IllegalArgumentException if the type was null or the ID 
    * null or empty.
    */
-  public Deferred<String> idToString(final UniqueIdType type, 
-                                     final byte[] id,
-                                     final Span span);
+  public Deferred<String> getName(final UniqueIdType type, 
+                                  final byte[] id,
+                                  final Span span);
   
   /**
    * Converts the list of UIDs to the equivalent string name maintaining
-   * order.
+   * order. <b>Note</b> that if a UID in the source list was not found in 
+   * storage, it's corresponding entry in the results will be null.
+   * 
    * @param type A non-null UID type.
    * @param ids A deferred resolving to a list of the strings in order
    * if successful or an exception.
    * @param span An optional tracing span.
    * @throws IllegalArgumentException if the type was null or the strings
    * list was null or any string in the list was null or empty.
-   * @return
+   * @return A deferred resolving to list of names corresponding with
+   * the same index in the given ids list or an exception if one or more
+   * of the UID resolutions failed with an exception.
    */
-  public Deferred<List<String>> idsToString(final UniqueIdType type, 
-                                            final List<byte[]> ids,
-                                            final Span span);
-
+  public Deferred<List<String>> getNames(final UniqueIdType type, 
+                                         final List<byte[]> ids,
+                                         final Span span);
+  
 }

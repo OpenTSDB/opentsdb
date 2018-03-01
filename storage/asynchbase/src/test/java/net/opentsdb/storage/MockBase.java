@@ -1,15 +1,17 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2013-2018  The OpenTSDB Authors.
 //
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package net.opentsdb.storage;
 
 import static org.mockito.Matchers.any;
@@ -137,26 +139,22 @@ public final class MockBase {
    * @param default_scan Enable the Scanner mock implementation
    */
   @SuppressWarnings("unchecked")
-  public MockBase(
-      final TSDB tsdb, final HBaseClient client,
+  public MockBase(final HBaseClient client,
       final boolean default_get,
       final boolean default_put,
       final boolean default_delete,
       final boolean default_scan) {
-    this.tsdb = tsdb;
 
     default_family = "t".getBytes(ASCII);
     default_table = "tsdb".getBytes(ASCII);
     setupDefaultTables();
-
-    // replace the "real" field objects with mocks
-    Whitebox.setInternalState(tsdb, "client", client);
 
     // Default get answer will return one or more columns from the requested row
     if (default_get) {
       when(client.get((GetRequest)any())).thenAnswer(new MockGet());
     }
 
+    // multigets!
     when(client.get(any(List.class))).thenAnswer(new MockMultiGet(client));
     
     // Default put answer will store the given values in the proper location.
@@ -1023,8 +1021,8 @@ public final class MockBase {
       final Object[] args = invocation.getArguments();
       @SuppressWarnings("unchecked")
       final List<GetRequest> gets = (List<GetRequest>) args[0];
-      
-      final List<GetResultOrException> results = Lists.newArrayList();
+      final List<GetResultOrException> results = 
+          Lists.newArrayListWithCapacity(gets.size());
       for (final GetRequest get : gets) {
         try {
           // just reuse the logic above.
