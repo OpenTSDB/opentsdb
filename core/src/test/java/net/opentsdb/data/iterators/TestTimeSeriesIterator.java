@@ -50,7 +50,7 @@ public class TestTimeSeriesIterator {
   private TimeSeriesIterator<?> source;
   private TimeSeriesIterator<?> source_clone;
   private QueryContext context;
-  private TypeToken<?> type;
+  private TypeToken<? extends TimeSeriesDataType> type;
   
   @Before
   public void before() throws Exception {
@@ -65,9 +65,9 @@ public class TestTimeSeriesIterator {
     when(source.initialize()).thenReturn(Deferred.fromResult(null));
     when(source.fetchNext()).thenReturn(Deferred.fromResult(null));
     when(source.close()).thenReturn(Deferred.fromResult(null));
-    when(source.type()).thenAnswer(new Answer<TypeToken<?>>() {
+    when(source.type()).thenAnswer(new Answer<TypeToken<? extends TimeSeriesDataType>>() {
       @Override
-      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
+      public TypeToken<? extends TimeSeriesDataType> answer(InvocationOnMock invocation) throws Throwable {
         return type;
       }
     });
