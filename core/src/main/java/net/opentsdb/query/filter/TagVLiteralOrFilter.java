@@ -16,13 +16,17 @@ package net.opentsdb.query.filter;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.StringUtils;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.stumbleupon.async.Deferred;
 
 /**
@@ -36,7 +40,7 @@ public class TagVLiteralOrFilter extends TagVFilter {
   final public static String FILTER_NAME = "literal_or";
   
   /** A list of strings to match on */
-  final protected Set<String> literals;
+  final protected List<String> literals;
 
   /** Whether or not the match should be case insensitive */
   final protected boolean case_insensitive;
@@ -70,13 +74,22 @@ public class TagVLiteralOrFilter extends TagVFilter {
     if (filter.length() == 1 && filter.charAt(0) == '|') {
       throw new IllegalArgumentException("Filter must contain more than just a pipe");
     }
-    final String[] split = filter.split("\\|");
+    final String[] split = StringUtils.splitString(filter, '|');
     if (case_insensitive) {
       for (int i = 0; i < split.length; i++) {
         split[i] = split[i].toLowerCase();
       }
     }
-    literals = new HashSet<String>(Arrays.asList(split));
+    
+    // dedupe
+    final Set<String> dedupe = Sets.newHashSetWithExpectedSize(split.length);
+    literals = Lists.newArrayListWithCapacity(split.length);
+    for (final String value : split) {
+      if (!dedupe.contains(value)) {
+        dedupe.add(value);
+        literals.add(value);
+      }
+    }
   }
   
   @Override
@@ -92,6 +105,11 @@ public class TagVLiteralOrFilter extends TagVFilter {
   @Override
   public String debugInfo() {
     return "{literals=" + literals + ", case=" + case_insensitive + "}";
+  }
+  
+  /** @return The collection of literal strings for resolution. */
+  public List<String> literals() {
+    return literals;
   }
   
   /**

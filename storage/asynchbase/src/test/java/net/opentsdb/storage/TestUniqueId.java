@@ -37,6 +37,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -51,7 +52,10 @@ import net.opentsdb.stats.Span;
 import net.opentsdb.stats.Span.SpanBuilder;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
+import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.schemas.tsdb1x.ResolvedFilter;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.UnitTestException;
@@ -106,11 +110,13 @@ public final class TestUniqueId {
   private static final byte[] UID3 = new byte[] { 0, 0, 3 };
   private static final byte[] EX1 = new byte[] { 0, 0, 4 };
   private static final byte[] NULL = new byte[] { 0, 0, 5 };
+  private static final byte[] UID4 = new byte[] { 0, 0, 6 };
   
   private static final String STRING1 = "sys.cpu.user";
   private static final String STRING2 = "host";
   private static final String STRING3 = "web01";
   private static final String STRING4 = "web02";
+  private static final String STRING5 = "owner";
   private static final String NULL_STRING = "web03";
   private static final String EX2 = "dc";
   
@@ -147,10 +153,17 @@ public final class TestUniqueId {
     storage = new MockBase(client, true, true, true, true);
     storage.addTable(table, 
         Lists.newArrayList(UniqueId.ID_FAMILY, UniqueId.NAME_FAMILY));
+    // metrics
     storage.addColumn(table, STRING1.getBytes(Const.ASCII_CHARSET), UniqueId.ID_FAMILY, UniqueId.METRICS_QUAL, UID1);
     storage.addColumn(table, UID1, UniqueId.NAME_FAMILY, UniqueId.METRICS_QUAL, STRING1.getBytes(Const.ASCII_CHARSET));
+    
+    // tag keys
     storage.addColumn(table, STRING2.getBytes(Const.ASCII_CHARSET), UniqueId.ID_FAMILY, UniqueId.TAG_NAME_QUAL, UID1);
     storage.addColumn(table, UID1, UniqueId.NAME_FAMILY, UniqueId.TAG_NAME_QUAL, STRING2.getBytes(Const.ASCII_CHARSET));
+    storage.addColumn(table, STRING5.getBytes(Const.ASCII_CHARSET), UniqueId.ID_FAMILY, UniqueId.TAG_NAME_QUAL, UID4);
+    storage.addColumn(table, UID4, UniqueId.NAME_FAMILY, UniqueId.TAG_NAME_QUAL, STRING5.getBytes(Const.ASCII_CHARSET));
+    
+    // tag values
     storage.addColumn(table, STRING3.getBytes(Const.ASCII_CHARSET), UniqueId.ID_FAMILY, UniqueId.TAG_VALUE_QUAL, UID1);
     storage.addColumn(table, UID1, UniqueId.NAME_FAMILY, UniqueId.TAG_VALUE_QUAL, STRING3.getBytes(Const.ASCII_CHARSET));
     storage.addColumn(table, STRING4.getBytes(Const.ASCII_CHARSET), UniqueId.ID_FAMILY, UniqueId.TAG_VALUE_QUAL, UID3);
@@ -203,7 +216,257 @@ public final class TestUniqueId {
 //    assertEquals(3, uid.width());
 //  }
 //  
-   
+  
+  @Test
+  public void resolveUids() throws Exception {
+    UniqueId uid = new UniqueId(data_store);
+    
+    Filter filter = Filter.newBuilder()
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("*")
+            .setTagk("owner")
+            .setType("wildcard"))
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("web01|web02")
+            .setTagk("host")
+            .setType("literal_or"))
+        .build();
+    
+    List<ResolvedFilter> resolutions = uid.resolveUids(filter, null)
+        .join();
+    assertEquals(2, resolutions.size());
+    assertArrayEquals(UID4, resolutions.get(0).getTagKey());
+    assertNull(resolutions.get(0).getTagValues());
+    assertArrayEquals(UID1, resolutions.get(1).getTagKey());
+    assertEquals(2, resolutions.get(1).getTagValues().size());
+    assertArrayEquals(UID1, resolutions.get(1).getTagValues().get(0));
+    assertArrayEquals(UID3, resolutions.get(1).getTagValues().get(1));
+    
+    // one tagv not found
+    filter = Filter.newBuilder()
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("*")
+            .setTagk("owner")
+            .setType("wildcard"))
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("web01|web02|web06")
+            .setTagk("host")
+            .setType("literal_or"))
+        .build();
+    resolutions = uid.resolveUids(filter, null)
+        .join();
+    assertEquals(2, resolutions.size());
+    assertArrayEquals(UID4, resolutions.get(0).getTagKey());
+    assertNull(resolutions.get(0).getTagValues());
+    assertArrayEquals(UID1, resolutions.get(1).getTagKey());
+    assertEquals(3, resolutions.get(1).getTagValues().size());
+    assertArrayEquals(UID1, resolutions.get(1).getTagValues().get(0));
+    assertArrayEquals(UID3, resolutions.get(1).getTagValues().get(1));
+    assertNull(resolutions.get(1).getTagValues().get(2));
+    
+    // tagk not found
+    filter = Filter.newBuilder()
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("*")
+            .setTagk("notthere")
+            .setType("wildcard"))
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("web01|web06|web02")
+            .setTagk("host")
+            .setType("literal_or"))
+        .build();
+    resolutions = uid.resolveUids(filter, null)
+        .join();
+    assertEquals(2, resolutions.size());
+    assertNull(resolutions.get(0).getTagKey());
+    assertNull(resolutions.get(0).getTagValues());
+    assertArrayEquals(UID1, resolutions.get(1).getTagKey());
+    assertEquals(3, resolutions.get(1).getTagValues().size());
+    assertArrayEquals(UID1, resolutions.get(1).getTagValues().get(0));
+    assertNull(resolutions.get(1).getTagValues().get(1));
+    assertArrayEquals(UID3, resolutions.get(1).getTagValues().get(2));
+    
+    // nothing found at all.
+    filter = Filter.newBuilder()
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("*")
+            .setTagk("notthere")
+            .setType("wildcard"))
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("web06")
+            .setTagk("nope")
+            .setType("literal_or"))
+        .build();
+    resolutions = uid.resolveUids(filter, null)
+        .join();
+    assertEquals(2, resolutions.size());
+    assertNull(resolutions.get(0).getTagKey());
+    assertNull(resolutions.get(0).getTagValues());
+    assertNull(resolutions.get(1).getTagKey());
+    assertEquals(1, resolutions.get(1).getTagValues().size());
+    assertNull(resolutions.get(1).getTagValues().get(0));
+  }
+  
+  @Test
+  public void resolveUidsEmptyListAndTrace() throws Exception {
+    UniqueId uid = new UniqueId(data_store);
+    
+    assertTrue(uid.resolveUids(mock(Filter.class), null)
+        .join().isEmpty());
+    
+    trace = new MockTrace();
+    assertTrue(uid.resolveUids(mock(Filter.class), 
+        trace.newSpan("UT").start())
+        .join().isEmpty());
+    assertEquals(0, trace.spans.size());
+    
+    trace = new MockTrace(true);
+    assertTrue(uid.resolveUids(mock(Filter.class), 
+        trace.newSpan("UT").start())
+        .join().isEmpty());
+    verifySpan(UniqueId.class.getName() + ".resolveUids");
+  }
+  
+  @Test
+  public void resolveUidsIllegalArguments() throws Exception {
+    UniqueId uid = new UniqueId(data_store);
+    
+    try {
+      uid.resolveUids(null, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void resolveUidsExceptionFromGet() throws Exception {
+    UniqueId uid = new UniqueId(data_store);
+    
+    // in tagk
+    Filter filter = Filter.newBuilder()
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("*")
+            .setTagk("dc")
+            .setType("wildcard"))
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("web01|web02")
+            .setTagk("host")
+            .setType("literal_or"))
+        .build();
+    
+    Deferred<List<ResolvedFilter>> deferred = uid.resolveUids(filter, null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+    
+    // in tag value
+    filter = Filter.newBuilder()
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("*")
+            .setTagk("owner")
+            .setType("wildcard"))
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("web01|dc")
+            .setTagk("host")
+            .setType("literal_or"))
+        .build();
+    
+    deferred = uid.resolveUids(filter, null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+  }
+  
+  @Test
+  public void resolveUidsTraceException() throws Exception {
+    UniqueId uid = new UniqueId(data_store);
+    trace = new MockTrace(true);
+    // in tagk
+    Filter filter = Filter.newBuilder()
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("*")
+            .setTagk("dc")
+            .setType("wildcard"))
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("web01|web02")
+            .setTagk("host")
+            .setType("literal_or"))
+        .build();
+    
+    Deferred<List<ResolvedFilter>> deferred = uid.resolveUids(filter, 
+        trace.newSpan("UT").start());
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { 
+      verifySpan(UniqueId.class.getName() + ".resolveUids", 
+          UnitTestException.class, 4);
+    }
+  }
+  
+  @Test
+  public void resolveUidsReturnsException() throws Exception {
+    // see what happens if we just return an exception
+    Tsdb1xHBaseDataStore store = badClient();
+    when(store.client().get(any(GetRequest.class)))
+      .thenReturn(Deferred.fromError(new UnitTestException()));
+    UniqueId uid = new UniqueId(store);
+    trace = new MockTrace(true);
+    
+    Filter filter = Filter.newBuilder()
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("*")
+            .setTagk("dc")
+            .setType("wildcard"))
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("web01|web02")
+            .setTagk("host")
+            .setType("literal_or"))
+        .build();
+    
+    Deferred<List<ResolvedFilter>> deferred = uid.resolveUids(filter, 
+        trace.newSpan("UT").start());
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { 
+      verifySpan(UniqueId.class.getName() + ".resolveUids", 
+          UnitTestException.class, 3);
+    }
+  }
+  
+  @Test
+  public void resolveUidsThrowsException() throws Exception {
+    // see what happens if we just return an exception
+    Tsdb1xHBaseDataStore store = badClient();
+    when(store.client().get(any(GetRequest.class)))
+      .thenThrow(new UnitTestException());
+    UniqueId uid = new UniqueId(store);
+    trace = new MockTrace(true);
+    
+    Filter filter = Filter.newBuilder()
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("*")
+            .setTagk("dc")
+            .setType("wildcard"))
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter("web01|web02")
+            .setTagk("host")
+            .setType("literal_or"))
+        .build();
+    
+    Deferred<List<ResolvedFilter>> deferred = uid.resolveUids(filter, 
+        trace.newSpan("UT").start());
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { 
+      verifySpan(UniqueId.class.getName() + ".resolveUids", 
+          UnitTestException.class, 3);
+    }
+  }
+  
   @Test
   public void getName() throws Exception {
     UniqueId uid = new UniqueId(data_store);
@@ -870,6 +1133,7 @@ public final class TestUniqueId {
     verifySpan(UniqueId.class.getName() + ".getIds", 
         UnitTestException.class);
   }
+  
 //  // The table contains IDs encoded on 2 bytes but the instance wants 3.
 //  @Test(expected=IllegalStateException.class)
 //  public void getIdMisconfiguredWidth() {
@@ -2443,8 +2707,12 @@ public final class TestUniqueId {
   }
   
   static void verifySpan(final String name, final Class<?> ex) {
-    assertEquals(1, trace.spans.size());
-    assertEquals(name, trace.spans.get(0).id);
+    verifySpan(name, ex, 1);
+  }
+  
+  static void verifySpan(final String name, final Class<?> ex, final int size) {
+    assertEquals(size, trace.spans.size());
+    assertEquals(name, trace.spans.get(size - 1).id);
     assertEquals("Error", trace.spans.get(0).tags.get("status"));
     assertTrue(ex.isInstance(trace.spans.get(0).exceptions.get("Exception")));
   }

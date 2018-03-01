@@ -306,8 +306,7 @@ public class TestTagVFilter {
   public void stripParenthesesEmpty() throws Exception {
     TagVFilter.stripParentheses("");
   }
-
-  @SuppressWarnings("unchecked")
+  
   @Test
   public void tagsToFiltersOldGroupBy() throws Exception {
     final Map<String, String> tags = new HashMap<String, String>(3);
@@ -322,13 +321,11 @@ public class TestTagVFilter {
       if (filter.getTagk().equals("host")) {
         assertTrue(filter instanceof TagVLiteralOrFilter);
         assertFalse(((TagVLiteralOrFilter)filter).isCaseInsensitive());
-        assertEquals(1, ((Set<String>)Whitebox
-            .getInternalState(filter, "literals")).size());
+        assertEquals(1, ((TagVLiteralOrFilter)filter).literals().size());
       } else if (filter.getTagk().equals("owner")) {
         assertTrue(filter instanceof TagVLiteralOrFilter);
         assertFalse(((TagVLiteralOrFilter)filter).isCaseInsensitive());
-        assertEquals(2, ((Set<String>)Whitebox
-            .getInternalState(filter, "literals")).size());
+        assertEquals(2, ((TagVLiteralOrFilter)filter).literals().size());
       } else if (filter.getTagk().equals("colo")) {
         assertTrue(filter instanceof TagVWildcardFilter);
         assertTrue(((TagVWildcardFilter)filter).isCaseInsensitive());
