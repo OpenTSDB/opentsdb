@@ -19,6 +19,7 @@ import java.util.List;
 
 import javax.xml.bind.DatatypeConverter;
 
+import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.TimeSeriesStringId;
@@ -32,6 +33,59 @@ import net.opentsdb.utils.Bytes;
  */
 public interface UniqueId {
 
+  public static enum CacheMode {
+    /** Populate the string to UID cache only for writers. */
+    WRITE_ONLY("write_only"),
+    
+    /** Populate the UID to string cache only for readers. */
+    READ_ONLY("read_only"),
+    
+    /** Populate both forward and reverse caches. */
+    READ_WRITE("read_write");
+    
+    /** User friendly name of this enum. */
+    private final String name;
+    
+    /**
+     * Ctor package private for ^^.
+     * @param name A non-null and non-empty name.
+     */
+    CacheMode(final String name) {
+      this.name = name;
+    }
+    
+    /** @return The user friendly name of the cache mode. */
+    public String getName() {
+      return name;
+    }
+    
+    /**
+     * Converts a string to the proper cache mode. 
+     * @param name A non-null and non-empty name.
+     * @return The cache mode enum if found.
+     * @throws IllegalArgumentException if the name was null or empty or
+     * the string didn't match an existing mode.
+     */
+    public static CacheMode fromString(final String name) {
+      if (Strings.isNullOrEmpty(name)) {
+        throw new IllegalArgumentException("Cache mode cannot be null "
+            + "or empty.");
+      }
+      final String lc = name.trim().toLowerCase();
+      if (lc.equals("w") || lc.equals("write") || lc.equals("write_only")) {
+        return WRITE_ONLY;
+      } else if (lc.equals("r") || lc.equals("read") || 
+                 lc.equals("read_only")) {
+        return READ_ONLY;
+      } else if (lc.equals("rw") || lc.equals("wr") || 
+                 lc.equals("readwrite") || lc.equals("writeread") || 
+                 lc.equals("read_write") || lc.equals("write_read")) {
+        return READ_WRITE;
+      }
+      throw new IllegalArgumentException("Unrecognized cache mode name.");
+    }
+  }
+  
   /** 
    * @return The type of Unique ID this implementation works with.
    * @since 2.0 

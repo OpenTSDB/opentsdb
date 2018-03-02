@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.uid;
 
+import java.nio.charset.Charset;
 import java.util.List;
 
 import com.stumbleupon.async.Deferred;
@@ -142,4 +143,6 @@ public interface UniqueIdStore {
                                          final List<byte[]> ids,
                                          final Span span);
   
+  /** @return The non-null characterset used for en/decoding. */
+  public Charset characterSet();
 }

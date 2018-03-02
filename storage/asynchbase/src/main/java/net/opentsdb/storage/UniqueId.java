@@ -1868,6 +1868,11 @@ public class UniqueId implements UniqueIdStore {
 //    }
 //  }
 
+  @Override
+  public Charset characterSet() {
+    return character_set;
+  }
+  
   class ResolvedFilterImplementation implements ResolvedFilter {
     
     byte[] tag_key;
