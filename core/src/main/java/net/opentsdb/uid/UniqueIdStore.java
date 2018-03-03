@@ -20,9 +20,7 @@ import java.util.List;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.TimeSeriesId;
-import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.schemas.tsdb1x.ResolvedFilter;
 
 /**
  * An interface used to make calls to storage for resolving Strings to
@@ -31,21 +29,6 @@ import net.opentsdb.storage.schemas.tsdb1x.ResolvedFilter;
  * @since 3.0
  */
 public interface UniqueIdStore {
-
-  /**
-   * Resolves the given V2 filter, parsing the tag keys and optional tag
-   * value literals. The resulting list is populated in the same order as
-   * the TagVFilters in the given filter set.
-   * @param filter A non-null filter to resolve.
-   * @param span An optional tracing span.
-   * @return A deferred resolving to a non-null list of resolved filters
-   * if successful or an exception if something went wrong. The list may
-   * be empty if the filter didn't have any TagVFilters. (In which case
-   * this shouldn't be called.)
-   * @throws IllegalArgumentException if the filter was null.
-   */
-  public Deferred<List<ResolvedFilter>> resolveUids(final Filter filter, 
-                                                    final Span span);
   
   /**
    * Converts the given string to it's UID value based on the type.

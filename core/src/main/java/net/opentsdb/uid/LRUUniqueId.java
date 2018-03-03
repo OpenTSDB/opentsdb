@@ -32,6 +32,11 @@ import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
 import net.opentsdb.utils.Bytes;
 
+/**
+ * 
+ * TODO - add a negative cache
+ *
+ */
 public class LRUUniqueId implements UniqueId {
   private static final Logger LOG = LoggerFactory.getLogger(
       LRUUniqueId.class);
@@ -165,15 +170,17 @@ public class LRUUniqueId implements UniqueId {
     class IdToString implements Callback<String, String> {
       @Override
       public String call(final String name) throws Exception {
-        switch (mode) {
-        case WRITE_ONLY:
-          break;
-        case READ_ONLY:
-          id_cache.put(UniqueId.uidToString(id), name);
-          break;
-        default:
-          id_cache.put(UniqueId.uidToString(id), name);
-          name_cache.put(name, id);
+        if (!Strings.isNullOrEmpty(name)) {
+          switch (mode) {
+          case WRITE_ONLY:
+            break;
+          case READ_ONLY:
+            id_cache.put(UniqueId.uidToString(id), name);
+            break;
+          default:
+            id_cache.put(UniqueId.uidToString(id), name);
+            name_cache.put(name, id);
+          }
         }
         
         if (child != null) {
@@ -262,7 +269,7 @@ public class LRUUniqueId implements UniqueId {
         int ids_idx = 0;
         for (int i = 0; i < misses.size(); i++) {
           final String name = store_names.get(i);
-          if (name == null) {
+          if (Strings.isNullOrEmpty(name)) {
             continue;
           }
           
@@ -351,15 +358,17 @@ public class LRUUniqueId implements UniqueId {
     class StringToId implements Callback<byte[], byte[]> {
       @Override
       public byte[] call(final byte[] uid) throws Exception {
-        switch (mode) {
-        case WRITE_ONLY:
-          name_cache.put(name, uid);
-          break;
-        case READ_ONLY:
-          break;
-        default:
-          id_cache.put(UniqueId.uidToString(uid), name);
-          name_cache.put(name, uid);
+        if (!Bytes.isNullOrEmpty(uid)) {
+          switch (mode) {
+          case WRITE_ONLY:
+            name_cache.put(name, uid);
+            break;
+          case READ_ONLY:
+            break;
+          default:
+            id_cache.put(UniqueId.uidToString(uid), name);
+            name_cache.put(name, uid);
+          }
         }
         
         if (child != null) {
@@ -446,7 +455,7 @@ public class LRUUniqueId implements UniqueId {
         int names_idx = 0;
         for (int i = 0; i < misses.size(); i++) {
           final byte[] id = store_uids.get(i);
-          if (id == null) {
+          if (Bytes.isNullOrEmpty(id)) {
             continue;
           }
           

@@ -14,10 +14,14 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.configuration.ConfigurationException;
@@ -26,8 +30,11 @@ import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.filter.TagVLiteralOrFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.stats.Span;
+import net.opentsdb.storage.StorageException;
 import net.opentsdb.storage.StorageSchema;
 import net.opentsdb.storage.TimeSeriesDataStore;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
@@ -220,8 +227,120 @@ public class Schema implements StorageSchema {
    */
   public Deferred<List<ResolvedFilter>> resolveUids(final Filter filter, 
                                                     final Span span) {
-    // TODO
-    return null;
+    if (filter == null) {
+      throw new IllegalArgumentException("Filter cannot be null.");
+    }
+    
+    final Span child;
+    if (span != null && span.isDebug()) {
+      child = span.newChild(getClass().getName() + ".resolveUids")
+          .withTag("dataStore", data_store.id())
+          .withTag("filter", filter.toString())
+          .start();
+    } else {
+      child = null;
+    }
+    
+    if (filter.getTags() == null || filter.getTags().isEmpty()) {
+      if (child != null) {
+        child.setSuccessTags()
+          .finish();
+      }
+      return Deferred.fromResult(Collections.emptyList());
+    }
+    
+    final List<ResolvedFilter> resolutions = 
+        Lists.newArrayListWithCapacity(filter.getTags().size());
+    for (int i = 0; i < filter.getTags().size(); i++) {
+      resolutions.add(null);
+    }
+    
+    class TagVCB implements Callback<Object, List<byte[]>> {
+      final int idx;
+      
+      TagVCB(final int idx) {
+        this.idx = idx;
+      }
+
+      @Override
+      public Object call(final List<byte[]> uids) throws Exception {
+        // since  we're working on an array list and only one index per
+        // callback, we can avoid synchronizing on it.
+        ((ResolvedFilterImplementation) resolutions.get(idx))
+          .tag_values = uids;
+        return null;
+      }
+      
+    }
+    
+    class TagKCB implements Callback<Deferred<Object>, byte[]> {
+      final int idx;
+      final TagVFilter f;
+      
+      TagKCB(final int idx, final TagVFilter f) {
+        this.idx = idx;
+        this.f = f;
+      }
+
+      @Override
+      public Deferred<Object> call(final byte[] uid) throws Exception {
+        final ResolvedFilterImplementation resolved = 
+            new ResolvedFilterImplementation();
+        resolved.tag_key = uid;
+        
+        // since  we're working on an array list and only one index per
+        // callback, we can avoid synchronizing on it.
+        resolutions.set(idx, resolved);
+        
+        if (f instanceof TagVLiteralOrFilter) {
+          final List<String> tags = Lists.newArrayList(
+              ((TagVLiteralOrFilter) f).literals());
+          return tag_values.getIds(tags, 
+              child != null ? child : span)
+              .addCallback(new TagVCB(idx));
+        } else {
+          return Deferred.fromResult(null);
+        }
+      }
+    }
+    
+    // Start the resolution chain here.
+    final List<Deferred<Object>> deferreds = 
+        Lists.newArrayListWithCapacity(filter.getTags().size());
+    for (int i = 0; i < filter.getTags().size(); i++) {
+      final TagVFilter f = filter.getTags().get(i);
+      deferreds.add(tag_names.getId(f.getTagk(), 
+          child != null ? child : span)
+          .addCallbackDeferring(new TagKCB(i, f)));
+    }
+    
+    /** Error callback to cast the exception to a StorageException */
+    class ErrorCB implements Callback<List<ResolvedFilter>, Exception> {
+      @Override
+      public List<ResolvedFilter> call(final Exception ex) throws Exception {
+        if (child != null) {
+          child.setErrorTags()
+            .log("Exception", ex)
+            .finish();
+        }
+        throw new StorageException("Failed to fetch IDs.", ex);
+      }
+    }
+    
+    class FinalCB implements Callback<List<ResolvedFilter>, ArrayList<Object>> {
+      @Override
+      public List<ResolvedFilter> call(final ArrayList<Object> ignored)
+          throws Exception {
+        if (child != null) {
+          child.setSuccessTags()
+            .finish();
+        }
+        return resolutions;
+      }
+    }
+    
+    return Deferred.group(deferreds)
+        .addCallbacks(new FinalCB(), new ErrorCB());
   }
   
   /**
@@ -327,6 +446,21 @@ public class Schema implements StorageSchema {
   /** @return The width of tag value UIDs. */
   public int tagvWidth() {
     return tagv_width;
+  }
+  
+  static class ResolvedFilterImplementation implements ResolvedFilter {
+    protected byte[] tag_key;
+    protected List<byte[]> tag_values;
+    
+    @Override
+    public byte[] getTagKey() {
+      return tag_key;
+    }
+
+    @Override
+    public List<byte[]> getTagValues() {
+      return tag_values;
+    }
   }
   
   String configKey(final String suffix) {
