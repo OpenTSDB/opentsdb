@@ -346,34 +346,66 @@ public class Schema implements StorageSchema {
   /**
    * Converts the given string to it's UID value based on the type.
    * @param type A non-null UID type.
-   * @param id A non-null and non-empty string.
+   * @param name A non-null and non-empty string.
    * @param span An optional tracing span.
    * @return A deferred resolving to the UID if successful or an exception.
    * @throws IllegalArgumentException if the type was null or the string
    * was null or empty.
    */
-  public Deferred<byte[]> stringToId(final UniqueIdType type, 
-                                     final String id,
-                                     final Span span) {
-    // TODO
-    return null;
+  public Deferred<byte[]> getId(final UniqueIdType type, 
+                                final String name,
+                                final Span span) {
+    if (type == null) {
+      throw new IllegalArgumentException("Type cannot be null");
+    }
+    if (Strings.isNullOrEmpty(name)) {
+      throw new IllegalArgumentException("Name cannot be null or empty.");
+    }
+    
+    // not tracing here since we're just a router
+    switch(type) {
+    case METRIC:
+      return metrics.getId(name, span);
+    case TAGK:
+      return tag_names.getId(name, span);
+    case TAGV:
+      return tag_values.getId(name, span);
+    default:
+      throw new IllegalArgumentException("Unsupported type: " + type);
+    }
   }
   
   /**
    * Converts the list of strings to their IDs, maintaining order.
    * @param type A non-null UID type.
-   * @param ids A non-null and non-empty list of strings.
+   * @param names A non-null and non-empty list of strings.
    * @param span An optional tracing span.
    * @return A deferred resolving to the list of UIDs in order if 
    * successful or an exception.
    * @throws IllegalArgumentException if the type was null or the
    * IDs was null or an ID in the list was null or empty.
    */
-  public Deferred<List<byte[]>> stringsToId(final UniqueIdType type, 
-                                            final List<String> ids,
-                                            final Span span) {
-    // TODO
-    return null;
+  public Deferred<List<byte[]>> getIds(final UniqueIdType type, 
+                                       final List<String> names,
+                                       final Span span) {
+    if (type == null) {
+      throw new IllegalArgumentException("Type cannot be null");
+    }
+    if (names == null || names.isEmpty()) {
+      throw new IllegalArgumentException("Names cannot be null or empty.");
+    }
+    
+    // not tracing here since we're just a router
+    switch(type) {
+    case METRIC:
+      return metrics.getIds(names, span);
+    case TAGK:
+      return tag_names.getIds(names, span);
+    case TAGV:
+      return tag_values.getIds(names, span);
+    default:
+      throw new IllegalArgumentException("Unsupported type: " + type);
+    }
   }
   
   /**
@@ -386,11 +418,27 @@ public class Schema implements StorageSchema {
    * @throws IllegalArgumentException if the type was null or the ID 
    * null or empty.
    */
-  public Deferred<String> idToString(final UniqueIdType type, 
-                                     final byte[] id,
-                                     final Span span) {
-    // TODO
-    return null;
+  public Deferred<String> getName(final UniqueIdType type, 
+                                  final byte[] id,
+                                  final Span span) {
+    if (type == null) {
+      throw new IllegalArgumentException("Type cannot be null");
+    }
+    if (Bytes.isNullOrEmpty(id)) {
+      throw new IllegalArgumentException("ID cannot be null or empty.");
+    }
+ 
+    // not tracing here since we're just a router
+    switch(type) {
+    case METRIC:
+      return metrics.getName(id, span);
+    case TAGK:
+      return tag_names.getName(id, span);
+    case TAGV:
+      return tag_values.getName(id, span);
+    default:
+      throw new IllegalArgumentException("Unsupported type: " + type);
+    }
   }
   
   /**
@@ -404,11 +452,27 @@ public class Schema implements StorageSchema {
    * list was null or any string in the list was null or empty.
    * @return
    */
-  public Deferred<List<String>> idsToString(final UniqueIdType type, 
-                                            final List<byte[]> ids,
-                                            final Span span) {
-    // TODO
-    return null;
+  public Deferred<List<String>> getNames(final UniqueIdType type, 
+                                         final List<byte[]> ids,
+                                         final Span span) {
+    if (type == null) {
+      throw new IllegalArgumentException("Type cannot be null");
+    }
+    if (ids == null || ids.isEmpty()) {
+      throw new IllegalArgumentException("IDs cannot be null or empty.");
+    }
+ 
+    // not tracing here since we're just a router
+    switch(type) {
+    case METRIC:
+      return metrics.getNames(ids, span);
+    case TAGK:
+      return tag_names.getNames(ids, span);
+    case TAGV:
+      return tag_values.getNames(ids, span);
+    default:
+      throw new IllegalArgumentException("Unsupported type: " + type);
+    }
   }
 
   @Override

@@ -34,6 +34,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
 
@@ -62,7 +63,6 @@ public class TestSchema {
   private static final byte[] UID2 = new byte[] { 0, 0, 2 };
   private static final byte[] UID3 = new byte[] { 0, 0, 3 };
   private static final byte[] EX1 = new byte[] { 0, 0, 4 };
-  private static final byte[] NULL = new byte[] { 0, 0, 5 };
   private static final byte[] UID4 = new byte[] { 0, 0, 6 };
   
   private static final String STRING1 = "sys.cpu.user";
@@ -70,7 +70,6 @@ public class TestSchema {
   private static final String STRING3 = "web01";
   private static final String STRING4 = "web02";
   private static final String STRING5 = "owner";
-  private static final String NULL_STRING = "web03";
   private static final String EX2 = "dc";
   
   private static final String TESTID = "UT";
@@ -127,8 +126,13 @@ public class TestSchema {
     ((MockUIDStore) uid_store).addBoth(UniqueIdType.TAGV, STRING3, UID1);
     ((MockUIDStore) uid_store).addBoth(UniqueIdType.TAGV, STRING4, UID3);
     
+    ((MockUIDStore) uid_store).addException(UniqueIdType.METRIC, EX2);
     ((MockUIDStore) uid_store).addException(UniqueIdType.TAGK, EX2);
     ((MockUIDStore) uid_store).addException(UniqueIdType.TAGV, EX2);
+    
+    ((MockUIDStore) uid_store).addException(UniqueIdType.METRIC, EX1);
+    ((MockUIDStore) uid_store).addException(UniqueIdType.TAGK, EX1);
+    ((MockUIDStore) uid_store).addException(UniqueIdType.TAGV, EX1);
   }
   
   @Before
@@ -521,6 +525,205 @@ public class TestSchema {
       verifySpan(Schema.class.getName() + ".resolveUids", 
           StorageException.class, 4);
     }
+  }
+  
+  @Test
+  public void getId() throws Exception {
+    Schema schema = new Schema(tsdb, null);
+    
+    try {
+      schema.getId(null, STRING1, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      schema.getId(UniqueIdType.METRIC, null, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      schema.getId(UniqueIdType.METRIC, "", null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    assertArrayEquals(UID1, schema.getId(UniqueIdType.METRIC, STRING1, null).join());
+    assertArrayEquals(UID1, schema.getId(UniqueIdType.TAGK, STRING2, null).join());
+    assertArrayEquals(UID1, schema.getId(UniqueIdType.TAGV, STRING3, null).join());
+    
+    assertNull(schema.getId(UniqueIdType.METRIC, STRING5, null).join());
+    assertNull(schema.getId(UniqueIdType.TAGK, STRING4, null).join());
+    assertNull(schema.getId(UniqueIdType.TAGV, STRING5, null).join());
+    
+    Deferred<byte[]> deferred = schema.getId(UniqueIdType.METRIC, EX2, null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+    
+    deferred = schema.getId(UniqueIdType.TAGK, EX2, null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+    
+    deferred = schema.getId(UniqueIdType.TAGV, EX2, null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+  }
+  
+  @Test
+  public void getIds() throws Exception {
+    Schema schema = new Schema(tsdb, null);
+    
+    try {
+      schema.getIds(null, Lists.newArrayList(STRING1), null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      schema.getIds(UniqueIdType.METRIC, null, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      schema.getIds(UniqueIdType.METRIC, Lists.newArrayList(), null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    assertArrayEquals(UID1, schema.getIds(UniqueIdType.METRIC, 
+        Lists.newArrayList(STRING1), null).join().get(0));
+    assertArrayEquals(UID1, schema.getIds(UniqueIdType.TAGK, 
+        Lists.newArrayList(STRING2), null).join().get(0));
+    assertArrayEquals(UID1, schema.getIds(UniqueIdType.TAGV, 
+        Lists.newArrayList(STRING3), null).join().get(0));
+    
+    assertNull(schema.getIds(UniqueIdType.METRIC, 
+        Lists.newArrayList(STRING5), null).join().get(0));
+    assertNull(schema.getIds(UniqueIdType.TAGK, 
+        Lists.newArrayList(STRING4), null).join().get(0));
+    assertNull(schema.getIds(UniqueIdType.TAGV, 
+        Lists.newArrayList(STRING5), null).join().get(0));
+    
+    Deferred<List<byte[]>> deferred = schema.getIds(UniqueIdType.METRIC, 
+        Lists.newArrayList(STRING1, EX2), null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+    
+    deferred = schema.getIds(UniqueIdType.TAGK, 
+        Lists.newArrayList(STRING1, EX2), null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+    
+    deferred = schema.getIds(UniqueIdType.TAGV, 
+        Lists.newArrayList(STRING1, EX2), null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+  }
+  
+  @Test
+  public void getName() throws Exception {
+    Schema schema = new Schema(tsdb, null);
+    
+    try {
+      schema.getName(null, UID1, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      schema.getName(UniqueIdType.METRIC, null, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      schema.getName(UniqueIdType.METRIC, new byte[0], null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    assertEquals(STRING1, schema.getName(UniqueIdType.METRIC, UID1, null).join());
+    assertEquals(STRING2, schema.getName(UniqueIdType.TAGK, UID1, null).join());
+    assertEquals(STRING3, schema.getName(UniqueIdType.TAGV, UID1, null).join());
+    
+    assertNull(schema.getName(UniqueIdType.METRIC, UID3, null).join());
+    assertNull(schema.getName(UniqueIdType.TAGK, UID3, null).join());
+    assertNull(schema.getName(UniqueIdType.TAGV, UID4, null).join());
+    
+    Deferred<String> deferred = schema.getName(UniqueIdType.METRIC, EX1, null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+    
+    deferred = schema.getName(UniqueIdType.TAGK, EX1, null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+    
+    deferred = schema.getName(UniqueIdType.TAGV, EX1, null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+  }
+  
+  @Test
+  public void getNames() throws Exception {
+    Schema schema = new Schema(tsdb, null);
+    
+    try {
+      schema.getNames(null, Lists.newArrayList(UID1), null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      schema.getNames(UniqueIdType.METRIC, null, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      schema.getNames(UniqueIdType.METRIC, Lists.newArrayList(), null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    assertEquals(STRING1, schema.getNames(UniqueIdType.METRIC, 
+        Lists.newArrayList(UID1), null).join().get(0));
+    assertEquals(STRING2, schema.getNames(UniqueIdType.TAGK, 
+        Lists.newArrayList(UID1), null).join().get(0));
+    assertEquals(STRING3, schema.getNames(UniqueIdType.TAGV, 
+        Lists.newArrayList(UID1), null).join().get(0));
+    
+    assertNull(schema.getNames(UniqueIdType.METRIC, Lists.newArrayList(UID3), null).join().get(0));
+    assertNull(schema.getNames(UniqueIdType.TAGK, Lists.newArrayList(UID3), null).join().get(0));
+    assertNull(schema.getNames(UniqueIdType.TAGV, Lists.newArrayList(UID4), null).join().get(0));
+    
+    Deferred<List<String>> deferred = schema.getNames(UniqueIdType.METRIC, 
+        Lists.newArrayList(UID1, EX1), null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+    
+    deferred = schema.getNames(UniqueIdType.TAGK, 
+        Lists.newArrayList(UID1, EX1), null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
+    
+    deferred = schema.getNames(UniqueIdType.TAGV, 
+        Lists.newArrayList(UID1, EX1), null);
+    try {
+      deferred.join();
+      fail("Expected StorageException");
+    } catch (StorageException e) { }
   }
   
   static void verifySpan(final String name) {
