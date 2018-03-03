@@ -16,6 +16,7 @@ package net.opentsdb.uid;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
@@ -111,6 +112,19 @@ public class TestLRUUniqueId {
     assertEquals("false", trace.spans.get(0).tags.get("fromCache"));
     assertEquals("true", trace.spans.get(1).tags.get("fromCache"));
     assertEquals("true", trace.spans.get(2).tags.get("fromCache"));
+  }
+  
+  @Test
+  public void getNameNull() throws Exception {
+    when(store.getName(any(UniqueIdType.class), any(byte[].class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromResult(null));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    assertNull(lru.getName(UID1, null).join());
+    assertEquals(0, lru.nameCache().size());
+    assertEquals(0, lru.idCache().size());
+    verify(store, times(1)).getName(UniqueIdType.METRIC, UID1, null);
   }
   
   @Test
@@ -342,6 +356,21 @@ public class TestLRUUniqueId {
   }
   
   @Test
+  public void getNamesNulls() throws Exception {
+    when(store.getNames(any(UniqueIdType.class), any(List.class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromResult(Lists.newArrayList(STRING1, null)));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    List<String> names = lru.getNames(Lists.newArrayList(UID1, UID2), null).join();
+    assertEquals(STRING1, names.get(0));
+    assertNull(names.get(1));
+    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    assertEquals(1, lru.nameCache().size());
+    assertEquals(1, lru.idCache().size());
+  }
+  
+  @Test
   public void getNamesModes() throws Exception {
     when(store.getNames(any(UniqueIdType.class), any(List.class), 
         any(Span.class)))
@@ -482,6 +511,19 @@ public class TestLRUUniqueId {
     assertEquals("false", trace.spans.get(0).tags.get("fromCache"));
     assertEquals("true", trace.spans.get(1).tags.get("fromCache"));
     assertEquals("true", trace.spans.get(2).tags.get("fromCache"));
+  }
+  
+  @Test
+  public void getIdNull() throws Exception {
+    when(store.getId(any(UniqueIdType.class), anyString(), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromResult(null));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    assertNull(lru.getId(STRING1, null).join());
+    assertEquals(0, lru.nameCache().size());
+    assertEquals(0, lru.idCache().size());
+    verify(store, times(1)).getId(UniqueIdType.METRIC, STRING1, null);
   }
   
   @Test
@@ -693,6 +735,22 @@ public class TestLRUUniqueId {
     verify(store, times(3)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
     assertEquals(4, lru.nameCache().size());
     assertEquals(2, lru.idCache().size());
+  }
+  
+  @Test
+  public void getIdsWithNulls() throws Exception {
+    when(store.getIds(any(UniqueIdType.class), any(List.class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromResult(Lists.newArrayList(UID1, null)));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    
+    List<byte[]> ids = lru.getIds(Lists.newArrayList(STRING1, STRING2), null).join();
+    assertArrayEquals(UID1, ids.get(0));
+    assertNull(ids.get(1));
+    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    assertEquals(1, lru.nameCache().size());
+    assertEquals(1, lru.idCache().size());
   }
   
   @Test
