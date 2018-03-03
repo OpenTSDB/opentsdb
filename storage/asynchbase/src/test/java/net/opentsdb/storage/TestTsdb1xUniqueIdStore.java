@@ -94,7 +94,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
                   "com.sum.*", "org.xml.*"})
 @PrepareForTest({ HBaseClient.class, TSDB.class, Config.class, Scanner.class, 
   /**RandomUniqueId.class,*/ Const.class, Deferred.class })
-public final class TestUniqueId {
+public final class TestTsdb1xUniqueIdStore {
   private static final byte[] table = { 't', 's', 'd', 'b', '-', 'u', 'i', 'd' };
 //  private static final byte[] ID = { 'i', 'd' };
 //  private static final byte[] NAME = { 'n', 'a', 'm', 'e' };
@@ -152,26 +152,26 @@ public final class TestUniqueId {
     
     storage = new MockBase(client, true, true, true, true);
     storage.addTable(table, 
-        Lists.newArrayList(UniqueId.ID_FAMILY, UniqueId.NAME_FAMILY));
+        Lists.newArrayList(Tsdb1xUniqueIdStore.ID_FAMILY, Tsdb1xUniqueIdStore.NAME_FAMILY));
     // metrics
-    storage.addColumn(table, STRING1.getBytes(Const.ASCII_CHARSET), UniqueId.ID_FAMILY, UniqueId.METRICS_QUAL, UID1);
-    storage.addColumn(table, UID1, UniqueId.NAME_FAMILY, UniqueId.METRICS_QUAL, STRING1.getBytes(Const.ASCII_CHARSET));
+    storage.addColumn(table, STRING1.getBytes(Const.ASCII_CHARSET), Tsdb1xUniqueIdStore.ID_FAMILY, Tsdb1xUniqueIdStore.METRICS_QUAL, UID1);
+    storage.addColumn(table, UID1, Tsdb1xUniqueIdStore.NAME_FAMILY, Tsdb1xUniqueIdStore.METRICS_QUAL, STRING1.getBytes(Const.ASCII_CHARSET));
     
     // tag keys
-    storage.addColumn(table, STRING2.getBytes(Const.ASCII_CHARSET), UniqueId.ID_FAMILY, UniqueId.TAG_NAME_QUAL, UID1);
-    storage.addColumn(table, UID1, UniqueId.NAME_FAMILY, UniqueId.TAG_NAME_QUAL, STRING2.getBytes(Const.ASCII_CHARSET));
-    storage.addColumn(table, STRING5.getBytes(Const.ASCII_CHARSET), UniqueId.ID_FAMILY, UniqueId.TAG_NAME_QUAL, UID4);
-    storage.addColumn(table, UID4, UniqueId.NAME_FAMILY, UniqueId.TAG_NAME_QUAL, STRING5.getBytes(Const.ASCII_CHARSET));
+    storage.addColumn(table, STRING2.getBytes(Const.ASCII_CHARSET), Tsdb1xUniqueIdStore.ID_FAMILY, Tsdb1xUniqueIdStore.TAG_NAME_QUAL, UID1);
+    storage.addColumn(table, UID1, Tsdb1xUniqueIdStore.NAME_FAMILY, Tsdb1xUniqueIdStore.TAG_NAME_QUAL, STRING2.getBytes(Const.ASCII_CHARSET));
+    storage.addColumn(table, STRING5.getBytes(Const.ASCII_CHARSET), Tsdb1xUniqueIdStore.ID_FAMILY, Tsdb1xUniqueIdStore.TAG_NAME_QUAL, UID4);
+    storage.addColumn(table, UID4, Tsdb1xUniqueIdStore.NAME_FAMILY, Tsdb1xUniqueIdStore.TAG_NAME_QUAL, STRING5.getBytes(Const.ASCII_CHARSET));
     
     // tag values
-    storage.addColumn(table, STRING3.getBytes(Const.ASCII_CHARSET), UniqueId.ID_FAMILY, UniqueId.TAG_VALUE_QUAL, UID1);
-    storage.addColumn(table, UID1, UniqueId.NAME_FAMILY, UniqueId.TAG_VALUE_QUAL, STRING3.getBytes(Const.ASCII_CHARSET));
-    storage.addColumn(table, STRING4.getBytes(Const.ASCII_CHARSET), UniqueId.ID_FAMILY, UniqueId.TAG_VALUE_QUAL, UID3);
-    storage.addColumn(table, UID3, UniqueId.NAME_FAMILY, UniqueId.TAG_VALUE_QUAL, STRING4.getBytes(Const.ASCII_CHARSET));
+    storage.addColumn(table, STRING3.getBytes(Const.ASCII_CHARSET), Tsdb1xUniqueIdStore.ID_FAMILY, Tsdb1xUniqueIdStore.TAG_VALUE_QUAL, UID1);
+    storage.addColumn(table, UID1, Tsdb1xUniqueIdStore.NAME_FAMILY, Tsdb1xUniqueIdStore.TAG_VALUE_QUAL, STRING3.getBytes(Const.ASCII_CHARSET));
+    storage.addColumn(table, STRING4.getBytes(Const.ASCII_CHARSET), Tsdb1xUniqueIdStore.ID_FAMILY, Tsdb1xUniqueIdStore.TAG_VALUE_QUAL, UID3);
+    storage.addColumn(table, UID3, Tsdb1xUniqueIdStore.NAME_FAMILY, Tsdb1xUniqueIdStore.TAG_VALUE_QUAL, STRING4.getBytes(Const.ASCII_CHARSET));
     
     // UTF-8 Encoding
-    storage.addColumn(table, UNISTRING.getBytes(Const.UTF8_CHARSET), UniqueId.ID_FAMILY, UniqueId.METRICS_QUAL, UID2);
-    storage.addColumn(table, UID2, UniqueId.NAME_FAMILY, UniqueId.METRICS_QUAL, UNISTRING.getBytes(Const.UTF8_CHARSET));
+    storage.addColumn(table, UNISTRING.getBytes(Const.UTF8_CHARSET), Tsdb1xUniqueIdStore.ID_FAMILY, Tsdb1xUniqueIdStore.METRICS_QUAL, UID2);
+    storage.addColumn(table, UID2, Tsdb1xUniqueIdStore.NAME_FAMILY, Tsdb1xUniqueIdStore.METRICS_QUAL, UNISTRING.getBytes(Const.UTF8_CHARSET));
     
     // exceptions
     storage.throwException(EX1, new UnitTestException());
@@ -219,7 +219,7 @@ public final class TestUniqueId {
   
   @Test
   public void resolveUids() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     
     Filter filter = Filter.newBuilder()
         .addFilter(TagVFilter.newBuilder()
@@ -309,7 +309,7 @@ public final class TestUniqueId {
   
   @Test
   public void resolveUidsEmptyListAndTrace() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     
     assertTrue(uid.resolveUids(mock(Filter.class), null)
         .join().isEmpty());
@@ -324,12 +324,12 @@ public final class TestUniqueId {
     assertTrue(uid.resolveUids(mock(Filter.class), 
         trace.newSpan("UT").start())
         .join().isEmpty());
-    verifySpan(UniqueId.class.getName() + ".resolveUids");
+    verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".resolveUids");
   }
   
   @Test
   public void resolveUidsIllegalArguments() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     
     try {
       uid.resolveUids(null, null);
@@ -339,7 +339,7 @@ public final class TestUniqueId {
   
   @Test
   public void resolveUidsExceptionFromGet() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     
     // in tagk
     Filter filter = Filter.newBuilder()
@@ -380,7 +380,7 @@ public final class TestUniqueId {
   
   @Test
   public void resolveUidsTraceException() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     trace = new MockTrace(true);
     // in tagk
     Filter filter = Filter.newBuilder()
@@ -400,7 +400,7 @@ public final class TestUniqueId {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { 
-      verifySpan(UniqueId.class.getName() + ".resolveUids", 
+      verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".resolveUids", 
           UnitTestException.class, 4);
     }
   }
@@ -411,7 +411,7 @@ public final class TestUniqueId {
     Tsdb1xHBaseDataStore store = badClient();
     when(store.client().get(any(GetRequest.class)))
       .thenReturn(Deferred.fromError(new UnitTestException()));
-    UniqueId uid = new UniqueId(store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(store);
     trace = new MockTrace(true);
     
     Filter filter = Filter.newBuilder()
@@ -431,7 +431,7 @@ public final class TestUniqueId {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { 
-      verifySpan(UniqueId.class.getName() + ".resolveUids", 
+      verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".resolveUids", 
           UnitTestException.class, 3);
     }
   }
@@ -442,7 +442,7 @@ public final class TestUniqueId {
     Tsdb1xHBaseDataStore store = badClient();
     when(store.client().get(any(GetRequest.class)))
       .thenThrow(new UnitTestException());
-    UniqueId uid = new UniqueId(store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(store);
     trace = new MockTrace(true);
     
     Filter filter = Filter.newBuilder()
@@ -462,14 +462,14 @@ public final class TestUniqueId {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { 
-      verifySpan(UniqueId.class.getName() + ".resolveUids", 
+      verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".resolveUids", 
           UnitTestException.class, 3);
     }
   }
   
   @Test
   public void getName() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     assertEquals(STRING1, uid.getName(UniqueIdType.METRIC, UID1, null).join());
     assertEquals(STRING2, uid.getName(UniqueIdType.TAGK, UID1, null).join());
     assertEquals(STRING3, uid.getName(UniqueIdType.TAGV, UID1, null).join());
@@ -479,8 +479,8 @@ public final class TestUniqueId {
     
     // now try it with UTF8
     ((UnitTestConfiguration) config).override(
-        data_store.getConfigKey(UniqueId.CHARACTER_SET_KEY), "UTF-8");
-    uid = new UniqueId(data_store);
+        data_store.getConfigKey(Tsdb1xUniqueIdStore.CHARACTER_SET_KEY), "UTF-8");
+    uid = new Tsdb1xUniqueIdStore(data_store);
     
     assertEquals(STRING1, uid.getName(UniqueIdType.METRIC, UID1, null).join());
     assertEquals(STRING2, uid.getName(UniqueIdType.TAGK, UID1, null).join());
@@ -495,7 +495,7 @@ public final class TestUniqueId {
   
   @Test
   public void getNameIllegalArguments() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     
     try {
       uid.getName(null, UID1, null);
@@ -513,7 +513,7 @@ public final class TestUniqueId {
   
   @Test
   public void getNameExceptionFromGet() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     // exception
     Deferred<String> deferred = uid.getName(UniqueIdType.METRIC, EX1, null);
     try {
@@ -526,7 +526,7 @@ public final class TestUniqueId {
   
   @Test
   public void getNameTracing() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     // span tests. Only trace on debug.
     trace = new MockTrace();
     assertEquals(STRING1, uid.getName(UniqueIdType.METRIC, UID1, 
@@ -536,19 +536,19 @@ public final class TestUniqueId {
     trace = new MockTrace(true);
     assertEquals(STRING1, uid.getName(UniqueIdType.METRIC, UID1, 
         trace.newSpan("UT").start()).join());
-    verifySpan(UniqueId.class.getName() + ".getName");
+    verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".getName");
   }
   
   @Test
   public void getNameTraceException() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     trace = new MockTrace(true);
     try {
       uid.getName(UniqueIdType.METRIC, EX1, trace.newSpan("UT").start())
         .join();
       fail("Expected StorageException");
     } catch (StorageException e) { 
-      verifySpan(UniqueId.class.getName() + ".getName", UnitTestException.class);
+      verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".getName", UnitTestException.class);
     }
   }
   
@@ -558,7 +558,7 @@ public final class TestUniqueId {
     Tsdb1xHBaseDataStore store = badClient();
     when(store.client().get(any(GetRequest.class)))
       .thenReturn(Deferred.fromError(new UnitTestException()));
-    UniqueId uid = new UniqueId(store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(store);
     
     Deferred<String> deferred = uid.getName(UniqueIdType.TAGV, UID1, null);
     try {
@@ -571,7 +571,7 @@ public final class TestUniqueId {
     store = badClient();
     when(store.client().get(any(GetRequest.class)))
       .thenReturn(Deferred.fromError(new UnitTestException()));
-    uid = new UniqueId(store);
+    uid = new Tsdb1xUniqueIdStore(store);
     // with trace
     trace = new MockTrace(true);
     deferred = uid.getName(UniqueIdType.TAGV, UID1,
@@ -582,7 +582,7 @@ public final class TestUniqueId {
     } catch (StorageException e) {
       assertTrue(e.getCause() instanceof UnitTestException);
     }
-    verifySpan(UniqueId.class.getName() + ".getName", 
+    verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".getName", 
         UnitTestException.class);
   }
   
@@ -592,7 +592,7 @@ public final class TestUniqueId {
     Tsdb1xHBaseDataStore store = badClient();
     when(store.client().get(any(GetRequest.class)))
       .thenThrow(new UnitTestException());
-    UniqueId uid = new UniqueId(store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(store);
     
     Deferred<String> deferred = uid.getName(UniqueIdType.TAGV, UID1, null);
     try {
@@ -605,7 +605,7 @@ public final class TestUniqueId {
     store = badClient();
     when(store.client().get(any(GetRequest.class)))
       .thenThrow(new UnitTestException());
-    uid = new UniqueId(store);
+    uid = new Tsdb1xUniqueIdStore(store);
     // with trace
     trace = new MockTrace(true);
     deferred = uid.getName(UniqueIdType.TAGV, UID1,
@@ -616,13 +616,13 @@ public final class TestUniqueId {
     } catch (StorageException e) {
       assertTrue(e.getCause() instanceof UnitTestException);
     }
-    verifySpan(UniqueId.class.getName() + ".getName", 
+    verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".getName", 
         UnitTestException.class);
   }
   
   @Test
   public void getNames() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     List<String> names = uid.getNames(UniqueIdType.METRIC, 
         Lists.newArrayList(UID1, UID3), null).join();
     assertEquals(2, names.size());
@@ -644,8 +644,8 @@ public final class TestUniqueId {
     
     // UTF8
     ((UnitTestConfiguration) config).override(
-        data_store.getConfigKey(UniqueId.CHARACTER_SET_KEY), "UTF-8");
-    uid = new UniqueId(data_store);
+        data_store.getConfigKey(Tsdb1xUniqueIdStore.CHARACTER_SET_KEY), "UTF-8");
+    uid = new Tsdb1xUniqueIdStore(data_store);
     
     names = uid.getNames(UniqueIdType.METRIC, 
         Lists.newArrayList(UID1, UID2), null).join();
@@ -663,7 +663,7 @@ public final class TestUniqueId {
   
   @Test
   public void getNamesIllegalArguments() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     
     try {
       uid.getNames(null, Lists.newArrayList(UID1, UID3), null);
@@ -685,7 +685,7 @@ public final class TestUniqueId {
   
   @Test
   public void getNamesExceptionInOneOrMore() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     // one throws exception
     Deferred<List<String>> deferred = uid.getNames(UniqueIdType.TAGV, 
         Lists.newArrayList(UID3, EX1), null);
@@ -699,7 +699,7 @@ public final class TestUniqueId {
   
   @Test
   public void getNamesTracing() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     // span tests. Only trace on debug.
     trace = new MockTrace();
     uid.getNames(UniqueIdType.METRIC, 
@@ -709,12 +709,12 @@ public final class TestUniqueId {
     trace = new MockTrace(true);
     uid.getNames(UniqueIdType.METRIC, 
         Lists.newArrayList(UID1, UID3), trace.newSpan("UT").start()).join();
-    verifySpan(UniqueId.class.getName() + ".getNames");
+    verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".getNames");
   }
   
   @Test
   public void getNamesTraceException() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     trace = new MockTrace(true);
     Deferred<List<String>> deferred = uid.getNames(UniqueIdType.TAGV, 
         Lists.newArrayList(UID3, EX1), trace.newSpan("UT").start());
@@ -722,7 +722,7 @@ public final class TestUniqueId {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
-    verifySpan(UniqueId.class.getName() + ".getNames", 
+    verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".getNames", 
         UnitTestException.class);
   }
   
@@ -733,7 +733,7 @@ public final class TestUniqueId {
     Tsdb1xHBaseDataStore store = badClient();
     when(store.client().get(any(List.class)))
       .thenReturn(Deferred.fromResult(new UnitTestException()));
-    UniqueId uid = new UniqueId(store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(store);
     
     Deferred<List<String>> deferred = uid.getNames(UniqueIdType.TAGV, 
         Lists.newArrayList(UID1, UID2), null);
@@ -747,7 +747,7 @@ public final class TestUniqueId {
     store = badClient();
     when(store.client().get(any(List.class)))
       .thenReturn(Deferred.fromResult(new UnitTestException()));
-    uid = new UniqueId(store);
+    uid = new Tsdb1xUniqueIdStore(store);
     // with trace
     trace = new MockTrace(true);
     deferred = uid.getNames(UniqueIdType.TAGV, 
@@ -758,7 +758,7 @@ public final class TestUniqueId {
     } catch (StorageException e) {
       assertTrue(e.getCause() instanceof UnitTestException);
     }
-    verifySpan(UniqueId.class.getName() + ".getNames", 
+    verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".getNames", 
         UnitTestException.class);
   }
   
@@ -769,7 +769,7 @@ public final class TestUniqueId {
     Tsdb1xHBaseDataStore store = badClient();
     when(store.client().get(any(List.class)))
       .thenThrow(new UnitTestException());
-    UniqueId uid = new UniqueId(store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(store);
     
     Deferred<List<String>> deferred = uid.getNames(UniqueIdType.TAGV, 
         Lists.newArrayList(UID1, UID2), null);
@@ -783,7 +783,7 @@ public final class TestUniqueId {
     store = badClient();
     when(store.client().get(any(List.class)))
       .thenThrow(new UnitTestException());
-    uid = new UniqueId(store);
+    uid = new Tsdb1xUniqueIdStore(store);
     // with trace
     trace = new MockTrace(true);
     deferred = uid.getNames(UniqueIdType.TAGV, 
@@ -794,13 +794,13 @@ public final class TestUniqueId {
     } catch (StorageException e) {
       assertTrue(e.getCause() instanceof UnitTestException);
     }
-    verifySpan(UniqueId.class.getName() + ".getNames", 
+    verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".getNames", 
         UnitTestException.class);
   }
 
   @Test
   public void getId() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     assertArrayEquals(UID1, uid.getId(UniqueIdType.METRIC, STRING1, null).join());
     assertArrayEquals(UID1, uid.getId(UniqueIdType.TAGK, STRING2, null).join());
     assertArrayEquals(UID1, uid.getId(UniqueIdType.TAGV, STRING3, null).join());
@@ -810,8 +810,8 @@ public final class TestUniqueId {
     
     // now try it with UTF8
     ((UnitTestConfiguration) config).override(
-        data_store.getConfigKey(UniqueId.CHARACTER_SET_KEY), "UTF-8");
-    uid = new UniqueId(data_store);
+        data_store.getConfigKey(Tsdb1xUniqueIdStore.CHARACTER_SET_KEY), "UTF-8");
+    uid = new Tsdb1xUniqueIdStore(data_store);
     
     assertArrayEquals(UID1, uid.getId(UniqueIdType.METRIC, STRING1, null).join());
     assertArrayEquals(UID1, uid.getId(UniqueIdType.TAGK, STRING2, null).join());
@@ -826,7 +826,7 @@ public final class TestUniqueId {
   
   @Test
   public void getIdIllegalArguments() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     
     try {
       uid.getId(null, STRING1, null);
@@ -844,7 +844,7 @@ public final class TestUniqueId {
   
   @Test
   public void getIdExceptionFromGet() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     // exception
     Deferred<byte[]> deferred = uid.getId(UniqueIdType.METRIC, EX2, null);
     try {
@@ -857,7 +857,7 @@ public final class TestUniqueId {
   
   @Test
   public void getIdTracing() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     // span tests. Only trace on debug.
     trace = new MockTrace();
     assertArrayEquals(UID1, uid.getId(UniqueIdType.METRIC, STRING1, 
@@ -867,19 +867,19 @@ public final class TestUniqueId {
     trace = new MockTrace(true);
     assertArrayEquals(UID1, uid.getId(UniqueIdType.METRIC, STRING1, 
         trace.newSpan("UT").start()).join());
-    verifySpan(UniqueId.class.getName() + ".getId");
+    verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".getId");
   }
   
   @Test
   public void getIdTraceException() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     trace = new MockTrace(true);
     try {
       uid.getId(UniqueIdType.METRIC, EX2, trace.newSpan("UT").start())
         .join();
       fail("Expected StorageException");
     } catch (StorageException e) { 
-      verifySpan(UniqueId.class.getName() + ".getId", UnitTestException.class);
+      verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".getId", UnitTestException.class);
     }
   }
   
@@ -889,7 +889,7 @@ public final class TestUniqueId {
     Tsdb1xHBaseDataStore store = badClient();
     when(store.client().get(any(GetRequest.class)))
       .thenReturn(Deferred.fromError(new UnitTestException()));
-    UniqueId uid = new UniqueId(store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(store);
     
     Deferred<byte[]> deferred = uid.getId(UniqueIdType.TAGV, STRING1, null);
     try {
@@ -902,7 +902,7 @@ public final class TestUniqueId {
     store = badClient();
     when(store.client().get(any(GetRequest.class)))
       .thenReturn(Deferred.fromError(new UnitTestException()));
-    uid = new UniqueId(store);
+    uid = new Tsdb1xUniqueIdStore(store);
     // with trace
     trace = new MockTrace(true);
     deferred = uid.getId(UniqueIdType.TAGV, STRING1,
@@ -913,7 +913,7 @@ public final class TestUniqueId {
     } catch (StorageException e) {
       assertTrue(e.getCause() instanceof UnitTestException);
     }
-    verifySpan(UniqueId.class.getName() + ".getId", 
+    verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".getId", 
         UnitTestException.class);
   }
   
@@ -923,7 +923,7 @@ public final class TestUniqueId {
     Tsdb1xHBaseDataStore store = badClient();
     when(store.client().get(any(GetRequest.class)))
       .thenThrow(new UnitTestException());
-    UniqueId uid = new UniqueId(store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(store);
     
     Deferred<byte[]> deferred = uid.getId(UniqueIdType.TAGV, STRING1, null);
     try {
@@ -936,7 +936,7 @@ public final class TestUniqueId {
     store = badClient();
     when(store.client().get(any(GetRequest.class)))
       .thenThrow(new UnitTestException());
-    uid = new UniqueId(store);
+    uid = new Tsdb1xUniqueIdStore(store);
     // with trace
     trace = new MockTrace(true);
     deferred = uid.getId(UniqueIdType.TAGV, STRING1,
@@ -947,13 +947,13 @@ public final class TestUniqueId {
     } catch (StorageException e) {
       assertTrue(e.getCause() instanceof UnitTestException);
     }
-    verifySpan(UniqueId.class.getName() + ".getId", 
+    verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".getId", 
         UnitTestException.class);
   }
   
   @Test
   public void getIds() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     List<byte[]> ids = uid.getIds(UniqueIdType.METRIC, 
         Lists.newArrayList(STRING1, STRING2), null).join();
     assertEquals(2, ids.size());
@@ -975,8 +975,8 @@ public final class TestUniqueId {
     
     // UTF8
     ((UnitTestConfiguration) config).override(
-        data_store.getConfigKey(UniqueId.CHARACTER_SET_KEY), "UTF-8");
-    uid = new UniqueId(data_store);
+        data_store.getConfigKey(Tsdb1xUniqueIdStore.CHARACTER_SET_KEY), "UTF-8");
+    uid = new Tsdb1xUniqueIdStore(data_store);
     
     ids = uid.getIds(UniqueIdType.METRIC, 
         Lists.newArrayList(STRING1, UNISTRING), null).join();
@@ -994,7 +994,7 @@ public final class TestUniqueId {
   
   @Test
   public void getIdsIllegalArguments() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     
     try {
       uid.getIds(null, Lists.newArrayList(STRING1, STRING2), null);
@@ -1021,7 +1021,7 @@ public final class TestUniqueId {
   
   @Test
   public void getIdsExceptionInOneOrMore() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     // one throws exception
     Deferred<List<byte[]>> deferred = uid.getIds(UniqueIdType.TAGV, 
         Lists.newArrayList(STRING1, EX2), null);
@@ -1035,7 +1035,7 @@ public final class TestUniqueId {
   
   @Test
   public void getIdsTracing() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     // span tests. Only trace on debug.
     trace = new MockTrace();
     uid.getIds(UniqueIdType.METRIC, 
@@ -1045,12 +1045,12 @@ public final class TestUniqueId {
     trace = new MockTrace(true);
     uid.getIds(UniqueIdType.METRIC, 
         Lists.newArrayList(STRING1, STRING2), trace.newSpan("UT").start()).join();
-    verifySpan(UniqueId.class.getName() + ".getIds");
+    verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".getIds");
   }
   
   @Test
   public void getIdsTraceException() throws Exception {
-    UniqueId uid = new UniqueId(data_store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(data_store);
     trace = new MockTrace(true);
     Deferred<List<byte[]>> deferred = uid.getIds(UniqueIdType.TAGV, 
         Lists.newArrayList(STRING1, EX2), trace.newSpan("UT").start());
@@ -1058,7 +1058,7 @@ public final class TestUniqueId {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
-    verifySpan(UniqueId.class.getName() + ".getIds", 
+    verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".getIds", 
         UnitTestException.class);
   }
   
@@ -1069,7 +1069,7 @@ public final class TestUniqueId {
     Tsdb1xHBaseDataStore store = badClient();
     when(store.client().get(any(List.class)))
       .thenReturn(Deferred.fromResult(new UnitTestException()));
-    UniqueId uid = new UniqueId(store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(store);
     
     Deferred<List<byte[]>> deferred = uid.getIds(UniqueIdType.TAGV, 
         Lists.newArrayList(STRING1, STRING2), null);
@@ -1083,7 +1083,7 @@ public final class TestUniqueId {
     store = badClient();
     when(store.client().get(any(List.class)))
       .thenReturn(Deferred.fromResult(new UnitTestException()));
-    uid = new UniqueId(store);
+    uid = new Tsdb1xUniqueIdStore(store);
     // with trace
     trace = new MockTrace(true);
     deferred = uid.getIds(UniqueIdType.TAGV, 
@@ -1094,7 +1094,7 @@ public final class TestUniqueId {
     } catch (StorageException e) {
       assertTrue(e.getCause() instanceof UnitTestException);
     }
-    verifySpan(UniqueId.class.getName() + ".getIds", 
+    verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".getIds", 
         UnitTestException.class);
   }
   
@@ -1105,7 +1105,7 @@ public final class TestUniqueId {
     Tsdb1xHBaseDataStore store = badClient();
     when(store.client().get(any(List.class)))
       .thenThrow(new UnitTestException());
-    UniqueId uid = new UniqueId(store);
+    Tsdb1xUniqueIdStore uid = new Tsdb1xUniqueIdStore(store);
     
     Deferred<List<byte[]>> deferred = uid.getIds(UniqueIdType.TAGV, 
         Lists.newArrayList(STRING1, STRING2), null);
@@ -1119,7 +1119,7 @@ public final class TestUniqueId {
     store = badClient();
     when(store.client().get(any(List.class)))
       .thenThrow(new UnitTestException());
-    uid = new UniqueId(store);
+    uid = new Tsdb1xUniqueIdStore(store);
     // with trace
     trace = new MockTrace(true);
     deferred = uid.getIds(UniqueIdType.TAGV, 
@@ -1130,7 +1130,7 @@ public final class TestUniqueId {
     } catch (StorageException e) {
       assertTrue(e.getCause() instanceof UnitTestException);
     }
-    verifySpan(UniqueId.class.getName() + ".getIds", 
+    verifySpan(Tsdb1xUniqueIdStore.class.getName() + ".getIds", 
         UnitTestException.class);
   }
   
@@ -2694,9 +2694,9 @@ public final class TestUniqueId {
 
   private static void resetConfig() {
     final UnitTestConfiguration c = (UnitTestConfiguration) config;
-    if (c.hasProperty(data_store.getConfigKey(UniqueId.CHARACTER_SET_KEY))) {
-      c.override(data_store.getConfigKey(UniqueId.CHARACTER_SET_KEY), 
-          UniqueId.CHARACTER_SET_DEFAULT);
+    if (c.hasProperty(data_store.getConfigKey(Tsdb1xUniqueIdStore.CHARACTER_SET_KEY))) {
+      c.override(data_store.getConfigKey(Tsdb1xUniqueIdStore.CHARACTER_SET_KEY), 
+          Tsdb1xUniqueIdStore.CHARACTER_SET_DEFAULT);
     }
   }
   

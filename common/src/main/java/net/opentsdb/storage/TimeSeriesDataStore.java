@@ -38,33 +38,9 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public abstract class TimeSeriesDataStore implements QueryNodeFactory {
+public interface TimeSeriesDataStore extends QueryNodeFactory {
   
-  /** The TSDB this instance belongs to. */
-  protected final TSDB tsdb;
-  
-  /** The ID of this store. Must be set prior to initializing the plugin. */
-  protected final String id;
-  
-  /**
-   * The ID of this storage implementation.
-   * @param id 
-   */
-  public TimeSeriesDataStore(final TSDB tsdb, final String id) {
-    if (tsdb == null) {
-      throw new IllegalArgumentException("TSDB cannot be null.");
-    }
-    if (Strings.isNullOrEmpty(id)) {
-      throw new IllegalArgumentException(
-          "The store ID cannot be null or empty.");
-    }
-    this.tsdb = tsdb;
-    this.id = id;
-  }
-  
-  public String id() {
-    return id;
-  }
+  public String id();
   
   /**
    * Writes the given value to the data store.
@@ -75,15 +51,11 @@ public abstract class TimeSeriesDataStore implements QueryNodeFactory {
    * @return A deferred resolving to null on success or an exception if the 
    * value was unable to be written.
    */
-  public abstract Deferred<Object> write(final TimeSeriesStringId id,
+  public Deferred<Object> write(final TimeSeriesStringId id,
                                          final TimeSeriesValue<?> value, 
                                          final Span span);
   
-  public abstract Deferred<Object> shutdown();
+  public Deferred<Object> shutdown();
   
-  public abstract String version();
-
-  public TSDB tsdb() {
-    return tsdb;
-  }
+  public String version();
 }

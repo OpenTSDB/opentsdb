@@ -12,18 +12,24 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.uid;
+package net.opentsdb.storage;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TSDBPlugin;
 
-/**
- * TODO - doc
- * 
- * @since 3.0
- */
-public interface UniqueIdFactory extends TSDBPlugin {
+public interface StorageSchemaFactory {
 
-  public UniqueId newInstance(final TSDB tsdb, final String id, final UniqueIdType type, final UniqueIdStore store);
+  /** @return A non-null and non-empty name for the schema unique amongst
+   * all schemas, used during instantiation. */
+  public String name();
   
+  /** @return A non-null and non-emtpy description of the schema. */
+  public String description();
+  
+  /**
+   * Instantiate's a schema loading the proper data store.
+   * @param tsdb A non-null TSDB.
+   * @param id An optional ID.
+   * @return A storage schema instance.
+   */
+  public StorageSchema newInstance(final TSDB tsdb, final String id);
 }

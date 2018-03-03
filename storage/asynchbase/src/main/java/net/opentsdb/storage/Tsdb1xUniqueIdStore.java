@@ -64,8 +64,8 @@ import net.opentsdb.utils.Bytes;
  * 
  * @since 1.0
  */
-public class UniqueId implements UniqueIdStore {
-  private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
+public class Tsdb1xUniqueIdStore implements UniqueIdStore {
+  private static final Logger LOG = LoggerFactory.getLogger(Tsdb1xUniqueIdStore.class);
   
   public static final String CHARACTER_SET_KEY = "character_set";
   public static final String CHARACTER_SET_DEFAULT = "ISO-8859-1";
@@ -104,7 +104,7 @@ public class UniqueId implements UniqueIdStore {
   
   private final Map<UniqueIdType, Map<String, Deferred<byte[]>>> pending_assignments;
 
-  public UniqueId(final Tsdb1xHBaseDataStore data_store) {
+  public Tsdb1xUniqueIdStore(final Tsdb1xHBaseDataStore data_store) {
     this.data_store = data_store;
     if (!data_store.tsdb().getConfig().hasProperty(
         data_store.getConfigKey(CHARACTER_SET_KEY))) {

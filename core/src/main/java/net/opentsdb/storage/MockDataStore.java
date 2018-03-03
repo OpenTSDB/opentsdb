@@ -73,7 +73,7 @@ import net.opentsdb.utils.DateTime;
  * 
  * @since 3.0
  */
-public class MockDataStore extends TimeSeriesDataStore {
+public class MockDataStore implements TimeSeriesDataStore {
   private static final Logger LOG = LoggerFactory.getLogger(MockDataStore.class);
   
   public static final long ROW_WIDTH = 3600000;
@@ -85,6 +85,9 @@ public class MockDataStore extends TimeSeriesDataStore {
   public static final List<String> METRICS = Lists.newArrayList(
       "sys.cpu.user", "sys.if.out", "sys.if.in", "web.requests");
 
+  private final TSDB tsdb;
+  private final String id;
+  
   /** The super inefficient and thread unsafe in-memory db. */
   private Map<TimeSeriesStringId, MockSpan> database;
   
@@ -92,7 +95,9 @@ public class MockDataStore extends TimeSeriesDataStore {
   private ExecutorService thread_pool;
   
   public MockDataStore(final TSDB tsdb, final String id) {
-    super(tsdb, id);
+    this.tsdb = tsdb;
+    this.id = id;
+    
     database = Maps.newHashMap();
     generateMockData();
     if (tsdb.getConfig().hasProperty("MockDataStore.threadpool.enable") && 
