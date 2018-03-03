@@ -38,13 +38,14 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.uid.UniqueIdStore;
 
 /**
  * TODO - complete.
  * 
  * @since 3.0
  */
-public class Tsdb1xHBaseDataStore extends TimeSeriesDataStore {
+public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
 
   /** Config keys */
   public static final String CONFIG_PREFIX = "tsd.storage.";
@@ -53,10 +54,15 @@ public class Tsdb1xHBaseDataStore extends TimeSeriesDataStore {
   public static final String TREE_TABLE_KEY = "tree_table";
   public static final String META_TABLE_KEY = "meta_table";
   
+  private final TSDB tsdb;
+  private final String id;
+  
   /** The AsyncHBase client. */
   private HBaseClient client;
   
   private Schema schema;
+  
+  private final Tsdb1xUniqueIdStore uid_store;
   
   /** Name of the table in which timeseries are stored.  */
   private final byte[] data_table;
@@ -71,7 +77,8 @@ public class Tsdb1xHBaseDataStore extends TimeSeriesDataStore {
   private final byte[] meta_table;
   
   public Tsdb1xHBaseDataStore(final TSDB tsdb, final String id) {
-    super(tsdb, id);
+    this.tsdb = tsdb;
+    this.id = id;
     
     // TODO - flatten the config and pass it down to the client lib.
     final org.hbase.async.Config async_config = new org.hbase.async.Config();
@@ -108,6 +115,12 @@ public class Tsdb1xHBaseDataStore extends TimeSeriesDataStore {
     
     // TODO - shared client!
     client = new HBaseClient(async_config);
+    
+    // TODO - probably a better way. We may want to make the UniqueIdStore
+    // it's own self-contained storage system.
+    uid_store = new Tsdb1xUniqueIdStore(this);
+    tsdb.getRegistry().registerSharedObject(Strings.isNullOrEmpty(id) ? 
+        "default_uidstore" : id + "_uidstore", uid_store);
   }
   
   @Override
@@ -200,5 +213,15 @@ public class Tsdb1xHBaseDataStore extends TimeSeriesDataStore {
   /** @return The HBase client. */
   HBaseClient client() {
     return client;
+  }
+
+  /** @return The TSDB reference. */
+  TSDB tsdb() {
+    return tsdb;
+  }
+  
+  /** @return The UID store. */
+  UniqueIdStore uidStore() {
+    return uid_store;
   }
 }

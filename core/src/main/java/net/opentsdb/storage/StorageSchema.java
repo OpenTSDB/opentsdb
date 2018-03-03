@@ -33,13 +33,6 @@ public interface StorageSchema {
    * at runtime. */
   public String id();
   
-  /** @return A non-null and non-empty name for the schema unique amongst
-   * all schemas, used during instantiation. */
-  public String name();
-  
-  /** @return A non-null and non-emtpy description of the schema. */
-  public String description();
-  
   /**
    * Resolve the given byte ID to the string ID if applicable.
    * @param id A non-null ID encoded with this schema.

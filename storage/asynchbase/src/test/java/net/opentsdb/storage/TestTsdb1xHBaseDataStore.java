@@ -15,20 +15,24 @@
 package net.opentsdb.storage;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.junit.Before;
 import org.junit.Test;
-
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.uid.UniqueIdStore;
 
 public class TestTsdb1xHBaseDataStore {
 
@@ -51,6 +55,10 @@ public class TestTsdb1xHBaseDataStore {
         new Tsdb1xHBaseDataStore(tsdb, "UT");
     assertArrayEquals("tsdb".getBytes(Const.ASCII_CHARSET), store.dataTable());
     assertArrayEquals("tsdb-uid".getBytes(Const.ASCII_CHARSET), store.uidTable());
+    assertSame(tsdb, store.tsdb());
+    assertNotNull(store.uidStore());
+    verify(registry, times(1)).registerSharedObject(eq("UT_uidstore"), 
+        any(UniqueIdStore.class));
   }
   
 }
