@@ -1,26 +1,27 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2016  The OpenTSDB Authors.
+// Copyright (C) 2015-2018  The OpenTSDB Authors.
 //
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+package net.opentsdb.storage.schemas.tsdb1x;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.anyInt;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -28,44 +29,31 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import net.opentsdb.meta.Annotation;
-import net.opentsdb.storage.MockBase;
-import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.NoSuchUniqueName;
+import net.opentsdb.common.Const;
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.UnitTestConfiguration;
+import net.opentsdb.core.Registry;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.stats.MockTrace;
+import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.storage.TimeSeriesDataStoreFactory;
+import net.opentsdb.uid.LRUUniqueId;
+import net.opentsdb.uid.MockUIDStore;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueId.UniqueIdType;
-import net.opentsdb.utils.Config;
-import net.opentsdb.utils.Threads;
+import net.opentsdb.uid.UniqueIdFactory;
+import net.opentsdb.uid.UniqueIdStore;
+import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.utils.Bytes;
 
-import org.hbase.async.Bytes;
-import org.hbase.async.HBaseClient;
-import org.hbase.async.Scanner;
-import org.jboss.netty.util.HashedWheelTimer;
-import org.jboss.netty.util.Timeout;
-import org.jboss.netty.util.TimerTask;
-import org.junit.Before;
-import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
+import org.junit.BeforeClass;
 
-import com.google.common.collect.Maps;
-import com.stumbleupon.async.Deferred;
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 
 /**
- * Sets up a real TSDB with mocked client, compaction queue and timer along
- * with mocked UID assignment, fetches for common unit tests.
+ * The base Schema class to extend for tests that incorporate the schema.
  */
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-  "ch.qos.*", "org.slf4j.*",
-  "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
-  HashedWheelTimer.class, Scanner.class, Const.class, Threads.class })
 public class BaseTsdbTest {
   
   public static final String METRIC_STRING = "sys.cpu.user";
@@ -74,6 +62,8 @@ public class BaseTsdbTest {
   public static final byte[] METRIC_B_BYTES = new byte[] { 0, 0, 2 };
   public static final String NSUN_METRIC = "sys.cpu.nice";
   public static final byte[] NSUI_METRIC = new byte[] { 0, 0, 3 };
+  public static final String METRIC_STRING_EX = "sys.cpu.idle";
+  public static final byte[] METRIC_BYTES_EX = new byte[] { 0, 0, 4 };
   
   public static final String TAGK_STRING = "host";
   public static final byte[] TAGK_BYTES = new byte[] { 0, 0, 1 };
@@ -81,6 +71,8 @@ public class BaseTsdbTest {
   public static final byte[] TAGK_B_BYTES = new byte[] { 0, 0, 3 };
   public static final String NSUN_TAGK = "dc";
   public static final byte[] NSUI_TAGK = new byte[] { 0, 0, 4 };
+  public static final String TAGK_STRING_EX = "colo";
+  public static final byte[] TAGK_BYTES_EX = new byte[] { 0, 0, 5 };
   
   public static final String TAGV_STRING = "web01";
   public static final byte[] TAGV_BYTES = new byte[] { 0, 0, 1 };
@@ -88,6 +80,8 @@ public class BaseTsdbTest {
   public static final byte[] TAGV_B_BYTES = new byte[] { 0, 0, 2 };
   public static final String NSUN_TAGV = "web03";
   public static final byte[] NSUI_TAGV = new byte[] { 0, 0, 3 };
+  public static final String TAGV_STRING_EX = "web04";
+  public static final byte[] TAGV_BYTES_EX = new byte[] { 0, 0, 4 };
 
   static final String NOTE_DESCRIPTION = "Hello DiscWorld!";
   static final String NOTE_NOTES = "Millenium hand and shrimp";
@@ -106,280 +100,159 @@ public class BaseTsdbTest {
     }
   }
   
+  public static TSDB tsdb;
+  public static Configuration config;
+  public static Registry registry;
+  public static TimeSeriesDataStoreFactory store_factory;
+  public static TimeSeriesDataStore store;
+  public static UniqueIdStore uid_store;
+  public static UniqueIdFactory uid_factory;
+  public static UniqueId metrics;
+  public static UniqueId tag_names;
+  public static UniqueId tag_values;
+  public static MockTrace trace;
+  
   protected FakeTaskTimer timer;
-  protected Config config;
-  protected TSDB tsdb;
-  protected HBaseClient client = mock(HBaseClient.class);
-  protected UniqueId metrics = mock(UniqueId.class);
-  protected UniqueId tag_names = mock(UniqueId.class);
-  protected UniqueId tag_values = mock(UniqueId.class);
   protected Map<String, String> tags;
-  protected MockBase storage;
-  protected Map<String, byte[]> uid_map;
   
-  @Before
-  public void before() throws Exception {
-    uid_map = Maps.newHashMap();
-    PowerMockito.mockStatic(Threads.class);
-    timer = new FakeTaskTimer();
-    PowerMockito.when(Threads.newTimer(anyString())).thenReturn(timer);
-    PowerMockito.when(Threads.newTimer(anyInt(), anyString())).thenReturn(timer);
+  @BeforeClass
+  public static void beforeClass() throws Exception {
+    tsdb = mock(TSDB.class);
+    config = UnitTestConfiguration.getConfiguration();
+    registry = mock(Registry.class);
+    store_factory = mock(TimeSeriesDataStoreFactory.class);
+    store = mock(TimeSeriesDataStore.class);
+    uid_store = spy(new MockUIDStore(Const.ASCII_CHARSET));
+    uid_factory = mock(UniqueIdFactory.class);
     
-    PowerMockito.whenNew(HashedWheelTimer.class).withNoArguments()
-      .thenReturn(timer);
-    PowerMockito.whenNew(HBaseClient.class).withAnyArguments()
-      .thenReturn(client);
+    when(tsdb.getConfig()).thenReturn(config);
+    when(tsdb.getRegistry()).thenReturn(registry);
     
-    config = new Config(false);
-    config.overrideConfig("tsd.storage.enable_compaction", "false");
-    tsdb = PowerMockito.spy(new TSDB(config));
-
-    config.setAutoMetric(true);
+    // return the default
+    when(registry.getPlugin(TimeSeriesDataStoreFactory.class, null))
+      .thenReturn(store_factory);
+    when(store_factory.newInstance(any(TSDB.class), anyString()))
+      .thenReturn(store);    
+    when(registry.getSharedObject("default_uidstore"))
+      .thenReturn(uid_store);
+    when(registry.getPlugin(UniqueIdFactory.class, "LRU"))
+      .thenReturn(uid_factory);
     
-    Whitebox.setInternalState(tsdb, "metrics", metrics);
-    Whitebox.setInternalState(tsdb, "tag_names", tag_names);
-    Whitebox.setInternalState(tsdb, "tag_values", tag_values);
-
-    setupMetricMaps();
-    setupTagkMaps();
-    setupTagvMaps();
+    metrics = new LRUUniqueId(tsdb, null, UniqueIdType.METRIC, uid_store);
+    tag_names = new LRUUniqueId(tsdb, null, UniqueIdType.TAGK, uid_store);
+    tag_values = new LRUUniqueId(tsdb, null, UniqueIdType.TAGV, uid_store);
+    when(uid_factory.newInstance(any(TSDB.class), anyString(), 
+        eq(UniqueIdType.METRIC), eq(uid_store))).thenReturn(metrics);
+    when(uid_factory.newInstance(any(TSDB.class), anyString(), 
+        eq(UniqueIdType.TAGK), eq(uid_store))).thenReturn(tag_names);
+    when(uid_factory.newInstance(any(TSDB.class), anyString(), 
+        eq(UniqueIdType.TAGV), eq(uid_store))).thenReturn(tag_values);
     
-    mockUID(UniqueIdType.METRIC, HISTOGRAM_METRIC_STRING, HISTOGRAM_METRIC_BYTES);
     
-    // add metrics and tags to the UIDs list for other functions to share
-    uid_map.put(METRIC_STRING, METRIC_BYTES);
-    uid_map.put(METRIC_B_STRING, METRIC_B_BYTES);
-    uid_map.put(NSUN_METRIC, NSUI_METRIC);
-    uid_map.put(HISTOGRAM_METRIC_STRING, HISTOGRAM_METRIC_BYTES);
+    ((MockUIDStore) uid_store).addBoth(UniqueIdType.METRIC, 
+        METRIC_STRING, METRIC_BYTES);
+    ((MockUIDStore) uid_store).addBoth(UniqueIdType.METRIC, 
+        METRIC_B_STRING, METRIC_B_BYTES);
     
-    uid_map.put(TAGK_STRING, TAGK_BYTES);
-    uid_map.put(TAGK_B_STRING, TAGK_B_BYTES);
-    uid_map.put(NSUN_TAGK, NSUI_TAGK);
+    ((MockUIDStore) uid_store).addBoth(UniqueIdType.TAGK, TAGK_STRING, TAGK_BYTES);
+    ((MockUIDStore) uid_store).addBoth(UniqueIdType.TAGK, TAGK_B_STRING, TAGK_B_BYTES);
     
-    uid_map.put(TAGV_STRING, TAGV_BYTES);
-    uid_map.put(TAGV_B_STRING, TAGV_B_BYTES);
-    uid_map.put(NSUN_TAGV, NSUI_TAGV);
+    ((MockUIDStore) uid_store).addBoth(UniqueIdType.TAGV, TAGV_STRING, TAGV_BYTES);
+    ((MockUIDStore) uid_store).addBoth(UniqueIdType.TAGV, TAGV_B_STRING, TAGV_B_BYTES);
     
-    uid_map.putAll(UIDS);
+    ((MockUIDStore) uid_store).addException(UniqueIdType.METRIC, METRIC_STRING_EX);
+    ((MockUIDStore) uid_store).addException(UniqueIdType.TAGK, TAGK_STRING_EX);
+    ((MockUIDStore) uid_store).addException(UniqueIdType.TAGV, TAGV_STRING_EX);
     
-    when(metrics.width()).thenReturn((short)3);
-    when(tag_names.width()).thenReturn((short)3);
-    when(tag_values.width()).thenReturn((short)3);
-    
-    tags = new HashMap<String, String>(1);
-    tags.put(TAGK_STRING, TAGV_STRING);
-  }
-  
-  /** Adds the static UIDs to the metrics UID mock object */
-  public void setupMetricMaps() {
-    mockUID(UniqueIdType.METRIC, METRIC_STRING, METRIC_BYTES);
-    mockUID(UniqueIdType.METRIC, METRIC_B_STRING, METRIC_B_BYTES);
-
-    final NoSuchUniqueName nsun = new NoSuchUniqueName(NSUN_METRIC, "metric");
-
-    when(metrics.getId(NSUN_METRIC)).thenThrow(nsun);
-    when(metrics.getIdAsync(NSUN_METRIC))
-        .thenReturn(Deferred.<byte[]> fromError(nsun));
-    when(metrics.getOrCreateId(NSUN_METRIC)).thenThrow(nsun);
-    final NoSuchUniqueName nsunic = new NoSuchUniqueName(NSUN_METRIC, "metric");
-    when(metrics.getOrCreateIdAsync(eq(NSUN_METRIC))).thenThrow(nsunic);
-    when(metrics.getNameAsync(NSUI_METRIC)).thenReturn(
-        Deferred.<String>fromError(new NoSuchUniqueId("metrics", NSUI_METRIC)));
+    ((MockUIDStore) uid_store).addException(UniqueIdType.METRIC, METRIC_BYTES_EX);
+    ((MockUIDStore) uid_store).addException(UniqueIdType.TAGK, TAGK_BYTES_EX);
+    ((MockUIDStore) uid_store).addException(UniqueIdType.TAGV, TAGV_BYTES_EX);
     
     for (final Map.Entry<String, byte[]> uid : UIDS.entrySet()) {
-      mockUID(UniqueIdType.METRIC, uid.getKey(), uid.getValue());
+      ((MockUIDStore) uid_store).addBoth(UniqueIdType.TAGK, uid.getKey(), uid.getValue());
     }
   }
   
-  /** Adds the static UIDs to the tag keys UID mock object */
-  public void setupTagkMaps() {
-    mockUID(UniqueIdType.TAGK, TAGK_STRING, TAGK_BYTES);
-    mockUID(UniqueIdType.TAGK, TAGK_B_STRING, TAGK_B_BYTES);
-
-    final NoSuchUniqueName nsunic = new NoSuchUniqueName(NSUN_TAGK, "tagk");
-    when(tag_names.getIdAsync(NSUN_TAGK)).thenReturn(
-        Deferred.<byte[]> fromError(nsunic));
-    when(tag_names.getOrCreateId(eq(NSUN_TAGK))).thenThrow(nsunic);
-    when(tag_names.getOrCreateIdAsync(eq(NSUN_TAGK))).thenReturn(
-        Deferred.<byte[]> fromError(nsunic));
-    when(tag_names.getName(NSUI_TAGK))
-      .thenThrow(new NoSuchUniqueId("tagk", NSUI_TAGK));
-    when(tag_names.getNameAsync(NSUI_TAGK)).thenReturn(
-        Deferred.<String>fromError(new NoSuchUniqueId("tagk", NSUI_TAGK)));
-    
-    for (final Map.Entry<String, byte[]> uid : UIDS.entrySet()) {
-      mockUID(UniqueIdType.TAGK, uid.getKey(), uid.getValue());
-    }
-  }
-  
-  /** Adds the static UIDs to the tag values UID mock object */
-  public void setupTagvMaps() {
-    mockUID(UniqueIdType.TAGV, TAGV_STRING, TAGV_BYTES);
-    mockUID(UniqueIdType.TAGV, TAGV_B_STRING, TAGV_B_BYTES);
-    
-    final NoSuchUniqueName nsun = new NoSuchUniqueName(NSUN_TAGV, "tagv");
-    final NoSuchUniqueId nsui = new NoSuchUniqueId("tagv", NSUI_TAGV);
-    when(tag_values.getId(NSUN_TAGV)).thenThrow(nsun);
-    when(tag_values.getIdAsync(NSUN_TAGV))
-        .thenReturn(Deferred.<byte[]> fromError(nsun));
-    when(tag_values.getName(NSUI_TAGV)).thenThrow(nsui);
-    when(tag_values.getNameAsync(NSUI_TAGV))
-      .thenReturn(Deferred.<String>fromError(nsui));
-    final NoSuchUniqueName nsunic = new NoSuchUniqueName(NSUN_TAGV, "tagv");
-    when(tag_values.getOrCreateId(eq(NSUN_TAGV))).thenThrow(nsunic);
-    when(tag_values.getOrCreateIdAsync(eq(NSUN_TAGV))).thenReturn(
-        Deferred.<byte[]> fromError(nsunic));
-    
-    for (final Map.Entry<String, byte[]> uid : UIDS.entrySet()) {
-      mockUID(UniqueIdType.TAGV, uid.getKey(), uid.getValue());
-    }
-  }
-
   /**
    * Helper method that sets up UIDs for rollup and pre-agg testing.
    */
-  protected void setupGroupByTagValues() {
-    // set the aggregate tag and value
-    mockUID(UniqueIdType.TAGK, config.getString("tsd.rollups.agg_tag_key"),
-        new byte[] { 0, 0, 42 });
-    uid_map.put(config.getString("tsd.rollups.agg_tag_key"), new byte[] { 0, 0, 42 });
-    mockUID(UniqueIdType.TAGV, config.getString("tsd.rollups.raw_agg_tag_value"),
-        new byte[] { 0, 0, 42 });
-    uid_map.put(config.getString("tsd.rollups.raw_agg_tag_value"), 
-        new byte[] { 0, 0, 42 });
-    mockUID(UniqueIdType.TAGV, "SUM", new byte[] { 0, 0, 43 });
-    uid_map.put("SUM", new byte[] { 0, 0, 43 });
-    mockUID(UniqueIdType.TAGV, "MAX", new byte[] { 0, 0, 44 });
-    uid_map.put("MAX", new byte[] { 0, 0, 44 });
-    mockUID(UniqueIdType.TAGV, "MIN", new byte[] { 0, 0, 45 });
-    uid_map.put("MIN", new byte[] { 0, 0, 45 });
-    mockUID(UniqueIdType.TAGV, "COUNT", new byte[] {  0, 0, 46 });
-    uid_map.put("COUNT", new byte[] { 0, 0, 46 });
-    mockUID(UniqueIdType.TAGV, "AVG", new byte[] { 0, 0, 47 });
-    uid_map.put("AVG", new byte[] { 0, 0, 47 });
-    mockUID(UniqueIdType.TAGV, "NOSUCHAGG", new byte[] { 0, 0, 0, 48 });
-    uid_map.put("NOSUCHAGG", new byte[] { 0, 0, 48 });
+//  protected void setupGroupByTagValues() {
+//    // set the aggregate tag and value
+//    mockUID(UniqueIdType.TAGK, config.getString("tsd.rollups.agg_tag_key"),
+//        new byte[] { 0, 0, 42 });
+//    uid_map.put(config.getString("tsd.rollups.agg_tag_key"), new byte[] { 0, 0, 42 });
+//    mockUID(UniqueIdType.TAGV, config.getString("tsd.rollups.raw_agg_tag_value"),
+//        new byte[] { 0, 0, 42 });
+//    uid_map.put(config.getString("tsd.rollups.raw_agg_tag_value"), 
+//        new byte[] { 0, 0, 42 });
+//    mockUID(UniqueIdType.TAGV, "SUM", new byte[] { 0, 0, 43 });
+//    uid_map.put("SUM", new byte[] { 0, 0, 43 });
+//    mockUID(UniqueIdType.TAGV, "MAX", new byte[] { 0, 0, 44 });
+//    uid_map.put("MAX", new byte[] { 0, 0, 44 });
+//    mockUID(UniqueIdType.TAGV, "MIN", new byte[] { 0, 0, 45 });
+//    uid_map.put("MIN", new byte[] { 0, 0, 45 });
+//    mockUID(UniqueIdType.TAGV, "COUNT", new byte[] {  0, 0, 46 });
+//    uid_map.put("COUNT", new byte[] { 0, 0, 46 });
+//    mockUID(UniqueIdType.TAGV, "AVG", new byte[] { 0, 0, 47 });
+//    uid_map.put("AVG", new byte[] { 0, 0, 47 });
+//    mockUID(UniqueIdType.TAGV, "NOSUCHAGG", new byte[] { 0, 0, 0, 48 });
+//    uid_map.put("NOSUCHAGG", new byte[] { 0, 0, 48 });
+//  }
+  
+  /** @return A schema instantiation mocked for use in Unit tests. */
+  public Schema schema() throws Exception {
+    resetConfig();
+    metrics.dropCaches(null);
+    tag_names.dropCaches(null);
+    tag_values.dropCaches(null);
+    return new Schema(tsdb, null);
+  }
+  
+  /** Sets the UID widths and salt back to their defaults. */
+  public static void resetConfig() throws Exception {
+    final UnitTestConfiguration c = (UnitTestConfiguration) config;
+    if (c.hasProperty("tsd.storage.uid.width.metric")) {
+      c.override("tsd.storage.uid.width.metric", 3);
+    }
+    if (c.hasProperty("tsd.storage.uid.width.tagk")) {
+      c.override("tsd.storage.uid.width.tagk", 3);
+    }
+    if (c.hasProperty("tsd.storage.uid.width.tagv")) {
+      c.override("tsd.storage.uid.width.tagv", 3);
+    }
+    if (c.hasProperty("tsd.storage.salt.buckets")) {
+      c.override("tsd.storage.salt.buckets", 20);
+    }
+    if (c.hasProperty("tsd.storage.salt.width")) {
+      c.override("tsd.storage.salt.width", 0);
+    }
   }
   
   // ----------------- //
   // Helper functions. //
   // ----------------- //
   
-  /**
-   * Mocks out the UID calls to match keys and values
-   * 
-   * @param type
-   *          The type of UID to deal with
-   * @param key
-   *          The String name of the UID
-   * @param uid
-   *          The byte array UID to pair up with
-   */
-  protected void mockUID(final UniqueIdType type, final String key,
-      final byte[] uid) {
-    switch (type) {
-    case METRIC:
-      when(metrics.getId(key)).thenReturn(uid);
-      when(metrics.getIdAsync(key))
-        .thenAnswer(new Answer<Deferred<byte[]>>() {
-          @Override
-          public Deferred<byte[]> answer(InvocationOnMock invocation)
-              throws Throwable {
-            return Deferred.fromResult(uid);
-          }
-        });
-      when(metrics.getOrCreateId(key)).thenReturn(uid);
-      when(metrics.getOrCreateIdAsync(key))
-          .thenAnswer(new Answer<Deferred<byte[]>>() {
-        @Override
-        public Deferred<byte[]> answer(InvocationOnMock invocation)
-            throws Throwable {
-          return Deferred.fromResult(uid);
-        }
-      });
-      when(metrics.getName(uid)).thenReturn(key);
-      when(metrics.getNameAsync(uid)).thenAnswer(new Answer<Deferred<String>>() {
-        @Override
-        public Deferred<String> answer(InvocationOnMock invocation)
-            throws Throwable {
-          return Deferred.fromResult(key);
-        }
-      });
-      break;
-    case TAGK:
-      when(tag_names.getId(key)).thenReturn(uid);
-      when(tag_names.getIdAsync(key))
-        .thenAnswer(new Answer<Deferred<byte[]>>() {
-          @Override
-          public Deferred<byte[]> answer(InvocationOnMock invocation)
-              throws Throwable {
-            return Deferred.fromResult(uid);
-          }
-        });
-      when(tag_names.getOrCreateId(key)).thenReturn(uid);
-      when(tag_names.getOrCreateIdAsync(key))
-          .thenAnswer(new Answer<Deferred<byte[]>>() {
-        @Override
-        public Deferred<byte[]> answer(InvocationOnMock invocation)
-            throws Throwable {
-          return Deferred.fromResult(uid);
-        }
-      });
-      when(tag_names.getName(uid)).thenReturn(key);
-      when(tag_names.getNameAsync(uid)).thenAnswer(new Answer<Deferred<String>>() {
-        @Override
-        public Deferred<String> answer(InvocationOnMock invocation)
-            throws Throwable {
-          return Deferred.fromResult(key);
-        }
-      });
-      break;
-    case TAGV:
-      when(tag_values.getId(key)).thenReturn(uid);
-      when(tag_values.getIdAsync(key))
-        .thenAnswer(new Answer<Deferred<byte[]>>() {
-          @Override
-          public Deferred<byte[]> answer(InvocationOnMock invocation)
-              throws Throwable {
-            return Deferred.fromResult(uid);
-          }
-        });
-      when(tag_values.getOrCreateId(key)).thenReturn(uid);
-      when(tag_values.getOrCreateIdAsync(key))
-          .thenAnswer(new Answer<Deferred<byte[]>>() {
-          @Override
-          public Deferred<byte[]> answer(InvocationOnMock invocation)
-              throws Throwable {
-            return Deferred.fromResult(uid);
-          }
-        });
-      when(tag_values.getName(uid)).thenReturn(key);
-      when(tag_values.getNameAsync(uid)).thenAnswer(new Answer<Deferred<String>>() {
-          @Override
-          public Deferred<String> answer(InvocationOnMock invocation)
-              throws Throwable {
-            return Deferred.fromResult(key);
-          }
-        });
-      break;
-    }
-  }
-  
   /** @return a row key template with the default metric and tags */
   protected byte[] getRowKeyTemplate() {
-    return IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags);
+    // TODO
+    return null;
+    //return IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags);
   }
   
   /**
    * Generates a proper key storage row key based on the metric, base time 
    * and tags. Adds salting when mocked properly.
+   * 
+   * @param schema The schema.
    * @param metric A non-null byte array representing the metric.
    * @param base_time The base time for the row.
    * @param tags A non-null list of tag key/value pairs as UIDs.
    * @return A row key to check mock storage for.
    */
-  public static byte[] getRowKey(final byte[] metric, final int base_time, 
-      final byte[]... tags) {
+  public static byte[] getRowKey(final Schema schema, 
+                                 final byte[] metric, 
+                                 final int base_time, 
+                                 final byte[]... tags) {
     int tags_length = 0;
     for (final byte[] tag : tags) {
       tags_length += tag.length;
@@ -395,27 +268,31 @@ public class BaseTsdbTest {
       System.arraycopy(tag, 0, key, offset, tag.length);
       offset += tag.length;
     }
-    RowKey.prefixKeyWithSalt(key);
+    schema.prefixKeyWithSalt(key);
     return key;
   }
   
   /**
    * Generates a proper key storage row key based on the metric, base time 
    * and tags. Adds salting when mocked properly.
-   * @param metric
-   * @param base_time
-   * @param tags
-   * @return
+   * 
+   * @param schema The schema.
+   * @param metric A non-null byte array representing the metric.
+   * @param base_time The base time for the row.
+   * @param tags A non-null list of tag key/value pairs as UIDs.
+   * @return A row key to check mock storage for.
    */
-  protected byte[] getRowKey(final String metric, final int base_time, 
-      final String... tags) {
-    final int m = TSDB.metrics_width();
-    final int tk = TSDB.tagk_width();
-    final int tv = TSDB.tagv_width();
+  protected byte[] getRowKey(final Schema schema, 
+                             final String metric, 
+                             final int base_time, 
+                             final String... tags) throws Exception {
+    final int m = schema.metricWidth();
+    final int tk = schema.tagkWidth();
+    final int tv = schema.tagvWidth();
     
     final byte[] key = new byte[Const.SALT_WIDTH() + m + 4 
        + (tags.length / 2) * tk + (tags.length / 2) * tv];
-    byte[] uid = uid_map.get(metric);
+    byte[] uid = metrics.getId(metric, null).join();
     
     // metrics first
     if (uid != null) {
@@ -433,10 +310,9 @@ public class BaseTsdbTest {
     int ctr = 0;
     int offset = 0;
     for (final String tag : tags) {
-      uid = uid_map.get(tag);
-      
       if (ctr % 2 == 0) {
         // TAGK
+        uid = tag_names.getId(tag, null).join();
         if (uid != null) {
           System.arraycopy(uid, 0, key, pl + offset, tk);
         } else {
@@ -445,6 +321,7 @@ public class BaseTsdbTest {
         offset += tk;
       } else {
         // TAGV
+        uid = tag_values.getId(tag, null).join();
         if (uid != null) {
           System.arraycopy(uid, 0, key, pl + offset, tv);
         } else {
@@ -456,17 +333,21 @@ public class BaseTsdbTest {
       ctr++;
     }
     
-    RowKey.prefixKeyWithSalt(key);
+    schema.prefixKeyWithSalt(key);
     return key;
   }
   
   /**
    * Generates a TSUID given the metric and tag UIDs.
+   * 
+   * @param schema The schema.
    * @param metric A metric UID.
    * @param tags A set of UIDs
    * @return A TSUID byte array
    */
-  public static byte[] getTSUID(final byte[] metric, final byte[]... tags) {
+  public static byte[] getTSUID(final Schema schema,
+                                final byte[] metric, 
+                                final byte[]... tags) {
     int tags_length = 0;
     for (final byte[] tag : tags) {
       tags_length += tag.length;
@@ -478,27 +359,31 @@ public class BaseTsdbTest {
       System.arraycopy(tag, 0, tsuid, offset, tag.length);
       offset += tag.length;
     }
-    RowKey.prefixKeyWithSalt(tsuid);
+    schema.prefixKeyWithSalt(tsuid);
     return tsuid;
   }
   
   /**
    * Generates a UID of the proper length given a type and ID. 
+   * 
+   * @param schema The schema.
    * @param type The type of UID.
    * @param id The ID to set (just tweaks the last byte)
    * @return A Unique ID of the proper width.
    */
-  public static byte[] generateUID(final UniqueIdType type, byte id) {
+  public static byte[] generateUID(final Schema schema,
+                                   final UniqueIdType type, 
+                                   byte id) {
     final byte[] uid;
     switch (type) {
     case METRIC:
-      uid = new byte[TSDB.metrics_width()];
+      uid = new byte[schema.metricWidth()];
       break;
     case TAGK:
-      uid = new byte[TSDB.tagk_width()];
+      uid = new byte[schema.tagkWidth()];
       break;
     case TAGV:
-      uid = new byte[TSDB.tagv_width()];
+      uid = new byte[schema.tagvWidth()];
       break;
     default:
       throw new IllegalArgumentException("Yo! You have to mock out " + type + "!");
@@ -509,37 +394,49 @@ public class BaseTsdbTest {
   
   /**
    * Generates a UID of the proper length given a type and ID. 
+   * 
+   * @param schema The schema.
    * @param type The type of UID.
    * @param id The ID to set (just tweaks the last byte)
    * @return A Unique ID of the proper width.
    */
-  public static String generateUIDString(final UniqueIdType type, byte id) {
-    return UniqueId.uidToString(generateUID(type, id));
+  public static String generateUIDString(final Schema schema,
+                                         final UniqueIdType type, 
+                                         final byte id) {
+    return UniqueId.uidToString(generateUID(schema, type, id));
   }
   
   /**
    * Generates a TSUID given the metric and tag UIDs.
+   * 
+   * @param schema The schema.
    * @param metric A metric UID.
    * @param tags A set of UIDs
    * @return A TSUID as a hex string
    */
-  public static String getTSUIDString(final byte[] metric, final byte[]... tags) {
-    return UniqueId.uidToString(getTSUID(metric, tags));
+  public static String getTSUIDString(final Schema schema,
+                                      final byte[] metric, 
+                                      final byte[]... tags) {
+    return UniqueId.uidToString(getTSUID(schema, metric, tags));
   }
   
   /**
    * Generates a TSUID given the mocked UID strings.
+   * 
+   * @param schema The schema.
    * @param metric A mocked metric name.
    * @param tags A set of mocked tag key and values.
    * @return A TSUID byte array
    */
-  protected byte[] getTSUID(final String metric, final String... tags) {
-    final int m = TSDB.metrics_width();
-    final int tk = TSDB.tagk_width();
-    final int tv = TSDB.tagv_width();
+  protected byte[] getTSUID(final Schema schema,
+                            final String metric, 
+                            final String... tags) throws Exception {
+    final int m = schema.metricWidth();
+    final int tk = schema.tagkWidth();
+    final int tv = schema.tagvWidth();
     
     final byte[] tsuid = new byte[m + (tags.length / 2) * tk + (tags.length / 2) * tv];
-    byte[] uid = uid_map.get(metric);
+    byte[] uid = metrics.getId(metric, null).join();
     
     // metrics first
     if (uid != null) {
@@ -551,10 +448,9 @@ public class BaseTsdbTest {
     int ctr = 0;
     int offset = 0;
     for (final String tag : tags) {
-      uid = uid_map.get(tag);
-      
       if (ctr % 2 == 0) {
         // TAGK
+        uid = tag_names.getId(tag, null).join();
         if (uid != null) {
           System.arraycopy(uid, 0, tsuid, m + offset, tk);
         } else {
@@ -563,6 +459,7 @@ public class BaseTsdbTest {
         offset += tk;
       } else {
         // TAGV
+        uid = tag_values.getId(tag, null).join();
         if (uid != null) {
           System.arraycopy(uid, 0, tsuid, m + offset, tv);
         } else {
@@ -579,328 +476,349 @@ public class BaseTsdbTest {
   
   /**
    * Generates a TSUID given the mocked UID strings.
+   * 
+   * @param schema The schema.
    * @param metric A mocked metric name.
    * @param tags A set of mocked tag key and values.
    * @return A TSUID hex string.
    */
-  protected String getTSUIDString(final String metric, final String... tags) {
-    return UniqueId.uidToString(getTSUID(metric, tags));
+  protected String getTSUIDString(final Schema schema,
+                                  final String metric, 
+                                  final String... tags) throws Exception {
+    return UniqueId.uidToString(getTSUID(schema, metric, tags));
   }
   
-  protected void setDataPointStorage() throws Exception {
-    storage = new MockBase(tsdb, client, true, true, true, true);
-    storage.setFamily("t".getBytes(MockBase.ASCII()));
-  }
-  
-  protected void storeLongTimeSeriesSeconds(final boolean two_metrics, 
-      final boolean offset) throws Exception {
-    setDataPointStorage();
-    
-    // dump a bunch of rows of two metrics so that we can test filtering out
-    // on the metric
-    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
-    long timestamp = 1356998400;
-    for (int i = 1; i <= 300; i++) {
-      tsdb.addPoint(METRIC_STRING, timestamp += 30, i, tags_local)
-        .joinUninterruptibly();
-      if (two_metrics) {
-        tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
-          .joinUninterruptibly();
-      }
-    }
+//  protected void setDataPointStorage() throws Exception {
+//    storage = new MockBase(tsdb, client, true, true, true, true);
+//    storage.setFamily("t".getBytes(MockBase.ASCII()));
+//  }
+//  
+//  protected void storeLongTimeSeriesSeconds(final boolean two_metrics, 
+//      final boolean offset) throws Exception {
+//    setDataPointStorage();
+//    
+//    // dump a bunch of rows of two metrics so that we can test filtering out
+//    // on the metric
+//    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
+//    long timestamp = 1356998400;
+//    for (int i = 1; i <= 300; i++) {
+//      tsdb.addPoint(METRIC_STRING, timestamp += 30, i, tags_local)
+//        .joinUninterruptibly();
+//      if (two_metrics) {
+//        tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
+//          .joinUninterruptibly();
+//      }
+//    }
+//
+//    // dump a parallel set but invert the values
+//    tags_local.clear();
+//    tags_local.put(TAGK_STRING, TAGV_B_STRING);
+//    timestamp = offset ? 1356998415 : 1356998400;
+//    for (int i = 300; i > 0; i--) {
+//      tsdb.addPoint(METRIC_STRING, timestamp += 30, i, tags_local)
+//        .joinUninterruptibly();
+//      if (two_metrics) {
+//        tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
+//          .joinUninterruptibly();
+//      }
+//    }
+//  }
+// 
+//  protected void storeLongTimeSeriesMs() throws Exception {
+//    setDataPointStorage();
+//    // dump a bunch of rows of two metrics so that we can test filtering out
+//    // on the metric
+//    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
+//    long timestamp = 1356998400000L;
+//    for (int i = 1; i <= 300; i++) {
+//      tsdb.addPoint(METRIC_STRING, timestamp += 500, i, tags_local)
+//        .joinUninterruptibly();
+//      tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
+//        .joinUninterruptibly();
+//    }
+//
+//    // dump a parallel set but invert the values
+//    tags_local.clear();
+//    tags_local.put(TAGK_STRING, TAGV_B_STRING);
+//    timestamp = 1356998400000L;
+//    for (int i = 300; i > 0; i--) {
+//      tsdb.addPoint(METRIC_STRING, timestamp += 500, i, tags_local)
+//        .joinUninterruptibly();
+//      tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
+//        .joinUninterruptibly();
+//    }
+//  }
+//  
+//  /**
+//   * Create two metrics with same name, skipping every third point in host=web01
+//   * and every other point in host=web02. To wit:
+//   *
+//   *       METRIC    TAG  t0   t1   t2   t3   t4   t5   ...
+//   * sys.cpu.user  web01   X    2    3    X    5    6   ...
+//   * sys.cpu.user  web02   X  299    X  297    X  295   ...
+//   */
+//  protected void storeLongTimeSeriesWithMissingData() throws Exception {
+//    setDataPointStorage();
+//
+//    // host=web01
+//    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
+//    long timestamp = 1356998400L;
+//    for (int i = 0; i < 300; ++i) {
+//      // Skip every third point.
+//      if (0 != (i % 3)) {
+//        tsdb.addPoint(METRIC_STRING, timestamp, i + 1, tags_local)
+//          .joinUninterruptibly();
+//      }
+//      timestamp += 10L;
+//    }
+//
+//    // host=web02
+//    tags_local.clear();
+//    tags_local.put(TAGK_STRING, TAGV_B_STRING);
+//    timestamp = 1356998400L;
+//    for (int i = 300; i > 0; --i) {
+//      // Skip every other point.
+//      if (0 != (i % 2)) {
+//        tsdb.addPoint(METRIC_STRING, timestamp, i, tags_local)
+//          .joinUninterruptibly();
+//      }
+//      timestamp += 10L;
+//    }
+//  }
+//  
+//  protected void storeFloatTimeSeriesSeconds(final boolean two_metrics, 
+//      final boolean offset) throws Exception {
+//    setDataPointStorage();
+//    // dump a bunch of rows of two metrics so that we can test filtering out
+//    // on the metric
+//    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
+//    long timestamp = 1356998400;
+//    for (float i = 1.25F; i <= 76; i += 0.25F) {
+//      tsdb.addPoint(METRIC_STRING, timestamp += 30, i, tags_local)
+//        .joinUninterruptibly();
+//      if (two_metrics) {
+//        tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
+//          .joinUninterruptibly();
+//      }
+//    }
+//
+//    // dump a parallel set but invert the values
+//    tags_local.clear();
+//    tags_local.put(TAGK_STRING, TAGV_B_STRING);
+//    timestamp = offset ? 1356998415 : 1356998400;
+//    for (float i = 75F; i > 0; i -= 0.25F) {
+//      tsdb.addPoint(METRIC_STRING, timestamp += 30, i, tags_local)
+//        .joinUninterruptibly();
+//      if (two_metrics) {
+//        tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
+//          .joinUninterruptibly();
+//      }
+//    }
+//  }
+//  
+//  protected void storeFloatTimeSeriesMs() throws Exception {
+//    setDataPointStorage();
+//    // dump a bunch of rows of two metrics so that we can test filtering out
+//    // on the metric
+//    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
+//    long timestamp = 1356998400000L;
+//    for (float i = 1.25F; i <= 76; i += 0.25F) {
+//      tsdb.addPoint(METRIC_STRING, timestamp += 500, i, tags_local)
+//        .joinUninterruptibly();
+//      tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
+//        .joinUninterruptibly();
+//    }
+//
+//    // dump a parallel set but invert the values
+//    tags_local.clear();
+//    tags_local.put(TAGK_STRING, TAGV_B_STRING);
+//    timestamp = 1356998400000L;
+//    for (float i = 75F; i > 0; i -= 0.25F) {
+//      tsdb.addPoint(METRIC_STRING, timestamp += 500, i, tags_local)
+//        .joinUninterruptibly();
+//      tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
+//        .joinUninterruptibly();
+//    }
+//  }
+//  
+//  protected void storeMixedTimeSeriesSeconds() throws Exception {
+//    setDataPointStorage();
+//    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
+//    long timestamp = 1356998400;
+//    for (float i = 1.25F; i <= 76; i += 0.25F) {
+//      if (i % 2 == 0) {
+//        tsdb.addPoint(METRIC_STRING, timestamp += 30, (long)i, tags_local)
+//          .joinUninterruptibly();
+//      } else {
+//        tsdb.addPoint(METRIC_STRING, timestamp += 30, i, tags_local)
+//          .joinUninterruptibly();
+//      }
+//    }
+//  }
+//  
+//  // dumps ints, floats, seconds and ms
+//  protected void storeMixedTimeSeriesMsAndS() throws Exception {
+//    setDataPointStorage();
+//    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
+//    long timestamp = 1356998400000L;
+//    for (float i = 1.25F; i <= 76; i += 0.25F) {
+//      long ts = timestamp += 500;
+//      if (ts % 1000 == 0) {
+//        ts /= 1000;
+//      }
+//      if (i % 2 == 0) {
+//        tsdb.addPoint(METRIC_STRING, ts, (long)i, tags_local).joinUninterruptibly();
+//      } else {
+//        tsdb.addPoint(METRIC_STRING, ts, i, tags_local).joinUninterruptibly();
+//      }
+//    }
+//  }
+//  
+//  //store histogram data points of {@link LongHistogramDataPointForTest} with second timestamp
+//  protected void storeTestHistogramTimeSeriesSeconds(final boolean offset) throws Exception {
+//    setDataPointStorage();
+//     
+//    // dump a bunch of rows of two metrics so that we can test filtering out
+//    // on the metric
+//    HashMap<String, String> tags_local = new HashMap<String, String>();
+//    tags_local.put("host", "web01");
+//    
+//    // note that the mock must have been configured properly
+//    final int id = tsdb.histogramManager()
+//        .getCodec(LongHistogramDataPointForTestDecoder.class);
+//    
+//    long timestamp = 1356998400;
+//    for (int i = 1; i <= 300; i++) {
+//      final LongHistogramDataPointForTest hdp = 
+//          new LongHistogramDataPointForTest(id, i);
+//      tsdb.addHistogramPoint(HISTOGRAM_METRIC_STRING, timestamp += 30, 
+//          hdp.histogram(true), tags_local).joinUninterruptibly();
+//    }
+//  
+//    // dump a parallel set but invert the values
+//    tags_local.clear();
+//    tags_local.put("host", "web02");
+//    timestamp = offset ? 1356998415 : 1356998400;
+//    for (int i = 300; i > 0; i--) {
+//      final LongHistogramDataPointForTest hdp = 
+//          new LongHistogramDataPointForTest(id, i);
+//      tsdb.addHistogramPoint(HISTOGRAM_METRIC_STRING, timestamp += 30, 
+//          hdp.histogram(true), tags_local).joinUninterruptibly();
+//    }
+//  }
+//   
+//  // store histogram data points of {@link LongHistogramDataPointForTest} with ms timestamp
+//  protected void storeTestHistogramTimeSeriesMs() throws Exception {
+//    setDataPointStorage();
+//    
+//    // note that the mock must have been configured properly
+//    final int id = tsdb.histogramManager()
+//        .getCodec(LongHistogramDataPointForTestDecoder.class);
+//    
+//    // dump a bunch of rows of two metrics so that we can test filtering out
+//    // on the metric
+//    HashMap<String, String> tags = new HashMap<String, String>(1);
+//    tags.put("host", "web01");
+//    long timestamp = 1356998400000L;
+//    for (int i = 1; i <= 300; i++) {
+//      timestamp += 500;
+//      final LongHistogramDataPointForTest hdp = 
+//          new LongHistogramDataPointForTest(id, i);
+//      tsdb.addHistogramPoint("msg.end2end.latency", timestamp, 
+//          hdp.histogram(true), tags).joinUninterruptibly();
+//    } // end for
+//   
+//    // dump a parallel set but invert the values
+//    tags.clear();
+//    tags.put("host", "web02");
+//    timestamp = 1356998400000L;
+//    for (int i = 300; i > 0; i--) {
+//      timestamp += 500;
+//      final LongHistogramDataPointForTest hdp = 
+//          new LongHistogramDataPointForTest(id, i);
+//      tsdb.addHistogramPoint("msg.end2end.latency", timestamp, 
+//          hdp.histogram(true), tags).joinUninterruptibly();
+//    } // end for
+//  }
+//  
+//  /**
+//   * Validates the metric name, tags and annotations
+//   * @param dps The datapoints array returned from the query
+//   * @param index The index to peek into the array
+//   * @param agged_tags Whether or not the tags were aggregated out
+//   */
+//  protected void assertMeta(final DataPoints[] dps, final int index, 
+//      final boolean agged_tags) {
+//    assertMeta(dps, index, agged_tags, false);
+//  }
+//  
+//  /**
+//   * Validates the metric name, tags and annotations
+//   * @param dps The datapoints array returned from the query
+//   * @param index The index to peek into the array
+//   * @param agged_tags Whether or not the tags were aggregated out
+//   * @param annotation Whether we're expecting a note or not
+//   */
+//  protected void assertMeta(final DataPoints[] dps, final int index, 
+//      final boolean agged_tags, final boolean annotation) {
+//    assertNotNull(dps);
+//    assertEquals(METRIC_STRING, dps[index].metricName());
+//    
+//    if (agged_tags) {
+//      assertTrue(dps[index].getTags().isEmpty());
+//      assertEquals(TAGK_STRING, dps[index].getAggregatedTags().get(0));
+//    } else {
+//      if (index == 0) {
+//        assertTrue(dps[index].getAggregatedTags().isEmpty());
+//        assertEquals(TAGV_STRING, dps[index].getTags().get(TAGK_STRING));
+//      } else {
+//        assertEquals(TAGV_B_STRING, dps[index].getTags().get(TAGK_STRING));
+//      }
+//    }
+//    
+//    if (annotation) {
+//      assertEquals(1, dps[index].getAnnotations().size());
+//      assertEquals(NOTE_DESCRIPTION, dps[index].getAnnotations().get(0)
+//          .getDescription());
+//      assertEquals(NOTE_NOTES, dps[index].getAnnotations().get(0).getNotes());
+//    } else {
+//      assertNull(dps[index].getAnnotations());
+//    }
+//  }
+//
+//  /**
+//   * Stores a single annotation in the given row
+//   * @param timestamp The time to store the data point at
+//   * @throws Exception
+//   */
+//  protected void storeAnnotation(final long timestamp) throws Exception {
+//    final Annotation note = new Annotation();
+//    note.setTSUID("000001000001000001");
+//    note.setStartTime(timestamp);
+//    note.setDescription(NOTE_DESCRIPTION);
+//    note.setNotes(NOTE_NOTES);
+//    note.syncToStorage(tsdb, false).joinUninterruptibly();
+//  }
 
-    // dump a parallel set but invert the values
-    tags_local.clear();
-    tags_local.put(TAGK_STRING, TAGV_B_STRING);
-    timestamp = offset ? 1356998415 : 1356998400;
-    for (int i = 300; i > 0; i--) {
-      tsdb.addPoint(METRIC_STRING, timestamp += 30, i, tags_local)
-        .joinUninterruptibly();
-      if (two_metrics) {
-        tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
-          .joinUninterruptibly();
-      }
-    }
-  }
- 
-  protected void storeLongTimeSeriesMs() throws Exception {
-    setDataPointStorage();
-    // dump a bunch of rows of two metrics so that we can test filtering out
-    // on the metric
-    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
-    long timestamp = 1356998400000L;
-    for (int i = 1; i <= 300; i++) {
-      tsdb.addPoint(METRIC_STRING, timestamp += 500, i, tags_local)
-        .joinUninterruptibly();
-      tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
-        .joinUninterruptibly();
-    }
-
-    // dump a parallel set but invert the values
-    tags_local.clear();
-    tags_local.put(TAGK_STRING, TAGV_B_STRING);
-    timestamp = 1356998400000L;
-    for (int i = 300; i > 0; i--) {
-      tsdb.addPoint(METRIC_STRING, timestamp += 500, i, tags_local)
-        .joinUninterruptibly();
-      tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
-        .joinUninterruptibly();
-    }
+  static void verifySpan(final String name) {
+    assertEquals(1, trace.spans.size());
+    assertEquals(name, trace.spans.get(0).id);
+    assertEquals("OK", trace.spans.get(0).tags.get("status"));
   }
   
+  static void verifySpan(final String name, final Class<?> ex) {
+    verifySpan(name, ex, 1);
+  }
+  
+  static void verifySpan(final String name, final Class<?> ex, final int size) {
+    assertEquals(size, trace.spans.size());
+    assertEquals(name, trace.spans.get(size - 1).id);
+    assertEquals("Error", trace.spans.get(0).tags.get("status"));
+    assertTrue(ex.isInstance(trace.spans.get(0).exceptions.get("Exception")));
+  }
+
   /**
-   * Create two metrics with same name, skipping every third point in host=web01
-   * and every other point in host=web02. To wit:
-   *
-   *       METRIC    TAG  t0   t1   t2   t3   t4   t5   ...
-   * sys.cpu.user  web01   X    2    3    X    5    6   ...
-   * sys.cpu.user  web02   X  299    X  297    X  295   ...
-   */
-  protected void storeLongTimeSeriesWithMissingData() throws Exception {
-    setDataPointStorage();
-
-    // host=web01
-    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
-    long timestamp = 1356998400L;
-    for (int i = 0; i < 300; ++i) {
-      // Skip every third point.
-      if (0 != (i % 3)) {
-        tsdb.addPoint(METRIC_STRING, timestamp, i + 1, tags_local)
-          .joinUninterruptibly();
-      }
-      timestamp += 10L;
-    }
-
-    // host=web02
-    tags_local.clear();
-    tags_local.put(TAGK_STRING, TAGV_B_STRING);
-    timestamp = 1356998400L;
-    for (int i = 300; i > 0; --i) {
-      // Skip every other point.
-      if (0 != (i % 2)) {
-        tsdb.addPoint(METRIC_STRING, timestamp, i, tags_local)
-          .joinUninterruptibly();
-      }
-      timestamp += 10L;
-    }
-  }
-  
-  protected void storeFloatTimeSeriesSeconds(final boolean two_metrics, 
-      final boolean offset) throws Exception {
-    setDataPointStorage();
-    // dump a bunch of rows of two metrics so that we can test filtering out
-    // on the metric
-    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
-    long timestamp = 1356998400;
-    for (float i = 1.25F; i <= 76; i += 0.25F) {
-      tsdb.addPoint(METRIC_STRING, timestamp += 30, i, tags_local)
-        .joinUninterruptibly();
-      if (two_metrics) {
-        tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
-          .joinUninterruptibly();
-      }
-    }
-
-    // dump a parallel set but invert the values
-    tags_local.clear();
-    tags_local.put(TAGK_STRING, TAGV_B_STRING);
-    timestamp = offset ? 1356998415 : 1356998400;
-    for (float i = 75F; i > 0; i -= 0.25F) {
-      tsdb.addPoint(METRIC_STRING, timestamp += 30, i, tags_local)
-        .joinUninterruptibly();
-      if (two_metrics) {
-        tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
-          .joinUninterruptibly();
-      }
-    }
-  }
-  
-  protected void storeFloatTimeSeriesMs() throws Exception {
-    setDataPointStorage();
-    // dump a bunch of rows of two metrics so that we can test filtering out
-    // on the metric
-    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
-    long timestamp = 1356998400000L;
-    for (float i = 1.25F; i <= 76; i += 0.25F) {
-      tsdb.addPoint(METRIC_STRING, timestamp += 500, i, tags_local)
-        .joinUninterruptibly();
-      tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
-        .joinUninterruptibly();
-    }
-
-    // dump a parallel set but invert the values
-    tags_local.clear();
-    tags_local.put(TAGK_STRING, TAGV_B_STRING);
-    timestamp = 1356998400000L;
-    for (float i = 75F; i > 0; i -= 0.25F) {
-      tsdb.addPoint(METRIC_STRING, timestamp += 500, i, tags_local)
-        .joinUninterruptibly();
-      tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
-        .joinUninterruptibly();
-    }
-  }
-  
-  protected void storeMixedTimeSeriesSeconds() throws Exception {
-    setDataPointStorage();
-    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
-    long timestamp = 1356998400;
-    for (float i = 1.25F; i <= 76; i += 0.25F) {
-      if (i % 2 == 0) {
-        tsdb.addPoint(METRIC_STRING, timestamp += 30, (long)i, tags_local)
-          .joinUninterruptibly();
-      } else {
-        tsdb.addPoint(METRIC_STRING, timestamp += 30, i, tags_local)
-          .joinUninterruptibly();
-      }
-    }
-  }
-  
-  // dumps ints, floats, seconds and ms
-  protected void storeMixedTimeSeriesMsAndS() throws Exception {
-    setDataPointStorage();
-    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
-    long timestamp = 1356998400000L;
-    for (float i = 1.25F; i <= 76; i += 0.25F) {
-      long ts = timestamp += 500;
-      if (ts % 1000 == 0) {
-        ts /= 1000;
-      }
-      if (i % 2 == 0) {
-        tsdb.addPoint(METRIC_STRING, ts, (long)i, tags_local).joinUninterruptibly();
-      } else {
-        tsdb.addPoint(METRIC_STRING, ts, i, tags_local).joinUninterruptibly();
-      }
-    }
-  }
-  
-  //store histogram data points of {@link LongHistogramDataPointForTest} with second timestamp
-  protected void storeTestHistogramTimeSeriesSeconds(final boolean offset) throws Exception {
-    setDataPointStorage();
-     
-    // dump a bunch of rows of two metrics so that we can test filtering out
-    // on the metric
-    HashMap<String, String> tags_local = new HashMap<String, String>();
-    tags_local.put("host", "web01");
-    
-    // note that the mock must have been configured properly
-    final int id = tsdb.histogramManager()
-        .getCodec(LongHistogramDataPointForTestDecoder.class);
-    
-    long timestamp = 1356998400;
-    for (int i = 1; i <= 300; i++) {
-      final LongHistogramDataPointForTest hdp = 
-          new LongHistogramDataPointForTest(id, i);
-      tsdb.addHistogramPoint(HISTOGRAM_METRIC_STRING, timestamp += 30, 
-          hdp.histogram(true), tags_local).joinUninterruptibly();
-    }
-  
-    // dump a parallel set but invert the values
-    tags_local.clear();
-    tags_local.put("host", "web02");
-    timestamp = offset ? 1356998415 : 1356998400;
-    for (int i = 300; i > 0; i--) {
-      final LongHistogramDataPointForTest hdp = 
-          new LongHistogramDataPointForTest(id, i);
-      tsdb.addHistogramPoint(HISTOGRAM_METRIC_STRING, timestamp += 30, 
-          hdp.histogram(true), tags_local).joinUninterruptibly();
-    }
-  }
-   
-  // store histogram data points of {@link LongHistogramDataPointForTest} with ms timestamp
-  protected void storeTestHistogramTimeSeriesMs() throws Exception {
-    setDataPointStorage();
-    
-    // note that the mock must have been configured properly
-    final int id = tsdb.histogramManager()
-        .getCodec(LongHistogramDataPointForTestDecoder.class);
-    
-    // dump a bunch of rows of two metrics so that we can test filtering out
-    // on the metric
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    long timestamp = 1356998400000L;
-    for (int i = 1; i <= 300; i++) {
-      timestamp += 500;
-      final LongHistogramDataPointForTest hdp = 
-          new LongHistogramDataPointForTest(id, i);
-      tsdb.addHistogramPoint("msg.end2end.latency", timestamp, 
-          hdp.histogram(true), tags).joinUninterruptibly();
-    } // end for
-   
-    // dump a parallel set but invert the values
-    tags.clear();
-    tags.put("host", "web02");
-    timestamp = 1356998400000L;
-    for (int i = 300; i > 0; i--) {
-      timestamp += 500;
-      final LongHistogramDataPointForTest hdp = 
-          new LongHistogramDataPointForTest(id, i);
-      tsdb.addHistogramPoint("msg.end2end.latency", timestamp, 
-          hdp.histogram(true), tags).joinUninterruptibly();
-    } // end for
-  }
-  
-  /**
-   * Validates the metric name, tags and annotations
-   * @param dps The datapoints array returned from the query
-   * @param index The index to peek into the array
-   * @param agged_tags Whether or not the tags were aggregated out
-   */
-  protected void assertMeta(final DataPoints[] dps, final int index, 
-      final boolean agged_tags) {
-    assertMeta(dps, index, agged_tags, false);
-  }
-  
-  /**
-   * Validates the metric name, tags and annotations
-   * @param dps The datapoints array returned from the query
-   * @param index The index to peek into the array
-   * @param agged_tags Whether or not the tags were aggregated out
-   * @param annotation Whether we're expecting a note or not
-   */
-  protected void assertMeta(final DataPoints[] dps, final int index, 
-      final boolean agged_tags, final boolean annotation) {
-    assertNotNull(dps);
-    assertEquals(METRIC_STRING, dps[index].metricName());
-    
-    if (agged_tags) {
-      assertTrue(dps[index].getTags().isEmpty());
-      assertEquals(TAGK_STRING, dps[index].getAggregatedTags().get(0));
-    } else {
-      if (index == 0) {
-        assertTrue(dps[index].getAggregatedTags().isEmpty());
-        assertEquals(TAGV_STRING, dps[index].getTags().get(TAGK_STRING));
-      } else {
-        assertEquals(TAGV_B_STRING, dps[index].getTags().get(TAGK_STRING));
-      }
-    }
-    
-    if (annotation) {
-      assertEquals(1, dps[index].getAnnotations().size());
-      assertEquals(NOTE_DESCRIPTION, dps[index].getAnnotations().get(0)
-          .getDescription());
-      assertEquals(NOTE_NOTES, dps[index].getAnnotations().get(0).getNotes());
-    } else {
-      assertNull(dps[index].getAnnotations());
-    }
-  }
-
-  /**
-   * Stores a single annotation in the given row
-   * @param timestamp The time to store the data point at
-   * @throws Exception
-   */
-  protected void storeAnnotation(final long timestamp) throws Exception {
-    final Annotation note = new Annotation();
-    note.setTSUID("000001000001000001");
-    note.setStartTime(timestamp);
-    note.setDescription(NOTE_DESCRIPTION);
-    note.setNotes(NOTE_NOTES);
-    note.syncToStorage(tsdb, false).joinUninterruptibly();
-  }
-
-  /**
-   * A fake {@link org.jboss.netty.util.Timer} implementation.
+   * A fake {@link io.netty.util.Timer} implementation.
    * Instead of executing the task it will store that task in a internal state
    * and provides a function to start the execution of the stored task.
    * This implementation thus allows the flexibility of simulating the
@@ -958,15 +876,4 @@ public class BaseTsdbTest {
     }
   }
 
-  /**
-   * A little class used to throw a very specific type of exception for matching
-   * in Unit Tests.
-   */
-  public static class UnitTestException extends RuntimeException {
-    public UnitTestException() { }
-    public UnitTestException(final String msg) {
-      super(msg);
-    }
-    private static final long serialVersionUID = -4404095849459619922L;
-  }
 }
