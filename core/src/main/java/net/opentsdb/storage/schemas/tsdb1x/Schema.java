@@ -26,7 +26,6 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
@@ -88,6 +87,10 @@ public class Schema implements StorageSchema {
       throw new ConfigurationException("No factory found for: " + store_name);
     }
     data_store = store_factory.newInstance(tsdb, id);
+    if (data_store == null) {
+      throw new IllegalStateException("Store factory " + store_factory 
+          + " returned a null data store instance.");
+    }
     
     // TODO there's a better way. For now the data store will dump it
     // in the shared objects map.
@@ -175,19 +178,22 @@ public class Schema implements StorageSchema {
   /**
    * Retrieve the row timestamp from the row key.
    * @param key A non-null and non-empty byte array.
+   * @param timestamp The non-null timestamp to update.
    * @return A non-null timestamp object.
    * @throws IllegalArgumentException if the key was null or encoded 
    * improperly.
    */
-  public TimeStamp baseTimestamp(final byte[] key) {
+  public void baseTimestamp(final byte[] key, final TimeStamp timestamp) {
     if (Bytes.isNullOrEmpty(key)) {
       throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    if (timestamp == null) {
+      throw new IllegalArgumentException("Timestamp cannot be null");
     }
     if (key.length < salt_width + metric_width + TIMESTAMP_BYTES) {
       throw new IllegalArgumentException("Key was too short.");
     }
-    return new MillisecondTimeStamp(Bytes.getUnsignedInt(key, 
-        salt_width + metric_width) * 1000);
+    timestamp.update(Bytes.getUnsignedInt(key, salt_width + metric_width), 0);
   }
   
   /**
@@ -481,8 +487,8 @@ public class Schema implements StorageSchema {
   }
   
   @Override
-  public Deferred<TimeSeriesStringId> resolveByteId(TimeSeriesByteId id,
-                                                    Span span) {
+  public Deferred<TimeSeriesStringId> resolveByteId(final TimeSeriesByteId id,
+                                                    final Span span) {
     // TODO Auto-generated method stub
     return null;
   }
@@ -510,6 +516,15 @@ public class Schema implements StorageSchema {
   /** @return The width of tag value UIDs. */
   public int tagvWidth() {
     return tagv_width;
+  }
+  
+  /**
+   * Sets the proper salt bucket in the row key byte array. The array
+   * must be pre-configured with the proper number of bytes for the salt.
+   * @param row_key A non-null and non-empty row key.
+   */
+  public void prefixKeyWithSalt(final byte[] row_key) {
+    // TODO - implement
   }
   
   static class ResolvedFilterImplementation implements ResolvedFilter {

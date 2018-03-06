@@ -24,128 +24,41 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
-import java.util.Map;
 
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.storage.StorageException;
 import net.opentsdb.storage.TimeSeriesDataStore;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
-import net.opentsdb.uid.LRUUniqueId;
-import net.opentsdb.uid.MockUIDStore;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdFactory;
 import net.opentsdb.uid.UniqueIdStore;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.UnitTestException;
 
-public class TestSchema {
-  private static final byte[] UID1 = new byte[] { 0, 0, 1 };
-  private static final byte[] UID2 = new byte[] { 0, 0, 2 };
-  private static final byte[] UID3 = new byte[] { 0, 0, 3 };
-  private static final byte[] EX1 = new byte[] { 0, 0, 4 };
-  private static final byte[] UID4 = new byte[] { 0, 0, 6 };
+public class TestSchema extends BaseTsdbTest {
   
-  private static final String STRING1 = "sys.cpu.user";
-  private static final String STRING2 = "host";
-  private static final String STRING3 = "web01";
-  private static final String STRING4 = "web02";
-  private static final String STRING5 = "owner";
-  private static final String EX2 = "dc";
-  
-  private static final String TESTID = "UT";
-  
-  private static TSDB tsdb;
-  private static Configuration config;
-  private static Registry registry;
-  private static TimeSeriesDataStoreFactory store_factory;
-  private static TimeSeriesDataStore store;
-  private static UniqueIdStore uid_store;
-  private static UniqueIdFactory uid_factory;
-  private static UniqueId metrics;
-  private static UniqueId tag_names;
-  private static UniqueId tag_values;
-  private static MockTrace trace;
-  
-  @BeforeClass
-  public static void beforeClass() throws Exception {
-    tsdb = mock(TSDB.class);
-    config = UnitTestConfiguration.getConfiguration();
-    registry = mock(Registry.class);
-    store_factory = mock(TimeSeriesDataStoreFactory.class);
-    store = mock(TimeSeriesDataStore.class);
-    uid_store = spy(new MockUIDStore(Const.ASCII_CHARSET));
-    uid_factory = mock(UniqueIdFactory.class);
-    
-    when(tsdb.getConfig()).thenReturn(config);
-    when(tsdb.getRegistry()).thenReturn(registry);
-    
-    // return the default
-    when(registry.getPlugin(TimeSeriesDataStoreFactory.class, null))
-      .thenReturn(store_factory);
-    when(store_factory.newInstance(tsdb, null)).thenReturn(store);    
-    when(registry.getSharedObject("default_uidstore"))
-      .thenReturn(uid_store);
-    when(registry.getPlugin(UniqueIdFactory.class, "LRU"))
-      .thenReturn(uid_factory);
-    
-    metrics = new LRUUniqueId(tsdb, null, UniqueIdType.METRIC, uid_store);
-    tag_names = new LRUUniqueId(tsdb, null, UniqueIdType.TAGK, uid_store);
-    tag_values = new LRUUniqueId(tsdb, null, UniqueIdType.TAGV, uid_store);
-    when(uid_factory.newInstance(eq(tsdb), anyString(), 
-        eq(UniqueIdType.METRIC), eq(uid_store))).thenReturn(metrics);
-    when(uid_factory.newInstance(eq(tsdb), anyString(), 
-        eq(UniqueIdType.TAGK), eq(uid_store))).thenReturn(tag_names);
-    when(uid_factory.newInstance(eq(tsdb), anyString(), 
-        eq(UniqueIdType.TAGV), eq(uid_store))).thenReturn(tag_values);
-    
-    ((MockUIDStore) uid_store).addBoth(UniqueIdType.METRIC, STRING1, UID1);
-    
-    ((MockUIDStore) uid_store).addBoth(UniqueIdType.TAGK, STRING2, UID1);
-    ((MockUIDStore) uid_store).addBoth(UniqueIdType.TAGK, STRING5, UID4);
-    
-    ((MockUIDStore) uid_store).addBoth(UniqueIdType.TAGV, STRING3, UID1);
-    ((MockUIDStore) uid_store).addBoth(UniqueIdType.TAGV, STRING4, UID3);
-    
-    ((MockUIDStore) uid_store).addException(UniqueIdType.METRIC, EX2);
-    ((MockUIDStore) uid_store).addException(UniqueIdType.TAGK, EX2);
-    ((MockUIDStore) uid_store).addException(UniqueIdType.TAGV, EX2);
-    
-    ((MockUIDStore) uid_store).addException(UniqueIdType.METRIC, EX1);
-    ((MockUIDStore) uid_store).addException(UniqueIdType.TAGK, EX1);
-    ((MockUIDStore) uid_store).addException(UniqueIdType.TAGV, EX1);
-  }
-  
-  @Before
-  public void before() throws Exception {
-    resetConfig();
-    metrics.dropCaches(null);
-    tag_names.dropCaches(null);
-    tag_values.dropCaches(null);
-  }
+  public static final String TESTID = "UT";
   
   @Test
   public void ctorDefault() throws Exception {
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = schema();
     assertEquals(3, schema.metricWidth());
     assertEquals(3, schema.tagkWidth());
     assertEquals(3, schema.tagvWidth());
@@ -160,8 +73,11 @@ public class TestSchema {
   
   @Test
   public void ctorOverrides() throws Exception {
-    config = UnitTestConfiguration.getConfiguration();
+    TSDB tsdb = mock(TSDB.class);
+    Configuration config = UnitTestConfiguration.getConfiguration();
     when(tsdb.getConfig()).thenReturn(config);
+    when(tsdb.getRegistry()).thenReturn(registry);
+    
     ((UnitTestConfiguration) config)
       .register("tsd.storage.uid.width.metric", 4, false, "UT");
     ((UnitTestConfiguration) config)
@@ -265,7 +181,7 @@ public class TestSchema {
 
   @Test
   public void getTSUID() throws Exception {
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = schema();
     try {
       schema.getTSUID(null);
       fail("Expected IllegalArgumentException");
@@ -297,32 +213,40 @@ public class TestSchema {
   
   @Test
   public void baseTimestamp() throws Exception {
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = schema();
+    TimeStamp ts = new MillisecondTimeStamp(0L);
     try {
-      schema.baseTimestamp(null);
+      schema.baseTimestamp(null, ts);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      schema.baseTimestamp(new byte[0]);
+      schema.baseTimestamp(new byte[0], ts);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      schema.baseTimestamp(new byte[4]);
+      schema.baseTimestamp(new byte[4], ts);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      schema.baseTimestamp(new byte[16], null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     byte[] row = new byte[] { 0, 0, 1, 1, 2, 3, 4, 0, 0, 1, 0, 0, 1 };
-    assertEquals(16909060000L, schema.baseTimestamp(row).msEpoch());
+    schema.baseTimestamp(row, ts);
+    assertEquals(16909060000L, ts.msEpoch());
     
     row = new byte[] { 0, 0, 1, 0x5A, 0x49, 0x7A, 0, 0, 0, 1, 0, 0, 1 };
-    assertEquals(1514764800000L, schema.baseTimestamp(row).msEpoch());
+    schema.baseTimestamp(row, ts);
+    assertEquals(1514764800000L, ts.msEpoch());
   }
   
   @Test
   public void uidWidth() throws Exception {
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = schema();
     schema.metric_width = 1;
     schema.tagk_width = 2;
     schema.tagv_width = 5;
@@ -341,60 +265,60 @@ public class TestSchema {
   
   @Test
   public void resolveUids() throws Exception {
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = schema();
     
     Filter filter = Filter.newBuilder()
         .addFilter(TagVFilter.newBuilder()
             .setFilter("*")
-            .setTagk("owner")
+            .setTagk(TAGK_B_STRING)
             .setType("wildcard"))
         .addFilter(TagVFilter.newBuilder()
-            .setFilter("web01|web02")
-            .setTagk("host")
+            .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+            .setTagk(TAGK_STRING)
             .setType("literal_or"))
         .build();
     
     List<ResolvedFilter> resolutions = schema.resolveUids(filter, null)
         .join();
     assertEquals(2, resolutions.size());
-    assertArrayEquals(UID4, resolutions.get(0).getTagKey());
+    assertArrayEquals(TAGK_B_BYTES, resolutions.get(0).getTagKey());
     assertNull(resolutions.get(0).getTagValues());
-    assertArrayEquals(UID1, resolutions.get(1).getTagKey());
+    assertArrayEquals(TAGK_BYTES, resolutions.get(1).getTagKey());
     assertEquals(2, resolutions.get(1).getTagValues().size());
-    assertArrayEquals(UID1, resolutions.get(1).getTagValues().get(0));
-    assertArrayEquals(UID3, resolutions.get(1).getTagValues().get(1));
+    assertArrayEquals(TAGV_BYTES, resolutions.get(1).getTagValues().get(0));
+    assertArrayEquals(TAGV_B_BYTES, resolutions.get(1).getTagValues().get(1));
     
     // one tagv not found
     filter = Filter.newBuilder()
         .addFilter(TagVFilter.newBuilder()
             .setFilter("*")
-            .setTagk("owner")
+            .setTagk(TAGK_B_STRING)
             .setType("wildcard"))
         .addFilter(TagVFilter.newBuilder()
-            .setFilter("web01|web02|web06")
-            .setTagk("host")
+            .setFilter(TAGV_STRING + "|" + TAGV_B_STRING + "|" + NSUN_TAGV)
+            .setTagk(TAGK_STRING)
             .setType("literal_or"))
         .build();
     resolutions = schema.resolveUids(filter, null)
         .join();
     assertEquals(2, resolutions.size());
-    assertArrayEquals(UID4, resolutions.get(0).getTagKey());
+    assertArrayEquals(TAGK_B_BYTES, resolutions.get(0).getTagKey());
     assertNull(resolutions.get(0).getTagValues());
-    assertArrayEquals(UID1, resolutions.get(1).getTagKey());
+    assertArrayEquals(TAGK_BYTES, resolutions.get(1).getTagKey());
     assertEquals(3, resolutions.get(1).getTagValues().size());
-    assertArrayEquals(UID1, resolutions.get(1).getTagValues().get(0));
-    assertArrayEquals(UID3, resolutions.get(1).getTagValues().get(1));
+    assertArrayEquals(TAGV_BYTES, resolutions.get(1).getTagValues().get(0));
+    assertArrayEquals(TAGV_B_BYTES, resolutions.get(1).getTagValues().get(1));
     assertNull(resolutions.get(1).getTagValues().get(2));
     
     // tagk not found
     filter = Filter.newBuilder()
         .addFilter(TagVFilter.newBuilder()
             .setFilter("*")
-            .setTagk("notthere")
+            .setTagk(NSUN_TAGK)
             .setType("wildcard"))
         .addFilter(TagVFilter.newBuilder()
-            .setFilter("web01|web06|web02")
-            .setTagk("host")
+            .setFilter(TAGV_STRING + "|" + NSUN_TAGV + "|" + TAGV_B_STRING)
+            .setTagk(TAGK_STRING)
             .setType("literal_or"))
         .build();
     resolutions = schema.resolveUids(filter, null)
@@ -402,20 +326,20 @@ public class TestSchema {
     assertEquals(2, resolutions.size());
     assertNull(resolutions.get(0).getTagKey());
     assertNull(resolutions.get(0).getTagValues());
-    assertArrayEquals(UID1, resolutions.get(1).getTagKey());
+    assertArrayEquals(TAGK_BYTES, resolutions.get(1).getTagKey());
     assertEquals(3, resolutions.get(1).getTagValues().size());
-    assertArrayEquals(UID1, resolutions.get(1).getTagValues().get(0));
+    assertArrayEquals(TAGV_BYTES, resolutions.get(1).getTagValues().get(0));
     assertNull(resolutions.get(1).getTagValues().get(1));
-    assertArrayEquals(UID3, resolutions.get(1).getTagValues().get(2));
+    assertArrayEquals(TAGV_B_BYTES, resolutions.get(1).getTagValues().get(2));
     
     // nothing found at all.
     filter = Filter.newBuilder()
         .addFilter(TagVFilter.newBuilder()
             .setFilter("*")
-            .setTagk("notthere")
+            .setTagk(NSUN_TAGK)
             .setType("wildcard"))
         .addFilter(TagVFilter.newBuilder()
-            .setFilter("web06")
+            .setFilter(NSUN_TAGV)
             .setTagk("nope")
             .setType("literal_or"))
         .build();
@@ -431,7 +355,7 @@ public class TestSchema {
   
   @Test
   public void resolveUidsEmptyListAndTrace() throws Exception {
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = schema();
     
     assertTrue(schema.resolveUids(mock(Filter.class), null)
         .join().isEmpty());
@@ -451,7 +375,7 @@ public class TestSchema {
   
   @Test
   public void resolveUidsIllegalArguments() throws Exception {
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = schema();
     
     try {
       schema.resolveUids(null, null);
@@ -461,17 +385,17 @@ public class TestSchema {
   
   @Test
   public void resolveUidsExceptionFromGet() throws Exception {
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = schema();
     
     // in tagk
     Filter filter = Filter.newBuilder()
         .addFilter(TagVFilter.newBuilder()
             .setFilter("*")
-            .setTagk("dc")
+            .setTagk(TAGK_STRING_EX)
             .setType("wildcard"))
         .addFilter(TagVFilter.newBuilder()
-            .setFilter("web01|web02")
-            .setTagk("host")
+            .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+            .setTagk(TAGK_STRING)
             .setType("literal_or"))
         .build();
     
@@ -485,11 +409,11 @@ public class TestSchema {
     filter = Filter.newBuilder()
         .addFilter(TagVFilter.newBuilder()
             .setFilter("*")
-            .setTagk("owner")
+            .setTagk(TAGK_STRING)
             .setType("wildcard"))
         .addFilter(TagVFilter.newBuilder()
-            .setFilter("web01|dc")
-            .setTagk("host")
+            .setFilter(TAGV_STRING + "|" + TAGV_STRING_EX)
+            .setTagk(TAGK_STRING)
             .setType("literal_or"))
         .build();
     
@@ -502,17 +426,17 @@ public class TestSchema {
   
   @Test
   public void resolveUidsTraceException() throws Exception {
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = schema();
     trace = new MockTrace(true);
     // in tagk
     Filter filter = Filter.newBuilder()
         .addFilter(TagVFilter.newBuilder()
             .setFilter("*")
-            .setTagk("dc")
+            .setTagk(TAGK_STRING_EX)
             .setType("wildcard"))
         .addFilter(TagVFilter.newBuilder()
-            .setFilter("web01|web02")
-            .setTagk("host")
+            .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+            .setTagk(TAGK_STRING)
             .setType("literal_or"))
         .build();
     
@@ -529,10 +453,10 @@ public class TestSchema {
   
   @Test
   public void getId() throws Exception {
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = schema();
     
     try {
-      schema.getId(null, STRING1, null);
+      schema.getId(null, METRIC_STRING, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -546,27 +470,31 @@ public class TestSchema {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    assertArrayEquals(UID1, schema.getId(UniqueIdType.METRIC, STRING1, null).join());
-    assertArrayEquals(UID1, schema.getId(UniqueIdType.TAGK, STRING2, null).join());
-    assertArrayEquals(UID1, schema.getId(UniqueIdType.TAGV, STRING3, null).join());
+    assertArrayEquals(METRIC_BYTES, schema.getId(
+        UniqueIdType.METRIC, METRIC_STRING, null).join());
+    assertArrayEquals(TAGK_BYTES, schema.getId(
+        UniqueIdType.TAGK, TAGK_STRING, null).join());
+    assertArrayEquals(TAGV_BYTES, schema.getId(
+        UniqueIdType.TAGV, TAGV_STRING, null).join());
     
-    assertNull(schema.getId(UniqueIdType.METRIC, STRING5, null).join());
-    assertNull(schema.getId(UniqueIdType.TAGK, STRING4, null).join());
-    assertNull(schema.getId(UniqueIdType.TAGV, STRING5, null).join());
+    assertNull(schema.getId(UniqueIdType.METRIC, NSUN_METRIC, null).join());
+    assertNull(schema.getId(UniqueIdType.TAGK, NSUN_TAGK, null).join());
+    assertNull(schema.getId(UniqueIdType.TAGV, NSUN_TAGV, null).join());
     
-    Deferred<byte[]> deferred = schema.getId(UniqueIdType.METRIC, EX2, null);
+    Deferred<byte[]> deferred = schema.getId(
+        UniqueIdType.METRIC, METRIC_STRING_EX, null);
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
     
-    deferred = schema.getId(UniqueIdType.TAGK, EX2, null);
+    deferred = schema.getId(UniqueIdType.TAGK, TAGK_STRING_EX, null);
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
     
-    deferred = schema.getId(UniqueIdType.TAGV, EX2, null);
+    deferred = schema.getId(UniqueIdType.TAGV, TAGV_STRING_EX, null);
     try {
       deferred.join();
       fail("Expected StorageException");
@@ -575,10 +503,10 @@ public class TestSchema {
   
   @Test
   public void getIds() throws Exception {
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = schema();
     
     try {
-      schema.getIds(null, Lists.newArrayList(STRING1), null);
+      schema.getIds(null, Lists.newArrayList(METRIC_STRING), null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -592,36 +520,36 @@ public class TestSchema {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    assertArrayEquals(UID1, schema.getIds(UniqueIdType.METRIC, 
-        Lists.newArrayList(STRING1), null).join().get(0));
-    assertArrayEquals(UID1, schema.getIds(UniqueIdType.TAGK, 
-        Lists.newArrayList(STRING2), null).join().get(0));
-    assertArrayEquals(UID1, schema.getIds(UniqueIdType.TAGV, 
-        Lists.newArrayList(STRING3), null).join().get(0));
+    assertArrayEquals(METRIC_BYTES, schema.getIds(UniqueIdType.METRIC, 
+        Lists.newArrayList(METRIC_STRING), null).join().get(0));
+    assertArrayEquals(TAGK_BYTES, schema.getIds(UniqueIdType.TAGK, 
+        Lists.newArrayList(TAGK_STRING), null).join().get(0));
+    assertArrayEquals(TAGV_BYTES, schema.getIds(UniqueIdType.TAGV, 
+        Lists.newArrayList(TAGV_STRING), null).join().get(0));
     
     assertNull(schema.getIds(UniqueIdType.METRIC, 
-        Lists.newArrayList(STRING5), null).join().get(0));
+        Lists.newArrayList(NSUN_METRIC), null).join().get(0));
     assertNull(schema.getIds(UniqueIdType.TAGK, 
-        Lists.newArrayList(STRING4), null).join().get(0));
+        Lists.newArrayList(NSUN_TAGK), null).join().get(0));
     assertNull(schema.getIds(UniqueIdType.TAGV, 
-        Lists.newArrayList(STRING5), null).join().get(0));
+        Lists.newArrayList(NSUN_TAGV), null).join().get(0));
     
     Deferred<List<byte[]>> deferred = schema.getIds(UniqueIdType.METRIC, 
-        Lists.newArrayList(STRING1, EX2), null);
+        Lists.newArrayList(METRIC_STRING, METRIC_STRING_EX), null);
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
     
     deferred = schema.getIds(UniqueIdType.TAGK, 
-        Lists.newArrayList(STRING1, EX2), null);
+        Lists.newArrayList(TAGK_STRING, TAGK_STRING_EX), null);
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
     
     deferred = schema.getIds(UniqueIdType.TAGV, 
-        Lists.newArrayList(STRING1, EX2), null);
+        Lists.newArrayList(TAGV_STRING, TAGV_STRING_EX), null);
     try {
       deferred.join();
       fail("Expected StorageException");
@@ -630,10 +558,10 @@ public class TestSchema {
   
   @Test
   public void getName() throws Exception {
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = schema();
     
     try {
-      schema.getName(null, UID1, null);
+      schema.getName(null, METRIC_BYTES, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -647,27 +575,31 @@ public class TestSchema {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    assertEquals(STRING1, schema.getName(UniqueIdType.METRIC, UID1, null).join());
-    assertEquals(STRING2, schema.getName(UniqueIdType.TAGK, UID1, null).join());
-    assertEquals(STRING3, schema.getName(UniqueIdType.TAGV, UID1, null).join());
+    assertEquals(METRIC_STRING, schema.getName(
+        UniqueIdType.METRIC, METRIC_BYTES, null).join());
+    assertEquals(TAGK_STRING, schema.getName(
+        UniqueIdType.TAGK, TAGK_BYTES, null).join());
+    assertEquals(TAGV_STRING, schema.getName(
+        UniqueIdType.TAGV, TAGV_BYTES, null).join());
     
-    assertNull(schema.getName(UniqueIdType.METRIC, UID3, null).join());
-    assertNull(schema.getName(UniqueIdType.TAGK, UID3, null).join());
-    assertNull(schema.getName(UniqueIdType.TAGV, UID4, null).join());
+    assertNull(schema.getName(UniqueIdType.METRIC, NSUI_METRIC, null).join());
+    assertNull(schema.getName(UniqueIdType.TAGK, NSUI_TAGK, null).join());
+    assertNull(schema.getName(UniqueIdType.TAGV, NSUI_TAGV, null).join());
     
-    Deferred<String> deferred = schema.getName(UniqueIdType.METRIC, EX1, null);
+    Deferred<String> deferred = schema.getName(
+        UniqueIdType.METRIC, METRIC_BYTES_EX, null);
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
     
-    deferred = schema.getName(UniqueIdType.TAGK, EX1, null);
+    deferred = schema.getName(UniqueIdType.TAGK, TAGK_BYTES_EX, null);
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
     
-    deferred = schema.getName(UniqueIdType.TAGV, EX1, null);
+    deferred = schema.getName(UniqueIdType.TAGV, TAGV_BYTES_EX, null);
     try {
       deferred.join();
       fail("Expected StorageException");
@@ -676,10 +608,10 @@ public class TestSchema {
   
   @Test
   public void getNames() throws Exception {
-    Schema schema = new Schema(tsdb, null);
+    Schema schema = schema();
     
     try {
-      schema.getNames(null, Lists.newArrayList(UID1), null);
+      schema.getNames(null, Lists.newArrayList(METRIC_BYTES), null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -693,72 +625,40 @@ public class TestSchema {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    assertEquals(STRING1, schema.getNames(UniqueIdType.METRIC, 
-        Lists.newArrayList(UID1), null).join().get(0));
-    assertEquals(STRING2, schema.getNames(UniqueIdType.TAGK, 
-        Lists.newArrayList(UID1), null).join().get(0));
-    assertEquals(STRING3, schema.getNames(UniqueIdType.TAGV, 
-        Lists.newArrayList(UID1), null).join().get(0));
+    assertEquals(METRIC_STRING, schema.getNames(UniqueIdType.METRIC, 
+        Lists.newArrayList(METRIC_BYTES), null).join().get(0));
+    assertEquals(TAGK_STRING, schema.getNames(UniqueIdType.TAGK, 
+        Lists.newArrayList(TAGK_BYTES), null).join().get(0));
+    assertEquals(TAGV_STRING, schema.getNames(UniqueIdType.TAGV, 
+        Lists.newArrayList(TAGV_BYTES), null).join().get(0));
     
-    assertNull(schema.getNames(UniqueIdType.METRIC, Lists.newArrayList(UID3), null).join().get(0));
-    assertNull(schema.getNames(UniqueIdType.TAGK, Lists.newArrayList(UID3), null).join().get(0));
-    assertNull(schema.getNames(UniqueIdType.TAGV, Lists.newArrayList(UID4), null).join().get(0));
+    assertNull(schema.getNames(UniqueIdType.METRIC, 
+        Lists.newArrayList(NSUI_METRIC), null).join().get(0));
+    assertNull(schema.getNames(UniqueIdType.TAGK, 
+        Lists.newArrayList(NSUI_TAGK), null).join().get(0));
+    assertNull(schema.getNames(UniqueIdType.TAGV, 
+        Lists.newArrayList(NSUI_TAGV), null).join().get(0));
     
     Deferred<List<String>> deferred = schema.getNames(UniqueIdType.METRIC, 
-        Lists.newArrayList(UID1, EX1), null);
+        Lists.newArrayList(METRIC_BYTES, METRIC_BYTES_EX), null);
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
     
     deferred = schema.getNames(UniqueIdType.TAGK, 
-        Lists.newArrayList(UID1, EX1), null);
+        Lists.newArrayList(TAGK_BYTES, TAGK_BYTES_EX), null);
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
     
     deferred = schema.getNames(UniqueIdType.TAGV, 
-        Lists.newArrayList(UID1, EX1), null);
+        Lists.newArrayList(TAGV_BYTES, TAGV_BYTES_EX), null);
     try {
       deferred.join();
       fail("Expected StorageException");
     } catch (StorageException e) { }
   }
   
-  static void verifySpan(final String name) {
-    assertEquals(1, trace.spans.size());
-    assertEquals(name, trace.spans.get(0).id);
-    assertEquals("OK", trace.spans.get(0).tags.get("status"));
-  }
-  
-  static void verifySpan(final String name, final Class<?> ex) {
-    verifySpan(name, ex, 1);
-  }
-  
-  static void verifySpan(final String name, final Class<?> ex, final int size) {
-    assertEquals(size, trace.spans.size());
-    assertEquals(name, trace.spans.get(size - 1).id);
-    assertEquals("Error", trace.spans.get(0).tags.get("status"));
-    assertTrue(ex.isInstance(trace.spans.get(0).exceptions.get("Exception")));
-  }
-  
-  private void resetConfig() throws Exception {
-    final UnitTestConfiguration c = (UnitTestConfiguration) config;
-    if (c.hasProperty("tsd.storage.uid.width.metric")) {
-      c.override("tsd.storage.uid.width.metric", 3);
-    }
-    if (c.hasProperty("tsd.storage.uid.width.tagk")) {
-      c.override("tsd.storage.uid.width.tagk", 3);
-    }
-    if (c.hasProperty("tsd.storage.uid.width.tagv")) {
-      c.override("tsd.storage.uid.width.tagv", 3);
-    }
-    if (c.hasProperty("tsd.storage.salt.buckets")) {
-      c.override("tsd.storage.salt.buckets", 20);
-    }
-    if (c.hasProperty("tsd.storage.salt.width")) {
-      c.override("tsd.storage.salt.width", 0);
-    }
-  }
 }
