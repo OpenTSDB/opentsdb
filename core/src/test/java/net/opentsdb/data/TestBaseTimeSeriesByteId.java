@@ -485,6 +485,6 @@ public class TestBaseTimeSeriesByteId {
         .setDisjointTags(LIST)
         .setUniqueId(SET)
         .build();
-    assertNull(id1.decode(null).join());
+    assertNull(id1.decode(false, null).join());
   }
 }

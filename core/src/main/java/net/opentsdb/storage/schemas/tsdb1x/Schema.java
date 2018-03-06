@@ -23,6 +23,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.TSDB;
@@ -42,6 +43,7 @@ import net.opentsdb.uid.UniqueIdFactory;
 import net.opentsdb.uid.UniqueIdStore;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Bytes;
+import net.opentsdb.utils.Exceptions;
 
 /**
  * The interface for an OpenTSDB version 1 and version 2 schema where 
@@ -56,6 +58,9 @@ public class Schema implements StorageSchema {
 
   /** Number of bytes on which a timestamp is encoded.  */
   public static final short TIMESTAMP_BYTES = 4;
+  public static final String METRIC_TYPE = "metric";
+  public static final String TAGK_TYPE = "tagk";
+  public static final String TAGV_TYPE = "tagv";
   
   private final TSDB tsdb;
   private final String id;
@@ -326,10 +331,14 @@ public class Schema implements StorageSchema {
       public List<ResolvedFilter> call(final Exception ex) throws Exception {
         if (child != null) {
           child.setErrorTags()
-            .log("Exception", ex)
+            .log("Exception", 
+                (ex instanceof DeferredGroupException) ? 
+                    Exceptions.getCause((DeferredGroupException) ex) : ex)
             .finish();
         }
-        throw new StorageException("Failed to fetch IDs.", ex);
+        throw new StorageException("Failed to fetch IDs.", 
+            (ex instanceof DeferredGroupException) ? 
+                Exceptions.getCause((DeferredGroupException) ex) : ex);
       }
     }
     

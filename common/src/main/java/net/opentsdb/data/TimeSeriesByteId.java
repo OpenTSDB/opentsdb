@@ -119,8 +119,9 @@ public interface TimeSeriesByteId extends TimeSeriesId,
    * Returns the string version of the time series ID based on the schema
    * used to encode the byte IDs.
    * 
+   * @param cache Whether or not to cache the result.
    * @param span An optional tracing span.
    * @return A non-null deferred resolving to either an ID or an exception. 
    */
-  public Deferred<TimeSeriesStringId> decode(final Span span);
+  public Deferred<TimeSeriesStringId> decode(final boolean cache, final Span span);
 }

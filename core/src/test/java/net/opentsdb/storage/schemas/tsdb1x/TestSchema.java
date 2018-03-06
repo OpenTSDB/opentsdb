@@ -52,7 +52,7 @@ import net.opentsdb.uid.UniqueIdStore;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.UnitTestException;
 
-public class TestSchema extends BaseTsdbTest {
+public class TestSchema extends SchemaBase {
   
   public static final String TESTID = "UT";
   
