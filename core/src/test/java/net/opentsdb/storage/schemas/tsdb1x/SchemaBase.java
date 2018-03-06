@@ -54,7 +54,7 @@ import io.netty.util.TimerTask;
 /**
  * The base Schema class to extend for tests that incorporate the schema.
  */
-public class BaseTsdbTest {
+public class SchemaBase {
   
   public static final String METRIC_STRING = "sys.cpu.user";
   public static final byte[] METRIC_BYTES = new byte[] { 0, 0, 1 };
@@ -801,9 +801,13 @@ public class BaseTsdbTest {
 //  }
 
   static void verifySpan(final String name) {
-    assertEquals(1, trace.spans.size());
-    assertEquals(name, trace.spans.get(0).id);
-    assertEquals("OK", trace.spans.get(0).tags.get("status"));
+    verifySpan(name, 1);
+  }
+  
+  static void verifySpan(final String name, final int spans) {
+    assertEquals(spans, trace.spans.size());
+    assertEquals(name, trace.spans.get(spans - 1).id);
+    assertEquals("OK", trace.spans.get(spans - 1).tags.get("status"));
   }
   
   static void verifySpan(final String name, final Class<?> ex) {
@@ -813,8 +817,9 @@ public class BaseTsdbTest {
   static void verifySpan(final String name, final Class<?> ex, final int size) {
     assertEquals(size, trace.spans.size());
     assertEquals(name, trace.spans.get(size - 1).id);
-    assertEquals("Error", trace.spans.get(0).tags.get("status"));
-    assertTrue(ex.isInstance(trace.spans.get(0).exceptions.get("Exception")));
+    assertEquals("Error", trace.spans.get(size - 1).tags.get("status"));
+    System.out.println(trace.spans.get(size - 1).exceptions.get("Exception"));
+    assertTrue(ex.isInstance(trace.spans.get(size - 1).exceptions.get("Exception")));
   }
 
   /**

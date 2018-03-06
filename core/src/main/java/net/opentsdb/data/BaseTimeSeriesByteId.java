@@ -292,7 +292,8 @@ public class BaseTimeSeriesByteId implements TimeSeriesByteId {
   }
   
   @Override
-  public Deferred<TimeSeriesStringId> decode(final Span span) {
+  public Deferred<TimeSeriesStringId> decode(final boolean cache, 
+                                             final Span span) {
     return schema.resolveByteId(this, span);
   }
   
