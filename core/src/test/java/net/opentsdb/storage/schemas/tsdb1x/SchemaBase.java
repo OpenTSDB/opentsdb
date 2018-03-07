@@ -169,7 +169,9 @@ public class SchemaBase {
     ((MockUIDStore) uid_store).addException(UniqueIdType.TAGV, TAGV_BYTES_EX);
     
     for (final Map.Entry<String, byte[]> uid : UIDS.entrySet()) {
+      ((MockUIDStore) uid_store).addBoth(UniqueIdType.METRIC, uid.getKey(), uid.getValue());
       ((MockUIDStore) uid_store).addBoth(UniqueIdType.TAGK, uid.getKey(), uid.getValue());
+      ((MockUIDStore) uid_store).addBoth(UniqueIdType.TAGV, uid.getKey(), uid.getValue());
     }
   }
   

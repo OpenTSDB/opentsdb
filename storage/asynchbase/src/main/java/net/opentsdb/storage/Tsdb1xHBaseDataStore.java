@@ -54,6 +54,9 @@ public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
   public static final String TREE_TABLE_KEY = "tree_table";
   public static final String META_TABLE_KEY = "meta_table";
   
+  public static final byte[] DATA_FAMILY = 
+      "t".getBytes(Const.ASCII_CHARSET);
+      
   private final TSDB tsdb;
   private final String id;
   
