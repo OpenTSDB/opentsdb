@@ -15,6 +15,7 @@
 package net.opentsdb.storage;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
@@ -102,7 +103,9 @@ import com.stumbleupon.async.Deferred;
  */
 @Ignore
 public final class MockBase {
-  private static final Charset ASCII = Charset.forName("ISO-8859-1");
+  
+  
+  /** The TSD mock */
   private TSDB tsdb;
 
   /** Gross huh? <table, <cf, <row, <qual, <ts, value>>>>>
@@ -145,8 +148,8 @@ public final class MockBase {
       final boolean default_delete,
       final boolean default_scan) {
 
-    default_family = "t".getBytes(ASCII);
-    default_table = "tsdb".getBytes(ASCII);
+    default_family = "t".getBytes(Const.ASCII_CHARSET);
+    default_table = "tsdb".getBytes(Const.ASCII_CHARSET);
     setupDefaultTables();
 
     // Default get answer will return one or more columns from the requested row
@@ -241,7 +244,6 @@ public final class MockBase {
   public long getCurrentTimestamp() {
     return current_timestamp;
   }
-
 
   /**
    * Add a column to the hash table using the default column family.
@@ -683,11 +685,11 @@ public final class MockBase {
    */
   public void tsdbCompactAllRows() throws Exception {
     final ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>> map =
-        storage.get("tsdb".getBytes(ASCII));
+        storage.get("tsdb".getBytes(Const.ASCII_CHARSET));
     if (map == null) {
       return;
     }
-    final ByteMap<ByteMap<TreeMap<Long, byte[]>>> cf = map.get("t".getBytes(ASCII));
+    final ByteMap<ByteMap<TreeMap<Long, byte[]>>> cf = map.get("t".getBytes(Const.ASCII_CHARSET));
     if (cf == null) {
       return;
     }
@@ -848,24 +850,24 @@ public final class MockBase {
 
     for (Entry<byte[], ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>>> table :
       storage.entrySet()) {
-      System.out.println("[Table] " + new String(table.getKey(), ASCII));
+      System.out.println("[Table] " + new String(table.getKey(), Const.ASCII_CHARSET));
 
       for (Entry<byte[], ByteMap<ByteMap<TreeMap<Long, byte[]>>>> cf :
         table.getValue().entrySet()) {
-        System.out.println("  [CF] " + new String(cf.getKey(), ASCII));
+        System.out.println("  [CF] " + new String(cf.getKey(), Const.ASCII_CHARSET));
 
         for (Entry<byte[], ByteMap<TreeMap<Long, byte[]>>> row :
           cf.getValue().entrySet()) {
           System.out.println("    [Row] " + (ascii ?
-              new String(row.getKey(), ASCII) : bytesToString(row.getKey())));
+              new String(row.getKey(), Const.ASCII_CHARSET) : bytesToString(row.getKey())));
 
           for (Map.Entry<byte[], TreeMap<Long, byte[]>> column : row.getValue().entrySet()) {
             System.out.println("      [Qual] " + (ascii ?
-                "\"" + new String(column.getKey(), ASCII) + "\""
+                "\"" + new String(column.getKey(), Const.ASCII_CHARSET) + "\""
                 : bytesToString(column.getKey())));
             for (Map.Entry<Long, byte[]> cell : column.getValue().entrySet()) {
               System.out.println("        [TS] " + cell.getKey() + "  [Value] " +
-                  (ascii ?  new String(cell.getValue(), ASCII)
+                  (ascii ?  new String(cell.getValue(), Const.ASCII_CHARSET)
                   : bytesToString(cell.getValue())));
             }
           }
@@ -896,11 +898,6 @@ public final class MockBase {
     return DatatypeConverter.parseHexBinary(bytes);
   }
 
-  /** @return Returns the ASCII character set */
-  public static Charset ASCII() {
-    return ASCII;
-  }
-
   /**
    * Concatenates byte arrays into one big array
    * @param arrays Any number of arrays to concatenate
@@ -919,21 +916,22 @@ public final class MockBase {
     }
     return result;
   }
-
+  
   /** Creates the TSDB and UID tables */
   private void setupDefaultTables() {
     final ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>> tsdb =
         new ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>>();
-    tsdb.put("t".getBytes(ASCII), new ByteMap<ByteMap<TreeMap<Long, byte[]>>>());
-    storage.put("tsdb".getBytes(ASCII), tsdb);
+    tsdb.put("t".getBytes(Const.ASCII_CHARSET), 
+        new ByteMap<ByteMap<TreeMap<Long, byte[]>>>());
+    storage.put("tsdb".getBytes(Const.ASCII_CHARSET), tsdb);
 
     final ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>> tsdb_uid =
         new ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>>();
-    tsdb_uid.put("name".getBytes(ASCII),
+    tsdb_uid.put("name".getBytes(Const.ASCII_CHARSET),
         new ByteMap<ByteMap<TreeMap<Long, byte[]>>>());
-    tsdb_uid.put("id".getBytes(ASCII),
+    tsdb_uid.put("id".getBytes(Const.ASCII_CHARSET),
         new ByteMap<ByteMap<TreeMap<Long, byte[]>>>());
-    storage.put("tsdb-uid".getBytes(ASCII), tsdb_uid);
+    storage.put("tsdb-uid".getBytes(Const.ASCII_CHARSET), tsdb_uid);
   }
 
   /**
@@ -1556,6 +1554,14 @@ public final class MockBase {
           return MockScanner.this.toString();
         }
       }).when(mock_scanner).toString();
+    
+      doAnswer(new Answer<Void>() {
+        @Override
+        public Void answer(InvocationOnMock invocation) throws Throwable {
+          max_num_rows = (int) invocation.getArguments()[0];
+          return null;
+        }
+      }).when(mock_scanner).setMaxNumRows(anyInt());
     }
 
     @Override
