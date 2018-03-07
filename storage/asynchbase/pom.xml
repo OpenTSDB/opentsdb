@@ -35,6 +35,12 @@
           <artifactId>opentsdb-core</artifactId>
           <version>${project.version}</version>
         </dependency>
+        <dependency>
+          <groupId>net.opentsdb</groupId>
+          <artifactId>opentsdb-core</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
+        </dependency>
         
         <dependency>
           <groupId>org.hbase</groupId>
@@ -70,6 +76,13 @@
       </dependency>
     
       <!-- TESTING Deps. -->
+      
+      <dependency>
+        <groupId>net.opentsdb</groupId>
+        <artifactId>opentsdb-core</artifactId>
+        <type>test-jar</type>
+      </dependency>
+        
       <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
