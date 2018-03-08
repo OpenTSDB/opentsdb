@@ -128,6 +128,43 @@ public class TestTsdb1xScanner extends UTBase {
   }
   
   @Test
+  public void scanFiltersReverse() throws Exception {
+    final Filter filter = Filter.newBuilder()
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter(TAGV_B_STRING + ".*")
+            .setTagk(TAGK_STRING)
+            .setType("regexp"))
+        .build();
+    when(owner.scannerFilter()).thenReturn(filter);
+    
+    Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
+    hbase_scanner.setReversed(true);
+    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0);
+    trace = new MockTrace(true);
+    
+    scanner.fetchNext(results, trace.newSpan("UT").start());
+    
+    verify(hbase_scanner, times(2)).nextRows();
+    verify(hbase_scanner, times(1)).close();
+    verify(results, times(TS_DOUBLE_SERIES_COUNT)).addData(any(TimeStamp.class), 
+        any(byte[].class), any(byte.class), any(byte[].class), any(byte[].class));
+    verify(owner, times(1)).scannerDone();
+    verify(owner, never()).exception(any(Throwable.class));
+    assertEquals(0, scanner.keepers.size());
+    assertEquals(0, scanner.skips.size());
+    assertTrue(scanner.keys_to_ids.isEmpty());
+    assertEquals(State.COMPLETE, scanner.state());
+    assertNull(scanner.buffer());
+    verify(schema, times(2)).getName(eq(UniqueIdType.METRIC), 
+        eq(METRIC_BYTES), any(Span.class));
+    
+    assertEquals(17, trace.spans.size());
+    assertEquals("net.opentsdb.storage.Tsdb1xScanner$ScannerCB_0", 
+        trace.spans.get(16).id);
+    assertEquals("OK", trace.spans.get(16).tags.get("status"));
+  }
+  
+  @Test
   public void scanFiltersNSUI() throws Exception {
     final Filter filter = Filter.newBuilder()
         .addFilter(TagVFilter.newBuilder()
@@ -449,6 +486,45 @@ public class TestTsdb1xScanner extends UTBase {
   }
   
   @Test
+  public void scanFiltersSequenceEndReverse() throws Exception {
+    final Filter filter = Filter.newBuilder()
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter(TAGV_B_STRING + ".*")
+            .setTagk(TAGK_STRING)
+            .setType("regexp"))
+        .build();
+    when(owner.scannerFilter()).thenReturn(filter);
+    
+    Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
+    hbase_scanner.setReversed(true);
+    hbase_scanner.setMaxNumRows(2);
+    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0);
+    
+    when(owner.sequenceEnd()).thenReturn(
+        new MillisecondTimeStamp(((long) TS_DOUBLE_SERIES + 
+            ((long) TS_DOUBLE_SERIES_INTERVAL * 14)) * 1000));
+      
+    scanner.fetchNext(results, null);
+    
+    verify(hbase_scanner, times(3)).nextRows();
+    verify(hbase_scanner, never()).close();
+    verify(results, times(2)).addData(any(TimeStamp.class), 
+        any(byte[].class), any(byte.class), any(byte[].class), any(byte[].class));
+    verify(owner, times(1)).scannerDone();
+    verify(owner, never()).exception(any(Throwable.class));
+    assertEquals(1, scanner.keepers.size());
+    assertEquals(1, scanner.skips.size());
+    assertTrue(scanner.keys_to_ids.isEmpty());
+    assertEquals(State.CONTINUE, scanner.state());
+    assertEquals(2, scanner.buffer().size());
+    assertArrayEquals(scanner.buffer().get(0).get(0).key(),
+        makeRowKey(METRIC_BYTES, (TS_DOUBLE_SERIES + 46800), TAGK_BYTES, TAGV_B_BYTES));
+    assertArrayEquals(scanner.buffer().get(1).get(0).key(), 
+        makeRowKey(METRIC_BYTES, (TS_DOUBLE_SERIES + 46800), TAGK_BYTES, TAGV_BYTES));
+    verify(schema, times(2)).getName(UniqueIdType.METRIC, METRIC_BYTES, null);
+  }
+  
+  @Test
   public void scanFiltersSequenceEndMidRow() throws Exception {
     final Filter filter = Filter.newBuilder()
         .addFilter(TagVFilter.newBuilder()
@@ -482,6 +558,45 @@ public class TestTsdb1xScanner extends UTBase {
         makeRowKey(METRIC_BYTES, (TS_DOUBLE_SERIES + (TS_DOUBLE_SERIES_INTERVAL * 3)), TAGK_BYTES, TAGV_BYTES));
     assertArrayEquals(scanner.buffer().get(1).get(0).key(), 
         makeRowKey(METRIC_BYTES, (TS_DOUBLE_SERIES + (TS_DOUBLE_SERIES_INTERVAL * 3)), TAGK_BYTES, TAGV_B_BYTES));
+    verify(schema, times(2)).getName(UniqueIdType.METRIC, METRIC_BYTES, null);
+  }
+  
+  @Test
+  public void scanFiltersSequenceEndMidRowReverse() throws Exception {
+    final Filter filter = Filter.newBuilder()
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter(TAGV_B_STRING + ".*")
+            .setTagk(TAGK_STRING)
+            .setType("regexp"))
+        .build();
+    when(owner.scannerFilter()).thenReturn(filter);
+    
+    Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
+    hbase_scanner.setReversed(true);
+    hbase_scanner.setMaxNumRows(4);
+    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0);
+    
+    when(owner.sequenceEnd()).thenReturn(
+        new MillisecondTimeStamp(((long) TS_DOUBLE_SERIES + 
+            ((long) TS_DOUBLE_SERIES_INTERVAL * 13)) * 1000));
+      
+    scanner.fetchNext(results, null);
+    
+    verify(hbase_scanner, times(2)).nextRows();
+    verify(hbase_scanner, never()).close();
+    verify(results, times(3)).addData(any(TimeStamp.class), 
+        any(byte[].class), any(byte.class), any(byte[].class), any(byte[].class));
+    verify(owner, times(1)).scannerDone();
+    verify(owner, never()).exception(any(Throwable.class));
+    assertEquals(1, scanner.keepers.size());
+    assertEquals(1, scanner.skips.size());
+    assertTrue(scanner.keys_to_ids.isEmpty());
+    assertEquals(State.CONTINUE, scanner.state());
+    assertEquals(2, scanner.buffer().size());
+    assertArrayEquals(scanner.buffer().get(0).get(0).key(),
+        makeRowKey(METRIC_BYTES, (TS_DOUBLE_SERIES + (TS_DOUBLE_SERIES_INTERVAL * 12)), TAGK_BYTES, TAGV_B_BYTES));
+    assertArrayEquals(scanner.buffer().get(1).get(0).key(), 
+        makeRowKey(METRIC_BYTES, (TS_DOUBLE_SERIES + (TS_DOUBLE_SERIES_INTERVAL * 12)), TAGK_BYTES, TAGV_BYTES));
     verify(schema, times(2)).getName(UniqueIdType.METRIC, METRIC_BYTES, null);
   }
   
