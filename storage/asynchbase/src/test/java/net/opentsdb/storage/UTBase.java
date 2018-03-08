@@ -91,14 +91,26 @@ public class UTBase {
   public static final int TS_MULTI_SERIES_EX_INDEX = 7;
   public static final int TS_MULTI_SERIES_INTERVAL = 3600;
   
+  public static final int TS_NSUI_SERIES = 1527811200;
+  public static final int TS_NSUI_SERIES_COUNT = 16;
+  public static final int TS_NSUI_SERIES_INTERVAL = 3600;
+  
   public static final byte[] DATA_TABLE = "tsdb".getBytes(Const.ASCII_CHARSET);
   public static final byte[] UID_TABLE = "tsdb-uid".getBytes(Const.ASCII_CHARSET);
   
   /** The types of series to use as a helper. */
   public static enum Series {
+    /** Two metrics but one series each. */
     SINGLE_SERIES,
+    
+    /** Two metrics and two series each. */
     DOUBLE_SERIES,
-    MULTI_SERIES_EX
+    
+    /** Two metrics, two series, and an exception is returned at a point. */
+    MULTI_SERIES_EX,
+    
+    /** Two metrics, three series with one incorporating a non-assigned tag value ID. */
+    NSUI_SERIES,
   }
   
   protected static TSDB tsdb;
@@ -174,20 +186,20 @@ public class UTBase {
     bothUIDs(UniqueIdType.METRIC, METRIC_STRING, METRIC_BYTES);
     bothUIDs(UniqueIdType.METRIC, METRIC_B_STRING, METRIC_B_BYTES);
     storage.throwException(METRIC_STRING_EX.getBytes(Const.ASCII_CHARSET), 
-        new UnitTestException());
-    storage.throwException(METRIC_BYTES_EX, new UnitTestException());
+        new UnitTestException(), true);
+    storage.throwException(METRIC_BYTES_EX, new UnitTestException(), true);
     
     bothUIDs(UniqueIdType.TAGK, TAGK_STRING, TAGK_BYTES);
     bothUIDs(UniqueIdType.TAGK, TAGK_B_STRING, TAGK_B_BYTES);
     storage.throwException(TAGK_STRING_EX.getBytes(Const.ASCII_CHARSET), 
-        new UnitTestException());
-    storage.throwException(TAGK_BYTES_EX, new UnitTestException());
+        new UnitTestException(), true);
+    storage.throwException(TAGK_BYTES_EX, new UnitTestException(), true);
     
     bothUIDs(UniqueIdType.TAGV, TAGV_STRING, TAGV_BYTES);
     bothUIDs(UniqueIdType.TAGV, TAGV_B_STRING, TAGV_B_BYTES);
     storage.throwException(TAGV_STRING_EX.getBytes(Const.ASCII_CHARSET), 
-        new UnitTestException());
-    storage.throwException(TAGV_BYTES_EX, new UnitTestException());
+        new UnitTestException(), true);
+    storage.throwException(TAGV_BYTES_EX, new UnitTestException(), true);
     
     for (final Map.Entry<String, byte[]> uid : SchemaBase.UIDS.entrySet()) {
       bothUIDs(UniqueIdType.METRIC, uid.getKey(), uid.getValue());
@@ -362,19 +374,67 @@ public class UTBase {
         new byte[] { 1 });
       
       if (i == TS_MULTI_SERIES_EX_INDEX) {
+        System.out.println("ADDING THE EXCEPTION ROW: " + Bytes.pretty(makeRowKey(
+            METRIC_BYTES, 
+            TS_MULTI_SERIES_EX + (i * TS_MULTI_SERIES_INTERVAL), 
+            TAGK_BYTES,
+            TAGV_BYTES_EX)));
         storage.throwException(makeRowKey(
             METRIC_BYTES, 
             TS_MULTI_SERIES_EX + (i * TS_MULTI_SERIES_INTERVAL), 
             TAGK_BYTES,
-            TAGV_BYTES_EX),
-            new UnitTestException());
+            TAGV_BYTES),
+            new UnitTestException(), true);
         
         storage.throwException(makeRowKey(
             METRIC_B_BYTES, 
             TS_MULTI_SERIES_EX + (i * TS_MULTI_SERIES_INTERVAL), 
             TAGK_BYTES,
-            TAGV_BYTES_EX),
-            new UnitTestException());
+            TAGV_BYTES),
+            new UnitTestException(), true);
+      }
+    }
+    
+    for (int i = 0; i < TS_NSUI_SERIES_COUNT; i++) {
+      storage.addColumn(table, makeRowKey(
+          METRIC_BYTES, 
+          TS_NSUI_SERIES + (i * TS_NSUI_SERIES_INTERVAL), 
+          TAGK_BYTES,
+          TAGV_BYTES), 
+        Tsdb1xHBaseDataStore.DATA_FAMILY, 
+        new byte[2], 
+        new byte[] { 1 });
+      
+      // offset a bit
+      if (i > 0) {
+        storage.addColumn(table, makeRowKey(
+            METRIC_BYTES, 
+            TS_NSUI_SERIES + (i * TS_NSUI_SERIES_INTERVAL), 
+            TAGK_BYTES,
+            NSUI_TAGV), 
+          Tsdb1xHBaseDataStore.DATA_FAMILY, 
+          new byte[2], 
+          new byte[] { 1 });
+      }
+      
+      storage.addColumn(table, makeRowKey(
+          METRIC_B_BYTES, 
+          TS_NSUI_SERIES + (i * TS_NSUI_SERIES_INTERVAL), 
+          TAGK_BYTES,
+          TAGV_BYTES), 
+        Tsdb1xHBaseDataStore.DATA_FAMILY, 
+        new byte[2], 
+        new byte[] { 1 });
+      
+      if (i > 0) {
+        storage.addColumn(table, makeRowKey(
+            METRIC_B_BYTES, 
+            TS_NSUI_SERIES + (i * TS_NSUI_SERIES_INTERVAL), 
+            TAGK_BYTES,
+            NSUI_TAGV), 
+          Tsdb1xHBaseDataStore.DATA_FAMILY, 
+          new byte[2], 
+          new byte[] { 1 });
       }
     }
   }

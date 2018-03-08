@@ -50,6 +50,14 @@ public interface Span {
   public Span setErrorTags();
   
   /**
+   * Sets the tags "status=Error" and "finalThread=&lt;local_thread_name&gt;"
+   * and logs the exception with a key of "Exception" if not null.
+   * @param t An optional exception.
+   * @return The span.
+   */
+  public Span setErrorTags(final Throwable t);
+  
+  /**
    * Sets a tag on a span. May overwrite.
    * @param key A non-null and non-empty key.
    * @param value A non-null and non-empty value.
