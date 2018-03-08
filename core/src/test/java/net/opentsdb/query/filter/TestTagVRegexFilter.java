@@ -17,6 +17,7 @@ package net.opentsdb.query.filter;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,6 +40,30 @@ public class TestTagVRegexFilter {
   public void matchExact() throws Exception {
     TagVFilter filter = new TagVRegexFilter(TAGK, "ogg-01.ops.ankh.morpork.com");
     assertTrue(filter.match(tags).join());
+  }
+  
+  @Test
+  public void matchAll() throws Exception {
+    TagVRegexFilter filter = 
+        new TagVRegexFilter(TAGK, "ogg-01.ops.ankh.morpork.com");
+    assertFalse(filter.matches_all);
+    
+    filter = new TagVRegexFilter(TAGK, ".*");
+    assertTrue(filter.matches_all);
+    
+    filter = new TagVRegexFilter(TAGK, "^.*");
+    assertTrue(filter.matches_all);
+    
+    filter = new TagVRegexFilter(TAGK, ".*$");
+    assertTrue(filter.matches_all);
+    
+    filter = new TagVRegexFilter(TAGK, "^.*$");
+    assertTrue(filter.matches_all);
+    
+    try {
+      new TagVRegexFilter(TAGK, "*");
+      fail("Expected PatternSyntaxException");
+    } catch (PatternSyntaxException e) { }
   }
   
   @Test

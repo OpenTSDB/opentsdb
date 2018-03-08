@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2017  The OpenTSDB Authors.
+// Copyright (C) 2015-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,6 +32,9 @@ public class TagVRegexFilter extends TagVFilter {
   /** The compiled pattern */
   final Pattern pattern;
   
+  /** Whether or not the regex would match-all. */
+  final boolean matches_all;
+  
   /**
    * The default Ctor that disables case insensitivity
    * @param tagk The tag key to associate with this filter
@@ -46,6 +49,17 @@ public class TagVRegexFilter extends TagVFilter {
       throw new IllegalArgumentException("Filter cannot be null or empty");
     }
     pattern = Pattern.compile(filter);
+    
+    if (filter.equals(".*") || 
+        filter.equals("^.*") || 
+        filter.equals(".*$") || 
+        filter.equals("^.*$")) {
+      // yeah there are many more permutations but these are the most likely
+      // to be encountered in the wild.
+      matches_all = true;
+    } else {
+      matches_all = false;
+    }
   }
   
   @Override
@@ -57,6 +71,11 @@ public class TagVRegexFilter extends TagVFilter {
     return Deferred.fromResult(pattern.matcher(tagv).find());
   }
 
+  /** Whether or not the regex would match all strings. */
+  public boolean matchesAll() {
+    return matches_all;
+  }
+  
   @Override
   public String debugInfo() {
     return "{pattern=" + pattern.toString() + "}";
