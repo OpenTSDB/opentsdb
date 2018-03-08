@@ -1,15 +1,17 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2015-2017  The OpenTSDB Authors.
+// Copyright (C) 2015-2018 The OpenTSDB Authors.
 //
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package net.opentsdb.rollup;
 
 import java.util.ArrayList;
@@ -18,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.JSON;
 
@@ -119,9 +120,9 @@ public class RollupConfig {
         throw new IllegalArgumentException("Multiple mappings for the "
             + "ID '" + entry.getValue() + "' are not allowed."); 
       }
-      if (Aggregators.get(agg) == null) {
-        throw new IllegalArgumentException("No such aggregator found for " + agg);
-      }
+//      if (Aggregators.get(agg) == null) {
+//        throw new IllegalArgumentException("No such aggregator found for " + agg);
+//      }
       aggregations_to_ids.put(agg, entry.getValue());
       ids_to_aggregations.put(entry.getValue(), agg);
       LOG.info("Mapping aggregator '" + agg + "' to ID " + entry.getValue());
@@ -224,26 +225,26 @@ public class RollupConfig {
    * @param tsdb The TSDB to use for fetching the HBase client
    */
   public void ensureTablesExist(final TSDB tsdb) {
-    final List<Deferred<Object>> deferreds = 
-        new ArrayList<Deferred<Object>>(forward_intervals.size() * 2);
-    
-    for (RollupInterval interval : forward_intervals.values()) {
-      deferreds.add(tsdb.getClient()
-          .ensureTableExists(interval.getTemporalTable()));
-      deferreds.add(tsdb.getClient()
-          .ensureTableExists(interval.getGroupbyTable()));
-    }
-    
-    try {
-      Deferred.group(deferreds).joinUninterruptibly();
-    } catch (DeferredGroupException e) {
-      throw new RuntimeException(e.getCause());
-    } catch (InterruptedException e) {
-      LOG.warn("Interrupted", e);
-      Thread.currentThread().interrupt();
-    } catch (Exception e) {
-      throw new RuntimeException("Unexpected exception", e);
-    }
+//    final List<Deferred<Object>> deferreds = 
+//        new ArrayList<Deferred<Object>>(forward_intervals.size() * 2);
+//    
+//    for (RollupInterval interval : forward_intervals.values()) {
+//      deferreds.add(tsdb.getClient()
+//          .ensureTableExists(interval.getTemporalTable()));
+//      deferreds.add(tsdb.getClient()
+//          .ensureTableExists(interval.getGroupbyTable()));
+//    }
+//    
+//    try {
+//      Deferred.group(deferreds).joinUninterruptibly();
+//    } catch (DeferredGroupException e) {
+//      throw new RuntimeException(e.getCause());
+//    } catch (InterruptedException e) {
+//      LOG.warn("Interrupted", e);
+//      Thread.currentThread().interrupt();
+//    } catch (Exception e) {
+//      throw new RuntimeException("Unexpected exception", e);
+//    }
   }
   
   /** @return an unmodifiable map of the rollups for printing and debugging */
