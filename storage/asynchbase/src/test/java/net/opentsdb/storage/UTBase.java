@@ -374,11 +374,6 @@ public class UTBase {
         new byte[] { 1 });
       
       if (i == TS_MULTI_SERIES_EX_INDEX) {
-        System.out.println("ADDING THE EXCEPTION ROW: " + Bytes.pretty(makeRowKey(
-            METRIC_BYTES, 
-            TS_MULTI_SERIES_EX + (i * TS_MULTI_SERIES_INTERVAL), 
-            TAGK_BYTES,
-            TAGV_BYTES_EX)));
         storage.throwException(makeRowKey(
             METRIC_BYTES, 
             TS_MULTI_SERIES_EX + (i * TS_MULTI_SERIES_INTERVAL), 

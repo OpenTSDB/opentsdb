@@ -214,7 +214,9 @@ public class Tsdb1xScanner {
         final ArrayList<KeyValue> row = it.next();
         owner.schema().baseTimestamp(row.get(0).key(), base_ts);
         if (owner.isFull() || owner.sequenceEnd() != null && 
-            base_ts.compare(RelationalOperator.GT, owner.sequenceEnd())) {
+            base_ts.compare(
+                (scanner.isReversed() ? RelationalOperator.LT : RelationalOperator.GT), 
+                  owner.sequenceEnd())) {
           // end of sequence encountered in the buffer. Push on up
           if (LOG.isDebugEnabled()) {
             LOG.debug("Hit next sequence end while in the scanner cache.");
@@ -318,7 +320,9 @@ public class Tsdb1xScanner {
           
           owner.schema().baseTimestamp(row.get(0).key(), base_ts);
           if (owner.sequenceEnd() != null && 
-              base_ts.compare(RelationalOperator.GT, owner.sequenceEnd())) {
+              base_ts.compare(
+                  (scanner.isReversed() ? RelationalOperator.LT : RelationalOperator.GT), 
+                      owner.sequenceEnd())) {
             // end of sequence encountered in the buffer. Push on up
             if (LOG.isDebugEnabled()) {
               LOG.debug("Hit next sequence end while in the scanner cache.");
@@ -425,7 +429,9 @@ public class Tsdb1xScanner {
             
             owner.schema().baseTimestamp(row.get(0).key(), base_ts);
             if (owner.sequenceEnd() != null && 
-                base_ts.compare(RelationalOperator.GT, owner.sequenceEnd())) {
+                base_ts.compare(
+                    (scanner.isReversed() ? RelationalOperator.LT : RelationalOperator.GT), 
+                        owner.sequenceEnd())) {
               // end of sequence encountered in the buffer. Push on up
               if (LOG.isDebugEnabled()) {
                 LOG.debug("Hit next sequence end in the scanner. "
@@ -463,7 +469,9 @@ public class Tsdb1xScanner {
             
             owner.schema().baseTimestamp(row.get(0).key(), base_ts);
             if ((owner.sequenceEnd() != null && 
-                base_ts.compare(RelationalOperator.GT, owner.sequenceEnd()))) {
+                base_ts.compare(
+                    (scanner.isReversed() ? RelationalOperator.LT : RelationalOperator.GT), 
+                        owner.sequenceEnd()))) {
               
               // end of sequence encountered in the buffer. Push on up
               if (LOG.isDebugEnabled()) {

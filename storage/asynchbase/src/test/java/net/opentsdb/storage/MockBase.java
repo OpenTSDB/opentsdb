@@ -15,6 +15,7 @@
 package net.opentsdb.storage;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -103,7 +104,6 @@ import com.stumbleupon.async.Deferred;
  */
 @Ignore
 public final class MockBase {
-  
   
   /** The TSD mock */
   private TSDB tsdb;
@@ -1435,6 +1435,7 @@ public final class MockBase {
       cursors;
     private ByteMap<Entry<byte[], ByteMap<TreeMap<Long, byte[]>>>> cf_rows;
     private byte[] last_row;
+    private boolean is_reversed;
 
     /**
      * Default ctor
@@ -1562,6 +1563,21 @@ public final class MockBase {
           return null;
         }
       }).when(mock_scanner).setMaxNumRows(anyInt());
+    
+      doAnswer(new Answer<Boolean>() {
+        @Override
+        public Boolean answer(InvocationOnMock invocation) throws Throwable {
+          return is_reversed;
+        }
+      }).when(mock_scanner).isReversed();
+      
+      doAnswer(new Answer<Void>() {
+        @Override
+        public Void answer(InvocationOnMock invocation) throws Throwable {
+          is_reversed = (boolean) invocation.getArguments()[0];
+          return null;
+        }
+      }).when(mock_scanner).setReversed(anyBoolean());
     }
 
     @Override
@@ -1598,8 +1614,12 @@ public final class MockBase {
 
         if (family == null || family.length < 1) {
           for (final Entry<byte[], ByteMap<ByteMap<TreeMap<Long, byte[]>>>> cf : map) {
-            final Iterator<Entry<byte[], ByteMap<TreeMap<Long, byte[]>>>>
-            cursor = cf.getValue().iterator();
+            final Iterator<Entry<byte[], ByteMap<TreeMap<Long, byte[]>>>> cursor;
+            if (is_reversed) {
+              cursor = cf.getValue().descendingMap().entrySet().iterator();
+            } else {
+              cursor = cf.getValue().iterator();
+            }
             cursors.put(cf.getKey(), cursor);
             cf_rows.put(cf.getKey(), null);
           }
