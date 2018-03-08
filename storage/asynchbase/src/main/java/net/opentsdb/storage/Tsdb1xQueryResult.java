@@ -76,4 +76,7 @@ public class Tsdb1xQueryResult implements QueryResult {
   
   }
 
+  public void exception(final Exception e) {
+    // TODO - implement
+  }
 }
