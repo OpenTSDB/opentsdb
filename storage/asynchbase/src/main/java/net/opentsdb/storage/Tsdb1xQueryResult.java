@@ -21,6 +21,7 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
 
@@ -65,6 +66,14 @@ public class Tsdb1xQueryResult implements QueryResult {
   public void close() {
     // TODO Auto-generated method stub
     
+  }
+  
+  public void addData(final TimeStamp base, 
+                      final byte[] tsuid, 
+                      final byte prefix, 
+                      final byte[] qualifier, 
+                      final byte[] value) {
+  
   }
 
 }
