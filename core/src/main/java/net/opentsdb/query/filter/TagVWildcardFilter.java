@@ -44,6 +44,9 @@ public class TagVWildcardFilter extends TagVFilter {
   
   /** Whether or not we'll match case */
   protected boolean case_insensitive;
+  
+  /** Whether or not the wildcard would match-all. */
+  final boolean matches_all;
 
   /**
    * The default Ctor that disables case insensitivity
@@ -73,6 +76,12 @@ public class TagVWildcardFilter extends TagVFilter {
     String actual = case_insensitive ? filter.toLowerCase() : filter;
     if (!actual.contains("*")) {
       throw new IllegalArgumentException("Filter must contain an asterisk");
+    }
+    
+    if (filter.trim().equals("*")) {
+      matches_all = true;
+    } else {
+      matches_all = false;
     }
     
     if (actual.charAt(0) == '*') {
@@ -138,6 +147,11 @@ public class TagVWildcardFilter extends TagVFilter {
     return Deferred.fromResult(true);
   }
 
+  /** Whether or not the wildcard would match all strings. */
+  public boolean matchesAll() {
+    return matches_all;
+  }
+  
   @Override
   public String debugInfo() {
     return "{components=" + Arrays.toString(components) + ", case=" + 

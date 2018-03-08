@@ -36,8 +36,9 @@ public class TestTagVWildcardFilter {
   
   @Test
   public void matchAll() throws Exception {
-    TagVFilter filter = new TagVWildcardFilter(TAGK, "*");
+    TagVWildcardFilter filter = new TagVWildcardFilter(TAGK, "*");
     assertTrue(filter.match(tags).join());
+    assertTrue(filter.matchesAll());
   }
   
   @Test
@@ -48,8 +49,9 @@ public class TestTagVWildcardFilter {
   
   @Test
   public void matchPostfix() throws Exception {
-    TagVFilter filter = new TagVWildcardFilter(TAGK, "*.morpork.com");
+    TagVWildcardFilter filter = new TagVWildcardFilter(TAGK, "*.morpork.com");
     assertTrue(filter.match(tags).join());
+    assertFalse(filter.matchesAll());
   }
   
   @Test
