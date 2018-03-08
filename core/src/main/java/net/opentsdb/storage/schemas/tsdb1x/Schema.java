@@ -32,7 +32,9 @@ import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.filter.TagVLiteralOrFilter;
+import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Filter;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
 import net.opentsdb.storage.StorageSchema;
@@ -57,6 +59,15 @@ import net.opentsdb.utils.Exceptions;
 public class Schema implements StorageSchema {
 
   public static final byte APPENDS_PREFIX = 5;
+  
+  /** Number of LSBs in time_deltas reserved for flags.  */
+  public static final short FLAG_BITS = 4;
+  
+  /**
+   * When this bit is set, the value is a floating point value.
+   * Otherwise it's an integer value.
+   */
+  public static final short FLAG_FLOAT = 0x8;
   
   /** Number of bytes on which a timestamp is encoded.  */
   public static final short TIMESTAMP_BYTES = 4;
@@ -538,6 +549,11 @@ public class Schema implements StorageSchema {
     // TODO - implement
   }
   
+  public RollupConfig rollupConfig() {
+    // TODO - implement
+    throw new UnsupportedOperationException("Implement me!");
+  }
+  
   static class ResolvedFilterImplementation implements ResolvedFilter {
     protected byte[] tag_key;
     protected List<byte[]> tag_values;
@@ -643,5 +659,16 @@ public class Schema implements StorageSchema {
   @VisibleForTesting
   UniqueId tagValues() {
     return tag_values;
+  }
+
+  public long alignDownsamplerBaseTimestamp(Downsampler downsampler,
+      long start_ts) {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+
+  public long alignQueryBaseTimestamp(long start_ts) {
+    // TODO Auto-generated method stub
+    return 0;
   }
 }
