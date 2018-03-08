@@ -18,9 +18,9 @@ import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.Charset;
 
-import org.hbase.async.Bytes;
 import org.junit.Test;
 
+import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
 
 public class TestRollupInterval {
