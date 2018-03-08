@@ -1,16 +1,18 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2015  The OpenTSDB Authors.
+// Copyright (C) 2015-2018  The OpenTSDB Authors.
 //
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
-package net.opentsdb.query;
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+package net.opentsdb.storage;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,9 +22,7 @@ import java.util.List;
 import java.util.Map.Entry;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.core.Internal;
-import net.opentsdb.core.RowKey;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
@@ -54,9 +54,11 @@ public class QueryUtil {
    * May be null.
    * @return A regular expression string to pass to the storage layer.
    */
-  public static String getRowKeyUIDRegex(final List<byte[]> group_bys, 
+  public static String getRowKeyUIDRegex(
+      final Schema schema,
+      final List<byte[]> group_bys, 
       final ByteMap<byte[][]> row_key_literals) {
-    return getRowKeyUIDRegex(group_bys, row_key_literals, false, null, null);
+    return getRowKeyUIDRegex(schema, group_bys, row_key_literals, false, null, null);
   }
   
   /**
@@ -75,6 +77,7 @@ public class QueryUtil {
    * @since 2.3
    */
   public static String getRowKeyUIDRegex(
+      final Schema schema,
       final List<byte[]> group_bys, 
       final ByteMap<byte[][]> row_key_literals, 
       final boolean explicit_tags,
@@ -83,11 +86,11 @@ public class QueryUtil {
     if (group_bys != null) {
       Collections.sort(group_bys, Bytes.MEMCMP);
     }
-    final int prefix_width = Const.SALT_WIDTH() + TSDB.metrics_width() + 
+    final int prefix_width = schema.saltWidth() + schema.metricWidth() + 
         Const.TIMESTAMP_BYTES;
-    final short name_width = TSDB.tagk_width();
-    final short value_width = TSDB.tagv_width();
-    final short tagsize = (short) (name_width + value_width);
+    final int name_width = schema.tagkWidth();
+    final int value_width = schema.tagvWidth();
+    final int tagsize = name_width + value_width;
     // Generate a regexp for our tags.  Say we have 2 tags: { 0 0 1 0 0 2 }
     // and { 4 5 6 9 8 7 }, the regexp will be:
     // "^.{7}(?:.{6})*\\Q\000\000\001\000\000\002\\E(?:.{6})*\\Q\004\005\006\011\010\007\\E(?:.{6})*$"
@@ -102,12 +105,12 @@ public class QueryUtil {
     buf.append("(?s)"  // Ensure we use the DOTALL flag.
                + "^.{")
        // ... start by skipping the salt, metric ID and timestamp.
-       .append(Const.SALT_WIDTH() + TSDB.metrics_width() + Const.TIMESTAMP_BYTES)
+       .append(schema.saltWidth() + schema.metricWidth() + Schema.TIMESTAMP_BYTES)
        .append("}");
 
     final Iterator<Entry<byte[], byte[][]>> it = row_key_literals == null ? 
         new ByteMap<byte[][]>().iterator() : row_key_literals.iterator();
-    int fuzzy_offset = Const.SALT_WIDTH() + TSDB.metrics_width();
+    int fuzzy_offset = schema.saltWidth() + schema.metricWidth();
     if (fuzzy_mask != null) {
       // make sure to skip the timestamp when scanning
       while (fuzzy_offset < prefix_width) {
@@ -192,6 +195,7 @@ public class QueryUtil {
    * to stop scanning.
    */
   public static void setDataTableScanFilter(
+      final Schema schema,
       final Scanner scanner, 
       final List<byte[]> group_bys, 
       final ByteMap<byte[][]> row_key_literals,
@@ -205,10 +209,10 @@ public class QueryUtil {
       return;
     }
     
-    final int prefix_width = Const.SALT_WIDTH() + TSDB.metrics_width() + 
+    final int prefix_width = schema.saltWidth() + schema.metricWidth() + 
         Const.TIMESTAMP_BYTES;
-    final short name_width = TSDB.tagk_width();
-    final short value_width = TSDB.tagv_width();
+    final int name_width = schema.tagkWidth();
+    final int value_width = schema.tagvWidth();
     final byte[] fuzzy_key;
     final byte[] fuzzy_mask;
     if (explicit_tags && enable_fuzzy_filter) {
@@ -222,13 +226,13 @@ public class QueryUtil {
       fuzzy_key = fuzzy_mask = null;
     }
     
-    final String regex = getRowKeyUIDRegex(group_bys, row_key_literals, 
+    final String regex = getRowKeyUIDRegex(schema, group_bys, row_key_literals, 
         explicit_tags, fuzzy_key, fuzzy_mask);
     final KeyRegexpFilter regex_filter = new KeyRegexpFilter(
         regex.toString(), Const.ASCII_CHARSET);
     if (LOG.isDebugEnabled()) {
       LOG.debug("Regex for scanner: " + scanner + ": " + 
-          byteRegexToString(regex));
+          byteRegexToString(schema, regex));
     }
     
     if (!(explicit_tags && enable_fuzzy_filter)) {
@@ -238,15 +242,15 @@ public class QueryUtil {
     
     scanner.setStartKey(fuzzy_key);
     final byte[] stop_key = Arrays.copyOf(fuzzy_key, fuzzy_key.length);
-    Internal.setBaseTime(stop_key, end_time);
-    int idx = Const.SALT_WIDTH() + TSDB.metrics_width() + 
-        Const.TIMESTAMP_BYTES + TSDB.tagk_width();
+    schema.setBaseTime(stop_key, end_time);
+    int idx = schema.saltWidth() + schema.metricWidth() + 
+        Const.TIMESTAMP_BYTES + schema.tagkWidth();
     // max out the tag values
     while (idx < stop_key.length) {
-      for (int i = 0; i < TSDB.tagv_width(); i++) {
+      for (int i = 0; i < schema.tagvWidth(); i++) {
         stop_key[idx++] = (byte) 0xFF;
       }
-      idx += TSDB.tagk_width();
+      idx += schema.tagkWidth();
     }
     scanner.setStopKey(stop_key);
     final List<ScanFilter> filters = new ArrayList<ScanFilter>(2);
@@ -263,12 +267,13 @@ public class QueryUtil {
    * @param tsuids The list of TSUIDs to scan for
    * @return A regular expression string to pass to the storage layer.
    */
-  public static String getRowKeyTSUIDRegex(final List<String> tsuids) {
+  public static String getRowKeyTSUIDRegex(final Schema schema, 
+                                           final List<String> tsuids) {
     Collections.sort(tsuids);
     
     // first, convert the tags to byte arrays and count up the total length
     // so we can allocate the string builder
-    final short metric_width = TSDB.metrics_width();
+    final int metric_width = schema.metricWidth();
     int tags_length = 0;
     final ArrayList<byte[]> uids = new ArrayList<byte[]>(tsuids.size());
     for (final String tsuid : tsuids) {
@@ -291,7 +296,7 @@ public class QueryUtil {
     buf.append("(?s)"  // Ensure we use the DOTALL flag.
                + "^.{")
        // ... start by skipping the metric ID and timestamp.
-       .append(Const.SALT_WIDTH() + metric_width + Const.TIMESTAMP_BYTES)
+       .append(schema.saltWidth() + metric_width + Const.TIMESTAMP_BYTES)
        .append("}(");
     
     for (final byte[] tags : uids) {
@@ -319,28 +324,31 @@ public class QueryUtil {
    * @param family The table family to scan over
    * @return A scanner ready for processing.
    */
-  public static Scanner getMetricScanner(final TSDB tsdb, final int salt_bucket, 
+  public static Scanner getMetricScanner(final Tsdb1xHBaseDataStore store, final int salt_bucket, 
       final byte[] metric, final int start, final int stop, 
       final byte[] table, final byte[] family) {
-    final short metric_width = TSDB.metrics_width();
-    final int metric_salt_width = metric_width + Const.SALT_WIDTH();
+    final int metric_width = store.schema().metricWidth();
+    final int metric_salt_width = metric_width + store.schema().saltWidth();
     final byte[] start_row = new byte[metric_salt_width + Const.TIMESTAMP_BYTES];
     final byte[] end_row = new byte[metric_salt_width + Const.TIMESTAMP_BYTES];
+
+    store.schema().prefixKeyWithSalt(start_row, salt_bucket);
+    store.schema().prefixKeyWithSalt(end_row, salt_bucket);
     
-    if (Const.SALT_WIDTH() > 0) {
-      final byte[] salt = RowKey.getSaltBytes(salt_bucket);
-      System.arraycopy(salt, 0, start_row, 0, Const.SALT_WIDTH());
-      System.arraycopy(salt, 0, end_row, 0, Const.SALT_WIDTH());
-    }
+//    if (schema.saltWidth() > 0) {
+//      final byte[] salt = RowKey.getSaltBytes(salt_bucket);
+//      System.arraycopy(salt, 0, start_row, 0, schema.saltWidth());
+//      System.arraycopy(salt, 0, end_row, 0, schema.saltWidth());
+//    }
     
     Bytes.setInt(start_row, start, metric_salt_width);
     Bytes.setInt(end_row, stop, metric_salt_width);
     
-    System.arraycopy(metric, 0, start_row, Const.SALT_WIDTH(), metric_width);
-    System.arraycopy(metric, 0, end_row, Const.SALT_WIDTH(), metric_width);
+    System.arraycopy(metric, 0, start_row, store.schema().saltWidth(), metric_width);
+    System.arraycopy(metric, 0, end_row, store.schema().saltWidth(), metric_width);
     
-    final Scanner scanner = tsdb.getClient().newScanner(table);
-    scanner.setMaxNumRows(tsdb.getConfig().scanner_maxNumRows());
+    final Scanner scanner = store.client().newScanner(table);
+    scanner.setMaxNumRows(store.maxRowsPerScan());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily(family);
@@ -376,25 +384,25 @@ public class QueryUtil {
    * bytes to an array.
    * @param regexp The regex string to print to the debug log
    */
-  public static String byteRegexToString(final String regexp) {
+  public static String byteRegexToString(final Schema schema, final String regexp) {
     final StringBuilder buf = new StringBuilder();
     for (int i = 0; i < regexp.length(); i++) {
       if (i > 0 && regexp.charAt(i - 1) == 'Q') {
         if (regexp.charAt(i - 3) == '*') {
           // tagk
-          byte[] tagk = new byte[TSDB.tagk_width()];
-          for (int x = 0; x < TSDB.tagk_width(); x++) {
+          byte[] tagk = new byte[schema.tagkWidth()];
+          for (int x = 0; x < schema.tagkWidth(); x++) {
             tagk[x] = (byte)regexp.charAt(i + x);
           }
-          i += TSDB.tagk_width();
+          i += schema.tagkWidth();
           buf.append(Arrays.toString(tagk));
         } else {
           // tagv
-          byte[] tagv = new byte[TSDB.tagv_width()];
-          for (int x = 0; x < TSDB.tagv_width(); x++) {
+          byte[] tagv = new byte[schema.tagvWidth()];
+          for (int x = 0; x < schema.tagvWidth(); x++) {
             tagv[x] = (byte)regexp.charAt(i + x);
           }
-          i += TSDB.tagv_width();
+          i += schema.tagvWidth();
           buf.append(Arrays.toString(tagv));
         }
       } else {

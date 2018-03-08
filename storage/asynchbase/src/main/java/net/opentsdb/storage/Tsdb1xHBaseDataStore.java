@@ -227,4 +227,9 @@ public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
   UniqueIdStore uidStore() {
     return uid_store;
   }
+
+  int maxRowsPerScan() {
+    // TODO - implement
+    return 0;
+  }
 }

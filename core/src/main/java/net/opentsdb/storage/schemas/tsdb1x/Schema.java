@@ -549,6 +549,10 @@ public class Schema implements StorageSchema {
     // TODO - implement
   }
   
+  public void prefixKeyWithSalt(final byte[] row_key, final int bucket) {
+    // TODO - implement
+  }
+  
   public RollupConfig rollupConfig() {
     // TODO - implement
     throw new UnsupportedOperationException("Implement me!");
@@ -661,6 +665,10 @@ public class Schema implements StorageSchema {
     return tag_values;
   }
 
+  public void setBaseTime(final byte[] key, final long time) {
+    // TODO Auto-generated method stub
+  }
+  
   public long alignDownsamplerBaseTimestamp(Downsampler downsampler,
       long start_ts) {
     // TODO Auto-generated method stub
@@ -668,6 +676,17 @@ public class Schema implements StorageSchema {
   }
 
   public long alignQueryBaseTimestamp(long start_ts) {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+
+  public long alignDownsamplerNextTimestamp(Downsampler downsampler,
+      long end_ts) {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+
+  public long alignQueryNextTimestamp(long end_ts) {
     // TODO Auto-generated method stub
     return 0;
   }
