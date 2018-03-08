@@ -175,6 +175,16 @@ public class MockTrace implements Trace {
     }
     
     @Override
+    public Span setErrorTags(Throwable t) {
+      setTag("status", "Error");
+      setTag("finalThread", Thread.currentThread().getName());
+      if (t != null) {
+        log("Exception", t);
+      }
+      return this;
+    }
+    
+    @Override
     public Span setTag(String key, String value) {
       if (tags == null) {
         tags = Maps.newHashMap();
@@ -232,6 +242,8 @@ public class MockTrace implements Trace {
     public boolean isDebug() {
       return is_debug;
     }
+
+    
   }
   
   public class Builder implements SpanBuilder {

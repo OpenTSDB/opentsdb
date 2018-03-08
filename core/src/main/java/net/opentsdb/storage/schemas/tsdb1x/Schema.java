@@ -56,6 +56,8 @@ import net.opentsdb.utils.Exceptions;
  */
 public class Schema implements StorageSchema {
 
+  public static final byte APPENDS_PREFIX = 5;
+  
   /** Number of bytes on which a timestamp is encoded.  */
   public static final short TIMESTAMP_BYTES = 4;
   public static final String METRIC_TYPE = "metric";
