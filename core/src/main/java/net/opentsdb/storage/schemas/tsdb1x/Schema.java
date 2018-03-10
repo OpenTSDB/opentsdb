@@ -32,7 +32,6 @@ import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.filter.TagVLiteralOrFilter;
-import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
@@ -68,6 +67,9 @@ public class Schema implements StorageSchema {
    * Otherwise it's an integer value.
    */
   public static final short FLAG_FLOAT = 0x8;
+  
+  /** Max time delta (in seconds) we can store in a column qualifier.  */
+  public static final short MAX_RAW_TIMESPAN = 3600;
   
   /** Number of bytes on which a timestamp is encoded.  */
   public static final short TIMESTAMP_BYTES = 4;
@@ -558,6 +560,25 @@ public class Schema implements StorageSchema {
     throw new UnsupportedOperationException("Implement me!");
   }
   
+  /**
+   * Sets the time in a raw data table row key.
+   * 
+   * @param row The row to modify.
+   * @param base_time The base time to store.
+   * @throws IllegalArgumentException if the row was null, empty or too
+   * short.
+   * @since 2.3
+   */
+  public void setBaseTime(final byte[] row, final int base_time) {
+    if (Bytes.isNullOrEmpty(row)) {
+      throw new IllegalArgumentException("Row cannot be null or empty.");
+    }
+    if (row.length < salt_width + metric_width + TIMESTAMP_BYTES) {
+      throw new IllegalArgumentException("Row is too short.");
+    }
+    Bytes.setInt(row, base_time, salt_width + metric_width);
+  }
+  
   static class ResolvedFilterImplementation implements ResolvedFilter {
     protected byte[] tag_key;
     protected List<byte[]> tag_values;
@@ -664,30 +685,5 @@ public class Schema implements StorageSchema {
   UniqueId tagValues() {
     return tag_values;
   }
-
-  public void setBaseTime(final byte[] key, final long time) {
-    // TODO Auto-generated method stub
-  }
   
-  public long alignDownsamplerBaseTimestamp(Downsampler downsampler,
-      long start_ts) {
-    // TODO Auto-generated method stub
-    return 0;
-  }
-
-  public long alignQueryBaseTimestamp(long start_ts) {
-    // TODO Auto-generated method stub
-    return 0;
-  }
-
-  public long alignDownsamplerNextTimestamp(Downsampler downsampler,
-      long end_ts) {
-    // TODO Auto-generated method stub
-    return 0;
-  }
-
-  public long alignQueryNextTimestamp(long end_ts) {
-    // TODO Auto-generated method stub
-    return 0;
-  }
 }

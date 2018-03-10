@@ -26,6 +26,7 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.junit.Test;
@@ -50,6 +51,7 @@ import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdFactory;
 import net.opentsdb.uid.UniqueIdStore;
 import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.UnitTestException;
 
 public class TestSchema extends SchemaBase {
@@ -661,4 +663,76 @@ public class TestSchema extends SchemaBase {
     } catch (StorageException e) { }
   }
   
+  @Test
+  public void setBaseTime() throws Exception {
+    // defaults
+    Schema schema = schema();
+    
+    try {
+      schema.setBaseTime(null, 42);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      schema.setBaseTime(new byte[0], 42);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      schema.setBaseTime(new byte[schema.metricWidth()], 42);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    byte[] row = new byte[schema.metricWidth() + Schema.TIMESTAMP_BYTES];
+    schema.setBaseTime(row, 42);
+    assertEquals(42, row[row.length - 1]);
+    
+    schema.setBaseTime(row, 1527811200);
+    assertArrayEquals(Bytes.fromInt(1527811200), 
+        Arrays.copyOfRange(row, schema.metricWidth(), 
+            schema.metricWidth() + Schema.TIMESTAMP_BYTES));
+    
+    // with tags
+    row = new byte[schema.metricWidth() + Schema.TIMESTAMP_BYTES
+                   + schema.tagkWidth() + schema.tagvWidth()];
+    
+    schema.setBaseTime(row, 42);
+    assertArrayEquals(Bytes.fromInt(42), 
+        Arrays.copyOfRange(row, schema.metricWidth(), 
+            schema.metricWidth() + Schema.TIMESTAMP_BYTES));
+    
+    schema.setBaseTime(row, 1527811200);
+    assertArrayEquals(Bytes.fromInt(1527811200), 
+        Arrays.copyOfRange(row, schema.metricWidth(), 
+            schema.metricWidth() + Schema.TIMESTAMP_BYTES));
+    
+    // salt and diff metric width
+    TSDB tsdb = mock(TSDB.class);
+    Configuration config = UnitTestConfiguration.getConfiguration();
+    when(tsdb.getConfig()).thenReturn(config);
+    when(tsdb.getRegistry()).thenReturn(registry);
+    
+    ((UnitTestConfiguration) config)
+      .register("tsd.storage.uid.width.metric", 4, false, "UT");
+    ((UnitTestConfiguration) config)
+      .register("tsd.storage.salt.buckets", 16, false, "UT");
+    ((UnitTestConfiguration) config)
+      .register("tsd.storage.salt.width", 1, false, "UT");
+    
+    schema = new Schema(tsdb, null);
+    
+    row = new byte[schema.saltWidth() + schema.metricWidth() 
+                   + Schema.TIMESTAMP_BYTES + schema.tagkWidth() 
+                   + schema.tagvWidth()];
+    
+    schema.setBaseTime(row, 42);
+    assertArrayEquals(Bytes.fromInt(42), 
+        Arrays.copyOfRange(row, schema.saltWidth() + schema.metricWidth(), 
+            schema.saltWidth() + schema.metricWidth() + Schema.TIMESTAMP_BYTES));
+    
+    schema.setBaseTime(row, 1527811200);
+    assertArrayEquals(Bytes.fromInt(1527811200), 
+        Arrays.copyOfRange(row, schema.saltWidth() + schema.metricWidth(), 
+            schema.saltWidth() + schema.metricWidth() + Schema.TIMESTAMP_BYTES));
+  }
 }
