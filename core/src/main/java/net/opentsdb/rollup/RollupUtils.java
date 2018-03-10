@@ -30,6 +30,46 @@ import net.opentsdb.utils.Bytes;
 public final class RollupUtils {
   private static final Logger LOG = LoggerFactory.getLogger(RollupUtils.class);
   
+  /**
+   * Enum for rollup fallback control.
+   * @since 2.4
+   */
+  public static enum RollupUsage {
+    ROLLUP_RAW, //Don't use rollup data, instead use raw data
+    ROLLUP_NOFALLBACK, //Use rollup data, and don't fallback on no data
+    ROLLUP_FALLBACK, //Use rollup data and fallback to next best match on data
+    ROLLUP_FALLBACK_RAW; //Use rollup data and fallback to raw on no data
+    
+    /**
+     * Parse and transform a string to ROLLUP_USAGE object
+     * @param str String to be parsed
+     * @return enum param tells how to use the rollup data
+     */
+    public static RollupUsage parse(String str) {
+      RollupUsage def = ROLLUP_NOFALLBACK;
+      
+      if (str != null) {
+        try {
+          def = RollupUsage.valueOf(str.toUpperCase());
+        }
+        catch(IllegalArgumentException ex) {
+          LOG.warn("Unknown rollup usage, " + str + ", use default usage - which"
+                  + "uses raw data but don't fallback on no data");
+        }
+      }
+      
+      return def;
+    }
+    
+    /**
+     * Whether to fallback to next best match or raw
+     * @return true means fall back else false
+     */
+    public boolean fallback() {
+      return this == ROLLUP_FALLBACK || this == ROLLUP_FALLBACK_RAW;
+    }
+  }
+  
   public static final byte AGGREGATOR_MASK = (byte) 0x7F;
   
   public static final byte COMPACTED_MASK = (byte) 0x80;
@@ -62,7 +102,7 @@ public final class RollupUtils {
     // avoid instantiating a calendar at all costs! If we are based on an hourly
     // span then use the old method of snapping to the hour
     if (interval.getUnits() == 'h') {
-      int modulo = Const.MAX_TIMESPAN;
+      int modulo = Schema.MAX_RAW_TIMESPAN;
       if (interval.getUnitMultiplier() > 1) {
         modulo = interval.getUnitMultiplier() * 60 * 60;
       }
