@@ -78,9 +78,6 @@ public final class Const {
   /** Mask to verify a timestamp on 6 bytes in milliseconds */
   public static final long MILLISECOND_MASK = 0xFFFFF00000000000L;
   
-  /** Max time delta (in seconds) we can store in a column qualifier.  */
-  public static final short MAX_TIMESPAN = 3600;
-
   /**
    * Array containing the hexadecimal characters (0 to 9, A to F).
    * This array is read-only, changing its contents leads to an undefined

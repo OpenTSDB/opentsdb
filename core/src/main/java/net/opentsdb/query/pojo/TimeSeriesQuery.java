@@ -28,8 +28,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 
+import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
 import net.opentsdb.data.TimeSeriesGroupId;
 import net.opentsdb.utils.JSON;
@@ -80,6 +82,9 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
   /** TODO - temp: A list for creating a query graph. */
   private List<TimeSeriesQuery> sub_queries;
   
+  /** TEMP - try to find a better way. Holds a list of key/value settings. */
+  private Map<String, String> config;
+  
   /**
    * Default ctor
    * @param builder The builder to pull values from
@@ -92,6 +97,7 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
     this.expressions = builder.expressions;
     this.outputs = builder.outputs;
     this.order = builder.order;
+    this.config = builder.config;
     
     if (builder.filters != null) {
       filter_map = Maps.newHashMapWithExpectedSize(filters.size());
@@ -324,7 +330,8 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
         && Objects.equal(query.metrics, metrics)
         && Objects.equal(query.name, name)
         && Objects.equal(query.outputs, outputs)
-        && Objects.equal(query.time, time);
+        && Objects.equal(query.time, time)
+        && Objects.equal(query.config,  config);
   }
 
   @Override
@@ -342,7 +349,8 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
             (filters != null ? filters.size() : 0) + 
             metrics.size() +
             (expressions != null ? expressions.size() : 0) +
-            (outputs != null ? outputs.size() : 0));
+            (outputs != null ? outputs.size() : 0) + 
+            (config != null ? config.size() : 0));
     hashes.add(local_hc);
     if (time != null) {
       hashes.add(time.buildHashCode());
@@ -364,6 +372,15 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
       for (final Output output : outputs) {
         hashes.add(output.buildHashCode());
       }
+    }
+    if (config != null) {
+      final List<String> keys = Lists.newArrayList(config.keySet());
+      Collections.sort(keys);
+      final Hasher hasher = Const.HASH_FUNCTION().newHasher();
+      for (final String key : keys) {
+        hasher.putString(key + config.get(key), Const.UTF8_CHARSET);
+      }
+      hashes.add(hasher.hash());
     }
     return Hashing.combineOrdered(hashes);
   }
@@ -407,7 +424,7 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
   
   @Override
   public int compareTo(final TimeSeriesQuery o) {
-    return ComparisonChain.start()
+    ComparisonChain chain = ComparisonChain.start()
         .compare(name, o.name, Ordering.natural().nullsFirst())
         .compare(time, o.time, Ordering.natural().nullsFirst())
         .compare(filters, o.filters, 
@@ -417,8 +434,17 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
         .compare(expressions, o.expressions, 
             Ordering.<Expression>natural().lexicographical().nullsFirst())
         .compare(outputs, o.outputs, 
-            Ordering.<Output>natural().lexicographical().nullsFirst())
-        .result();
+            Ordering.<Output>natural().lexicographical().nullsFirst());
+    if (config != null) {
+      final List<String> keys = Lists.newArrayList(config.keySet());
+      Collections.sort(keys);
+      for (final String key : keys) {
+        chain = chain.compare(config.get(key), 
+            o.config == null ? null : o.config.get(key), 
+                Ordering.natural().nullsFirst());
+      }
+    }
+    return chain.result();
   }
   
   @Override
@@ -446,6 +472,92 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
       Collections.unmodifiableList(sub_queries);
   }
   
+  public Map<String, String> getConfig() {
+    return config;
+  }
+  
+  /**
+   * Retrieve a query-time override as a string.
+   * @param config A non-null config object.
+   * @param key The non-null and non-empty key.
+   * @return The string or null if not set anywhere.
+   */
+  public String getString(final Configuration config, final String key) {
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null");
+    }
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    String value = this.config == null ? null : this.config.get(key);
+    if (Strings.isNullOrEmpty(value)) {
+      if (config.hasProperty(key)) {
+        return config.getString(key);
+      }
+    }
+    return value;
+  }
+  
+  /**
+   * Retrieve a query-time override as an integer.
+   * @param config A non-null config object.
+   * @param key The non-null and non-empty key.
+   * @return The string or null if not set anywhere.
+   */
+  public int getInt(final Configuration config, final String key) {
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null");
+    }
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    String value = this.config == null ? null : this.config.get(key);
+    if (Strings.isNullOrEmpty(value)) {
+      if (config.hasProperty(key)) {
+        return config.getInt(key);
+      }
+      throw new IllegalArgumentException("No value for key '" + key + "'");
+    }
+    return Integer.parseInt(value);
+  }
+  
+  /**
+   * Retrieve a query-time override as a boolean. Only 'true', '1' or 'yes'
+   * are considered true.
+   * @param config A non-null config object.
+   * @param key The non-null and non-empty key.
+   * @return The string or null if not set anywhere.
+   */
+  public boolean getBoolean(final Configuration config, final String key) {
+    if (config == null) {
+      throw new IllegalArgumentException("Config cannot be null");
+    }
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    String value = this.config == null ? null : this.config.get(key);
+    if (Strings.isNullOrEmpty(value)) {
+      if (config.hasProperty(key)) {
+        return config.getBoolean(key);
+      }
+      throw new IllegalArgumentException("No value for key '" + key + "'");
+    }
+    value = value.toLowerCase();
+    return value.equals("true") || value.equals("1") || value.equals("yes");
+  }
+  
+  /**
+   * Whether or not the key is present in the map, may have a null value.
+   * @param key The non-null and non-empty key.
+   * @return True if the key is present.
+   */
+  public boolean hasKey(final String key) {
+    if (Strings.isNullOrEmpty(key)) {
+      throw new IllegalArgumentException("Key cannot be null or empty.");
+    }
+    return config == null ? false : config.containsKey(key);
+  }
+  
   /**
    * A builder for the query component of a query
    */
@@ -466,6 +578,8 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
     private List<Output> outputs;
     @JsonProperty
     private int order;
+    @JsonProperty
+    private Map<String, String> config;
 
     public Builder() { }
 
@@ -607,6 +721,22 @@ public class TimeSeriesQuery extends Validatable implements Comparable<TimeSerie
     
     public Builder setOrder(final int order) {
       this.order = order;
+      return this;
+    }
+    
+    public Builder setConfig(final Map<String, String> config) {
+      this.config = config;
+      return this;
+    }
+    
+    public Builder addConfig(final String key, final String value) {
+      if (Strings.isNullOrEmpty(key)) {
+        throw new IllegalArgumentException("Key cannot be null.");
+      }
+      if (config == null) {
+        config = Maps.newHashMap();
+      }
+      config.put(key, value);
       return this;
     }
     
