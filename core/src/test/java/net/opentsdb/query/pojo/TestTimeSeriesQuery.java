@@ -14,11 +14,14 @@
 // limitations under the License.
 package net.opentsdb.query.pojo;
 
+import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Join.SetOperator;
 import net.opentsdb.utils.JSON;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
@@ -28,13 +31,18 @@ import java.util.Collections;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class TestTimeSeriesQuery {
+  
+  private static Configuration configuration;
+  
   private Timespan time;
   private Filter filter;
   private Metric metric;
@@ -87,6 +95,15 @@ public class TestTimeSeriesQuery {
       + "  ]"
       + "}";
 
+  @BeforeClass
+  public static void beforeClass() throws Exception {
+    configuration = UnitTestConfiguration.getConfiguration();
+    configuration.register("tsd.query.test1", 42, false, "UT");
+    configuration.register("tsd.query.test2", true, false, "UT");
+    configuration.register("tsd.query.test3", "Tyrell", false, "UT");
+    configuration.register("tsd.query.test4", null, false, "UT");
+  }
+  
   @Before
   public void setup() {
     time = Timespan.newBuilder().setStart("3h-ago").setAggregator("avg")
@@ -312,6 +329,7 @@ public class TestTimeSeriesQuery {
         .setFilters(Arrays.asList(filter, f1))
         .setMetrics(Arrays.asList(metric, m1))
         .setOutputs(Arrays.asList(output, o1))
+        .addConfig("key1", "value1")
         .build();
     
     TimeSeriesQuery q2 = new TimeSeriesQuery.Builder()
@@ -321,6 +339,7 @@ public class TestTimeSeriesQuery {
         .setFilters(Arrays.asList(filter, f1))
         .setMetrics(Arrays.asList(metric, m1))
         .setOutputs(Arrays.asList(output, o1))
+        .addConfig("key1", "value1")
         .build();
     assertEquals(q1.hashCode(), q2.hashCode());
     assertArrayEquals(q1.buildTimelessHashCode().asBytes(), 
@@ -344,6 +363,7 @@ public class TestTimeSeriesQuery {
         .setFilters(Arrays.asList(filter, f1))
         .setMetrics(Arrays.asList(metric, m1))
         .setOutputs(Arrays.asList(output, o1))
+        .addConfig("key1", "value1")
         .build();
     assertNotEquals(q1.hashCode(), q2.hashCode());
     assertArrayEquals(q1.buildTimelessHashCode().asBytes(), 
@@ -367,6 +387,7 @@ public class TestTimeSeriesQuery {
         .setFilters(Arrays.asList(filter, f1))
         .setMetrics(Arrays.asList(metric, m1))
         .setOutputs(Arrays.asList(output, o1))
+        .addConfig("key1", "value1")
         .build();
     assertEquals(q1.hashCode(), q2.hashCode());
     assertEquals(q1, q2);
@@ -379,6 +400,7 @@ public class TestTimeSeriesQuery {
         .setFilters(Arrays.asList(f1, filter))  // <-- diff order 
         .setMetrics(Arrays.asList(metric, m1))
         .setOutputs(Arrays.asList(output, o1))
+        .addConfig("key1", "value1")
         .build();
     assertEquals(q1.hashCode(), q2.hashCode());
     assertEquals(q1, q2);
@@ -391,6 +413,7 @@ public class TestTimeSeriesQuery {
         .setFilters(Arrays.asList(filter, f1))
         .setMetrics(Arrays.asList(m1, metric))  // <-- diff order 
         .setOutputs(Arrays.asList(output, o1))
+        .addConfig("key1", "value1")
         .build();
     assertEquals(q1.hashCode(), q2.hashCode());
     assertEquals(q1, q2);
@@ -403,6 +426,7 @@ public class TestTimeSeriesQuery {
         .setFilters(Arrays.asList(filter, f1))
         .setMetrics(Arrays.asList(metric, m1))
         .setOutputs(Arrays.asList(o1, output))  // <-- diff order 
+        .addConfig("key1", "value1")
         .build();
     assertEquals(q1.hashCode(), q2.hashCode());
     assertEquals(q1, q2);
@@ -415,6 +439,7 @@ public class TestTimeSeriesQuery {
         .setFilters(Arrays.asList(filter, f1))
         .setMetrics(Arrays.asList(metric, m1))
         .setOutputs(Arrays.asList(output, o1))
+        .addConfig("key1", "value1")
         .build();
     assertNotEquals(q1.hashCode(), q2.hashCode());
     assertNotEquals(q1, q2);
@@ -427,6 +452,7 @@ public class TestTimeSeriesQuery {
         .setFilters(Arrays.asList(filter, f1))
         .setMetrics(Arrays.asList(metric, m1))
         .setOutputs(Arrays.asList(output, o1))
+        .addConfig("key1", "value1")
         .build();
     assertNotEquals(q1.hashCode(), q2.hashCode());
     assertNotEquals(q1, q2);
@@ -439,6 +465,7 @@ public class TestTimeSeriesQuery {
         .setFilters(Arrays.asList(filter))  // <-- diff
         .setMetrics(Arrays.asList(metric, m1))
         .setOutputs(Arrays.asList(output, o1))
+        .addConfig("key1", "value1")
         .build();
     assertNotEquals(q1.hashCode(), q2.hashCode());
     assertNotEquals(q1, q2);
@@ -451,6 +478,7 @@ public class TestTimeSeriesQuery {
         .setFilters(Arrays.asList(filter, f1))
         .setMetrics(Arrays.asList(metric))  // <-- diff
         .setOutputs(Arrays.asList(output, o1))
+        .addConfig("key1", "value1")
         .build();
     assertNotEquals(q1.hashCode(), q2.hashCode());
     assertNotEquals(q1, q2);
@@ -463,6 +491,7 @@ public class TestTimeSeriesQuery {
         .setFilters(Arrays.asList(filter, f1))
         .setMetrics(Arrays.asList(metric, m1))
         .setOutputs(Arrays.asList(output))  // <-- diff
+        .addConfig("key1", "value1")
         .build();
     assertNotEquals(q1.hashCode(), q2.hashCode());
     assertNotEquals(q1, q2);
@@ -475,6 +504,7 @@ public class TestTimeSeriesQuery {
         .setFilters(Arrays.asList(filter, f1))
         .setMetrics(Arrays.asList(metric, m1))
         .setOutputs(Arrays.asList(output, o1))
+        .addConfig("key1", "value1")
         .build();
     assertNotEquals(q1.hashCode(), q2.hashCode());
     assertNotEquals(q1, q2);
@@ -487,6 +517,7 @@ public class TestTimeSeriesQuery {
         //.setFilters(Arrays.asList(filter, f1))  // <-- diff
         .setMetrics(Arrays.asList(metric, m1))
         .setOutputs(Arrays.asList(output, o1))
+        .addConfig("key1", "value1")
         .build();
     assertNotEquals(q1.hashCode(), q2.hashCode());
     assertNotEquals(q1, q2);
@@ -499,12 +530,108 @@ public class TestTimeSeriesQuery {
         .setFilters(Arrays.asList(filter, f1))
         .setMetrics(Arrays.asList(metric, m1))
         //.setOutputs(Arrays.asList(output, o1))  // <-- diff
+        .addConfig("key1", "value1")
+        .build();
+    assertNotEquals(q1.hashCode(), q2.hashCode());
+    assertNotEquals(q1, q2);
+    assertEquals(1, q1.compareTo(q2));
+    
+    q2 = new TimeSeriesQuery.Builder()
+        .setName("q1")
+        .setTime(time)
+        .setExpressions(Arrays.asList(expression, e1))
+        .setFilters(Arrays.asList(filter, f1))
+        .setMetrics(Arrays.asList(metric, m1))
+        .setOutputs(Arrays.asList(output, o1))
+        .addConfig("key1", "value2")  // <-- diff
+        .build();
+    assertNotEquals(q1.hashCode(), q2.hashCode());
+    assertNotEquals(q1, q2);
+    assertEquals(-1, q1.compareTo(q2));
+    
+    q2 = new TimeSeriesQuery.Builder()
+        .setName("q1")
+        .setTime(time)
+        .setExpressions(Arrays.asList(expression, e1))
+        .setFilters(Arrays.asList(filter, f1))
+        .setMetrics(Arrays.asList(metric, m1))
+        .setOutputs(Arrays.asList(output, o1))
+        //.addConfig("key1", "value1")  // <-- diff
         .build();
     assertNotEquals(q1.hashCode(), q2.hashCode());
     assertNotEquals(q1, q2);
     assertEquals(1, q1.compareTo(q2));
   }
 
+  @Test
+  public void getString() throws Exception {
+    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+        .setFilters(Arrays.asList(filter))
+        .setMetrics(Arrays.asList(metric))
+        .setName("q1")
+        .setTime(time)
+        .setOutputs(Arrays.asList(output))
+        .addConfig("tsd.query.test6", "foo")
+        .build();
+    
+    assertEquals("foo", query.getString(configuration, "tsd.query.test6"));
+    assertEquals("Tyrell", query.getString(configuration, "tsd.query.test3"));
+    assertNull(query.getString(configuration, "tsd.query.test7"));
+  }
+  
+  @Test
+  public void getInt() throws Exception {
+    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+        .setFilters(Arrays.asList(filter))
+        .setMetrics(Arrays.asList(metric))
+        .setName("q1")
+        .setTime(time)
+        .setOutputs(Arrays.asList(output))
+        .addConfig("tsd.query.test6", "24")
+        .build();
+    
+    assertEquals(24, query.getInt(configuration, "tsd.query.test6"));
+    assertEquals(42, query.getInt(configuration, "tsd.query.test1"));
+    try {
+      query.getInt(configuration, "tsd.query.test7");
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void getBoolean() throws Exception {
+    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+        .setFilters(Arrays.asList(filter))
+        .setMetrics(Arrays.asList(metric))
+        .setName("q1")
+        .setTime(time)
+        .setOutputs(Arrays.asList(output))
+        .addConfig("tsd.query.test6", "yes")
+        .build();
+    
+    assertTrue(query.getBoolean(configuration, "tsd.query.test6"));
+    assertTrue(query.getBoolean(configuration, "tsd.query.test2"));
+    try {
+      query.getBoolean(configuration, "tsd.query.test7");
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void hasKey() throws Exception {
+    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+        .setFilters(Arrays.asList(filter))
+        .setMetrics(Arrays.asList(metric))
+        .setName("q1")
+        .setTime(time)
+        .setOutputs(Arrays.asList(output))
+        .addConfig("tsd.query.test6", "yes")
+        .build();
+    
+    assertTrue(query.hasKey("tsd.query.test6"));
+    assertFalse(query.hasKey("tsd.query.test2"));
+  }
+  
   private TimeSeriesQuery.Builder getDefaultQueryBuilder() {
     return TimeSeriesQuery.newBuilder().setExpressions(Arrays.asList(expression))
           .setFilters(Arrays.asList(filter)).setMetrics(Arrays.asList(metric))
