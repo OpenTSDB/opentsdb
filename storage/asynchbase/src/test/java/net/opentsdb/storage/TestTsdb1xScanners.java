@@ -72,6 +72,7 @@ import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
+import net.opentsdb.stats.MockTrace;
 import net.opentsdb.storage.MockBase.MockScanner;
 import net.opentsdb.storage.schemas.tsdb1x.ResolvedFilter;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
@@ -473,6 +474,11 @@ public class TestTsdb1xScanners extends UTBase {
       .fetchNext(any(Tsdb1xQueryResult.class), any());
     verify(scanners.scanners.get(0)[0], times(1))
       .fetchNext(any(Tsdb1xQueryResult.class), any());
+    
+    trace = new MockTrace(true);
+    scanners = new Tsdb1xScanners(node, query);
+    scanners.setupScanners(METRIC_BYTES, trace.newSpan("UT").start());
+    verifySpan(Tsdb1xScanners.class.getName() + ".setupScanners");
   }
   
   @Test
@@ -1902,6 +1908,11 @@ public class TestTsdb1xScanners extends UTBase {
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(scanners.scanners.get(0)[0], times(1))
       .fetchNext(any(Tsdb1xQueryResult.class), any());
+    
+    trace = new MockTrace(true);
+    scanners = new Tsdb1xScanners(node, query);
+    scanners.initialize(trace.newSpan("UT").start());
+    verifySpan(Tsdb1xScanners.class.getName() + ".initialize", 3);
   }
   
   @Test
@@ -1969,6 +1980,12 @@ public class TestTsdb1xScanners extends UTBase {
     verify(node, times(1)).onError(any(NoSuchUniqueName.class));
     verify(node, never()).onNext(any(QueryResult.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    
+    trace = new MockTrace(true);
+    scanners = new Tsdb1xScanners(node, query);
+    scanners.initialize(trace.newSpan("UT").start());
+    verifySpan(Tsdb1xScanners.class.getName() + ".initialize", 
+        NoSuchUniqueName.class, 3);
   }
   
   @Test
@@ -2023,6 +2040,13 @@ public class TestTsdb1xScanners extends UTBase {
     verify(node, never()).onNext(any(QueryResult.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
+    // tracing
+    trace = new MockTrace(true);
+    scanners = new Tsdb1xScanners(node, query);
+    scanners.initialize(trace.newSpan("UT").start());
+    verifySpan(Tsdb1xScanners.class.getName() + ".initialize", 
+        NoSuchUniqueName.class, 9);
+    
     // now we can ignore it
     query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
@@ -2055,7 +2079,7 @@ public class TestTsdb1xScanners extends UTBase {
     assertTrue(scanners.could_multi_get);
     assertEquals(1, scanners.scanners.size());
     assertTrue(scanners.initialized);
-    verify(node, times(2)).onError(any(NoSuchUniqueName.class));
+    verify(node, times(3)).onError(any(NoSuchUniqueName.class));
     verify(node, never()).onNext(any(QueryResult.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
   }
@@ -2096,6 +2120,13 @@ public class TestTsdb1xScanners extends UTBase {
     verify(node, times(1)).onError(any(NoSuchUniqueName.class));
     verify(node, never()).onNext(any(QueryResult.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    
+    // tracing
+    trace = new MockTrace(true);
+    scanners = new Tsdb1xScanners(node, query);
+    scanners.initialize(trace.newSpan("UT").start());
+    verifySpan(Tsdb1xScanners.class.getName() + ".initialize", 
+        NoSuchUniqueName.class, 9);
   }
   
   @Test

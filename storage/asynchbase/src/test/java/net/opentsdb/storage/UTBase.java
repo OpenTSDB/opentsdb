@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -435,4 +437,25 @@ public class UTBase {
     }
   }
   
+  static void verifySpan(final String name) {
+    verifySpan(name, 1);
+  }
+  
+  static void verifySpan(final String name, final int spans) {
+    assertEquals(spans, trace.spans.size());
+    assertEquals(name, trace.spans.get(spans - 1).id);
+    assertEquals("OK", trace.spans.get(spans - 1).tags.get("status"));
+  }
+  
+  static void verifySpan(final String name, final Class<?> ex) {
+    verifySpan(name, ex, 1);
+  }
+  
+  static void verifySpan(final String name, final Class<?> ex, final int size) {
+    assertEquals(size, trace.spans.size());
+    assertEquals(name, trace.spans.get(size - 1).id);
+    assertEquals("Error", trace.spans.get(size - 1).tags.get("status"));
+    assertTrue(ex.isInstance(trace.spans.get(size - 1).exceptions.get("Exception")));
+  }
+
 }

@@ -130,7 +130,7 @@ public class Tsdb1xScanners {
   protected final int max_multi_get_cardinality;
     
   /** Whether or not the scanners have been initialized. */
-  protected boolean initialized;
+  protected volatile boolean initialized;
   
   /** The scanners configured post initialization. If only the raw table is
    * scanned, the list will have a size of 1 with a {@link Tsdb1xScanner} 
@@ -156,7 +156,7 @@ public class Tsdb1xScanners {
   
   /** How many scanners have checked in with results post {@link #scanNext(Span)}
    * calls. <b>WARNING</b> Must be synchronized!. */
-  protected int scanners_done;
+  protected volatile int scanners_done;
   
   /** The current result set by {@link #fetchNext(Tsdb1xQueryResult, Span)}. */
   protected Tsdb1xQueryResult current_result;
@@ -205,52 +205,70 @@ public class Tsdb1xScanners {
     final Configuration config = ((Tsdb1xHBaseDataStore) node.factory())
         .tsdb().getConfig();
     if (query.hasKey(Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY)) {
-      expansion_limit = query.getInt(config, Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY);
+      expansion_limit = query.getInt(config, 
+          Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY);
     } else {
-      expansion_limit = ((Tsdb1xHBaseDataStore) node.factory()).dynamicInt(Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY);
+      expansion_limit = ((Tsdb1xHBaseDataStore) node.factory())
+          .dynamicInt(Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.ROWS_PER_SCAN_KEY)) {
-      rows_per_scan = query.getInt(config, Tsdb1xHBaseDataStore.ROWS_PER_SCAN_KEY);
+      rows_per_scan = query.getInt(config, 
+          Tsdb1xHBaseDataStore.ROWS_PER_SCAN_KEY);
     } else {
-      rows_per_scan = ((Tsdb1xHBaseDataStore) node.factory()).dynamicInt(Tsdb1xHBaseDataStore.ROWS_PER_SCAN_KEY);
+      rows_per_scan = ((Tsdb1xHBaseDataStore) node.factory())
+          .dynamicInt(Tsdb1xHBaseDataStore.ROWS_PER_SCAN_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY)) {
-      rollup_usage = RollupUsage.parse(query.getString(config, Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY));
+      rollup_usage = RollupUsage.parse(query.getString(config, 
+          Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY));
     } else {
-      rollup_usage = RollupUsage.parse(((Tsdb1xHBaseDataStore) node.factory()).dynamicString(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY));
+      rollup_usage = RollupUsage.parse(((Tsdb1xHBaseDataStore) node.factory())
+          .dynamicString(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY));
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY)) {
-      skip_nsun_tagks = query.getBoolean(config, Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY);
+      skip_nsun_tagks = query.getBoolean(config, 
+          Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY);
     } else {
-      skip_nsun_tagks = ((Tsdb1xHBaseDataStore) node.factory()).dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY);
+      skip_nsun_tagks = ((Tsdb1xHBaseDataStore) node.factory())
+          .dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY)) {
-      skip_nsun_tagvs = query.getBoolean(config, Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY);
+      skip_nsun_tagvs = query.getBoolean(config, 
+          Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY);
     } else {
-      skip_nsun_tagvs = ((Tsdb1xHBaseDataStore) node.factory()).dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY);
+      skip_nsun_tagvs = ((Tsdb1xHBaseDataStore) node.factory())
+          .dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.PRE_AGG_KEY)) {
-      pre_aggregate = query.getBoolean(config, Tsdb1xHBaseDataStore.PRE_AGG_KEY);
+      pre_aggregate = query.getBoolean(config, 
+          Tsdb1xHBaseDataStore.PRE_AGG_KEY);
     } else {
       pre_aggregate = false;
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.FUZZY_FILTER_KEY)) {
-      enable_fuzzy_filter = query.getBoolean(config, Tsdb1xHBaseDataStore.FUZZY_FILTER_KEY);
+      enable_fuzzy_filter = query.getBoolean(config, 
+          Tsdb1xHBaseDataStore.FUZZY_FILTER_KEY);
     } else {
-      enable_fuzzy_filter = ((Tsdb1xHBaseDataStore) node.factory()).dynamicBoolean(Tsdb1xHBaseDataStore.FUZZY_FILTER_KEY);
+      enable_fuzzy_filter = ((Tsdb1xHBaseDataStore) node.factory())
+          .dynamicBoolean(Tsdb1xHBaseDataStore.FUZZY_FILTER_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.REVERSE_KEY)) {
-      reverse_scan = query.getBoolean(config, Tsdb1xHBaseDataStore.REVERSE_KEY);
+      reverse_scan = query.getBoolean(config, 
+          Tsdb1xHBaseDataStore.REVERSE_KEY);
     } else {
-      reverse_scan = ((Tsdb1xHBaseDataStore) node.factory()).dynamicBoolean(Tsdb1xHBaseDataStore.REVERSE_KEY);
+      reverse_scan = ((Tsdb1xHBaseDataStore) node.factory())
+          .dynamicBoolean(Tsdb1xHBaseDataStore.REVERSE_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY)) {
-      max_multi_get_cardinality = query.getInt(config, Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY);
+      max_multi_get_cardinality = query.getInt(config, 
+          Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY);
     } else {
-      max_multi_get_cardinality = ((Tsdb1xHBaseDataStore) node.factory()).dynamicInt(Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY);
+      max_multi_get_cardinality = ((Tsdb1xHBaseDataStore) node.factory())
+          .dynamicInt(Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY);
     }
     
-    if (node.schema().rollupConfig() != null && rollup_usage != RollupUsage.ROLLUP_RAW) {
+    if (node.schema().rollupConfig() != null && 
+        rollup_usage != RollupUsage.ROLLUP_RAW) {
       Downsampler ds = query.getMetrics().get(0).getDownsampler();
       if (ds != null) {
         rollup_intervals = node.schema().rollupConfig().getRollupInterval(
@@ -555,6 +573,10 @@ public class Tsdb1xScanners {
     class ErrorCB implements Callback<Object, Exception> {
       @Override
       public Object call(final Exception ex) throws Exception {
+        if (child != null) {
+          child.setErrorTags(ex)
+               .finish();
+        }
         node.onError(ex);
         has_failed = true;
         return null;
@@ -566,8 +588,13 @@ public class Tsdb1xScanners {
       @Override
       public Object call(final byte[] metric) throws Exception {
         if (metric == null) {
-          node.onError(new NoSuchUniqueName(Schema.METRIC_TYPE, 
-              query.getMetrics().get(0).getMetric()));
+          final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.METRIC_TYPE, 
+              query.getMetrics().get(0).getMetric());
+          if (child != null) {
+            child.setErrorTags(ex)
+                 .finish();
+          }
+          node.onError(ex);
           has_failed = true;
           return null;
         }
@@ -578,6 +605,10 @@ public class Tsdb1xScanners {
             .addErrback(new ErrorCB());
         } else {
           setupScanners(metric, child);
+          if (child != null) {
+            child.setSuccessTags()
+                 .finish();
+          }
         }
         return null;
       }
@@ -590,6 +621,10 @@ public class Tsdb1xScanners {
         .addErrback(new ErrorCB());
     } catch (Exception e) {
       LOG.error("Unexpected exception", e);
+      if (child != null) {
+        child.setErrorTags(e)
+             .finish();
+      }
       node.onError(e);
     }
   }
@@ -600,116 +635,173 @@ public class Tsdb1xScanners {
    * @param span An optional tracer.
    */
   void setupScanners(final byte[] metric, final Span span) {
-    int size = rollup_intervals == null ? 1 : rollup_intervals.size() + 1;
-    scanners = Lists.newArrayListWithCapacity(size);
-    
-    List<ScanFilter> scan_filters = null;
-    List<ScanFilter> raw_filters = null;
-    if (row_key_literals != null) {
-      final byte[] fuzzy_key;
-      final byte[] fuzzy_mask;
-      if (query.getFilters() != null && 
-          query.getFilters().get(0).getExplicitTags() && 
-          enable_fuzzy_filter) {
-        fuzzy_key = new byte[node.schema().saltWidth() 
-                             + node.schema().metricWidth() 
-                             + Schema.TIMESTAMP_BYTES 
-                             + (row_key_literals.size() * 
-                                 (node.schema().tagkWidth() + node.schema().tagvWidth()))];
-        fuzzy_mask = new byte[fuzzy_key.length];
-      } else {
-        fuzzy_key = null;
-        fuzzy_mask = null;
-      }
-      
-      final String regex = QueryUtil.getRowKeyUIDRegex(
-          node.schema(), 
-          group_bys, 
-          row_key_literals, 
-          query.getFilters() == null ? false : query.getFilters().get(0).getExplicitTags(), 
-          fuzzy_key, 
-          fuzzy_mask);
-      if (Strings.isNullOrEmpty(regex)) {
-        throw new RuntimeException("WTF????");
-      }
-      
-      scan_filters = Lists.newArrayListWithCapacity(fuzzy_key != null ? 2 : 1);
-      
-      // fuzzy mask first, then regex. Ordering is important.
-      if (fuzzy_key != null) {
-        scan_filters.add(new FuzzyRowFilter(
-            new FuzzyRowFilter.FuzzyFilterPair(fuzzy_key, fuzzy_mask)));
-      }
-      
-      scan_filters.add(new KeyRegexpFilter(regex, Const.ASCII_CHARSET));
-    }
-    
-    if (rollup_intervals != null && rollup_usage != RollupUsage.ROLLUP_RAW) {
-      // make a raw and copy 
-      raw_filters = scan_filters;
-      scan_filters = Lists.newArrayList();
-      if (raw_filters != null) {
-        scan_filters.addAll(raw_filters);
-      }
-      
-      // set qualifier filters
-      if (rollup_group_by != null && rollup_group_by.equals("avg")) {
-        // old and new schemas with literal agg names or prefixes.
-        final List<ScanFilter> filters = Lists.newArrayListWithCapacity(4);
-        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-            new BinaryPrefixComparator("sum".getBytes(Const.ASCII_CHARSET))));
-        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-            new BinaryPrefixComparator("count".getBytes(Const.ASCII_CHARSET))));
-        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-            new BinaryPrefixComparator(new byte[] { 
-                (byte) node.schema().rollupConfig().getIdForAggregator("sum")
-            })));
-        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-            new BinaryPrefixComparator(new byte[] { 
-                (byte) node.schema().rollupConfig().getIdForAggregator("count")
-            })));
-        
-        if (scan_filters != null) {
-          scan_filters.add(new FilterList(filters, Operator.MUST_PASS_ONE));
-        } else {
-          scan_filters = Lists.newArrayList(new FilterList(filters, Operator.MUST_PASS_ONE));
-        }
-      } else {
-        // it's another aggregation
-        final List<ScanFilter> filters = Lists.newArrayListWithCapacity(2);
-        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-            new BinaryPrefixComparator(rollup_group_by
-                .getBytes(Const.ASCII_CHARSET))));
-        filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-            new BinaryPrefixComparator(new byte[] { 
-                (byte) node.schema().rollupConfig().getIdForAggregator(rollup_group_by)
-            })));
-        
-        if (scan_filters != null) {
-          scan_filters.add(new FilterList(filters, Operator.MUST_PASS_ONE));
-        } else {
-          scan_filters = Lists.newArrayList(new FilterList(filters, Operator.MUST_PASS_ONE));
-        }
-      }
+    final Span child;
+    if (span != null && span.isDebug()) {
+      child = span.newChild(getClass().getName() + ".setupScanners")
+                  .start();
     } else {
-      // copy them over.
-      raw_filters = scan_filters;
+      child = null;
     }
     
-    int idx = 0;
-    if (rollup_intervals != null && rollup_usage != RollupUsage.ROLLUP_RAW) {
-      for (int i = 0; i < rollup_intervals.size(); i++) {
-        final RollupInterval interval = rollup_intervals.get(idx);
+    try {
+      int size = rollup_intervals == null ? 1 : rollup_intervals.size() + 1;
+      scanners = Lists.newArrayListWithCapacity(size);
+      
+      List<ScanFilter> scan_filters = null;
+      List<ScanFilter> raw_filters = null;
+      if (row_key_literals != null) {
+        final byte[] fuzzy_key;
+        final byte[] fuzzy_mask;
+        if (query.getFilters() != null && 
+            query.getFilters().get(0).getExplicitTags() && 
+            enable_fuzzy_filter) {
+          fuzzy_key = new byte[node.schema().saltWidth() 
+                               + node.schema().metricWidth() 
+                               + Schema.TIMESTAMP_BYTES 
+                               + (row_key_literals.size() * 
+                                   (node.schema().tagkWidth() + node.schema().tagvWidth()))];
+          fuzzy_mask = new byte[fuzzy_key.length];
+        } else {
+          fuzzy_key = null;
+          fuzzy_mask = null;
+        }
+        
+        final String regex = QueryUtil.getRowKeyUIDRegex(
+            node.schema(), 
+            group_bys, 
+            row_key_literals, 
+            query.getFilters() == null ? false : query.getFilters().get(0).getExplicitTags(), 
+            fuzzy_key, 
+            fuzzy_mask);
+        if (Strings.isNullOrEmpty(regex)) {
+          throw new RuntimeException("WTF????");
+        }
+        
+        scan_filters = Lists.newArrayListWithCapacity(fuzzy_key != null ? 2 : 1);
+        
+        // fuzzy mask first, then regex. Ordering is important.
+        if (fuzzy_key != null) {
+          scan_filters.add(new FuzzyRowFilter(
+              new FuzzyRowFilter.FuzzyFilterPair(fuzzy_key, fuzzy_mask)));
+        }
+        
+        scan_filters.add(new KeyRegexpFilter(regex, Const.ASCII_CHARSET));
+      }
+      
+      if (rollup_intervals != null && rollup_usage != RollupUsage.ROLLUP_RAW) {
+        // make a raw and copy 
+        raw_filters = scan_filters;
+        scan_filters = Lists.newArrayList();
+        if (raw_filters != null) {
+          scan_filters.addAll(raw_filters);
+        }
+        
+        // set qualifier filters
+        if (rollup_group_by != null && rollup_group_by.equals("avg")) {
+          // old and new schemas with literal agg names or prefixes.
+          final List<ScanFilter> filters = Lists.newArrayListWithCapacity(4);
+          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+              new BinaryPrefixComparator("sum".getBytes(Const.ASCII_CHARSET))));
+          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+              new BinaryPrefixComparator("count".getBytes(Const.ASCII_CHARSET))));
+          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+              new BinaryPrefixComparator(new byte[] { 
+                  (byte) node.schema().rollupConfig().getIdForAggregator("sum")
+              })));
+          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+              new BinaryPrefixComparator(new byte[] { 
+                  (byte) node.schema().rollupConfig().getIdForAggregator("count")
+              })));
+          
+          if (scan_filters != null) {
+            scan_filters.add(new FilterList(filters, Operator.MUST_PASS_ONE));
+          } else {
+            scan_filters = Lists.newArrayList(new FilterList(filters, Operator.MUST_PASS_ONE));
+          }
+        } else {
+          // it's another aggregation
+          final List<ScanFilter> filters = Lists.newArrayListWithCapacity(2);
+          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+              new BinaryPrefixComparator(rollup_group_by
+                  .getBytes(Const.ASCII_CHARSET))));
+          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+              new BinaryPrefixComparator(new byte[] { 
+                  (byte) node.schema().rollupConfig().getIdForAggregator(rollup_group_by)
+              })));
+          
+          if (scan_filters != null) {
+            scan_filters.add(new FilterList(filters, Operator.MUST_PASS_ONE));
+          } else {
+            scan_filters = Lists.newArrayList(new FilterList(filters, Operator.MUST_PASS_ONE));
+          }
+        }
+      } else {
+        // copy them over.
+        raw_filters = scan_filters;
+      }
+      
+      int idx = 0;
+      if (rollup_intervals != null && rollup_usage != RollupUsage.ROLLUP_RAW) {
+        for (int i = 0; i < rollup_intervals.size(); i++) {
+          final RollupInterval interval = rollup_intervals.get(idx);
+          final Tsdb1xScanner[] array = new Tsdb1xScanner[node.schema().saltWidth() > 0 ? 
+              node.schema().saltBuckets() : 1];
+          scanners.add(array);
+          final byte[] start_key = setStartKey(metric, interval);
+          final byte[] stop_key = setStopKey(metric, interval);
+          
+          for (int x = 0; x < array.length; x++) {
+            final Scanner scanner = ((Tsdb1xHBaseDataStore) node.factory())
+                .client().newScanner(pre_aggregate ? 
+                    interval.getGroupbyTable() : interval.getTemporalTable());
+            
+            scanner.setFamily(Tsdb1xHBaseDataStore.DATA_FAMILY);
+            scanner.setMaxNumRows(rows_per_scan);
+            scanner.setReversed(reverse_scan);
+            
+            if (node.schema().saltWidth() > 0) {
+              final byte[] start_clone = Arrays.copyOf(start_key, start_key.length);
+              final byte[] stop_clone = Arrays.copyOf(stop_key, stop_key.length);
+              node.schema().prefixKeyWithSalt(start_clone, i);
+              node.schema().prefixKeyWithSalt(stop_clone, i);
+              scanner.setStartKey(start_clone);
+              scanner.setStopKey(stop_clone);
+            } else {
+              // no copying needed, just dump em in
+              scanner.setStartKey(start_key);
+              scanner.setStopKey(stop_key);
+            }
+            
+            if (scan_filters != null) {
+              if (scan_filters.size() == 1) {
+                scanner.setFilter(scan_filters.get(0));
+              } else {
+                scanner.setFilter(new FilterList(scan_filters));
+              }
+            }
+            
+            array[x] = new Tsdb1xScanner(this, scanner, x);
+          }
+          idx++;
+          
+          // bail out
+          if (rollup_usage == RollupUsage.ROLLUP_NOFALLBACK && idx > 0) {
+            break;
+          }
+        }
+      }
+  
+      // raw scanner here if applicable
+      if (rollup_intervals == null || rollup_usage != RollupUsage.ROLLUP_NOFALLBACK) {
         final Tsdb1xScanner[] array = new Tsdb1xScanner[node.schema().saltWidth() > 0 ? 
             node.schema().saltBuckets() : 1];
         scanners.add(array);
-        final byte[] start_key = setStartKey(metric, interval);
-        final byte[] stop_key = setStopKey(metric, interval);
+        final byte[] start_key = setStartKey(metric, null);
+        final byte[] stop_key = setStopKey(metric, null);
         
-        for (int x = 0; x < array.length; x++) {
+        for (int i = 0; i < array.length; i++) {
           final Scanner scanner = ((Tsdb1xHBaseDataStore) node.factory())
-              .client().newScanner(pre_aggregate ? 
-                  interval.getGroupbyTable() : interval.getTemporalTable());
+              .client().newScanner(((Tsdb1xHBaseDataStore) node.factory()).dataTable());
           
           scanner.setFamily(Tsdb1xHBaseDataStore.DATA_FAMILY);
           scanner.setMaxNumRows(rows_per_scan);
@@ -728,68 +820,32 @@ public class Tsdb1xScanners {
             scanner.setStopKey(stop_key);
           }
           
-          if (scan_filters != null) {
-            if (scan_filters.size() == 1) {
-              scanner.setFilter(scan_filters.get(0));
+          if (raw_filters != null) {
+            if (raw_filters.size() == 1) {
+              scanner.setFilter(raw_filters.get(0));
             } else {
-              scanner.setFilter(new FilterList(scan_filters));
+              scanner.setFilter(new FilterList(raw_filters));
             }
           }
           
-          array[x] = new Tsdb1xScanner(this, scanner, x);
-        }
-        idx++;
-        
-        // bail out
-        if (rollup_usage == RollupUsage.ROLLUP_NOFALLBACK && idx > 0) {
-          break;
+          array[i] = new Tsdb1xScanner(this, scanner, i);
         }
       }
-    }
-
-    // raw scanner here if applicable
-    if (rollup_intervals == null || rollup_usage != RollupUsage.ROLLUP_NOFALLBACK) {
-      final Tsdb1xScanner[] array = new Tsdb1xScanner[node.schema().saltWidth() > 0 ? 
-          node.schema().saltBuckets() : 1];
-      scanners.add(array);
-      final byte[] start_key = setStartKey(metric, null);
-      final byte[] stop_key = setStopKey(metric, null);
       
-      for (int i = 0; i < array.length; i++) {
-        final Scanner scanner = ((Tsdb1xHBaseDataStore) node.factory())
-            .client().newScanner(((Tsdb1xHBaseDataStore) node.factory()).dataTable());
-        
-        scanner.setFamily(Tsdb1xHBaseDataStore.DATA_FAMILY);
-        scanner.setMaxNumRows(rows_per_scan);
-        scanner.setReversed(reverse_scan);
-        
-        if (node.schema().saltWidth() > 0) {
-          final byte[] start_clone = Arrays.copyOf(start_key, start_key.length);
-          final byte[] stop_clone = Arrays.copyOf(stop_key, stop_key.length);
-          node.schema().prefixKeyWithSalt(start_clone, i);
-          node.schema().prefixKeyWithSalt(stop_clone, i);
-          scanner.setStartKey(start_clone);
-          scanner.setStopKey(stop_clone);
-        } else {
-          // no copying needed, just dump em in
-          scanner.setStartKey(start_key);
-          scanner.setStopKey(stop_key);
-        }
-        
-        if (raw_filters != null) {
-          if (raw_filters.size() == 1) {
-            scanner.setFilter(raw_filters.get(0));
-          } else {
-            scanner.setFilter(new FilterList(raw_filters));
-          }
-        }
-        
-        array[i] = new Tsdb1xScanner(this, scanner, i);
+      initialized = true;
+    } catch (Exception e) {
+      if (child != null) {
+        child.setErrorTags(e)
+             .finish();
       }
+      throw e;
     }
     
-    initialized = true;
-    scanNext(span /* TODO */);
+    if (child != null) {
+      child.setSuccessTags()
+           .finish();
+    }
+    scanNext(span);
   }
   
   /**
@@ -830,120 +886,160 @@ public class Tsdb1xScanners {
       if (resolutions.size() != query.getFilters().get(0).getTags().size()) {
         throw new IllegalStateException("Fewer resolutions than filters!");
       }
+      final Span child;
+      if (span != null && span.isDebug()) {
+        child = span.newChild(getClass().getName() + ".call")
+                    .start();
+      } else {
+        child = span;
+      }
       
-      int total_expansion = 0;
-      int cardinality = 1;
-      keepers = Lists.newArrayListWithCapacity(resolutions.size());
-      row_key_literals = new ByteMap<List<byte[]>>();
-      
-      for (int i = 0; i < query.getFilters().get(0).getTags().size(); i++) {
-        final TagVFilter filter = query.getFilters().get(0).getTags().get(i);
-        final ResolvedFilter resolution = resolutions.get(i);
+      try {
+        int total_expansion = 0;
+        int cardinality = 1;
+        keepers = Lists.newArrayListWithCapacity(resolutions.size());
+        row_key_literals = new ByteMap<List<byte[]>>();
         
-        if (Bytes.isNullOrEmpty(resolution.getTagKey())) {
-          if (!skip_nsun_tagks || query.getFilters().get(0).getExplicitTags()) {
-            throw new NoSuchUniqueName(Schema.TAGK_TYPE, filter.getTagk());
-          }
+        for (int i = 0; i < query.getFilters().get(0).getTags().size(); i++) {
+          final TagVFilter filter = query.getFilters().get(0).getTags().get(i);
+          final ResolvedFilter resolution = resolutions.get(i);
           
-          if (LOG.isDebugEnabled()) {
-            LOG.debug("Skipping tag key without an ID: " + filter.getTagk());
-          }
-          continue;
-        }
-        
-        // handle the group-bys
-        if (filter.isGroupBy()) {
-          if (group_bys == null) {
-            group_bys = Lists.newArrayListWithCapacity(resolutions.size());
-          }
-          group_bys.add(resolution.getTagKey());
-        }
-        
-        if (filter instanceof TagVLiteralOrFilter) {
-          // assumption: the literal filter had 1 or more values.
-          if (resolution.getTagValues() == null || 
-              resolution.getTagValues().isEmpty()) {
-            // we can't skip here as we'd have a bad query that would 
-            // allow all values through when the user wanted to filter
-            // on one or more literals.
-            throw new NoSuchUniqueName(Schema.TAGV_TYPE, 
-                ((TagVLiteralOrFilter) filter).literals().get(0));
-          }
-          
-          final List<byte[]> tag_values = Lists.newArrayListWithCapacity(
-              resolution.getTagValues().size());
-          for (int t = 0; t < resolution.getTagValues().size(); t++) {
-            final byte[] tagv = resolution.getTagValues().get(t);
-            
-            if (Bytes.isNullOrEmpty(tagv)) {
-              if (!skip_nsun_tagvs) {
-                throw new NoSuchUniqueName(Schema.TAGV_TYPE, 
-                    ((TagVLiteralOrFilter) filter).literals().get(t));
+          if (Bytes.isNullOrEmpty(resolution.getTagKey())) {
+            if (!skip_nsun_tagks || query.getFilters().get(0).getExplicitTags()) {
+              final NoSuchUniqueName ex = 
+                  new NoSuchUniqueName(Schema.TAGK_TYPE, filter.getTagk());
+              if (child != null) {
+                child.setErrorTags(ex)
+                     .finish();
               }
-              if (LOG.isDebugEnabled()) {
-                LOG.debug("Dropping tag value without an ID: " 
-                    + ((TagVLiteralOrFilter) filter).literals().get(t));
-              }
-            } else {
-              tag_values.add(tagv);
+              throw ex;
             }
-          }
-          
-          // similar to the above, if all of the values were null we have
-          // a bad query.
-          if (tag_values.isEmpty()) {
-            throw new NoSuchUniqueName(Schema.TAGV_TYPE, 
-                ((TagVLiteralOrFilter) filter).literals().get(0));
-          }
-          
-          if (total_expansion + resolution.getTagValues().size() > 
-              expansion_limit) {
-            // too big to store in the scanner filter so we go slow
-            putFilter(resolution.getTagKey(), null);
-            keepers.add(filter);
-            could_multi_get = false;
+            
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Skipping tag key without an ID: " + filter.getTagk());
+            }
             continue;
           }
           
-          Collections.sort(tag_values, Bytes.MEMCMP);
-          putFilter(resolution.getTagKey(), tag_values);
-          // discard this filter since we put it all in the strings
-          total_expansion += tag_values.size();
-          cardinality *= tag_values.size();
+          // handle the group-bys
+          if (filter.isGroupBy()) {
+            if (group_bys == null) {
+              group_bys = Lists.newArrayListWithCapacity(resolutions.size());
+            }
+            group_bys.add(resolution.getTagKey());
+          }
           
-        } else if (filter instanceof TagVRegexFilter) {
-          putFilter(resolution.getTagKey(), null);
-          if (!((TagVRegexFilter) filter).matchesAll()) {
+          if (filter instanceof TagVLiteralOrFilter) {
+            // assumption: the literal filter had 1 or more values.
+            if (resolution.getTagValues() == null || 
+                resolution.getTagValues().isEmpty()) {
+              // we can't skip here as we'd have a bad query that would 
+              // allow all values through when the user wanted to filter
+              // on one or more literals.
+              final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.TAGV_TYPE, 
+                      ((TagVLiteralOrFilter) filter).literals().get(0));
+              if (child != null) {
+                child.setErrorTags(ex)
+                     .finish();
+              }
+              throw ex;
+            }
+            
+            final List<byte[]> tag_values = Lists.newArrayListWithCapacity(
+                resolution.getTagValues().size());
+            for (int t = 0; t < resolution.getTagValues().size(); t++) {
+              final byte[] tagv = resolution.getTagValues().get(t);
+              
+              if (Bytes.isNullOrEmpty(tagv)) {
+                if (!skip_nsun_tagvs) {
+                  final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.TAGV_TYPE, 
+                          ((TagVLiteralOrFilter) filter).literals().get(t));
+                  if (child != null) {
+                    child.setErrorTags(ex)
+                         .finish();
+                  }
+                  throw ex;
+                }
+                if (LOG.isDebugEnabled()) {
+                  LOG.debug("Dropping tag value without an ID: " 
+                      + ((TagVLiteralOrFilter) filter).literals().get(t));
+                }
+              } else {
+                tag_values.add(tagv);
+              }
+            }
+            
+            // similar to the above, if all of the values were null we have
+            // a bad query.
+            if (tag_values.isEmpty()) {
+              final NoSuchUniqueName ex = new NoSuchUniqueName(Schema.TAGV_TYPE, 
+                      ((TagVLiteralOrFilter) filter).literals().get(0));
+              if (child != null) {
+                child.setErrorTags(ex)
+                     .finish();
+              }
+              throw ex;
+            }
+            
+            if (total_expansion + resolution.getTagValues().size() > 
+                expansion_limit) {
+              // too big to store in the scanner filter so we go slow
+              putFilter(resolution.getTagKey(), null);
+              keepers.add(filter);
+              could_multi_get = false;
+              continue;
+            }
+            
+            Collections.sort(tag_values, Bytes.MEMCMP);
+            putFilter(resolution.getTagKey(), tag_values);
+            // discard this filter since we put it all in the strings
+            total_expansion += tag_values.size();
+            cardinality *= tag_values.size();
+            
+          } else if (filter instanceof TagVRegexFilter) {
+            putFilter(resolution.getTagKey(), null);
+            if (!((TagVRegexFilter) filter).matchesAll()) {
+              keepers.add(filter);
+            }
+            could_multi_get = false;
+          } else if (filter instanceof TagVWildcardFilter || 
+                     filter instanceof TagVIWildcardFilter) {
+            putFilter(resolution.getTagKey(), null);
+            if (!((TagVWildcardFilter) filter).matchesAll()) {
+              keepers.add(filter);
+            }
+            could_multi_get = false;
+          } else {
+            // not a special case, have to handle it in the scanner.
+            putFilter(resolution.getTagKey(), null);
             keepers.add(filter);
+            could_multi_get = false;
           }
-          could_multi_get = false;
-        } else if (filter instanceof TagVWildcardFilter || 
-                   filter instanceof TagVIWildcardFilter) {
-          putFilter(resolution.getTagKey(), null);
-          if (!((TagVWildcardFilter) filter).matchesAll()) {
-            keepers.add(filter);
-          }
-          could_multi_get = false;
-        } else {
-          // not a special case, have to handle it in the scanner.
-          putFilter(resolution.getTagKey(), null);
-          keepers.add(filter);
-          could_multi_get = false;
         }
+        
+        if (keepers != null && !keepers.isEmpty()) {
+          scanner_filter = Filter.newBuilder(query.getFilters().get(0))
+              .setTags(keepers)
+              .build();
+        }
+        
+        if (cardinality <= max_multi_get_cardinality) {
+          Tsdb1xScanners.this.could_multi_get = could_multi_get;
+        }
+        
+        // now that we have our filters sorted out, create the scanner(s).
+        setupScanners(metric, child);
+        if (child != null) {
+          child.setSuccessTags()
+               .finish();
+        }
+      } catch (Exception e) {
+        if (child != null) {
+          child.setErrorTags(e)
+               .finish();
+        }
+        throw e;
       }
-      
-      if (keepers != null && !keepers.isEmpty()) {
-        scanner_filter = Filter.newBuilder(query.getFilters().get(0))
-            .setTags(keepers)
-            .build();
-      }
-      
-      if (cardinality <= max_multi_get_cardinality) {
-        Tsdb1xScanners.this.could_multi_get = could_multi_get;
-      }
-      
-      // now that we have our filters sorted out, create the scanner(s).
-      setupScanners(metric, span);
       return null;
     }
     
