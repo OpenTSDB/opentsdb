@@ -114,7 +114,7 @@ public final class MockBase {
    */
   private ByteMap<ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>>>
   storage = new ByteMap<ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>>>();
-  private HashSet<MockScanner> scanners = new HashSet<MockScanner>(2);
+  private List<MockScanner> scanners = Lists.newArrayList();
 
   /** The default family for shortcuts */
   private byte[] default_family;
@@ -663,8 +663,13 @@ public final class MockBase {
   }
 
   /** @return The set of scanners configured by the caller */
-  public HashSet<MockScanner> getScanners() {
+  public List<MockScanner> getScanners() {
     return scanners;
+  }
+  
+  /** @return The last scanner created. */
+  public MockScanner getLastScanner() {
+    return scanners.isEmpty() ? null : scanners.get(scanners.size() - 1);
   }
 
   /**
@@ -1578,6 +1583,7 @@ public final class MockBase {
           return null;
         }
       }).when(mock_scanner).setReversed(anyBoolean());
+    
     }
 
     @Override
@@ -1876,6 +1882,11 @@ public final class MockBase {
     /** @return The filter for this mock */
     public ScanFilter getFilter() {
       return filter;
+    }
+  
+    /** @return The table name that this scanner was created on. */
+    public byte[] table() {
+      return table;
     }
   }
 

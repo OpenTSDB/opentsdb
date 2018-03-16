@@ -19,8 +19,11 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
+
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.FilterList;
+import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyRegexpFilter;
 import org.hbase.async.ScanFilter;
 import org.hbase.async.Scanner;
@@ -33,8 +36,8 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import com.google.common.collect.Lists;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ Scanner.class })
-public class TestQueryUtil {
+@PrepareForTest({ HBaseClient.class, Scanner.class })
+public class TestQueryUtil extends UTBase {
   private Scanner scanner;
   
   @Before
@@ -42,107 +45,113 @@ public class TestQueryUtil {
     scanner = mock(Scanner.class);
   }
   
-//  @Test
-//  public void setDataTableScanFilterNoOp() throws Exception {
-//    QueryUtil.setDataTableScanFilter(
-//        scanner,
-//        Lists.<byte[]>newArrayList(), 
-//        new ByteMap<byte[][]>(),
-//        false,
-//        false,
-//        0);
-//    verify(scanner, never()).getCurrentKey();
-//    verify(scanner, never()).setFilter(any(ScanFilter.class));
-//    verify(scanner, never()).setStartKey(any(byte[].class));
-//    verify(scanner, never()).setStopKey(any(byte[].class));
-//  }
-//  
-//  @Test
-//  public void setDataTableScanFilterGroupBy() throws Exception {
-//    QueryUtil.setDataTableScanFilter(
-//        scanner,
-//        Lists.<byte[]>newArrayList(new byte[] { 0, 0, 1 }), 
-//        new ByteMap<byte[][]>(),
-//        false,
-//        false,
-//        0);
-//    verify(scanner, never()).getCurrentKey();
-//    // TODO - validate the regex
-//    verify(scanner, times(1)).setFilter(any(KeyRegexpFilter.class));
-//    verify(scanner, never()).setStartKey(any(byte[].class));
-//    verify(scanner, never()).setStopKey(any(byte[].class));
-//  }
-//  
-//  @Test
-//  public void setDataTableScanFilterTags() throws Exception {
-//    final ByteMap<byte[][]> tags = new ByteMap<byte[][]>();
-//    tags.put(new byte[] { 0, 0, 1 }, new byte[][] { new byte[] {0, 0, 1} });
-//    QueryUtil.setDataTableScanFilter(
-//        scanner,
-//        Lists.<byte[]>newArrayList(), 
-//        tags,
-//        false,
-//        false,
-//        0);
-//    verify(scanner, never()).getCurrentKey();
-//    // TODO - validate the regex
-//    verify(scanner, times(1)).setFilter(any(KeyRegexpFilter.class));
-//    verify(scanner, never()).setStartKey(any(byte[].class));
-//    verify(scanner, never()).setStopKey(any(byte[].class));
-//  }
-//  
-//  @Test
-//  public void setDataTableScanFilterEnableFuzzy() throws Exception {
-//    final ByteMap<byte[][]> tags = new ByteMap<byte[][]>();
-//    tags.put(new byte[] { 0, 0, 1 }, new byte[][] { new byte[] {0, 0, 1} });
-//    QueryUtil.setDataTableScanFilter(
-//        scanner,
-//        Lists.<byte[]>newArrayList(), 
-//        tags,
-//        false,
-//        true,
-//        0);
-//    verify(scanner, never()).getCurrentKey();
-//    // TODO - validate the regex
-//    verify(scanner, times(1)).setFilter(any(KeyRegexpFilter.class));
-//    verify(scanner, never()).setStartKey(any(byte[].class));
-//    verify(scanner, never()).setStopKey(any(byte[].class));
-//  }
-//  
-//  @Test
-//  public void setDataTableScanFilterEnableExplicit() throws Exception {
-//    final ByteMap<byte[][]> tags = new ByteMap<byte[][]>();
-//    tags.put(new byte[] { 0, 0, 1 }, new byte[][] { new byte[] {0, 0, 1} });
-//    QueryUtil.setDataTableScanFilter(
-//        scanner,
-//        Lists.<byte[]>newArrayList(), 
-//        tags,
-//        true,
-//        false,
-//        0);
-//    verify(scanner, never()).getCurrentKey();
-//    // TODO - validate the regex
-//    verify(scanner, times(1)).setFilter(any(KeyRegexpFilter.class));
-//    verify(scanner, never()).setStartKey(any(byte[].class));
-//    verify(scanner, never()).setStopKey(any(byte[].class));
-//  }
-//  
-//  @Test
-//  public void setDataTableScanFilterEnableBoth() throws Exception {
-//    when(scanner.getCurrentKey()).thenReturn(new byte[] { 0, 0, 0, 1 });
-//    final ByteMap<byte[][]> tags = new ByteMap<byte[][]>();
-//    tags.put(new byte[] { 0, 0, 1 }, new byte[][] { new byte[] {0, 0, 1} });
-//    QueryUtil.setDataTableScanFilter(
-//        scanner,
-//        Lists.<byte[]>newArrayList(), 
-//        tags,
-//        true,
-//        true,
-//        0);
-//    verify(scanner, times(2)).getCurrentKey();
-//    // TODO - validate the regex and fuzzy filter
-//    verify(scanner, times(1)).setFilter(any(FilterList.class));
-//    verify(scanner, times(1)).setStartKey(any(byte[].class));
-//    verify(scanner, times(1)).setStopKey(any(byte[].class));
-//  }
+  @Test
+  public void setDataTableScanFilterNoOp() throws Exception {
+    QueryUtil.setDataTableScanFilter(
+        schema,
+        scanner,
+        Lists.<byte[]>newArrayList(), 
+        new ByteMap<List<byte[]>>(),
+        false,
+        false,
+        0);
+    verify(scanner, never()).getCurrentKey();
+    verify(scanner, never()).setFilter(any(ScanFilter.class));
+    verify(scanner, never()).setStartKey(any(byte[].class));
+    verify(scanner, never()).setStopKey(any(byte[].class));
+  }
+  
+  @Test
+  public void setDataTableScanFilterGroupBy() throws Exception {
+    QueryUtil.setDataTableScanFilter(
+        schema,
+        scanner,
+        Lists.<byte[]>newArrayList(new byte[] { 0, 0, 1 }), 
+        new ByteMap<List<byte[]>>(),
+        false,
+        false,
+        0);
+    verify(scanner, never()).getCurrentKey();
+    // TODO - validate the regex
+    verify(scanner, times(1)).setFilter(any(KeyRegexpFilter.class));
+    verify(scanner, never()).setStartKey(any(byte[].class));
+    verify(scanner, never()).setStopKey(any(byte[].class));
+  }
+  
+  @Test
+  public void setDataTableScanFilterTags() throws Exception {
+    final ByteMap<List<byte[]>> tags = new ByteMap<List<byte[]>>();
+    tags.put(new byte[] { 0, 0, 1 }, Lists.newArrayList( new byte[] {0, 0, 1} ));
+    QueryUtil.setDataTableScanFilter(
+        schema,
+        scanner,
+        Lists.<byte[]>newArrayList(), 
+        tags,
+        false,
+        false,
+        0);
+    verify(scanner, never()).getCurrentKey();
+    // TODO - validate the regex
+    verify(scanner, times(1)).setFilter(any(KeyRegexpFilter.class));
+    verify(scanner, never()).setStartKey(any(byte[].class));
+    verify(scanner, never()).setStopKey(any(byte[].class));
+  }
+  
+  @Test
+  public void setDataTableScanFilterEnableFuzzy() throws Exception {
+    final ByteMap<List<byte[]>> tags = new ByteMap<List<byte[]>>();
+    tags.put(new byte[] { 0, 0, 1 }, Lists.newArrayList( new byte[] {0, 0, 1} ));
+    QueryUtil.setDataTableScanFilter(
+        schema,
+        scanner,
+        Lists.<byte[]>newArrayList(), 
+        tags,
+        false,
+        true,
+        0);
+    verify(scanner, never()).getCurrentKey();
+    // TODO - validate the regex
+    verify(scanner, times(1)).setFilter(any(KeyRegexpFilter.class));
+    verify(scanner, never()).setStartKey(any(byte[].class));
+    verify(scanner, never()).setStopKey(any(byte[].class));
+  }
+  
+  @Test
+  public void setDataTableScanFilterEnableExplicit() throws Exception {
+    final ByteMap<List<byte[]>> tags = new ByteMap<List<byte[]>>();
+    tags.put(new byte[] { 0, 0, 1 }, Lists.newArrayList( new byte[] {0, 0, 1} ));
+    QueryUtil.setDataTableScanFilter(
+        schema,
+        scanner,
+        Lists.<byte[]>newArrayList(), 
+        tags,
+        true,
+        false,
+        0);
+    verify(scanner, never()).getCurrentKey();
+    // TODO - validate the regex
+    verify(scanner, times(1)).setFilter(any(KeyRegexpFilter.class));
+    verify(scanner, never()).setStartKey(any(byte[].class));
+    verify(scanner, never()).setStopKey(any(byte[].class));
+  }
+  
+  @Test
+  public void setDataTableScanFilterEnableBoth() throws Exception {
+    when(scanner.getCurrentKey()).thenReturn(new byte[] { 0, 0, 0, 1 });
+    final ByteMap<List<byte[]>> tags = new ByteMap<List<byte[]>>();
+    tags.put(new byte[] { 0, 0, 1 }, Lists.newArrayList( new byte[] {0, 0, 1} ));
+    QueryUtil.setDataTableScanFilter(
+        schema,
+        scanner,
+        Lists.<byte[]>newArrayList(), 
+        tags,
+        true,
+        true,
+        0);
+    verify(scanner, times(2)).getCurrentKey();
+    // TODO - validate the regex and fuzzy filter
+    verify(scanner, times(1)).setFilter(any(FilterList.class));
+    verify(scanner, times(1)).setStartKey(any(byte[].class));
+    verify(scanner, times(1)).setStopKey(any(byte[].class));
+  }
 }

@@ -57,7 +57,7 @@ public class QueryUtil {
   public static String getRowKeyUIDRegex(
       final Schema schema,
       final List<byte[]> group_bys, 
-      final ByteMap<byte[][]> row_key_literals) {
+      final ByteMap<List<byte[]>> row_key_literals) {
     return getRowKeyUIDRegex(schema, group_bys, row_key_literals, false, null, null);
   }
   
@@ -79,7 +79,7 @@ public class QueryUtil {
   public static String getRowKeyUIDRegex(
       final Schema schema,
       final List<byte[]> group_bys, 
-      final ByteMap<byte[][]> row_key_literals, 
+      final ByteMap<List<byte[]>> row_key_literals, 
       final boolean explicit_tags,
       final byte[] fuzzy_key, 
       final byte[] fuzzy_mask) {
@@ -108,8 +108,8 @@ public class QueryUtil {
        .append(schema.saltWidth() + schema.metricWidth() + Schema.TIMESTAMP_BYTES)
        .append("}");
 
-    final Iterator<Entry<byte[], byte[][]>> it = row_key_literals == null ? 
-        new ByteMap<byte[][]>().iterator() : row_key_literals.iterator();
+    final Iterator<Entry<byte[], List<byte[]>>> it = row_key_literals == null ? 
+        new ByteMap<List<byte[]>>().iterator() : row_key_literals.iterator();
     int fuzzy_offset = schema.saltWidth() + schema.metricWidth();
     if (fuzzy_mask != null) {
       // make sure to skip the timestamp when scanning
@@ -119,12 +119,12 @@ public class QueryUtil {
     }
     
     while(it.hasNext()) {
-      Entry<byte[], byte[][]> entry = it.hasNext() ? it.next() : null;
+      Entry<byte[], List<byte[]>> entry = it.hasNext() ? it.next() : null;
       // TODO - This look ahead may be expensive. We need to get some data around
       // whether it's faster for HBase to scan with a look ahead or simply pass
       // the rows back to the TSD for filtering.
       final boolean not_key = 
-          entry.getValue() != null && entry.getValue().length == 0;
+          entry.getValue() != null && entry.getValue().size() == 0;
       
       // Skip any number of tags.
       if (!explicit_tags) {
@@ -148,7 +148,7 @@ public class QueryUtil {
       buf.append("\\Q");
       
       addId(buf, entry.getKey(), true);
-      if (entry.getValue() != null && entry.getValue().length > 0) {  // Add a group_by.
+      if (entry.getValue() != null && entry.getValue().size() > 0) {  // Add a group_by.
         // We want specific IDs.  List them: /(AAA|BBB|CCC|..)/
         buf.append("(?:");
         for (final byte[] value_id : entry.getValue()) {
@@ -198,7 +198,7 @@ public class QueryUtil {
       final Schema schema,
       final Scanner scanner, 
       final List<byte[]> group_bys, 
-      final ByteMap<byte[][]> row_key_literals,
+      final ByteMap<List<byte[]>> row_key_literals,
       final boolean explicit_tags,
       final boolean enable_fuzzy_filter,
       final int end_time) {
@@ -335,12 +335,6 @@ public class QueryUtil {
     store.schema().prefixKeyWithSalt(start_row, salt_bucket);
     store.schema().prefixKeyWithSalt(end_row, salt_bucket);
     
-//    if (schema.saltWidth() > 0) {
-//      final byte[] salt = RowKey.getSaltBytes(salt_bucket);
-//      System.arraycopy(salt, 0, start_row, 0, schema.saltWidth());
-//      System.arraycopy(salt, 0, end_row, 0, schema.saltWidth());
-//    }
-    
     Bytes.setInt(start_row, start, metric_salt_width);
     Bytes.setInt(end_row, stop, metric_salt_width);
     
@@ -348,7 +342,6 @@ public class QueryUtil {
     System.arraycopy(metric, 0, end_row, store.schema().saltWidth(), metric_width);
     
     final Scanner scanner = store.client().newScanner(table);
-    scanner.setMaxNumRows(store.maxRowsPerScan());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily(family);

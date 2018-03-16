@@ -36,6 +36,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.uid.UniqueIdStore;
@@ -53,6 +54,18 @@ public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
   public static final String UID_TABLE_KEY = "uid_table";
   public static final String TREE_TABLE_KEY = "tree_table";
   public static final String META_TABLE_KEY = "meta_table";
+  
+  public static final String EXPANSION_LIMIT_KEY = 
+      "tsd.query.filter.expansion_limit";
+  public static final String ROLLUP_USAGE_KEY = 
+      "tsd.query.rollups.default_usage";
+  public static final String SKIP_NSUN_TAGK_KEY = "tsd.query.skip_unresolved_tagks";
+  public static final String SKIP_NSUN_TAGV_KEY = "tsd.query.skip_unresolved_tagvs";
+  public static final String PRE_AGG_KEY = "tsd.query.pre_agg";
+  public static final String FUZZY_FILTER_KEY = "tsd.query.enable_fuzzy_filter";
+  public static final String REVERSE_KEY = "tsd.query.reverse_time";
+  public static final String ROWS_PER_SCAN_KEY = "tsd.query.rows_per_scan";
+  public static final String MAX_MG_CARDINALITY_KEY = "tsd.query.multiget.max_cardinality";
   
   public static final byte[] DATA_FAMILY = 
       "t".getBytes(Const.ASCII_CHARSET);
@@ -114,6 +127,26 @@ public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
       }
       meta_table = config.getString(getConfigKey(META_TABLE_KEY))
           .getBytes(Const.ASCII_CHARSET);
+      
+      if (!config.hasProperty(EXPANSION_LIMIT_KEY)) {
+        config.register(EXPANSION_LIMIT_KEY, 4096, true,
+            "The maximum number of UIDs to expand in a literal filter "
+            + "for HBase scanners.");
+      }
+      if (!config.hasProperty(ROLLUP_USAGE_KEY)) {
+        config.register(ROLLUP_USAGE_KEY, "rollup_fallback", true,
+            "The default fallback operation for queries involving rollup tables.");
+      }
+      if (!config.hasProperty(SKIP_NSUN_TAGK_KEY)) {
+        config.register(SKIP_NSUN_TAGK_KEY, "false", true,
+            "Whether or not to simply drop tag keys (names) from query filters "
+            + "that have not been assigned UIDs and try to fetch data anyway.");
+      }
+      if (!config.hasProperty(SKIP_NSUN_TAGV_KEY)) {
+        config.register(SKIP_NSUN_TAGV_KEY, "false", true,
+            "Whether or not to simply drop tag values from query filters "
+            + "that have not been assigned UIDs and try to fetch data anyway.");
+      }
     }
     
     // TODO - shared client!
@@ -228,8 +261,18 @@ public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
     return uid_store;
   }
 
-  int maxRowsPerScan() {
+  String dynamicString(final String key) {
+    // TODO - implement
+    return null;
+  }
+  
+  int dynamicInt(final String key) {
     // TODO - implement
     return 0;
+  }
+  
+  boolean dynamicBoolean(final String key) {
+    // TODO - implement
+    return false;
   }
 }
