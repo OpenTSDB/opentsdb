@@ -137,10 +137,10 @@ public class UTBase {
     config_map = Maps.newHashMap();
     config = UnitTestConfiguration.getConfiguration(config_map);
     uid_factory = mock(UniqueIdFactory.class);
+    data_store = mock(Tsdb1xHBaseDataStore.class);
     
     when(tsdb.getConfig()).thenReturn(config);
     when(tsdb.getRegistry()).thenReturn(registry);
-    data_store = mock(Tsdb1xHBaseDataStore.class);
     when(data_store.tsdb()).thenReturn(tsdb);
     when(data_store.getConfigKey(anyString()))
       .thenAnswer(new Answer<String>() {
@@ -149,6 +149,7 @@ public class UTBase {
         return "tsd.mock." + (String) invocation.getArguments()[0];
       }
     });
+    when(data_store.dataTable()).thenReturn("tsdb".getBytes(Const.ASCII_CHARSET));
     when(data_store.uidTable()).thenReturn(UID_TABLE);
     when(data_store.client()).thenReturn(client);
     when(registry.getSharedObject(any())).thenReturn(data_store);

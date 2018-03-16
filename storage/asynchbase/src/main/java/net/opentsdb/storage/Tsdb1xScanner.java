@@ -17,7 +17,6 @@ package net.opentsdb.storage;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -82,9 +81,6 @@ public class Tsdb1xScanner {
   /** The current state of this scanner. */
   private State state;
   
-  /** The types of data we want to fetch from storage. */
-  protected Set<Byte> data_type_filter;
-  
   /** When filtering, used to hold the TSUIDs being resolved. */
   protected TLongObjectMap<ResolvingId> keys_to_ids;
   
@@ -104,12 +100,6 @@ public class Tsdb1xScanner {
   
   /** A singleton base timestamp for this scanner. */
   protected TimeStamp base_ts;
-  
-  // TODO - from a config
-  /** Whether to simply drop rows without a name mapping or throw an
-   * exception when such rows are read and processed through our
-   * filter list. Note that this only works on filtered scans. */
-  protected boolean skip_nsui;
   
   /**
    * Default ctor.
@@ -159,7 +149,7 @@ public class Tsdb1xScanner {
       return;
     }
     
-    if (owner.isFull()) {
+    if (result.isFull()) {
       if (LOG.isDebugEnabled()) {
         LOG.debug("Pausing scanner as upstream is full.");
       }
@@ -212,11 +202,11 @@ public class Tsdb1xScanner {
       final Iterator<ArrayList<KeyValue>> it = row_buffer.iterator();
       while (it.hasNext()) {
         final ArrayList<KeyValue> row = it.next();
-        owner.schema().baseTimestamp(row.get(0).key(), base_ts);
-        if (owner.isFull() || owner.sequenceEnd() != null && 
+        owner.node().schema().baseTimestamp(row.get(0).key(), base_ts);
+        if (result.isFull() || owner.node().sequenceEnd() != null && 
             base_ts.compare(
                 (scanner.isReversed() ? RelationalOperator.LT : RelationalOperator.GT), 
-                  owner.sequenceEnd())) {
+                  owner.node().sequenceEnd())) {
           // end of sequence encountered in the buffer. Push on up
           if (LOG.isDebugEnabled()) {
             LOG.debug("Hit next sequence end while in the scanner cache.");
@@ -302,7 +292,7 @@ public class Tsdb1xScanner {
             owner.scannerDone();
             scanner.clearFilter();
             state = State.COMPLETE;
-          } else if (!owner.isFull() && keep_going) {
+          } else if (!result.isFull() && keep_going) {
             return scanner.nextRows()
                 .addCallbacks(new ScannerCB(result, span), new ErrorCB(span));
           } else {
@@ -318,11 +308,11 @@ public class Tsdb1xScanner {
         while (it.hasNext()) {
           final ArrayList<KeyValue> row = it.next();
           
-          owner.schema().baseTimestamp(row.get(0).key(), base_ts);
-          if (owner.sequenceEnd() != null && 
+          owner.node().schema().baseTimestamp(row.get(0).key(), base_ts);
+          if (owner.node().sequenceEnd() != null && 
               base_ts.compare(
                   (scanner.isReversed() ? RelationalOperator.LT : RelationalOperator.GT), 
-                      owner.sequenceEnd())) {
+                      owner.node().sequenceEnd())) {
             // end of sequence encountered in the buffer. Push on up
             if (LOG.isDebugEnabled()) {
               LOG.debug("Hit next sequence end while in the scanner cache.");
@@ -330,7 +320,7 @@ public class Tsdb1xScanner {
             this.row_buffer = row_buffer;
             keep_going = false;
             break;
-          } else if (owner.isFull()) {
+          } else if (result.isFull()) {
             if (LOG.isDebugEnabled()) {
               LOG.debug("Owner is full while in the scanner cache.");
             }
@@ -341,7 +331,7 @@ public class Tsdb1xScanner {
           
           it.remove();
           
-          final byte[] tsuid = owner.schema().getTSUID(row.get(0).key());
+          final byte[] tsuid = owner.node().schema().getTSUID(row.get(0).key());
           deferreds.add(resolveAndFilter(tsuid, row, result, child));
         }
       }
@@ -427,11 +417,11 @@ public class Tsdb1xScanner {
               continue;
             }
             
-            owner.schema().baseTimestamp(row.get(0).key(), base_ts);
-            if (owner.sequenceEnd() != null && 
+            owner.node().schema().baseTimestamp(row.get(0).key(), base_ts);
+            if (owner.node().sequenceEnd() != null && 
                 base_ts.compare(
                     (scanner.isReversed() ? RelationalOperator.LT : RelationalOperator.GT), 
-                        owner.sequenceEnd())) {
+                        owner.node().sequenceEnd())) {
               // end of sequence encountered in the buffer. Push on up
               if (LOG.isDebugEnabled()) {
                 LOG.debug("Hit next sequence end in the scanner. "
@@ -440,7 +430,7 @@ public class Tsdb1xScanner {
               buffer(i, rows, false);
               keep_going = false;
               break;
-            } else if (owner.isFull()) {
+            } else if (result.isFull()) {
               if (LOG.isDebugEnabled()) {
                 LOG.debug("Owner is full. Buffering results and returning.");
               }
@@ -449,7 +439,7 @@ public class Tsdb1xScanner {
               break;
             }
             
-            final byte[] tsuid = owner.schema().getTSUID(row.get(0).key());
+            final byte[] tsuid = owner.node().schema().getTSUID(row.get(0).key());
             deferreds.add(resolveAndFilter(tsuid, row, result, child));
           }
           
@@ -467,11 +457,11 @@ public class Tsdb1xScanner {
               continue;
             }
             
-            owner.schema().baseTimestamp(row.get(0).key(), base_ts);
-            if ((owner.sequenceEnd() != null && 
+            owner.node().schema().baseTimestamp(row.get(0).key(), base_ts);
+            if ((owner.node().sequenceEnd() != null && 
                 base_ts.compare(
                     (scanner.isReversed() ? RelationalOperator.LT : RelationalOperator.GT), 
-                        owner.sequenceEnd()))) {
+                        owner.node().sequenceEnd()))) {
               
               // end of sequence encountered in the buffer. Push on up
               if (LOG.isDebugEnabled()) {
@@ -480,7 +470,7 @@ public class Tsdb1xScanner {
               }
               buffer(i, rows, true);
               return null;
-            } else if (owner.isFull()) {
+            } else if (result.isFull()) {
               if (LOG.isDebugEnabled()) {
                 LOG.debug("Owner is full. Buffering results and returning.");
               }
@@ -492,7 +482,7 @@ public class Tsdb1xScanner {
           }
         }
         
-        if (!owner.isFull()) {
+        if (!result.isFull()) {
           // keep going!
           if (child != null) {
             child.setSuccessTags()
@@ -581,7 +571,7 @@ public class Tsdb1xScanner {
         keys_to_ids.clear();
         if (owner.hasException()) {
           complete(child, 0);
-        } else if (!owner.isFull() && keep_going) {
+        } else if (!result.isFull() && keep_going) {
           return scanner.nextRows().addCallbacks(ScannerCB.this, new ErrorCB(span));
         } else {
           // told not to keep going.
@@ -607,7 +597,7 @@ public class Tsdb1xScanner {
     for (; i < rows.size(); i++) {
       row_buffer.add(rows.get(i));
       TimeStamp t = new MillisecondTimeStamp(0);
-      owner.schema().baseTimestamp(rows.get(i).get(0).key(), t);
+      owner.node().schema().baseTimestamp(rows.get(i).get(0).key(), t);
     }
     if (mark_scanner_done) {
       owner.scannerDone();
@@ -660,11 +650,11 @@ public class Tsdb1xScanner {
     // TODO - we could possibly save some cycles by two-passing multi-column
     // rows to see if there are a lot of "puts" and merging them into an append
     // first.
-    final byte[] tsuid = owner.schema().getTSUID(row.get(0).key());
+    final byte[] tsuid = owner.node().schema().getTSUID(row.get(0).key());
     for (final KeyValue kv : row) {
       if ((kv.qualifier().length & 1) == 0) {
         // it's a NumericDataType
-        if (data_type_filter != null && data_type_filter.contains((byte) 1)) {
+        if (!owner.node().fetchDataType((byte) 1)) {
           // filter doesn't want #'s
           // TODO - dropped counters
           continue;
@@ -673,18 +663,17 @@ public class Tsdb1xScanner {
       } else {
         final byte prefix = kv.qualifier()[0];
         if (prefix == Schema.APPENDS_PREFIX) {
-          if (data_type_filter != null && data_type_filter.contains((byte) 1)) {
+          if (!owner.node().fetchDataType((byte) 1)) {
             // filter doesn't want #'s
             continue;
           } else {
             result.addData(base_ts, tsuid, prefix, kv.qualifier(), kv.value());
           }
-        } else if (data_type_filter != null && !data_type_filter.contains(prefix)) {
+        } else if (owner.node().fetchDataType(prefix)) {
           result.addData(base_ts, tsuid, prefix, kv.qualifier(), kv.value());
         } else {
-          result.addData(base_ts, tsuid, prefix, kv.qualifier(), kv.value());
+          // TODO else count dropped data
         }
-        // TODO else count dropped data
       }
     }
   }
@@ -813,7 +802,7 @@ public class Tsdb1xScanner {
      * @param hash The computed hash of the TSUID.
      */
     public ResolvingId(final byte[] tsuid, final long hash) {
-      super(tsuid, owner.schema());
+      super(tsuid, owner.node().schema());
       this.hash = hash;
       deferred = new Deferred<Boolean>();
     }
@@ -869,7 +858,7 @@ public class Tsdb1xScanner {
       
       @Override
       public Void call(final Exception ex) throws Exception {
-        if (ex instanceof NoSuchUniqueId && skip_nsui) {
+        if (ex instanceof NoSuchUniqueId && owner.node().skipNSUI()) {
           if (LOG.isDebugEnabled()) {
             LOG.debug("Row contained a bad UID: " + Bytes.pretty(tsuid) 
               + " " + ex.getMessage());

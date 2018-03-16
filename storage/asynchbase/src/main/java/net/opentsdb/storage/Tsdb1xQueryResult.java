@@ -75,8 +75,9 @@ public class Tsdb1xQueryResult implements QueryResult {
                       final byte[] value) {
   
   }
-
-  public void exception(final Exception e) {
+  
+  public boolean isFull() {
     // TODO - implement
+    return false;
   }
 }

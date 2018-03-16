@@ -557,7 +557,7 @@ public class Schema implements StorageSchema {
   
   public RollupConfig rollupConfig() {
     // TODO - implement
-    throw new UnsupportedOperationException("Implement me!");
+    return null;
   }
   
   /**

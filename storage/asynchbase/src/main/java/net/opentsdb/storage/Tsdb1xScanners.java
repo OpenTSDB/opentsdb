@@ -63,4 +63,8 @@ public class Tsdb1xScanners {
     
   }
 
+  Tsdb1xQueryNode node() {
+    // TODO - implement
+    return null;
+  }
 }

@@ -97,4 +97,18 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
     return ((Tsdb1xHBaseDataStore) factory).schema();
   }
 
+  boolean skipNSUI() {
+    // TODO - implement
+    return false;
+  }
+  
+  boolean fetchDataType(final byte prefix) {
+    // TODO - implement
+    return true;
+  }
+  
+  boolean deleteData() {
+    // TODO  - implement
+    return false;
+  }
 }
