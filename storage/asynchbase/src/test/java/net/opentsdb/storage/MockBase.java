@@ -114,7 +114,12 @@ public final class MockBase {
    */
   private ByteMap<ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>>>
   storage = new ByteMap<ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>>>();
+
+  /** The scanners caught by this instance. */
   private List<MockScanner> scanners = Lists.newArrayList();
+  
+  /** The multi-gets caught by this instance. */
+  private List<List<GetRequest>> multi_gets = Lists.newArrayList();
 
   /** The default family for shortcuts */
   private byte[] default_family;
@@ -672,6 +677,16 @@ public final class MockBase {
     return scanners.isEmpty() ? null : scanners.get(scanners.size() - 1);
   }
 
+  /** @return The list of multi-gets sent to this mock client. */
+  public List<List<GetRequest>> getMultiGets() {
+    return multi_gets;
+  }
+  
+  /** @return The last set of get requests sent to this mock client. */
+  public List<GetRequest> getLastMultiGets() {
+    return multi_gets.get(multi_gets.size() - 1);
+  }
+  
   /**
    * Return the mocked TSDB object to use for HBaseClient access
    * @return
@@ -1024,6 +1039,7 @@ public final class MockBase {
       final Object[] args = invocation.getArguments();
       @SuppressWarnings("unchecked")
       final List<GetRequest> gets = (List<GetRequest>) args[0];
+      multi_gets.add(gets);
       final List<GetResultOrException> results = 
           Lists.newArrayListWithCapacity(gets.size());
       for (final GetRequest get : gets) {

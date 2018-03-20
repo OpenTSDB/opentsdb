@@ -55,6 +55,8 @@ public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
   public static final String TREE_TABLE_KEY = "tree_table";
   public static final String META_TABLE_KEY = "meta_table";
   
+  public static final String MULTI_GET_CONCURRENT_KEY = "tsd.query.multiget.concurrent";
+  public static final String MULTI_GET_BATCH_KEY = "tsd.query.multiget.batch_size";
   public static final String EXPANSION_LIMIT_KEY = 
       "tsd.query.filter.expansion_limit";
   public static final String ROLLUP_USAGE_KEY = 
@@ -66,6 +68,7 @@ public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
   public static final String REVERSE_KEY = "tsd.query.reverse_time";
   public static final String ROWS_PER_SCAN_KEY = "tsd.query.rows_per_scan";
   public static final String MAX_MG_CARDINALITY_KEY = "tsd.query.multiget.max_cardinality";
+  
   
   public static final byte[] DATA_FAMILY = 
       "t".getBytes(Const.ASCII_CHARSET);
