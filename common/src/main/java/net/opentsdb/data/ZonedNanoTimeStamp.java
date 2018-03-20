@@ -149,6 +149,20 @@ public class ZonedNanoTimeStamp implements TimeStamp {
   }
 
   @Override
+  public boolean equals(final Object o) {
+    if (o == null) {
+      return false;
+    }
+    if (o == this) {
+      return true;
+    }
+    if (!(o instanceof TimeStamp)) {
+      return false;
+    }
+    return compare(RelationalOperator.EQ, (TimeStamp) o);
+  }
+  
+  @Override
   public boolean compare(final RelationalOperator comparator, 
                          final TimeStamp compareTo) {
     if (compareTo == null) {
