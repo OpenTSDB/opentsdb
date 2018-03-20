@@ -579,6 +579,11 @@ public class Schema implements StorageSchema {
     Bytes.setInt(row, base_time, salt_width + metric_width);
   }
   
+  public boolean timelessSalting() {
+    // TODO - implement
+    return true;
+  }
+  
   static class ResolvedFilterImplementation implements ResolvedFilter {
     protected byte[] tag_key;
     protected List<byte[]> tag_values;

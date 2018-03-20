@@ -22,11 +22,9 @@ import static org.junit.Assert.fail;
 import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.Period;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalAmount;
 
 import org.junit.Test;
 
@@ -1344,5 +1342,24 @@ public class TestZonedNanoTimeStamp {
       znt.snapToPreviousInterval(1, ChronoUnit.HALF_DAYS);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+  }
+
+  @Test
+  public void equals() throws Exception {
+    TimeStamp ts = new ZonedNanoTimeStamp(1000, UTC);
+    TimeStamp ts2 = null;
+    
+    assertFalse(ts.equals(ts2));
+    assertFalse(ts.equals("not a ts"));
+    assertTrue(ts.equals(ts));
+    
+    ts2 = new ZonedNanoTimeStamp(1000, UTC);
+    assertTrue(ts.equals(ts2));
+    
+    ts2.add(Duration.of(1, ChronoUnit.DAYS));
+    assertFalse(ts.equals(ts2));
+    
+    ts2 = new MillisecondTimeStamp(1000L);
+    assertTrue(ts.equals(ts2));
   }
 }

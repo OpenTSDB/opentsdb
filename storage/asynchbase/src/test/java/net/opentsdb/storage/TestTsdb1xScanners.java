@@ -145,8 +145,6 @@ public class TestTsdb1xScanners extends UTBase {
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
     assertSame(node, scanners.node);
     assertSame(query, scanners.query);
-    assertNull(scanners.rollup_intervals);
-    assertEquals(RollupUsage.ROLLUP_FALLBACK, scanners.rollup_usage);
     assertFalse(scanners.pre_aggregate);
     assertFalse(scanners.skip_nsun_tagks);
     assertFalse(scanners.skip_nsun_tagvs);
@@ -190,8 +188,6 @@ public class TestTsdb1xScanners extends UTBase {
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
     assertSame(node, scanners.node);
     assertSame(query, scanners.query);
-    assertNull(scanners.rollup_intervals);
-    assertEquals(RollupUsage.ROLLUP_RAW, scanners.rollup_usage);
     assertTrue(scanners.pre_aggregate);
     assertTrue(scanners.skip_nsun_tagks);
     assertTrue(scanners.skip_nsun_tagvs);
@@ -214,28 +210,20 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void ctorRollups() throws Exception {
-    when(rollup_config.getRollupInterval(3600, "1h"))
-        .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
-            .setInterval("1h")
-            .setTable("tsdb-1h")
-            .setPreAggregationTable("tsdb-1h")
-            .setRowSpan("1d")
-            .build(),
-          RollupInterval.builder()
-            .setInterval("30m")
-            .setTable("tsdb-30m")
-            .setPreAggregationTable("tsdb-30m")
-            .setRowSpan("1d")
-            .build()));
-    
-    when(rollup_config.getRollupInterval(1800, "30m"))
-      .thenReturn(Lists.<RollupInterval>newArrayList(
+    when(node.rollupIntervals())
+      .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
+          .setInterval("1h")
+          .setTable("tsdb-1h")
+          .setPreAggregationTable("tsdb-agg-1h")
+          .setRowSpan("1d")
+          .build(),
         RollupInterval.builder()
           .setInterval("30m")
           .setTable("tsdb-30m")
-          .setPreAggregationTable("tsdb-30m")
+          .setPreAggregationTable("tsdb-agg-30m")
           .setRowSpan("1d")
           .build()));
+    
     query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Integer.toString(START_TS))
@@ -249,8 +237,6 @@ public class TestTsdb1xScanners extends UTBase {
         .build();
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
-    assertEquals(2, scanners.rollup_intervals.size());
-    assertEquals(RollupUsage.ROLLUP_FALLBACK, scanners.rollup_usage);
     assertEquals("avg", scanners.rollup_group_by);
     assertEquals("sum", scanners.rollup_aggregation);
     
@@ -266,8 +252,6 @@ public class TestTsdb1xScanners extends UTBase {
             .setMetric(METRIC_STRING))
         .build();
     scanners = new Tsdb1xScanners(node, query);
-    assertEquals(1, scanners.rollup_intervals.size());
-    assertEquals(RollupUsage.ROLLUP_FALLBACK, scanners.rollup_usage);
     assertEquals("avg", scanners.rollup_group_by);
     assertEquals("max", scanners.rollup_aggregation);
   }
@@ -681,7 +665,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setMetric(METRIC_STRING))
         .build();
     
-    when(rollup_config.getRollupInterval(3600, "1h"))
+    when(node.rollupIntervals())
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
@@ -771,10 +755,9 @@ public class TestTsdb1xScanners extends UTBase {
                 .setAggregator("sum")))
         .addMetric(Metric.newBuilder()
             .setMetric(METRIC_STRING))
-        .addConfig(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY, "rollup_nofallback")
         .build();
     
-    when(rollup_config.getRollupInterval(3600, "1h"))
+    when(node.rollupIntervals())
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
@@ -787,6 +770,7 @@ public class TestTsdb1xScanners extends UTBase {
           .setPreAggregationTable("tsdb-agg-30m")
           .setRowSpan("1d")
           .build()));
+    when(node.rollupUsage()).thenReturn(RollupUsage.ROLLUP_NOFALLBACK);
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
     scanners.setupScanners(METRIC_BYTES, null);
@@ -834,7 +818,7 @@ public class TestTsdb1xScanners extends UTBase {
         .addConfig(Tsdb1xHBaseDataStore.PRE_AGG_KEY, "true")
         .build();
     
-    when(rollup_config.getRollupInterval(3600, "1h"))
+    when(node.rollupIntervals())
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
@@ -926,7 +910,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setMetric(METRIC_STRING))
         .build();
     
-    when(rollup_config.getRollupInterval(3600, "1h"))
+    when(node.rollupIntervals())
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
@@ -1000,7 +984,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setMetric(METRIC_STRING))
         .build();
     
-    when(rollup_config.getRollupInterval(3600, "1h"))
+    when(node.rollupIntervals())
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
@@ -1080,7 +1064,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setMetric(METRIC_STRING))
         .build();
     
-    when(rollup_config.getRollupInterval(3600, "1h"))
+    when(node.rollupIntervals())
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
@@ -1171,7 +1155,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setFilter("f1"))
         .build();
     
-    when(rollup_config.getRollupInterval(3600, "1h"))
+    when(node.rollupIntervals())
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
@@ -1284,7 +1268,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setFilter("f1"))
         .build();
     
-    when(rollup_config.getRollupInterval(3600, "1h"))
+    when(node.rollupIntervals())
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
@@ -1373,7 +1357,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setFilter("f1"))
         .build();
     
-    when(rollup_config.getRollupInterval(3600, "1h"))
+    when(node.rollupIntervals())
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
@@ -2255,7 +2239,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setMetric(METRIC_STRING))
         .build();
     
-    when(rollup_config.getRollupInterval(3600, "1h"))
+    when(node.rollupIntervals())
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")

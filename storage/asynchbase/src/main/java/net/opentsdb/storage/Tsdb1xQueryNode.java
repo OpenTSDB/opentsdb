@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import java.util.List;
+
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.QueryNode;
@@ -22,6 +24,8 @@ import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 
 /**
@@ -110,5 +114,15 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
   boolean deleteData() {
     // TODO  - implement
     return false;
+  }
+
+  List<RollupInterval> rollupIntervals() {
+    // TODO - implement
+    return null;
+  }
+  
+  RollupUsage rollupUsage() {
+    // TODO - implement
+    return null;
   }
 }

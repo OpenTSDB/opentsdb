@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,11 +17,9 @@ package net.opentsdb.data;
 import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.Period;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalAdjusters;
 import java.time.temporal.TemporalAmount;
 
 import net.opentsdb.common.Const;
@@ -91,6 +89,20 @@ public class MillisecondTimeStamp implements TimeStamp {
   @Override
   public void update(long epoch, long nano) {
     timestamp = epoch * 1000 + (nano / 1000000);
+  }
+  
+  @Override
+  public boolean equals(final Object o) {
+    if (o == null) {
+      return false;
+    }
+    if (o == this) {
+      return true;
+    }
+    if (!(o instanceof TimeStamp)) {
+      return false;
+    }
+    return compare(RelationalOperator.EQ, (TimeStamp) o);
   }
   
   @Override

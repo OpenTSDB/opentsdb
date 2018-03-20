@@ -96,12 +96,6 @@ public class Tsdb1xScanners {
   /** The single metric query from the node. */
   protected final TimeSeriesQuery query;
   
-  /** Matching rollup intervals if found, null if not. */
-  protected final List<RollupInterval> rollup_intervals;
-  
-  /** The rollup fallback mode configured for this query. */
-  protected final RollupUsage rollup_usage;
-  
   /** Search the query on pre-aggregated table directly instead of post fetch 
    * aggregation. */
   protected final boolean pre_aggregate;
@@ -218,13 +212,6 @@ public class Tsdb1xScanners {
       rows_per_scan = ((Tsdb1xHBaseDataStore) node.factory())
           .dynamicInt(Tsdb1xHBaseDataStore.ROWS_PER_SCAN_KEY);
     }
-    if (query.hasKey(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY)) {
-      rollup_usage = RollupUsage.parse(query.getString(config, 
-          Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY));
-    } else {
-      rollup_usage = RollupUsage.parse(((Tsdb1xHBaseDataStore) node.factory())
-          .dynamicString(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY));
-    }
     if (query.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY)) {
       skip_nsun_tagks = query.getBoolean(config, 
           Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY);
@@ -268,17 +255,10 @@ public class Tsdb1xScanners {
     }
     
     if (node.schema().rollupConfig() != null && 
-        rollup_usage != RollupUsage.ROLLUP_RAW) {
+        node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
       Downsampler ds = query.getMetrics().get(0).getDownsampler();
-      if (ds != null) {
-        rollup_intervals = node.schema().rollupConfig().getRollupInterval(
-            DateTime.parseDuration(ds.getInterval()) / 1000, ds.getInterval());
-      } else if (query.getTime().getDownsampler() != null) {
+      if (ds == null) {
         ds = query.getTime().getDownsampler();
-        rollup_intervals = node.schema().rollupConfig().getRollupInterval(
-            DateTime.parseDuration(ds.getInterval()) / 1000, ds.getInterval());
-      } else {
-        rollup_intervals = null;
       }
       
       if (ds != null) {
@@ -287,7 +267,6 @@ public class Tsdb1xScanners {
         rollup_aggregation = null;
       }
     } else {
-      rollup_intervals = null;
       rollup_aggregation = null;
     }
     
@@ -644,7 +623,8 @@ public class Tsdb1xScanners {
     }
     
     try {
-      int size = rollup_intervals == null ? 1 : rollup_intervals.size() + 1;
+      int size = node.rollupIntervals() == null ? 
+          1 : node.rollupIntervals().size() + 1;
       scanners = Lists.newArrayListWithCapacity(size);
       
       List<ScanFilter> scan_filters = null;
@@ -688,7 +668,8 @@ public class Tsdb1xScanners {
         scan_filters.add(new KeyRegexpFilter(regex, Const.ASCII_CHARSET));
       }
       
-      if (rollup_intervals != null && rollup_usage != RollupUsage.ROLLUP_RAW) {
+      if (node.rollupIntervals() != null && 
+          node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
         // make a raw and copy 
         raw_filters = scan_filters;
         scan_filters = Lists.newArrayList();
@@ -741,9 +722,10 @@ public class Tsdb1xScanners {
       }
       
       int idx = 0;
-      if (rollup_intervals != null && rollup_usage != RollupUsage.ROLLUP_RAW) {
-        for (int i = 0; i < rollup_intervals.size(); i++) {
-          final RollupInterval interval = rollup_intervals.get(idx);
+      if (node.rollupIntervals() != null && 
+          node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
+        for (int i = 0; i < node.rollupIntervals().size(); i++) {
+          final RollupInterval interval = node.rollupIntervals().get(idx);
           final Tsdb1xScanner[] array = new Tsdb1xScanner[node.schema().saltWidth() > 0 ? 
               node.schema().saltBuckets() : 1];
           scanners.add(array);
@@ -785,14 +767,15 @@ public class Tsdb1xScanners {
           idx++;
           
           // bail out
-          if (rollup_usage == RollupUsage.ROLLUP_NOFALLBACK && idx > 0) {
+          if (node.rollupUsage() == RollupUsage.ROLLUP_NOFALLBACK && idx > 0) {
             break;
           }
         }
       }
   
       // raw scanner here if applicable
-      if (rollup_intervals == null || rollup_usage != RollupUsage.ROLLUP_NOFALLBACK) {
+      if (node.rollupIntervals() == null || 
+          node.rollupUsage() != RollupUsage.ROLLUP_NOFALLBACK) {
         final Tsdb1xScanner[] array = new Tsdb1xScanner[node.schema().saltWidth() > 0 ? 
             node.schema().saltBuckets() : 1];
         scanners.add(array);
