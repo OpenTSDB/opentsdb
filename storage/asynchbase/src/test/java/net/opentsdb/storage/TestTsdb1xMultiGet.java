@@ -1,1102 +1,1540 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2016-2017  The OpenTSDB Authors.
+// Copyright (C) 2016-2018  The OpenTSDB Authors.
 //
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+package net.opentsdb.storage;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.anyList;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.TreeMap;
 
-import org.hbase.async.Bytes.ByteMap;
+import org.hbase.async.BinaryPrefixComparator;
+import org.hbase.async.FilterList;
 import org.hbase.async.GetRequest;
+import org.hbase.async.GetResultOrException;
+import org.hbase.async.HBaseClient;
+import org.hbase.async.KeyValue;
+import org.hbase.async.QualifierFilter;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Bytes;
 
-import net.opentsdb.core.MultiGetQuery.MultiGetTask;
+import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.TimeStamp;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.pojo.Downsampler;
+import net.opentsdb.query.pojo.Metric;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.rollup.RollupInterval;
-import net.opentsdb.rollup.RollupQuery;
-import net.opentsdb.stats.QueryStats;
-import net.opentsdb.utils.ByteSet;
+import net.opentsdb.rollup.RollupUtils.RollupUsage;
+import net.opentsdb.stats.MockTrace;
+import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.utils.UnitTestException;
 
 @RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"javax.management.*", "javax.xml.*", "ch.qos.*", "org.slf4j.*",
-  "com.sum.*", "org.xml.*", "javax.net.ssl.*"})
-public class TestMultiGetQuery extends BaseTsdbTest {
-  protected List<ByteMap<byte[][]>> q_tags;
-  protected List<ByteMap<byte[][]>> q_tags_nometa;
-  protected List<ByteMap<byte[][]>> q_tags_AD;
+@PrepareForTest({ HBaseClient.class })
+public class TestTsdb1xMultiGet extends UTBase {
 
-  protected long start_ts;
-  protected long end_ts;
-  protected TreeMap<byte[], Span> spans;
-  protected TreeMap<byte[], HistogramSpan> histogramSpans;
-  protected QueryStats query_stats;
-  protected Aggregator aggregator;
-  protected int max_bytes;
-  protected boolean multiget_no_meta;
-  protected TsdbQuery query;
+  // GMT: Monday, January 1, 2018 12:15:00 AM
+  public static final int START_TS = 1514765700;
+  
+  // GMT: Monday, January 1, 2018 1:15:00 AM
+  public static final int END_TS = 1514769300;
+  
+  public static final TimeStamp BASE_TS = new MillisecondTimeStamp(0L);
+  
+  public Tsdb1xQueryNode node;
+  public TimeSeriesQuery query;
+  public RollupConfig rollup_config;
+  public List<byte[]> tsuids;
   
   @Before
-  public void localBefore() {
-    max_bytes = 1000000;
-    multiget_no_meta = false;
-    start_ts = 1481227200;
-    end_ts = 1481284800;
-    q_tags = new ArrayList<ByteMap<byte[][]>>();
-    q_tags_AD = new ArrayList<ByteMap<byte[][]>>();
-    ByteMap<byte[][]> q_tags1;
-    q_tags1 = new ByteMap<byte[][]>();
-    byte[][] val;
-    val = new byte[1][];
-    val[0] = UIDS.get("A");
+  public void before() throws Exception {
+    node = mock(Tsdb1xQueryNode.class);
+    when(node.schema()).thenReturn(schema);
+    when(node.factory()).thenReturn(data_store);
+    when(node.fetchDataType(any(byte.class))).thenReturn(true);
+    rollup_config = mock(RollupConfig.class);
+    when(schema.rollupConfig()).thenReturn(rollup_config);
     
-    q_tags1.put(TAGK_BYTES, val);
-    val = new byte[1][];
-    val[0] = UIDS.get("D");
-    q_tags1.put(TAGK_B_BYTES, val);
-    ByteMap<byte[][]> q_tags2;
-    q_tags2 = new ByteMap<byte[][]>();
-    val = new byte[1][];
-    val[0] = UIDS.get("B");
-    q_tags2.put(TAGK_BYTES, val);
-    val = new byte[1][];
-    val[0] = UIDS.get("D");
-    q_tags2.put(TAGK_B_BYTES, val);
-    ByteMap<byte[][]> q_tags3;
-    q_tags3 = new ByteMap<byte[][]>();
-    val = new byte[1][];
-    val[0] = UIDS.get("C");
-    q_tags3.put(TAGK_BYTES, val);
-    val = new byte[1][];
-    val[0] = UIDS.get("D");
-    q_tags3.put(TAGK_B_BYTES, val);
-    
-    q_tags.add(q_tags1);
-    q_tags.add(q_tags2);
-    q_tags.add(q_tags3);
-    
-    q_tags_AD.add(q_tags1);
-    
-    q_tags_nometa = new ArrayList<ByteMap<byte[][]>>();
-    ByteMap<byte[][]> q_tags_map = new ByteMap<byte[][]>();
-    q_tags_map.put(TAGK_BYTES, new byte[][] { UIDS.get("A"), UIDS.get("B"), UIDS.get("C") });
-    q_tags_map.put(TAGK_B_BYTES, new byte[][] { UIDS.get("D") });
-    q_tags_map.put(UIDS.get("E"), new byte[][] { UIDS.get("F"), UIDS.get("G") });
-    q_tags_nometa.add(q_tags_map);
-//    q_tags1.put(TAGK_BYTES, new byte[][] { UIDS.get("A"), UIDS.get("B"), UIDS.get("C") });
-//    q_tags1.put(TAGK_B_BYTES, new byte[][] { UIDS.get("D") });
-//    q_tags1.put(UIDS.get("E"), new byte[][] { UIDS.get("F"), UIDS.get("G") });
-    
-    aggregator = Aggregators.get("sum");
-    
-    RollupConfig rollup_config = RollupConfig.builder()
-        .addAggregationId("sum", 0)
-        .addAggregationId("count", 1)
-        .addAggregationId("max", 2)
-        .addAggregationId("min", 3)
-        .addInterval(RollupInterval.builder()
-            .setTable("tsdb-rollup-10m")
-            .setPreAggregationTable("tsdb-rollup-agg-10m")
-            .setInterval("10m")
-            .setRowSpan("6h"))
-        .addInterval(RollupInterval.builder()
-            .setTable("tsdb-rollup-1h")
-            .setPreAggregationTable("tsdb-rollup-agg-1h")
-            .setInterval("1h")
-            .setRowSpan("1d"))
-        .addInterval(RollupInterval.builder()
-            .setTable("tsdb-rollup-1d")
-            .setPreAggregationTable("tsdb-rollup-agg-1d")
-            .setInterval("1d")
-            .setRowSpan("1n"))
-        .build();
-    Whitebox.setInternalState(tsdb, "rollup_config", rollup_config);
-  }
-  
-  @Test
-  public void ctor() throws Exception {
-    TsdbQuery query = new TsdbQuery(tsdb);
-    final MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    // TODO - validations
-  }
-  
-  @Test
-  public void prepareAllTagvCompounds() throws Exception {
-    multiget_no_meta = true;
-    MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags_nometa, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, 0, false, multiget_no_meta);
-    
-    List<byte[][]> tagvs = mgq.prepareAllTagvCompounds();
-    assertEquals(6, tagvs.size());
-    assertEquals(3, tagvs.get(0).length);
-    assertArrayEquals(UIDS.get("A"), tagvs.get(0)[0]);
-    assertArrayEquals(UIDS.get("D"), tagvs.get(0)[1]);
-    assertArrayEquals(UIDS.get("F"), tagvs.get(0)[2]);
-    
-    assertEquals(3, tagvs.get(1).length);
-    assertArrayEquals(UIDS.get("B"), tagvs.get(1)[0]);
-    assertArrayEquals(UIDS.get("D"), tagvs.get(1)[1]);
-    assertArrayEquals(UIDS.get("F"), tagvs.get(1)[2]);
-    
-    assertEquals(3, tagvs.get(2).length);
-    assertArrayEquals(UIDS.get("C"), tagvs.get(2)[0]);
-    assertArrayEquals(UIDS.get("D"), tagvs.get(2)[1]);
-    assertArrayEquals(UIDS.get("F"), tagvs.get(2)[2]);
-    
-    assertEquals(3, tagvs.get(3).length);
-    assertArrayEquals(UIDS.get("A"), tagvs.get(3)[0]);
-    assertArrayEquals(UIDS.get("D"), tagvs.get(3)[1]);
-    assertArrayEquals(UIDS.get("G"), tagvs.get(3)[2]);
-    
-    assertEquals(3, tagvs.get(4).length);
-    assertArrayEquals(UIDS.get("B"), tagvs.get(4)[0]);
-    assertArrayEquals(UIDS.get("D"), tagvs.get(4)[1]);
-    assertArrayEquals(UIDS.get("G"), tagvs.get(4)[2]);
-    
-    assertEquals(3, tagvs.get(5).length);
-    assertArrayEquals(UIDS.get("C"), tagvs.get(5)[0]);
-    assertArrayEquals(UIDS.get("D"), tagvs.get(5)[1]);
-    assertArrayEquals(UIDS.get("G"), tagvs.get(5)[2]);
-    
-    // simple test
-    q_tags_nometa = new ArrayList<ByteMap<byte[][]>>();
-    ByteMap<byte[][]> q_tags_nometa_map = new ByteMap<byte[][]>();
-    q_tags_nometa_map.put(TAGK_BYTES, new byte[][] { UIDS.get("A") });
-    q_tags_nometa.add(q_tags_nometa_map);
-    mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags_nometa, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, 0, false, multiget_no_meta);
-    tagvs = mgq.prepareAllTagvCompounds();
-    assertEquals(1, tagvs.size());
-    assertEquals(1, tagvs.get(0).length);
-    assertArrayEquals(UIDS.get("A"), tagvs.get(0)[0]);
-  }
-
-  @Test
-  public void prepareRowBaseTimes() throws Exception {
-    // aligned timestamps
-    MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    List<Long> timestamps = mgq.prepareRowBaseTimes();
-    assertEquals(17, timestamps.size());
-    long expected = 1481227200;
-    for (final long ts : timestamps) {
-      assertEquals(expected, ts);
-      expected += 3600;
-    }
-    
-    // unaligned
-    start_ts = 1481229792;
-    end_ts = 1481284801;
-    mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    timestamps = mgq.prepareRowBaseTimes();
-    assertEquals(17, timestamps.size());
-    expected = 1481227200;
-    for (final long ts : timestamps) {
-      assertEquals(expected, ts);
-      expected += 3600;
-    }
-    
-    // short interval
-    start_ts = 1481229792;
-    end_ts = 1481229961;
-    mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    timestamps = mgq.prepareRowBaseTimes();
-    assertEquals(1, timestamps.size());
-    assertEquals(1481227200, (long) timestamps.get(0));
-  }
-
-  @Test
-  public void prepareRowBaseTimesRollup() throws Exception {
-    RollupInterval interval = RollupInterval.builder()
-        .setTable("tsdb")
-        .setPreAggregationTable("tsdb_agg")
-        .setInterval("1m")
-        .setRowSpan("1h")
-        .build();
-    RollupQuery rq = new RollupQuery(interval, aggregator, 0, aggregator);
-    MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, rq, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    List<Long> timestamps = mgq.prepareRowBaseTimesRollup();
-    assertEquals(17, timestamps.size());
-    long expected = 1481227200;
-    for (final long ts : timestamps) {
-      assertEquals(expected, ts);
-      expected += 3600;
-    }
-
-    interval = RollupInterval.builder()
-        .setTable("tsdb")
-        .setPreAggregationTable("tsdb_agg")
-        .setInterval("1m")
-        .setRowSpan("1d")
-        .build();
-    rq = new RollupQuery(interval, aggregator, 0, aggregator);
-    mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, rq, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    timestamps = mgq.prepareRowBaseTimesRollup();
-    timestamps = mgq.prepareRowBaseTimesRollup();
-    assertEquals(2, timestamps.size());
-    expected = 1481155200;
-    for (final long ts : timestamps) {
-      assertEquals(expected, ts);
-      expected += 86400;
-    }
-  }
-
-  @Test
-  public void prepareRequests() throws Exception {
-    MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    List<Long> timestamps = mgq.prepareRowBaseTimes();
-    ByteMap<ByteMap<List<GetRequest>>> row_map = mgq.prepareRequests(timestamps, q_tags);
-    ByteSet tsuids = new ByteSet();
-    for (ByteMap<List<GetRequest>> rows : row_map.values()) {
-      tsuids.addAll(rows.keySet());
-    }
-    assertEquals(3, tsuids.size());
-    
-    List<GetRequest> rows = new ArrayList<GetRequest>();
-    for (Entry<byte[], ByteMap<List<GetRequest>>> salt_entry : row_map.entrySet()) {
-      System.out.println(salt_entry.getValue());
-      rows.addAll(salt_entry.getValue().get(getTSUID(METRIC_STRING, TAGK_STRING, 
-         "A", TAGK_B_STRING, "D")));
-    }
-
-    assertEquals(timestamps.size(), rows.size());
-    for (int i = 0; i < timestamps.size(); i++) {
-      byte[] key = getRowKey(METRIC_STRING, timestamps.get(i).intValue(), 
-          TAGK_STRING, "A", TAGK_B_STRING, "D");
-      assertArrayEquals(key, rows.get(i).key());
-    }
-    
-    rows = new ArrayList<GetRequest>();
-    for (Entry<byte[], ByteMap<List<GetRequest>>> salt_entry : row_map.entrySet()) {
-      rows.addAll(salt_entry.getValue().get(getTSUID(METRIC_STRING, TAGK_STRING, 
-         "B", TAGK_B_STRING, "D")));
-    }
-    assertEquals(timestamps.size(), rows.size());
-    for (int i = 0; i < timestamps.size(); i++) {
-      byte[] key = getRowKey(METRIC_STRING, timestamps.get(i).intValue(), 
-          TAGK_STRING, "B", TAGK_B_STRING, "D");
-      assertArrayEquals(key, rows.get(i).key());
-    }
-    
-    rows = new ArrayList<GetRequest>();
-    for (Entry<byte[], ByteMap<List<GetRequest>>> salt_entry : row_map.entrySet()) {
-      rows.addAll(salt_entry.getValue().get(getTSUID(METRIC_STRING, TAGK_STRING, 
-         "C", TAGK_B_STRING, "D")));
-    }
-    assertEquals(timestamps.size(), rows.size());
-    for (int i = 0; i < timestamps.size(); i++) {
-      byte[] key = getRowKey(METRIC_STRING, timestamps.get(i).intValue(), 
-          TAGK_STRING, "C", TAGK_B_STRING, "D");
-      assertArrayEquals(key, rows.get(i).key());
-    }
-    
-    rows = new ArrayList<GetRequest>();
-    for (Entry<byte[], ByteMap<List<GetRequest>>> salt_entry : row_map.entrySet()) {
-      rows.addAll(salt_entry.getValue().get(getTSUID(METRIC_STRING, TAGK_STRING, 
-          "A", TAGK_B_STRING, "D")));
-    }
-   
-    assertEquals(timestamps.size(), rows.size());
-    for (int i = 0; i < timestamps.size(); i++) {
-      byte[] key = getRowKey(METRIC_STRING, timestamps.get(i).intValue(), 
-          TAGK_STRING, "A", TAGK_B_STRING, "D");
-      assertArrayEquals(key, rows.get(i).key());
-    }
-    
-    rows = new ArrayList<GetRequest>();
-    for (Entry<byte[], ByteMap<List<GetRequest>>> salt_entry : row_map.entrySet()) {
-      rows.addAll(salt_entry.getValue().get(getTSUID(METRIC_STRING, TAGK_STRING, 
-          "B", TAGK_B_STRING, "D")));
-    }
-    assertEquals(timestamps.size(), rows.size());
-    for (int i = 0; i < timestamps.size(); i++) {
-      byte[] key = getRowKey(METRIC_STRING, timestamps.get(i).intValue(), 
-          TAGK_STRING, "B", TAGK_B_STRING, "D");
-      assertArrayEquals(key, rows.get(i).key());
-    }
-    
-    rows = new ArrayList<GetRequest>();
-    for (Entry<byte[], ByteMap<List<GetRequest>>> salt_entry : row_map.entrySet()) {
-      rows.addAll(salt_entry.getValue().get(getTSUID(METRIC_STRING, TAGK_STRING, 
-          "C", TAGK_B_STRING, "D")));
-    }
-    assertEquals(timestamps.size(), rows.size());
-    for (int i = 0; i < timestamps.size(); i++) {
-      byte[] key = getRowKey(METRIC_STRING, timestamps.get(i).intValue(), 
-          TAGK_STRING, "C", TAGK_B_STRING, "D");
-      assertArrayEquals(key, rows.get(i).key());
-    }
-  }
-  
-  @Test
-  public void prepareRowKeysAllSalts() throws Exception {
-    multiget_no_meta = true;
-    if (Const.SALT_WIDTH() == 0) {
-      return;
-    }
-    config.overrideConfig("tsd.query.multi_get.get_all_salts", "true");
-    
-    MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags_nometa, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, 0, false, multiget_no_meta);
-    List<Long> timestamps = Lists.newArrayList(1481227200L, 1481230800L);
-    List<byte[][]> q_tags_compounds = mgq.prepareAllTagvCompounds();
-    ByteMap<ByteMap<List<GetRequest>>> row_map_map = mgq.prepareRequestsNoMeta( q_tags_compounds, timestamps);
-    ByteMap<List<GetRequest>> row_map = row_map_map.get("0".getBytes());
-    assertEquals(6, row_map.size());
-    
-    List<GetRequest> rows = row_map.get(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "A", TAGK_B_STRING, "D", "E", "F"));
-    assertEquals(timestamps.size() * Const.SALT_BUCKETS(), rows.size());
-    for (int i = 0; i < timestamps.size(); i += Const.SALT_BUCKETS()) {
-      for (int x = 0; x < Const.SALT_BUCKETS(); x++) {
-        byte[] key = getRowKey(METRIC_STRING, timestamps.get(i).intValue(), 
-            TAGK_STRING, "A", TAGK_B_STRING, "D", "E", "F");
-        key[0] = (byte) x;
-        assertArrayEquals(key, rows.get(i + x).key());
-      }
-    }
-    
-    rows = row_map.get(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "B", TAGK_B_STRING, "D", "E", "F"));
-    assertEquals(timestamps.size() * Const.SALT_BUCKETS(), rows.size());
-    for (int i = 0; i < timestamps.size(); i += Const.SALT_BUCKETS()) {
-      for (int x = 0; x < Const.SALT_BUCKETS(); x++) {
-        byte[] key = getRowKey(METRIC_STRING, timestamps.get(i).intValue(), 
-            TAGK_STRING, "B", TAGK_B_STRING, "D", "E", "F");
-        key[0] = (byte) x;
-        assertArrayEquals(key, rows.get(i + x).key());
-      }
-    }
-    
-    rows = row_map.get(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "C", TAGK_B_STRING, "D", "E", "F"));
-    assertEquals(timestamps.size() * Const.SALT_BUCKETS(), rows.size());
-    for (int i = 0; i < timestamps.size(); i += Const.SALT_BUCKETS()) {
-      for (int x = 0; x < Const.SALT_BUCKETS(); x++) {
-        byte[] key = getRowKey(METRIC_STRING, timestamps.get(i).intValue(), 
-            TAGK_STRING, "C", TAGK_B_STRING, "D", "E", "F");
-        key[0] = (byte) x;
-        assertArrayEquals(key, rows.get(i + x).key());
-      }
-    }
-    
-    rows = row_map.get(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "B", TAGK_B_STRING, "D", "E", "G"));
-    assertEquals(timestamps.size() * Const.SALT_BUCKETS(), rows.size());
-    for (int i = 0; i < timestamps.size(); i += Const.SALT_BUCKETS()) {
-      for (int x = 0; x < Const.SALT_BUCKETS(); x++) {
-        byte[] key = getRowKey(METRIC_STRING, timestamps.get(i).intValue(), 
-            TAGK_STRING, "B", TAGK_B_STRING, "D", "E", "G");
-        key[0] = (byte) x;
-        assertArrayEquals(key, rows.get(i + x).key());
-      }
-    }
-    rows = row_map.get(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "C", TAGK_B_STRING, "D", "E", "G"));
-    assertEquals(timestamps.size() * Const.SALT_BUCKETS(), rows.size());
-    for (int i = 0; i < timestamps.size(); i += Const.SALT_BUCKETS()) {
-      for (int x = 0; x < Const.SALT_BUCKETS(); x++) {
-        byte[] key = getRowKey(METRIC_STRING, timestamps.get(i).intValue(), 
-            TAGK_STRING, "C", TAGK_B_STRING, "D", "E", "G");
-        key[0] = (byte) x;
-        assertArrayEquals(key, rows.get(i + x).key());
-      }
-    }
-  }
-  
-  @Test
-  public void prepareConcurrentMultiGetTasks() throws Exception {
-    MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    mgq.prepareConcurrentMultiGetTasks();
-    final List<List<MultiGetTask>> tasks = mgq.getMultiGetTasks();
-  
-    assertEquals(config.getInt("tsd.query.multi_get.concurrent"), tasks.size());
-    for (int i = 1; i < tasks.size(); i++) {
-      assertTrue(tasks.get(i).isEmpty());
-    }
-    
-    for (List<MultiGetTask> taskList : tasks) {
-      for (MultiGetTask task : taskList) {
-        byte salt = task.getGets().get(0).key()[0];
-        for (GetRequest request : task.getGets()) {
-         assertEquals(salt, request.key()[0]);
+    PowerMockito.whenNew(Tsdb1xScanner.class).withAnyArguments()
+      .thenAnswer(new Answer<Tsdb1xScanner>() {
+        @Override
+        public Tsdb1xScanner answer(InvocationOnMock invocation)
+            throws Throwable {
+          return mock(Tsdb1xScanner.class);
         }
-      }
-    }
+      });
     
-    assertEquals(1, tasks.get(0).size());
-    MultiGetTask task = tasks.get(0).get(0);
-    assertEquals(3, task.getTSUIDs().size());
-    assertNotNull(task.getTSUIDs().contains(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "A", TAGK_B_STRING, "D")));
-    assertNotNull(task.getTSUIDs().contains(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "B", TAGK_B_STRING, "D")));
-    assertNotNull(task.getTSUIDs().contains(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "C", TAGK_B_STRING, "D")));
-    assertNotNull(task.getTSUIDs().contains(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "A", TAGK_B_STRING, "D")));
-    assertNotNull(task.getTSUIDs().contains(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "B", TAGK_B_STRING, "D")));
-    assertNotNull(task.getTSUIDs().contains(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "C", TAGK_B_STRING, "D")));
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING))
+        .build();
     
-    assertEquals(51, task.getGets().size());
+    when(data_store.dynamicString(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY)).thenReturn("Rollup_Fallback");
+    when(data_store.dynamicInt(Tsdb1xHBaseDataStore.MULTI_GET_CONCURRENT_KEY)).thenReturn(2);
+    when(data_store.dynamicInt(Tsdb1xHBaseDataStore.MULTI_GET_BATCH_KEY)).thenReturn(4);
     
+    when(rollup_config.getIdForAggregator("sum")).thenReturn(1);
+    when(rollup_config.getIdForAggregator("count")).thenReturn(2);
     
-    // 6 sets of 17 timestamps. Ugly UT
-    int idx = 0;
-    int ts = 1481227200;
-    while (idx < 17) {
-    
-      assertArrayEquals(task.getGets().get(idx++).key(), 
-          getRowKey(METRIC_STRING, ts, TAGK_STRING, "A", TAGK_B_STRING, "D"));
-      ts += 3600;
-    }
-
-    ts = 1481227200;
-    while (idx < 17) {
-      assertArrayEquals(task.getGets().get(idx++).key(), 
-          getRowKey(METRIC_STRING, ts, TAGK_STRING, "B", TAGK_B_STRING, "D"));
-      ts += 3600;
-    }
-    ts = 1481227200;
-   
-    while (idx < 17) {
-      assertArrayEquals(task.getGets().get(idx++).key(), 
-          getRowKey(METRIC_STRING, ts, TAGK_STRING, "C", TAGK_B_STRING, "D"));
-      ts += 3600;
-    }
-   
+    tsuids = Lists.newArrayList();
+    // out of order!
+    tsuids.add(Bytes.concat(METRIC_B_BYTES, TAGK_BYTES, TAGV_BYTES));
+    tsuids.add(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_B_BYTES));
+    tsuids.add(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_BYTES));
+    tsuids.add(Bytes.concat(METRIC_B_BYTES, TAGK_BYTES, TAGV_B_BYTES));
   }
   
   @Test
-  public void prepareConcurrentMultiGetTasksSmallBatch() throws Exception {
-    config.overrideConfig("tsd.query.multi_get.batch_size", "17");
-    MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    mgq.prepareConcurrentMultiGetTasks();
-    final List<List<MultiGetTask>> tasks = mgq.getMultiGetTasks();
-    assertEquals(config.getInt("tsd.query.multi_get.concurrent"), tasks.size());
-    assertEquals(1, tasks.get(0).size());
-    
-    // first batch
-    MultiGetTask task = tasks.get(0).get(0);
-    Set<byte[]> tsuids = task.getTSUIDs();
-    assertEquals(1, task.getTSUIDs().size());
-    assertNotNull(task.getTSUIDs().contains(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "A", TAGK_B_STRING, "D")));
-    assertEquals(17, task.getGets().size());
-    int idx = 0;
-    int ts = 1481227200;
-    while (idx < 17) { // notice the early cut off. The last hour should spill over.
-      assertArrayEquals(task.getGets().get(idx++).key(), 
-          getRowKey(METRIC_STRING, ts, TAGK_STRING, "A", TAGK_B_STRING, "D"));
-      ts += 3600;
-    }
-    
-    // next batch
-    task = tasks.get(1).get(0);
-    assertEquals(1, task.getTSUIDs().size());
-    assertNotNull(task.getTSUIDs().contains(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "B", TAGK_B_STRING, "D")));
-    assertNotNull(task.getTSUIDs().contains(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "B", TAGK_B_STRING, "D")));
-    assertEquals(17, task.getGets().size());
-    idx = 0;
-    ts = 1481227200;
-
-   
-    while (idx < 17) {
-      assertArrayEquals(task.getGets().get(idx++).key(), 
-          getRowKey(METRIC_STRING, ts, TAGK_STRING, "B", TAGK_B_STRING, "D"));
-      ts += 3600;
-    }
-    
-    // next batch
-    task = tasks.get(2).get(0);
-    assertEquals(1, task.getTSUIDs().size());
-    assertNotNull(task.getTSUIDs().contains(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "C", TAGK_B_STRING, "D")));
-    assertNotNull(task.getTSUIDs().contains(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "C", TAGK_B_STRING, "D")));
-    assertEquals(17, task.getGets().size());
-    idx = 0;
-    ts = 1481227200;
-    while (idx < 17) {
-      assertArrayEquals(task.getGets().get(idx++).key(), 
-          getRowKey(METRIC_STRING, ts, TAGK_STRING, "C", TAGK_B_STRING, "D"));
-      ts += 3600;
-    }
-    
-  }
-  
-  
-  @Test
-  public void prepareConcurrentMultiSortedSalts() 
-      throws Exception {
-    config.overrideConfig("tsd.query.multi_get.concurrent", "2");
-    config.overrideConfig("tsd.query.multi_get.batch_size", "2");
-    Const.setSaltWidth(1);
-    MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    mgq.prepareConcurrentMultiGetTasks();
-    final List<List<MultiGetTask>> tasks = mgq.getMultiGetTasks();
-    assertEquals(config.getInt("tsd.query.multi_get.concurrent"), tasks.size());
-
-    for (List<MultiGetTask> taskList : tasks) {
-      for (MultiGetTask task : taskList) {
-        byte salt = task.getGets().get(0).key()[0];
-        for (GetRequest request : task.getGets()) {
-         assertEquals(salt, request.key()[0]);
-        }
-      }
-    }
-    Const.setSaltWidth(0);
-
-  }
-  
-  @Test
-  public void prepareConcurrentMultiGetTasksSmallBatchAndSmallConcurrent() 
-      throws Exception {
-    config.overrideConfig("tsd.query.multi_get.concurrent", "2");
-    config.overrideConfig("tsd.query.multi_get.batch_size", "17");
-    MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    mgq.prepareConcurrentMultiGetTasks();
-    final List<List<MultiGetTask>> tasks = mgq.getMultiGetTasks();
-    assertEquals(config.getInt("tsd.query.multi_get.concurrent"), tasks.size());
-    assertEquals(2, tasks.get(0).size());
-    assertEquals(1, tasks.get(1).size());
-    
-    for (List<MultiGetTask> taskList : tasks) {
-      for (MultiGetTask task : taskList) {
-        byte salt = task.getGets().get(0).key()[0];
-        for (GetRequest request : task.getGets()) {
-         assertEquals(salt, request.key()[0]);
-        }
-      }
-    }
-    
-    // first batch
-    MultiGetTask task = tasks.get(0).get(0);
-    assertEquals(1, task.getTSUIDs().size());
-    assertNotNull(task.getTSUIDs().contains(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "A", TAGK_B_STRING, "D")));
-    assertEquals(17, task.getGets().size());
-    int idx = 0;
-    int ts = 1481227200;
-    while (idx < 16) { // notice the early cut off. The last hour should spill over.
-      
-      assertArrayEquals(task.getGets().get(idx++).key(), 
-          getRowKey(METRIC_STRING, ts, TAGK_STRING, "A", TAGK_B_STRING, "D"));
-      ts += 3600;
-    }
-    // 17th request
-    assertArrayEquals(task.getGets().get(idx++).key(), 
-        getRowKey(METRIC_STRING, ts, TAGK_STRING, "A", TAGK_B_STRING, "D"));
-    ts += 3600;
-    // next batch
-    task = tasks.get(1).get(0);
-    assertEquals(1, task.getTSUIDs().size());
-    assertNotNull(task.getTSUIDs().contains(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "B", TAGK_B_STRING, "D")));
-    assertNotNull(task.getTSUIDs().contains(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "B", TAGK_B_STRING, "D")));
-    assertEquals(17, task.getGets().size());
-    idx = 0;
-    ts = 1481227200;
-
-//    assertArrayEquals(task.getGets().get(idx++).key(), 
-//        getRowKey(METRIC_STRING, ts, TAGK_STRING, "B", TAGK_B_STRING, "D"));
-   
-    while (idx < 17) {
-      assertArrayEquals(task.getGets().get(idx++).key(), 
-          getRowKey(METRIC_STRING, ts, TAGK_STRING, "B", TAGK_B_STRING, "D"));
-      ts += 3600;
-    }
-    
-    // next batch
-    task = tasks.get(0).get(1);
-    assertEquals(1, task.getTSUIDs().size());
-    assertNotNull(task.getTSUIDs().contains(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "C", TAGK_B_STRING, "D")));
-    assertNotNull(task.getTSUIDs().contains(getTSUID(METRIC_STRING, TAGK_STRING, 
-        "C", TAGK_B_STRING, "D")));
-    assertEquals(17, task.getGets().size());
-    idx = 0;
-    ts = 1481227200;
-    while (idx < 17) {
-      assertArrayEquals(task.getGets().get(idx++).key(), 
-          getRowKey(METRIC_STRING, ts, TAGK_STRING, "C", TAGK_B_STRING, "D"));
-      ts += 3600;
-    }
-    
-    
-  }
-
-  @Test
-  public void fetch() throws Exception {
-    setupStorage();
-    MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    
-    final TreeMap<byte[], Span> results = mgq.fetch().join();
-    assertSame(spans, results);
-    verify(client, times(1)).get(anyList());
-    System.out.println(spans);
-    validateSpans();
-  }
-  
-  @Test
-  public void fetchMultigetNoMeta() throws Exception {
-    setupStorageNoMeta();
-    multiget_no_meta = true;
-    MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags_nometa, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    
-    final TreeMap<byte[], Span> results = mgq.fetch().join();
-    assertSame(spans, results);
-    verify(client, times(1)).get(anyList());
-    System.out.println(spans);
-    validateSpansNometa();
-  }
-
-  @Test (expected=QueryException.class)
-  public void fetchMoreThanMaxBytes() throws Exception {
-    setupStorage();
-    max_bytes = 0;
-    MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    final TreeMap<byte[], Span> results = mgq.fetch().join();
-  }
-  
-  @Test
-  public void fetchEmptyTable() throws Exception {
-    setDataPointStorage();
-    spans = new TreeMap<byte[], Span>(new TsdbQuery.SpanCmp(TSDB.metrics_width()));
-    MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    
-    final TreeMap<byte[], Span> results = mgq.fetch().join();
-    assertSame(spans, results);
-    assertTrue(spans.isEmpty());
-    verify(client, times(1)).get(anyList());
-  }
-  
-  @Test
-  public void fetchSmallBatch() throws Exception {
-    setupStorage();
-    config.overrideConfig("tsd.query.multi_get.batch_size", "16");
-    
-    MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    
-    final TreeMap<byte[], Span> results = mgq.fetch().join();
-    assertSame(spans, results);
-    verify(client, times(4)).get(anyList());
-    validateSpans();
-  }
-  
-  @Test
-  public void fetchSmallBatchAndSmallConcurrent() throws Exception {
-    setupStorage();
-    config.overrideConfig("tsd.query.multi_get.concurrent", "2");
-    config.overrideConfig("tsd.query.multi_get.batch_size", "16");
-    
-    MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, max_bytes, false, multiget_no_meta);
-    
-    final TreeMap<byte[], Span> results = mgq.fetch().join();
-    assertSame(spans, results);
-    verify(client, times(4)).get(anyList());
-    validateSpans();
-  }
-  
-  @Test
-  public void fetchException() throws Exception {
-    setupStorage();
-    final RuntimeException e = new RuntimeException("Boo!");
-    storage.throwException(getRowKey(METRIC_STRING, (int) start_ts, TAGK_STRING, 
-        "A", TAGK_B_STRING, "D"), e);
-    MultiGetQuery mgq = new MultiGetQuery(tsdb, query, METRIC_BYTES, q_tags_AD, 
-        start_ts, end_ts, tsdb.dataTable(), spans, null, 0, null, query_stats, 
-        0, 10000000, false, false);
+  public void ctorDefaults() throws Exception {
+    try {
+      new Tsdb1xMultiGet(null, query, tsuids);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
     
     try {
-      mgq.fetch().join();
-      fail("Expected RuntimeException");
-    } catch (RuntimeException ex) {
-      assertSame(ex, e);
-    }
-    verify(client, times(1)).get(anyList());
+      new Tsdb1xMultiGet(node, null, tsuids);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      new Tsdb1xMultiGet(node, query, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      new Tsdb1xMultiGet(node, query, Lists.newArrayList());
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    assertSame(node, mget.node);
+    assertSame(query, mget.query);
+    assertSame(tsuids, mget.tsuids);
+    assertEquals("avg", mget.rollup_group_by);
+    assertNull(mget.rollup_aggregation);
+    assertEquals(2, mget.concurrency_multi_get);
+    assertFalse(mget.reversed);
+    assertEquals(4, mget.batch_size);
+    assertNull(mget.filter);
+    assertFalse(mget.rollups_enabled);
+    assertFalse(mget.pre_aggregate);
+    assertEquals(-1, mget.tsuid_idx);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.rollup_index);
+    assertEquals(1, mget.tables.size());
+    assertArrayEquals(DATA_TABLE, mget.tables.get(0));
+    assertEquals(0, mget.outstanding);
+    assertFalse(mget.has_failed);
+    assertNull(mget.current_result);
+    
+    // assert sorted
+    assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_BYTES), 
+        mget.tsuids.get(0));
+    assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_B_BYTES), 
+        mget.tsuids.get(1));
+    assertArrayEquals(Bytes.concat(METRIC_B_BYTES, TAGK_BYTES, TAGV_BYTES), 
+        mget.tsuids.get(2));
+    assertArrayEquals(Bytes.concat(METRIC_B_BYTES, TAGK_BYTES, TAGV_B_BYTES), 
+        mget.tsuids.get(3));
   }
   
-  /**
-   * Validates the data setup in {@link #setupStorage()} is returned in the requests.
-   * @throws Exception if something went pear shaped.
-   */
-  protected void validateSpansNometa() throws Exception {
-    assertEquals(6, spans.size());
-    Span span = spans.get(getRowKey(METRIC_STRING, (int) start_ts, TAGK_STRING, 
-        "A", TAGK_B_STRING, "D", "E", "F"));
-    SeekableView view = span.iterator();
-    long ts = start_ts * 1000;
-    long v = 1;
-    while (view.hasNext()) {
-      DataPoint dp = view.next();
-      assertEquals(ts, dp.timestamp());
-      assertEquals(v++, dp.longValue());
-      ts += 3600000;
-    }
+  @Test
+  public void ctorQueryOverrides() throws Exception {
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING))
+        .addConfig(Tsdb1xHBaseDataStore.PRE_AGG_KEY, "true")
+        .addConfig(Tsdb1xHBaseDataStore.MULTI_GET_CONCURRENT_KEY, "8")
+        .addConfig(Tsdb1xHBaseDataStore.MULTI_GET_BATCH_KEY, "16")
+        .addConfig(Tsdb1xHBaseDataStore.REVERSE_KEY, "true")
+        .build();
     
-    span = spans.get(getRowKey(METRIC_STRING, (int) start_ts, TAGK_STRING, 
-        "B", TAGK_B_STRING, "D", "E", "F"));
-    view = span.iterator();
-    ts = start_ts * 1000;
-    v = 11;
-    while (view.hasNext()) {
-      DataPoint dp = view.next();
-      assertEquals(ts, dp.timestamp());
-      assertEquals(v++, dp.longValue());
-      ts += 3600000;
-    }
-    
-    span = spans.get(getRowKey(METRIC_STRING, (int) start_ts, TAGK_STRING, 
-        "C", TAGK_B_STRING, "D", "E", "F"));
-    view = span.iterator();
-    ts = start_ts * 1000;
-    v = 111;
-    while (view.hasNext()) {
-      DataPoint dp = view.next();
-      assertEquals(ts, dp.timestamp());
-      assertEquals(v++, dp.longValue());
-      ts += 3600000;
-    }
-    
-    span = spans.get(getRowKey(METRIC_STRING, (int) start_ts, TAGK_STRING, 
-        "A", TAGK_B_STRING, "D", "E", "G"));
-    view = span.iterator();
-    ts = start_ts * 1000;
-    v = 1111;
-    while (view.hasNext()) {
-      DataPoint dp = view.next();
-      assertEquals(ts, dp.timestamp());
-      assertEquals(v++, dp.longValue());
-      ts += 3600000;
-    }
-    
-    span = spans.get(getRowKey(METRIC_STRING, (int) start_ts, TAGK_STRING, 
-        "B", TAGK_B_STRING, "D", "E", "G"));
-    view = span.iterator();
-    ts = start_ts * 1000;
-    v = 11111;
-    while (view.hasNext()) {
-      DataPoint dp = view.next();
-      assertEquals(ts, dp.timestamp());
-      assertEquals(v++, dp.longValue());
-      ts += 3600000;
-    }
-    
-    span = spans.get(getRowKey(METRIC_STRING, (int) start_ts, TAGK_STRING, 
-        "C", TAGK_B_STRING, "D", "E", "G"));
-    view = span.iterator();
-    ts = start_ts * 1000;
-    v = 111111;
-    while (view.hasNext()) {
-      DataPoint dp = view.next();
-      assertEquals(ts, dp.timestamp());
-      assertEquals(v++, dp.longValue());
-      ts += 3600000;
-    }
-  }
-  
-  /**
-   * Validates the data setup in {@link #setupStorage()} is returned in the requests.
-   * @throws Exception if something went pear shaped.
-   */
-  protected void validateSpans() throws Exception {
-    System.out.println(spans);
-    assertEquals(3, spans.size());
-    Span span = spans.get(getRowKey(METRIC_STRING, (int) start_ts, TAGK_STRING, 
-        "A", TAGK_B_STRING, "D"));
-    SeekableView view = span.iterator();
-    long ts = start_ts * 1000;
-    long v = 1;
-    while (view.hasNext()) {
-      DataPoint dp = view.next();
-      assertEquals(ts, dp.timestamp());
-      assertEquals(v++, dp.longValue());
-      ts += 3600000;
-    }
-    
-    span = spans.get(getRowKey(METRIC_STRING, (int) start_ts, TAGK_STRING, 
-        "B", TAGK_B_STRING, "D"));
-    view = span.iterator();
-    ts = start_ts * 1000;
-    v = 11;
-    while (view.hasNext()) {
-      DataPoint dp = view.next();
-      assertEquals(ts, dp.timestamp());
-      assertEquals(v++, dp.longValue());
-      ts += 3600000;
-    }
-    
-    span = spans.get(getRowKey(METRIC_STRING, (int) start_ts, TAGK_STRING, 
-        "C", TAGK_B_STRING, "D"));
-    view = span.iterator();
-    ts = start_ts * 1000;
-    v = 111;
-    while (view.hasNext()) {
-      DataPoint dp = view.next();
-      assertEquals(ts, dp.timestamp());
-      assertEquals(v++, dp.longValue());
-      ts += 3600000;
-    }
-    
-    span = spans.get(getRowKey(METRIC_STRING, (int) start_ts, TAGK_STRING, 
-        "A", TAGK_B_STRING, "D"));
-    view = span.iterator();
-    ts = start_ts * 1000;
-    v = 1;
-    while (view.hasNext()) {
-      DataPoint dp = view.next();
-      assertEquals(ts, dp.timestamp());
-      assertEquals(v++, dp.longValue());
-      ts += 3600000;
-    }
-    
-    span = spans.get(getRowKey(METRIC_STRING, (int) start_ts, TAGK_STRING, 
-        "B", TAGK_B_STRING, "D"));
-    view = span.iterator();
-    ts = start_ts * 1000;
-    v = 11;
-    while (view.hasNext()) {
-      DataPoint dp = view.next();
-      assertEquals(ts, dp.timestamp());
-      assertEquals(v++, dp.longValue());
-      ts += 3600000;
-    }
-    
-    span = spans.get(getRowKey(METRIC_STRING, (int) start_ts, TAGK_STRING, 
-        "C", TAGK_B_STRING, "D"));
-    view = span.iterator();
-    ts = start_ts * 1000;
-    v = 111;
-    while (view.hasNext()) {
-      DataPoint dp = view.next();
-      assertEquals(ts, dp.timestamp());
-      assertEquals(v++, dp.longValue());
-      ts += 3600000;
-    }
-  }
-  
-  /**
-   * Helper that writes a data point for each row that the get request should
-   * cover.
-   * @throws Exception if something went pear shaped.
-   */
-  protected void setupStorageNoMeta() throws Exception {
-    setDataPointStorage();
-    spans = new TreeMap<byte[], Span>(new TsdbQuery.SpanCmp(TSDB.metrics_width()));
-    
-    int value = 1;
-    int ts = (int) start_ts;
-    tags.clear();
-    tags.put(TAGK_STRING, "A");
-    tags.put(TAGK_B_STRING, "D");
-    tags.put("E", "F");
-    while (ts <= (int) end_ts) {
-      tsdb.addPoint(METRIC_STRING, (long) ts, (long) value++, tags).join();
-      ts += 3600;
-    }
-    
-    value = 11;
-    ts = (int) start_ts;
-    tags.clear();
-    tags.put(TAGK_STRING, "B");
-    tags.put(TAGK_B_STRING, "D");
-    tags.put("E", "F");
-    while (ts <= (int) end_ts) {
-      tsdb.addPoint(METRIC_STRING, (long) ts, (long) value++, tags).join();
-      ts += 3600;
-    }
-    
-    value = 111;
-    ts = (int) start_ts;
-    tags.clear();
-    tags.put(TAGK_STRING, "C");
-    tags.put(TAGK_B_STRING, "D");
-    tags.put("E", "F");
-    while (ts <= (int) end_ts) {
-      tsdb.addPoint(METRIC_STRING, (long) ts, (long) value++, tags).join();
-      ts += 3600;
-    }
-    
-    value = 1111;
-    ts = (int) start_ts;
-    tags.clear();
-    tags.put(TAGK_STRING, "A");
-    tags.put(TAGK_B_STRING, "D");
-    tags.put("E", "G");
-    while (ts <= (int) end_ts) {
-      tsdb.addPoint(METRIC_STRING, (long) ts, (long) value++, tags).join();
-      ts += 3600;
-    }
-    
-    value = 11111;
-    ts = (int) start_ts;
-    tags.clear();
-    tags.put(TAGK_STRING, "B");
-    tags.put(TAGK_B_STRING, "D");
-    tags.put("E", "G");
-    while (ts <= (int) end_ts) {
-      tsdb.addPoint(METRIC_STRING, (long) ts, (long) value++, tags).join();
-      ts += 3600;
-    }
-    
-    value = 111111;
-    ts = (int) start_ts;
-    tags.clear();
-    tags.put(TAGK_STRING, "C");
-    tags.put(TAGK_B_STRING, "D");
-    tags.put("E", "G");
-    while (ts <= (int) end_ts) {
-      tsdb.addPoint(METRIC_STRING, (long) ts, (long) value++, tags).join();
-      ts += 3600;
-    }
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    assertSame(node, mget.node);
+    assertSame(query, mget.query);
+    assertSame(tsuids, mget.tsuids);
+    assertEquals("avg", mget.rollup_group_by);
+    assertNull(mget.rollup_aggregation);
+    assertEquals(8, mget.concurrency_multi_get);
+    assertTrue(mget.reversed);
+    assertEquals(16, mget.batch_size);
+    assertNull(mget.filter);
+    assertFalse(mget.rollups_enabled);
+    assertTrue(mget.pre_aggregate);
+    assertEquals(-1, mget.tsuid_idx);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    assertEquals(-1, mget.rollup_index);
+    assertEquals(1, mget.tables.size());
+    assertArrayEquals(DATA_TABLE, mget.tables.get(0));
+    assertEquals(0, mget.outstanding);
+    assertFalse(mget.has_failed);
+    assertNull(mget.current_result);
   }
 
+  @Test
+  public void ctorRollups() throws Exception {
+    when(node.rollupIntervals())
+      .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
+          .setInterval("1h")
+          .setTable("tsdb-1h")
+          .setPreAggregationTable("tsdb-agg-1h")
+          .setRowSpan("1d")
+          .build(),
+        RollupInterval.builder()
+          .setInterval("30m")
+          .setTable("tsdb-30m")
+          .setPreAggregationTable("tsdb-agg-30m")
+          .setRowSpan("1d")
+          .build()));
+    
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING)
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("sum")
+                .setInterval("1h")))
+        .build();
+    
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    assertTrue(mget.rollups_enabled);
+    assertEquals("avg", mget.rollup_group_by);
+    assertEquals("sum", mget.rollup_aggregation);
+    assertFalse(mget.pre_aggregate);
+    assertEquals(3, mget.tables.size());
+    assertArrayEquals("tsdb-1h".getBytes(), mget.tables.get(0));
+    assertArrayEquals("tsdb-30m".getBytes(), mget.tables.get(1));
+    assertArrayEquals(DATA_TABLE, mget.tables.get(2));
+    assertEquals(0, mget.rollup_index);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    assertTrue(mget.filter instanceof FilterList);
+    FilterList filter = (FilterList) mget.filter;
+    assertEquals(4, filter.filters().size());
+    assertArrayEquals("sum".getBytes(), ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(0)).comparator()).value());
+    assertArrayEquals("count".getBytes(), ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(1)).comparator()).value());
+    assertArrayEquals(new byte[] { 1 }, ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(2)).comparator()).value());
+    assertArrayEquals(new byte[] { 2 }, ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(3)).comparator()).value());
+    
+    // pre-agg
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING)
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("sum")
+                .setInterval("1h")))
+        .addConfig(Tsdb1xHBaseDataStore.PRE_AGG_KEY, "true")
+        .build();
+    mget = new Tsdb1xMultiGet(node, query, tsuids);
+    assertTrue(mget.rollups_enabled);
+    assertEquals("avg", mget.rollup_group_by);
+    assertEquals("sum", mget.rollup_aggregation);
+    assertTrue(mget.pre_aggregate);
+    assertEquals(3, mget.tables.size());
+    assertArrayEquals("tsdb-agg-1h".getBytes(), mget.tables.get(0));
+    assertArrayEquals("tsdb-agg-30m".getBytes(), mget.tables.get(1));
+    assertArrayEquals(DATA_TABLE, mget.tables.get(2));
+    assertEquals(0, mget.rollup_index);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    assertTrue(mget.filter instanceof FilterList);
+    filter = (FilterList) mget.filter;
+    assertEquals(4, filter.filters().size());
+    assertArrayEquals("sum".getBytes(), ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(0)).comparator()).value());
+    assertArrayEquals("count".getBytes(), ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(1)).comparator()).value());
+    assertArrayEquals(new byte[] { 1 }, ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(2)).comparator()).value());
+    assertArrayEquals(new byte[] { 2 }, ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(3)).comparator()).value());
+    
+    // sum
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("sum"))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING)
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("sum")
+                .setInterval("1h")))
+        .build();
+    mget = new Tsdb1xMultiGet(node, query, tsuids);
+    mget = new Tsdb1xMultiGet(node, query, tsuids);
+    assertTrue(mget.rollups_enabled);
+    assertEquals("sum", mget.rollup_group_by);
+    assertEquals("sum", mget.rollup_aggregation);
+    assertFalse(mget.pre_aggregate);
+    assertEquals(3, mget.tables.size());
+    assertArrayEquals("tsdb-1h".getBytes(), mget.tables.get(0));
+    assertArrayEquals("tsdb-30m".getBytes(), mget.tables.get(1));
+    assertArrayEquals(DATA_TABLE, mget.tables.get(2));
+    assertEquals(0, mget.rollup_index);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    assertTrue(mget.filter instanceof FilterList);
+    filter = (FilterList) mget.filter;
+    assertEquals(2, filter.filters().size());
+    assertArrayEquals("sum".getBytes(), ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(0)).comparator()).value());
+    assertArrayEquals(new byte[] { 1 }, ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(1)).comparator()).value());
+    
+    // no fallback (still populates all the tables since it's small
+    when(node.rollupUsage()).thenReturn(RollupUsage.ROLLUP_NOFALLBACK);
+    
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("sum"))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING)
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("sum")
+                .setInterval("1h")))
+        .build();
+    mget = new Tsdb1xMultiGet(node, query, tsuids);
+    mget = new Tsdb1xMultiGet(node, query, tsuids);
+    assertTrue(mget.rollups_enabled);
+    assertEquals("sum", mget.rollup_group_by);
+    assertEquals("sum", mget.rollup_aggregation);
+    assertFalse(mget.pre_aggregate);
+    assertEquals(3, mget.tables.size());
+    assertArrayEquals("tsdb-1h".getBytes(), mget.tables.get(0));
+    assertArrayEquals("tsdb-30m".getBytes(), mget.tables.get(1));
+    assertArrayEquals(DATA_TABLE, mget.tables.get(2));
+    assertEquals(0, mget.rollup_index);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    assertTrue(mget.filter instanceof FilterList);
+    filter = (FilterList) mget.filter;
+    assertEquals(2, filter.filters().size());
+    assertArrayEquals("sum".getBytes(), ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(0)).comparator()).value());
+    assertArrayEquals(new byte[] { 1 }, ((BinaryPrefixComparator) ((QualifierFilter) filter.filters().get(1)).comparator()).value());
   
-  /**
-   * Helper that writes a data point for each row that the get request should
-   * cover.
-   * @throws Exception if something went pear shaped.
-   */
-  protected void setupStorage() throws Exception {
-    setDataPointStorage();
-    spans = new TreeMap<byte[], Span>(new TsdbQuery.SpanCmp(TSDB.metrics_width()));
+  }
+
+  @Test
+  public void ctoreTimestamps() throws Exception {
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(END_TS))
+            .setEnd(Integer.toString(END_TS + 3600))
+            .setAggregator("avg")
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("max")
+                .setInterval("1h")))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING))
+        .build();
     
-    int value = 1;
-    int ts = (int) start_ts;
-    tags.clear();
-    tags.put(TAGK_STRING, "A");
-    tags.put(TAGK_B_STRING, "D");
-    //tags.put("E", "F");
-    while (ts <= (int) end_ts) {
-      tsdb.addPoint(METRIC_STRING, (long) ts, (long) value++, tags).join();
-      ts += 3600;
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    assertEquals(END_TS - 900, mget.timestamp.epoch());
+    
+    // downsample 2 hours
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(END_TS))
+            .setEnd(Integer.toString(END_TS + 3600))
+            .setAggregator("avg")
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("max")
+                .setInterval("2h")))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING))
+        .build();
+    mget = new Tsdb1xMultiGet(node, query, tsuids);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    
+    // downsample prefer the metric
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(END_TS))
+            .setEnd(Integer.toString(END_TS + 3600))
+            .setAggregator("avg")
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("max")
+                .setInterval("2h")))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING)
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("min")
+                .setInterval("1h")))
+        .build();
+    mget = new Tsdb1xMultiGet(node, query, tsuids);
+    assertEquals(END_TS - 900, mget.timestamp.epoch());
+  }
+
+  @Test
+  public void ctorTimedSalt() throws Exception {
+    node = mock(Tsdb1xQueryNode.class);
+    when(node.factory()).thenReturn(data_store);
+    Schema schema = mock(Schema.class);
+    when(schema.timelessSalting()).thenReturn(false);
+    when(schema.saltWidth()).thenReturn(1);
+    when(schema.metricWidth()).thenReturn(3);
+    when(node.schema()).thenReturn(schema);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    
+    assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_BYTES), 
+        mget.tsuids.get(0));
+    assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_B_BYTES), 
+        mget.tsuids.get(1));
+    assertArrayEquals(Bytes.concat(METRIC_B_BYTES, TAGK_BYTES, TAGV_BYTES), 
+        mget.tsuids.get(2));
+    assertArrayEquals(Bytes.concat(METRIC_B_BYTES, TAGK_BYTES, TAGV_B_BYTES), 
+        mget.tsuids.get(3));
+  }
+  
+  @Test
+  public void ctorTimelessSalt() throws Exception {
+    node = mock(Tsdb1xQueryNode.class);
+    when(node.factory()).thenReturn(data_store);
+    Schema schema = mock(Schema.class);
+    when(schema.timelessSalting()).thenReturn(true);
+    when(schema.saltWidth()).thenReturn(1);
+    when(schema.metricWidth()).thenReturn(3);
+    when(node.schema()).thenReturn(schema);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    
+    assertArrayEquals(Bytes.concat(new byte[1], METRIC_BYTES, 
+        new byte[4], TAGK_BYTES, TAGV_BYTES), 
+        mget.tsuids.get(0));
+    assertArrayEquals(Bytes.concat(new byte[1], METRIC_BYTES, 
+        new byte[4], TAGK_BYTES, TAGV_B_BYTES), 
+        mget.tsuids.get(1));
+    assertArrayEquals(Bytes.concat(new byte[1], METRIC_B_BYTES, 
+        new byte[4], TAGK_BYTES, TAGV_BYTES), 
+        mget.tsuids.get(2));
+    assertArrayEquals(Bytes.concat(new byte[1], METRIC_B_BYTES, 
+        new byte[4], TAGK_BYTES, TAGV_B_BYTES), 
+        mget.tsuids.get(3));
+  }
+  
+  @Test
+  public void advanceNoRollups() throws Exception {
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    assertEquals(-1, mget.tsuid_idx);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    
+    // first run
+    assertFalse(mget.advance());
+    assertEquals(0, mget.tsuid_idx);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    
+    // second run increments timestamp
+    assertFalse(mget.advance());
+    assertEquals(0, mget.tsuid_idx);
+    assertEquals(END_TS - 900, mget.timestamp.epoch());
+    
+    // nothing left
+    assertTrue(mget.advance());
+    assertEquals(0, mget.tsuid_idx);
+    assertEquals(END_TS + 3600 - 900, mget.timestamp.epoch());
+    
+    // sequence end
+    when(node.sequenceEnd()).thenReturn(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L));
+    mget = new Tsdb1xMultiGet(node, query, tsuids);
+    assertEquals(-1, mget.tsuid_idx);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    
+    assertFalse(mget.advance());
+    assertEquals(0, mget.tsuid_idx);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    
+    // end of sequence so it resets the TSUID idx.
+    assertTrue(mget.advance());
+    assertEquals(-1, mget.tsuid_idx);
+    assertEquals(END_TS - 900, mget.timestamp.epoch());
+    
+    // no-op since the sequence hasn't changed.
+    assertTrue(mget.advance());
+    assertEquals(-1, mget.tsuid_idx);
+    assertEquals(END_TS - 900, mget.timestamp.epoch());
+    
+    // resume
+    when(node.sequenceEnd()).thenReturn(
+        new MillisecondTimeStamp((END_TS - 900) * 1000L));
+    assertFalse(mget.advance());
+    assertEquals(0, mget.tsuid_idx);
+    assertEquals(END_TS - 900, mget.timestamp.epoch());
+    
+    // nothing left
+    assertTrue(mget.advance());
+    assertEquals(-1, mget.tsuid_idx);
+    assertEquals(END_TS + 3600 - 900, mget.timestamp.epoch());
+    
+    // node should finish here but just in case....
+    when(node.sequenceEnd()).thenReturn(
+        new MillisecondTimeStamp((END_TS + 3600 - 900) * 1000L));
+    assertTrue(mget.advance());
+    assertEquals(-1, mget.tsuid_idx);
+    assertEquals(END_TS + 3600 - 900, mget.timestamp.epoch());
+    
+    // previous tests had a batch size matching the tsuids size. Now
+    // we verify odd offsets.
+    when(node.sequenceEnd()).thenReturn(null);
+    mget = new Tsdb1xMultiGet(node, query, tsuids);
+    Whitebox.setInternalState(mget, "batch_size", 3);
+    assertEquals(-1, mget.tsuid_idx);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    
+    // first run
+    assertFalse(mget.advance());
+    assertEquals(0, mget.tsuid_idx);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    
+    // second run hast more TSUIDs
+    assertFalse(mget.advance());
+    assertEquals(3, mget.tsuid_idx);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    
+    // now we hit the last tsuid, so increment timestamp
+    assertFalse(mget.advance());
+    assertEquals(0, mget.tsuid_idx);
+    assertEquals(END_TS - 900, mget.timestamp.epoch());
+    
+    // next set of tsuids
+    assertFalse(mget.advance());
+    assertEquals(3, mget.tsuid_idx);
+    assertEquals(END_TS - 900, mget.timestamp.epoch());
+    
+    // all done
+    assertTrue(mget.advance());
+    assertEquals(0, mget.tsuid_idx);
+    assertEquals(END_TS + 3600 - 900, mget.timestamp.epoch());
+  }
+
+  @Test
+  public void advanceRollups() throws Exception {
+    setMultiRollupQuery();
+    
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    assertTrue(mget.rollups_enabled);
+    assertEquals(0, mget.rollup_index);
+    assertEquals(-1, mget.tsuid_idx);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    
+    assertFalse(mget.advance());
+    assertEquals(0, mget.rollup_index);
+    assertEquals(0, mget.tsuid_idx);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    
+    assertTrue(mget.advance());
+    assertEquals(0, mget.rollup_index);
+    assertEquals(0, mget.tsuid_idx);
+    assertEquals(START_TS + 86400 - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    
+    // previous tests had a batch size matching the tsuids size. Now
+    // we verify odd offsets.
+    mget = new Tsdb1xMultiGet(node, query, tsuids);
+    Whitebox.setInternalState(mget, "batch_size", 3);
+    
+    assertTrue(mget.rollups_enabled);
+    assertEquals(0, mget.rollup_index);
+    assertEquals(-1, mget.tsuid_idx);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    
+    assertFalse(mget.advance());
+    assertEquals(0, mget.rollup_index);
+    assertEquals(0, mget.tsuid_idx);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    
+    assertFalse(mget.advance());
+    assertEquals(0, mget.rollup_index);
+    assertEquals(3, mget.tsuid_idx);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    
+    assertTrue(mget.advance());
+    assertEquals(0, mget.rollup_index);
+    assertEquals(0, mget.tsuid_idx);
+    assertEquals(START_TS + 86400 - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+  }
+  
+  @Test
+  public void incrementTimeStampRollups() throws Exception {
+    setMultiRollupQuery();
+    
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    
+    mget.incrementTimestamp();
+    assertEquals(START_TS + (86400) - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    
+    // fallback resets to the original
+    mget.rollup_index = 1;
+    mget.incrementTimestamp();
+    assertEquals(START_TS + (86400) - 900, mget.timestamp.epoch());
+    assertEquals(START_TS - 900, mget.fallback_timestamp.epoch());
+    
+    // now we increment just the fallback timestamp
+    mget.incrementTimestamp();
+    assertEquals(START_TS + (86400) - 900, mget.timestamp.epoch());
+    assertEquals(START_TS + (3600 * 6) - 900, mget.fallback_timestamp.epoch());
+    
+    mget.incrementTimestamp();
+    assertEquals(START_TS + (86400) - 900, mget.timestamp.epoch());
+    assertEquals(START_TS + (3600 * 12) - 900, mget.fallback_timestamp.epoch());
+    
+    // fallback to raw now. The onComplete() method has null the fallback timestamp
+    mget.fallback_timestamp = null;
+    mget.rollup_index = 2;
+    mget.incrementTimestamp();
+    assertEquals(START_TS + (86400) - 900, mget.timestamp.epoch());
+    assertEquals(START_TS - 900, mget.fallback_timestamp.epoch());
+    
+    // increment
+    mget.incrementTimestamp();
+    assertEquals(START_TS + (86400) - 900, mget.timestamp.epoch());
+    assertEquals(START_TS + 3600 - 900, mget.fallback_timestamp.epoch());
+    
+    // increment
+    mget.incrementTimestamp();
+    assertEquals(START_TS + (86400) - 900, mget.timestamp.epoch());
+    assertEquals(START_TS + (3600 * 2) - 900, mget.fallback_timestamp.epoch());
+  }
+  
+  @Test
+  public void nextBatch() throws Exception {
+    final Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    when(result.isFull()).thenReturn(true);
+    
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    mget.nextBatch(0, START_TS);
+    assertEquals(4, storage.getLastMultiGets().size());
+    List<GetRequest> gets = storage.getLastMultiGets();
+    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS, TAGK_BYTES, TAGV_BYTES), 
+        gets.get(0).key());
+    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.get(1).key());
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, START_TS, TAGK_BYTES, TAGV_BYTES), 
+        gets.get(2).key());
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, START_TS, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.get(3).key());
+    for (int i = 0; i < gets.size(); i++) {
+      assertArrayEquals(DATA_TABLE, gets.get(i).table());
+      assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
+      assertNull(gets.get(i).getFilter());
     }
     
-    value = 11;
-    ts = (int) start_ts;
-    tags.clear();
-    tags.put(TAGK_STRING, "B");
-    tags.put(TAGK_B_STRING, "D");
-   // tags.put("E", "F");
-    while (ts <= (int) end_ts) {
-      tsdb.addPoint(METRIC_STRING, (long) ts, (long) value++, tags).join();
-      ts += 3600;
+    // smaller batch size
+    mget = new Tsdb1xMultiGet(node, query, tsuids);
+    Whitebox.setInternalState(mget, "batch_size", 3);
+    mget.nextBatch(0, START_TS);
+    assertEquals(3, storage.getLastMultiGets().size());
+    gets = storage.getLastMultiGets();
+    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS, TAGK_BYTES, TAGV_BYTES), 
+        gets.get(0).key());
+    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.get(1).key());
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, START_TS, TAGK_BYTES, TAGV_BYTES), 
+        gets.get(2).key());
+    for (int i = 0; i < gets.size(); i++) {
+      assertArrayEquals(DATA_TABLE, gets.get(i).table());
+      assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
+      assertNull(gets.get(i).getFilter());
     }
     
-    value = 111;
-    ts = (int) start_ts;
-    tags.clear();
-    tags.put(TAGK_STRING, "C");
-    tags.put(TAGK_B_STRING, "D");
-   // tags.put("E", "F");
-    while (ts <= (int) end_ts) {
-      tsdb.addPoint(METRIC_STRING, (long) ts, (long) value++, tags).join();
-      ts += 3600;
+    mget.current_result = result; // suppress exceptions
+    mget.nextBatch(3, START_TS);
+   
+    assertEquals(1, storage.getLastMultiGets().size());
+    gets = storage.getLastMultiGets();
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, START_TS, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.get(0).key());
+    for (int i = 0; i < gets.size(); i++) {
+      assertArrayEquals(DATA_TABLE, gets.get(i).table());
+      assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
+      assertNull(gets.get(i).getFilter());
     }
     
-//    value = 1111;
-//    ts = (int) start_ts;
-//    tags.clear();
-//    tags.put(TAGK_STRING, "A");
-//    tags.put(TAGK_B_STRING, "D");
-//   // tags.put("E", "G");
-//    while (ts <= (int) end_ts) {
-//      tsdb.addPoint(METRIC_STRING, (long) ts, (long) value++, tags).join();
-//      ts += 3600;
-//    }
-//    
-//    value = 11111;
-//    ts = (int) start_ts;
-//    tags.clear();
-//    tags.put(TAGK_STRING, "B");
-//    tags.put(TAGK_B_STRING, "D");
-//   // tags.put("E", "G");
-//    while (ts <= (int) end_ts) {
-//      tsdb.addPoint(METRIC_STRING, (long) ts, (long) value++, tags).join();
-//      ts += 3600;
-//    }
-//    
-//    value = 111111;
-//    ts = (int) start_ts;
-//    tags.clear();
-//    tags.put(TAGK_STRING, "C");
-//    tags.put(TAGK_B_STRING, "D");
-//   // tags.put("E", "G");
-//    while (ts <= (int) end_ts) {
-//      tsdb.addPoint(METRIC_STRING, (long) ts, (long) value++, tags).join();
-//      ts += 3600;
-//    }
+    // rollup tables
+    setMultiRollupQuery();
+    mget = new Tsdb1xMultiGet(node, query, tsuids);
+    mget.current_result = result;
+    mget.nextBatch(0, START_TS);
+    assertEquals(4, storage.getLastMultiGets().size());
+    gets = storage.getLastMultiGets();
+    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS, TAGK_BYTES, TAGV_BYTES), 
+        gets.get(0).key());
+    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.get(1).key());
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, START_TS, TAGK_BYTES, TAGV_BYTES), 
+        gets.get(2).key());
+    assertArrayEquals(makeRowKey(METRIC_B_BYTES, START_TS, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.get(3).key());
+    for (int i = 0; i < gets.size(); i++) {
+      assertArrayEquals("tsdb-1h".getBytes(), gets.get(i).table());
+      assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
+      assertSame(mget.filter, gets.get(i).getFilter());
+    }
+    
+    mget.rollup_index = 1;
+    mget.nextBatch(0, START_TS);
+    assertEquals(4, storage.getLastMultiGets().size());
+    gets = storage.getLastMultiGets();
+    for (int i = 0; i < gets.size(); i++) {
+      assertArrayEquals("tsdb-30m".getBytes(), gets.get(i).table());
+      assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
+      assertSame(mget.filter, gets.get(i).getFilter());
+    }
+    
+    mget.rollup_index = 2;
+    mget.nextBatch(0, START_TS);
+    assertEquals(4, storage.getLastMultiGets().size());
+    gets = storage.getLastMultiGets();
+    for (int i = 0; i < gets.size(); i++) {
+      assertArrayEquals(DATA_TABLE, gets.get(i).table());
+      assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
+      assertNull(gets.get(i).getFilter());
+    }
+    
+    // salting
+    node = mock(Tsdb1xQueryNode.class);
+    when(node.factory()).thenReturn(data_store);
+    Schema schema = mock(Schema.class);
+    when(schema.saltWidth()).thenReturn(1);
+    when(schema.metricWidth()).thenReturn(3);
+    when(node.schema()).thenReturn(schema);
+    mget = new Tsdb1xMultiGet(node, query, tsuids);
+    mget.current_result = result;
+    mget.nextBatch(0, START_TS);
+    assertEquals(4, storage.getLastMultiGets().size());
+    gets = storage.getLastMultiGets();
+    assertArrayEquals(makeRowKey(Bytes.concat(new byte[1], METRIC_BYTES), START_TS, TAGK_BYTES, TAGV_BYTES), 
+        gets.get(0).key());
+    assertArrayEquals(makeRowKey(Bytes.concat(new byte[1], METRIC_BYTES), START_TS, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.get(1).key());
+    assertArrayEquals(makeRowKey(Bytes.concat(new byte[1], METRIC_B_BYTES), START_TS, TAGK_BYTES, TAGV_BYTES), 
+        gets.get(2).key());
+    assertArrayEquals(makeRowKey(Bytes.concat(new byte[1], METRIC_B_BYTES), START_TS, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.get(3).key());
+    for (int i = 0; i < gets.size(); i++) {
+      assertArrayEquals(DATA_TABLE, gets.get(i).table());
+      assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
+      assertNull(gets.get(i).getFilter());
+    }
+  }
+  
+  @Test
+  public void nextBatchTimedSalt() throws Exception {
+    node = mock(Tsdb1xQueryNode.class);
+    when(node.factory()).thenReturn(data_store);
+    Schema schema = mock(Schema.class);
+    when(schema.timelessSalting()).thenReturn(false);
+    when(schema.saltWidth()).thenReturn(1);
+    when(schema.metricWidth()).thenReturn(3);
+    when(node.schema()).thenReturn(schema);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    
+    mget.nextBatch(0, START_TS);
+    assertEquals(4, storage.getLastMultiGets().size());
+    List<GetRequest> gets = storage.getLastMultiGets();
+    assertArrayEquals(makeRowKey(Bytes.concat(new byte[1], METRIC_BYTES), START_TS, TAGK_BYTES, TAGV_BYTES), 
+        gets.get(0).key());
+    assertArrayEquals(makeRowKey(Bytes.concat(new byte[1], METRIC_BYTES), START_TS, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.get(1).key());
+    assertArrayEquals(makeRowKey(Bytes.concat(new byte[1], METRIC_B_BYTES), START_TS, TAGK_BYTES, TAGV_BYTES), 
+        gets.get(2).key());
+    assertArrayEquals(makeRowKey(Bytes.concat(new byte[1], METRIC_B_BYTES), START_TS, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.get(3).key());
+    for (int i = 0; i < gets.size(); i++) {
+      assertArrayEquals(DATA_TABLE, gets.get(i).table());
+      assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
+      assertNull(gets.get(i).getFilter());
+    }
+  }
+  
+  @Test
+  public void nextBatchTimelessSalt() throws Exception {
+    node = mock(Tsdb1xQueryNode.class);
+    when(node.factory()).thenReturn(data_store);
+    Schema schema = mock(Schema.class);
+    when(schema.timelessSalting()).thenReturn(true);
+    when(schema.saltWidth()).thenReturn(1);
+    when(schema.metricWidth()).thenReturn(3);
+    when(node.schema()).thenReturn(schema);
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    
+    mget.nextBatch(0, START_TS);
+    assertEquals(4, storage.getLastMultiGets().size());
+    List<GetRequest> gets = storage.getLastMultiGets();
+    // time is 0 since we haven't mocked out the schema.setBaseTime() method
+    assertArrayEquals(makeRowKey(Bytes.concat(new byte[1], METRIC_BYTES), 0, TAGK_BYTES, TAGV_BYTES), 
+        gets.get(0).key());
+    assertArrayEquals(makeRowKey(Bytes.concat(new byte[1], METRIC_BYTES), 0, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.get(1).key());
+    assertArrayEquals(makeRowKey(Bytes.concat(new byte[1], METRIC_B_BYTES), 0, TAGK_BYTES, TAGV_BYTES), 
+        gets.get(2).key());
+    assertArrayEquals(makeRowKey(Bytes.concat(new byte[1], METRIC_B_BYTES), 0, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.get(3).key());
+    for (int i = 0; i < gets.size(); i++) {
+      assertArrayEquals(DATA_TABLE, gets.get(i).table());
+      assertArrayEquals(Tsdb1xHBaseDataStore.DATA_FAMILY, gets.get(i).family());
+      assertNull(gets.get(i).getFilter());
+    }
+  }
+  
+  @Test
+  public void onError() throws Exception {
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    assertFalse(mget.has_failed);
+    verify(node, never()).onError(any(Throwable.class));
+    
+    mget.error_cb.call(new UnitTestException());
+    assertTrue(mget.has_failed);
+    verify(node, times(1)).onError(any(Throwable.class));
+    
+    mget.error_cb.call(new UnitTestException());
+    assertTrue(mget.has_failed);
+    verify(node, times(1)).onError(any(Throwable.class));
+  }
+  
+  @Test
+  public void responseCB() throws Exception {
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    when(result.isFull()).thenReturn(true);
+    mget.current_result = result;
+    mget.outstanding = 1;
+    
+    List<GetResultOrException> results = Lists.newArrayList();
+    ArrayList<KeyValue> row = Lists.newArrayList(
+        new KeyValue(makeRowKey(METRIC_BYTES, START_TS, TAGK_BYTES, TAGV_BYTES), 
+            Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 0, 0 },
+            new byte[] { 1 }
+            ));
+    results.add(new GetResultOrException(row));
+    row = Lists.newArrayList(
+        new KeyValue(makeRowKey(METRIC_BYTES, START_TS, TAGK_BYTES, TAGV_B_BYTES), 
+            Tsdb1xHBaseDataStore.DATA_FAMILY,
+            new byte[] { 0, 0 },
+            new byte[] { 1 }
+            ));
+    results.add(new GetResultOrException(row));
+    
+    mget.response_cb.call(results);
+    assertEquals(0, mget.outstanding);
+    verify(result, times(1)).isFull();
+    verify(node, never()).onError(any(Throwable.class));
+    
+    // empty results
+    mget.current_result = result;
+    mget.outstanding = 1;
+    results.clear();
+    results.add(new GetResultOrException(new ArrayList<KeyValue>()));
+    results.add(new GetResultOrException(new ArrayList<KeyValue>()));
+    
+    mget.response_cb.call(results);
+    assertEquals(0, mget.outstanding);
+    verify(result, times(2)).isFull();
+    verify(node, never()).onError(any(Throwable.class));
+    
+    // exception
+    mget.current_result = result;
+    mget.outstanding = 1;
+    results.clear();
+    results.add(new GetResultOrException(new ArrayList<KeyValue>()));
+    results.add(new GetResultOrException(new UnitTestException()));
+    
+    mget.response_cb.call(results);
+    assertEquals(0, mget.outstanding);
+    verify(result, times(2)).isFull();
+    verify(node, times(1)).onError(any(Throwable.class));
+  }
+
+  @Test
+  public void onCompleteFull() throws Exception {
+    int gets = storage.getMultiGets().size();
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    when(result.isFull()).thenReturn(true);
+    mget.current_result = result;
+    mget.outstanding = 1;
+    
+    // full some outstanding
+    mget.onComplete();
+    assertSame(result, mget.current_result);
+    verify(node, never()).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    assertEquals(gets, storage.getMultiGets().size());
+    
+    // all done
+    mget.outstanding = 0;
+    mget.onComplete();
+    assertNull(mget.current_result);
+    verify(node, times(1)).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    assertEquals(gets, storage.getMultiGets().size());
+  }
+  
+  @Test
+  public void onCompleteBusy() throws Exception {
+    int gets = storage.getMultiGets().size();
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    mget.current_result = result;
+    mget.outstanding = 2;
+    
+    // full some outstanding
+    mget.onComplete();
+    assertSame(result, mget.current_result);
+    verify(node, never()).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    assertEquals(gets, storage.getMultiGets().size());
+  }
+  
+  @Test
+  public void onCompleteNextBatch() throws Exception {
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
+    doNothing().when(mget).nextBatch(anyInt(), anyInt());
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    mget.current_result = result;
+    mget.outstanding = 0;
+    
+    // fire away
+    mget.onComplete();
+    assertSame(result, mget.current_result);
+    assertEquals(1, mget.outstanding);
+    verify(node, never()).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    verify(mget, times(1)).nextBatch(0, START_TS - 900);
+    
+    mget.onComplete();
+    assertSame(result, mget.current_result);
+    assertEquals(2, mget.outstanding);
+    verify(node, never()).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    verify(mget, times(1)).nextBatch(0, END_TS - 900);
+    
+    // busy
+    mget.onComplete();
+    assertSame(result, mget.current_result);
+    assertEquals(2, mget.outstanding);
+    verify(node, never()).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    verify(mget, times(1)).nextBatch(0, END_TS - 900);
+    
+    // nothing left to do
+    mget.outstanding = 0;
+    mget.onComplete();
+    assertNull(mget.current_result);
+    verify(node, times(1)).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    verify(mget, times(1)).nextBatch(0, END_TS - 900);
+  }
+  
+  @Test
+  public void onCompleteFallback() throws Exception {
+    setMultiRollupQuery();
+    
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
+    doNothing().when(mget).nextBatch(anyInt(), anyInt());
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    mget.current_result = result;
+    mget.outstanding = 0;
+    mget.timestamp = new MillisecondTimeStamp((END_TS + 3600 - 900) * 1000L);
+    assertEquals(0, mget.rollup_index);
+    
+    // fires off up to concurrency_multi_get gets
+    mget.onComplete();
+    verify(node, never()).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    verify(mget, times(1)).nextBatch(0, START_TS - 900);
+    verify(mget, never()).nextBatch(0, START_TS  + (3600 * 6) - 900);
+    assertEquals(START_TS  + (3600 * 6) - 900, mget.fallback_timestamp.epoch());
+    assertEquals(1, mget.rollup_index);
+    
+    // should fallback to raw now
+    mget.outstanding = 0;
+    mget.onComplete();
+    verify(node, never()).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    verify(mget, times(2)).nextBatch(0, START_TS - 900);
+    verify(mget, never()).nextBatch(0, START_TS  + (3600 * 6) - 900);
+    assertEquals(END_TS  - 900, mget.fallback_timestamp.epoch());
+    assertEquals(2, mget.rollup_index);
+  }
+  
+  @Test
+  public void onCompleteFallbackRaw() throws Exception {
+    setMultiRollupQuery();
+    when(node.rollupUsage()).thenReturn(RollupUsage.ROLLUP_FALLBACK_RAW);
+    
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
+    doNothing().when(mget).nextBatch(anyInt(), anyInt());
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    mget.current_result = result;
+    mget.outstanding = 0;
+    mget.timestamp = new MillisecondTimeStamp((END_TS + 3600 - 900) * 1000L);
+    assertEquals(0, mget.rollup_index);
+
+    // should fallback to raw now
+    mget.outstanding = 0;
+    mget.onComplete();
+    verify(node, never()).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    verify(mget, times(1)).nextBatch(0, START_TS - 900);
+    verify(mget, never()).nextBatch(0, START_TS  + (3600 * 6) - 900);
+    assertEquals(END_TS  - 900, mget.fallback_timestamp.epoch());
+    assertEquals(2, mget.rollup_index);
+  }
+  
+  @Test
+  public void onCompleteNoFallback() throws Exception {
+    setMultiRollupQuery();
+    when(node.rollupUsage()).thenReturn(RollupUsage.ROLLUP_NOFALLBACK);
+    
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
+    doNothing().when(mget).nextBatch(anyInt(), anyInt());
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    mget.current_result = result;
+    mget.outstanding = 0;
+    mget.timestamp = new MillisecondTimeStamp((END_TS + 3600 - 900) * 1000L);
+    assertEquals(0, mget.rollup_index);
+
+    // should fallback to raw now
+    mget.outstanding = 0;
+    mget.onComplete();
+    verify(node, times(1)).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    verify(mget, never()).nextBatch(0, START_TS - 900);
+    verify(mget, never()).nextBatch(0, START_TS  + (3600 * 6) - 900);
+    assertNull(mget.fallback_timestamp);
+    assertEquals(0, mget.rollup_index);
+  }
+  
+  @Test
+  public void fetchNext() throws Exception {
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
+    doNothing().when(mget).nextBatch(anyInt(), anyInt());
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    
+    mget.fetchNext(result, null);
+    assertEquals(2, mget.outstanding);
+    verify(node, never()).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    verify(mget, times(1)).nextBatch(0, START_TS - 900);
+    verify(mget, times(1)).nextBatch(0, END_TS - 900);
+    assertEquals(END_TS - 900, mget.timestamp.epoch());
+    
+    try {
+      mget.fetchNext(mock(Tsdb1xQueryResult.class), null);
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
+    
+    // all done, nothing left
+    mget.current_result = null;
+    mget.outstanding = 0;
+    mget.fetchNext(result, null);
+    verify(node, times(1)).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    verify(mget, times(1)).nextBatch(0, START_TS - 900);
+    verify(mget, times(1)).nextBatch(0, END_TS - 900);
+    verify(mget, never()).nextBatch(0, END_TS + 3600 - 900);
+    assertEquals(END_TS + 3600 - 900, mget.timestamp.epoch());
+  }
+  
+  @Test
+  public void fetchNextRealTraced() throws Exception {
+    trace = new MockTrace(true);
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(TS_SINGLE_SERIES))
+            .setEnd(Integer.toString(TS_SINGLE_SERIES + 
+                (TS_SINGLE_SERIES_COUNT * TS_SINGLE_SERIES_INTERVAL)))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING))
+        .build();
+    
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    
+    mget.fetchNext(result, trace.newSpan("UT").start());
+    assertEquals(0, mget.outstanding);
+    verify(node, times(1)).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, never()).onError(any(Throwable.class));
+    verify(result, times(32)).addData(any(TimeStamp.class), 
+        any(byte[].class), any(byte.class), any(byte[].class), any(byte[].class));
+    verifySpan(Tsdb1xMultiGet.class.getName() + ".fetchNext");
+  }
+
+  @Test
+  public void fetchNextRealException() throws Exception {
+    trace = new MockTrace(true);
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(TS_MULTI_SERIES_EX))
+            .setEnd(Integer.toString(TS_MULTI_SERIES_EX + 
+                (TS_MULTI_SERIES_EX_COUNT * TS_MULTI_SERIES_INTERVAL)))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING))
+        .build();
+    
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
+    
+    mget.fetchNext(result, trace.newSpan("UT").start());
+    assertEquals(0, mget.outstanding);
+    verify(node, never()).onNext(result);
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(node, times(1)).onError(any(Throwable.class));
+    verify(result, times(28)).addData(any(TimeStamp.class), 
+        any(byte[].class), any(byte.class), any(byte[].class), any(byte[].class));
+    verifySpan(Tsdb1xMultiGet.class.getName() + ".fetchNext", UnitTestException.class);
+  }
+  
+  @Test
+  public void decodeSingleColumnNumericPut() throws Exception {
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
+    mget.current_result = mock(Tsdb1xQueryResult.class);
+    
+    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
+    ArrayList<KeyValue> row = Lists.newArrayList();
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 0, 0 },
+        new byte[] { 1 }
+        ));
+    
+    mget.decode(row);
+    
+    verify(mget.current_result, times(1)).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 0, 
+        row.get(0).qualifier(), 
+        row.get(0).value());
+  }
+  
+  @Test
+  public void decodeSingleColumnNumericPutFiltered() throws Exception {
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
+    mget.current_result = mock(Tsdb1xQueryResult.class);
+    when(node.fetchDataType((byte) 1)).thenReturn(false);
+    
+    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
+    ArrayList<KeyValue> row = Lists.newArrayList();
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 0, 0 },
+        new byte[] { 1 }
+        ));
+    
+    mget.decode(row);
+    
+    verify(mget.current_result, never()).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 0, 
+        row.get(0).qualifier(), 
+        row.get(0).value());
+  }
+  
+  @Test
+  public void decodeMultiColumnNumericPut() throws Exception {
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
+    mget.current_result = mock(Tsdb1xQueryResult.class);
+    
+    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
+    ArrayList<KeyValue> row = Lists.newArrayList();
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 0, 0 },
+        new byte[] { 1 }
+        ));
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 0, 1 },
+        new byte[] { 2 }
+        ));
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 0, 2 },
+        new byte[] { 3 }
+        ));
+    
+    mget.decode(row);
+    
+    verify(mget.current_result, times(1)).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 0, 
+        row.get(0).qualifier(), 
+        row.get(0).value());
+    verify(mget.current_result, times(1)).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 0, 
+        row.get(1).qualifier(), 
+        row.get(1).value());
+    verify(mget.current_result, times(1)).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 0, 
+        row.get(2).qualifier(), 
+        row.get(2).value());
+  }
+  
+  @Test
+  public void decodeMultiColumnNumericPutFiltered() throws Exception {
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
+    mget.current_result = mock(Tsdb1xQueryResult.class);
+    
+    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
+    ArrayList<KeyValue> row = Lists.newArrayList();
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 0, 0 },
+        new byte[] { 1 }
+        ));
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 0, 1 },
+        new byte[] { 2 }
+        ));
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 0, 2 },
+        new byte[] { 3 }
+        ));
+    when(node.fetchDataType((byte) 1)).thenReturn(false);
+    
+    mget.decode(row);
+    
+    verify(mget.current_result, never()).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 0, 
+        row.get(0).qualifier(), 
+        row.get(0).value());
+    verify(mget.current_result, never()).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 0, 
+        row.get(1).qualifier(), 
+        row.get(1).value());
+    verify(mget.current_result, never()).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 0, 
+        row.get(2).qualifier(), 
+        row.get(2).value());
+  }
+  
+  @Test
+  public void decodeSingleColumnNumericAppend() throws Exception {
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
+    mget.current_result = mock(Tsdb1xQueryResult.class);
+    
+    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
+    ArrayList<KeyValue> row = Lists.newArrayList();
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 5, 0, 0 },
+        new byte[] { 1, 2, 3, 4 }
+        ));
+    
+    mget.decode(row);
+    
+    verify(mget.current_result, times(1)).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        Schema.APPENDS_PREFIX, 
+        row.get(0).qualifier(), 
+        row.get(0).value());
+  }
+  
+  @Test
+  public void decodeSingleColumnNumericAppendFiltered() throws Exception {
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
+    mget.current_result = mock(Tsdb1xQueryResult.class);
+    
+    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
+    ArrayList<KeyValue> row = Lists.newArrayList();
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 5, 0, 0 },
+        new byte[] { 1, 2, 3, 4 }
+        ));
+    when(node.fetchDataType((byte) 1)).thenReturn(false);
+    
+    mget.decode(row);
+    
+    verify(mget.current_result, never()).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        Schema.APPENDS_PREFIX, 
+        row.get(0).qualifier(), 
+        row.get(0).value());
+  }
+  
+  @Test
+  public void decodeMultiColumnNumericPutsAndAppend() throws Exception {
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
+    mget.current_result = mock(Tsdb1xQueryResult.class);
+    
+    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
+    ArrayList<KeyValue> row = Lists.newArrayList();
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 0, 1 },
+        new byte[] { 1 }
+        ));
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 0, 2 },
+        new byte[] { 2 }
+        ));
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 5, 0, 0 },
+        new byte[] { 3 }
+        ));
+    
+    mget.decode(row);
+    
+    verify(mget.current_result, times(1)).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 0, 
+        row.get(0).qualifier(), 
+        row.get(0).value());
+    verify(mget.current_result, times(1)).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 0, 
+        row.get(1).qualifier(), 
+        row.get(1).value());
+    verify(mget.current_result, times(1)).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 5, 
+        row.get(2).qualifier(), 
+        row.get(2).value());
+  }
+  
+  @Test
+  public void decodeMultiColumnNumericPutsAndAppendFiltered() throws Exception {
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
+    mget.current_result = mock(Tsdb1xQueryResult.class);
+    
+    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
+    ArrayList<KeyValue> row = Lists.newArrayList();
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 0, 1 },
+        new byte[] { 1 }
+        ));
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 0, 2 },
+        new byte[] { 2 }
+        ));
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 5, 0, 0 },
+        new byte[] { 3 }
+        ));
+    when(node.fetchDataType((byte) 1)).thenReturn(false);
+    
+    mget.decode(row);
+    
+    verify(mget.current_result, never()).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 0, 
+        row.get(0).qualifier(), 
+        row.get(0).value());
+    verify(mget.current_result, never()).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 0, 
+        row.get(1).qualifier(), 
+        row.get(1).value());
+    verify(mget.current_result, never()).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 5, 
+        row.get(2).qualifier(), 
+        row.get(2).value());
+  }
+  
+  @Test
+  public void decodeMultiTypes() throws Exception {
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
+    mget.current_result = mock(Tsdb1xQueryResult.class);
+    
+    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
+    ArrayList<KeyValue> row = Lists.newArrayList();
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 0, 1 },
+        new byte[] { 1 }
+        ));
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 8, 2, 0 },
+        new byte[] { 2 }
+        ));
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 5, 0, 0 },
+        new byte[] { 3 }
+        ));
+    
+    mget.decode(row);
+    
+    verify(mget.current_result, times(1)).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 0, 
+        row.get(0).qualifier(), 
+        row.get(0).value());
+    verify(mget.current_result, times(1)).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 8, 
+        row.get(1).qualifier(), 
+        row.get(1).value());
+    verify(mget.current_result, times(1)).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 5, 
+        row.get(2).qualifier(), 
+        row.get(2).value());
+  }
+  
+  @Test
+  public void decodeMultiTypesFiltered() throws Exception {
+    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
+    mget.current_result = mock(Tsdb1xQueryResult.class);
+    
+    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
+    ArrayList<KeyValue> row = Lists.newArrayList();
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 0, 1 },
+        new byte[] { 1 }
+        ));
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 8, 2, 0 },
+        new byte[] { 2 }
+        ));
+    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
+        new byte[] { 5, 0, 0 },
+        new byte[] { 3 }
+        ));
+    when(node.fetchDataType((byte) 1)).thenReturn(false);
+    
+    mget.decode(row);
+    
+    verify(mget.current_result, never()).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 0, 
+        row.get(0).qualifier(), 
+        row.get(0).value());
+    verify(mget.current_result, times(1)).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 8, 
+        row.get(1).qualifier(), 
+        row.get(1).value());
+    verify(mget.current_result, never()).addData(
+        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
+        schema.getTSUID(row_key), 
+        (byte) 5, 
+        row.get(2).qualifier(), 
+        row.get(2).value());
+  }
+  
+  void setMultiRollupQuery() throws Exception {
+    when(node.rollupIntervals())
+    .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
+        .setInterval("1h")
+        .setTable("tsdb-1h")
+        .setPreAggregationTable("tsdb-agg-1h")
+        .setRowSpan("1d")
+        .build(),
+      RollupInterval.builder()
+        .setInterval("30m")
+        .setTable("tsdb-30m")
+        .setPreAggregationTable("tsdb-agg-30m")
+        .setRowSpan("6h")
+        .build()));
+  
+  query = TimeSeriesQuery.newBuilder()
+      .setTime(Timespan.newBuilder()
+          .setStart(Integer.toString(START_TS))
+          .setEnd(Integer.toString(END_TS))
+          .setAggregator("avg"))
+      .addMetric(Metric.newBuilder()
+          .setMetric(METRIC_STRING)
+          .setDownsampler(Downsampler.newBuilder()
+              .setAggregator("sum")
+              .setInterval("1h")))
+      .build();
   }
 }
-
-
