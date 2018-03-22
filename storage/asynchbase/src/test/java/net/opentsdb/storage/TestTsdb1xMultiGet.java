@@ -211,7 +211,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertFalse(mget.rollups_enabled);
     assertTrue(mget.pre_aggregate);
     assertEquals(-1, mget.tsuid_idx);
-    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    assertEquals(END_TS - 900, mget.timestamp.epoch());
     assertNull(mget.fallback_timestamp);
     assertEquals(-1, mget.rollup_index);
     assertEquals(1, mget.tables.size());
@@ -656,6 +656,76 @@ public class TestTsdb1xMultiGet extends UTBase {
     mget.incrementTimestamp();
     assertEquals(START_TS + (86400) - 900, mget.timestamp.epoch());
     assertEquals(START_TS + (3600 * 2) - 900, mget.fallback_timestamp.epoch());
+  }
+  
+  @Test
+  public void incrementTimeStampReversed() throws Exception {
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING))
+        .addConfig(Tsdb1xHBaseDataStore.REVERSE_KEY, "true")
+        .build();
+    
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    assertEquals(END_TS - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    
+    mget.incrementTimestamp();
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    
+    mget.incrementTimestamp();
+    assertEquals(START_TS - (3600) - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+  }
+  
+  @Test
+  public void incrementTimeStampRollupsReversed() throws Exception {
+    setMultiRollupQuery(true);
+    
+    Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
+    assertEquals(START_TS - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    
+    mget.incrementTimestamp();
+    assertEquals(START_TS - (86400) - 900, mget.timestamp.epoch());
+    assertNull(mget.fallback_timestamp);
+    
+    // fallback resets to the original
+    mget.rollup_index = 1;
+    mget.incrementTimestamp();
+    assertEquals(START_TS - (86400) - 900, mget.timestamp.epoch());
+    assertEquals(START_TS - 900, mget.fallback_timestamp.epoch());
+    
+    // now we increment just the fallback timestamp
+    mget.incrementTimestamp();
+    assertEquals(START_TS - (86400) - 900, mget.timestamp.epoch());
+    assertEquals(START_TS - (3600 * 6) - 900, mget.fallback_timestamp.epoch());
+    
+    mget.incrementTimestamp();
+    assertEquals(START_TS - (86400) - 900, mget.timestamp.epoch());
+    assertEquals(START_TS - (3600 * 12) - 900, mget.fallback_timestamp.epoch());
+    
+    // fallback to raw now. The onComplete() method has null the fallback timestamp
+    mget.fallback_timestamp = null;
+    mget.rollup_index = 2;
+    mget.incrementTimestamp();
+    assertEquals(START_TS - (86400) - 900, mget.timestamp.epoch());
+    assertEquals(END_TS - 900, mget.fallback_timestamp.epoch());
+    
+    // increment
+    mget.incrementTimestamp();
+    assertEquals(START_TS - (86400) - 900, mget.timestamp.epoch());
+    assertEquals(START_TS - 900, mget.fallback_timestamp.epoch());
+    
+    // increment
+    mget.incrementTimestamp();
+    assertEquals(START_TS - (86400) - 900, mget.timestamp.epoch());
+    assertEquals(START_TS - 3600 - 900, mget.fallback_timestamp.epoch());
   }
   
   @Test
@@ -1511,30 +1581,36 @@ public class TestTsdb1xMultiGet extends UTBase {
   }
   
   void setMultiRollupQuery() throws Exception {
-    when(node.rollupIntervals())
-    .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
-        .setInterval("1h")
-        .setTable("tsdb-1h")
-        .setPreAggregationTable("tsdb-agg-1h")
-        .setRowSpan("1d")
-        .build(),
-      RollupInterval.builder()
-        .setInterval("30m")
-        .setTable("tsdb-30m")
-        .setPreAggregationTable("tsdb-agg-30m")
-        .setRowSpan("6h")
-        .build()));
+    setMultiRollupQuery(false);
+  }
   
-  query = TimeSeriesQuery.newBuilder()
-      .setTime(Timespan.newBuilder()
-          .setStart(Integer.toString(START_TS))
-          .setEnd(Integer.toString(END_TS))
-          .setAggregator("avg"))
-      .addMetric(Metric.newBuilder()
-          .setMetric(METRIC_STRING)
-          .setDownsampler(Downsampler.newBuilder()
-              .setAggregator("sum")
-              .setInterval("1h")))
-      .build();
+  void setMultiRollupQuery(final boolean reversed) throws Exception {
+    when(node.rollupIntervals())
+      .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
+          .setInterval("1h")
+          .setTable("tsdb-1h")
+          .setPreAggregationTable("tsdb-agg-1h")
+          .setRowSpan("1d")
+          .build(),
+        RollupInterval.builder()
+          .setInterval("30m")
+          .setTable("tsdb-30m")
+          .setPreAggregationTable("tsdb-agg-30m")
+          .setRowSpan("6h")
+          .build()));
+    
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING)
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("sum")
+                .setInterval("1h")))
+        .addConfig(Tsdb1xHBaseDataStore.REVERSE_KEY, 
+            reversed ? "true" : "false")
+        .build();
   }
 }

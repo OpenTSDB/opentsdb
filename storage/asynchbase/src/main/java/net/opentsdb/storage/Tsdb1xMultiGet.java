@@ -671,26 +671,40 @@ public class Tsdb1xMultiGet {
       if (rollup_index == 0) {
         final RollupInterval interval = 
             node.rollupIntervals().get(rollup_index);
-        timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
-            timestamp.epoch() + 
-            (interval.getIntervalSeconds() * interval.getIntervals()), interval));
+        if (reversed) {
+          timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
+              timestamp.epoch() - 
+              (interval.getIntervalSeconds() * interval.getIntervals()), interval));
+        } else {
+          timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
+              timestamp.epoch() + 
+              (interval.getIntervalSeconds() * interval.getIntervals()), interval));
+        }
       } else {
         if (fallback_timestamp == null) {
           // initialize the timestamp
           fallback_timestamp = getInitialTimestamp(rollup_index);
         } else if (rollup_index >= node.rollupIntervals().size()) {
           // it's raw
-          fallback_timestamp.add(Duration.of(1, ChronoUnit.HOURS));
+          fallback_timestamp.add(Duration.of(
+              (reversed ? - 1 : 1), ChronoUnit.HOURS));
         } else {
           final RollupInterval interval = 
               node.rollupIntervals().get(rollup_index);
-          fallback_timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
-              fallback_timestamp.epoch() + 
-              (interval.getIntervalSeconds() * interval.getIntervals()), interval));
+          if (reversed) {
+            fallback_timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
+                fallback_timestamp.epoch() - 
+                (interval.getIntervalSeconds() * interval.getIntervals()), interval));
+          } else {
+            fallback_timestamp.updateEpoch((long) RollupUtils.getRollupBasetime(
+                fallback_timestamp.epoch() + 
+                (interval.getIntervalSeconds() * interval.getIntervals()), interval));
+          }
         }
       }
     } else {
-      timestamp.add(Duration.of(1, ChronoUnit.HOURS));
+      timestamp.add(Duration.of(
+          (reversed ? -1 : 1), ChronoUnit.HOURS));
     }
   }
   
@@ -708,35 +722,40 @@ public class Tsdb1xMultiGet {
       final RollupInterval interval = node.rollupIntervals().get(0);
       if (query.getTime().isRate()) {
         return new MillisecondTimeStamp((long) RollupUtils.getRollupBasetime(
-            query.getTime().startTime().epoch() - 1, interval) * 1000L);      
+            (reversed ? query.getTime().endTime().epoch() + 1 : 
+              query.getTime().startTime().epoch() - 1), interval) * 1000L);      
       } else {
         return new MillisecondTimeStamp((long) RollupUtils.getRollupBasetime(
-            query.getTime().startTime().epoch(), interval) * 1000L);
+            (reversed ? query.getTime().endTime().epoch() : 
+              query.getTime().startTime().epoch()), interval) * 1000L);
       }
     } else {
-      long start = query.getTime().startTime().epoch();
+      long ts = reversed ? query.getTime().endTime().epoch() : 
+        query.getTime().startTime().epoch();
       if (query.getMetrics().get(0).getDownsampler() != null) {
-        long interval = DateTime.parseDuration(query.getMetrics().get(0).getDownsampler().getInterval());
+        long interval = DateTime.parseDuration(
+            query.getMetrics().get(0).getDownsampler().getInterval());
         if (interval > 0) {
-          final long interval_offset = (1000L * start) % interval;
-          start -= interval_offset / 1000L;
+          final long interval_offset = (1000L * ts) % interval;
+          ts -= interval_offset / 1000L;
         }
       } else if (query.getTime().getDownsampler() != null) {
-        long interval = DateTime.parseDuration(query.getTime().getDownsampler().getInterval());
+        long interval = DateTime.parseDuration(
+            query.getTime().getDownsampler().getInterval());
         if (interval > 0) {
-          final long interval_offset = (1000L * start) % interval;
-          start -= interval_offset / 1000L;
+          final long interval_offset = (1000L * ts) % interval;
+          ts -= interval_offset / 1000L;
         }
       }
       
       // Then snap that timestamp back to its representative value for the
       // timespan in which it appears.
-      final long timespan_offset = start % Schema.MAX_RAW_TIMESPAN;
-      start -= timespan_offset;
+      final long timespan_offset = ts % Schema.MAX_RAW_TIMESPAN;
+      ts -= timespan_offset;
       
       // Don't return negative numbers.
-      start = start > 0L ? start : 0L;
-      return new MillisecondTimeStamp(start * 1000);
+      ts = ts > 0L ? ts : 0L;
+      return new MillisecondTimeStamp(ts * 1000);
     }
   }
 }
