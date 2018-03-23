@@ -41,6 +41,7 @@ import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.stats.MockTrace;
@@ -735,4 +736,5 @@ public class TestSchema extends SchemaBase {
         Arrays.copyOfRange(row, schema.saltWidth() + schema.metricWidth(), 
             schema.saltWidth() + schema.metricWidth() + Schema.TIMESTAMP_BYTES));
   }
+  
 }

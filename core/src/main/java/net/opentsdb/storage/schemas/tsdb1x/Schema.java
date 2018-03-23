@@ -59,15 +59,6 @@ public class Schema implements StorageSchema {
 
   public static final byte APPENDS_PREFIX = 5;
   
-  /** Number of LSBs in time_deltas reserved for flags.  */
-  public static final short FLAG_BITS = 4;
-  
-  /**
-   * When this bit is set, the value is a floating point value.
-   * Otherwise it's an integer value.
-   */
-  public static final short FLAG_FLOAT = 0x8;
-  
   /** Max time delta (in seconds) we can store in a column qualifier.  */
   public static final short MAX_RAW_TIMESPAN = 3600;
   
