@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.utils.Bytes;
 
@@ -202,7 +203,7 @@ public final class RollupUtils {
     }
    
     // shift the offset over 4 bits then apply the flag
-    offset = offset << Schema.FLAG_BITS;
+    offset = offset << NumericCodec.FLAG_BITS;
     offset = offset | flags;
     qualifier[0] = (byte) aggregator_id;
     System.arraycopy(Bytes.fromShort((short) offset), 0, qualifier, 1, 2);
@@ -258,7 +259,7 @@ public final class RollupUtils {
         >>> Const.MS_FLAG_BITS)/1000;
     } else {
       offset = (Bytes.getUnsignedShort(qualifier, byte_offset) & 0xFFFF) 
-        >>> Schema.FLAG_BITS;
+        >>> NumericCodec.FLAG_BITS;
     }
     
     return offset * interval.getIntervalSeconds() * 1000;
@@ -280,7 +281,7 @@ public final class RollupUtils {
           + " for interval " + interval);
       offset = (qualifier & 0x0FFFFFC0) >>> (Const.MS_FLAG_BITS) / 1000;
     } else {
-      offset = (qualifier & 0xFFFF) >>> Schema.FLAG_BITS;
+      offset = (qualifier & 0xFFFF) >>> NumericCodec.FLAG_BITS;
     }
     return offset * interval.getIntervalSeconds() * 1000;
   }

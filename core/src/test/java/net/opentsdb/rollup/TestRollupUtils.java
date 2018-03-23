@@ -22,8 +22,7 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
 
-import net.opentsdb.core.Const;
-import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
 
 public class TestRollupUtils {
   private static final String temporal_table = "tsdb-rollup-10m";
@@ -1054,7 +1053,7 @@ public class TestRollupUtils {
     System.arraycopy(offset, 0, expected_qual, 1, 2);
     
     final byte[] q = RollupUtils.buildRollupQualifier(1370532925L, 1370530800, 
-        (byte) ( 7 | Schema.FLAG_FLOAT), 42, hour_interval);
+        (byte) ( 7 | NumericCodec.FLAG_FLOAT), 42, hour_interval);
 
     assertArrayEquals(expected_qual, q);
   }
@@ -1067,7 +1066,7 @@ public class TestRollupUtils {
     System.arraycopy(offset, 0, expected_qual, 1, 2);
 
     final byte[] q = RollupUtils.buildRollupQualifier(1370532925L, 1370530800, 
-        (byte) ( 3 | Schema.FLAG_FLOAT), 42, hour_interval);
+        (byte) ( 3 | NumericCodec.FLAG_FLOAT), 42, hour_interval);
 
     assertArrayEquals(expected_qual, q);
   }
