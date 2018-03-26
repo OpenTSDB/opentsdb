@@ -32,6 +32,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
 import net.opentsdb.utils.Bytes;
 
 /**
@@ -69,10 +70,10 @@ public class NumericMillisecondShard implements TimeSeries,
   private int write_offset_idx;
   private int write_value_idx;
   
-  /** The time offsets and real + value flags. */
+  /** The time offsets and value flags. */
   private byte[] offsets;
   
-  /** The real counts and values. */
+  /** The values. */
   private byte[] values;
   
   /** The last timestamp recorded to track dupes and OOO data. */
@@ -148,7 +149,7 @@ public class NumericMillisecondShard implements TimeSeries,
     this.order = order;
     last_timestamp = Long.MIN_VALUE;
     span = end.msEpoch() - start.msEpoch();
-    encode_on = NumericType.encodeOn(span, NumericType.TOTAL_FLAG_BITS);
+    encode_on = NumericCodec.encodeOn(span, NumericCodec.LENGTH_MASK);
     offsets = new byte[count * encode_on];
     values = new byte[count * 4]; // may be too large or too small.
   }
@@ -179,10 +180,10 @@ public class NumericMillisecondShard implements TimeSeries,
           + "less than or equal to the end time: " + end_timestamp);
     }
     last_timestamp = timestamp;
-    final byte[] vle = NumericType.vleEncodeLong(value);
+    final byte[] vle = NumericCodec.vleEncodeLong(value);
     final byte flags = (byte) ((vle.length - 1));
     final byte[] offset = Bytes.fromLong(
-       (((timestamp - start_timestamp.msEpoch()) << NumericType.TOTAL_FLAG_BITS) | flags));
+       (((timestamp - start_timestamp.msEpoch()) << NumericCodec.FLAG_BITS) | flags));
     add(offset, vle);
   }
   
@@ -218,9 +219,9 @@ public class NumericMillisecondShard implements TimeSeries,
         Bytes.fromInt(Float.floatToIntBits((float) value)) :
           Bytes.fromLong(Double.doubleToLongBits(value));
     final byte flags = (byte) ((vle.length - 1) 
-        | NumericType.FLAG_FLOAT);
+        | NumericCodec.FLAG_FLOAT);
     final byte[] offset = Bytes.fromLong(
-       (((timestamp - start_timestamp.msEpoch()) << NumericType.TOTAL_FLAG_BITS) | flags));
+       (((timestamp - start_timestamp.msEpoch()) << NumericCodec.FLAG_BITS) | flags));
     add(offset, vle);
   }
   
@@ -281,15 +282,15 @@ public class NumericMillisecondShard implements TimeSeries,
       System.arraycopy(offsets, read_offset_idx, offset_copy, 8 - encode_on, encode_on);
       long offset = Bytes.getLong(offset_copy);
       final byte flags = (byte) offset;
-      offset = offset >> NumericType.TOTAL_FLAG_BITS;
-      final byte vlen = (byte) ((flags & NumericType.VALUE_LENGTH_MASK) + 1);
+      offset = offset >> NumericCodec.FLAG_BITS;
+      final byte vlen = (byte) ((flags & NumericCodec.LENGTH_MASK) + 1);
       timestamp.updateMsEpoch(start_timestamp.msEpoch() + offset);
       
-      if ((flags & NumericType.FLAG_FLOAT) == 0x0) {
-        dp.reset(timestamp, NumericType.extractIntegerValue(values, 
+      if ((flags & NumericCodec.FLAG_FLOAT) == 0x0) {
+        dp.reset(timestamp, NumericCodec.extractIntegerValue(values, 
             read_value_idx, flags));
       } else {
-        dp.reset(timestamp, NumericType.extractFloatingPointValue(values, 
+        dp.reset(timestamp, NumericCodec.extractFloatingPointValue(values, 
             read_value_idx, flags));
       }
       read_offset_idx += encode_on;

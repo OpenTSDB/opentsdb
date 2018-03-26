@@ -16,9 +16,16 @@ package net.opentsdb.storage.schemas.tsdb1x;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import org.junit.Test;
+
+import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.exceptions.IllegalDataException;
+import net.opentsdb.storage.schemas.tsdb1x.NumericCodec.OffsetResolution;
+import net.opentsdb.utils.Bytes;
 
 public class TestNumericCodec {
 
@@ -266,5 +273,387 @@ public class TestNumericCodec {
       NumericCodec.getValueLengthFromQualifier(new byte[] { 0, 0x4B }, 42);
       fail("Expected ArrayIndexOutOfBoundsException");
     } catch (ArrayIndexOutOfBoundsException e) { }
+  }
+  
+  @Test
+  public void vleEncodeLong() throws Exception {
+    byte[] expected = new byte[1];
+    assertArrayEquals(expected, NumericCodec.vleEncodeLong(0));
+    
+    expected = new byte[] { 42 };
+    assertArrayEquals(expected, NumericCodec.vleEncodeLong(42));
+    
+    expected = new byte[] { -42 };
+    assertArrayEquals(expected, NumericCodec.vleEncodeLong(-42));
+    
+    expected = new byte[] { 1, 1 };
+    assertArrayEquals(expected, NumericCodec.vleEncodeLong(257));
+    
+    expected = new byte[] { (byte) 0xFE, (byte) 0xFF };
+    assertArrayEquals(expected, NumericCodec.vleEncodeLong(-257));
+    
+    expected = new byte[] { 0, 1, 0, 1 };
+    assertArrayEquals(expected, NumericCodec.vleEncodeLong(65537));
+    
+    expected = 
+        new byte[] { (byte) 0xFF, (byte) 0xFE, (byte) 0xFF, (byte) 0xFF };
+    assertArrayEquals(expected, NumericCodec.vleEncodeLong(-65537));
+    
+    expected = new byte[] { 0, 0, 0, 1, 0, 0, 0, 0 };
+    assertArrayEquals(expected, NumericCodec.vleEncodeLong(4294967296L));
+    
+    expected = new byte[] { 
+        (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, 0, 0, 0, 0 };
+    assertArrayEquals(expected, NumericCodec.vleEncodeLong(-4294967296L));
+  }
+
+  @Test
+  public void getFlags() throws Exception {
+    byte[] offsets = new byte[] { 7 };
+    assertEquals(7, NumericCodec.getFlags(offsets, 0, (byte) 1));
+    
+    offsets = new byte[] { 0, 0, 0, 0, 7 };
+    assertEquals(7, NumericCodec.getFlags(offsets, 0, (byte) 5));
+    
+    offsets = new byte[] { 0, 1, 0, 8, 0, 2, 0, 0x0F };
+    assertEquals(1, NumericCodec.getFlags(offsets, 0, (byte) 2));
+    assertEquals(8, NumericCodec.getFlags(offsets, 2, (byte) 2));
+    assertEquals(2, NumericCodec.getFlags(offsets, 4, (byte) 2));
+    assertEquals(15, NumericCodec.getFlags(offsets, 6, (byte) 2));
+    
+    try {
+      NumericCodec.getFlags(offsets, 8, (byte) 2);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      NumericCodec.getFlags(null, 0, (byte) 2);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      NumericCodec.getFlags(offsets, -2, (byte) 2);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      NumericCodec.getFlags(offsets, 2, (byte) 0);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      NumericCodec.getFlags(offsets, 2, (byte) 9);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void getValueLength() throws Exception {
+    assertEquals(8, NumericCodec.getValueLength((byte) 0x07));
+    assertEquals(7, NumericCodec.getValueLength((byte) 0x06));
+    assertEquals(6, NumericCodec.getValueLength((byte) 0x05));
+    assertEquals(5, NumericCodec.getValueLength((byte) 0x04));
+    assertEquals(4, NumericCodec.getValueLength((byte) 0x03));
+    assertEquals(3, NumericCodec.getValueLength((byte) 0x02));
+    assertEquals(2, NumericCodec.getValueLength((byte) 0x01));
+    assertEquals(1, NumericCodec.getValueLength((byte) 0x00));
+    // ignore the first bits
+    assertEquals(8, NumericCodec.getValueLength((byte) 0xFF));
+    assertEquals(7, NumericCodec.getValueLength((byte) 0xFE));
+    assertEquals(6, NumericCodec.getValueLength((byte) 0xFD));
+    assertEquals(5, NumericCodec.getValueLength((byte) 0xFC));
+    assertEquals(4, NumericCodec.getValueLength((byte) 0xFB));
+    assertEquals(3, NumericCodec.getValueLength((byte) 0xFA));
+    assertEquals(2, NumericCodec.getValueLength((byte) 0xF9));
+    assertEquals(1, NumericCodec.getValueLength((byte) 0xF8));
+  }
+  
+  @Test
+  public void encodeOn() throws Exception {
+    int reserved = 7;
+
+    assertEquals(1, NumericCodec.encodeOn(1, reserved));
+    assertEquals(2, NumericCodec.encodeOn(2, reserved));
+    assertEquals(2, NumericCodec.encodeOn(239, reserved));
+    assertEquals(2, NumericCodec.encodeOn(511, reserved));
+    assertEquals(3, NumericCodec.encodeOn(512, reserved));
+    assertEquals(3, NumericCodec.encodeOn(131071, reserved));
+    assertEquals(4, NumericCodec.encodeOn(131072, reserved));
+    assertEquals(4, NumericCodec.encodeOn(33554431, reserved));
+    assertEquals(5, NumericCodec.encodeOn(33554432, reserved));
+    assertEquals(5, NumericCodec.encodeOn(8589934591L, reserved));
+    assertEquals(6, NumericCodec.encodeOn(8589934592L, reserved));
+    assertEquals(6, NumericCodec.encodeOn(2199023255551L, reserved));
+    assertEquals(7, NumericCodec.encodeOn(2199023255552L, reserved));
+    assertEquals(7, NumericCodec.encodeOn(562949953421311L, reserved));
+    assertEquals(8, NumericCodec.encodeOn(562949953421312L, reserved));
+    assertEquals(8, NumericCodec.encodeOn(72057594037927935L, reserved));
+    assertEquals(8, NumericCodec.encodeOn(144115188075855871L, reserved));
+    try {
+      NumericCodec.encodeOn(144115188075855872L, reserved);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    reserved = 4;
+    assertEquals(1, NumericCodec.encodeOn(1, reserved));
+    assertEquals(1, NumericCodec.encodeOn(15, reserved));
+    assertEquals(2, NumericCodec.encodeOn(16, reserved));
+    assertEquals(2, NumericCodec.encodeOn(4095, reserved));
+    assertEquals(3, NumericCodec.encodeOn(4096, reserved));
+    assertEquals(3, NumericCodec.encodeOn(1048575, reserved));
+    assertEquals(4, NumericCodec.encodeOn(1048576, reserved));
+    assertEquals(4, NumericCodec.encodeOn(268435455, reserved));
+    assertEquals(5, NumericCodec.encodeOn(268435456, reserved));
+    assertEquals(5, NumericCodec.encodeOn(68719476735L, reserved));
+    assertEquals(6, NumericCodec.encodeOn(68719476736L, reserved));
+    assertEquals(6, NumericCodec.encodeOn(17592186044415L, reserved));
+    assertEquals(7, NumericCodec.encodeOn(17592186044416L, reserved));
+    assertEquals(7, NumericCodec.encodeOn(4503599627370495L, reserved));
+    assertEquals(8, NumericCodec.encodeOn(4503599627370496L, reserved));
+    assertEquals(8, NumericCodec.encodeOn(1152921504606846975L, reserved));
+    try {
+      NumericCodec.encodeOn(1152921504606846976L, reserved);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      NumericCodec.encodeOn(-1, reserved);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    reserved = 0;
+    try {
+      NumericCodec.encodeOn(1, reserved);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+
+  @Test
+  public void extractIntegerValue() throws Exception {
+    byte[] values = new byte[] { 0 };
+    assertEquals(0, NumericCodec.extractIntegerValue(values, 0, (byte) 0));
+    
+    values = new byte[] { 1 };
+    assertEquals(1, NumericCodec.extractIntegerValue(values, 0, (byte) 0));
+    
+    values = new byte[] { (byte) 0x7F };
+    assertEquals(127, NumericCodec.extractIntegerValue(values, 0, (byte) 0));
+    
+    values = new byte[] { (byte) 0xFF };
+    assertEquals(-1, NumericCodec.extractIntegerValue(values, 0, (byte) 0));
+    
+    values = new byte[] { (byte) 0x80 };
+    assertEquals(-128, NumericCodec.extractIntegerValue(values, 0, (byte) 0));
+    
+    values = new byte[] { 1, 0 };
+    assertEquals(256, NumericCodec.extractIntegerValue(values, 0, (byte) 1));
+    
+    values = new byte[] { 0x7F, (byte) 0xFF };
+    assertEquals(32767, NumericCodec.extractIntegerValue(values, 0, (byte) 1));
+    
+    values = new byte[] { (byte) 0xFF, (byte) 0xFF };
+    assertEquals(-1, NumericCodec.extractIntegerValue(values, 0, (byte) 1));
+    
+    values = new byte[] { (byte) 0x80, 0 };
+    assertEquals(-32768, NumericCodec.extractIntegerValue(values, 0, (byte) 1));
+    
+    values = new byte[] { 1, 0, 0 };
+    try {
+      // has to be 4 bytes
+      NumericCodec.extractIntegerValue(values, 0, (byte) 2);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    values = new byte[] { 0, 1, 0, 0 };
+    assertEquals(65536, NumericCodec.extractIntegerValue(values, 0, (byte) 3));
+    
+    values = new byte[] { 1, 0, 0, 0 };
+    assertEquals(16777216, NumericCodec.extractIntegerValue(values, 0, (byte) 3));
+    
+    values = new byte[] { 0x7F, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF};
+    assertEquals(2147483647, NumericCodec.extractIntegerValue(values, 0, (byte) 3));
+    
+    values = new byte[] { (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF};
+    assertEquals(-1, NumericCodec.extractIntegerValue(values, 0, (byte) 3));
+    
+    values = new byte[] { (byte) 0x80, 0, 0, 0 };
+    assertEquals(-2147483648, 
+        NumericCodec.extractIntegerValue(values, 0, (byte) 3));
+    
+    values = new byte[] { 1, 0, 0, 0, 0 };
+    try {
+      // has to be 8 bytes
+      NumericCodec.extractIntegerValue(values, 0, (byte) 4);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    values = new byte[] { 0, 0, 0, 1, 0, 0, 0, 0 };
+    assertEquals(4294967296L, 
+        NumericCodec.extractIntegerValue(values, 0, (byte) 7));
+    
+    values = new byte[] { 1, 0, 0, 0, 0, 0, 0, 0 };
+    assertEquals(72057594037927936L, 
+        NumericCodec.extractIntegerValue(values, 0, (byte) 7));
+    
+    values = new byte[] { 0x7F, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, 
+        (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF };
+    assertEquals(9223372036854775807L, 
+        NumericCodec.extractIntegerValue(values, 0, (byte) 7));
+
+    values = new byte[] { (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, 
+        (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF };
+    assertEquals(-1, NumericCodec.extractIntegerValue(values, 0, (byte) 7));
+    
+    values = new byte[] { (byte) 0x80, 0, 0, 0, 0, 0, 0, 0 };
+    assertEquals(-9223372036854775808L, 
+        NumericCodec.extractIntegerValue(values, 0, (byte) 7));
+    
+    values = new byte[] { (byte) 0x80, 1 };
+    assertEquals(1, NumericCodec.extractIntegerValue(values, 1, (byte) 0));
+  }
+
+  @Test
+  public void extractFloatingPointValue() throws Exception {
+    byte[] values = new byte[] { 0, 0, 0, 0 };
+    assertEquals(0, NumericCodec.extractFloatingPointValue(
+        values, 0, (byte) 0xF3), 0.0001);
+    
+    values = Bytes.fromInt(Float.floatToIntBits(42.5f));
+    assertEquals(42.5f, NumericCodec.extractFloatingPointValue(
+        values, 0, (byte) 0xF3), 0.0001);
+    
+    values = Bytes.fromInt(Float.floatToIntBits(-42.5f));
+    assertEquals(-42.5f, NumericCodec.extractFloatingPointValue(
+        values, 0, (byte) 0xF3), 0.0001);
+    try {
+      // has to be 4 bytes
+      NumericCodec.extractFloatingPointValue(values, 0, (byte) 0xF2);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    values = Bytes.fromInt(Float.floatToIntBits(Float.POSITIVE_INFINITY));
+    assertTrue(Double.isInfinite(NumericCodec.extractFloatingPointValue(
+        values, 0, (byte) 0xF3)));
+    
+    values = Bytes.fromInt(Float.floatToIntBits(Float.NEGATIVE_INFINITY));
+    assertTrue(Double.isInfinite(NumericCodec.extractFloatingPointValue(
+        values, 0, (byte) 0xF3)));
+    
+    values = Bytes.fromInt(Float.floatToIntBits(Float.NaN));
+    assertTrue(Double.isNaN(NumericCodec.extractFloatingPointValue(
+        values, 0, (byte) 0xF3)));
+    
+    values = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0 };
+    assertEquals(0, NumericCodec.extractFloatingPointValue(
+        values, 0, (byte) 0xF7), 0.0001);
+    
+    values = Bytes.fromLong(Double.doubleToRawLongBits(42.5d));
+    assertEquals(42.5d, NumericCodec.extractFloatingPointValue(
+        values, 0, (byte) 0xF7), 0.0001);
+    
+    values = Bytes.fromLong(Double.doubleToRawLongBits(-42.5d));
+    assertEquals(-42.5d, NumericCodec.extractFloatingPointValue(
+        values, 0, (byte) 0xF7), 0.0001);
+    
+    values = Bytes.fromLong(Double.doubleToRawLongBits(Double.POSITIVE_INFINITY));
+    assertTrue(Double.isInfinite(NumericCodec.extractFloatingPointValue(
+        values, 0, (byte) 0xF7)));
+    
+    values = Bytes.fromLong(Double.doubleToRawLongBits(Double.NEGATIVE_INFINITY));
+    assertTrue(Double.isInfinite(NumericCodec.extractFloatingPointValue(
+        values, 0, (byte) 0xF7)));
+    
+    values = Bytes.fromLong(Double.doubleToRawLongBits(Double.NaN));
+    assertTrue(Double.isNaN(NumericCodec.extractFloatingPointValue(
+        values, 0, (byte) 0xF7)));
+  }
+  
+  @Test
+  public void encodeDecodeAppendValue() throws Exception {
+    long base = 1514764800;
+    
+    byte[] val = NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42);
+    TimeSeriesValue<NumericType> value = NumericCodec.valueFromAppend(base, val, 0);
+    assertEquals(base + 60, value.timestamp().epoch());
+    assertEquals(0, value.timestamp().nanos());
+    assertEquals(42, value.value().longValue());
+    
+    val = NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, Long.MIN_VALUE);
+    value = NumericCodec.valueFromAppend(base, val, 0);
+    assertEquals(base + 60, value.timestamp().epoch());
+    assertEquals(0, value.timestamp().nanos());
+    assertEquals(Long.MIN_VALUE, value.value().longValue());
+    
+    val = NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, Long.MAX_VALUE);
+    value = NumericCodec.valueFromAppend(base, val, 0);
+    assertEquals(base + 60, value.timestamp().epoch());
+    assertEquals(0, value.timestamp().nanos());
+    assertEquals(Long.MAX_VALUE, value.value().longValue());
+    
+    val = NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 42.5F);
+    value = NumericCodec.valueFromAppend(base, val, 0);
+    assertEquals(base + 120, value.timestamp().epoch());
+    assertEquals(0, value.timestamp().nanos());
+    assertEquals(42.5, value.value().doubleValue(), 0.001);
+    
+    val = NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, Float.MIN_VALUE);
+    value = NumericCodec.valueFromAppend(base, val, 0);
+    assertEquals(base + 120, value.timestamp().epoch());
+    assertEquals(0, value.timestamp().nanos());
+    assertEquals(Float.MIN_VALUE, value.value().doubleValue(), 0.001);
+    
+    val = NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, Float.MAX_VALUE);
+    value = NumericCodec.valueFromAppend(base, val, 0);
+    assertEquals(base + 120, value.timestamp().epoch());
+    assertEquals(0, value.timestamp().nanos());
+    assertEquals(Float.MAX_VALUE, value.value().doubleValue(), 0.001);
+    
+    val = NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, 42.5D);
+    value = NumericCodec.valueFromAppend(base, val, 0);
+    assertEquals(base + 180, value.timestamp().epoch());
+    assertEquals(0, value.timestamp().nanos());
+    assertEquals(42.5, value.value().doubleValue(), 0.001);
+    
+    val = NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, Double.MIN_VALUE);
+    value = NumericCodec.valueFromAppend(base, val, 0);
+    assertEquals(base + 180, value.timestamp().epoch());
+    assertEquals(0, value.timestamp().nanos());
+    assertEquals(Double.MIN_VALUE, value.value().doubleValue(), 0.001);
+    
+    val = NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, Double.MAX_VALUE);
+    value = NumericCodec.valueFromAppend(base, val, 0);
+    assertEquals(base + 180, value.timestamp().epoch());
+    assertEquals(0, value.timestamp().nanos());
+    assertEquals(Double.MAX_VALUE, value.value().doubleValue(), 0.001);
+    
+    val = NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 24);
+    value = NumericCodec.valueFromAppend(base, val, 0);
+    assertEquals(base, value.timestamp().epoch());
+    assertEquals(500L * 1000L * 1000L, value.timestamp().nanos());
+    assertEquals(24, value.value().longValue());
+    
+    val = NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 60250, 24);
+    value = NumericCodec.valueFromAppend(base, val, 0);
+    assertEquals(base + 60, value.timestamp().epoch());
+    assertEquals(250L * 1000L * 1000L, value.timestamp().nanos());
+    assertEquals(24, value.value().longValue());
+    
+    val = NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 32, 24);
+    value = NumericCodec.valueFromAppend(base, val, 0);
+    assertEquals(base, value.timestamp().epoch());
+    assertEquals(32L, value.timestamp().nanos());
+    assertEquals(24, value.value().longValue());
+    
+    val = NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1024, 24);
+    value = NumericCodec.valueFromAppend(base, val, 0);
+    assertEquals(base, value.timestamp().epoch());
+    assertEquals(1024L, value.timestamp().nanos());
+    assertEquals(24, value.value().longValue());
+    
+    val = NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 60000000001L, 24);
+    value = NumericCodec.valueFromAppend(base, val, 0);
+    assertEquals(base + 60, value.timestamp().epoch());
+    assertEquals(1L, value.timestamp().nanos());
+    assertEquals(24, value.value().longValue());
   }
 }

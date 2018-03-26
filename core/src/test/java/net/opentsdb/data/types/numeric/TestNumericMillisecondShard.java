@@ -139,13 +139,13 @@ public class TestNumericMillisecondShard {
     shard.add(1486045801000L, 42);
     assertEquals(6, shard.offsets().length); // expanded
     assertEquals(4, shard.values().length);
-    assertArrayEquals(new byte[] { 1, -12, 0, 0, 0, 0 }, shard.offsets());
+    assertArrayEquals(new byte[] { 0, 62, -128, 0, 0, 0 }, shard.offsets());
     assertArrayEquals(new byte[] { 42, 0, 0, 0 }, shard.values());
     
     shard.add(1486045871000L, 9866.854);
     assertEquals(12, shard.offsets().length); // expanded
     assertEquals(16, shard.values().length);
-    assertArrayEquals(new byte[] { 1, -12, 0, -118, -84, 15, 0, 0, 0, 0, 0, 0 }, 
+    assertArrayEquals(new byte[] { 0, 62, -128, 17, 85, -113, 0, 0, 0, 0, 0, 0 }, 
         shard.offsets());
     assertArrayEquals(new byte[] { 42, 64, -61, 69, 109, 79, -33, 59, 
         100, 0, 0, 0, 0, 0, 0, 0 }, shard.values());
