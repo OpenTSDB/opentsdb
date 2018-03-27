@@ -1,955 +1,1138 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2010-2018  The OpenTSDB Authors.
 //
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+package net.opentsdb.storage.schemas.tsdb1x;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 
-import java.util.Arrays;
-import java.util.NoSuchElementException;
-
-import net.opentsdb.storage.MockBase;
-import net.opentsdb.uid.UniqueId;
-import net.opentsdb.utils.Config;
-
-import org.hbase.async.Bytes;
-import org.hbase.async.KeyValue;
-import org.hbase.async.Bytes.ByteMap;
-import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
 
-import com.stumbleupon.async.Deferred;
+import com.google.common.primitives.Bytes;
 
-@RunWith(PowerMockRunner.class)
-//"Classloader hell"...  It's real.  Tell PowerMock to ignore these classes
-//because they fiddle with the class loader.  We don't test them anyway.
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-               "ch.qos.*", "org.slf4j.*",
-               "com.sum.*", "org.xml.*"})
-@PrepareForTest({ RowSeq.class, TSDB.class, UniqueId.class, KeyValue.class, 
-  Config.class, RowKey.class, Const.class })
-public final class TestRowSeq {
-  private TSDB tsdb = mock(TSDB.class);
-  private Config config = mock(Config.class);
-  private UniqueId metrics = mock(UniqueId.class);
-  public static final byte[] TABLE = { 't', 'a', 'b', 'l', 'e' };
-  public static final byte[] KEY = 
-    { 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
-  public static final byte[] SALTED_KEY = 
-    { 0, 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
-  public static final byte[] FAMILY = { 't' };
-  public static final byte[] ZERO = { 0 };
-  
-  @Before
-  public void before() throws Exception {
-    // Inject the attributes we need into the "tsdb" object.
-    Whitebox.setInternalState(tsdb, "metrics", metrics);
-    Whitebox.setInternalState(tsdb, "table", TABLE);
-    Whitebox.setInternalState(tsdb, "config", config);
-    when(tsdb.getConfig()).thenReturn(config);
-    when(tsdb.metrics.width()).thenReturn((short)3);
-    when(RowKey.metricNameAsync(tsdb, KEY))
-      .thenReturn(Deferred.fromResult("sys.cpu.user"));
-  }
-  
-  @Test
-  public void setRow() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
-    assertEquals(2, rs.size());
-  }
-  
-  @Test
-  public void setRowSalted() throws Exception {
-    setupSalt();
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(SALTED_KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
-    assertEquals(2, rs.size());
-  }
-  
-  @Test (expected = IllegalStateException.class)
-  public void setRowAlreadySet() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
-    assertEquals(2, rs.size());
-    rs.setRow(kv);
-  }
-  
-  @Test
-  public void addRowMergeLater() throws Exception {
-    // this happens if the same row key is used for the addRow call
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(makekv(KEY, qual12, MockBase.concatByteArrays(val1, val2, ZERO)));
-    assertEquals(2, rs.size());
-    
-    final byte[] qual3 = { 0x00, 0x37 };
-    final byte[] val3 = Bytes.fromLong(6L);
-    final byte[] qual4 = { 0x00, 0x47 };
-    final byte[] val4 = Bytes.fromLong(7L);
-    final byte[] qual34 = MockBase.concatByteArrays(qual3, qual4);
-    rs.addRow(makekv(KEY, qual34, MockBase.concatByteArrays(val3, val4, ZERO)));
-    
-    assertEquals(4, rs.size());
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(4, rs.longValue(0));
-    assertEquals(1356998402000L, rs.timestamp(1));
-    assertEquals(5, rs.longValue(1));
-    assertEquals(1356998403000L, rs.timestamp(2));
-    assertEquals(6, rs.longValue(2));
-    assertEquals(1356998404000L, rs.timestamp(3));
-    assertEquals(7, rs.longValue(3));
-  }
-  
-  @Test
-  public void addRowMergeLaterSalted() throws Exception {
-    setupSalt();
-    // this happens if the same row key is used for the addRow call
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(makekv(SALTED_KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    assertEquals(2, rs.size());
-    
-    final byte[] qual3 = { 0x00, 0x37 };
-    final byte[] val3 = Bytes.fromLong(6L);
-    final byte[] qual4 = { 0x00, 0x47 };
-    final byte[] val4 = Bytes.fromLong(7L);
-    final byte[] qual34 = MockBase.concatByteArrays(qual3, qual4);
-    final byte[] salted_key2 = Arrays.copyOf(SALTED_KEY, SALTED_KEY.length);
-    salted_key2[0] = 1;
-    rs.addRow(makekv(salted_key2, qual34, 
-        MockBase.concatByteArrays(val3, val4, ZERO)));
-    
-    assertEquals(4, rs.size());
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(4, rs.longValue(0));
-    assertEquals(1356998402000L, rs.timestamp(1));
-    assertEquals(5, rs.longValue(1));
-    assertEquals(1356998403000L, rs.timestamp(2));
-    assertEquals(6, rs.longValue(2));
-    assertEquals(1356998404000L, rs.timestamp(3));
-    assertEquals(7, rs.longValue(3));
-  }
-  
-  @Test
-  public void addRowMergeEarlier() throws Exception {
-    // this happens if the same row key is used for the addRow call
-    final byte[] qual1 = { 0x00, 0x37 };
-    final byte[] val1 = Bytes.fromLong(6L);
-    final byte[] qual2 = { 0x00, 0x47 };
-    final byte[] val2 = Bytes.fromLong(7L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(makekv(KEY, qual12, MockBase.concatByteArrays(val1, val2, ZERO)));
-    assertEquals(2, rs.size());
-    
-    final byte[] qual3 = { 0x00, 0x07 };
-    final byte[] val3 = Bytes.fromLong(4L);
-    final byte[] qual4 = { 0x00, 0x27 };
-    final byte[] val4 = Bytes.fromLong(5L);
-    final byte[] qual34 = MockBase.concatByteArrays(qual3, qual4);
-    rs.addRow(makekv(KEY, qual34, MockBase.concatByteArrays(val3, val4, ZERO)));
-    
-    assertEquals(4, rs.size());
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(4, rs.longValue(0));
-    assertEquals(1356998402000L, rs.timestamp(1));
-    assertEquals(5, rs.longValue(1));
-    assertEquals(1356998403000L, rs.timestamp(2));
-    assertEquals(6, rs.longValue(2));
-    assertEquals(1356998404000L, rs.timestamp(3));
-    assertEquals(7, rs.longValue(3));
-  }
-  
-  @Test
-  public void addRowMergeEarlierSalted() throws Exception {
-    setupSalt();
-    // this happens if the same row key is used for the addRow call
-    final byte[] qual1 = { 0x00, 0x37 };
-    final byte[] val1 = Bytes.fromLong(6L);
-    final byte[] qual2 = { 0x00, 0x47 };
-    final byte[] val2 = Bytes.fromLong(7L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(makekv(SALTED_KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    assertEquals(2, rs.size());
-    
-    final byte[] qual3 = { 0x00, 0x07 };
-    final byte[] val3 = Bytes.fromLong(4L);
-    final byte[] qual4 = { 0x00, 0x27 };
-    final byte[] val4 = Bytes.fromLong(5L);
-    final byte[] qual34 = MockBase.concatByteArrays(qual3, qual4);
-    final byte[] salted_key2 = Arrays.copyOf(SALTED_KEY, SALTED_KEY.length);
-    salted_key2[0] = 1;
-    rs.addRow(makekv(salted_key2, qual34, 
-        MockBase.concatByteArrays(val3, val4, ZERO)));
-    
-    assertEquals(4, rs.size());
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(4, rs.longValue(0));
-    assertEquals(1356998402000L, rs.timestamp(1));
-    assertEquals(5, rs.longValue(1));
-    assertEquals(1356998403000L, rs.timestamp(2));
-    assertEquals(6, rs.longValue(2));
-    assertEquals(1356998404000L, rs.timestamp(3));
-    assertEquals(7, rs.longValue(3));
-  }
-  
-  @Test
-  public void addRowMergeMiddle() throws Exception {
-    // this happens if the same row key is used for the addRow call
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(makekv(KEY, qual12, MockBase.concatByteArrays(val1, val2, ZERO)));
-    assertEquals(2, rs.size());
-    
-    final byte[] qual3 = { 0x00, 0x57 };
-    final byte[] val3 = Bytes.fromLong(8L);
-    final byte[] qual4 = { 0x00, 0x67 };
-    final byte[] val4 = Bytes.fromLong(9L);
-    final byte[] qual34 = MockBase.concatByteArrays(qual3, qual4);
-    rs.addRow(makekv(KEY, qual34, MockBase.concatByteArrays(val3, val4, ZERO)));
-    assertEquals(4, rs.size());
-    
-    final byte[] qual5 = { 0x00, 0x37 };
-    final byte[] val5 = Bytes.fromLong(6L);
-    final byte[] qual6 = { 0x00, 0x47 };
-    final byte[] val6 = Bytes.fromLong(7L);
-    final byte[] qual56 = MockBase.concatByteArrays(qual5, qual6);
-    rs.addRow(makekv(KEY, qual56, MockBase.concatByteArrays(val5, val6, ZERO)));
-    
-    assertEquals(6, rs.size());
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(4, rs.longValue(0));
-    assertEquals(1356998402000L, rs.timestamp(1));
-    assertEquals(5, rs.longValue(1));
-    assertEquals(1356998403000L, rs.timestamp(2));
-    assertEquals(6, rs.longValue(2));
-    assertEquals(1356998404000L, rs.timestamp(3));
-    assertEquals(7, rs.longValue(3));
-    assertEquals(1356998405000L, rs.timestamp(4));
-    assertEquals(8, rs.longValue(4));
-    assertEquals(1356998406000L, rs.timestamp(5));
-    assertEquals(9, rs.longValue(5));
-  }
-  
-  @Test
-  public void addRowMergeMiddleSalted() throws Exception {
-    setupSalt();
-    // this happens if the same row key is used for the addRow call
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(makekv(SALTED_KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    assertEquals(2, rs.size());
-    
-    final byte[] qual3 = { 0x00, 0x57 };
-    final byte[] val3 = Bytes.fromLong(8L);
-    final byte[] qual4 = { 0x00, 0x67 };
-    final byte[] val4 = Bytes.fromLong(9L);
-    final byte[] qual34 = MockBase.concatByteArrays(qual3, qual4);
-    rs.addRow(makekv(SALTED_KEY, qual34, 
-        MockBase.concatByteArrays(val3, val4, ZERO)));
-    assertEquals(4, rs.size());
-    
-    final byte[] qual5 = { 0x00, 0x37 };
-    final byte[] val5 = Bytes.fromLong(6L);
-    final byte[] qual6 = { 0x00, 0x47 };
-    final byte[] val6 = Bytes.fromLong(7L);
-    final byte[] qual56 = MockBase.concatByteArrays(qual5, qual6);
-    final byte[] salted_key2 = Arrays.copyOf(SALTED_KEY, SALTED_KEY.length);
-    salted_key2[0] = 1;
-    rs.addRow(makekv(salted_key2, qual56, 
-        MockBase.concatByteArrays(val5, val6, ZERO)));
-    
-    assertEquals(6, rs.size());
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(4, rs.longValue(0));
-    assertEquals(1356998402000L, rs.timestamp(1));
-    assertEquals(5, rs.longValue(1));
-    assertEquals(1356998403000L, rs.timestamp(2));
-    assertEquals(6, rs.longValue(2));
-    assertEquals(1356998404000L, rs.timestamp(3));
-    assertEquals(7, rs.longValue(3));
-    assertEquals(1356998405000L, rs.timestamp(4));
-    assertEquals(8, rs.longValue(4));
-    assertEquals(1356998406000L, rs.timestamp(5));
-    assertEquals(9, rs.longValue(5));
-  }
-  
-  @Test
-  public void addRowMergeDuplicateLater() throws Exception {
-    // this happens if the same row key is used for the addRow call
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual3 = { 0x00, 0x37 };
-    final byte[] val3 = Bytes.fromLong(6L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2, qual3);
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(makekv(KEY, qual12, MockBase.concatByteArrays(val1, val2, val3, ZERO)));
-    assertEquals(3, rs.size());
-    
-    final byte[] qual4 = { 0x00, 0x47 };
-    final byte[] val4 = Bytes.fromLong(7L);
-    final byte[] qual34 = MockBase.concatByteArrays(qual3, qual4);
-    rs.addRow(makekv(KEY, qual34, MockBase.concatByteArrays(val3, val4, ZERO)));
-    
-    assertEquals(4, rs.size());
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(4, rs.longValue(0));
-    assertEquals(1356998402000L, rs.timestamp(1));
-    assertEquals(5, rs.longValue(1));
-    assertEquals(1356998403000L, rs.timestamp(2));
-    assertEquals(6, rs.longValue(2));
-    assertEquals(1356998404000L, rs.timestamp(3));
-    assertEquals(7, rs.longValue(3));
-  }
-  
-  @Test
-  public void addRowMergeDuplicateEarlier() throws Exception {
-    // this happens if the same row key is used for the addRow call
-    final byte[] qual4 = { 0x00, 0x27 };
-    final byte[] val4 = Bytes.fromLong(5L);
-    final byte[] qual1 = { 0x00, 0x37 };
-    final byte[] val1 = Bytes.fromLong(6L);
-    final byte[] qual2 = { 0x00, 0x47 };
-    final byte[] val2 = Bytes.fromLong(7L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual4, qual1, qual2);
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(makekv(KEY, qual12, MockBase.concatByteArrays(val4, val1, val2, ZERO)));
-    assertEquals(3, rs.size());
-    
-    final byte[] qual3 = { 0x00, 0x07 };
-    final byte[] val3 = Bytes.fromLong(4L);
-    final byte[] qual34 = MockBase.concatByteArrays(qual3, qual4);
-    rs.addRow(makekv(KEY, qual34, MockBase.concatByteArrays(val3, val4, ZERO)));
-    
-    assertEquals(4, rs.size());
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(4, rs.longValue(0));
-    assertEquals(1356998402000L, rs.timestamp(1));
-    assertEquals(5, rs.longValue(1));
-    assertEquals(1356998403000L, rs.timestamp(2));
-    assertEquals(6, rs.longValue(2));
-    assertEquals(1356998404000L, rs.timestamp(3));
-    assertEquals(7, rs.longValue(3));
-  }
-  
-  @Test (expected = IllegalDataException.class)
-  public void addRowDiffBaseTime() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(makekv(KEY, qual12, MockBase.concatByteArrays(val1, val2, ZERO)));
-    assertEquals(2, rs.size());
-    
-    final byte[] qual3 = { 0x00, 0x37 };
-    final byte[] val3 = Bytes.fromLong(6L);
-    final byte[] qual4 = { 0x00, 0x47 };
-    final byte[] val4 = Bytes.fromLong(7L);
-    final byte[] qual34 = MockBase.concatByteArrays(qual3, qual4);
-    final byte[] row2 = { 0, 0, 1, 0x50, (byte)0xE2, 0x35, 0x10, 0, 0, 1, 0, 0, 2 };
-    rs.addRow(new KeyValue(row2, FAMILY, qual34, 
-        MockBase.concatByteArrays(val3, val4, ZERO)));
-  }
-  
-  @Test (expected = IllegalDataException.class)
-  public void addRowDiffBaseTimeSalt() throws Exception {
-    setupSalt();
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(makekv(SALTED_KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    assertEquals(2, rs.size());
-    
-    final byte[] qual3 = { 0x00, 0x37 };
-    final byte[] val3 = Bytes.fromLong(6L);
-    final byte[] qual4 = { 0x00, 0x47 };
-    final byte[] val4 = Bytes.fromLong(7L);
-    final byte[] qual34 = MockBase.concatByteArrays(qual3, qual4);
-    final byte[] row2 = { 1, 0, 0, 1, 0x50, (byte)0xE2, 0x35, 0x10, 
-        0, 0, 1, 0, 0, 2 };
-    rs.addRow(new KeyValue(row2, FAMILY, qual34, 
-        MockBase.concatByteArrays(val3, val4, ZERO)));
-  }
-  
-  @Test
-  public void addRowMergeMs() throws Exception {
-    // this happens if the same row key is used for the addRow call
-    final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(makekv(KEY, qual12, MockBase.concatByteArrays(val1, val2, ZERO)));
-    assertEquals(2, rs.size());
-    
-    final byte[] qual3 = { (byte) 0xF0, 0x00, 0x07, 0x07 };
-    final byte[] val3 = Bytes.fromLong(6L);
-    final byte[] qual4 = { (byte) 0xF0, 0x00, 0x09, 0x07 };
-    final byte[] val4 = Bytes.fromLong(7L);
-    final byte[] qual34 = MockBase.concatByteArrays(qual3, qual4);
-    rs.addRow(makekv(KEY, qual34, MockBase.concatByteArrays(val3, val4, ZERO)));
-    
-    assertEquals(4, rs.size());
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(4, rs.longValue(0));
-    assertEquals(1356998400008L, rs.timestamp(1));
-    assertEquals(5, rs.longValue(1));
-    assertEquals(1356998400028L, rs.timestamp(2));
-    assertEquals(6, rs.longValue(2));
-    assertEquals(1356998400036L, rs.timestamp(3));
-    assertEquals(7, rs.longValue(3));
-  }
-  
-  @Test
-  public void addRowMergeSecAndMs() throws Exception {
-    // this happens if the same row key is used for the addRow call
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(makekv(KEY, qual12, MockBase.concatByteArrays(val1, val2, 
-        new byte[] { 1 })));
-    assertEquals(2, rs.size());
-    
-    final byte[] qual3 = { 0x00, 0x37 };
-    final byte[] val3 = Bytes.fromLong(6L);
-    final byte[] qual4 = { (byte) 0xF0, 0x01, 0x09, 0x07 };
-    final byte[] val4 = Bytes.fromLong(7L);
-    final byte[] qual34 = MockBase.concatByteArrays(qual3, qual4);
-    rs.addRow(makekv(KEY, qual34, MockBase.concatByteArrays(val3, val4, 
-        new byte[] { 1 })));
-    
-    assertEquals(4, rs.size());
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(4, rs.longValue(0));
-    assertEquals(1356998400008L, rs.timestamp(1));
-    assertEquals(5, rs.longValue(1));
-    assertEquals(1356998403000L, rs.timestamp(2));
-    assertEquals(6, rs.longValue(2));
-    assertEquals(1356998401060L, rs.timestamp(3));
-    assertEquals(7, rs.longValue(3));
-  }
-  
-  @Test (expected = IllegalStateException.class)
-  public void addRowNotSet() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.addRow(kv);
-  }
-  
-  @Test
-  public void timestamp() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
-    
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(1356998402000L, rs.timestamp(1));
-  }
-  
-  @Test
-  public void timestampSalted() throws Exception {
-    setupSalt();
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(SALTED_KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
-    
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(1356998402000L, rs.timestamp(1));
-  }
-  
-  @Test
-  public void timestampNormalizeMS() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
-    
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(1356998402000L, rs.timestamp(1));
-  }
-  
-  @Test
-  public void timestampMs() throws Exception {
-    final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
-    
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(1356998400008L, rs.timestamp(1));
-  }
-  
-  @Test
-  public void timestampMixedNormalized() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
-    
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(1356998400008L, rs.timestamp(1));
-  }
-  
-  @Test
-  public void timestampMixedNonNormalized() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
-    
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(1356998400008L, rs.timestamp(1));
-  }
-  
-  @Test (expected = IndexOutOfBoundsException.class)
-  public void timestampOutofBounds() throws Exception {
-    final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
-    
-    assertEquals(1356998400000L, rs.timestamp(0));
-    assertEquals(1356998400008L, rs.timestamp(1));
-    rs.timestamp(2);
-  }
-  
-  @Test
-  public void iterateNormalizedMS() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
+import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
+import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.storage.schemas.tsdb1x.NumericRowSeq;
+import net.opentsdb.storage.schemas.tsdb1x.NumericCodec.OffsetResolution;
 
-    assertEquals(2, rs.size());
+public class TestNumericRowSeq {
+  private static final long BASE_TIME = 1514764800;
+  private static final byte[] APPEND_Q = 
+      new byte[] { Schema.APPENDS_PREFIX, 0, 0 };
+  
+  @Test
+  public void addColumnPuts() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    assertEquals(BASE_TIME, seq.base_timestamp);
+    assertNull(seq.data);
     
-    final SeekableView it = rs.iterator();
-    DataPoint dp = it.next();
+    seq.addColumn((byte) 0, 
+        NumericCodec.buildSecondQualifier(0, (short) 0), new byte[] { 42 });
+    assertArrayEquals(Bytes.concat(
+        NumericCodec.buildSecondQualifier(0, (short) 0), new byte[] { 42 }),
+           seq.data);
     
-    assertEquals(1356998400000L, dp.timestamp());
-    assertEquals(4, dp.longValue());
- 
-    dp = it.next();    
-    assertEquals(1356998402000L, dp.timestamp());
-    assertEquals(5, dp.longValue());
+    seq.addColumn((byte) 0, NumericCodec.buildSecondQualifier(60, (short) 0), 
+        new byte[] { 24 });
+    assertArrayEquals(Bytes.concat(
+        NumericCodec.buildSecondQualifier(0, (short) 0), new byte[] { 42 },
+        NumericCodec.buildSecondQualifier(60, (short) 0), new byte[] { 24 }),
+           seq.data);
     
-    assertFalse(it.hasNext());
+    seq.addColumn((byte) 0, NumericCodec.buildSecondQualifier(30, (short) 0), 
+        new byte[] { 24 });
+    assertArrayEquals(Bytes.concat(
+        NumericCodec.buildSecondQualifier(0, (short) 0), new byte[] { 42 },
+        NumericCodec.buildSecondQualifier(60, (short) 0), new byte[] { 24 },
+        NumericCodec.buildSecondQualifier(30, (short) 0), new byte[] { 24 }),
+           seq.data);
+    
+    seq.addColumn((byte) 0, NumericCodec.buildMsQualifier(500, (short) 0), 
+        new byte[] { 1 });
+    assertArrayEquals(Bytes.concat(
+        NumericCodec.buildSecondQualifier(0, (short) 0), new byte[] { 42 },
+        NumericCodec.buildSecondQualifier(60, (short) 0), new byte[] { 24 },
+        NumericCodec.buildSecondQualifier(30, (short) 0), new byte[] { 24 },
+        NumericCodec.buildMsQualifier(500, (short) 0), new byte[] { 1 }),
+           seq.data);
+    
+    seq.addColumn((byte) 0, NumericCodec.buildNanoQualifier(25000, (short) 0), 
+        new byte[] { -1 });
+    assertArrayEquals(Bytes.concat(
+        NumericCodec.buildSecondQualifier(0, (short) 0), new byte[] { 42 },
+        NumericCodec.buildSecondQualifier(60, (short) 0), new byte[] { 24 },
+        NumericCodec.buildSecondQualifier(30, (short) 0), new byte[] { 24 },
+        NumericCodec.buildMsQualifier(500, (short) 0), new byte[] { 1 },
+        NumericCodec.buildNanoQualifier(25000, (short) 0), new byte[] { -1 }),
+           seq.data);
   }
   
   @Test
-  public void iterateMs() throws Exception {
-    final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(KEY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
+  public void addColumnAppends() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    assertEquals(BASE_TIME, seq.base_timestamp);
+    assertNull(seq.data);
     
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 42));
+    assertArrayEquals(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 0, 42), seq.data);
+    
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 24));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 0, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 24)), 
+          seq.data);
+    
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 0, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1)), 
+          seq.data);
+    
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 25000, -1));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 0, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1),
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 25000, -1)), 
+          seq.data);
+  }
+  
+  @Test
+  public void addColumnMixed() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    assertEquals(BASE_TIME, seq.base_timestamp);
+    assertNull(seq.data);
+    
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 42));
+    assertArrayEquals(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 0, 42), seq.data);
+    
+    seq.addColumn((byte) 0, NumericCodec.buildSecondQualifier(60, (short) 0), 
+        new byte[] { 24 });
+    assertArrayEquals(Bytes.concat(
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 42),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 24)),
+           seq.data);
+    
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 0, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1)), 
+          seq.data);
+    
+    seq.addColumn((byte) 0, NumericCodec.buildNanoQualifier(25000, (short) 0), 
+        new byte[] { -1 });
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 0, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1),
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 25000, -1)), 
+          seq.data);
+  }
+  
+  @Test
+  public void addColumnExceptionsAndBadData() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    try {
+      seq.addColumn((byte) 0, null, new byte[] { 42 });
+      fail("Expected NullPointerException");
+    } catch (NullPointerException e) { }
+    
+    try {
+      seq.addColumn((byte) 0, NumericCodec.buildSecondQualifier(0, (short) 0), null);
+      fail("Expected NullPointerException");
+    } catch (NullPointerException e) { }
+    
+    // WATCH OUT!!
+    seq.addColumn((byte) 0, new byte[0], new byte[] { 42 });
+    assertArrayEquals(new byte[0], seq.data);
+    
+    // thinks it's a millisecond offset
+    try {
+      seq.addColumn((byte) 0, new byte[] { (byte) 0xF0 }, new byte[] { 42 });
+      fail("Expected ArrayIndexOutOfBoundsException");
+    } catch (ArrayIndexOutOfBoundsException e) { }
+    
+    // WATCH OUT!!
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn((byte) 0, 
+        NumericCodec.buildSecondQualifier(0, (short) 0), new byte[0]);
+    assertArrayEquals(new byte[] { 0, 0 }, seq.data);
+  }
+  
+  @Test
+  public void addColumnCompactedSeconds() throws Exception {
+    byte[] compacted_value = Bytes.concat(
+        NumericCodec.vleEncodeLong(42), 
+        NumericCodec.vleEncodeLong(24),
+        NumericCodec.vleEncodeLong(1),
+        NumericCodec.vleEncodeLong(-1),
+        new byte[1]
+    );
+    byte[] compacted_qualifier = Bytes.concat(
+        NumericCodec.buildSecondQualifier(0, (short) 0),
+        NumericCodec.buildSecondQualifier(60, (short) 0),
+        NumericCodec.buildSecondQualifier(120, (short) 0),
+        NumericCodec.buildSecondQualifier(180, (short) 0)
+    );
+    
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn((byte) 0, compacted_qualifier, compacted_value);
+    
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 0, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 1),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, -1)), 
+          seq.data);
+    
+    seq.dedupe(false, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 0, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 1),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, -1)), 
+          seq.data);
+    
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 42));
+    seq.addColumn((byte) 0, compacted_qualifier, compacted_value);
+    
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 0, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 42),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 1),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, -1)), 
+          seq.data);
+  }
+  
+  @Test
+  public void addColumnCompactedMixed() throws Exception {
+    byte[] compacted_value = Bytes.concat(
+        NumericCodec.vleEncodeLong(42), 
+        NumericCodec.vleEncodeLong(24),
+        NumericCodec.vleEncodeLong(1),
+        NumericCodec.vleEncodeLong(-1),
+        new byte[] { NumericCodec.MS_MIXED_COMPACT }
+    );
+    byte[] compacted_qualifier = Bytes.concat(
+        NumericCodec.buildSecondQualifier(0, (short) 0),
+        NumericCodec.buildMsQualifier(60000, (short) 0),
+        NumericCodec.buildSecondQualifier(120, (short) 0),
+        NumericCodec.buildMsQualifier(180000, (short) 0)
+    );
+    
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn((byte) 0, compacted_qualifier, compacted_value);
+    
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 0, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 60000, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 1),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 180000, -1)), 
+          seq.data);
+    
+    seq.dedupe(false, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 0, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 60000, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 1),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 180000, -1)), 
+          seq.data);
+    
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 42));
+    seq.addColumn((byte) 0, compacted_qualifier, compacted_value);
+    
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 0, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 42),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 60000, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 1),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 180000, -1)), 
+          seq.data);
+  }
+  
+  @Test
+  public void addColumnFixOldTSDIssues() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    
+    seq.addColumn((byte) 0, NumericCodec.buildSecondQualifier(500, (short) 1),
+        net.opentsdb.utils.Bytes.fromLong(42));
+    assertArrayEquals(Bytes.concat(
+        NumericCodec.buildSecondQualifier(500, (short) 7), 
+        net.opentsdb.utils.Bytes.fromLong(42)),
+          seq.data);
+    
+    seq.addColumn((byte) 0, NumericCodec.buildSecondQualifier(560, (short) 0),
+        net.opentsdb.utils.Bytes.fromLong(24));
+    assertArrayEquals(Bytes.concat(
+        NumericCodec.buildSecondQualifier(500, (short) 7), 
+        net.opentsdb.utils.Bytes.fromLong(42),
+        NumericCodec.buildSecondQualifier(560, (short) 7), 
+        net.opentsdb.utils.Bytes.fromLong(24)),
+          seq.data);
+    
+    seq.addColumn((byte) 0, NumericCodec.buildSecondQualifier(620, (short) 7),
+        net.opentsdb.utils.Bytes.fromInt(1));
+    assertArrayEquals(Bytes.concat(
+        NumericCodec.buildSecondQualifier(500, (short) 7), 
+        net.opentsdb.utils.Bytes.fromLong(42),
+        NumericCodec.buildSecondQualifier(560, (short) 7), 
+        net.opentsdb.utils.Bytes.fromLong(24),
+        NumericCodec.buildSecondQualifier(620, (short) 3), 
+        net.opentsdb.utils.Bytes.fromInt(1)),
+          seq.data);
+    
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn((byte) 0, NumericCodec.buildSecondQualifier(500, (short) (7 | NumericCodec.FLAG_FLOAT)),
+        net.opentsdb.utils.Bytes.fromInt(Float.floatToIntBits(42.5F)));
+    assertArrayEquals(Bytes.concat(
+        NumericCodec.buildSecondQualifier(500, (short) (3 | NumericCodec.FLAG_FLOAT)), 
+        net.opentsdb.utils.Bytes.fromInt(Float.floatToIntBits(42.5F))),
+          seq.data);
+    
+    // old style incorrect length floating point value
+    seq.addColumn((byte) 0, NumericCodec.buildSecondQualifier(560, (short) (3 | NumericCodec.FLAG_FLOAT)),
+        Bytes.concat(new byte[4], 
+            net.opentsdb.utils.Bytes.fromInt(Float.floatToIntBits(24.5F))));
+    assertArrayEquals(Bytes.concat(
+        NumericCodec.buildSecondQualifier(500, (short) (3 | NumericCodec.FLAG_FLOAT)), 
+        net.opentsdb.utils.Bytes.fromInt(Float.floatToIntBits(42.5F)),
+        NumericCodec.buildSecondQualifier(560, (short) (3 | NumericCodec.FLAG_FLOAT)), 
+        net.opentsdb.utils.Bytes.fromInt(Float.floatToIntBits(24.5F))),
+          seq.data);
+  }
+  
+  @Test
+  public void dedupeSortedSeconds() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, 1));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+          OffsetResolution.SECONDS, 60, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, 1)), 
+          seq.data);
+    
+    seq.dedupe(false, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 60, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, 1)), 
+        seq.data);
+    
+    seq.dedupe(false, true);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 180, 1), 
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42)), 
+        seq.data);
+  }
+  
+  @Test
+  public void dedupeSeconds() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+          OffsetResolution.SECONDS, 120, 24), 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, 1),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2)), 
+          seq.data);
+    
+    seq.dedupe(false, false);
+    
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 30, 2),
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, 1)), 
+        seq.data);
+    
+    // reset to reverse in the tree
+    seq = new NumericRowSeq(BASE_TIME);    
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2));
+    
+    seq.dedupe(false, true);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 180, 1), 
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42),
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2)), 
+        seq.data);
+    
+    // consecutive dupe
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2));
+    
+    seq.dedupe(false, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 30, 2),
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 1), 
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24)), 
+        seq.data);
+    
+    // keep first
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2));
+    
+    seq.dedupe(true, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 30, 2),
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24)), 
+        seq.data);
+    
+    // non-consecutive dupe
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2));
+    
+    seq.dedupe(false, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 30, 2),
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 1)), 
+        seq.data);
+    
+    // keep first
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2));
+    
+    seq.dedupe(true, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 30, 2),
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24)), 
+        seq.data);
+  }
+  
+  @Test
+  public void dedupeMilliSeconds() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1000, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 2));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+          OffsetResolution.MILLIS, 750, 24), 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1000, 1),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 2)), 
+          seq.data);
+    
+    seq.dedupe(false, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.MILLIS, 250, 2),
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24),
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1000, 1)), 
+        seq.data);
+    
+    // reset to reverse in the tree
+    seq = new NumericRowSeq(BASE_TIME);    
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1000, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 2));
+    
+    seq.dedupe(false, true);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.MILLIS, 1000, 1), 
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24),
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42),
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 2)), 
+        seq.data);
+    
+    // consecutive dupe
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 2));
+    
+    seq.dedupe(false, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.MILLIS, 250, 2),
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1), 
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24)), 
+        seq.data);
+    
+    // keep first
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 2));
+    
+    seq.dedupe(true, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.MILLIS, 250, 2),
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24)), 
+        seq.data);
+    
+    // non-consecutive dupe
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 2));
+    
+    seq.dedupe(false, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.MILLIS, 250, 2),
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 1)), 
+        seq.data);
+    
+    // keep first
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 2));
+    
+    seq.dedupe(true, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.MILLIS, 250, 2),
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24)), 
+        seq.data);
+  }
+  
+  @Test
+  public void dedupeNanoSeconds() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1000, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 2));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+          OffsetResolution.NANOS, 750, 24), 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42),
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1000, 1),
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 2)), 
+          seq.data);
+    
+    seq.dedupe(false, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.NANOS, 250, 2),
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24),
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1000, 1)), 
+        seq.data);
+    
+    // reset to reverse in the tree
+    seq = new NumericRowSeq(BASE_TIME);    
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1000, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 2));
+    
+    seq.dedupe(false, true);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.NANOS, 1000, 1), 
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24),
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42),
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 2)), 
+        seq.data);
+    
+    // consecutive dupe
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 2));
+    
+    seq.dedupe(false, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.NANOS, 250, 2),
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 1), 
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24)), 
+        seq.data);
+    
+    // keep first
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 2));
+    
+    seq.dedupe(true, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.NANOS, 250, 2),
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24)), 
+        seq.data);
+    
+    // non-consecutive dupe
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 2));
+    
+    seq.dedupe(false, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.NANOS, 250, 2),
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 1)), 
+        seq.data);
+    
+    // keep first
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 2));
+    
+    seq.dedupe(true, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.NANOS, 250, 2),
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24)), 
+        seq.data);
+  }
+  
+  @Test
+  public void dedupeSortedMilliSeconds() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 1));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+          OffsetResolution.MILLIS, 250, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 1)), 
+          seq.data);
+    
+    seq.dedupe(false, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.MILLIS, 250, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 24),
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 1)), 
+        seq.data);
+    
+    seq.dedupe(false, true);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.MILLIS, 750, 1), 
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 24),
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 42)), 
+        seq.data);
+  }
+  
+  @Test
+  public void dedupeSortedNanoSeconds() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, -42));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+          OffsetResolution.NANOS, 250, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, -42)), 
+          seq.data);
+    
+    seq.dedupe(false, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.NANOS, 250, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 24),
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, -42)), 
+        seq.data);
+    
+    seq.dedupe(false, true);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.NANOS, 750, -42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 24),
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42)), 
+        seq.data);
+  }
+  
+  @Test
+  public void dedupeMixed() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1000, -24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 120000, -42));
+    
+    seq.dedupe(false, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.NANOS, 250, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1000, -24),
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1),
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 120000, -42)), 
+        seq.data);
+    
+    // keep first
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1000, -24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 120000, -42));
+    
+    seq.dedupe(true, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.NANOS, 250, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1000, -24),
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1),
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24)), 
+        seq.data);
+    
+    // all the same
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 120000000000L, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 120000L, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 120000000000L, -24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 120000, -42));
+    
+    seq.dedupe(false, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.MILLIS, 120000, -42)), 
+        seq.data);
+    
+    // keep earliest
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 120000000000L, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 120000L, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 120000000000L, -24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 120000, -42));
+    
+    seq.dedupe(true, false);
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.NANOS, 120000000000L, 42)), 
+        seq.data);
+  }
+  
+  @Test
+  public void reverseOneCell() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    assertNull(seq.data);
+    
+    // no-op
+    seq.reverse();
+    assertNull(seq.data);
+    
+    // seconds
+    seq.addColumn((byte) 0, 
+        NumericCodec.buildSecondQualifier(0, (short) 0), new byte[] { 42 });
+    byte[] data = seq.data;
+    seq.reverse();
+    assertNotSame(data, seq.data);
+    assertArrayEquals(NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 42), 
+        seq.data);
+    
+    // millis
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn((byte) 0, NumericCodec.buildMsQualifier(500, (short) 0), 
+        new byte[] { 1 });
+    data = seq.data;
+    seq.reverse();
+    assertNotSame(data, seq.data);
+    assertArrayEquals(NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1), 
+        seq.data);
+    
+    // nanos
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn((byte) 0, NumericCodec.buildNanoQualifier(25000, (short) 0), 
+        new byte[] { -1 });
+    data = seq.data;
+    seq.reverse();
+    assertNotSame(data, seq.data);
+    assertArrayEquals(NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 25000, -1), 
+        seq.data);
+  }
+  
+  @Test
+  public void reverseSeconds() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    
+    // two
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+          OffsetResolution.SECONDS, 60, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24)), 
+          seq.data);
+    
+    seq.reverse();
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 120, 24), 
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42)), 
+        seq.data);
+    
+    // three
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, -42));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+          OffsetResolution.SECONDS, 60, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, -42)), 
+          seq.data);
+    
+    seq.reverse();
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 180, -42),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24), 
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42)), 
+        seq.data);
+    
+    // four
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, -42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 240, -24));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+          OffsetResolution.SECONDS, 60, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, -42),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 240, -24)), 
+          seq.data);
+    
+    seq.reverse();
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 240, -24),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, -42),
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24), 
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42)), 
+        seq.data);
+  }
+  
+  @Test
+  public void reverseMilliSeconds() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    
+    // two
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 24));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+          OffsetResolution.MILLIS, 250, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 24)), 
+          seq.data);
+    
+    seq.reverse();
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.MILLIS, 500, 24), 
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 42)), 
+        seq.data);
+    
+    // three
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, -42));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+          OffsetResolution.MILLIS, 250, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, -42)), 
+          seq.data);
+    
+    seq.reverse();
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.MILLIS, 750, -42),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 24), 
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 42)), 
+        seq.data);
+    
+    // four
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, -42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1000, -24));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+          OffsetResolution.MILLIS, 250, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, -42),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1000, -24)), 
+          seq.data);
+    
+    seq.reverse();
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.MILLIS, 1000, -24),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, -42),
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 24), 
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 42)), 
+        seq.data);
+  }
+  
+  @Test
+  public void reverseNanoSeconds() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
+    
+    // two
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 24));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+          OffsetResolution.NANOS, 250, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 24)), 
+          seq.data);
+    
+    seq.reverse();
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.NANOS, 500, 24), 
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42)), 
+        seq.data);
+    
+    // three
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, -42));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+          OffsetResolution.NANOS, 250, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, -42)), 
+          seq.data);
+    
+    seq.reverse();
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.NANOS, 750, -42),
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 24), 
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42)), 
+        seq.data);
+    
+    // four
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, -42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1000, -24));
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+          OffsetResolution.NANOS, 250, 42), 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 24),
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, -42),
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1000, -24)), 
+          seq.data);
+    
+    seq.reverse();
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.NANOS, 1000, -24),
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, -42),
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 24), 
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42)), 
+        seq.data);
+  }
 
-    final SeekableView it = rs.iterator();
-    DataPoint dp = it.next();
+  @Test
+  public void reverseMixed() throws Exception {
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
     
-    assertEquals(1356998400000L, dp.timestamp());
-    assertEquals(4, dp.longValue());
- 
-    dp = it.next();    
-    assertEquals(1356998400008L, dp.timestamp());
-    assertEquals(5, dp.longValue());
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1000, -24));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, -42));
     
-    assertFalse(it.hasNext());
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.NANOS, 250, 42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1),
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1000, -24),
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, -42)), 
+        seq.data);
+    
+    seq.reverse();
+    assertArrayEquals(Bytes.concat(NumericCodec.encodeAppendValue(
+        OffsetResolution.SECONDS, 180, -42), 
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1000, -24),
+      NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1),
+      NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
+      NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 42)), 
+        seq.data);
   }
 
-  @Test
-  public void iterateMsLarge() throws Exception {
-    long ts = 1356998400500L;
-    // mimicks having 64K data points in a row
-    final int limit = 64000;
-    final byte[] qualifier = new byte[4 * limit];
-    for (int i = 0; i < limit; i++) {
-      System.arraycopy(Internal.buildQualifier(ts, (short) 7), 0, 
-          qualifier, i * 4, 4);
-      ts += 50;
-    }
-    final byte[] values = new byte[(4 * limit) + 1];
-    final KeyValue kv = makekv(KEY, qualifier, values);
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
-
-    final SeekableView it = rs.iterator();
-    ts = 1356998400500L;
-    while (it.hasNext()) {
-      assertEquals(ts, it.next().timestamp());
-      ts += 50;
-    }
-    assertFalse(it.hasNext());
-  }
-  
-  @Test
-  public void seekMs() throws Exception {
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(getMs(false));
-
-    final SeekableView it = rs.iterator();
-    it.seek(1356998400008L);
-    DataPoint dp = it.next();
-    assertEquals(1356998400008L, dp.timestamp());
-    assertEquals(5, dp.longValue());
-    
-    assertTrue(it.hasNext());
-  }
-  
-  @Test
-  public void seekMsSalted() throws Exception {
-    setupSalt();
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(getMs(true));
-
-    final SeekableView it = rs.iterator();
-    it.seek(1356998400008L);
-    DataPoint dp = it.next();
-    assertEquals(1356998400008L, dp.timestamp());
-    assertEquals(5, dp.longValue());
-    
-    assertTrue(it.hasNext());
-  }
-  
-  @Test
-  public void seekMsStart() throws Exception {
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(getMs(false));
-
-    final SeekableView it = rs.iterator();
-    it.seek(1356998400000L);
-    DataPoint dp = it.next();
-    assertEquals(1356998400000L, dp.timestamp());
-    assertEquals(4, dp.longValue());
-    
-    assertTrue(it.hasNext());
-  }
-  
-  @Test
-  public void seekMsBetween() throws Exception {
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(getMs(false));
-
-    final SeekableView it = rs.iterator();
-    it.seek(1356998400005L);
-    DataPoint dp = it.next();
-    assertEquals(1356998400008L, dp.timestamp());
-    assertEquals(5, dp.longValue());
-    
-    assertTrue(it.hasNext());
-  }
-  
-  @Test
-  public void seekMsEnd() throws Exception {
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(getMs(false));
-
-    final SeekableView it = rs.iterator();
-    it.seek(1356998400016L);
-    DataPoint dp = it.next();
-    assertEquals(1356998400016L, dp.timestamp());
-    assertEquals(6, dp.longValue());
-    
-    assertFalse(it.hasNext());
-  }
-  
-  @Test
-  public void seekMsTooEarly() throws Exception {
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(getMs(false));
-
-    final SeekableView it = rs.iterator();
-    it.seek(1356998300000L);
-    DataPoint dp = it.next();
-    assertEquals(1356998400000L, dp.timestamp());
-    assertEquals(4, dp.longValue());
-    
-    assertTrue(it.hasNext());
-  }
-  
-  @Test (expected = NoSuchElementException.class)
-  public void seekMsPastLastDp() throws Exception {
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(getMs(false));
-
-    final SeekableView it = rs.iterator();
-    it.seek(1356998400032L);
-    it.next();
-  }
-  
-  @Test
-  public void metricUID() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
-    
-    assertArrayEquals(new byte[] { 0, 0, 1 }, rs.metricUID());
-  }
-  
-  @Test
-  public void metricUIDSalted() throws Exception {
-    setupSalt();
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
-    
-    assertArrayEquals(new byte[] { 0, 0, 1 }, rs.metricUID());
-  }
-  
-  @Test (expected = NullPointerException.class)
-  public void metricUIDKeyNotSet() throws Exception {
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.metricUID();
-  }
-  
-  @Test
-  public void getTagUids() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
-    
-    final ByteMap<byte[]> uids = rs.getTagUids();
-    assertEquals(1, uids.size());
-    assertArrayEquals(new byte[] { 0, 0, 1 }, uids.firstKey());
-    assertArrayEquals(new byte[] { 0, 0, 2 }, 
-        uids.firstEntry().getValue());
-  }
-  
-  @Test
-  public void getTagUidsSalted() throws Exception {
-    setupSalt();
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
-    
-    final ByteMap<byte[]> uids = rs.getTagUids();
-    assertEquals(1, uids.size());
-    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 1 }, uids.firstKey()));
-    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 2 }, 
-        uids.firstEntry().getValue()));
-  }
-  
-  @Test (expected = NullPointerException.class)
-  public void getTagUidsNotSet() throws Exception {
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.getTagUids();
-  }
-  
-  @Test
-  public void getAggregatedTagUids() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final KeyValue kv = makekv(qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(kv);
-    
-    assertEquals(0, rs.getAggregatedTagUids().size());
-  }
-  
-  /** Shorthand to create a {@link KeyValue}.  */
-  public static KeyValue makekv(final byte[] qualifier, final byte[] value) {
-    if (Const.SALT_WIDTH() > 0) {
-      return new KeyValue(SALTED_KEY, FAMILY, qualifier, value);
-    }
-    return new KeyValue(KEY, FAMILY, qualifier, value);
-  }
-  
-  /** Shorthand to create a {@link KeyValue}.  */
-  public static KeyValue makekv(final byte[] key, final byte[] qualifier, 
-      final byte[] value) {
-    return new KeyValue(key, FAMILY, qualifier, value);
-  }
-  
-  /** Helper that builds a KeyValue with millisecond timestamps */
-  private static KeyValue getMs(final boolean salted) {
-    final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual3 = { (byte) 0xF0, 0x00, 0x04, 0x07 };
-    final byte[] val3 = Bytes.fromLong(6L);
-    final byte[] qual123 = MockBase.concatByteArrays(qual1, qual2, qual3);
-    final KeyValue kv = makekv((salted ? SALTED_KEY : KEY), 
-        qual123, MockBase.concatByteArrays(val1, val2, val3, ZERO));
-    return kv;
-  }
-
-  /** Helper to mockout the salt configuration */
-  private void setupSalt() {
-    PowerMockito.mockStatic(Const.class);
-    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
-    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(2);
-  }
 }
