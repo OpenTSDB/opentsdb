@@ -1,699 +1,369 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
+// Copyright (C) 2010-2018  The OpenTSDB Authors.
 //
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+package net.opentsdb.storage.schemas.tsdb1x;
 
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-
-import net.opentsdb.meta.Annotation;
-
-import org.hbase.async.Bytes;
-import org.hbase.async.KeyValue;
-import org.hbase.async.Bytes.ByteMap;
-
-import com.stumbleupon.async.Deferred;
+import java.util.Iterator;
+import java.util.Map.Entry;
+import java.util.TreeMap;
 
 /**
- * Represents a read-only sequence of continuous HBase rows.
+ * Represents a read-only sequence of continuous numeric columns.
  * <p>
  * This class stores in memory the data of one or more continuous
- * HBase rows for a given time series. To consolidate memory, the data points
- * are stored in two byte arrays: one for the time offsets/flags and another
- * for the values. Access is granted via pointers.
+ * storage columns for a given time series. To consolidate memory, the 
+ * data points are stored in one byte arrays in the format following
+ * TSDB 2.0 appends with a column qualifier followed by a column value
+ * then the next qualifier, next value, etc. Access is granted via pointers.
+ * 
+ * @since 3.0
  */
-public final class RowSeq implements iRowSeq {
-
-  /** The {@link TSDB} instance we belong to. */
-  private final TSDB tsdb;
-
-  /** First row key. */
-  byte[] key;
-
+public class NumericRowSeq {
+  /** The base row timestamp in Unix epoch seconds. */
+  protected long base_timestamp;
+  
+  /** The data in qualifier/value/qualifier/value, etc order. */
+  protected byte[] data;
+  
   /**
-   * Qualifiers for individual data points.
-   * <p>
-   * Each qualifier is on 2 or 4 bytes.  The last {@link Const#FLAG_BITS} bits 
-   * are used to store flags (the type of the data point - integer or floating
-   * point - and the size of the data point in bytes).  The remaining MSBs
-   * store a delta in seconds from the base timestamp stored in the row key.
+   * Default ctor
+   * @param base_timestamp The row base timestamp in Unix epoch seconds.
    */
-  private byte[] qualifiers;
-
-  /** Values in the row.  */
-  private byte[] values;
-
-  /**
-   * Constructor.
-   * @param tsdb The TSDB we belong to.
-   */
-  RowSeq(final TSDB tsdb) {
-    this.tsdb = tsdb;
+  public NumericRowSeq(final long base_timestamp) {
+    this.base_timestamp = base_timestamp;
   }
   
-  @Override
-  public void setRow(final KeyValue row) {
-    if (this.key != null) {
-      throw new IllegalStateException("setRow was already called on " + this);
-    }
-
-    this.key = row.key();
-    this.qualifiers = row.qualifier();
-    this.values = row.value();
-  }
-
   /**
-   * Merges data points for the same HBase row into the local object.
-   * When executing multiple async queries simultaneously, they may call into 
-   * this method with data sets that are out of order. This may ONLY be called 
-   * after setRow() has initiated the rowseq. It also allows for rows with 
-   * different salt bucket IDs to be merged into the same sequence.
-   * @param row The compacted HBase row to merge into this instance.
-   * @throws IllegalStateException if {@link #setRow} wasn't called first.
-   * @throws IllegalArgumentException if the data points in the argument
-   * do not belong to the same row as this RowSeq
+   * Simply appends the value to the data array in the append column
+   * format.
+   * <b>NOTE:</b> Since this is in the fast path we don't validate the
+   * qualifier and value for length and data. Please do that before
+   * calling.
+   * 
+   * @param prefix A prefix of either 0 or {@link Schema#APPENDS_PREFIX}.
+   * @param qualifier A non-null and non-empty qualifier.
+   * @param value A non-null and non-empty value.
    */
-  @Override
-  public void addRow(final KeyValue row) {
-    if (this.key == null) {
-      throw new IllegalStateException("setRow was never called on " + this);
-    }
-
-    final byte[] key = row.key();
-    if (Bytes.memcmp(this.key, key, Const.SALT_WIDTH(), 
-        key.length - Const.SALT_WIDTH()) != 0) {
-      throw new IllegalDataException("Attempt to add a different row="
-          + row + ", this=" + this);
-    }
-
-    final byte[] remote_qual = row.qualifier();
-    final byte[] remote_val = row.value();
-    final byte[] merged_qualifiers = new byte[qualifiers.length + remote_qual.length];
-    final byte[] merged_values = new byte[values.length + remote_val.length]; 
-
-    int remote_q_index = 0;
-    int local_q_index = 0;
-    int merged_q_index = 0;
+  public void addColumn(final byte prefix, 
+                        final byte[] qualifier, 
+                        final byte[] value) {
     
-    int remote_v_index = 0;
-    int local_v_index = 0;
-    int merged_v_index = 0;
-    short v_length;
-    short q_length;
-    while (remote_q_index < remote_qual.length || 
-        local_q_index < qualifiers.length) {
-      // if the remote q has finished, we just need to handle left over locals
-      if (remote_q_index >= remote_qual.length) {
-        v_length = Internal.getValueLengthFromQualifier(qualifiers, 
-            local_q_index);
-        System.arraycopy(values, local_v_index, merged_values, 
-            merged_v_index, v_length);
-        local_v_index += v_length;
-        merged_v_index += v_length;
-        
-        q_length = Internal.getQualifierLength(qualifiers, 
-            local_q_index);
-        System.arraycopy(qualifiers, local_q_index, merged_qualifiers, 
-            merged_q_index, q_length);
-        local_q_index += q_length;
-        merged_q_index += q_length;
-        
-        continue;
-      }
-      
-      // if the local q has finished, we need to handle the left over remotes
-      if (local_q_index >= qualifiers.length) {
-        v_length = Internal.getValueLengthFromQualifier(remote_qual, 
-            remote_q_index);
-        System.arraycopy(remote_val, remote_v_index, merged_values, 
-            merged_v_index, v_length);
-        remote_v_index += v_length;
-        merged_v_index += v_length;
-        
-        q_length = Internal.getQualifierLength(remote_qual, 
-            remote_q_index);
-        System.arraycopy(remote_qual, remote_q_index, merged_qualifiers, 
-            merged_q_index, q_length);
-        remote_q_index += q_length;
-        merged_q_index += q_length;
-        
-        continue;
-      }
-      
-      // for dupes, we just need to skip and continue
-      final int sort = Internal.compareQualifiers(remote_qual, remote_q_index, 
-          qualifiers, local_q_index);
-      if (sort == 0) {
-        //LOG.debug("Discarding duplicate timestamp: " + 
-        //    Internal.getOffsetFromQualifier(remote_qual, remote_q_index));
-        v_length = Internal.getValueLengthFromQualifier(remote_qual, 
-            remote_q_index);
-        remote_v_index += v_length;
-        q_length = Internal.getQualifierLength(remote_qual, 
-            remote_q_index);
-        remote_q_index += q_length;
-        continue;
-      }
-      
-      if (sort < 0) {
-        v_length = Internal.getValueLengthFromQualifier(remote_qual, 
-            remote_q_index);
-        System.arraycopy(remote_val, remote_v_index, merged_values, 
-            merged_v_index, v_length);
-        remote_v_index += v_length;
-        merged_v_index += v_length;
-        
-        q_length = Internal.getQualifierLength(remote_qual, 
-            remote_q_index);
-        System.arraycopy(remote_qual, remote_q_index, merged_qualifiers, 
-            merged_q_index, q_length);
-        remote_q_index += q_length;
-        merged_q_index += q_length;
+    if (prefix == Schema.APPENDS_PREFIX) {
+      if (data == null) {
+        // sweet, copy
+        data = Arrays.copyOf(value, value.length);
       } else {
-        v_length = Internal.getValueLengthFromQualifier(qualifiers, 
-            local_q_index);
-        System.arraycopy(values, local_v_index, merged_values, 
-            merged_v_index, v_length);
-        local_v_index += v_length;
-        merged_v_index += v_length;
-        
-        q_length = Internal.getQualifierLength(qualifiers, 
-            local_q_index);
-        System.arraycopy(qualifiers, local_q_index, merged_qualifiers, 
-            merged_q_index, q_length);
-        local_q_index += q_length;
-        merged_q_index += q_length;
+        final byte[] copy = new byte[data.length + value.length];
+        System.arraycopy(data, 0, copy, 0, data.length);
+        System.arraycopy(value, 0, copy, data.length, value.length);
+        data = copy;
       }
-    }
-    
-    // we may have skipped some columns if we were given duplicates. Since we
-    // had allocated enough bytes to hold the incoming row, we need to shrink
-    // the final results
-    if (merged_q_index == merged_qualifiers.length) {
-      qualifiers = merged_qualifiers;
     } else {
-      qualifiers = Arrays.copyOfRange(merged_qualifiers, 0, merged_q_index);
-    }
-    
-    // set the meta bit based on the local and remote metas
-    byte meta = 0;
-    if ((values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
-                                     Const.MS_MIXED_COMPACT || 
-        (remote_val[remote_val.length - 1] & Const.MS_MIXED_COMPACT) == 
-                                             Const.MS_MIXED_COMPACT) {
-      meta = Const.MS_MIXED_COMPACT;
-    }
-    values = Arrays.copyOfRange(merged_values, 0, merged_v_index + 1);
-    values[values.length - 1] = meta;
-  }
-
-  /**
-   * Extracts the value of a cell containing a data point.
-   * @param value The contents of a cell in HBase.
-   * @param value_idx The offset inside {@code values} at which the value
-   * starts.
-   * @param flags The flags for this value.
-   * @return The value of the cell.
-   * @throws IllegalDataException if the data is malformed
-   */
-  static long extractIntegerValue(final byte[] values,
-                                  final int value_idx,
-                                  final byte flags) {
-    switch (flags & Const.LENGTH_MASK) {
-      case 7: return Bytes.getLong(values, value_idx);
-      case 3: return Bytes.getInt(values, value_idx);
-      case 1: return Bytes.getShort(values, value_idx);
-      case 0: return values[value_idx];
-    }
-    throw new IllegalDataException("Integer value @ " + value_idx
-                                   + " not on 8/4/2/1 bytes in "
-                                   + Arrays.toString(values));
-  }
-
-  /**
-   * Extracts the value of a cell containing a data point.
-   * @param value The contents of a cell in HBase.
-   * @param value_idx The offset inside {@code values} at which the value
-   * starts.
-   * @param flags The flags for this value.
-   * @return The value of the cell.
-   * @throws IllegalDataException if the data is malformed
-   */
-  static double extractFloatingPointValue(final byte[] values,
-                                          final int value_idx,
-                                          final byte flags) {
-    switch (flags & Const.LENGTH_MASK) {
-      case 7: return Double.longBitsToDouble(Bytes.getLong(values, value_idx));
-      case 3: return Float.intBitsToFloat(Bytes.getInt(values, value_idx));
-    }
-    throw new IllegalDataException("Floating point value @ " + value_idx
-                                   + " not on 8 or 4 bytes in "
-                                   + Arrays.toString(values));
-  }
-
-  public String metricName() {
-    try {
-      return metricNameAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-
-  public Deferred<String> metricNameAsync() {
-    if (key == null) {
-      throw new IllegalStateException("the row key is null!");
-    }
-    return RowKey.metricNameAsync(tsdb, key);
-  }
-  
-  @Override
-  public byte[] metricUID() {
-    return Arrays.copyOfRange(key, Const.SALT_WIDTH(), 
-        Const.SALT_WIDTH() + TSDB.metrics_width());
-  }
-  
-  public Map<String, String> getTags() {
-    try {
-      return getTagsAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  @Override
-  public ByteMap<byte[]> getTagUids() {
-    return Tags.getTagUids(key);
-  }
-  
-  public Deferred<Map<String, String>> getTagsAsync() {
-    return Tags.getTagsAsync(tsdb, key);
-  }
-
-  /** @return an empty list since aggregated tags cannot exist on a single row */
-  public List<String> getAggregatedTags() {
-    return Collections.emptyList();
-  }
-  
-  public Deferred<List<String>> getAggregatedTagsAsync() {
-    final List<String> empty = Collections.emptyList();
-    return Deferred.fromResult(empty);
-  }
-  
-  @Override
-  public List<byte[]> getAggregatedTagUids() {
-    return Collections.emptyList();
-  }
-  
-  public List<String> getTSUIDs() {
-    return Collections.emptyList();
-  }
-  
-  /** @return null since annotations are stored at the SpanGroup level. They
-   * are filtered when a row is compacted */ 
-  public List<Annotation> getAnnotations() {
-    return Collections.emptyList();
-  }
-
-  /** @return the number of data points in this row 
-   * Unfortunately we must walk the entire array as there may be a mix of
-   * second and millisecond timestamps */
-  public int size() {
-    // if we don't have a mix of second and millisecond qualifiers we can run
-    // this in O(1), otherwise we have to run O(n)
-    if ((values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
-      Const.MS_MIXED_COMPACT) {
-      int size = 0;
-      for (int i = 0; i < qualifiers.length; i += 2) {
-        if ((qualifiers[i] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
-          i += 2;
-        }
-        size++;
-      }
-      return size;
-    } else if ((qualifiers[0] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
-      return qualifiers.length / 4;
-    } else {
-      return qualifiers.length / 2;
-    }
-  }
-
-  /** @return 0 since aggregation cannot happen at the row level */
-  public int aggregatedSize() {
-    return 0;
-  }
-
-  public SeekableView iterator() {
-    return internalIterator();
-  }
-  
-  @Override
-  public Iterator internalIterator() {
-    // XXX this is now grossly inefficient, need to walk the arrays once.
-    return new Iterator();
-  }
-
-  @Override
-  public long baseTime() {
-    return Bytes.getUnsignedInt(key, Const.SALT_WIDTH() + tsdb.metrics.width());
-  }
-  
-  @Override
-  public byte[] key() {
-    return key;
-  }
-
-  /** @throws IndexOutOfBoundsException if {@code i} is out of bounds. */
-  private void checkIndex(final int i) {
-    if (i >= size()) {
-      throw new IndexOutOfBoundsException("index " + i + " >= " + size()
-          + " for this=" + this);
-    }
-    if (i < 0) {
-      throw new IndexOutOfBoundsException("negative index " + i
-          + " for this=" + this);
-    }
-  }
-
-  public long timestamp(final int i) {
-    checkIndex(i);
-    // if we don't have a mix of second and millisecond qualifiers we can run
-    // this in O(1), otherwise we have to run O(n)
-    // Important: Span.addRow assumes this method to work in O(1).
-    if ((values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
-      Const.MS_MIXED_COMPACT) {
-      int index = 0;
-      for (int idx = 0; idx < qualifiers.length; idx += 2) {
-        if (i == index) {
-          return Internal.getTimestampFromQualifier(qualifiers, baseTime(), idx);
-        }
-        if (Internal.inMilliseconds(qualifiers[idx])) {
-          idx += 2;
-        }      
-        index++;
-      }
-    } else if ((qualifiers[0] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
-      return Internal.getTimestampFromQualifier(qualifiers, baseTime(), i * 4);
-    } else {
-      return Internal.getTimestampFromQualifier(qualifiers, baseTime(), i * 2);
-    }
-    
-    throw new RuntimeException(
-        "WTF timestamp for index: " + i + " on " + this);
-  }
-
-  public boolean isInteger(final int i) {
-    checkIndex(i);
-    return (Internal.getFlagsFromQualifier(qualifiers, i) & 
-        Const.FLAG_FLOAT) == 0x0;
-  }
-
-  public long longValue(int i) {
-    if (!isInteger(i)) {
-      throw new ClassCastException("value #" + i + " is not a long in " + this);
-    }
-    final Iterator it = new Iterator();
-    while (i-- >= 0) {
-      it.next();
-    }
-    return it.longValue();
-  }
-
-  public double doubleValue(int i) {
-    if (isInteger(i)) {
-      throw new ClassCastException("value #" + i + " is not a float in " + this);
-    }
-    final Iterator it = new Iterator();
-    while (i-- >= 0) {
-      it.next();
-    }
-    return it.doubleValue();
-  }
-
-  /**
-   * Returns the value at index {@code i} regardless whether it's an integer or
-   * floating point
-   * @param i A 0 based index incremented per the number of data points in the
-   * row.
-   * @return the value as a double
-   * @throws IndexOutOfBoundsException if the index would be out of bounds
-   * @throws IllegalDataException if the data is malformed
-   */
-  double toDouble(final int i) {
-    if (isInteger(i)) {
-      return longValue(i);
-    } else {
-      return doubleValue(i);
-    }
-  }
-
-  /** Returns a human readable string representation of the object. */
-  @Override
-  public String toString() {
-    // The argument passed to StringBuilder is a pretty good estimate of the
-    // length of the final string based on the row key and number of elements.
-    final String metric = metricName();
-    final int size = size();
-    final StringBuilder buf = new StringBuilder(80 + metric.length()
-                                                + key.length * 4
-                                                + size * 16);
-    final long base_time = baseTime();
-    buf.append("RowSeq(")
-       .append(key == null ? "<null>" : Arrays.toString(key))
-       .append(" (metric=")
-       .append(metric)
-       .append("), base_time=")
-       .append(base_time)
-       .append(" (")
-       .append(base_time > 0 ? new Date(base_time * 1000) : "no date")
-       .append(")");    
-    // TODO - fix this so it doesn't cause infinite recursions. If longValue()
-    // throws an exception, the exception will call this method, trying to get
-    // longValue() again, which will throw another exception.... For now, just
-    // dump the raw data as hex
-    //for (short i = 0; i < size; i++) {
-    //  final short qual = (short) Bytes.getUnsignedShort(qualifiers, i * 2);
-    //  buf.append('+').append((qual & 0xFFFF) >>> Const.FLAG_BITS);
-    //  
-    //  if (isInteger(i)) {
-    //    buf.append(":long(").append(longValue(i));
-    //  } else {
-    //    buf.append(":float(").append(doubleValue(i));
-    //  }
-    //  buf.append(')');
-    //  if (i != size - 1) {
-    //    buf.append(", ");
-    //  }
-    //}
-    buf.append("(datapoints=").append(size);
-    buf.append("), (qualifier=[").append(Arrays.toString(qualifiers));
-    buf.append("]), (values=[").append(Arrays.toString(values));
-    buf.append("])");
-    return buf.toString();
-  }
-
-  /**
-   * Used to compare two RowSeq objects when sorting a {@link Span}. Compares
-   * on the {@code RowSeq#baseTime()}
-   * @since 2.0
-   */
-  public static final class RowSeqComparator implements Comparator<iRowSeq> {
-    public int compare(final iRowSeq a, final iRowSeq b) {
-      if (a.baseTime() == b.baseTime()) {
-        return 0;
-      }
-      return a.baseTime() < b.baseTime() ? -1 : 1;
-    }
-  }
-  
-  /** Iterator for {@link RowSeq}s.  */
-  final class Iterator implements iRowSeq.Iterator {
-
-    /** Current qualifier.  */
-    private int qualifier;
-
-    /** Next index in {@link #qualifiers}.  */
-    private int qual_index;
-
-    /** Next index in {@link #values}.  */
-    private int value_index;
-
-    /** Pre-extracted base time of this row sequence.  */
-    private final long base_time = baseTime();
-
-    Iterator() {
-    }
-
-    // ------------------ //
-    // Iterator interface //
-    // ------------------ //
-
-    public boolean hasNext() {
-      return qual_index < qualifiers.length;
-    }
-
-    public DataPoint next() {
-      if (!hasNext()) {
-        throw new NoSuchElementException("no more elements");
-      }
-      
-      if (Internal.inMilliseconds(qualifiers[qual_index])) {
-        qualifier = Bytes.getInt(qualifiers, qual_index);
-        qual_index += 4;
-      } else {
-        qualifier = Bytes.getUnsignedShort(qualifiers, qual_index);
-        qual_index += 2;
-      }
-      final byte flags = (byte) qualifier;
-      value_index += (flags & Const.LENGTH_MASK) + 1;
-      //LOG.debug("next -> now=" + toStringSummary());
-      return this;
-    }
-
-    public void remove() {
-      throw new UnsupportedOperationException();
-    }
-
-    // ---------------------- //
-    // SeekableView interface //
-    // ---------------------- //
-
-    public void seek(final long timestamp) {
-      if ((timestamp & Const.MILLISECOND_MASK) != 0) {  // negative or not 48 bits
-        throw new IllegalArgumentException("invalid timestamp: " + timestamp);
-      }
-      qual_index = 0;
-      value_index = 0;
-      final int len = qualifiers.length;
-      //LOG.debug("Peeking timestamp: " + (peekNextTimestamp() < timestamp));
-      while (qual_index < len && peekNextTimestamp() < timestamp) {
-        //LOG.debug("Moving to next timestamp: " + peekNextTimestamp());
-        if (Internal.inMilliseconds(qualifiers[qual_index])) {
-          qualifier = Bytes.getInt(qualifiers, qual_index);
-          qual_index += 4;
+      // two options:
+      // 1) It's a raw put data point in seconds or ms (now nanos)
+      // 2) It's an old-school compacted column either hetero or homogenous
+      // regarding seconds or ms.
+      if (qualifier.length == NumericCodec.S_Q_WIDTH) {
+        // handle older versions of OpenTSDB 1.x where there were some 
+        // encoding issues that only affected second values.
+        final byte[] new_qualifier;
+        final byte[] new_value;
+        int vlen = NumericCodec.getValueLengthFromQualifier(qualifier, 
+            qualifier.length - 1);
+        if (value.length != vlen) {
+          final long offset = NumericCodec.offsetFromSecondQualifier(
+              qualifier, 0) /  1000L / 1000L / 1000L;
+          // TODO - log it in a counter somewhere
+          if ((qualifier[qualifier.length - 1] & NumericCodec.FLAG_FLOAT) == 
+              NumericCodec.FLAG_FLOAT) {
+            new_value = NumericCodec.fixFloatingPointValue(
+                NumericCodec.getFlags(
+                    qualifier, 0, (byte) NumericCodec.S_Q_WIDTH), value);
+            if (new_value.length == 4) {
+              new_qualifier = NumericCodec.buildSecondQualifier(offset, 
+                  (short) (3 | NumericCodec.FLAG_FLOAT));
+            } else {
+              new_qualifier = NumericCodec.buildSecondQualifier(offset, 
+                  (short) (7 | NumericCodec.FLAG_FLOAT));
+            }
+          } else {
+            if (value.length == 8) {
+              new_qualifier = NumericCodec.buildSecondQualifier(
+                  offset, (short) 7);
+            } else if (value.length == 4) {
+              new_qualifier = NumericCodec.buildSecondQualifier(
+                  offset, (short) 3);
+            } else if (value.length == 2) {
+              new_qualifier = NumericCodec.buildSecondQualifier(
+                  offset, (short) 1);
+            } else {
+              new_qualifier = NumericCodec.buildSecondQualifier(
+                  offset, (short) 0);
+            }
+            new_value = value;
+          }
         } else {
-          qualifier = Bytes.getUnsignedShort(qualifiers, qual_index);
-          qual_index += 2;
+          new_qualifier = qualifier;
+          new_value = value;
         }
-        final byte flags = (byte) qualifier;
-        value_index += (flags & Const.LENGTH_MASK) + 1;
-      }
-      //LOG.debug("seek to " + timestamp + " -> now=" + toStringSummary());
-    }
-
-    // ------------------- //
-    // DataPoint interface //
-    // ------------------- //
-
-    public long timestamp() {
-      assert qual_index > 0: "not initialized: " + this;
-      if ((qualifier & Const.MS_FLAG) == Const.MS_FLAG) {
-        final long ms = (qualifier & 0x0FFFFFC0) >>> (Const.MS_FLAG_BITS);
-        return (base_time * 1000) + ms;            
+        
+        // easy, just smoosh it together
+        if (data == null) {
+          data = new byte[new_qualifier.length + new_value.length];
+          System.arraycopy(new_qualifier, 0, data, 0, new_qualifier.length);
+          System.arraycopy(new_value, 0, data, new_qualifier.length, 
+              new_value.length);
+        } else {
+          final byte[] copy = new byte[data.length + 
+                                       new_qualifier.length + 
+                                       new_value.length];
+          System.arraycopy(data, 0, copy, 0, data.length);
+          System.arraycopy(new_qualifier, 0, copy, data.length, 
+              new_qualifier.length);
+          System.arraycopy(new_value, 0, copy, 
+              data.length + new_qualifier.length, new_value.length);
+          data = copy;
+        }
       } else {
-        final long seconds = (qualifier & 0xFFFF) >>> Const.FLAG_BITS;
-        return (base_time + seconds) * 1000;
+        // instead of branching more to see if it's an ms or ns column,
+        // we can just start iterating. Note that if the column is compacted
+        // and has a mixed time type sentinel at the end we'll allocate an
+        // extra value byte but we should never iterate or read it.
+        int write_idx = 0;
+        if (data == null) {
+          data = new byte[qualifier.length + value.length];
+        } else {
+          final byte[] copy = new byte[data.length + 
+                                       qualifier.length + 
+                                       value.length];
+          System.arraycopy(data, 0, copy, 0, data.length);
+          write_idx = data.length;
+          data = copy;
+        }
+        int qidx = 0;
+        int vidx = 0;
+        int vlen = 0;
+        while (qidx < qualifier.length) {
+          if ((qualifier[qidx] & NumericCodec.NS_BYTE_FLAG) == 
+              NumericCodec.NS_BYTE_FLAG) {
+            System.arraycopy(qualifier, qidx, data, write_idx, 
+                NumericCodec.NS_Q_WIDTH);
+            write_idx += NumericCodec.NS_Q_WIDTH;
+            qidx += NumericCodec.NS_Q_WIDTH;
+          } else if ((qualifier[qidx] & NumericCodec.MS_BYTE_FLAG) == 
+              NumericCodec.MS_BYTE_FLAG) {
+            System.arraycopy(qualifier, qidx, data, write_idx, 
+                NumericCodec.MS_Q_WIDTH);
+            write_idx += NumericCodec.MS_Q_WIDTH;
+            qidx += NumericCodec.MS_Q_WIDTH;
+          } else {
+            System.arraycopy(qualifier, qidx, data, write_idx, 
+                NumericCodec.S_Q_WIDTH);
+            write_idx += NumericCodec.S_Q_WIDTH;
+            qidx += NumericCodec.S_Q_WIDTH;
+          }
+          vlen = NumericCodec.getValueLengthFromQualifier(qualifier, qidx - 1);
+          System.arraycopy(value, vidx, data, write_idx, vlen);
+          write_idx += vlen;
+          vidx += vlen;
+        }
+        
+        if (write_idx < data.length) {
+          // truncate in case there was a compacted column with the last
+          // byte set to 0 or 1.
+          data = Arrays.copyOfRange(data, 0, write_idx);
+        }
       }
     }
-
-    public boolean isInteger() {
-      assert qual_index > 0: "not initialized: " + this;
-      return (qualifier & Const.FLAG_FLOAT) == 0x0;
-    }
-
-    public long longValue() {
-      if (!isInteger()) {
-        throw new ClassCastException("value @"
-          + qual_index + " is not a long in " + this);
+  }
+  
+  /**
+   * Iterates over the results, checking for out-of-order or duplicate
+   * values. Assumes the data is in time ascending order and will 
+   * re-order when called.
+   * @param keep_earliest True to keep the first data point recorded via
+   * {@link #addColumn(byte, byte[], byte[])} or false to keep the
+   * last value recorded.
+   * @param reverse Whether or not the result should be in time 
+   * descending order.
+   */
+  void dedupe(final boolean keep_earliest, final boolean reverse) {
+    // first pass, see if we even need to dedupe
+    long last_offset = -1;
+    long current_offset = 0;
+    int idx = 0;
+    
+    boolean need_repair = false;
+    while (idx < data.length) {
+      if ((data[idx] & NumericCodec.NS_BYTE_FLAG) == 
+          NumericCodec.NS_BYTE_FLAG) {
+        current_offset = NumericCodec.offsetFromNanoQualifier(data, idx);
+        idx += NumericCodec.NS_Q_WIDTH;
+        idx += NumericCodec.getValueLengthFromQualifier(data, idx - 1);
+      } else if ((data[idx] & NumericCodec.MS_BYTE_FLAG) == 
+          NumericCodec.MS_BYTE_FLAG) {
+        current_offset = NumericCodec.offsetFromMsQualifier(data, idx);
+        idx += NumericCodec.MS_Q_WIDTH;
+        idx += NumericCodec.getValueLengthFromQualifier(data, idx - 1);
+      } else {
+        current_offset = NumericCodec.offsetFromSecondQualifier(data, idx);
+        idx += NumericCodec.S_Q_WIDTH;
+        idx += NumericCodec.getValueLengthFromQualifier(data, idx - 1);
       }
-      final byte flags = (byte) qualifier;
-      final byte vlen = (byte) ((flags & Const.LENGTH_MASK) + 1);
-      return extractIntegerValue(values, value_index - vlen, flags);
-    }
-
-    public double doubleValue() {
-      if (isInteger()) {
-        throw new ClassCastException("value @"
-          + qual_index + " is not a float in " + this);
+      if (current_offset <= last_offset) {
+         need_repair = true;
+        break;
       }
-      final byte flags = (byte) qualifier;
-      final byte vlen = (byte) ((flags & Const.LENGTH_MASK) + 1);
-      return extractFloatingPointValue(values, value_index - vlen, flags);
+      last_offset = current_offset;
     }
-
-    public double toDouble() {
-      return isInteger() ? longValue() : doubleValue();
+    
+    if (!need_repair) {
+      if (reverse) {
+        reverse();
+      }
+      return;
     }
-
-    // ---------------- //
-    // Helpers for Span //
-    // ---------------- //
-
-    /** Helper to take a snapshot of the state of this iterator.  */
-    long saveState() {
-      return ((long)qual_index << 32) | ((long)value_index & 0xFFFFFFFF);
+    
+    // if we made it here we need to dedupe and sort. Normalize to longs
+    // then flush.
+    // TODO - any primitive tree maps out there? Or maybe there's just an
+    // all around better way to do this. For now this should be fast enough.
+    // The value is a concatenation of the offset and length into a long.
+    // The first 32 bits are the offset, the last 32 the width to copy.
+    TreeMap<Long,Long> map = new TreeMap<Long, Long>();
+    idx = 0;
+    //byte[] buf;
+    int vlen;
+    long encoded_value = 0;
+    while (idx < data.length) {
+      if ((data[idx] & NumericCodec.NS_BYTE_FLAG) == 
+          NumericCodec.NS_BYTE_FLAG) {
+        current_offset = NumericCodec.offsetFromNanoQualifier(data, idx);
+        vlen = NumericCodec.getValueLengthFromQualifier(data, 
+            idx + NumericCodec.NS_Q_WIDTH - 1);
+        encoded_value = (long) idx << 32 | 
+            (long) (NumericCodec.NS_Q_WIDTH + vlen);
+        idx += NumericCodec.NS_Q_WIDTH + vlen;
+      } else if ((data[idx] & NumericCodec.MS_BYTE_FLAG) == 
+          NumericCodec.MS_BYTE_FLAG) {
+        current_offset = NumericCodec.offsetFromMsQualifier(data, idx);
+        vlen = NumericCodec.getValueLengthFromQualifier(data, 
+            idx + NumericCodec.MS_Q_WIDTH - 1);
+        encoded_value = (long) idx << 32 | 
+            (long) (NumericCodec.MS_Q_WIDTH + vlen);
+        idx += NumericCodec.MS_Q_WIDTH + vlen;
+      } else {
+        current_offset = NumericCodec.offsetFromSecondQualifier(data, idx);
+        vlen = NumericCodec.getValueLengthFromQualifier(data, 
+            idx + NumericCodec.S_Q_WIDTH - 1);
+        encoded_value = (long) idx << 32 | 
+            (long) (NumericCodec.S_Q_WIDTH + vlen);
+        idx += NumericCodec.S_Q_WIDTH + vlen;
+      }
+      
+      // now copy the data into the buffer then store it
+      if (keep_earliest) {
+        map.putIfAbsent(current_offset, encoded_value);
+      } else {
+        map.put(current_offset, encoded_value);
+      }
     }
-
-    /** Helper to restore a snapshot of the state of this iterator.  */
-    void restoreState(long state) {
-      value_index = (int) state & 0xFFFFFFFF;
-      state >>>= 32;
-      qual_index = (int) state;
-      qualifier = 0;
+    
+    final byte[] sorted = new byte[data.length];
+    final Iterator<Entry<Long, Long>> iterator;
+    if (reverse) {
+      iterator = map.descendingMap().entrySet().iterator();
+    } else {
+      iterator = map.entrySet().iterator();
     }
-
-    /**
-     * Look a head to see the next timestamp.
-     * @throws IndexOutOfBoundsException if we reached the end already.
-     */
-    long peekNextTimestamp() {
-      return Internal.getTimestampFromQualifier(qualifiers, base_time, qual_index);
+    idx = 0;
+    
+    int offset = 0;
+    int width = 0;
+    
+    while (iterator.hasNext()) {
+      final long value = iterator.next().getValue();
+      offset = (int) (value >> 32);
+      width = (int) value;
+      System.arraycopy(data, offset, sorted, idx, width);
+      idx += width;
     }
-
-    /** Only returns internal state for the iterator itself.  */
-    String toStringSummary() {
-      return "RowSeq.Iterator(qual_index=" + qual_index
-        + ", value_index=" + value_index;
+    
+    // truncate if necessary
+    if (idx < data.length) {
+      data = Arrays.copyOfRange(sorted, 0, idx);
+    } else {
+      data = sorted;
     }
-
-    public String toString() {
-      return toStringSummary() + ", seq=" + RowSeq.this + ')';
-    }
-
-    @Override
-    public long valueCount() {
-      return 1;
-    }
-
   }
-
-  public int getQueryIndex() {
-    throw new UnsupportedOperationException("Not mapped to a query");
-  }
-  @Override
-  public boolean isPercentile() {
-    return false;
-  }
-
-  @Override
-  public float getPercentile() {
-    throw new UnsupportedOperationException("getPercentile not supported");
+  
+  /**
+   * Flips the data points so they are in time descending order.
+   */
+  void reverse() {
+    if (data == null || data.length < 1) {
+      return;
+    }
+    
+    final byte[] reversed = new byte[data.length];
+    int read_idx = 0;
+    int write_idx = reversed.length;
+    
+    int vlen = 0;
+    while (read_idx < data.length) {
+      if ((data[read_idx] & NumericCodec.NS_BYTE_FLAG) == 
+          NumericCodec.NS_BYTE_FLAG) {
+        vlen = NumericCodec.getValueLengthFromQualifier(data, 
+            read_idx + NumericCodec.NS_Q_WIDTH - 1);
+        write_idx -= vlen;
+        System.arraycopy(data, read_idx + NumericCodec.NS_Q_WIDTH, 
+            reversed, write_idx, vlen);
+        write_idx -= NumericCodec.NS_Q_WIDTH;
+        System.arraycopy(data, read_idx, reversed, write_idx, 
+            NumericCodec.NS_Q_WIDTH);
+        read_idx += (NumericCodec.NS_Q_WIDTH + vlen);
+      } else if ((data[read_idx] & NumericCodec.MS_BYTE_FLAG) == 
+          NumericCodec.MS_BYTE_FLAG) {
+        vlen = NumericCodec.getValueLengthFromQualifier(data, 
+            read_idx + NumericCodec.MS_Q_WIDTH - 1);
+        write_idx -= vlen;
+        System.arraycopy(data, read_idx + NumericCodec.MS_Q_WIDTH, 
+            reversed, write_idx, vlen);
+        write_idx -= NumericCodec.MS_Q_WIDTH;
+        System.arraycopy(data, read_idx, reversed, write_idx, 
+            NumericCodec.MS_Q_WIDTH);
+        read_idx += (NumericCodec.MS_Q_WIDTH + vlen);
+      } else {
+        vlen = NumericCodec.getValueLengthFromQualifier(data, 
+            read_idx + NumericCodec.S_Q_WIDTH - 1);
+        write_idx -= vlen;
+        System.arraycopy(data, read_idx + NumericCodec.S_Q_WIDTH, 
+            reversed, write_idx, vlen);
+        write_idx -= NumericCodec.S_Q_WIDTH;
+        System.arraycopy(data, read_idx, reversed, write_idx, 
+            NumericCodec.S_Q_WIDTH);
+        read_idx += (NumericCodec.S_Q_WIDTH + vlen);
+      }
+    }
+    
+    if (write_idx > 0) {
+      // this shouldn't happen as we should have skipped any compacted 
+      // column sentinels in the value!
+      throw new RuntimeException("WTF? Write index was " + write_idx
+          + " when it should have been " + data.length);
+    }
+    data = reversed;
   }
 }
