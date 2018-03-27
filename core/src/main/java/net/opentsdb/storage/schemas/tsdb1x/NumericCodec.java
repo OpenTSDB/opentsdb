@@ -128,6 +128,9 @@ public class NumericCodec implements Codec {
       (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, 
       (byte) 0xFF, (byte) 0xFF };
   
+  /** Flag to determine if a compacted column is a mix of seconds and ms */
+  public static final byte MS_MIXED_COMPACT = 1;
+  
   /** The resolution of an offset for encoding/decoding purposes. */
   public static enum OffsetResolution {
     NANOS,
@@ -147,6 +150,53 @@ public class NumericCodec implements Codec {
     return null;
   }
 
+  /**
+   * Returns whether or not this is a floating value that needs to be fixed.
+   * <p>
+   * OpenTSDB used to encode all floating point values as `float' (4 bytes)
+   * but actually store them on 8 bytes, with 4 leading 0 bytes, and flags
+   * correctly stating the value was on 4 bytes.
+   * (from CompactionQueue)
+   * @param flags The least significant byte of a qualifier.
+   * @param value The value that may need to be corrected.
+   */
+  public static boolean floatingPointValueToFix(final byte flags,
+                                                final byte[] value) {
+    return (flags & Const.FLAG_FLOAT) != 0   // We need a floating point value.
+      && (flags & Const.LENGTH_MASK) == 0x3  // That pretends to be on 4 bytes.
+      && value.length == 8;                  // But is actually using 8 bytes.
+  }
+  
+  /**
+   * Returns a corrected value if this is a floating point value to fix.
+   * <p>
+   * OpenTSDB used to encode all floating point values as `float' (4 bytes)
+   * but actually store them on 8 bytes, with 4 leading 0 bytes, and flags
+   * correctly stating the value was on 4 bytes.
+   * <p>
+   * This function detects such values and returns a corrected value, without
+   * the 4 leading zeros.  Otherwise it returns the value unchanged.
+   * (from CompactionQueue)
+   * @param flags The least significant byte of a qualifier.
+   * @param value The value that may need to be corrected.
+   * @throws IllegalDataException if the value is malformed.
+   */
+  public static byte[] fixFloatingPointValue(final byte flags,
+                                             final byte[] value) {
+    if (floatingPointValueToFix(flags, value)) {
+      // The first 4 bytes should really be zeros.
+      if (value[0] == 0 && value[1] == 0 && value[2] == 0 && value[3] == 0) {
+        // Just keep the last 4 bytes.
+        return new byte[] { value[4], value[5], value[6], value[7] };
+      } else {  // Very unlikely.
+        throw new IllegalDataException("Corrupted floating point value: "
+          + Arrays.toString(value) + " flags=0x" + Integer.toHexString(flags)
+          + " -- first 4 bytes are expected to be zeros.");
+      }
+    }
+    return value;
+  }
+  
   /**
    * Returns an 8 byte qualifier with the offset encoded and flags set.
    * @param offset An offset from [ 0, 3599999999999L ].

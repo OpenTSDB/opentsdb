@@ -16,6 +16,7 @@ package net.opentsdb.storage.schemas.tsdb1x;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -29,6 +30,51 @@ import net.opentsdb.utils.Bytes;
 
 public class TestNumericCodec {
 
+  @Test
+  public void floatingPointValueToFix() throws Exception {
+    assertFalse(NumericCodec.floatingPointValueToFix((byte) 0, 
+        new byte[] { 42 }));
+    assertFalse(NumericCodec.floatingPointValueToFix(
+        (byte) (3 | NumericCodec.FLAG_FLOAT), 
+        Bytes.fromInt(Float.floatToIntBits(42.5F))));
+    assertFalse(NumericCodec.floatingPointValueToFix(
+        (byte) (7 | NumericCodec.FLAG_FLOAT), 
+        Bytes.fromLong(Double.doubleToLongBits(42.5))));
+    assertTrue(NumericCodec.floatingPointValueToFix(
+        (byte) (3 | NumericCodec.FLAG_FLOAT), 
+        com.google.common.primitives.Bytes.concat(
+            new byte[4],
+            Bytes.fromInt(Float.floatToIntBits(42.5F)
+            ))));
+  }
+  
+  @Test
+  public void fixFloatingPointValue() throws Exception {
+    assertArrayEquals(new byte[] { 42 },
+        NumericCodec.fixFloatingPointValue((byte) 0, 
+        new byte[] { 42 }));
+    assertArrayEquals(Bytes.fromInt(Float.floatToIntBits(42.5F)),
+        NumericCodec.fixFloatingPointValue((byte) (3 | NumericCodec.FLAG_FLOAT), 
+            Bytes.fromInt(Float.floatToIntBits(42.5F))));
+    assertArrayEquals(Bytes.fromLong(Double.doubleToLongBits(42.5)),
+        NumericCodec.fixFloatingPointValue((byte) (7 | NumericCodec.FLAG_FLOAT), 
+            Bytes.fromLong(Double.doubleToLongBits(42.5))));
+    assertArrayEquals(Bytes.fromInt(Float.floatToIntBits(42.5F)),
+        NumericCodec.fixFloatingPointValue((byte) (3 | NumericCodec.FLAG_FLOAT), 
+            com.google.common.primitives.Bytes.concat(
+                new byte[4],
+                Bytes.fromInt(Float.floatToIntBits(42.5F)
+                ))));
+    try {
+      NumericCodec.fixFloatingPointValue((byte) (3 | NumericCodec.FLAG_FLOAT), 
+          com.google.common.primitives.Bytes.concat(
+              new byte[] { 0, 0, 1, 0 },
+              Bytes.fromInt(Float.floatToIntBits(42.5F)
+              )));
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+  }
+  
   @Test
   public void buildNanoQualifier() throws Exception {
     // zero offset
