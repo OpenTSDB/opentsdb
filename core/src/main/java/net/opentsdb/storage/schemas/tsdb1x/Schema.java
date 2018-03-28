@@ -17,10 +17,13 @@ package net.opentsdb.storage.schemas.tsdb1x;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
@@ -28,8 +31,10 @@ import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.filter.TagVLiteralOrFilter;
 import net.opentsdb.query.pojo.Filter;
@@ -82,6 +87,8 @@ public class Schema implements StorageSchema {
   protected int tagv_width;
   protected int salt_buckets;
   protected int salt_width;
+  
+  protected Map<TypeToken<?>, Codec> codecs;
   
   public Schema(final TSDB tsdb, final String id) {
     this.tsdb = tsdb;
@@ -162,6 +169,9 @@ public class Schema implements StorageSchema {
       throw new IllegalStateException("Factory " + uid_factory 
           + " returned a null UniqueId instance.");
     }
+    
+    codecs = Maps.newHashMapWithExpectedSize(1);
+    codecs.put(NumericType.TYPE, new NumericCodec());
   }
   
   /**
@@ -573,6 +583,16 @@ public class Schema implements StorageSchema {
   public boolean timelessSalting() {
     // TODO - implement
     return true;
+  }
+  
+  net.opentsdb.storage.schemas.tsdb1x.Span<? extends TimeSeriesDataType> newSpan(
+      final TypeToken<? extends TimeSeriesDataType> type, 
+      final boolean reversed) {
+    final Codec codec = codecs.get(type);
+    if (codec == null) {
+      throw new IllegalArgumentException("No codec loaded for type: " + type);
+    }
+    return codec.newSequences(reversed);
   }
   
   static class ResolvedFilterImplementation implements ResolvedFilter {

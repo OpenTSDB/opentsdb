@@ -140,14 +140,13 @@ public class NumericCodec implements Codec {
   
   @Override
   public TypeToken<? extends TimeSeriesDataType> type() {
-    // TODO Auto-generated method stub
-    return null;
+    return NumericType.TYPE;
   }
 
   @Override
-  public StorageSeries newIterable() {
-    // TODO Auto-generated method stub
-    return null;
+  public Span<? extends TimeSeriesDataType> newSequences(
+      final boolean reversed) {
+    return new NumericSpan(reversed);
   }
 
   /**
