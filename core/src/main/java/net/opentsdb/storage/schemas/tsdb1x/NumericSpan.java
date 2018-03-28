@@ -22,6 +22,7 @@ import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.ZonedNanoTimeStamp;
@@ -36,7 +37,7 @@ import net.opentsdb.exceptions.IllegalDataException;
  * 
  * @since 3.0
  */
-public class NumericSpan implements Iterable<TimeSeriesValue<NumericType>> {
+public class NumericSpan implements Span<NumericType> {
   
   /** Whether or not to iterate in reverse order (timestamp descending). */
   protected final boolean reversed;
@@ -53,21 +54,18 @@ public class NumericSpan implements Iterable<TimeSeriesValue<NumericType>> {
     rows = Lists.newArrayList();
   }
   
-  /**
-   * Adds the sequence to the row list if the row time is greater than
-   * the previous time and the row has data. If the row's data array is
-   * null or empty, the row is skipped.
-   * TODO - may need full sorting if we have too many threads writing.
-   * 
-   * @param sequence A non-null and non-empty row sequence.
-   * @throws IllegalArgumentException if the sequence was null.
-   * @throws IllegalStateException if the row was out of order.
-   */
-  public synchronized void addSequence(final NumericRowSeq sequence) {
+  @Override
+  public synchronized void addSequence(final RowSeq sequence,
+                                       final boolean keep_earliest) {
     if (sequence == null) {
       throw new IllegalArgumentException("Sequence cannot be null.");
     }
-    if (sequence.data == null || sequence.data.length < 1) {
+    if (!(sequence instanceof NumericRowSeq)) {
+      throw new IllegalArgumentException("Cannot add a "
+          + "non-NumericRowSeq: " + sequence.getClass());
+    }
+    final NumericRowSeq seq = (NumericRowSeq) sequence;
+    if (seq.data == null || seq.data.length < 1) {
       // skip empty rows.
       return;
     }
@@ -75,15 +73,24 @@ public class NumericSpan implements Iterable<TimeSeriesValue<NumericType>> {
     if (!rows.isEmpty()) {
       // TODO - this is a really imperfect check if we're adding stuff
       // from multiple threads. We may need to actually track order.
-      if (rows.get(rows.size() - 1).base_timestamp > sequence.base_timestamp) {
+      if (rows.get(rows.size() - 1).base_timestamp == 
+          seq.base_timestamp) {
+        // in this case we had a row continuation across a scan, which
+        // can easily happen with wide rows so add it.
+        rows.get(rows.size() - 1).addColumn(Schema.APPENDS_PREFIX, 
+            new byte[] { Schema.APPENDS_PREFIX, 0, 0 }, seq.data);
+        rows.get(rows.size() - 1).dedupe(keep_earliest, reversed);
+        return;
+      } else if (rows.get(rows.size() - 1).base_timestamp >= 
+          seq.base_timestamp) {
         throw new IllegalStateException("How did this come in out of order??");
       }
     }
-    rows.add(sequence);
+    rows.add(seq);
   }
   
   @Override
-  public Iterator<TimeSeriesValue<NumericType>> iterator() {
+  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator() {
     return new SequenceIterator();
   }
   
@@ -91,7 +98,7 @@ public class NumericSpan implements Iterable<TimeSeriesValue<NumericType>> {
    * An iterator over the rows in the list.
    */
   public class SequenceIterator implements 
-      Iterator<TimeSeriesValue<NumericType>>,
+      Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>,
       TimeSeriesValue<NumericType>, 
       NumericType {
 

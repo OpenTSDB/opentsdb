@@ -32,7 +32,12 @@ public interface Codec {
    * by this codec. */
   public TypeToken<? extends TimeSeriesDataType> type();
   
-  /** @return A non-null time series from storage. */
-  public StorageSeries newIterable();
-  
+  /**
+   * Instantiates a new sequences (span) object for rows of the data type
+   * this codec handles.
+   * @param reversed Whether or not the data will be reversed.
+   * @return A non-null sequences object.
+   */
+  public Span<? extends TimeSeriesDataType> newSequences(
+      final boolean reversed);
 }

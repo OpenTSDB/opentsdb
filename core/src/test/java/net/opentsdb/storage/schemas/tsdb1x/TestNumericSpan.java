@@ -36,7 +36,7 @@ public class TestNumericSpan {
     NumericSpan span = new NumericSpan(false);
     
     try {
-      span.addSequence(null);
+      span.addSequence(null, false);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -45,12 +45,12 @@ public class TestNumericSpan {
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 0));
     
     assertEquals(0, span.rows.size());
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     assertEquals(1, span.rows.size());
     
     // empty rows are skipped
     seq = new NumericRowSeq(BASE_TIME + (3600 * 2));
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     assertEquals(1, span.rows.size());
     assertEquals(BASE_TIME + 3600, span.rows.get(0).base_timestamp);
     
@@ -58,9 +58,46 @@ public class TestNumericSpan {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 0));
     try {
-      span.addSequence(seq);
+      span.addSequence(seq, false);
       fail("Expected IllegalStateException e");
     } catch (IllegalStateException e) { }
+  }
+  
+  @Test
+  public void addSequenceAppend() throws Exception {
+    long base_time = BASE_TIME;
+    int value = 0;
+    
+    NumericSpan span = new NumericSpan(false);
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 2; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq, false);
+    assertEquals(1, span.rows.size());
+    
+    // simulate split row
+    seq = new NumericRowSeq(base_time);
+    for (int i = 2; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq, false);
+    assertEquals(1, span.rows.size());
+    
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
+    value = 0;
+    base_time = BASE_TIME;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+      assertEquals(base_time, v.timestamp().epoch());
+      assertEquals(value++, v.value().longValue());
+      base_time += 900;
+    }
+    assertEquals(4, value);
   }
   
   @Test
@@ -76,7 +113,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -85,7 +122,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -94,13 +131,13 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0;
     base_time = BASE_TIME;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().epoch());
       assertEquals(value++, v.value().longValue());
       base_time += 900;
@@ -120,7 +157,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -129,7 +166,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -138,13 +175,13 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 11;
     base_time = BASE_TIME + (3600 * 3) - 900;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().epoch());
       assertEquals(value--, v.value().longValue());
       base_time -= 900;
@@ -164,7 +201,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -173,7 +210,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -182,13 +219,13 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0.5;
     base_time = BASE_TIME;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().epoch());
       assertEquals(value++, v.value().doubleValue(), 0.001);
       base_time += 900;
@@ -208,7 +245,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -217,7 +254,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -226,13 +263,13 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 11.5;
     base_time = BASE_TIME + (3600 * 3) - 900;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().epoch());
       assertEquals(value--, v.value().doubleValue(), 0.001);
       base_time -= 900;
@@ -252,7 +289,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -261,7 +298,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -270,13 +307,13 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0;
     base_time = BASE_TIME * 1000;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().msEpoch());
       assertEquals(value++, v.value().longValue());
       base_time += 360000;
@@ -296,7 +333,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -305,7 +342,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -314,13 +351,13 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 29;
     base_time = (BASE_TIME * 1000) + (3600000 * 3) - 360000;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().msEpoch());
       assertEquals(value--, v.value().longValue());
       base_time -= 360000;
@@ -340,7 +377,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -349,7 +386,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -358,13 +395,13 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0.5;
     base_time = BASE_TIME * 1000;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().msEpoch());
       assertEquals(value++, v.value().doubleValue(), 0.001);
       base_time += 360000;
@@ -384,7 +421,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -393,7 +430,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -402,13 +439,13 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 29.5;
     base_time = (BASE_TIME * 1000) + (3600000 * 3) - 360000;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().msEpoch());
       assertEquals(value--, v.value().doubleValue(), 0.001);
       base_time -= 360000;
@@ -428,7 +465,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -437,7 +474,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -446,13 +483,13 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0;
     base_time = BASE_TIME;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().epoch());
       assertEquals(value++, v.value().longValue());
       base_time += 360;
@@ -472,7 +509,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -481,7 +518,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -490,13 +527,13 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 29;
     base_time = BASE_TIME + (3600 * 3) - 360;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().epoch());
       assertEquals(value--, v.value().longValue());
       base_time -= 360;
@@ -516,7 +553,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -525,7 +562,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -534,13 +571,13 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0.5;
     base_time = BASE_TIME;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().epoch());
       assertEquals(value++, v.value().doubleValue(), 0.001);
       base_time += 360;
@@ -560,7 +597,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -569,7 +606,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -578,13 +615,13 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 29.5;
     base_time = BASE_TIME + (3600 * 3) - 360;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().epoch());
       assertEquals(value--, v.value().doubleValue(), 0.001);
       base_time -= 360;
@@ -608,7 +645,7 @@ public class TestNumericSpan {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 2700, value++));
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -621,7 +658,7 @@ public class TestNumericSpan {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value++));
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -634,13 +671,13 @@ public class TestNumericSpan {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value++));
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0;
     base_time = BASE_TIME;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().epoch());
       assertEquals(value++, v.value().longValue());
       base_time += 900;
@@ -664,7 +701,7 @@ public class TestNumericSpan {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 2700, value++));
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -677,7 +714,7 @@ public class TestNumericSpan {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value++));
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -690,13 +727,13 @@ public class TestNumericSpan {
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value++));
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0.5;
     base_time = BASE_TIME;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().epoch());
       assertEquals(value++, v.value().doubleValue(), 0.001);
       base_time += 900;
@@ -724,7 +761,7 @@ public class TestNumericSpan {
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 2700, value));
     value += 1.5;
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -741,7 +778,7 @@ public class TestNumericSpan {
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value));
     value += 1.5;
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -758,13 +795,13 @@ public class TestNumericSpan {
         NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value));
     value += 1.5;
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 00;
     base_time = BASE_TIME;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().epoch());
       if (v.value().isInteger()) {
         assertEquals((long) value, v.value().longValue());
@@ -790,13 +827,13 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
         
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0;
     base_time = BASE_TIME;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().epoch());
       assertEquals(value++, v.value().longValue());
       base_time += 900;
@@ -816,13 +853,13 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
         
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 3;
     base_time = BASE_TIME + 3600 - 900;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().epoch());
       assertEquals(value--, v.value().longValue());
       base_time -= 900;
@@ -842,7 +879,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     // nope!
@@ -852,7 +889,7 @@ public class TestNumericSpan {
 //          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
 //    }
 //    seq.dedupe(false, false);
-//    span.addSequence(seq);
+//    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -861,13 +898,13 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, false);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 0;
     base_time = BASE_TIME;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().epoch());
       assertEquals(value++, v.value().longValue());
       base_time += 900;
@@ -890,7 +927,7 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
     base_time += 3600;
     // nope!
@@ -900,7 +937,7 @@ public class TestNumericSpan {
 //          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
 //    }
 //    seq.dedupe(false, false);
-//    span.addSequence(seq);
+//    span.addSequence(seq, false);
     
     base_time += 3600;
     seq = new NumericRowSeq(base_time);
@@ -909,13 +946,13 @@ public class TestNumericSpan {
           NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
     seq.dedupe(false, true);
-    span.addSequence(seq);
+    span.addSequence(seq, false);
     
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     value = 7;
     base_time = BASE_TIME + (3600 * 3) - 900;
     while (it.hasNext()) {
-      TimeSeriesValue<NumericType> v = it.next();
+      TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
       assertEquals(base_time, v.timestamp().epoch());
       assertEquals(value--, v.value().longValue());
       base_time -= 900;
@@ -928,7 +965,7 @@ public class TestNumericSpan {
   @Test
   public void iterateNoSegments() throws Exception {
     NumericSpan span = new NumericSpan(false);
-    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    Iterator<TimeSeriesValue<?>> it = span.iterator();
     assertFalse(it.hasNext());
   }
 }

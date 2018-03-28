@@ -17,6 +17,12 @@ package net.opentsdb.storage.schemas.tsdb1x;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map.Entry;
+
+import com.google.common.reflect.TypeToken;
+
+import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.types.numeric.NumericType;
+
 import java.util.TreeMap;
 
 /**
@@ -30,7 +36,7 @@ import java.util.TreeMap;
  * 
  * @since 3.0
  */
-public class NumericRowSeq {
+public class NumericRowSeq implements RowSeq {
   /** The base row timestamp in Unix epoch seconds. */
   protected long base_timestamp;
   
@@ -45,17 +51,12 @@ public class NumericRowSeq {
     this.base_timestamp = base_timestamp;
   }
   
-  /**
-   * Simply appends the value to the data array in the append column
-   * format.
-   * <b>NOTE:</b> Since this is in the fast path we don't validate the
-   * qualifier and value for length and data. Please do that before
-   * calling.
-   * 
-   * @param prefix A prefix of either 0 or {@link Schema#APPENDS_PREFIX}.
-   * @param qualifier A non-null and non-empty qualifier.
-   * @param value A non-null and non-empty value.
-   */
+  @Override
+  public TypeToken<? extends TimeSeriesDataType> type() {
+    return NumericType.TYPE;
+  }
+  
+  @Override
   public void addColumn(final byte prefix, 
                         final byte[] qualifier, 
                         final byte[] value) {
@@ -189,17 +190,8 @@ public class NumericRowSeq {
     }
   }
   
-  /**
-   * Iterates over the results, checking for out-of-order or duplicate
-   * values. Assumes the data is in time ascending order and will 
-   * re-order when called.
-   * @param keep_earliest True to keep the first data point recorded via
-   * {@link #addColumn(byte, byte[], byte[])} or false to keep the
-   * last value recorded.
-   * @param reverse Whether or not the result should be in time 
-   * descending order.
-   */
-  void dedupe(final boolean keep_earliest, final boolean reverse) {
+  @Override
+  public void dedupe(final boolean keep_earliest, final boolean reverse) {
     // first pass, see if we even need to dedupe
     long last_offset = -1;
     long current_offset = 0;
