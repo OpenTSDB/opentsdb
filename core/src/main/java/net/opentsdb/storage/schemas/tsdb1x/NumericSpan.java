@@ -1,585 +1,228 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2015  The OpenTSDB Authors.
+// Copyright (C) 2010-2018  The OpenTSDB Authors.
 //
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+package net.opentsdb.storage.schemas.tsdb1x;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 
-import net.opentsdb.meta.Annotation;
-import net.opentsdb.rollup.RollupQuery;
-import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.UniqueId;
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
-import org.hbase.async.Bytes;
-import org.hbase.async.KeyValue;
-import org.hbase.async.Bytes.ByteMap;
-
-import com.stumbleupon.async.Deferred;
+import net.opentsdb.common.Const;
+import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.ZonedNanoTimeStamp;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.exceptions.IllegalDataException;
 
 /**
  * Represents a read-only sequence of continuous data points.
  * <p>
- * This class stores a continuous sequence of {@link RowSeq}s in memory.
+ * This class stores a continuous sequence of {@link NumericRowSeq}s in 
+ * memory. Iteration is performed in forward or reverse order.
+ * 
+ * @since 3.0
  */
-public class Span implements DataPoints {
-
-  /** The {@link TSDB} instance we belong to. */
-  protected final TSDB tsdb;
-
-  /** All the rows in this span. */
-  protected final ArrayList<iRowSeq> rows = new ArrayList<iRowSeq>();
-
-  /** A list of annotations for this span. We can't lazily initialize since we
-   * have to pass a collection to the compaction queue */
-  protected final ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+public class NumericSpan implements Iterable<TimeSeriesValue<NumericType>> {
   
-  /** 
-   * Whether or not the rows have been sorted. This should be toggled by the
-   * first call to an iterator method
-   */
-  private boolean sorted;
+  /** Whether or not to iterate in reverse order (timestamp descending). */
+  protected final boolean reversed;
+  
+  /** The sorted list of rows in time ascending order always. */
+  protected final List<NumericRowSeq> rows;
   
   /**
-   * Default constructor.
-   * @param tsdb The TSDB to which we belong
+   * Default ctor.
+   * @param reversed Whether or not to iterate in reverse.
    */
-  protected Span(final TSDB tsdb) {
-    this.tsdb = tsdb;
-  }
-
-  /** @throws IllegalStateException if the span doesn't have any rows */
-  private void checkNotEmpty() {
-    if (rows.size() == 0) {
-      throw new IllegalStateException("empty Span");
-    }
-  }
-
-  /** 
-   * @return the name of the metric associated with the rows in this span
-   * @throws IllegalStateException if the span was empty
-   * @throws NoSuchUniqueId if the row key UID did not exist
-   */
-  public String metricName() {
-    try {
-      return metricNameAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  public Deferred<String> metricNameAsync() {
-    checkNotEmpty();
-    return rows.get(0).metricNameAsync();
-  }
-
-  @Override
-  public byte[] metricUID() {
-    checkNotEmpty();
-    return rows.get(0).metricUID();
+  public NumericSpan(final boolean reversed) {
+    this.reversed = reversed;
+    rows = Lists.newArrayList();
   }
   
   /**
-   * @return the list of tag pairs for the rows in this span
-   * @throws IllegalStateException if the span was empty
-   * @throws NoSuchUniqueId if the any of the tagk/v UIDs did not exist
+   * Adds the sequence to the row list if the row time is greater than
+   * the previous time and the row has data. If the row's data array is
+   * null or empty, the row is skipped.
+   * TODO - may need full sorting if we have too many threads writing.
+   * 
+   * @param sequence A non-null and non-empty row sequence.
+   * @throws IllegalArgumentException if the sequence was null.
+   * @throws IllegalStateException if the row was out of order.
    */
-  public Map<String, String> getTags() {
-    try {
-      return getTagsAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
+  public synchronized void addSequence(final NumericRowSeq sequence) {
+    if (sequence == null) {
+      throw new IllegalArgumentException("Sequence cannot be null.");
     }
-  }
-
-  public Deferred<Map<String, String>> getTagsAsync() {
-    checkNotEmpty();
-    return rows.get(0).getTagsAsync();
-  }
-  
-  @Override
-  public ByteMap<byte[]> getTagUids() {
-    checkNotEmpty();
-    return rows.get(0).getTagUids();
-  }
-  
-  /** @return an empty list since aggregated tags cannot exist on a single span */
-  public List<String> getAggregatedTags() {
-    return Collections.emptyList();
-  }
-  
-  public Deferred<List<String>> getAggregatedTagsAsync() {
-    final List<String> empty = Collections.emptyList();
-    return Deferred.fromResult(empty);
-  }
-  
-  @Override
-  public List<byte[]> getAggregatedTagUids() {
-    return Collections.emptyList();
-  }
-
-  /** @return the number of data points in this span, O(n)
-   * Unfortunately we must walk the entire array for every row as there may be a 
-   * mix of second and millisecond timestamps */
-  public int size() {
-    int size = 0;
-    for (final iRowSeq row : rows) {
-      size += row.size();
-    }
-    return size;
-  }
-
-  /** @return 0 since aggregation cannot happen at the span level */
-  public int aggregatedSize() {
-    return 0;
-  }
-
-  public List<String> getTSUIDs() {
-    if (rows.size() < 1) {
-      return null;
-    }
-    final byte[] tsuid = UniqueId.getTSUIDFromKey(rows.get(0).key(), 
-        TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
-    final List<String> tsuids = new ArrayList<String>(1);
-    tsuids.add(UniqueId.uidToString(tsuid));
-    return tsuids;
-  }
-  
-  /** @return a list of annotations associated with this span. May be empty */
-  public List<Annotation> getAnnotations() {
-    return annotations;
-  }
-  
-  /**
-   * Adds a compacted row to the span, merging with an existing RowSeq or 
-   * creating a new one if necessary. 
-   * @param row The compacted row to add to this span.
-   * @throws IllegalArgumentException if the argument and this span are for
-   * two different time series.
-   */
-  protected void addRow(final KeyValue row) {
-    long last_ts = 0;
-    if (rows.size() != 0) {
-      // Verify that we have the same metric id and tags.
-      final byte[] key = row.key();
-      final iRowSeq last = rows.get(rows.size() - 1);
-      final short metric_width = tsdb.metrics.width();
-      final short tags_offset = 
-          (short) (Const.SALT_WIDTH() + metric_width + Const.TIMESTAMP_BYTES);
-      final short tags_bytes = (short) (key.length - tags_offset);
-      String error = null;
-      if (key.length != last.key().length) {
-        error = "row key length mismatch";
-      } else if (
-          Bytes.memcmp(key, last.key(), Const.SALT_WIDTH(), metric_width) != 0) {
-        error = "metric ID mismatch";
-      } else if (Bytes.memcmp(key, last.key(), tags_offset, tags_bytes) != 0) {
-        error = "tags mismatch";
-      }
-      if (error != null) {
-        throw new IllegalArgumentException(error + ". "
-            + "This Span's last row key is " + Arrays.toString(last.key())
-            + " whereas the row key being added is " + Arrays.toString(key)
-            + " and metric_width=" + metric_width);
-      }
-      last_ts = last.timestamp(last.size() - 1);  // O(n)
-    }
-
-    final RowSeq rowseq = new RowSeq(tsdb);
-    rowseq.setRow(row);
-    sorted = false;
-    if (last_ts >= rowseq.timestamp(0)) {
-      // scan to see if we need to merge into an existing row
-      for (final iRowSeq rs : rows) {
-        if (Bytes.memcmp(rs.key(), row.key(), Const.SALT_WIDTH(), 
-            (rs.key().length - Const.SALT_WIDTH())) == 0) {
-          rs.addRow(row);
-          return;
-        }
-      }
+    if (sequence.data == null || sequence.data.length < 1) {
+      // skip empty rows.
+      return;
     }
     
-    rows.add(rowseq);
-  }
-
-  /**
-   * Package private helper to access the last timestamp in an HBase row.
-   * @param metric_width The number of bytes on which metric IDs are stored.
-   * @param row A compacted HBase row.
-   * @return A strictly positive timestamp in seconds or ms.
-   * @throws IllegalArgumentException if {@code row} doesn't contain any cell.
-   */
-  static long lastTimestampInRow(final short metric_width,
-                                 final KeyValue row) {
-    final long base_time = Bytes.getUnsignedInt(row.key(), metric_width + 
-        Const.SALT_WIDTH());
-    final byte[] qual = row.qualifier();
-    if (qual.length >= 4 && Internal.inMilliseconds(qual[qual.length - 4])) {
-      return (base_time * 1000) + ((Bytes.getUnsignedInt(qual, qual.length - 4) & 
-          0x0FFFFFC0) >>> (Const.MS_FLAG_BITS));
-    }
-    final short last_delta = (short)
-      (Bytes.getUnsignedShort(qual, qual.length - 2) >>> Const.FLAG_BITS);
-    return base_time + last_delta;
-  }
-
-  /** @return an iterator to run over the list of data points */
-  public SeekableView iterator() {
-    checkRowOrder();
-    return spanIterator();
-  }
-
-  /**
-   * Finds the index of the row of the ith data point and the offset in the row.
-   * @param i The index of the data point to find.
-   * @return two ints packed in a long.  The first int is the index of the row
-   * in {@code rows} and the second is offset in that {@link RowSeq} instance.
-   */
-  private long getIdxOffsetFor(final int i) {
-    checkRowOrder();
-    int idx = 0;
-    int offset = 0;
-    for (final iRowSeq row : rows) {
-      final int sz = row.size();
-      if (offset + sz > i) {
-        break;
-      }
-      offset += sz;
-      idx++;
-    }
-    return ((long) idx << 32) | (i - offset);
-  }
-
-  /**
-   * Returns the timestamp for a data point at index {@code i} if it exists.
-   * <b>Note:</b> To get to a timestamp this method must walk the entire byte
-   * array, i.e. O(n) so call this sparingly. Use the iterator instead.
-   * @param i A 0 based index incremented per the number of data points in the
-   * span.
-   * @return A Unix epoch timestamp in milliseconds
-   * @throws IndexOutOfBoundsException if the index would be out of bounds
-   */
-  public long timestamp(final int i) {
-    checkRowOrder();
-    final long idxoffset = getIdxOffsetFor(i);
-    final int idx = (int) (idxoffset >>> 32);
-    final int offset = (int) (idxoffset & 0x00000000FFFFFFFF);
-    return rows.get(idx).timestamp(offset);
-  }
-
-  /**
-   * Determines whether or not the value at index {@code i} is an integer
-   * @param i A 0 based index incremented per the number of data points in the
-   * span.
-   * @return True if the value is an integer, false if it's a floating point
-   * @throws IndexOutOfBoundsException if the index would be out of bounds
-   */
-  public boolean isInteger(final int i) {
-    checkRowOrder();
-    final long idxoffset = getIdxOffsetFor(i);
-    final int idx = (int) (idxoffset >>> 32);
-    final int offset = (int) (idxoffset & 0x00000000FFFFFFFF);
-    return rows.get(idx).isInteger(offset);
-  }
-
-  /**
-   * Returns the value at index {@code i}
-   * @param i A 0 based index incremented per the number of data points in the
-   * span.
-   * @return the value as a long
-   * @throws IndexOutOfBoundsException if the index would be out of bounds
-   * @throws ClassCastException if the value is a float instead. Call 
-   * {@link #isInteger} first
-   * @throws IllegalDataException if the data is malformed
-   */
-  public long longValue(final int i) {
-    checkRowOrder();
-    final long idxoffset = getIdxOffsetFor(i);
-    final int idx = (int) (idxoffset >>> 32);
-    final int offset = (int) (idxoffset & 0x00000000FFFFFFFF);
-    return rows.get(idx).longValue(offset);
-  }
-
-  /**
-   * Returns the value at index {@code i}
-   * @param i A 0 based index incremented per the number of data points in the
-   * span.
-   * @return the value as a double
-   * @throws IndexOutOfBoundsException if the index would be out of bounds
-   * @throws ClassCastException if the value is an integer instead. Call 
-   * {@link #isInteger} first
-   * @throws IllegalDataException if the data is malformed
-   */
-  public double doubleValue(final int i) {
-    checkRowOrder();
-    final long idxoffset = getIdxOffsetFor(i);
-    final int idx = (int) (idxoffset >>> 32);
-    final int offset = (int) (idxoffset & 0x00000000FFFFFFFF);
-    return rows.get(idx).doubleValue(offset);
-  }
-
-  /** Returns a human readable string representation of the object. */
-  @Override
-  public String toString() {
-    final StringBuilder buf = new StringBuilder();
-    buf.append("Span(")
-       .append(rows.size())
-       .append(" rows, [");
-    for (int i = 0; i < rows.size(); i++) {
-      if (i != 0) {
-        buf.append(", ");
-      }
-      buf.append(rows.get(i).toString());
-    }
-    buf.append("])");
-    return buf.toString();
-  }
-
-  /**
-   * Finds the index of the row in which the given timestamp should be.
-   * @param timestamp A strictly positive 32-bit integer.
-   * @return A strictly positive index in the {@code rows} array.
-   */
-  private int seekRow(final long timestamp) {
-    checkRowOrder();
-    int row_index = 0;
-    iRowSeq row = null;
-    final int nrows = rows.size();
-    for (int i = 0; i < nrows; i++) {
-      row = rows.get(i);
-      final int sz = row.size();
-      if (sz < 1) {
-        row_index++;
-      } else if (row.timestamp(sz - 1) < timestamp) {
-        row_index++;  // The last DP in this row is before 'timestamp'.
-      } else {
-        break;
+    if (!rows.isEmpty()) {
+      // TODO - this is a really imperfect check if we're adding stuff
+      // from multiple threads. We may need to actually track order.
+      if (rows.get(rows.size() - 1).base_timestamp > sequence.base_timestamp) {
+        throw new IllegalStateException("How did this come in out of order??");
       }
     }
-    if (row_index == nrows) {  // If this timestamp was too large for the
-      --row_index;             // last row, return the last row.
-    }
-    return row_index;
-  }
-
-  /**
-   * Checks the sorted flag and sorts the rows if necessary. Should be called
-   * by any iteration method.
-   * Since 2.0
-   */
-  private void checkRowOrder() {
-    if (!sorted) {
-      Collections.sort(rows, new RowSeq.RowSeqComparator());
-      sorted = true;
-    }
+    rows.add(sequence);
   }
   
-  /** Package private iterator method to access it as a Span.Iterator. */
-  Span.Iterator spanIterator() {
-    if (!sorted) {
-      Collections.sort(rows, new RowSeq.RowSeqComparator());
-      sorted = true;
-    }
-    return new Span.Iterator();
+  @Override
+  public Iterator<TimeSeriesValue<NumericType>> iterator() {
+    return new SequenceIterator();
   }
+  
+  /**
+   * An iterator over the rows in the list.
+   */
+  public class SequenceIterator implements 
+      Iterator<TimeSeriesValue<NumericType>>,
+      TimeSeriesValue<NumericType>, 
+      NumericType {
 
-  /** Iterator for {@link Span}s. */
-  final class Iterator implements SeekableView {
-
-    /** Index of the {@link RowSeq} we're currently at, in {@code rows}. */
-    private int row_index;
-
-    /** Iterator on the current row. */
-    private iRowSeq.Iterator current_row;
-
-    Iterator() {
-      current_row = rows.get(0).internalIterator();
+    /** The index within {@link NumericSpan#rows}. */
+    private int rows_idx = reversed ? rows.size() - 1 : 0;
+    
+    /** The data point index within {@link NumericRowSeq#data}. */
+    private int row_idx = 0;
+    
+    /** The data value index within {@link NumericRowSeq#data}. */
+    private int value_idx = 0;
+    
+    /** Whether or not the current value is an integer. */
+    private boolean is_integer;
+    
+    /** The current data point flags. */
+    private byte flags;
+    
+    /** The timestamp. Since the API says consumers can't keep this 
+     * reference, we can keep re-using it to save memory. */
+    private ZonedNanoTimeStamp ts = new ZonedNanoTimeStamp(0, 0, Const.UTC);
+    
+    @Override
+    public boolean isInteger() {
+      return is_integer;
     }
 
-    // ------------------ //
-    // Iterator interface //
-    // ------------------ //
-    
+    @Override
+    public long longValue() {
+      if (!is_integer) {
+        throw new IllegalDataException("This is not an integer!");
+      }
+      return NumericCodec.extractIntegerValue(
+          rows.get(rows_idx).data, value_idx, flags);
+    }
+
+    @Override
+    public double doubleValue() {
+      if (is_integer) {
+        throw new IllegalDataException("This is not a float!");
+      }
+      return NumericCodec.extractFloatingPointValue(
+          rows.get(rows_idx).data, value_idx, flags);
+    }
+
+    @Override
+    public double toDouble() {
+      if (is_integer) {
+        return (double) longValue();
+      }
+      return doubleValue();
+    }
+
+    @Override
+    public TimeStamp timestamp() {
+      return ts;
+    }
+
+    @Override
+    public NumericType value() {
+      return this;
+    }
+
+    @Override
+    public TypeToken<NumericType> type() {
+      return NumericType.TYPE;
+    }
+
     @Override
     public boolean hasNext() {
-      if (current_row.hasNext()) {
+      if (reversed ? rows_idx < 0 : rows_idx >= rows.size()) {
+        return false;
+      }
+      
+      if (row_idx < rows.get(rows_idx).data.length) {
         return true;
       }
-      // handle situations where a row in the middle may be empty due to some
-      // kind of logic kicking out data points
-      while (row_index < rows.size() - 1) {
-        row_index++;
-        current_row = rows.get(row_index).internalIterator();
-        if (current_row.hasNext()) {
-          return true;
-        }
+      
+      if (reversed) {
+        return rows_idx - 1 >= 0;
+      } else {
+        return rows_idx  + 1< rows.size();
       }
-      return false;
     }
 
     @Override
-    public DataPoint next() {
-      if (current_row.hasNext()) {
-        return current_row.next();
+    public TimeSeriesValue<NumericType> next() {
+      if (reversed ? rows_idx < 0 : rows_idx >= rows.size()) {
+        throw new NoSuchElementException("No more data.");
       }
-      // handle situations where a row in the middle may be empty due to some
-      // kind of logic kicking out data points
-      while (row_index < rows.size() - 1) {
-        row_index++;
-        current_row = rows.get(row_index).internalIterator();
-        if (current_row.hasNext()) {
-          return current_row.next();
+      NumericRowSeq seq = rows.get(rows_idx);
+      if (row_idx >= seq.data.length) {
+        if (reversed) {
+          rows_idx--;
+        } else {
+          rows_idx++;
         }
+        row_idx = 0;
+        seq = rows.get(rows_idx);
       }
-      throw new NoSuchElementException("no more elements");
+      
+      final long time_offset;
+      if ((seq.data[row_idx] & NumericCodec.NS_BYTE_FLAG) == 
+          NumericCodec.NS_BYTE_FLAG) {
+        time_offset = NumericCodec.offsetFromNanoQualifier(seq.data, row_idx);
+        flags = NumericCodec.getFlags(seq.data, row_idx, 
+            (byte) NumericCodec.NS_Q_WIDTH);
+        value_idx = row_idx + NumericCodec.NS_Q_WIDTH;
+      } else if ((seq.data[row_idx] & NumericCodec.MS_BYTE_FLAG) == 
+          NumericCodec.MS_BYTE_FLAG) {
+        time_offset = NumericCodec.offsetFromMsQualifier(seq.data, row_idx);
+        flags = NumericCodec.getFlags(seq.data, row_idx, 
+            (byte) NumericCodec.MS_Q_WIDTH);
+        value_idx = row_idx + NumericCodec.MS_Q_WIDTH;
+      } else {
+        time_offset = NumericCodec.offsetFromSecondQualifier(seq.data, row_idx);
+        flags = NumericCodec.getFlags(seq.data, row_idx, 
+            (byte) NumericCodec.S_Q_WIDTH);
+        value_idx = row_idx + NumericCodec.S_Q_WIDTH;
+      }
+      
+      row_idx = value_idx + NumericCodec.getValueLength(flags);
+      final long seconds_offset = (time_offset / 1000L / 1000L / 1000L); 
+      
+      final long epoch = seq.base_timestamp + seconds_offset;
+      final long nanos = time_offset - (seconds_offset * 1000L * 1000L * 1000L);
+      ts.update(epoch, nanos);
+      is_integer = !((flags & NumericCodec.FLAG_FLOAT) == 
+          NumericCodec.FLAG_FLOAT);
+      return this;
     }
-
-    @Override
-    public void remove() {
-      throw new UnsupportedOperationException();
-    }
-
-    // ---------------------- //
-    // SeekableView interface //
-    // ---------------------- //
     
-    @Override
-    public void seek(final long timestamp) {
-      int row_index = seekRow(timestamp);
-      if (row_index != this.row_index) {
-        this.row_index = row_index;
-        current_row = rows.get(row_index).internalIterator();
-      }
-      current_row.seek(timestamp);
-    }
-
-    @Override
-    public String toString() {
-      return "Span.Iterator(row_index=" + row_index
-        + ", current_row=" + current_row + ", span=" + Span.this + ')';
-    }
-
-  }
-
-  /**
-   * Package private iterator method to access data while downsampling with the
-   * option to force interpolation.
-   * @param start_time The time in milliseconds at which the data begins.
-   * @param end_time The time in milliseconds at which the data ends.
-   * @param interval_ms The interval in milli seconds wanted between each data
-   * point.
-   * @param downsampler The downsampling function to use.
-   * @param fill_policy Policy specifying whether to interpolate or to fill
-   * missing intervals with special values.
-   * @return A new downsampler.
-   */
-  Downsampler downsampler(final long start_time,
-                          final long end_time,
-                          final long interval_ms,
-                          final Aggregator downsampler,
-                          final FillPolicy fill_policy) {
-    if (FillPolicy.NONE == fill_policy) {
-      // The default downsampler simply skips missing intervals, causing the
-      // span group to linearly interpolate.
-      return new Downsampler(spanIterator(), interval_ms, downsampler);
-    } else {
-      // Otherwise, we need to instantiate a downsampler that can fill missing
-      // intervals with special values.
-      return new FillingDownsampler(spanIterator(), start_time, end_time,
-        interval_ms, downsampler, fill_policy);
-    }
-  }
-  
-  /**
-   * @param start_time The time in milliseconds at which the data begins.
-   * @param end_time The time in milliseconds at which the data ends.
-   * @param downsampler The downsampling specification to use
-   * @param query_start Start of the actual query
-   * @param query_end End of the actual query
-   * @return A new downsampler.
-   * @since 2.3
-   */
-  Downsampler downsampler(final long start_time,
-      final long end_time,
-      final DownsamplingSpecification downsampler,
-      final long query_start,
-      final long query_end) {
-    if (downsampler == null) {
-      return null;
-    }
-    if (FillPolicy.NONE == downsampler.getFillPolicy()) {
-      return new Downsampler(spanIterator(), downsampler, 
-          query_start, query_end);  
-    }
-    return new FillingDownsampler(spanIterator(), start_time, end_time, 
-        downsampler, query_start, query_end);
-  }
-  
-  /**
-   * @param start_time The time in milliseconds at which the data begins.
-   * @param end_time The time in milliseconds at which the data ends.
-   * @param downsampler The downsampling specification to use
-   * @param query_start Start of the actual query
-   * @param query_end End of the actual query
-   * @param rollup_query An optional rollup query.
-   * @return A new downsampler.
-   * @since 2.4
-   */
-  Downsampler downsampler(final long start_time,
-      final long end_time,
-      final DownsamplingSpecification downsampler,
-      final long query_start,
-      final long query_end,
-      final RollupQuery rollup_query) {
-    if (downsampler == null) {
-      return null;
-    }
-    if (FillPolicy.NONE == downsampler.getFillPolicy()) {
-      return new Downsampler(spanIterator(), downsampler, 
-          query_start, query_end, rollup_query);  
-    }
-    return new FillingDownsampler(spanIterator(), start_time, end_time, 
-        downsampler, query_start, query_end, rollup_query);
-  }
-
-  /**
-   * RowSeq abstract factory API implementation
-   * @param tsdb The TSDB to which we belong
-   * @return RowSeq object which stores  read-only sequence of continuous 
-   * HBase rows
-   * @since 2.4
-   */
-  protected iRowSeq createRowSequence(TSDB tsdb) {
-    return new RowSeq(tsdb);
-  }
-  
-  public int getQueryIndex() {
-    throw new UnsupportedOperationException("Not mapped to a query");
-  }
-  @Override
-  public boolean isPercentile() {
-    return false;
-  }
-
-  @Override
-  public float getPercentile() {
-    throw new UnsupportedOperationException("getPercentile not supported");
   }
 }

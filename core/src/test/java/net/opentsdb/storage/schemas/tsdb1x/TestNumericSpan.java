@@ -1,530 +1,934 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2010-2018  The OpenTSDB Authors.
 //
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+package net.opentsdb.storage.schemas.tsdb1x;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.junit.Assert.fail;
 
-import java.util.List;
+import java.util.Iterator;
 
-import net.opentsdb.storage.MockBase;
-import net.opentsdb.uid.UniqueId;
-import net.opentsdb.utils.Config;
-
-import org.hbase.async.Bytes;
-import org.hbase.async.KeyValue;
-import org.hbase.async.Bytes.ByteMap;
-import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
 
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
+import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.storage.schemas.tsdb1x.NumericCodec.OffsetResolution;
 
-@RunWith(PowerMockRunner.class)
-//"Classloader hell"...  It's real.  Tell PowerMock to ignore these classes
-//because they fiddle with the class loader.  We don't test them anyway.
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-             "ch.qos.*", "org.slf4j.*",
-             "com.sum.*", "org.xml.*"})
-@PrepareForTest({ RowSeq.class, TSDB.class, UniqueId.class, KeyValue.class, 
-  Config.class, RowKey.class, Const.class })
-public final class TestSpan {
-  private TSDB tsdb = mock(TSDB.class);
-  private Config config = mock(Config.class);
-  private UniqueId metrics = mock(UniqueId.class);
-  private static final byte[] TABLE = { 't', 'a', 'b', 'l', 'e' };
-  private static final byte[] HOUR1 = 
-    { 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
-  private static final byte[] HOUR2 = 
-    { 0, 0, 1, 0x50, (byte)0xE2, 0x35, 0x10, 0, 0, 1, 0, 0, 2 };
-  private static final byte[] HOUR3 = 
-    { 0, 0, 1, 0x50, (byte)0xE2, 0x43, 0x20, 0, 0, 1, 0, 0, 2 };
-  private static final byte[] FAMILY = { 't' };
-  private static final byte[] ZERO = { 0 };
+public class TestNumericSpan {
+  private static final long BASE_TIME = 1514764800;
+  private static final byte[] APPEND_Q = 
+      new byte[] { Schema.APPENDS_PREFIX, 0, 0 };
   
-  @Before
-  public void before() throws Exception {
-    // Inject the attributes we need into the "tsdb" object.
-    Whitebox.setInternalState(tsdb, "metrics", metrics);
-    Whitebox.setInternalState(tsdb, "table", TABLE);
-    Whitebox.setInternalState(tsdb, "config", config);
-    when(tsdb.getConfig()).thenReturn(config);
-    when(tsdb.metrics.width()).thenReturn((short)3);
-    when(RowKey.metricNameAsync(tsdb, HOUR1))
-      .thenReturn(Deferred.fromResult("sys.cpu.user"));
+  @Test
+  public void addSequence() throws Exception {
+    NumericSpan span = new NumericSpan(false);
+    
+    try {
+      span.addSequence(null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    NumericRowSeq seq = new NumericRowSeq(BASE_TIME + 3600);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 0));
+    
+    assertEquals(0, span.rows.size());
+    span.addSequence(seq);
+    assertEquals(1, span.rows.size());
+    
+    // empty rows are skipped
+    seq = new NumericRowSeq(BASE_TIME + (3600 * 2));
+    span.addSequence(seq);
+    assertEquals(1, span.rows.size());
+    assertEquals(BASE_TIME + 3600, span.rows.get(0).base_timestamp);
+    
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 0));
+    try {
+      span.addSequence(seq);
+      fail("Expected IllegalStateException e");
+    } catch (IllegalStateException e) { }
   }
   
   @Test
-  public void addRow() {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
+  public void addIterateLongsSeconds() throws Exception {
+    long base_time = BASE_TIME;
+    int value = 0;
     
-    final Span span = new Span(tsdb);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
+    NumericSpan span = new NumericSpan(false);
     
-    assertEquals(2, span.size());
-  }
-  
-  @Test
-  public void addRowSalted() {
-    PowerMockito.mockStatic(Const.class);
-    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
-    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(2);
-    
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    
-    final byte[] hour1 = { 0, 0, 0, 1, 0x50, (byte)0xE2, 0x27, 
-        0, 0, 0, 1, 0, 0, 2 };
-    final byte[] hour2 = { 1, 0, 0, 1, 0x50, (byte)0xE2, 0x35, 
-        0x10, 0, 0, 1, 0, 0, 2 };
-    final Span span = new Span(tsdb);
-    span.addRow(new KeyValue(hour1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    span.addRow(new KeyValue(hour2, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    
-    assertEquals(4, span.size());
-  }
-  
-  @Test (expected = NullPointerException.class)
-  public void addRowNull() {
-    final Span span = new Span(tsdb);
-    span.addRow(null);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void addRowBadKeyLength() {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    
-    final Span span = new Span(tsdb);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    
-    final byte[] bad_key = 
-      new byte[] { 0, 0, 1, 0x50, (byte)0xE2, 0x43, 0x20, 0, 0, 1 };
-    span.addRow(new KeyValue(bad_key, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void addRowMissMatchedMetric() {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    
-    final Span span = new Span(tsdb);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    
-    final byte[] bad_key = 
-      new byte[] { 0, 0, 2, 0x50, (byte)0xE2, 0x35, 0x10, 0, 0, 1, 0, 0, 2 };
-    span.addRow(new KeyValue(bad_key, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void addRowMissMatchedTagk() {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    
-    final Span span = new Span(tsdb);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    
-    final byte[] bad_key = 
-      new byte[] { 0, 0, 1, 0x50, (byte)0xE2, 0x35, 0x10, 0, 0, 2, 0, 0, 2 };
-    span.addRow(new KeyValue(bad_key, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void addRowMissMatchedTagv() {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    
-    final Span span = new Span(tsdb);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    
-    final byte[] bad_key = 
-      new byte[] { 0, 0, 1, 0x50, (byte)0xE2, 0x35, 0x10, 0, 0, 1, 0, 0, 3 };
-    span.addRow(new KeyValue(bad_key, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-  }
-  
-  @Test
-  public void addRowOutOfOrder() {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    
-    final Span span = new Span(tsdb);
-    span.addRow(new KeyValue(HOUR2, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    assertEquals(4, span.size());
-    
-    assertEquals(1356998400000L, span.timestamp(0));
-    assertEquals(4, span.longValue(0));
-    assertEquals(1356998402000L, span.timestamp(1));
-    assertEquals(5, span.longValue(1));
-    assertEquals(1357002000000L, span.timestamp(2));
-    assertEquals(4, span.longValue(2));
-    assertEquals(1357002002000L, span.timestamp(3));
-    assertEquals(5, span.longValue(3));
-  }
-
-  @Test
-  public void timestampNormalized() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    
-    final Span span = new Span(tsdb);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    span.addRow(new KeyValue(HOUR2, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    span.addRow(new KeyValue(HOUR3, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    
-    assertEquals(6, span.size());
-    assertEquals(1356998400000L, span.timestamp(0));
-    assertEquals(1356998402000L, span.timestamp(1));
-    assertEquals(1357002000000L, span.timestamp(2));
-    assertEquals(1357002002000L, span.timestamp(3));
-    assertEquals(1357005600000L, span.timestamp(4));
-    assertEquals(1357005602000L, span.timestamp(5));
-  }
-  
-  @Test
-  public void timestampFullSeconds() throws Exception {
-    
-    final byte[] qualifiers = new byte[3600 * 2];
-    final byte[] values = new byte[3600 * 8];
-    for (int i = 0; i < 3600; i++) {
-      final short qualifier = (short) (i << Const.FLAG_BITS | 0x07);
-      System.arraycopy(Bytes.fromShort(qualifier), 0, qualifiers, i * 2, 2);
-      System.arraycopy(Bytes.fromLong(i), 0, values, i * 8, 8);
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
     }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
     
-    final Span span = new Span(tsdb);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qualifiers, values));
-    span.addRow(new KeyValue(HOUR2, FAMILY, qualifiers, values));
-    span.addRow(new KeyValue(HOUR3, FAMILY, qualifiers, values));
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
     
-    assertEquals(3600 * 3, span.size());
-  }
-  
-  @Test
-  public void timestampMS() throws Exception {
-    final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
     
-    final Span span = new Span(tsdb);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    span.addRow(new KeyValue(HOUR2, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    span.addRow(new KeyValue(HOUR3, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    
-    assertEquals(6, span.size());
-    assertEquals(1356998400000L, span.timestamp(0));
-    assertEquals(1356998400008L, span.timestamp(1));
-    assertEquals(1357002000000L, span.timestamp(2));
-    assertEquals(1357002000008L, span.timestamp(3));
-    assertEquals(1357005600000L, span.timestamp(4));
-    assertEquals(1357005600008L, span.timestamp(5));
-  }
-  
-  @Test
-  public void iterateNormalizedMS() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    
-    final Span span = new Span(tsdb);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    span.addRow(new KeyValue(HOUR2, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    span.addRow(new KeyValue(HOUR3, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-
-    assertEquals(6, span.size());
-    final SeekableView it = span.iterator();
-    DataPoint dp = it.next();
-    
-    assertEquals(1356998400000L, dp.timestamp());
-    assertEquals(4, dp.longValue());
-    
-    dp = it.next();
-    assertEquals(1356998402000L, dp.timestamp());
-    assertEquals(5, dp.longValue());
-    
-    dp = it.next(); 
-    assertEquals(1357002000000L, dp.timestamp());
-    assertEquals(4, dp.longValue());
-    
-    dp = it.next();
-    assertEquals(1357002002000L, dp.timestamp());
-    assertEquals(5, dp.longValue());
-    
-    dp = it.next();
-    assertEquals(1357005600000L, dp.timestamp());
-    assertEquals(4, dp.longValue());
-    
-    dp = it.next();
-    assertEquals(1357005602000L, dp.timestamp());
-    assertEquals(5, dp.longValue());
-    
-    assertFalse(it.hasNext());
- 
-    
-  }
-
-  @Test
-  public void downsampler() throws Exception {
-    final byte[] val40 = Bytes.fromLong(40L);
-    final byte[] val50 = Bytes.fromLong(50L);
-    // For a value at the offset 0 seconds from a base timestamp.
-    final byte[] qual0 = { 0x00, 0x07 };
-    // For a value at the offset 5 seconds from a base timestamp.
-    final byte[] qual5 = { 0x00, 0x57 };
-    // For a value at the offset 2000 (0x7D0) seconds from a base timestamp.
-    final byte[] qual2000 = { 0x7D, 0x07 };
-    // For values at the offsets 0 and 2000 seconds from a base timestamp.
-    final byte[] qual02000 = MockBase.concatByteArrays(qual0, qual2000);
-    // For values at the offsets 0 and 5 seconds from a base timestamp.
-    final byte[] qual05 = MockBase.concatByteArrays(qual0, qual5);
-
-    final Span span = new Span(tsdb);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual02000,
-        MockBase.concatByteArrays(val40, val50, ZERO)));
-    span.addRow(new KeyValue(HOUR2, FAMILY, qual05,
-        MockBase.concatByteArrays(val40, val50, ZERO)));
-    span.addRow(new KeyValue(HOUR3, FAMILY, qual02000,
-        MockBase.concatByteArrays(val40, val50, ZERO)));
-
-    assertEquals(6, span.size());
-    long interval_ms = 1000000;
-    Aggregator downsampler = Aggregators.get("avg");
-    final SeekableView it = span.downsampler(1356998000L, 1357007000L, 
-        interval_ms, downsampler, FillPolicy.NONE);
-    List<Double> values = Lists.newArrayList();
-    List<Long> timestamps_in_millis = Lists.newArrayList();
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 0;
+    base_time = BASE_TIME;
     while (it.hasNext()) {
-      DataPoint dp = it.next();
-      assertFalse(dp.isInteger());
-      values.add(dp.doubleValue());
-      timestamps_in_millis.add(dp.timestamp());
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().epoch());
+      assertEquals(value++, v.value().longValue());
+      base_time += 900;
     }
-
-    assertEquals(5, values.size());
-    assertEquals(40, values.get(0).longValue());
-    assertEquals(1356998000000L, timestamps_in_millis.get(0).longValue());
-    assertEquals(50, values.get(1).longValue());
-    assertEquals(1357000000000L, timestamps_in_millis.get(1).longValue());
-    assertEquals(45, values.get(2).longValue());
-    assertEquals(1357002000000L, timestamps_in_millis.get(2).longValue());
-    assertEquals(40, values.get(3).longValue());
-    assertEquals(1357005000000L, timestamps_in_millis.get(3).longValue());
-    assertEquals(50, values.get(4).longValue());
-    assertEquals(1357007000000L, timestamps_in_millis.get(4).longValue());
-  }
-
-  @Test
-  public void lastTimestampInRow() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    
-    final KeyValue kv = new KeyValue(HOUR1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    assertEquals(1356998402L, Span.lastTimestampInRow((short) 3, kv));
   }
   
   @Test
-  public void lastTimestampInRowMs() throws Exception {
-    final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
+  public void addIterateLongsSecondsReversed() throws Exception {
+    long base_time = BASE_TIME;
+    int value = 0;
     
-    final KeyValue kv = new KeyValue(HOUR1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
+    NumericSpan span = new NumericSpan(true);
     
-    assertEquals(1356998400008L, Span.lastTimestampInRow((short) 3, kv));
-  }
-  
-  @Test
-  public void metricUID() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
     
-    final Span span = new Span(tsdb);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
     
-    assertEquals(2, span.size());
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
     
-    assertArrayEquals(new byte[] { 0, 0, 1 }, span.metricUID());
-  }
-  
-  @Test
-  public void metricUIDSalted() throws Exception {
-    PowerMockito.mockStatic(Const.class);
-    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
-    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(2);
-    
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    
-    final Span span = new Span(tsdb);
-    final byte[] key = new byte[HOUR1.length + 1];
-    System.arraycopy(HOUR1, 0, key, 1, HOUR1.length);
-    span.addRow(new KeyValue(key, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    
-    assertEquals(2, span.size());
-    
-    assertArrayEquals(new byte[] { 0, 0, 1 }, span.metricUID());
-  }
-  
-  @Test
-  public void getTagUids() {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    
-    final Span span = new Span(tsdb);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    
-    assertEquals(2, span.size());
-    final ByteMap<byte[]> uids = span.getTagUids();
-    assertEquals(1, uids.size());
-    assertArrayEquals(new byte[] { 0, 0, 1 }, uids.firstKey());
-    assertArrayEquals(new byte[] { 0, 0, 2 }, 
-        uids.firstEntry().getValue());
-  }
-  
-  @Test
-  public void getTagUidsSalted() {
-    PowerMockito.mockStatic(Const.class);
-    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
-    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(2);
-    
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    
-    final Span span = new Span(tsdb);
-    final byte[] key = new byte[HOUR1.length + 1];
-    System.arraycopy(HOUR1, 0, key, 1, HOUR1.length);
-    span.addRow(new KeyValue(key, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
-    
-    assertEquals(2, span.size());
-    final ByteMap<byte[]> uids = span.getTagUids();
-    assertEquals(1, uids.size());
-    assertArrayEquals(new byte[] { 0, 0, 1 }, uids.firstKey());
-    assertArrayEquals(new byte[] { 0, 0, 2 }, 
-        uids.firstEntry().getValue());
-  }
-  
-  @Test (expected = IllegalStateException.class)
-  public void getTagUidsNotSet() {
-    final Span span = new Span(tsdb);
-    span.getTagUids();
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 11;
+    base_time = BASE_TIME + (3600 * 3) - 900;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().epoch());
+      assertEquals(value--, v.value().longValue());
+      base_time -= 900;
+    }
   }
 
   @Test
-  public void getAggregatedTagUids() {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
+  public void addIterateFloatsSeconds() throws Exception {
+    long base_time = BASE_TIME;
+    double value = 0.5;
     
-    final Span span = new Span(tsdb);
-    span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO)));
+    NumericSpan span = new NumericSpan(false);
     
-    assertEquals(2, span.size());
-    final List<byte[]> uids = span.getAggregatedTagUids();
-    assertEquals(0, uids.size());
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 0.5;
+    base_time = BASE_TIME;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().epoch());
+      assertEquals(value++, v.value().doubleValue(), 0.001);
+      base_time += 900;
+    }
   }
   
   @Test
-  public void getAggregatedTagUidsNotSet() {
-    final Span span = new Span(tsdb);
-    assertTrue(span.getAggregatedTagUids().isEmpty());
+  public void addIterateFloatsSecondsReversed() throws Exception {
+    long base_time = BASE_TIME;
+    double value = 0.5;
+    
+    NumericSpan span = new NumericSpan(true);
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 11.5;
+    base_time = BASE_TIME + (3600 * 3) - 900;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().epoch());
+      assertEquals(value--, v.value().doubleValue(), 0.001);
+      base_time -= 900;
+    }
+  }
+  
+  @Test
+  public void addIterateLongsMillis() throws Exception {
+    long base_time = BASE_TIME;
+    int value = 0;
+    
+    NumericSpan span = new NumericSpan(false);
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 0;
+    base_time = BASE_TIME * 1000;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().msEpoch());
+      assertEquals(value++, v.value().longValue());
+      base_time += 360000;
+    }
+  }
+  
+  @Test
+  public void addIterateLongsMillisReversed() throws Exception {
+    long base_time = BASE_TIME;
+    int value = 0;
+    
+    NumericSpan span = new NumericSpan(true);
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 29;
+    base_time = (BASE_TIME * 1000) + (3600000 * 3) - 360000;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().msEpoch());
+      assertEquals(value--, v.value().longValue());
+      base_time -= 360000;
+    }
   }
 
+  @Test
+  public void addIterateFloatsMillis() throws Exception {
+    long base_time = BASE_TIME;
+    double value = 0.5;
+    
+    NumericSpan span = new NumericSpan(false);
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 0.5;
+    base_time = BASE_TIME * 1000;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().msEpoch());
+      assertEquals(value++, v.value().doubleValue(), 0.001);
+      base_time += 360000;
+    }
+  }
+  
+  @Test
+  public void addIterateFloatsMillisReversed() throws Exception {
+    long base_time = BASE_TIME;
+    double value = 0.5;
+    
+    NumericSpan span = new NumericSpan(true);
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 360000 * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 29.5;
+    base_time = (BASE_TIME * 1000) + (3600000 * 3) - 360000;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().msEpoch());
+      assertEquals(value--, v.value().doubleValue(), 0.001);
+      base_time -= 360000;
+    }
+  }
+  
+  @Test
+  public void addIterateLongsNanos() throws Exception {
+    long base_time = BASE_TIME;
+    int value = 0;
+    
+    NumericSpan span = new NumericSpan(false);
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 0;
+    base_time = BASE_TIME;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().epoch());
+      assertEquals(value++, v.value().longValue());
+      base_time += 360;
+    }
+  }
+  
+  @Test
+  public void addIterateLongsNanosReversed() throws Exception {
+    long base_time = BASE_TIME;
+    int value = 0;
+    
+    NumericSpan span = new NumericSpan(true);
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 29;
+    base_time = BASE_TIME + (3600 * 3) - 360;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().epoch());
+      assertEquals(value--, v.value().longValue());
+      base_time -= 360;
+    }
+  }
+
+  @Test
+  public void addIterateFloatsNanos() throws Exception {
+    long base_time = BASE_TIME;
+    double value = 0.5;
+    
+    NumericSpan span = new NumericSpan(false);
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 0.5;
+    base_time = BASE_TIME;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().epoch());
+      assertEquals(value++, v.value().doubleValue(), 0.001);
+      base_time += 360;
+    }
+  }
+  
+  @Test
+  public void addIterateFloatsNanosReversed() throws Exception {
+    long base_time = BASE_TIME;
+    double value = 0.5;
+    
+    NumericSpan span = new NumericSpan(true);
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 10; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 360000000000L * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 29.5;
+    base_time = BASE_TIME + (3600 * 3) - 360;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().epoch());
+      assertEquals(value--, v.value().doubleValue(), 0.001);
+      base_time -= 360;
+    }
+  }
+  
+  @Test
+  public void addIterateLongsMixed() throws Exception {
+    long base_time = BASE_TIME;
+    int value = 0;
+    
+    NumericSpan span = new NumericSpan(false);
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 900000000000L, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1800000L, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 2700, value++));
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 0, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 900000, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1800000L, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value++));
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 0, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 900000, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1800000L, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value++));
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 0;
+    base_time = BASE_TIME;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().epoch());
+      assertEquals(value++, v.value().longValue());
+      base_time += 900;
+    }
+  }
+  
+  @Test
+  public void addIterateFloatsMixed() throws Exception {
+    long base_time = BASE_TIME;
+    double value = 0.5;
+    
+    NumericSpan span = new NumericSpan(false);
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 900000000000L, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1800000L, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 2700, value++));
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 0, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 900000, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1800000L, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value++));
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 0, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 900000, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1800000L, value++));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value++));
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 0.5;
+    base_time = BASE_TIME;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().epoch());
+      assertEquals(value++, v.value().doubleValue(), 0.001);
+      base_time += 900;
+    }
+  }
+  
+  @Test
+  public void addIterateMixedMixed() throws Exception {
+    long base_time = BASE_TIME;
+    double value = 0;
+    
+    NumericSpan span = new NumericSpan(false);
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, (long) value));
+    value += 1.5;
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 900000000000L, value));
+    value += 1.5;
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1800000L, (long) value));
+    value += 1.5;
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 2700, value));
+    value += 1.5;
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 0, (long) value));
+    value += 1.5;
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 900000, value));
+    value += 1.5;
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1800000L, (long) value));
+    value += 1.5;
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value));
+    value += 1.5;
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 0, (long) value));
+    value += 1.5;
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 900000, value));
+    value += 1.5;
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1800000L, (long) value));
+    value += 1.5;
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 2700000000000L, value));
+    value += 1.5;
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 00;
+    base_time = BASE_TIME;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().epoch());
+      if (v.value().isInteger()) {
+        assertEquals((long) value, v.value().longValue());
+      } else {
+        assertEquals(value, v.value().doubleValue(), 0.001);
+      }
+      
+      value += 1.5;
+      base_time += 900;
+    }
+  }
+
+  @Test
+  public void addIterateSingleSegment() throws Exception {
+    long base_time = BASE_TIME;
+    int value = 0;
+    
+    NumericSpan span = new NumericSpan(false);
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+        
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 0;
+    base_time = BASE_TIME;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().epoch());
+      assertEquals(value++, v.value().longValue());
+      base_time += 900;
+    }
+  }
+  
+  @Test
+  public void addIterateSingleSegmentReversed() throws Exception {
+    long base_time = BASE_TIME;
+    int value = 0;
+    
+    NumericSpan span = new NumericSpan(true);
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+        
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 3;
+    base_time = BASE_TIME + 3600 - 900;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().epoch());
+      assertEquals(value--, v.value().longValue());
+      base_time -= 900;
+    }
+  }
+  
+  @Test
+  public void addIterateLongsSecondsGap() throws Exception {
+    long base_time = BASE_TIME;
+    int value = 0;
+    
+    NumericSpan span = new NumericSpan(false);
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    // nope!
+//    seq = new NumericRowSeq(base_time);
+//    for (int i = 0; i < 4; i++) {
+//      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+//          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+//    }
+//    seq.dedupe(false, false);
+//    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, false);
+    span.addSequence(seq);
+    
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 0;
+    base_time = BASE_TIME;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().epoch());
+      assertEquals(value++, v.value().longValue());
+      base_time += 900;
+      if (base_time == BASE_TIME + 3600) {
+        base_time = BASE_TIME + 3600 + 3600;
+      }
+    }
+  }
+  
+  @Test
+  public void addIterateLongsSecondsGapReversed() throws Exception {
+    long base_time = BASE_TIME;
+    int value = 0;
+    
+    NumericSpan span = new NumericSpan(true);
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    base_time += 3600;
+    // nope!
+//    seq = new NumericRowSeq(base_time);
+//    for (int i = 0; i < 4; i++) {
+//      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+//          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+//    }
+//    seq.dedupe(false, false);
+//    span.addSequence(seq);
+    
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, true);
+    span.addSequence(seq);
+    
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    value = 7;
+    base_time = BASE_TIME + (3600 * 3) - 900;
+    while (it.hasNext()) {
+      TimeSeriesValue<NumericType> v = it.next();
+      assertEquals(base_time, v.timestamp().epoch());
+      assertEquals(value--, v.value().longValue());
+      base_time -= 900;
+      if (base_time == BASE_TIME + 3600 + 3600 - 900) {
+        base_time = BASE_TIME + 3600 - 900;
+      }
+    }
+  }
+  
+  @Test
+  public void iterateNoSegments() throws Exception {
+    NumericSpan span = new NumericSpan(false);
+    Iterator<TimeSeriesValue<NumericType>> it = span.iterator();
+    assertFalse(it.hasNext());
+  }
 }
