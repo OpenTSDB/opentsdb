@@ -577,9 +577,9 @@ public class NumericCodec implements Codec {
       final TimeStamp timestamp;
       
       LocalValue() {
-        final long seconds_offset = (time_offset / 1000L / 1000L / 1000L / 1000L); 
+        final long seconds_offset = (time_offset / 1000L / 1000L / 1000L); 
         final long epoch = base_seconds + seconds_offset;
-        final long nanos = time_offset - (seconds_offset * 1000L * 1000L * 1000L * 1000L);
+        final long nanos = time_offset - (seconds_offset * 1000L * 1000L * 1000L);
         timestamp = new ZonedNanoTimeStamp(epoch, nanos, Const.UTC);
       }
       
