@@ -39,6 +39,8 @@ public class TestNumericRowSeq {
     NumericRowSeq seq = new NumericRowSeq(BASE_TIME);
     assertEquals(BASE_TIME, seq.base_timestamp);
     assertNull(seq.data);
+    assertEquals(NumericRowSeq.HEADER_SIZE, seq.size());
+    assertEquals(0, seq.dataPoints());
     
     seq.addColumn((byte) 0, 
         NumericCodec.buildSecondQualifier(0, (short) 0), new byte[] { 42 });
@@ -79,6 +81,10 @@ public class TestNumericRowSeq {
         NumericCodec.buildMsQualifier(500, (short) 0), new byte[] { 1 },
         NumericCodec.buildNanoQualifier(25000, (short) 0), new byte[] { -1 }),
            seq.data);
+    
+    assertEquals(NumericRowSeq.HEADER_SIZE + 23, seq.size());
+    assertEquals(0, seq.dataPoints());
+    // not incremented as we don't call dedupe.
   }
   
   @Test
@@ -359,6 +365,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42)), 
         seq.data);
+    assertEquals(3, seq.dataPoints());
   }
   
   @Test
@@ -388,6 +395,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24),
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 180, 1)), 
         seq.data);
+    assertEquals(4, seq.dataPoints());
     
     // reset to reverse in the tree
     seq = new NumericRowSeq(BASE_TIME);    
@@ -407,6 +415,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42),
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 30, 2)), 
         seq.data);
+    assertEquals(4, seq.dataPoints());
     
     // consecutive dupe
     seq = new NumericRowSeq(BASE_TIME);
@@ -425,6 +434,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 1), 
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24)), 
         seq.data);
+    assertEquals(3, seq.dataPoints());
     
     // keep first
     seq = new NumericRowSeq(BASE_TIME);
@@ -443,6 +453,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42), 
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24)), 
         seq.data);
+    assertEquals(3, seq.dataPoints());
     
     // non-consecutive dupe
     seq = new NumericRowSeq(BASE_TIME);
@@ -461,6 +472,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42), 
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 1)), 
         seq.data);
+    assertEquals(3, seq.dataPoints());
     
     // keep first
     seq = new NumericRowSeq(BASE_TIME);
@@ -479,6 +491,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 60, 42), 
       NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 120, 24)), 
         seq.data);
+    assertEquals(3, seq.dataPoints());
   }
   
   @Test
@@ -507,6 +520,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24),
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 1000, 1)), 
         seq.data);
+    assertEquals(4, seq.dataPoints());
     
     // reset to reverse in the tree
     seq = new NumericRowSeq(BASE_TIME);    
@@ -526,6 +540,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42),
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 250, 2)), 
         seq.data);
+    assertEquals(4, seq.dataPoints());
     
     // consecutive dupe
     seq = new NumericRowSeq(BASE_TIME);
@@ -544,6 +559,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 1), 
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24)), 
         seq.data);
+    assertEquals(3, seq.dataPoints());
     
     // keep first
     seq = new NumericRowSeq(BASE_TIME);
@@ -562,6 +578,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42), 
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24)), 
         seq.data);
+    assertEquals(3, seq.dataPoints());
     
     // non-consecutive dupe
     seq = new NumericRowSeq(BASE_TIME);
@@ -580,6 +597,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42), 
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 1)), 
         seq.data);
+    assertEquals(3, seq.dataPoints());
     
     // keep first
     seq = new NumericRowSeq(BASE_TIME);
@@ -598,6 +616,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 500, 42), 
       NumericCodec.encodeAppendValue(OffsetResolution.MILLIS, 750, 24)), 
         seq.data);
+    assertEquals(3, seq.dataPoints());
   }
   
   @Test
@@ -626,6 +645,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24),
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 1000, 1)), 
         seq.data);
+    assertEquals(4, seq.dataPoints());
     
     // reset to reverse in the tree
     seq = new NumericRowSeq(BASE_TIME);    
@@ -645,6 +665,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42),
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 250, 2)), 
         seq.data);
+    assertEquals(4, seq.dataPoints());
     
     // consecutive dupe
     seq = new NumericRowSeq(BASE_TIME);
@@ -663,6 +684,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 1), 
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24)), 
         seq.data);
+    assertEquals(3, seq.dataPoints());
     
     // keep first
     seq = new NumericRowSeq(BASE_TIME);
@@ -681,6 +703,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42), 
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24)), 
         seq.data);
+    assertEquals(3, seq.dataPoints());
     
     // non-consecutive dupe
     seq = new NumericRowSeq(BASE_TIME);
@@ -699,6 +722,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42), 
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 1)), 
         seq.data);
+    assertEquals(3, seq.dataPoints());
     
     // keep first
     seq = new NumericRowSeq(BASE_TIME);
@@ -717,6 +741,7 @@ public class TestNumericRowSeq {
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 500, 42), 
       NumericCodec.encodeAppendValue(OffsetResolution.NANOS, 750, 24)), 
         seq.data);
+    assertEquals(3, seq.dataPoints());
   }
   
   @Test
