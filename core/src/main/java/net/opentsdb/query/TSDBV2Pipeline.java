@@ -76,6 +76,7 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
       final QuerySourceConfig config = QuerySourceConfig.newBuilder()
           .setId(metric.getId())
           .setQuery(sub_query.build())
+          .setConfiguration(tsdb.getConfig())
           .build();
       
       // TODO - get a proper source. For now just the default.

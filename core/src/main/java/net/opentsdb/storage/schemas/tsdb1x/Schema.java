@@ -64,6 +64,11 @@ public class Schema implements StorageSchema {
 
   public static final byte APPENDS_PREFIX = 5;
   
+  public static final String QUERY_BYTE_LIMIT_KEY = "tsd.query.limits.bytes";
+  public static final long QUERY_BYTE_LIMIT_DEFAULT = 0;
+  public static final String QUERY_DP_LIMIT_KEY = "tsd.query.limits.data_points";
+  public static final long QUERY_DP_LIMIT_DEFAULT = 0;
+  
   /** Max time delta (in seconds) we can store in a column qualifier.  */
   public static final short MAX_RAW_TIMESPAN = 3600;
   
@@ -168,6 +173,18 @@ public class Schema implements StorageSchema {
     if (tag_values == null) {
       throw new IllegalStateException("Factory " + uid_factory 
           + " returned a null UniqueId instance.");
+    }
+    
+    if (!tsdb.getConfig().hasProperty(QUERY_BYTE_LIMIT_KEY)) {
+      tsdb.getConfig().register(QUERY_BYTE_LIMIT_KEY, 
+          QUERY_BYTE_LIMIT_DEFAULT, true, 
+          "The number of bytes allowed in a single query result or segment");
+    }
+    if (!tsdb.getConfig().hasProperty(QUERY_DP_LIMIT_KEY)) {
+      tsdb.getConfig().register(QUERY_DP_LIMIT_KEY, 
+          QUERY_DP_LIMIT_DEFAULT, true, 
+          "The number of data points or values allowed in a single "
+          + "query result or segment");
     }
     
     codecs = Maps.newHashMapWithExpectedSize(1);

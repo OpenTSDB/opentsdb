@@ -60,4 +60,10 @@ public interface RowSeq {
    * descending order.
    */
   public void dedupe(final boolean keep_earliest, final boolean reverse);
+  
+  /** @return The size of this object in bytes, including header. */
+  public int size();
+  
+  /** @return A rough estimate of the number of values in this row. */
+  public int dataPoints();
 }

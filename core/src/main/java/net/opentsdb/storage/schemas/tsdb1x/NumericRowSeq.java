@@ -37,11 +37,20 @@ import java.util.TreeMap;
  * @since 3.0
  */
 public class NumericRowSeq implements RowSeq {
+  /** The size of this class header. */
+  public static int HEADER_SIZE = 12 // class header 64 bit
+                                + 8  // base _timestamp
+                                + 12 // data array header 64 bit
+                                + 4; // dps
+  
   /** The base row timestamp in Unix epoch seconds. */
   protected long base_timestamp;
   
   /** The data in qualifier/value/qualifier/value, etc order. */
   protected byte[] data;
+  
+  /** The number of values in this row. */
+  protected int dps;
   
   /**
    * Default ctor
@@ -192,6 +201,7 @@ public class NumericRowSeq implements RowSeq {
   
   @Override
   public void dedupe(final boolean keep_earliest, final boolean reverse) {
+    dps = 0;
     // first pass, see if we even need to dedupe
     long last_offset = -1;
     long current_offset = 0;
@@ -214,6 +224,7 @@ public class NumericRowSeq implements RowSeq {
         idx += NumericCodec.S_Q_WIDTH;
         idx += NumericCodec.getValueLengthFromQualifier(data, idx - 1);
       }
+      dps++;
       if (current_offset <= last_offset) {
          need_repair = true;
         break;
@@ -228,6 +239,7 @@ public class NumericRowSeq implements RowSeq {
       return;
     }
     
+    dps = 0;
     // if we made it here we need to dedupe and sort. Normalize to longs
     // then flush.
     // TODO - any primitive tree maps out there? Or maybe there's just an
@@ -291,6 +303,7 @@ public class NumericRowSeq implements RowSeq {
       width = (int) value;
       System.arraycopy(data, offset, sorted, idx, width);
       idx += width;
+      dps++;
     }
     
     // truncate if necessary
@@ -299,6 +312,16 @@ public class NumericRowSeq implements RowSeq {
     } else {
       data = sorted;
     }
+  }
+  
+  @Override
+  public int size() {
+    return HEADER_SIZE + (data == null ? 0 : data.length);
+  }
+  
+  @Override
+  public int dataPoints() {
+    return dps;
   }
   
   /**
