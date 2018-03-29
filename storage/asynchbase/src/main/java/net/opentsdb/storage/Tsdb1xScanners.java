@@ -239,12 +239,12 @@ public class Tsdb1xScanners {
       enable_fuzzy_filter = ((Tsdb1xHBaseDataStore) node.factory())
           .dynamicBoolean(Tsdb1xHBaseDataStore.FUZZY_FILTER_KEY);
     }
-    if (query.hasKey(Tsdb1xHBaseDataStore.REVERSE_KEY)) {
+    if (query.hasKey(Schema.QUERY_REVERSE_KEY)) {
       reverse_scan = query.getBoolean(config, 
-          Tsdb1xHBaseDataStore.REVERSE_KEY);
+          Schema.QUERY_REVERSE_KEY);
     } else {
       reverse_scan = ((Tsdb1xHBaseDataStore) node.factory())
-          .dynamicBoolean(Tsdb1xHBaseDataStore.REVERSE_KEY);
+          .dynamicBoolean(Schema.QUERY_REVERSE_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY)) {
       max_multi_get_cardinality = query.getInt(config, 
@@ -762,7 +762,7 @@ public class Tsdb1xScanners {
               }
             }
             
-            array[x] = new Tsdb1xScanner(this, scanner, x);
+            array[x] = new Tsdb1xScanner(this, scanner, x, interval);
           }
           idx++;
           
@@ -811,7 +811,7 @@ public class Tsdb1xScanners {
             }
           }
           
-          array[i] = new Tsdb1xScanner(this, scanner, i);
+          array[i] = new Tsdb1xScanner(this, scanner, i, null);
         }
       }
       

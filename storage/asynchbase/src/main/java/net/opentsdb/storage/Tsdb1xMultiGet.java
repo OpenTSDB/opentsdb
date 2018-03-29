@@ -25,7 +25,6 @@ import org.hbase.async.CompareFilter;
 import org.hbase.async.FilterList;
 import org.hbase.async.GetRequest;
 import org.hbase.async.GetResultOrException;
-import org.hbase.async.KeyValue;
 import org.hbase.async.QualifierFilter;
 import org.hbase.async.ScanFilter;
 import org.hbase.async.FilterList.Operator;
@@ -229,12 +228,12 @@ public class Tsdb1xMultiGet {
       batch_size = ((Tsdb1xHBaseDataStore) node.factory())
           .dynamicInt(Tsdb1xHBaseDataStore.MULTI_GET_BATCH_KEY);
     }
-    if (query.hasKey(Tsdb1xHBaseDataStore.REVERSE_KEY)) {
+    if (query.hasKey(Schema.QUERY_REVERSE_KEY)) {
       reversed = query.getBoolean(config, 
-          Tsdb1xHBaseDataStore.REVERSE_KEY);
+          Schema.QUERY_REVERSE_KEY);
     } else {
       reversed = ((Tsdb1xHBaseDataStore) node.factory())
-          .dynamicBoolean(Tsdb1xHBaseDataStore.REVERSE_KEY);
+          .dynamicBoolean(Schema.QUERY_REVERSE_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.PRE_AGG_KEY)) {
       pre_aggregate = query.getBoolean(config, 
@@ -537,7 +536,10 @@ public class Tsdb1xMultiGet {
           continue;
         }
         
-        decode(result.getCells());
+        current_result.decode(result.getCells(), 
+            (rollup_index < 0 || 
+             rollup_index >= node.rollupIntervals().size() 
+               ? null : node.rollupIntervals().get(rollup_index)));
       }
       
       onComplete();
@@ -622,45 +624,6 @@ public class Tsdb1xMultiGet {
     }
   }
   
-  /**
-   * Decodes a row returned from the get requests.
-   * @param row A non-null row.
-   */
-  @VisibleForTesting
-  void decode(final List<KeyValue> row) {
-    // TODO - we could possibly save some cycles by two-passing multi-column
-    // rows to see if there are a lot of "puts" and merging them into an append
-    // first.
-    final byte[] tsuid = node.schema().getTSUID(row.get(0).key());
-    final TimeStamp base_ts = new MillisecondTimeStamp(0L);
-    for (final KeyValue kv : row) {
-      node.schema().baseTimestamp(kv.key(), base_ts);
-      if ((kv.qualifier().length & 1) == 0) {
-        // it's a NumericDataType
-        if (!node.fetchDataType((byte) 1)) {
-          // filter doesn't want #'s
-          // TODO - dropped counters
-          continue;
-        }
-        current_result.addData(base_ts, tsuid, (byte) 0, kv.qualifier(), kv.value());
-      } else {
-        final byte prefix = kv.qualifier()[0];
-        if (prefix == Schema.APPENDS_PREFIX) {
-          if (!node.fetchDataType((byte) 1)) {
-            // filter doesn't want #'s
-            continue;
-          } else {
-            current_result.addData(base_ts, tsuid, prefix, kv.qualifier(), kv.value());
-          }
-        } else if (node.fetchDataType(prefix)) {
-          current_result.addData(base_ts, tsuid, prefix, kv.qualifier(), kv.value());
-        } else {
-          // TODO else count dropped data
-        }
-      }
-    }
-  }
-
   /**
    * Increments the main timestamp or the fallback timestamp depending
    * on the {@link #rollup_index}.

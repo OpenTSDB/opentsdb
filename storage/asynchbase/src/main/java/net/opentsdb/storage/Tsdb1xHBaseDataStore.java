@@ -65,7 +65,6 @@ public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
   public static final String SKIP_NSUN_TAGV_KEY = "tsd.query.skip_unresolved_tagvs";
   public static final String PRE_AGG_KEY = "tsd.query.pre_agg";
   public static final String FUZZY_FILTER_KEY = "tsd.query.enable_fuzzy_filter";
-  public static final String REVERSE_KEY = "tsd.query.reverse_time";
   public static final String ROWS_PER_SCAN_KEY = "tsd.query.rows_per_scan";
   public static final String MAX_MG_CARDINALITY_KEY = "tsd.query.multiget.max_cardinality";
   
