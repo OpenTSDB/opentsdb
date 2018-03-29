@@ -195,7 +195,7 @@ public class TestTsdb1xMultiGet extends UTBase {
         .addConfig(Tsdb1xHBaseDataStore.PRE_AGG_KEY, "true")
         .addConfig(Tsdb1xHBaseDataStore.MULTI_GET_CONCURRENT_KEY, "8")
         .addConfig(Tsdb1xHBaseDataStore.MULTI_GET_BATCH_KEY, "16")
-        .addConfig(Tsdb1xHBaseDataStore.REVERSE_KEY, "true")
+        .addConfig(Schema.QUERY_REVERSE_KEY, "true")
         .build();
     
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
@@ -667,7 +667,7 @@ public class TestTsdb1xMultiGet extends UTBase {
             .setAggregator("avg"))
         .addMetric(Metric.newBuilder()
             .setMetric(METRIC_STRING))
-        .addConfig(Tsdb1xHBaseDataStore.REVERSE_KEY, "true")
+        .addConfig(Schema.QUERY_REVERSE_KEY, "true")
         .build();
     
     Tsdb1xMultiGet mget = new Tsdb1xMultiGet(node, query, tsuids);
@@ -1204,8 +1204,8 @@ public class TestTsdb1xMultiGet extends UTBase {
     verify(node, times(1)).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(node, never()).onError(any(Throwable.class));
-    verify(result, times(32)).addData(any(TimeStamp.class), 
-        any(byte[].class), any(byte.class), any(byte[].class), any(byte[].class));
+    verify(result, times(32)).decode(any(ArrayList.class), 
+        any(RollupInterval.class));
     verifySpan(Tsdb1xMultiGet.class.getName() + ".fetchNext");
   }
 
@@ -1230,354 +1230,9 @@ public class TestTsdb1xMultiGet extends UTBase {
     verify(node, never()).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(node, times(1)).onError(any(Throwable.class));
-    verify(result, times(28)).addData(any(TimeStamp.class), 
-        any(byte[].class), any(byte.class), any(byte[].class), any(byte[].class));
+    verify(result, times(28)).decode(any(ArrayList.class), 
+        any(RollupInterval.class));
     verifySpan(Tsdb1xMultiGet.class.getName() + ".fetchNext", UnitTestException.class);
-  }
-  
-  @Test
-  public void decodeSingleColumnNumericPut() throws Exception {
-    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
-    mget.current_result = mock(Tsdb1xQueryResult.class);
-    
-    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
-    ArrayList<KeyValue> row = Lists.newArrayList();
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 0, 0 },
-        new byte[] { 1 }
-        ));
-    
-    mget.decode(row);
-    
-    verify(mget.current_result, times(1)).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 0, 
-        row.get(0).qualifier(), 
-        row.get(0).value());
-  }
-  
-  @Test
-  public void decodeSingleColumnNumericPutFiltered() throws Exception {
-    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
-    mget.current_result = mock(Tsdb1xQueryResult.class);
-    when(node.fetchDataType((byte) 1)).thenReturn(false);
-    
-    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
-    ArrayList<KeyValue> row = Lists.newArrayList();
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 0, 0 },
-        new byte[] { 1 }
-        ));
-    
-    mget.decode(row);
-    
-    verify(mget.current_result, never()).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 0, 
-        row.get(0).qualifier(), 
-        row.get(0).value());
-  }
-  
-  @Test
-  public void decodeMultiColumnNumericPut() throws Exception {
-    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
-    mget.current_result = mock(Tsdb1xQueryResult.class);
-    
-    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
-    ArrayList<KeyValue> row = Lists.newArrayList();
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 0, 0 },
-        new byte[] { 1 }
-        ));
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 0, 1 },
-        new byte[] { 2 }
-        ));
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 0, 2 },
-        new byte[] { 3 }
-        ));
-    
-    mget.decode(row);
-    
-    verify(mget.current_result, times(1)).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 0, 
-        row.get(0).qualifier(), 
-        row.get(0).value());
-    verify(mget.current_result, times(1)).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 0, 
-        row.get(1).qualifier(), 
-        row.get(1).value());
-    verify(mget.current_result, times(1)).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 0, 
-        row.get(2).qualifier(), 
-        row.get(2).value());
-  }
-  
-  @Test
-  public void decodeMultiColumnNumericPutFiltered() throws Exception {
-    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
-    mget.current_result = mock(Tsdb1xQueryResult.class);
-    
-    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
-    ArrayList<KeyValue> row = Lists.newArrayList();
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 0, 0 },
-        new byte[] { 1 }
-        ));
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 0, 1 },
-        new byte[] { 2 }
-        ));
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 0, 2 },
-        new byte[] { 3 }
-        ));
-    when(node.fetchDataType((byte) 1)).thenReturn(false);
-    
-    mget.decode(row);
-    
-    verify(mget.current_result, never()).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 0, 
-        row.get(0).qualifier(), 
-        row.get(0).value());
-    verify(mget.current_result, never()).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 0, 
-        row.get(1).qualifier(), 
-        row.get(1).value());
-    verify(mget.current_result, never()).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 0, 
-        row.get(2).qualifier(), 
-        row.get(2).value());
-  }
-  
-  @Test
-  public void decodeSingleColumnNumericAppend() throws Exception {
-    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
-    mget.current_result = mock(Tsdb1xQueryResult.class);
-    
-    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
-    ArrayList<KeyValue> row = Lists.newArrayList();
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 5, 0, 0 },
-        new byte[] { 1, 2, 3, 4 }
-        ));
-    
-    mget.decode(row);
-    
-    verify(mget.current_result, times(1)).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        Schema.APPENDS_PREFIX, 
-        row.get(0).qualifier(), 
-        row.get(0).value());
-  }
-  
-  @Test
-  public void decodeSingleColumnNumericAppendFiltered() throws Exception {
-    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
-    mget.current_result = mock(Tsdb1xQueryResult.class);
-    
-    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
-    ArrayList<KeyValue> row = Lists.newArrayList();
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 5, 0, 0 },
-        new byte[] { 1, 2, 3, 4 }
-        ));
-    when(node.fetchDataType((byte) 1)).thenReturn(false);
-    
-    mget.decode(row);
-    
-    verify(mget.current_result, never()).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        Schema.APPENDS_PREFIX, 
-        row.get(0).qualifier(), 
-        row.get(0).value());
-  }
-  
-  @Test
-  public void decodeMultiColumnNumericPutsAndAppend() throws Exception {
-    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
-    mget.current_result = mock(Tsdb1xQueryResult.class);
-    
-    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
-    ArrayList<KeyValue> row = Lists.newArrayList();
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 0, 1 },
-        new byte[] { 1 }
-        ));
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 0, 2 },
-        new byte[] { 2 }
-        ));
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 5, 0, 0 },
-        new byte[] { 3 }
-        ));
-    
-    mget.decode(row);
-    
-    verify(mget.current_result, times(1)).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 0, 
-        row.get(0).qualifier(), 
-        row.get(0).value());
-    verify(mget.current_result, times(1)).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 0, 
-        row.get(1).qualifier(), 
-        row.get(1).value());
-    verify(mget.current_result, times(1)).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 5, 
-        row.get(2).qualifier(), 
-        row.get(2).value());
-  }
-  
-  @Test
-  public void decodeMultiColumnNumericPutsAndAppendFiltered() throws Exception {
-    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
-    mget.current_result = mock(Tsdb1xQueryResult.class);
-    
-    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
-    ArrayList<KeyValue> row = Lists.newArrayList();
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 0, 1 },
-        new byte[] { 1 }
-        ));
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 0, 2 },
-        new byte[] { 2 }
-        ));
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 5, 0, 0 },
-        new byte[] { 3 }
-        ));
-    when(node.fetchDataType((byte) 1)).thenReturn(false);
-    
-    mget.decode(row);
-    
-    verify(mget.current_result, never()).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 0, 
-        row.get(0).qualifier(), 
-        row.get(0).value());
-    verify(mget.current_result, never()).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 0, 
-        row.get(1).qualifier(), 
-        row.get(1).value());
-    verify(mget.current_result, never()).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 5, 
-        row.get(2).qualifier(), 
-        row.get(2).value());
-  }
-  
-  @Test
-  public void decodeMultiTypes() throws Exception {
-    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
-    mget.current_result = mock(Tsdb1xQueryResult.class);
-    
-    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
-    ArrayList<KeyValue> row = Lists.newArrayList();
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 0, 1 },
-        new byte[] { 1 }
-        ));
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 8, 2, 0 },
-        new byte[] { 2 }
-        ));
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 5, 0, 0 },
-        new byte[] { 3 }
-        ));
-    
-    mget.decode(row);
-    
-    verify(mget.current_result, times(1)).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 0, 
-        row.get(0).qualifier(), 
-        row.get(0).value());
-    verify(mget.current_result, times(1)).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 8, 
-        row.get(1).qualifier(), 
-        row.get(1).value());
-    verify(mget.current_result, times(1)).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 5, 
-        row.get(2).qualifier(), 
-        row.get(2).value());
-  }
-  
-  @Test
-  public void decodeMultiTypesFiltered() throws Exception {
-    Tsdb1xMultiGet mget = spy(new Tsdb1xMultiGet(node, query, tsuids));
-    mget.current_result = mock(Tsdb1xQueryResult.class);
-    
-    final byte[] row_key = makeRowKey(METRIC_BYTES, (START_TS - 900), TAGK_BYTES, TAGV_BYTES);
-    ArrayList<KeyValue> row = Lists.newArrayList();
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 0, 1 },
-        new byte[] { 1 }
-        ));
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 8, 2, 0 },
-        new byte[] { 2 }
-        ));
-    row.add(new KeyValue(row_key, Tsdb1xHBaseDataStore.DATA_FAMILY,
-        new byte[] { 5, 0, 0 },
-        new byte[] { 3 }
-        ));
-    when(node.fetchDataType((byte) 1)).thenReturn(false);
-    
-    mget.decode(row);
-    
-    verify(mget.current_result, never()).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 0, 
-        row.get(0).qualifier(), 
-        row.get(0).value());
-    verify(mget.current_result, times(1)).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 8, 
-        row.get(1).qualifier(), 
-        row.get(1).value());
-    verify(mget.current_result, never()).addData(
-        new MillisecondTimeStamp((START_TS - 900) * 1000L), 
-        schema.getTSUID(row_key), 
-        (byte) 5, 
-        row.get(2).qualifier(), 
-        row.get(2).value());
   }
   
   void setMultiRollupQuery() throws Exception {
@@ -1609,7 +1264,7 @@ public class TestTsdb1xMultiGet extends UTBase {
             .setDownsampler(Downsampler.newBuilder()
                 .setAggregator("sum")
                 .setInterval("1h")))
-        .addConfig(Tsdb1xHBaseDataStore.REVERSE_KEY, 
+        .addConfig(Schema.QUERY_REVERSE_KEY, 
             reversed ? "true" : "false")
         .build();
   }

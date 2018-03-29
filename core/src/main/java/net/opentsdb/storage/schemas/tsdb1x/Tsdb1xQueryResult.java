@@ -55,6 +55,12 @@ public class Tsdb1xQueryResult implements QueryResult {
   /** The data point limit to determine when we're full. */
   protected final long dp_limit;
   
+  /** Whether or not the query is operating in time descending order. */
+  protected final boolean reversed;
+  
+  /** Whether or not to keep earlier duplicates or later. */
+  protected final boolean keep_earliest;
+  
   /** Whether or not the result is full. */
   protected volatile boolean is_full;
   
@@ -96,6 +102,8 @@ public class Tsdb1xQueryResult implements QueryResult {
         ((QuerySourceConfig) node.config()).query();
     byte_limit = query.getInt(config, Schema.QUERY_BYTE_LIMIT_KEY);
     dp_limit = query.getInt(config, Schema.QUERY_DP_LIMIT_KEY);
+    reversed = query.getBoolean(config, Schema.QUERY_REVERSE_KEY);
+    keep_earliest = query.getBoolean(config, Schema.QUERY_KEEP_FIRST_KEY);
   }
   
   @Override
@@ -136,6 +144,16 @@ public class Tsdb1xQueryResult implements QueryResult {
     return is_full;
   }
   
+  /** @return Whether or not to sort in time descending order. */
+  public boolean reversed() {
+    return reversed;
+  }
+  
+  /** @return Whether or not to keep the earliest duplicates. */
+  public boolean keepEarliest() {
+    return keep_earliest;
+  }
+  
   /**
    * Adds the sequence to the proper time series set.
    * NOTE: Since it's fast path, we aren't performing all the data
@@ -143,14 +161,10 @@ public class Tsdb1xQueryResult implements QueryResult {
    * @param tsuid_hash A hash of the TSUID.
    * @param tsuid The non-null and non-empty TSUID.
    * @param sequence The non-null row sequence to add.
-   * @param reversed Whether or not to iterate in reverse.
-   * @param keep_earliest Whether or not to keep earlier dupes.
    */
   public void addSequence(final long tsuid_hash,
                           final byte[] tsuid, 
-                          final RowSeq sequence, 
-                          final boolean reversed,
-                          final boolean keep_earliest) {
+                          final RowSeq sequence) {
     // TODO - figure out the size for the new TimeSeries objects
     TimeSeries series = results.get(tsuid_hash);
     if (series == null) {
