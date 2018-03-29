@@ -181,7 +181,7 @@ public class TestTsdb1xScanners extends UTBase {
         .addConfig(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY, "true")
         .addConfig(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY, "true")
         .addConfig(Tsdb1xHBaseDataStore.FUZZY_FILTER_KEY, "true")
-        .addConfig(Tsdb1xHBaseDataStore.REVERSE_KEY, "true")
+        .addConfig(Schema.QUERY_REVERSE_KEY, "true")
         .addConfig(Tsdb1xHBaseDataStore.MAX_MG_CARDINALITY_KEY, "36")
         .build();
     

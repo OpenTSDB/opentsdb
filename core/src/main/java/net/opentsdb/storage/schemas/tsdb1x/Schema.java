@@ -68,6 +68,8 @@ public class Schema implements StorageSchema {
   public static final long QUERY_BYTE_LIMIT_DEFAULT = 0;
   public static final String QUERY_DP_LIMIT_KEY = "tsd.query.limits.data_points";
   public static final long QUERY_DP_LIMIT_DEFAULT = 0;
+  public static final String QUERY_REVERSE_KEY = "tsd.query.time.descending";
+  public static final String QUERY_KEEP_FIRST_KEY = "tsd.query.duplicates.keep_earliest";
   
   /** Max time delta (in seconds) we can store in a column qualifier.  */
   public static final short MAX_RAW_TIMESPAN = 3600;
@@ -186,6 +188,16 @@ public class Schema implements StorageSchema {
           "The number of data points or values allowed in a single "
           + "query result or segment");
     }
+    if (!tsdb.getConfig().hasProperty(QUERY_REVERSE_KEY)) {
+      tsdb.getConfig().register(QUERY_REVERSE_KEY, false, true,
+          "Results are iterated and returned in descending time order "
+          + "instead of ascending time order.");
+    }
+    if (!tsdb.getConfig().hasProperty(QUERY_KEEP_FIRST_KEY)) {
+      tsdb.getConfig().register(QUERY_KEEP_FIRST_KEY, false, true,
+          "Whether or not to keep the earliest value (true) when "
+          + "de-duplicating or to keep the latest version (false).");
+    }
     
     codecs = Maps.newHashMapWithExpectedSize(1);
     codecs.put(NumericType.TYPE, new NumericCodec());
@@ -232,6 +244,10 @@ public class Schema implements StorageSchema {
       throw new IllegalArgumentException("Key was too short.");
     }
     timestamp.update(Bytes.getUnsignedInt(key, salt_width + metric_width), 0);
+  }
+  
+  public long baseTimestamp(final byte[] key) {
+    return Bytes.getUnsignedInt(key, salt_width + metric_width);
   }
   
   /**
@@ -602,7 +618,7 @@ public class Schema implements StorageSchema {
     return true;
   }
   
-  net.opentsdb.storage.schemas.tsdb1x.Span<? extends TimeSeriesDataType> newSpan(
+  public net.opentsdb.storage.schemas.tsdb1x.Span<? extends TimeSeriesDataType> newSpan(
       final TypeToken<? extends TimeSeriesDataType> type, 
       final boolean reversed) {
     final Codec codec = codecs.get(type);
@@ -610,6 +626,17 @@ public class Schema implements StorageSchema {
       throw new IllegalArgumentException("No codec loaded for type: " + type);
     }
     return codec.newSequences(reversed);
+  }
+  
+  public RowSeq newRowSeq(final byte prefix, 
+      final long base_time) {
+    // TODO - implement
+    return null;
+//    final Codec codec = codecs.get(type);
+//    if (codec == null) {
+//      throw new IllegalArgumentException("No codec loaded for type: " + type);
+//    }
+//    return codec.newRowSeq(base_time);
   }
   
   static class ResolvedFilterImplementation implements ResolvedFilter {

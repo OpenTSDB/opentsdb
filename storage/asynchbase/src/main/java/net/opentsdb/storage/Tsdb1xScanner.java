@@ -39,9 +39,9 @@ import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.RelationalOperator;
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.Tsdb1xScanners.State;
-import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.TSUID;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.utils.Bytes;
@@ -78,6 +78,9 @@ public class Tsdb1xScanner {
   /** The 0 based index amongst salt buckets. */
   private final int idx;
   
+  /** An optional rollup interval. */
+  private final RollupInterval rollup_interval;
+  
   /** The current state of this scanner. */
   private State state;
   
@@ -111,7 +114,8 @@ public class Tsdb1xScanner {
    */
   public Tsdb1xScanner(final Tsdb1xScanners owner, 
                        final Scanner scanner, 
-                       final int idx) {
+                       final int idx,
+                       final RollupInterval rollup_interval) {
     if (owner == null) {
       throw new IllegalArgumentException("Owner cannot be null.");
     }
@@ -121,6 +125,7 @@ public class Tsdb1xScanner {
     this.owner = owner;
     this.scanner = scanner;
     this.idx = idx;
+    this.rollup_interval = rollup_interval;
     state = State.CONTINUE;
     base_ts = new MillisecondTimeStamp(0);
     
@@ -221,7 +226,7 @@ public class Tsdb1xScanner {
         }
         
         it.remove();
-        decode(row, result);
+        result.decode(row, rollup_interval);
       }
       
     } catch (Exception e) {
@@ -478,7 +483,7 @@ public class Tsdb1xScanner {
               return null;
             }
             
-            decode(row, result);
+            result.decode(row, rollup_interval);
           }
         }
         
@@ -633,51 +638,6 @@ public class Tsdb1xScanner {
     }
   }
   
-  /**
-   * Parses a row to determine the data type, filters the types, then 
-   * passes any columns that matched the filter up to the result for
-   * decoding and processing.
-   * 
-   * @param row A non-null row.
-   * @param result A non-null result set.
-   */
-  @VisibleForTesting
-  void decode(final ArrayList<KeyValue> row, final Tsdb1xQueryResult result) {
-    // ASUME we have checked for a non-null and non-empty row
-    // we have to pre-process here to remove duplicates and find out
-    // the types of data we have.
-    
-    // TODO - we could possibly save some cycles by two-passing multi-column
-    // rows to see if there are a lot of "puts" and merging them into an append
-    // first.
-    final byte[] tsuid = owner.node().schema().getTSUID(row.get(0).key());
-    for (final KeyValue kv : row) {
-      if ((kv.qualifier().length & 1) == 0) {
-        // it's a NumericDataType
-        if (!owner.node().fetchDataType((byte) 1)) {
-          // filter doesn't want #'s
-          // TODO - dropped counters
-          continue;
-        }
-        result.addData(base_ts, tsuid, (byte) 0, kv.qualifier(), kv.value());
-      } else {
-        final byte prefix = kv.qualifier()[0];
-        if (prefix == Schema.APPENDS_PREFIX) {
-          if (!owner.node().fetchDataType((byte) 1)) {
-            // filter doesn't want #'s
-            continue;
-          } else {
-            result.addData(base_ts, tsuid, prefix, kv.qualifier(), kv.value());
-          }
-        } else if (owner.node().fetchDataType(prefix)) {
-          result.addData(base_ts, tsuid, prefix, kv.qualifier(), kv.value());
-        } else {
-          // TODO else count dropped data
-        }
-      }
-    }
-  }
-  
   /** The error back used to catch all kinds of exceptions. Closes out 
    * everything after passing the exception to the owner. */
   final class ErrorCB implements Callback<Object, Exception> {
@@ -732,7 +692,7 @@ public class Tsdb1xScanner {
     
     synchronized (keepers) {
       if (keepers.contains(hash)) {
-        decode(row, result);
+        result.decode(row, rollup_interval);
         return Deferred.fromResult(null);
       }
     }
@@ -767,7 +727,7 @@ public class Tsdb1xScanner {
     @Override
     public Object call(final Boolean matched) throws Exception {
       if (matched) {
-        decode(row, result);
+        result.decode(row, rollup_interval);
       }
       return null;
     }

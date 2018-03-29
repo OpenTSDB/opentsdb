@@ -28,6 +28,7 @@ import java.util.List;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.powermock.reflect.Whitebox;
 
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Bytes;
@@ -163,7 +164,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     seq.dedupe(false, false);
     
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
-        TSUID_A, seq, false, false);
+        TSUID_A, seq);
     assertEquals(1, result.results.size());
     assertEquals(48, result.bytes);
     assertEquals(4, result.dps);
@@ -171,7 +172,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     
     // another TSUID
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_B),
-        TSUID_B, seq, false, false);
+        TSUID_B, seq);
     assertEquals(2, result.results.size());
     assertEquals(96, result.bytes);
     assertEquals(8, result.dps);
@@ -208,7 +209,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     seq.dedupe(false, false);
     
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
-        TSUID_A, seq, false, false);
+        TSUID_A, seq);
     assertEquals(1, result.results.size());
     assertEquals(48, result.bytes);
     assertEquals(4, result.dps);
@@ -216,7 +217,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     
     // another TSUID
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_B),
-        TSUID_B, seq, false, false);
+        TSUID_B, seq);
     assertEquals(2, result.results.size());
     assertEquals(96, result.bytes);
     assertEquals(8, result.dps);
@@ -235,7 +236,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     seq.dedupe(false, false);
     
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
-        TSUID_A, seq, false, false);
+        TSUID_A, seq);
     assertEquals(2, result.results.size());
     assertEquals(144, result.bytes);
     assertEquals(12, result.dps);
@@ -243,7 +244,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     
     // B
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_B),
-        TSUID_B, seq, false, false);
+        TSUID_B, seq);
     assertEquals(2, result.results.size());
     assertEquals(192, result.bytes);
     assertEquals(16, result.dps);
@@ -262,6 +263,78 @@ public class TestTsdb1xQueryResult extends SchemaBase {
         base_time += 900;
       }
       assertEquals(8, value);
+    }
+  }
+  
+  @Test
+  public void addSequenceMultipleRowsReversed() throws Exception {
+    Tsdb1xQueryResult result = new Tsdb1xQueryResult(9, node, schema);
+    Whitebox.setInternalState(result, "reversed", true);
+    long base_time = BASE_TIME;
+    int value = 0;
+    
+    NumericRowSeq seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, true);
+    
+    result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
+        TSUID_A, seq);
+    assertEquals(1, result.results.size());
+    assertEquals(48, result.bytes);
+    assertEquals(4, result.dps);
+    assertFalse(result.isFull());
+    
+    // another TSUID
+    result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_B),
+        TSUID_B, seq);
+    assertEquals(2, result.results.size());
+    assertEquals(96, result.bytes);
+    assertEquals(8, result.dps);
+    assertFalse(result.isFull());
+    
+    List<TimeSeries> series = Lists.newArrayList(result.timeSeries());
+    assertEquals(2, series.size());
+    
+    // next row
+    base_time += 3600;
+    seq = new NumericRowSeq(base_time);
+    for (int i = 0; i < 4; i++) {
+      seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+          NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 900 * i, value++));
+    }
+    seq.dedupe(false, true);
+    
+    result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
+        TSUID_A, seq);
+    assertEquals(2, result.results.size());
+    assertEquals(144, result.bytes);
+    assertEquals(12, result.dps);
+    assertFalse(result.isFull());
+    
+    // B
+    result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_B),
+        TSUID_B, seq);
+    assertEquals(2, result.results.size());
+    assertEquals(192, result.bytes);
+    assertEquals(16, result.dps);
+    assertFalse(result.isFull());
+    
+    series = Lists.newArrayList(result.timeSeries());
+    assertEquals(2, series.size());
+    for (final TimeSeries ts : series) {
+      value = 7;
+      base_time = BASE_TIME + (3600 * 2) - 900;
+      Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
+      while (it.hasNext()) {
+        TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
+        assertEquals(base_time, v.timestamp().epoch());
+        assertEquals(value--, v.value().longValue());
+        base_time -= 900;
+      }
+      assertEquals(-1, value);
     }
   }
 }

@@ -149,6 +149,11 @@ public class NumericCodec implements Codec {
     return new NumericSpan(reversed);
   }
 
+  @Override
+  public RowSeq newRowSeq(final long base_time) {
+    return new NumericRowSeq(base_time);
+  }
+  
   /**
    * Returns whether or not this is a floating value that needs to be fixed.
    * <p>

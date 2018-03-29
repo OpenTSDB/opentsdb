@@ -40,4 +40,11 @@ public interface Codec {
    */
   public Span<? extends TimeSeriesDataType> newSequences(
       final boolean reversed);
+
+  /**
+   * Instantiates a new row sequence for the data type.
+   * @param base_time The Unix Epoch row base time in seconds.
+   * @return A new row sequence.
+   */
+  public RowSeq newRowSeq(final long base_time);
 }
