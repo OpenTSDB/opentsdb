@@ -12,33 +12,26 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.meta;
+package net.opentsdb.storage;
 
-import java.util.List;
-
-import com.google.common.reflect.TypeToken;
-
-import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.stats.Span;
 
 /**
- * The result from a meta data store query.
- * 
- * @since 3.0
+ * An executor to fetch data from HBase. E.g. via scan or multi-gets.
  */
-public interface MetaDataStorageResult {
-  public static enum MetaResult {
-    DATA,
-    NO_DATA_FALLBACK,
-    NO_DATA,
-    EXCEPTION_FALLBACK,
-    EXCEPTION
-  }
+public interface HBaseExecutor {
+
+  /**
+   * Attempts to fetch the next set of data from HBase.
+   * @param result A non-null query result to store data into.
+   * @param span An optional tracer span.
+   * @throws IllegalArgumentException if the result was null.
+   * @throws IllegalStateException if current result was set.
+   */
+  public void fetchNext(final Tsdb1xQueryResult result, final Span span); 
   
-  public MetaResult result();
-  
-  public Throwable exception();
-  
-  public List<TimeSeriesId> timeSeries();
-  
-  public TypeToken<? extends TimeSeriesId> idType();
+  /**
+   * Releases resources held by the executor.
+   */
+  public void close();
 }

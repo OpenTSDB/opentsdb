@@ -80,7 +80,7 @@ import net.opentsdb.utils.DateTime;
  * 
  * @since 3.0
  */
-public class Tsdb1xScanners {
+public class Tsdb1xScanners implements HBaseExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(Tsdb1xScanners.class);
   
   /** The state of the scanners. */

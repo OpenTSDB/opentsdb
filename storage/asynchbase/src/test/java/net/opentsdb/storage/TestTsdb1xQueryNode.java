@@ -1,0 +1,909 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2018  The OpenTSDB Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+package net.opentsdb.storage;
+
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+
+import org.hbase.async.HBaseClient;
+import org.hbase.async.Scanner;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+
+import com.google.common.collect.Lists;
+import com.google.common.primitives.Bytes;
+import com.google.common.reflect.TypeToken;
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.common.Const;
+import net.opentsdb.data.BaseTimeSeriesByteId;
+import net.opentsdb.data.BaseTimeSeriesStringId;
+import net.opentsdb.data.TimeSeriesId;
+import net.opentsdb.exceptions.IllegalDataException;
+import net.opentsdb.meta.MetaDataStorageResult;
+import net.opentsdb.meta.MetaDataStorageSchema;
+import net.opentsdb.meta.MetaDataStorageResult.MetaResult;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QuerySourceConfig;
+import net.opentsdb.query.pojo.Downsampler;
+import net.opentsdb.query.pojo.Metric;
+import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.pojo.Timespan;
+import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.RollupInterval;
+import net.opentsdb.rollup.RollupUtils.RollupUsage;
+import net.opentsdb.stats.MockTrace;
+import net.opentsdb.stats.Span;
+import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.uid.NoSuchUniqueName;
+import net.opentsdb.utils.UnitTestException;
+
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({ HBaseClient.class, Scanner.class, 
+  Tsdb1xQueryNode.class })
+public class TestTsdb1xQueryNode extends UTBase {
+  
+  private QueryPipelineContext context;
+  private QuerySourceConfig source_config;
+  private TimeSeriesQuery query;
+  private RollupConfig rollup_config;
+  private Tsdb1xQueryResult result;
+  private Tsdb1xScanners scanners;
+  private MetaDataStorageSchema meta_schema;
+  private Deferred<MetaDataStorageResult> meta_deferred;
+  private QueryNode upstream_a;
+  private QueryNode upstream_b;
+  
+  @Before
+  public void before() throws Exception {
+    context = mock(QueryPipelineContext.class);
+    source_config = mock(QuerySourceConfig.class);
+    rollup_config = mock(RollupConfig.class);
+    result = mock(Tsdb1xQueryResult.class);
+    scanners = mock(Tsdb1xScanners.class);
+    meta_schema = mock(MetaDataStorageSchema.class);
+    meta_deferred = new Deferred<MetaDataStorageResult>();
+    upstream_a = mock(QueryNode.class);
+    upstream_b = mock(QueryNode.class);
+    
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING))
+        .build();
+    
+    when(source_config.configuration()).thenReturn(config);
+    when(source_config.query()).thenReturn(query);
+    when(meta_schema.runQuery(any(TimeSeriesQuery.class)))
+      .thenReturn(meta_deferred);
+    
+    PowerMockito.whenNew(Tsdb1xQueryResult.class).withAnyArguments()
+      .thenReturn(result);
+    PowerMockito.whenNew(Tsdb1xScanners.class).withAnyArguments()
+      .thenReturn(scanners);
+    
+    when(context.upstream(any(QueryNode.class)))
+      .thenReturn(Lists.newArrayList(upstream_a, upstream_b));
+  }
+  
+  @Test
+  public void ctorDefault() throws Exception {
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    assertSame(source_config, node.config);
+    assertEquals(0, node.sequence_id.get());
+    assertFalse(node.initialized.get());
+    assertFalse(node.initializing.get());
+    assertNull(node.executor);
+    assertFalse(node.skip_nsun_tagks);
+    assertFalse(node.skip_nsun_tagvs);
+    assertFalse(node.skip_nsui);
+    assertFalse(node.delete);
+    assertNull(node.rollup_intervals);
+    assertEquals(RollupUsage.ROLLUP_NOFALLBACK, node.rollup_usage);
+    
+    // default methods
+    assertSame(source_config, node.config());
+    assertSame(schema, node.schema());
+    assertNull(node.sequenceEnd());
+    assertNull(node.id());
+    assertFalse(node.skipNSUI());
+    assertTrue(node.fetchDataType((byte) 0));
+    assertFalse(node.deleteData());
+    assertNull(node.rollupIntervals());
+    assertEquals(RollupUsage.ROLLUP_NOFALLBACK, node.rollupUsage());
+  }
+  
+  @Test
+  public void ctorQueryOverrides() throws Exception {
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING))
+        .addConfig(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY, "true")
+        .addConfig(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY, "true")
+        .addConfig(Tsdb1xHBaseDataStore.SKIP_NSUI_KEY, "true")
+        .addConfig(Tsdb1xHBaseDataStore.DELETE_KEY, "true")
+        .addConfig(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY, "ROLLUP_RAW")
+        .build();
+    when(source_config.query()).thenReturn(query);
+    
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    assertSame(source_config, node.config);
+    assertEquals(0, node.sequence_id.get());
+    assertFalse(node.initialized.get());
+    assertFalse(node.initializing.get());
+    assertNull(node.executor);
+    assertTrue(node.skip_nsun_tagks);
+    assertTrue(node.skip_nsun_tagvs);
+    assertTrue(node.skip_nsui);
+    assertTrue(node.delete);
+    assertNull(node.rollup_intervals);
+    assertEquals(RollupUsage.ROLLUP_RAW, node.rollup_usage);
+  }
+  
+  @Test
+  public void ctorRollups() throws Exception {
+    Tsdb1xHBaseDataStore data_store = mock(Tsdb1xHBaseDataStore.class);
+    Schema schema = mock(Schema.class);
+    when(data_store.schema()).thenReturn(schema);
+    
+    when(rollup_config.getRollupInterval(3600, "1h"))
+      .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
+          .setInterval("1h")
+          .setTable("tsdb-1h")
+          .setPreAggregationTable("tsdb-agg-1h")
+          .setRowSpan("1d")
+          .build(),
+        RollupInterval.builder()
+          .setInterval("30m")
+          .setTable("tsdb-30m")
+          .setPreAggregationTable("tsdb-agg-30m")
+          .setRowSpan("1d")
+          .build()));
+    
+    when(rollup_config.getRollupInterval(1800, "30m"))
+    .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
+        .setInterval("30m")
+        .setTable("tsdb-30m")
+        .setPreAggregationTable("tsdb-agg-30m")
+        .setRowSpan("1d")
+        .build()));
+    
+    when(schema.rollupConfig()).thenReturn(rollup_config);
+    
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg")
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("sum")
+                .setInterval("1h")))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING))
+        .build();
+    when(source_config.query()).thenReturn(query);
+    
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    assertSame(source_config, node.config);
+    assertEquals(0, node.sequence_id.get());
+    assertFalse(node.initialized.get());
+    assertFalse(node.initializing.get());
+    assertNull(node.executor);
+    assertFalse(node.skip_nsun_tagks);
+    assertFalse(node.skip_nsun_tagvs);
+    assertFalse(node.skip_nsui);
+    assertFalse(node.delete);
+    assertEquals(2, node.rollup_intervals.size());
+    assertArrayEquals("tsdb-1h".getBytes(), 
+        node.rollup_intervals.get(0).getTemporalTable());
+    assertArrayEquals("tsdb-30m".getBytes(), 
+        node.rollup_intervals.get(1).getTemporalTable());
+    assertEquals(RollupUsage.ROLLUP_NOFALLBACK, node.rollup_usage);
+    
+    // metric overrides the base interval.
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg")
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("sum")
+                .setInterval("1h")))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING)
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("sum")
+                .setInterval("30m")))
+        .build();
+    when(source_config.query()).thenReturn(query);
+    
+    node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    assertSame(source_config, node.config);
+    assertEquals(0, node.sequence_id.get());
+    assertFalse(node.initialized.get());
+    assertFalse(node.initializing.get());
+    assertNull(node.executor);
+    assertFalse(node.skip_nsun_tagks);
+    assertFalse(node.skip_nsun_tagvs);
+    assertFalse(node.skip_nsui);
+    assertFalse(node.delete);
+    assertEquals(1, node.rollup_intervals.size());
+    assertArrayEquals("tsdb-30m".getBytes(), 
+        node.rollup_intervals.get(0).getTemporalTable());
+    assertEquals(RollupUsage.ROLLUP_NOFALLBACK, node.rollup_usage);
+  }
+
+  @Test
+  public void ctorExceptions() throws Exception {
+    try {
+      new Tsdb1xQueryNode(null, context, source_config);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      new Tsdb1xQueryNode(data_store, null, source_config);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      new Tsdb1xQueryNode(data_store, context, null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    // no query
+    when(source_config.query()).thenReturn(null);
+    try {
+      new Tsdb1xQueryNode(data_store, context, source_config);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    // no master config
+    when(source_config.query()).thenReturn(query);
+    when(source_config.configuration()).thenReturn(null);
+    try {
+      new Tsdb1xQueryNode(data_store, context, source_config);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    // no metrics
+    when(source_config.configuration()).thenReturn(config);
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg"))
+//        .addMetric(Metric.newBuilder()
+//            .setMetric(METRIC_STRING))
+        .build();
+    when(source_config.query()).thenReturn(query);
+    try {
+      new Tsdb1xQueryNode(data_store, context, source_config);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    // too many metrics
+    when(source_config.configuration()).thenReturn(config);
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_B_STRING))
+        .build();
+    when(source_config.query()).thenReturn(query);
+    try {
+      new Tsdb1xQueryNode(data_store, context, source_config);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+
+  @Test
+  public void fetchNextScanner() throws Exception {
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    node.fetchNext(null);
+    
+    assertSame(scanners, node.executor);
+    verify(scanners, times(1)).fetchNext(any(Tsdb1xQueryResult.class), 
+        any(Span.class));
+    assertEquals(1, node.sequence_id.get());
+    assertTrue(node.initialized.get());
+    assertTrue(node.initializing.get());
+    PowerMockito.verifyNew(Tsdb1xQueryResult.class, times(1))
+      .withArguments(anyLong(), any(Tsdb1xQueryNode.class), any(Schema.class));
+    
+    // next call
+    node.fetchNext(null);
+    
+    assertSame(scanners, node.executor);
+    verify(scanners, times(2)).fetchNext(any(Tsdb1xQueryResult.class), 
+        any(Span.class));
+    assertEquals(2, node.sequence_id.get());
+    assertTrue(node.initialized.get());
+    assertTrue(node.initializing.get());
+    PowerMockito.verifyNew(Tsdb1xQueryResult.class, times(2))
+      .withArguments(anyLong(), any(Tsdb1xQueryNode.class), any(Schema.class));
+    
+    // next call
+    node.fetchNext(null);
+    
+    assertSame(scanners, node.executor);
+    verify(scanners, times(3)).fetchNext(any(Tsdb1xQueryResult.class), 
+        any(Span.class));
+    assertEquals(3, node.sequence_id.get());
+    assertTrue(node.initialized.get());
+    assertTrue(node.initializing.get());
+    PowerMockito.verifyNew(Tsdb1xQueryResult.class, times(3))
+      .withArguments(anyLong(), any(Tsdb1xQueryNode.class), any(Schema.class));
+  }
+  
+  @Test
+  public void fetchNextMeta() throws Exception {
+    Tsdb1xHBaseDataStore data_store = mock(Tsdb1xHBaseDataStore.class);
+    Schema schema = mock(Schema.class);
+    when(data_store.schema()).thenReturn(schema);
+    when(schema.metaSchema()).thenReturn(meta_schema);
+    
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    node.fetchNext(null);
+    
+    assertNull(node.executor);
+    verify(scanners, never()).fetchNext(any(Tsdb1xQueryResult.class), 
+        any(Span.class));
+    assertEquals(0, node.sequence_id.get());
+    assertFalse(node.initialized.get());
+    assertTrue(node.initializing.get());
+    PowerMockito.verifyNew(Tsdb1xQueryResult.class, never())
+      .withArguments(anyLong(), any(Tsdb1xQueryNode.class), any(Schema.class));
+    verify(meta_schema, times(1)).runQuery(eq(query));
+    
+    try {
+      node.fetchNext(null);
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
+  }
+  
+  @Test
+  public void setupScanner() throws Exception {
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    node.setup(null);
+    
+    assertSame(scanners, node.executor);
+    verify(scanners, times(1)).fetchNext(any(Tsdb1xQueryResult.class), 
+        any(Span.class));
+    assertEquals(1, node.sequence_id.get());
+    assertTrue(node.initialized.get());
+    PowerMockito.verifyNew(Tsdb1xQueryResult.class, times(1))
+      .withArguments(anyLong(), any(Tsdb1xQueryNode.class), any(Schema.class));
+  }
+  
+  @Test
+  public void setupMeta() throws Exception {
+    Tsdb1xHBaseDataStore data_store = mock(Tsdb1xHBaseDataStore.class);
+    Schema schema = mock(Schema.class);
+    when(data_store.schema()).thenReturn(schema);
+    when(schema.metaSchema()).thenReturn(meta_schema);
+    
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    node.setup(null);
+    
+    assertNull(node.executor);
+    verify(scanners, never()).fetchNext(any(Tsdb1xQueryResult.class), 
+        any(Span.class));
+    assertEquals(0, node.sequence_id.get());
+    assertFalse(node.initialized.get());
+    PowerMockito.verifyNew(Tsdb1xQueryResult.class, never())
+      .withArguments(anyLong(), any(Tsdb1xQueryNode.class), any(Schema.class));
+    verify(meta_schema, times(1)).runQuery(eq(query));
+  }
+
+  @Test
+  public void onComplete() throws Exception {
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    
+    node.onComplete(node, 1, 1);
+    
+    verify(upstream_a, times(1)).onComplete(node, 1, 1);
+    verify(upstream_b, times(1)).onComplete(node, 1, 1);
+  }
+  
+  @Test
+  public void onNext() throws Exception {
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    
+    node.onNext(result);
+    
+    verify(upstream_a, times(1)).onNext(result);
+    verify(upstream_b, times(1)).onNext(result);
+  }
+  
+  @Test
+  public void onError() throws Exception {
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    UnitTestException ex = new UnitTestException();
+    
+    node.onError(ex);
+    
+    verify(upstream_a, times(1)).onError(ex);
+    verify(upstream_b, times(1)).onError(ex);
+  }
+  
+  @Test
+  public void metaErrorCB() throws Exception {
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    net.opentsdb.storage.Tsdb1xQueryNode.MetaErrorCB cb = 
+        node.new MetaErrorCB(null);
+    UnitTestException ex = new UnitTestException();
+    
+    cb.call(ex);
+    
+    verify(upstream_a, times(1)).onError(ex);
+    verify(upstream_b, times(1)).onError(ex);
+    
+    trace = new MockTrace(true);
+    
+    cb = node.new MetaErrorCB(trace.newSpan("UT").start());
+    cb.call(ex);
+    
+    verify(upstream_a, times(2)).onError(ex);
+    verify(upstream_b, times(2)).onError(ex);
+   
+    verifySpan("UT", UnitTestException.class);
+  }
+
+  @Test
+  public void metaCBWithData() throws Exception {
+    List<TimeSeriesId> ids = Lists.newArrayList();
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, TAGV_STRING)
+        .build());
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, TAGV_B_STRING)
+        .build());
+    
+    MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
+    when(meta_result.timeSeries()).thenReturn(ids);
+    when(meta_result.result()).thenReturn(MetaResult.DATA);
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    
+    node.new MetaCB(null).call(meta_result);
+    
+    Tsdb1xMultiGet gets = (Tsdb1xMultiGet) node.executor;
+    assertEquals(2, gets.tsuids.size());
+    assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_BYTES), 
+        gets.tsuids.get(0));
+    assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.tsuids.get(1));
+    assertTrue(node.initialized.get());
+    verify(upstream_a, times(1)).onNext(any(QueryResult.class));
+    verify(upstream_b, times(1)).onNext(any(QueryResult.class));
+  }
+  
+  @Test
+  public void metaCBNoData() throws Exception {
+    MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
+    when(meta_result.result()).thenReturn(MetaResult.NO_DATA);
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    
+    node.new MetaCB(null).call(meta_result);
+    
+    assertNull(node.executor);
+    assertTrue(node.initialized.get());
+    verify(upstream_a, times(1)).onComplete(node, 0, 0);
+    verify(upstream_b, times(1)).onComplete(node, 0, 0);
+  }
+  
+  @Test
+  public void metaCBException() throws Exception {
+    MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
+    when(meta_result.result()).thenReturn(MetaResult.EXCEPTION);
+    when(meta_result.exception()).thenReturn(new UnitTestException());
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    
+    node.new MetaCB(null).call(meta_result);
+    
+    assertNull(node.executor);
+    assertTrue(node.initialized.get());
+    verify(upstream_a, times(1)).onError(any(UnitTestException.class));
+    verify(upstream_b, times(1)).onError(any(UnitTestException.class));
+  }
+  
+  @Test
+  public void metaCBNoDataFallback() throws Exception {
+    MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
+    when(meta_result.result()).thenReturn(MetaResult.NO_DATA_FALLBACK);
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    
+    node.new MetaCB(null).call(meta_result);
+    
+    assertSame(scanners, node.executor);
+    verify(scanners, times(1)).fetchNext(any(Tsdb1xQueryResult.class), 
+        any(Span.class));
+    assertEquals(1, node.sequence_id.get());
+    assertTrue(node.initialized.get());
+    PowerMockito.verifyNew(Tsdb1xQueryResult.class, times(1))
+      .withArguments(anyLong(), any(Tsdb1xQueryNode.class), any(Schema.class));
+  }
+  
+  @Test
+  public void metaCBExceptionFallback() throws Exception {
+    MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
+    when(meta_result.result()).thenReturn(MetaResult.EXCEPTION_FALLBACK);
+    when(meta_result.exception()).thenReturn(new UnitTestException());
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    
+    node.new MetaCB(null).call(meta_result);
+    
+    assertSame(scanners, node.executor);
+    verify(scanners, times(1)).fetchNext(any(Tsdb1xQueryResult.class), 
+        any(Span.class));
+    assertEquals(1, node.sequence_id.get());
+    assertTrue(node.initialized.get());
+    PowerMockito.verifyNew(Tsdb1xQueryResult.class, times(1))
+      .withArguments(anyLong(), any(Tsdb1xQueryNode.class), any(Schema.class));
+    verify(upstream_a, never()).onError(any(UnitTestException.class));
+    verify(upstream_b, never()).onError(any(UnitTestException.class));
+  }
+  
+  @Test
+  public void resolveMetaStringOk() throws Exception {
+    // Seems the PowerMockito won't mock down to the nested classes
+    // so this will actually execute the query via multi-get.
+    List<TimeSeriesId> ids = Lists.newArrayList();
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, TAGV_STRING)
+        .build());
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, TAGV_B_STRING)
+        .build());
+    
+    MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
+    when(meta_result.timeSeries()).thenReturn(ids);
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    
+    node.resolveMeta(meta_result, null);
+    
+    Tsdb1xMultiGet gets = (Tsdb1xMultiGet) node.executor;
+    assertEquals(2, gets.tsuids.size());
+    assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_BYTES), 
+        gets.tsuids.get(0));
+    assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.tsuids.get(1));
+    assertTrue(node.initialized.get());
+    verify(upstream_a, times(1)).onNext(any(QueryResult.class));
+    verify(upstream_b, times(1)).onNext(any(QueryResult.class));
+  }
+  
+  @Test
+  public void resolveMetaStringMetricNSUN() throws Exception {
+    // Seems the PowerMockito won't mock down to the nested classes
+    // so this will actually execute the query via multi-get.
+    List<TimeSeriesId> ids = Lists.newArrayList();
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+        .setMetric(NSUN_METRIC)
+        .addTags(TAGK_STRING, TAGV_STRING)
+        .build());
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+        .setMetric(NSUN_METRIC)
+        .addTags(TAGK_STRING, TAGV_B_STRING)
+        .build());
+    
+    MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
+    when(meta_result.timeSeries()).thenReturn(ids);
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    
+    node.resolveMeta(meta_result, null);
+    
+    assertNull(node.executor);
+    assertFalse(node.initialized.get());
+    verify(upstream_a, times(1)).onError(any(NoSuchUniqueName.class));
+    verify(upstream_b, times(1)).onError(any(NoSuchUniqueName.class));
+  }
+  
+  @Test
+  public void resolveMetaStringTagkNSUN() throws Exception {
+    // Seems the PowerMockito won't mock down to the nested classes
+    // so this will actually execute the query via multi-get.
+    List<TimeSeriesId> ids = Lists.newArrayList();
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(NSUN_TAGK, TAGV_STRING)
+        .build());
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, TAGV_B_STRING)
+        .build());
+    
+    MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
+    when(meta_result.timeSeries()).thenReturn(ids);
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    
+    node.resolveMeta(meta_result, null);
+    
+    assertNull(node.executor);
+    assertFalse(node.initialized.get());
+    verify(upstream_a, times(1)).onError(any(NoSuchUniqueName.class));
+    verify(upstream_b, times(1)).onError(any(NoSuchUniqueName.class));
+  }
+  
+  @Test
+  public void resolveMetaStringTagkNSUNAllowed() throws Exception {
+    // Seems the PowerMockito won't mock down to the nested classes
+    // so this will actually execute the query via multi-get.
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING))
+        .addConfig(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY, "true")
+        .build();
+    when(source_config.query()).thenReturn(query);
+    
+    List<TimeSeriesId> ids = Lists.newArrayList();
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(NSUN_TAGK, TAGV_STRING)
+        .build());
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, TAGV_B_STRING)
+        .build());
+    
+    MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
+    when(meta_result.timeSeries()).thenReturn(ids);
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    
+    node.resolveMeta(meta_result, null);
+    
+    Tsdb1xMultiGet gets = (Tsdb1xMultiGet) node.executor;
+    assertEquals(1, gets.tsuids.size());
+    assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.tsuids.get(0));
+    assertTrue(node.initialized.get());
+    verify(upstream_a, times(1)).onNext(any(QueryResult.class));
+    verify(upstream_b, times(1)).onNext(any(QueryResult.class));
+  }
+
+  @Test
+  public void resolveMetaStringTagvNSUN() throws Exception {
+    // Seems the PowerMockito won't mock down to the nested classes
+    // so this will actually execute the query via multi-get.
+    List<TimeSeriesId> ids = Lists.newArrayList();
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, TAGV_STRING)
+        .build());
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, NSUN_TAGV)
+        .build());
+    
+    MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
+    when(meta_result.timeSeries()).thenReturn(ids);
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    
+    node.resolveMeta(meta_result, null);
+    
+    assertNull(node.executor);
+    assertFalse(node.initialized.get());
+    verify(upstream_a, times(1)).onError(any(NoSuchUniqueName.class));
+    verify(upstream_b, times(1)).onError(any(NoSuchUniqueName.class));
+  }
+  
+  @Test
+  public void resolveMetaStringTagvNSUNAllowed() throws Exception {
+    // Seems the PowerMockito won't mock down to the nested classes
+    // so this will actually execute the query via multi-get.
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING))
+        .addConfig(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY, "true")
+        .build();
+    when(source_config.query()).thenReturn(query);
+    
+    List<TimeSeriesId> ids = Lists.newArrayList();
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, TAGV_STRING)
+        .build());
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, NSUN_TAGV)
+        .build());
+    
+    MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
+    when(meta_result.timeSeries()).thenReturn(ids);
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    
+    node.resolveMeta(meta_result, null);
+    
+    Tsdb1xMultiGet gets = (Tsdb1xMultiGet) node.executor;
+    assertEquals(1, gets.tsuids.size());
+    assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_BYTES), 
+        gets.tsuids.get(0));
+    assertTrue(node.initialized.get());
+    verify(upstream_a, times(1)).onNext(any(QueryResult.class));
+    verify(upstream_b, times(1)).onNext(any(QueryResult.class));
+  }
+
+  @Test
+  public void resolveMetaStringTwoMetrics() throws Exception {
+    // Seems the PowerMockito won't mock down to the nested classes
+    // so this will actually execute the query via multi-get.
+    List<TimeSeriesId> ids = Lists.newArrayList();
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+        .setMetric(METRIC_STRING)
+        .addTags(TAGK_STRING, TAGV_STRING)
+        .build());
+    ids.add(BaseTimeSeriesStringId.newBuilder()
+        .setMetric(METRIC_B_STRING)
+        .addTags(TAGK_STRING, TAGV_B_STRING)
+        .build());
+    
+    MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
+    when(meta_result.timeSeries()).thenReturn(ids);
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    
+    try {
+      node.resolveMeta(meta_result, null);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    assertNull(node.executor);
+    assertFalse(node.initialized.get());
+    verify(upstream_a, never()).onError(any());
+    verify(upstream_b, never()).onError(any());
+  }
+
+  @Test
+  public void resolveMetaBytesOK() throws Exception {
+    // Seems the PowerMockito won't mock down to the nested classes
+    // so this will actually execute the query via multi-get.
+    List<TimeSeriesId> ids = Lists.newArrayList();
+    ids.add(BaseTimeSeriesByteId.newBuilder(schema)
+        .setMetric(METRIC_BYTES)
+        .addTags(TAGK_BYTES, TAGV_BYTES)
+        .build());
+    ids.add(BaseTimeSeriesByteId.newBuilder(schema)
+        .setMetric(METRIC_BYTES)
+        .addTags(TAGK_BYTES, TAGV_B_BYTES)
+        .build());
+    
+    MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
+    when(meta_result.timeSeries()).thenReturn(ids);
+    when(meta_result.idType()).thenAnswer(new Answer<TypeToken<?>>() {
+      @Override
+      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
+        return Const.TS_BYTE_ID;
+      }
+    });
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    
+    node.resolveMeta(meta_result, null);
+    
+    Tsdb1xMultiGet gets = (Tsdb1xMultiGet) node.executor;
+    assertEquals(2, gets.tsuids.size());
+    assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_BYTES), 
+        gets.tsuids.get(0));
+    assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_B_BYTES), 
+        gets.tsuids.get(1));
+    assertTrue(node.initialized.get());
+    verify(upstream_a, times(1)).onNext(any(QueryResult.class));
+    verify(upstream_b, times(1)).onNext(any(QueryResult.class));
+  }
+  
+  @Test
+  public void resolveMetaBytesTwoMetrics() throws Exception {
+    // Seems the PowerMockito won't mock down to the nested classes
+    // so this will actually execute the query via multi-get.
+    List<TimeSeriesId> ids = Lists.newArrayList();
+    ids.add(BaseTimeSeriesByteId.newBuilder(schema)
+        .setMetric(METRIC_BYTES)
+        .addTags(TAGK_BYTES, TAGV_BYTES)
+        .build());
+    ids.add(BaseTimeSeriesByteId.newBuilder(schema)
+        .setMetric(METRIC_B_BYTES)
+        .addTags(TAGK_BYTES, TAGV_B_BYTES)
+        .build());
+    
+    MetaDataStorageResult meta_result = mock(MetaDataStorageResult.class);
+    when(meta_result.timeSeries()).thenReturn(ids);
+    when(meta_result.idType()).thenAnswer(new Answer<TypeToken<?>>() {
+      @Override
+      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
+        return Const.TS_BYTE_ID;
+      }
+    });
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    
+    try {
+      node.resolveMeta(meta_result, null);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    assertNull(node.executor);
+    assertFalse(node.initialized.get());
+    verify(upstream_a, never()).onError(any());
+    verify(upstream_b, never()).onError(any());
+  }
+}

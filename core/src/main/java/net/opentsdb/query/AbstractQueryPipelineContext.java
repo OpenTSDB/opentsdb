@@ -36,6 +36,7 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.stats.Span;
 
 /**
  * A useful base class for {@link QueryPipelineContext}s that stores references
@@ -213,14 +214,14 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   }
   
   @Override
-  public void fetchNext() {
+  public void fetchNext(final Span span) {
     if (context.mode() == QueryMode.SINGLE ||
         context.mode() == QueryMode.BOUNDED_SERVER_SYNC_STREAM || 
         context.mode() == QueryMode.CONTINOUS_SERVER_SYNC_STREAM ||
         context.mode() == QueryMode.BOUNDED_SERVER_ASYNC_STREAM ||
         context.mode() == QueryMode.CONTINOUS_SERVER_ASYNC_STREAM) {
       for (final TimeSeriesDataSource source : sources) {
-        source.fetchNext();
+        source.fetchNext(span);
       }
       return;
     }
@@ -230,7 +231,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
         source_idx = 0;
       }
       try {
-        sources.get(source_idx++).fetchNext();
+        sources.get(source_idx++).fetchNext(span);
       } catch (Exception e) {
         LOG.error("Failed to fetch next from source: " 
             + sources.get(source_idx - 1), e);
