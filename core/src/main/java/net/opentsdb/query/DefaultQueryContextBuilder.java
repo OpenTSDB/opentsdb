@@ -160,8 +160,8 @@ public class DefaultQueryContextBuilder implements QueryContextBuilder {
     }
 
     @Override
-    public void fetchNext() {
-      context.fetchNext();
+    public void fetchNext(final Span span) {
+      context.fetchNext(span);
     }
 
     @Override

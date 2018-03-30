@@ -244,7 +244,7 @@ public class DefaultRegistry implements Registry {
     if (factory != null) {
       return factory;
     }
-    final TSDBPlugin plugin = plugins.getPlugin(QueryNodeFactory.class, id);
+    final QueryNodeFactory plugin = plugins.getPlugin(QueryNodeFactory.class, id);
     if (plugin == null) {
       return null;
     }
@@ -391,7 +391,7 @@ public class DefaultRegistry implements Registry {
    * @return An instantiated plugin if found, null if not.
    * @throws IllegalArgumentException if the clazz was null.
    */
-  public TSDBPlugin getDefaultPlugin(final Class<?> clazz) {
+  public <T> T getDefaultPlugin(final Class<T> clazz) {
     return getPlugin(clazz, null);
   }
   
@@ -402,7 +402,7 @@ public class DefaultRegistry implements Registry {
    * @return An instantiated plugin if found, null if not.
    * @throws IllegalArgumentException if the clazz was null.
    */
-  public TSDBPlugin getPlugin(final Class<?> clazz, final String id) {
+  public <T> T getPlugin(final Class<T> clazz, final String id) {
     if (plugins == null) {
       throw new IllegalStateException("Plugins have not been loaded. "
           + "Call loadPlugins();");

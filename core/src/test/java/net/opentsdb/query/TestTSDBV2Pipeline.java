@@ -135,7 +135,7 @@ public class TestTSDBV2Pipeline {
         .setMode(QueryMode.SINGLE)
         .addQuerySink(listener)
         .build();
-    ctx.fetchNext();
+    ctx.fetchNext(null);
     
     listener.completed.join(1000);
     listener.call_limit.join(1000);
@@ -203,7 +203,7 @@ public class TestTSDBV2Pipeline {
         .setMode(QueryMode.SINGLE)
         .addQuerySink(listener)
         .build();
-    ctx.fetchNext();
+    ctx.fetchNext(null);
     
     listener.completed.join(1000);
     listener.call_limit.join(1000);
@@ -293,7 +293,7 @@ public class TestTSDBV2Pipeline {
         .setMode(QueryMode.SINGLE)
         .addQuerySink(listener)
         .build();
-    ctx.fetchNext();
+    ctx.fetchNext(null);
     
     listener.completed.join(1000);
     listener.call_limit.join(1000);
@@ -365,7 +365,7 @@ public class TestTSDBV2Pipeline {
         .setMode(QueryMode.SINGLE)
         .addQuerySink(listener)
         .build();
-    ctx.fetchNext();
+    ctx.fetchNext(null);
     
     listener.completed.join(1000);
     listener.call_limit.join(1000);
@@ -441,7 +441,7 @@ public class TestTSDBV2Pipeline {
         if (on_next == 4) {
           call_limit.callback(null);
         }
-        ctx.fetchNext();
+        ctx.fetchNext(null);
       }
   
       @Override
@@ -458,7 +458,7 @@ public class TestTSDBV2Pipeline {
         .addQuerySink(listener)
         .build();
     listener.ctx = ctx;
-    ctx.fetchNext();
+    ctx.fetchNext(null);
     
     listener.completed.join(1000);
     listener.call_limit.join(1000);
@@ -516,7 +516,7 @@ public class TestTSDBV2Pipeline {
         if (on_next == 4) {
           call_limit.callback(null);
         }
-        ctx.fetchNext();
+        ctx.fetchNext(null);
       }
   
       @Override
@@ -533,7 +533,7 @@ public class TestTSDBV2Pipeline {
         .addQuerySink(listener)
         .build();
     listener.ctx = ctx;
-    ctx.fetchNext();
+    ctx.fetchNext(null);
     
     listener.completed.join(1000);
     listener.call_limit.join(1000);
@@ -609,7 +609,7 @@ public class TestTSDBV2Pipeline {
         if (on_next == 4) {
           call_limit.callback(null);
         }
-        ctx.fetchNext();
+        ctx.fetchNext(null);
       }
   
       @Override
@@ -626,7 +626,7 @@ public class TestTSDBV2Pipeline {
         .addQuerySink(listener)
         .build();
     listener.ctx = ctx;
-    ctx.fetchNext();
+    ctx.fetchNext(null);
     
     listener.call_limit.join(1000);
     try {
@@ -721,7 +721,7 @@ public class TestTSDBV2Pipeline {
         .addQuerySink(listener)
         .build();
     listener.ctx = ctx;
-    ctx.fetchNext();
+    ctx.fetchNext(null);
     
     listener.completed.join(1000);
     listener.call_limit.join(1000);
@@ -813,7 +813,7 @@ public class TestTSDBV2Pipeline {
         .addQuerySink(listener)
         .build();
     listener.ctx = ctx;
-    ctx.fetchNext();
+    ctx.fetchNext(null);
     
     listener.call_limit.join(1000);
     try {
@@ -908,7 +908,7 @@ public class TestTSDBV2Pipeline {
         .addQuerySink(listener)
         .build();
     listener.ctx = ctx;
-    ctx.fetchNext();
+    ctx.fetchNext(null);
     
     listener.completed.join(1000);
     listener.call_limit.join(1000);
@@ -1000,7 +1000,7 @@ public class TestTSDBV2Pipeline {
         .addQuerySink(listener)
         .build();
     listener.ctx = ctx;
-    ctx.fetchNext();
+    ctx.fetchNext(null);
     
     listener.call_limit.join(1000);
     try {

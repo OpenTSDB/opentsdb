@@ -18,6 +18,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.stats.Span;
 
 /**
@@ -26,7 +27,7 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public interface StorageSchema {
+public interface StorageSchema extends QueryNodeFactory {
 
   /** @return A non-null and non-empty unique runtime ID for this storage
    * schema instance. Multiple schemas of the same type can be registered
@@ -44,5 +45,6 @@ public interface StorageSchema {
    */
   public Deferred<TimeSeriesStringId> resolveByteId(final TimeSeriesByteId id, 
                                                     final Span span);
+  
   
 }

@@ -16,6 +16,8 @@ package net.opentsdb.query;
 
 import java.util.Collection;
 
+import net.opentsdb.stats.Span;
+
 /**
  * The non-user facing pipeline context that provides the entry point and 
  * operations for executing a query. This is instantiated and called by the 
@@ -45,8 +47,9 @@ public interface QueryPipelineContext extends QueryNode {
   
   /**
    * Called by the upstream context or nodes to fetch the next set of data.
+   * @param span An optional tracing span.
    */
-  public void fetchNext();
+  public void fetchNext(final Span span);
   
   /**
    * Returns the upstream nodes for the requested node.

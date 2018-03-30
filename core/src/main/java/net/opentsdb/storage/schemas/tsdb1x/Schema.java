@@ -15,7 +15,9 @@
 package net.opentsdb.storage.schemas.tsdb1x;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -30,11 +32,18 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesStringId;
+import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.meta.MetaDataStorageSchema;
+import net.opentsdb.query.QueryIteratorFactory;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.filter.TagVLiteralOrFilter;
 import net.opentsdb.query.pojo.Filter;
@@ -201,6 +210,39 @@ public class Schema implements StorageSchema {
     
     codecs = Maps.newHashMapWithExpectedSize(1);
     codecs.put(NumericType.TYPE, new NumericCodec());
+  }
+  
+  @Override
+  public QueryNode newNode(QueryPipelineContext context,
+      QueryNodeConfig config) {
+    return data_store.newNode(context, config);
+  }
+
+  @Override
+  public Collection<TypeToken<?>> types() {
+    return data_store.types();
+  }
+
+  @Override
+  public void registerIteratorFactory(final TypeToken<?> type,
+                                      final QueryIteratorFactory factory) {
+    data_store.registerIteratorFactory(type, factory);
+  }
+
+  @Override
+  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
+      final TypeToken<?> type, 
+      final QueryNode node, 
+      final Collection<TimeSeries> sources) {
+    return data_store.newIterator(type, node, sources);
+  }
+
+  @Override
+  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
+      final TypeToken<?> type, 
+      final QueryNode node, 
+      final Map<String, TimeSeries> sources) {
+    return data_store.newIterator(type, node, sources);
   }
   
   /**
@@ -639,6 +681,12 @@ public class Schema implements StorageSchema {
 //    return codec.newRowSeq(base_time);
   }
   
+  /** @return The meta schema if implemented and assigned, null if not. */
+  public MetaDataStorageSchema metaSchema() {
+    // TODO - implement
+    return null;
+  }
+  
   static class ResolvedFilterImplementation implements ResolvedFilter {
     protected byte[] tag_key;
     protected List<byte[]> tag_values;
@@ -745,5 +793,6 @@ public class Schema implements StorageSchema {
   UniqueId tagValues() {
     return tag_values;
   }
+
   
 }

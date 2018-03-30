@@ -13,6 +13,7 @@
 package net.opentsdb.data;
 
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.stats.Span;
 
 /**
  * The base interface for a data source such as a local database or remote TSD.
@@ -23,7 +24,8 @@ public interface TimeSeriesDataSource extends QueryNode {
 
   /**
    * Called by the upstream context or nodes to fetch the next set of data.
+   * @param span An optional tracing span.
    */
-  public void fetchNext();
+  public void fetchNext(final Span span);
   
 }

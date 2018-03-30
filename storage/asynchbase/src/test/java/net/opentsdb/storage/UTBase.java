@@ -100,6 +100,12 @@ public class UTBase {
   public static final byte[] DATA_TABLE = "tsdb".getBytes(Const.ASCII_CHARSET);
   public static final byte[] UID_TABLE = "tsdb-uid".getBytes(Const.ASCII_CHARSET);
   
+  // GMT: Monday, January 1, 2018 12:15:00 AM
+  public static final int START_TS = 1514765700;
+  
+  // GMT: Monday, January 1, 2018 1:15:00 AM
+  public static final int END_TS = 1514769300;
+  
   /** The types of series to use as a helper. */
   public static enum Series {
     /** Two metrics but one series each. */
@@ -176,6 +182,7 @@ public class UTBase {
         });
     
     schema = spy(new Schema(tsdb, null));
+    when(data_store.schema()).thenReturn(schema);
     
     storage = new MockBase(client, true, true, true, true);
     loadUIDTable();
