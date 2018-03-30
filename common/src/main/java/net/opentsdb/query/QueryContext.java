@@ -17,6 +17,7 @@ package net.opentsdb.query;
 import java.util.Collection;
 
 import net.opentsdb.stats.QueryStats;
+import net.opentsdb.stats.Span;
 
 /**
  * The API used to interact with a query pipeline. This should be given to the
@@ -43,9 +44,10 @@ public interface QueryContext {
   
   /**
    * Travels downstream the pipeline to fetch the next set of results. 
+   * @param span An optional tracing span.
    * @throws IllegalStateException if no sinks was set on this context.
    */
-  public void fetchNext();
+  public void fetchNext(final Span span);
   
   /**
    * Closes the pipeline and releases all resources.
@@ -59,4 +61,5 @@ public interface QueryContext {
   
   /** @return The original query. */
   public TimeSeriesQuery query();
+  
 }

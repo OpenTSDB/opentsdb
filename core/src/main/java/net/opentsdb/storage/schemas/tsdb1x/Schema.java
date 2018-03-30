@@ -35,6 +35,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.meta.MetaDataStorageSchema;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.filter.TagVLiteralOrFilter;
 import net.opentsdb.query.pojo.Filter;
@@ -637,6 +638,12 @@ public class Schema implements StorageSchema {
 //      throw new IllegalArgumentException("No codec loaded for type: " + type);
 //    }
 //    return codec.newRowSeq(base_time);
+  }
+  
+  /** @return The meta schema if implemented and assigned, null if not. */
+  public MetaDataStorageSchema metaSchema() {
+    // TODO - implement
+    return null;
   }
   
   static class ResolvedFilterImplementation implements ResolvedFilter {

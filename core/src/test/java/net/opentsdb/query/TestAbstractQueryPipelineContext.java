@@ -167,25 +167,25 @@ public class TestAbstractQueryPipelineContext {
         Lists.newArrayList(sink1));
     ctx.initialize();
     
-    verify(ctx.s1, never()).fetchNext();
-    verify(ctx.s2, never()).fetchNext();
+    verify(ctx.s1, never()).fetchNext(null);
+    verify(ctx.s2, never()).fetchNext(null);
     
-    ctx.fetchNext();
-    verify(ctx.s1, never()).fetchNext();
-    verify(ctx.s2, times(1)).fetchNext();
+    ctx.fetchNext(null);
+    verify(ctx.s1, never()).fetchNext(null);
+    verify(ctx.s2, times(1)).fetchNext(null);
     
-    ctx.fetchNext();
-    verify(ctx.s1, times(1)).fetchNext();
-    verify(ctx.s2, times(1)).fetchNext();
+    ctx.fetchNext(null);
+    verify(ctx.s1, times(1)).fetchNext(null);
+    verify(ctx.s2, times(1)).fetchNext(null);
     
-    ctx.fetchNext();
-    verify(ctx.s1, times(1)).fetchNext();
-    verify(ctx.s2, times(2)).fetchNext();
+    ctx.fetchNext(null);
+    verify(ctx.s1, times(1)).fetchNext(null);
+    verify(ctx.s2, times(2)).fetchNext(null);
     
-    doThrow(new IllegalStateException("Boo!")).when(ctx.s1).fetchNext();
-    ctx.fetchNext();
-    verify(ctx.s1, times(2)).fetchNext();
-    verify(ctx.s2, times(2)).fetchNext();
+    doThrow(new IllegalStateException("Boo!")).when(ctx.s1).fetchNext(null);
+    ctx.fetchNext(null);
+    verify(ctx.s1, times(2)).fetchNext(null);
+    verify(ctx.s2, times(2)).fetchNext(null);
     verify(sink1, times(1)).onError(any(Throwable.class));
     
     // Test the single mutli-source case.
@@ -193,12 +193,12 @@ public class TestAbstractQueryPipelineContext {
     ctx = new TestContext(tsdb, query, context, Lists.newArrayList(sink1));
     ctx.initialize();
     
-    verify(ctx.s1, never()).fetchNext();
-    verify(ctx.s2, never()).fetchNext();
+    verify(ctx.s1, never()).fetchNext(null);
+    verify(ctx.s2, never()).fetchNext(null);
     
-    ctx.fetchNext();
-    verify(ctx.s1, times(1)).fetchNext();
-    verify(ctx.s2, times(1)).fetchNext();
+    ctx.fetchNext(null);
+    verify(ctx.s1, times(1)).fetchNext(null);
+    verify(ctx.s2, times(1)).fetchNext(null);
   }
   
   @Test

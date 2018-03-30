@@ -330,7 +330,7 @@ public class MockDataStore implements TimeSeriesDataStore {
     }
     
     @Override
-    public void fetchNext() {
+    public void fetchNext(final Span span) {
       if (LOG.isDebugEnabled()) {
         LOG.debug("Fetching next set of data.");
       }
@@ -609,7 +609,7 @@ public class MockDataStore implements TimeSeriesDataStore {
               LOG.debug("Fetching next Seq: " + (sequence_id  + 1) 
                   + " as there is more data: " + pipeline);
             }
-            pipeline.fetchNext();
+            pipeline.fetchNext(null /* TODO */);
           }
           break;
         case CONTINOUS_SERVER_ASYNC_STREAM:
@@ -628,7 +628,7 @@ public class MockDataStore implements TimeSeriesDataStore {
               LOG.debug("Fetching next Seq: " + (sequence_id  + 1) 
                   + " as there is more data: " + pipeline);
             }
-            pipeline.fetchNext();
+            pipeline.fetchNext(null /* TODO */);
           }
         }
       } catch (Exception e) {
@@ -677,7 +677,7 @@ public class MockDataStore implements TimeSeriesDataStore {
           if (LOG.isDebugEnabled()) {
             LOG.debug("Result closed, firing the next!: " + pipeline);
           }
-          pipeline.fetchNext();
+          pipeline.fetchNext(null /* TODO */);
         }
       }
     }

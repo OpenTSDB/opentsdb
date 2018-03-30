@@ -364,7 +364,7 @@ final public class QueryRpc {
     }
     
     try {
-      ctx.fetchNext();
+      ctx.fetchNext(query_span);
     } catch (Exception e) {
       LOG.error("Unexpected exception adding callbacks to deferred.", e);
       request.setAttribute(OpenTSDBApplication.QUERY_EXCEPTION_ATTRIBUTE, e);

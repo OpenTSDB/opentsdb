@@ -36,7 +36,6 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
-import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.uid.UniqueIdStore;
@@ -63,11 +62,13 @@ public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
       "tsd.query.rollups.default_usage";
   public static final String SKIP_NSUN_TAGK_KEY = "tsd.query.skip_unresolved_tagks";
   public static final String SKIP_NSUN_TAGV_KEY = "tsd.query.skip_unresolved_tagvs";
+  public static final String SKIP_NSUI_KEY = "tsd.query.skip_unresolved_ids";
+  public static final String ALLOW_DELETE_KEY = "tsd.query.allow_delete";
+  public static final String DELETE_KEY = "tsd.query.delete";
   public static final String PRE_AGG_KEY = "tsd.query.pre_agg";
   public static final String FUZZY_FILTER_KEY = "tsd.query.enable_fuzzy_filter";
   public static final String ROWS_PER_SCAN_KEY = "tsd.query.rows_per_scan";
   public static final String MAX_MG_CARDINALITY_KEY = "tsd.query.multiget.max_cardinality";
-  
   
   public static final byte[] DATA_FAMILY = 
       "t".getBytes(Const.ASCII_CHARSET);

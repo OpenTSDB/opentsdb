@@ -85,12 +85,6 @@ import net.opentsdb.utils.UnitTestException;
   Tsdb1xScanner.class })
 public class TestTsdb1xScanners extends UTBase {
 
-  // GMT: Monday, January 1, 2018 12:15:00 AM
-  public static final int START_TS = 1514765700;
-  
-  // GMT: Monday, January 1, 2018 1:15:00 AM
-  public static final int END_TS = 1514769300;
-  
   public Tsdb1xQueryNode node;
   public TimeSeriesQuery query;
   public RollupConfig rollup_config;

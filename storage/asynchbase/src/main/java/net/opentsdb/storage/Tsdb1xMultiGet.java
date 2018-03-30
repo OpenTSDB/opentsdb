@@ -85,7 +85,7 @@ import net.opentsdb.utils.DateTime;
  * 
  * @since 2.4
  */
-public class Tsdb1xMultiGet {
+public class Tsdb1xMultiGet implements HBaseExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(Tsdb1xMultiGet.class);
   
   /** The upstream query node that owns this scanner set. */
@@ -323,13 +323,7 @@ public class Tsdb1xMultiGet {
     
   }
   
-  /**
-   * Attempts to fetch the next set of data from HBase.
-   * @param result A non-null query result to store data into.
-   * @param span An optional tracer span.
-   * @throws IllegalArgumentException if the result was null.
-   * @throws IllegalStateException if current result was set.
-   */
+  @Override
   public synchronized void fetchNext(final Tsdb1xQueryResult result, 
                                      final Span span) {
     if (result == null) {
@@ -354,6 +348,11 @@ public class Tsdb1xMultiGet {
       current_result = null;
       node.onNext(result);
     }
+  }
+  
+  @Override
+  public void close() {
+    // no-op
   }
   
   /**
