@@ -61,7 +61,7 @@ public interface Registry {
    * @return An instantiated plugin if found, null if not.
    * @throws IllegalArgumentException if the clazz was null.
    */
-  public TSDBPlugin getDefaultPlugin(final Class<?> clazz);
+  public <T> T getDefaultPlugin(final Class<T> clazz);
   
   /**
    * Retrieves the plugin with the given class type and ID.
@@ -70,7 +70,7 @@ public interface Registry {
    * @return An instantiated plugin if found, null if not.
    * @throws IllegalArgumentException if the clazz was null.
    */
-  public TSDBPlugin getPlugin(final Class<?> clazz, final String id);
+  public <T> T getPlugin(final Class<T> clazz, final String id);
 
   /**
    * Registers a shared object in the concurrent map if the object was not

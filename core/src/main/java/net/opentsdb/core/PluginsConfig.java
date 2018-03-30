@@ -212,8 +212,8 @@ public class PluginsConfig extends Validatable {
    * @return An instantiated plugin if found, null if not.
    * @throws IllegalArgumentException if the clazz was null.
    */
-  public TSDBPlugin getDefaultPlugin(final Class<?> clazz) {
-    return getPlugin(clazz, null);
+  public <T> T getDefaultPlugin(final Class<T> clazz) {
+    return (T) getPlugin(clazz, null);
   }
   
   /**
@@ -223,7 +223,8 @@ public class PluginsConfig extends Validatable {
    * @return An instantiated plugin if found, null if not.
    * @throws IllegalArgumentException if the clazz was null.
    */
-  public TSDBPlugin getPlugin(final Class<?> clazz, final String id) {
+  @SuppressWarnings("unchecked")
+  public <T> T getPlugin(final Class<T> clazz, final String id) {
     if (clazz == null) {
       throw new IllegalArgumentException("Class cannot be null.");
     }
@@ -231,7 +232,7 @@ public class PluginsConfig extends Validatable {
     if (class_map == null) {
       return null;
     }
-    return class_map.get(id);
+    return (T) class_map.get(id);
   }
   
   /**

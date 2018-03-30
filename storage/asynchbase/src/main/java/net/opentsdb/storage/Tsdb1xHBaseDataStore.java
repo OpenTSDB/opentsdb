@@ -265,17 +265,14 @@ public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
   }
 
   String dynamicString(final String key) {
-    // TODO - implement
-    return null;
+    return tsdb.getConfig().getString(key);
   }
   
   int dynamicInt(final String key) {
-    // TODO - implement
-    return 0;
+    return tsdb.getConfig().getInt(key);
   }
   
   boolean dynamicBoolean(final String key) {
-    // TODO - implement
-    return false;
+    return tsdb.getConfig().getBoolean(key);
   }
 }
