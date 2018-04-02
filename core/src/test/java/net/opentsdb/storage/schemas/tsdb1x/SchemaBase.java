@@ -35,8 +35,6 @@ import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.MockTrace;
-import net.opentsdb.storage.TimeSeriesDataStore;
-import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 import net.opentsdb.uid.LRUUniqueId;
 import net.opentsdb.uid.MockUIDStore;
 import net.opentsdb.uid.UniqueId;
@@ -103,8 +101,8 @@ public class SchemaBase {
   public static TSDB tsdb;
   public static Configuration config;
   public static Registry registry;
-  public static TimeSeriesDataStoreFactory store_factory;
-  public static TimeSeriesDataStore store;
+  public static Tsdb1xDataStoreFactory store_factory;
+  public static Tsdb1xDataStore store;
   public static UniqueIdStore uid_store;
   public static UniqueIdFactory uid_factory;
   public static UniqueId metrics;
@@ -120,8 +118,8 @@ public class SchemaBase {
     tsdb = mock(TSDB.class);
     config = UnitTestConfiguration.getConfiguration();
     registry = mock(Registry.class);
-    store_factory = mock(TimeSeriesDataStoreFactory.class);
-    store = mock(TimeSeriesDataStore.class);
+    store_factory = mock(Tsdb1xDataStoreFactory.class);
+    store = mock(Tsdb1xDataStore.class);
     uid_store = spy(new MockUIDStore(Const.ASCII_CHARSET));
     uid_factory = mock(UniqueIdFactory.class);
     
@@ -129,9 +127,9 @@ public class SchemaBase {
     when(tsdb.getRegistry()).thenReturn(registry);
     
     // return the default
-    when(registry.getPlugin(TimeSeriesDataStoreFactory.class, null))
+    when(registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
       .thenReturn(store_factory);
-    when(store_factory.newInstance(any(TSDB.class), anyString()))
+    when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
       .thenReturn(store);    
     when(registry.getSharedObject("default_uidstore"))
       .thenReturn(uid_store);

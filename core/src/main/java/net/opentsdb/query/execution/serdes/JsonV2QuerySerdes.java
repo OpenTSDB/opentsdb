@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,20 +17,29 @@ package net.opentsdb.query.execution.serdes;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp.RelationalOperator;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.utils.Exceptions;
 
 /**
  * Simple serializer that outputs the time series in the same format as
@@ -38,6 +47,8 @@ import net.opentsdb.query.QueryResult;
  * <b>NOTE:</b> The serializer will write the individual query results to 
  * a JSON array but will not start or close the array (so additional data
  * can be added like the summary, query, etc).
+ * <b>NOTE:</b> The module will execute a JOIN() on a deferred if it has
+ * to resolve byte encoded time series IDs into string IDs.
  * 
  * @since 3.0
  */
@@ -81,89 +92,147 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
     }
     final net.opentsdb.query.pojo.TimeSeriesQuery query = 
         (net.opentsdb.query.pojo.TimeSeriesQuery) context.query();
-    
-    try {
-      for (final TimeSeries series : result.timeSeries()) {
-        final Optional<Iterator<TimeSeriesValue<?>>> optional = 
-            series.iterator(NumericType.TYPE);
-        if (!optional.isPresent()) {
-          continue;
-        }
-        final Iterator<TimeSeriesValue<?>> iterator = optional.get();
-        if (!iterator.hasNext()) {
-          continue;
-        }
-        
-        TimeSeriesValue<NumericType> value = 
-            (TimeSeriesValue<NumericType>) iterator.next();
-        while (value != null && value.timestamp().compare(RelationalOperator.LT, 
-            query.getTime().startTime())) {
-          if (iterator.hasNext()) {
-            value = (TimeSeriesValue<NumericType>) iterator.next();
-          } else {
-            value = null;
+    final List<TimeSeries> series;
+    final List<Deferred<TimeSeriesStringId>> deferreds;
+    if (result.idType() == Const.TS_BYTE_ID) {
+      series = Lists.newArrayList(result.timeSeries());
+      deferreds = Lists.newArrayListWithCapacity(series.size());
+      for (final TimeSeries ts : result.timeSeries()) {
+        deferreds.add(((TimeSeriesByteId) ts.id()).decode(false, 
+            null /* TODO - implement tracing */));
+      }
+    } else {
+      series = null;
+      deferreds = null;
+    }
+
+    /**
+     * Performs the serialization after determining if the serializations
+     * need to resolve series IDs.
+     */
+    class ResolveCB implements Callback<Object, ArrayList<TimeSeriesStringId>> {
+
+      @Override
+      public Object call(final ArrayList<TimeSeriesStringId> ids) 
+            throws Exception {
+        try {
+          int idx = 0;
+          for (final TimeSeries series : 
+            series != null ? series : result.timeSeries()) {
+            final Optional<Iterator<TimeSeriesValue<?>>> optional = 
+                series.iterator(NumericType.TYPE);
+            if (!optional.isPresent()) {
+              continue;
+            }
+            final Iterator<TimeSeriesValue<?>> iterator = optional.get();
+            if (!iterator.hasNext()) {
+              continue;
+            }
+            
+            TimeSeriesValue<NumericType> value = 
+                (TimeSeriesValue<NumericType>) iterator.next();
+            while (value != null && value.timestamp().compare(
+                RelationalOperator.LT, query.getTime().startTime())) {
+              if (iterator.hasNext()) {
+                value = (TimeSeriesValue<NumericType>) iterator.next();
+              } else {
+                value = null;
+              }
+            }
+            if (value == null) {
+              continue;
+            }
+            if (value.timestamp().compare(RelationalOperator.LT, 
+                      query.getTime().startTime()) ||
+                value.timestamp().compare(RelationalOperator.GT, 
+                      query.getTime().endTime())) {
+              continue;
+            }
+            
+            json.writeStartObject();
+            
+            final TimeSeriesStringId id;
+            if (ids != null) {
+              id = (ids.get(idx++));
+            } else {
+              id = (TimeSeriesStringId) series.id();
+            }
+            
+            json.writeStringField("metric", id.metric());
+            json.writeObjectFieldStart("tags");
+            for (final Entry<String, String> entry : id.tags().entrySet()) {
+              json.writeStringField(entry.getKey(), entry.getValue());
+            }
+            json.writeArrayFieldStart("aggregateTags");
+            for (final String tag : id.aggregatedTags()) {
+              json.writeString(tag);
+            }
+            json.writeEndArray();
+            json.writeEndObject();
+            json.writeObjectFieldStart("dps");
+            
+            long ts = 0;
+            while(value != null) {
+              if (value.timestamp().compare(RelationalOperator.GT, 
+                  query.getTime().endTime())) {
+                break;
+              }
+              ts = (opts != null && opts.msResolution()) 
+                  ? value.timestamp().msEpoch() 
+                  : value.timestamp().msEpoch() / 1000;
+              
+              if (value.value().isInteger()) {
+                json.writeNumberField(Long.toString(ts), 
+                    value.value().longValue());
+              } else {
+                json.writeNumberField(Long.toString(ts), 
+                    value.value().doubleValue());
+              }
+              if (iterator.hasNext()) {
+                value = (TimeSeriesValue<NumericType>) iterator.next();
+              } else {
+                value = null;
+              }
+            }
+            
+            json.writeEndObject();
+            json.writeEndObject();
+            json.flush();
           }
-        }
-        if (value == null) {
-          continue;
-        }
-        if (value.timestamp().compare(RelationalOperator.LT, query.getTime().startTime()) ||
-            value.timestamp().compare(RelationalOperator.GT, query.getTime().endTime())) {
-          continue;
-        }
-        
-        json.writeStartObject();
-        
-        if (!series.id().type().equals(Const.TS_STRING_ID)) {
-          throw new RuntimeException("Cannot serialize IDs of the type: " 
-              + series.id().type());
-        }
-        final TimeSeriesStringId id = (TimeSeriesStringId) series.id();
-        
-        json.writeStringField("metric", id.metric());
-        json.writeObjectFieldStart("tags");
-        for (final Entry<String, String> entry : id.tags().entrySet()) {
-          json.writeStringField(entry.getKey(), entry.getValue());
-        }
-        json.writeArrayFieldStart("aggregateTags");
-        for (final String tag : id.aggregatedTags()) {
-          json.writeString(tag);
-        }
-        json.writeEndArray();
-        json.writeEndObject();
-        json.writeObjectFieldStart("dps");
-        
-        long ts = 0;
-        while(value != null) {
-          if (value.timestamp().compare(RelationalOperator.GT, query.getTime().endTime())) {
-            break;
-          }
-          ts = (opts != null && opts.msResolution()) 
-              ? value.timestamp().msEpoch() 
-              : value.timestamp().msEpoch() / 1000;
           
-          if (value.value().isInteger()) {
-            json.writeNumberField(Long.toString(ts), 
-                value.value().longValue());
-          } else {
-            json.writeNumberField(Long.toString(ts), 
-                value.value().doubleValue());
-          }
-          if (iterator.hasNext()) {
-            value = (TimeSeriesValue<NumericType>) iterator.next();
-          } else {
-            value = null;
-          }
+          json.flush();
+        } catch (IOException e) {
+          throw new QueryExecutionException("Unexpected exception "
+              + "serializing: " + result, 500, e);
         }
-        
-        json.writeEndObject();
-        json.writeEndObject();
-        json.flush();
+        return null;
       }
       
-      json.flush();
-    } catch (IOException e) {
-      throw new RuntimeException("Unexpected exception serializing: " + result);
+    }
+    
+    class ErrorCB implements Callback<Object, Exception> {
+      @Override
+      public Object call(final Exception ex) throws Exception {
+        if (ex instanceof DeferredGroupException) {
+          throw (Exception) Exceptions.getCause((DeferredGroupException) ex);
+        }
+        throw ex;
+      }
+    }
+    
+    try {
+      if (deferreds != null) {
+        Deferred.group(deferreds)
+          .addCallback(new ResolveCB())
+          .addErrback(new ErrorCB())
+          .join();
+      } else {
+        new ResolveCB().call(null);
+      }
+    } catch (InterruptedException e) {
+      throw new QueryExecutionException("Failed to resolve IDs", 500, e);
+    } catch (Exception e) {
+      throw new QueryExecutionException("Failed to resolve IDs", 500, e);
     }
   }
 

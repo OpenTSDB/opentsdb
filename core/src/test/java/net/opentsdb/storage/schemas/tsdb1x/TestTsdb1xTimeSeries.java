@@ -17,8 +17,6 @@ package net.opentsdb.storage.schemas.tsdb1x;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
@@ -301,15 +299,6 @@ public class TestTsdb1xTimeSeries extends SchemaBase {
       series.addSequence(seq, false, false, null);
       fail("Expected NullPointerException");
     } catch (NullPointerException e) { }
-  }
-  
-  @Test
-  public void close() throws Exception {
-    Tsdb1xTimeSeries series = new Tsdb1xTimeSeries(TSUID, schema());
-    assertNotNull(series.data);
-    
-    series.close();
-    assertNull(series.data);
   }
   
   // TODO - test other data types like annotations when ready

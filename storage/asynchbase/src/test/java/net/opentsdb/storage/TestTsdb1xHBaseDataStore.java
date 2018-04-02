@@ -32,27 +32,32 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStoreFactory;
 import net.opentsdb.uid.UniqueIdStore;
 
 public class TestTsdb1xHBaseDataStore {
 
+  private Tsdb1xHBaseFactory factory;
   private DefaultTSDB tsdb;
   private Configuration config;
   private DefaultRegistry registry;
   
   @Before
   public void before() throws Exception {
+    factory = mock(Tsdb1xHBaseFactory.class);
     tsdb = mock(DefaultTSDB.class);
     config = UnitTestConfiguration.getConfiguration();
     registry = mock(DefaultRegistry.class);
     when(tsdb.getConfig()).thenReturn(config);
     when(tsdb.getRegistry()).thenReturn(registry);
+    when(factory.tsdb()).thenReturn(tsdb);
   }
   
   @Test
   public void ctorDefault() throws Exception {
     final Tsdb1xHBaseDataStore store = 
-        new Tsdb1xHBaseDataStore(tsdb, "UT");
+        new Tsdb1xHBaseDataStore(factory, "UT", mock(Schema.class));
     assertArrayEquals("tsdb".getBytes(Const.ASCII_CHARSET), store.dataTable());
     assertArrayEquals("tsdb-uid".getBytes(Const.ASCII_CHARSET), store.uidTable());
     assertSame(tsdb, store.tsdb());

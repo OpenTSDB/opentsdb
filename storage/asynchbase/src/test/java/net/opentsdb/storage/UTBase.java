@@ -41,6 +41,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.storage.schemas.tsdb1x.SchemaBase;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStoreFactory;
 import net.opentsdb.uid.LRUUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdFactory;
@@ -123,7 +124,7 @@ public class UTBase {
   
   protected static TSDB tsdb;
   protected static Registry registry;
-  protected static TimeSeriesDataStoreFactory store_factory;
+  protected static Tsdb1xDataStoreFactory store_factory;
   protected static Map<String, String> config_map;
   protected static Configuration config;
   protected static HBaseClient client;
@@ -140,7 +141,7 @@ public class UTBase {
   public static void beforeClass() throws Exception {
     tsdb = mock(TSDB.class);
     registry = mock(Registry.class);
-    store_factory = mock(TimeSeriesDataStoreFactory.class);
+    store_factory = mock(Tsdb1xDataStoreFactory.class);
     client = mock(HBaseClient.class);
     config_map = Maps.newHashMap();
     config = UnitTestConfiguration.getConfiguration(config_map);
@@ -149,6 +150,10 @@ public class UTBase {
     
     when(tsdb.getConfig()).thenReturn(config);
     when(tsdb.getRegistry()).thenReturn(registry);
+    when(registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+      .thenReturn(store_factory);
+    when(store_factory.newInstance(any(TSDB.class), any(), any(Schema.class)))
+      .thenReturn(data_store);    
     when(data_store.tsdb()).thenReturn(tsdb);
     when(data_store.getConfigKey(anyString()))
       .thenAnswer(new Answer<String>() {
@@ -161,16 +166,12 @@ public class UTBase {
     when(data_store.uidTable()).thenReturn(UID_TABLE);
     when(data_store.client()).thenReturn(client);
     when(registry.getSharedObject(any())).thenReturn(data_store);
-    when(registry.getPlugin(TimeSeriesDataStoreFactory.class, null))
-      .thenReturn(store_factory);
-    when(store_factory.newInstance(tsdb, null)).thenReturn(data_store);    
+   
     when(registry.getPlugin(UniqueIdFactory.class, "LRU"))
       .thenReturn(uid_factory);
-    
     uid_store = new Tsdb1xUniqueIdStore(data_store);
     when(registry.getSharedObject("default_uidstore"))
       .thenReturn(uid_store);
-    
     when(uid_factory.newInstance(eq(tsdb), anyString(), 
         any(UniqueIdType.class), eq(uid_store))).thenAnswer(new Answer<UniqueId>() {
           @Override

@@ -36,7 +36,7 @@ import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.StorageSchema;
+import net.opentsdb.storage.TimeSeriesDataStore;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes.ByteMap;
 
@@ -57,11 +57,11 @@ public class TestBaseTimeSeriesByteId {
     SET.add(new byte[] { 's', '1' });
     SET.add(new byte[] { 's', '2' });
   }
-  private StorageSchema schema;
+  private TimeSeriesDataStore data_store;
   
   @Before
   public void before() throws Exception {
-    schema = mock(StorageSchema.class);
+    data_store = mock(TimeSeriesDataStore.class);
   }
   
   @Test
@@ -72,7 +72,7 @@ public class TestBaseTimeSeriesByteId {
     } catch (IllegalArgumentException e) { }
     
     BaseTimeSeriesByteId.Builder builder = 
-        BaseTimeSeriesByteId.newBuilder(schema);
+        BaseTimeSeriesByteId.newBuilder(data_store);
     
     assertFalse(builder.encoded);
     builder.setEncoded(true);
@@ -140,7 +140,7 @@ public class TestBaseTimeSeriesByteId {
 
   @Test
   public void build() throws Exception {
-    BaseTimeSeriesByteId id = BaseTimeSeriesByteId.newBuilder(schema)
+    BaseTimeSeriesByteId id = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -158,7 +158,7 @@ public class TestBaseTimeSeriesByteId {
     assertEquals(SET, id.uniqueIds());
     
     try {
-      id = BaseTimeSeriesByteId.newBuilder(schema)
+      id = BaseTimeSeriesByteId.newBuilder(data_store)
           .setAlias(ARRAY)
           .setNamespace(ARRAY)
           //.setMetric(ARRAY) no metric
@@ -171,7 +171,7 @@ public class TestBaseTimeSeriesByteId {
     } catch (IllegalArgumentException e) { }
     
     try {
-      id = BaseTimeSeriesByteId.newBuilder(schema)
+      id = BaseTimeSeriesByteId.newBuilder(data_store)
           .setAlias(ARRAY)
           .setNamespace(ARRAY)
           .setMetric(ARRAY)
@@ -184,7 +184,7 @@ public class TestBaseTimeSeriesByteId {
     } catch (IllegalArgumentException e) { }
 
     try {
-      id = BaseTimeSeriesByteId.newBuilder(schema)
+      id = BaseTimeSeriesByteId.newBuilder(data_store)
           .setAlias(ARRAY)
           .setNamespace(ARRAY)
           .setMetric(ARRAY)
@@ -197,7 +197,7 @@ public class TestBaseTimeSeriesByteId {
     } catch (IllegalArgumentException e) { }
     
     try {
-      id = BaseTimeSeriesByteId.newBuilder(schema)
+      id = BaseTimeSeriesByteId.newBuilder(data_store)
           .setAlias(ARRAY)
           .setNamespace(ARRAY)
           .setMetric(ARRAY)
@@ -212,7 +212,7 @@ public class TestBaseTimeSeriesByteId {
 
   @Test
   public void hashCodeEqualsCompareTo() throws Exception {
-    final BaseTimeSeriesByteId id1 = BaseTimeSeriesByteId.newBuilder(schema)
+    final BaseTimeSeriesByteId id1 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -221,7 +221,7 @@ public class TestBaseTimeSeriesByteId {
         .setDisjointTags(LIST)
         .setUniqueId(SET)
         .build();
-    BaseTimeSeriesByteId id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    BaseTimeSeriesByteId id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -236,7 +236,7 @@ public class TestBaseTimeSeriesByteId {
     
     final byte[] array2 = new byte[] { 'm', 'e', 'h' };
     
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(array2)  // <-- diff
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -249,7 +249,7 @@ public class TestBaseTimeSeriesByteId {
     assertNotEquals(id1, id2);
     assertEquals(-1, id1.compareTo(id2));
     
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         //.setAlias(ARRAY)  // <-- diff
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -262,7 +262,7 @@ public class TestBaseTimeSeriesByteId {
     assertNotEquals(id1, id2);
     assertEquals(1, id1.compareTo(id2));
     
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(array2)  // <-- diff
         .setMetric(ARRAY)
@@ -275,7 +275,7 @@ public class TestBaseTimeSeriesByteId {
     assertNotEquals(id1, id2);
     assertEquals(-1, id1.compareTo(id2));
     
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         //.setNamespace(ARRAY)  // <-- diff
         .setMetric(ARRAY)
@@ -288,7 +288,7 @@ public class TestBaseTimeSeriesByteId {
     assertNotEquals(id1, id2);
     assertEquals(1, id1.compareTo(id2));
     
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(array2)  // <-- diff
@@ -304,7 +304,7 @@ public class TestBaseTimeSeriesByteId {
     ByteMap<byte[]> tags2 = new ByteMap<byte[]>();
     tags2.put(new byte[] { 'k', '2' }, new byte[] { 'v', '2' });
     tags2.put(new byte[] { 'k', '1' }, new byte[] { 'v', '1' });
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -318,7 +318,7 @@ public class TestBaseTimeSeriesByteId {
     assertEquals(0, id1.compareTo(id2));
     
     tags2.put(new byte[] { 'k', '3' }, new byte[] { 'v', '3' });
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -331,7 +331,7 @@ public class TestBaseTimeSeriesByteId {
     assertNotEquals(id1, id2);
     assertEquals(1, id1.compareTo(id2));
     
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -347,7 +347,7 @@ public class TestBaseTimeSeriesByteId {
     List<byte[]> list2 = Lists.newArrayList(
         new byte[] { 'l', '2' },
         new byte[] { 'l', '1' });
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -361,7 +361,7 @@ public class TestBaseTimeSeriesByteId {
     assertEquals(0, id1.compareTo(id2));
     
     list2.add(new byte[] { 'l', '3' });
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -374,7 +374,7 @@ public class TestBaseTimeSeriesByteId {
     assertNotEquals(id1, id2);
     assertEquals(1, id1.compareTo(id2));
     
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -388,7 +388,7 @@ public class TestBaseTimeSeriesByteId {
     assertEquals(-1, id1.compareTo(id2));
     
     list2.remove(2);
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -402,7 +402,7 @@ public class TestBaseTimeSeriesByteId {
     assertEquals(0, id1.compareTo(id2));
     
     list2.add(new byte[] { 'l', '3' });
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -415,7 +415,7 @@ public class TestBaseTimeSeriesByteId {
     assertNotEquals(id1, id2);
     assertEquals(1, id1.compareTo(id2));
     
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -431,7 +431,7 @@ public class TestBaseTimeSeriesByteId {
     ByteSet set2 = new ByteSet();
     set2.add(new byte[] { 's', '2' });
     set2.add(new byte[] { 's', '1' });
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -445,7 +445,7 @@ public class TestBaseTimeSeriesByteId {
     assertEquals(0, id1.compareTo(id2));
     
     set2.add(new byte[] { 's', '3' });
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -458,7 +458,7 @@ public class TestBaseTimeSeriesByteId {
     assertNotEquals(id1, id2);
     assertEquals(1, id1.compareTo(id2));
     
-    id2 = BaseTimeSeriesByteId.newBuilder(schema)
+    id2 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(ARRAY)
@@ -474,9 +474,9 @@ public class TestBaseTimeSeriesByteId {
 
   @Test
   public void decode() throws Exception {
-    when(schema.resolveByteId(any(TimeSeriesByteId.class), any(Span.class)))
+    when(data_store.resolveByteId(any(TimeSeriesByteId.class), any(Span.class)))
       .thenReturn(Deferred.fromResult(null));
-    final BaseTimeSeriesByteId id1 = BaseTimeSeriesByteId.newBuilder(schema)
+    final BaseTimeSeriesByteId id1 = BaseTimeSeriesByteId.newBuilder(data_store)
         .setAlias(ARRAY)
         .setNamespace(ARRAY)
         .setMetric(ARRAY)

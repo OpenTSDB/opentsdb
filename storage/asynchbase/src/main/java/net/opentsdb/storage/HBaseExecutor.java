@@ -20,7 +20,14 @@ import net.opentsdb.stats.Span;
  * An executor to fetch data from HBase. E.g. via scan or multi-gets.
  */
 public interface HBaseExecutor {
-
+  
+  /** The state of the scanners. */
+  public static enum State {
+    CONTINUE,
+    COMPLETE,
+    EXCEPTION
+  }
+  
   /**
    * Attempts to fetch the next set of data from HBase.
    * @param result A non-null query result to store data into.
@@ -34,4 +41,7 @@ public interface HBaseExecutor {
    * Releases resources held by the executor.
    */
   public void close();
+  
+  /** @return The state of the executor. */
+  public State state();
 }

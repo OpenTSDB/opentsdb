@@ -25,7 +25,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.storage.StorageSchema;
+import net.opentsdb.storage.TimeSeriesDataStore;
 
 public class TestMergedTimeSeriesId {
   private static final byte[] BYTES_1 = "Tyrell".getBytes();
@@ -37,11 +37,11 @@ public class TestMergedTimeSeriesId {
   private static final byte[] DRAGON_2 = "Rhaegal".getBytes();
   private static final byte[] METRIC = "ice.dragon".getBytes();
   
-  private StorageSchema schema;
+  private TimeSeriesDataStore data_store;
   
   @Before
   public void before() throws Exception {
-    schema = mock(StorageSchema.class);
+    data_store = mock(TimeSeriesDataStore.class);
   }
   
   @Test
@@ -120,11 +120,11 @@ public class TestMergedTimeSeriesId {
     assertEquals(2, builder.ids.size());
     assertEquals(Const.TS_STRING_ID, builder.type);
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .setNamespace(BYTES_1)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .setNamespace(BYTES_2)
         .setMetric(METRIC)
         .build();
@@ -134,7 +134,7 @@ public class TestMergedTimeSeriesId {
       assertEquals(2, builder.ids.size());
       assertEquals(Const.TS_BYTE_ID, builder.type);
       
-      d = BaseTimeSeriesByteId.newBuilder(mock(StorageSchema.class))
+      d = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataStore.class))
           .setNamespace(BYTES_2)
           .setMetric(METRIC)
           .build();
@@ -223,11 +223,11 @@ public class TestMergedTimeSeriesId {
         .build();
     assertEquals("Dorne", merged.namespace());
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .setNamespace(BYTES_1)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .setNamespace(BYTES_2)
         .setMetric(METRIC)
         .build();
@@ -266,10 +266,10 @@ public class TestMergedTimeSeriesId {
         .build();
     assertEquals("Stark", merged.metric());
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .setMetric(BYTES_1)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .setMetric(BYTES_2)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
@@ -310,12 +310,12 @@ public class TestMergedTimeSeriesId {
     assertTrue(merged.aggregatedTags().isEmpty());
     assertTrue(merged.disjointTags().isEmpty());
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
@@ -356,12 +356,12 @@ public class TestMergedTimeSeriesId {
         merged.aggregatedTags().get(0));
     assertTrue(merged.disjointTags().isEmpty());
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_2)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
@@ -401,12 +401,12 @@ public class TestMergedTimeSeriesId {
         merged.aggregatedTags().get(1));
     assertTrue(merged.disjointTags().isEmpty());
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addTags(DRAGON, DRAGON_2)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_2)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
@@ -446,12 +446,12 @@ public class TestMergedTimeSeriesId {
         merged.aggregatedTags().get(0));
     assertTrue(merged.disjointTags().isEmpty());
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addAggregatedTag(FAMILY)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_2)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
@@ -491,12 +491,12 @@ public class TestMergedTimeSeriesId {
         merged.aggregatedTags().get(0));
     assertTrue(merged.disjointTags().isEmpty());
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addAggregatedTag(FAMILY)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
@@ -536,12 +536,12 @@ public class TestMergedTimeSeriesId {
     assertEquals("host", 
         merged.disjointTags().get(0));
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addDisjointTag(FAMILY)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
@@ -581,12 +581,12 @@ public class TestMergedTimeSeriesId {
     assertEquals("host", 
         merged.disjointTags().get(0));
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addDisjointTag(FAMILY)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
@@ -628,12 +628,12 @@ public class TestMergedTimeSeriesId {
     assertEquals("owner", 
         merged.disjointTags().get(1));
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addTags(BYTES_2, BYTES_3)
         .setMetric(METRIC)
@@ -678,12 +678,12 @@ public class TestMergedTimeSeriesId {
     assertEquals("owner", 
         merged.disjointTags().get(3));
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(BYTES_3, DRAGON_2)
         .addTags(BYTES_2, BYTES_3)
         .setMetric(METRIC)
@@ -725,12 +725,12 @@ public class TestMergedTimeSeriesId {
         merged.aggregatedTags().get(0));
     assertTrue(merged.disjointTags().isEmpty());
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addAggregatedTag(DRAGON)
         .setMetric(METRIC)
@@ -770,12 +770,12 @@ public class TestMergedTimeSeriesId {
     assertEquals("colo", 
         merged.disjointTags().get(0));
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addDisjointTag(DRAGON)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
@@ -823,17 +823,17 @@ public class TestMergedTimeSeriesId {
     assertEquals("dept", 
         merged.disjointTags().get(1));
     
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addDisjointTag(DRAGON)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId e = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId e = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addTags(DRAGON, DRAGON_1)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId f = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId f = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
         .addTags(BYTES_3, DRAGON_2)
         .setMetric(METRIC)
@@ -875,12 +875,12 @@ public class TestMergedTimeSeriesId {
         merged.aggregatedTags().get(1));
     assertTrue(merged.disjointTags().isEmpty());
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addAggregatedTag(FAMILY)
         .addAggregatedTag(DRAGON)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addAggregatedTag(FAMILY)
         .addAggregatedTag(DRAGON)
         .setMetric(METRIC)
@@ -921,12 +921,12 @@ public class TestMergedTimeSeriesId {
     assertEquals("owner", 
         merged.disjointTags().get(1));
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addAggregatedTag(FAMILY)
         .addAggregatedTag(DRAGON)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addAggregatedTag(FAMILY)
         .addAggregatedTag(BYTES_3)
         .setMetric(METRIC)
@@ -971,12 +971,12 @@ public class TestMergedTimeSeriesId {
     assertEquals("owner", 
         merged.disjointTags().get(3));
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addAggregatedTag(FAMILY)
         .addAggregatedTag(DRAGON)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addAggregatedTag(BYTES_1)
         .addAggregatedTag(BYTES_3)
         .setMetric(METRIC)
@@ -1020,12 +1020,12 @@ public class TestMergedTimeSeriesId {
     assertEquals("owner", 
         merged.disjointTags().get(2));
     
-    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId c = BaseTimeSeriesByteId.newBuilder(data_store)
         .addDisjointTag(FAMILY)
         .addDisjointTag(DRAGON)
         .setMetric(METRIC)
         .build();
-    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(schema)
+    TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addDisjointTag(FAMILY)
         .addDisjointTag(BYTES_3)
         .setMetric(METRIC)

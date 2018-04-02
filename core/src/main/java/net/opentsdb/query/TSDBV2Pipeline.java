@@ -19,7 +19,9 @@ import java.util.Collection;
 
 import com.google.common.base.Strings;
 
+import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
@@ -30,6 +32,7 @@ import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.processor.groupby.GroupByFactory;
 import net.opentsdb.query.processor.rate.RateFactory;
 import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
@@ -80,9 +83,19 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
           .build();
       
       // TODO - get a proper source. For now just the default.
-      QueryNode node = ((QueryNodeFactory) tsdb.getRegistry()
-          .getDefaultStore())
-          .newNode(this, config);
+      final TimeSeriesDataStoreFactory factory = tsdb.getRegistry()
+          .getDefaultPlugin(TimeSeriesDataStoreFactory.class);
+      if (factory == null) {
+        throw new ConfigurationException("No default "
+            + "TimeSeriesDataStoreFactory loaded");
+      }
+      final TimeSeriesDataStore store = factory.newInstance(tsdb, null /* TODO - implement span */);
+      if (store == null) {
+        throw new QueryExecutionException("Unable to get a data store "
+            + "instance from factory: " + factory.id(), 0);
+      }
+
+      QueryNode node = store.newNode(this, config);
       addVertex(node);
 
       Filter filter = Strings.isNullOrEmpty(metric.getFilter()) ? null : q.getFilter(metric.getFilter());

@@ -26,11 +26,15 @@ import java.util.Map.Entry;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.stumbleupon.async.Deferred;
+
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.BaseTimeSeriesByteId;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
@@ -115,4 +119,15 @@ public class TestMockDataStore {
     } catch (IllegalArgumentException e) { }
   }
 
+  @Test
+  public void resolveByteId() throws Exception {
+    final Deferred<TimeSeriesStringId> deferred = 
+        mds.resolveByteId(BaseTimeSeriesByteId.newBuilder(mds)
+            .setMetric(new byte[] { 0, 0, 1 })
+            .build(), null);
+    try {
+      deferred.join();
+      fail("Expected UnsupportedOperationException");
+    } catch (UnsupportedOperationException e) { }
+  }
 }

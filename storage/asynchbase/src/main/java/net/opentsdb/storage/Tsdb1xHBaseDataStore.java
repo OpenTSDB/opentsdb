@@ -38,6 +38,7 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
+import net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStore;
 import net.opentsdb.uid.UniqueIdStore;
 
 /**
@@ -45,7 +46,7 @@ import net.opentsdb.uid.UniqueIdStore;
  * 
  * @since 3.0
  */
-public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
+public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
 
   /** Config keys */
   public static final String CONFIG_PREFIX = "tsd.storage.";
@@ -72,7 +73,7 @@ public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
   
   public static final byte[] DATA_FAMILY = 
       "t".getBytes(Const.ASCII_CHARSET);
-      
+  
   private final TSDB tsdb;
   private final String id;
   
@@ -95,9 +96,12 @@ public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
   /** Name of the table where meta data is stored. */
   private final byte[] meta_table;
   
-  public Tsdb1xHBaseDataStore(final TSDB tsdb, final String id) {
-    this.tsdb = tsdb;
+  public Tsdb1xHBaseDataStore(final Tsdb1xHBaseFactory factory,
+                              final String id,
+                              final Schema schema) {
+    this.tsdb = factory.tsdb();
     this.id = id;
+    this.schema = schema;
     
     // TODO - flatten the config and pass it down to the client lib.
     final org.hbase.async.Config async_config = new org.hbase.async.Config();
@@ -150,6 +154,36 @@ public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
             "Whether or not to simply drop tag values from query filters "
             + "that have not been assigned UIDs and try to fetch data anyway.");
       }
+      if (!config.hasProperty(SKIP_NSUI_KEY)) {
+        config.register(SKIP_NSUI_KEY, "false", true,
+            "Whether or not to ignore data from storage that did not "
+            + "resolve from a UID to a string. If not ignored, "
+            + "exceptions are thrown when the data is read.");
+      }
+      if (!config.hasProperty(ALLOW_DELETE_KEY)) {
+        config.register(ALLOW_DELETE_KEY, "false", true,
+            "TODO");
+      }
+      if (!config.hasProperty(DELETE_KEY)) {
+        config.register(DELETE_KEY, "false", true,
+            "TODO");
+      }
+      if (!config.hasProperty(PRE_AGG_KEY)) {
+        config.register(PRE_AGG_KEY, "false", true,
+            "TODO");
+      }
+      if (!config.hasProperty(FUZZY_FILTER_KEY)) {
+        config.register(FUZZY_FILTER_KEY, "true", true,
+            "TODO");
+      }
+      if (!config.hasProperty(ROWS_PER_SCAN_KEY)) {
+        config.register(ROWS_PER_SCAN_KEY, "128", true,
+            "TODO");
+      }
+      if (!config.hasProperty(MAX_MG_CARDINALITY_KEY)) {
+        config.register(MAX_MG_CARDINALITY_KEY, "128", true,
+            "TODO");
+      }
     }
     
     // TODO - shared client!
@@ -163,21 +197,8 @@ public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
   }
   
   @Override
-  public Deferred<Object> shutdown() {
-    if (client != null) {
-      return client.shutdown();
-    }
-    return Deferred.fromResult(null);
-  }
-
-  @Override
   public String id() {
     return "AsyncHBaseDataStore";
-  }
-
-  @Override
-  public String version() {
-    return "3.0.0";
   }
   
   @Override
@@ -219,6 +240,11 @@ public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
       TypeToken<?> type, QueryNode node, Map<String, TimeSeries> sources) {
     // TODO Auto-generated method stub
     return null;
+  }
+  
+  public Deferred<Object> shutdown() {
+    // TODO - implement
+    return Deferred.fromResult(null);
   }
   
   /**
@@ -275,4 +301,6 @@ public class Tsdb1xHBaseDataStore implements TimeSeriesDataStore {
   boolean dynamicBoolean(final String key) {
     return tsdb.getConfig().getBoolean(key);
   }
+
+  
 }

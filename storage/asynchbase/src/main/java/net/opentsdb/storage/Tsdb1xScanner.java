@@ -41,7 +41,7 @@ import net.opentsdb.data.TimeStamp.RelationalOperator;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.Tsdb1xScanners.State;
+import net.opentsdb.storage.HBaseExecutor.State;
 import net.opentsdb.storage.schemas.tsdb1x.TSUID;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.utils.Bytes;

@@ -69,6 +69,7 @@ import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.stats.Span;
+import net.opentsdb.storage.HBaseExecutor.State;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.UnitTestException;
@@ -453,6 +454,7 @@ public class TestTsdb1xQueryNode extends UTBase {
   public void onComplete() throws Exception {
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
+    node.initialize();
     
     node.onComplete(node, 1, 1);
     
@@ -461,20 +463,46 @@ public class TestTsdb1xQueryNode extends UTBase {
   }
   
   @Test
-  public void onNext() throws Exception {
+  public void onNextContinue() throws Exception {
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
+    node.initialize();
+    node.executor = mock(HBaseExecutor.class);
+    when(node.executor.state()).thenReturn(State.CONTINUE);
     
     node.onNext(result);
     
     verify(upstream_a, times(1)).onNext(result);
     verify(upstream_b, times(1)).onNext(result);
+    verify(upstream_a, never()).onComplete(any(QueryNode.class), 
+        anyLong(), anyLong());
+    verify(upstream_b, never()).onComplete(any(QueryNode.class), 
+        anyLong(), anyLong());
+  }
+  
+  @Test
+  public void onNextComplete() throws Exception {
+    Tsdb1xQueryNode node = new Tsdb1xQueryNode(
+        data_store, context, source_config);
+    node.initialize();
+    node.executor = mock(HBaseExecutor.class);
+    when(node.executor.state()).thenReturn(State.COMPLETE);
+    
+    node.onNext(result);
+    
+    verify(upstream_a, times(1)).onNext(result);
+    verify(upstream_b, times(1)).onNext(result);
+    verify(upstream_a, times(1)).onComplete(any(QueryNode.class), 
+        anyLong(), anyLong());
+    verify(upstream_b, times(1)).onComplete(any(QueryNode.class), 
+        anyLong(), anyLong());
   }
   
   @Test
   public void onError() throws Exception {
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
+    node.initialize();
     UnitTestException ex = new UnitTestException();
     
     node.onError(ex);
@@ -489,6 +517,7 @@ public class TestTsdb1xQueryNode extends UTBase {
         data_store, context, source_config);
     net.opentsdb.storage.Tsdb1xQueryNode.MetaErrorCB cb = 
         node.new MetaErrorCB(null);
+    node.initialize();
     UnitTestException ex = new UnitTestException();
     
     cb.call(ex);
@@ -524,6 +553,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.result()).thenReturn(MetaResult.DATA);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
+    node.initialize();
     
     node.new MetaCB(null).call(meta_result);
     
@@ -544,6 +574,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.result()).thenReturn(MetaResult.NO_DATA);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
+    node.initialize();
     
     node.new MetaCB(null).call(meta_result);
     
@@ -560,6 +591,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.exception()).thenReturn(new UnitTestException());
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
+    node.initialize();
     
     node.new MetaCB(null).call(meta_result);
     
@@ -626,6 +658,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
+    node.initialize();
     
     node.resolveMeta(meta_result, null);
     
@@ -658,6 +691,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
+    node.initialize();
     
     node.resolveMeta(meta_result, null);
     
@@ -685,6 +719,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
+    node.initialize();
     
     node.resolveMeta(meta_result, null);
     
@@ -723,6 +758,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
+    node.initialize();
     
     node.resolveMeta(meta_result, null);
     
@@ -753,6 +789,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
+    node.initialize();
     
     node.resolveMeta(meta_result, null);
     
@@ -791,6 +828,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
+    node.initialize();
     
     node.resolveMeta(meta_result, null);
     
@@ -821,6 +859,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
+    node.initialize();
     
     try {
       node.resolveMeta(meta_result, null);
@@ -857,6 +896,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     });
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
+    node.initialize();
     
     node.resolveMeta(meta_result, null);
     
@@ -895,6 +935,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     });
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
+    node.initialize();
     
     try {
       node.resolveMeta(meta_result, null);

@@ -12,30 +12,28 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.storage;
+package net.opentsdb.storage.schemas.tsdb1x;
 
-import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TSDBPlugin;
 
 /**
- * A factory used for instantiating data stores.
+ * The interface for a time series data store factory to spawn instances
+ * of a data store.
  * 
  * @since 3.0
  */
-public abstract class TimeSeriesDataStoreFactory extends BaseTSDBPlugin {
+public interface Tsdb1xDataStoreFactory extends TSDBPlugin {
 
   /**
-   * Returns a new instance of the data store created by this factory if
-   * successful. On instantiation the store may throw 
-   * {@link IllegalArgumentException}s if configuration was invalid.
-   * 
+   * Returns a new (or shared) instance of the data store. 
    * @param tsdb A non-null TSDB instance to pull the config from.
-   * @param id An optional ID for the instance. If null or empty then 
-   * it's the default instance.
-   * @return A data store instance.
-   * @throws IllegalArgumentException if a required configuration setting
-   * was missing.
+   * @param id An optional (may be null or empty) ID for the instance.
+   * @param schema A non-null schema to use for encoding and decoding
+   * data with the store.
+   * @return A non-null data store.
    */
-  public abstract TimeSeriesDataStore newInstance(final TSDB tsdb, 
-                                                  final String id);
+  public Tsdb1xDataStore newInstance(final TSDB tsdb, 
+                                     final String id, 
+                                     final Schema schema);
 }

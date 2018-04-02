@@ -50,9 +50,7 @@ import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
-import net.opentsdb.storage.StorageSchema;
 import net.opentsdb.storage.TimeSeriesDataStore;
-import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdFactory;
 import net.opentsdb.uid.UniqueIdStore;
@@ -69,7 +67,7 @@ import net.opentsdb.utils.Exceptions;
  * 
  * @since 3.0
  */
-public class Schema implements StorageSchema {
+public class Schema implements TimeSeriesDataStore {
 
   public static final byte APPENDS_PREFIX = 5;
   
@@ -91,7 +89,7 @@ public class Schema implements StorageSchema {
   
   private final TSDB tsdb;
   private final String id;
-  private final TimeSeriesDataStore data_store;
+  private final Tsdb1xDataStore data_store;
   private final UniqueIdStore uid_store;
   
   private final UniqueId metrics;
@@ -114,13 +112,12 @@ public class Schema implements StorageSchema {
     String key = configKey("data.store");
     final String store_name = tsdb.getConfig().getString(key);
     
-    final TimeSeriesDataStoreFactory store_factory = 
-        (TimeSeriesDataStoreFactory) tsdb.getRegistry()
-          .getPlugin(TimeSeriesDataStoreFactory.class, store_name);
+    final Tsdb1xDataStoreFactory store_factory = tsdb.getRegistry()
+          .getDefaultPlugin(Tsdb1xDataStoreFactory.class);
     if (store_factory == null) {
       throw new ConfigurationException("No factory found for: " + store_name);
     }
-    data_store = store_factory.newInstance(tsdb, id);
+    data_store = store_factory.newInstance(tsdb, id, this);
     if (data_store == null) {
       throw new IllegalStateException("Store factory " + store_factory 
           + " returned a null data store instance.");
@@ -586,13 +583,6 @@ public class Schema implements StorageSchema {
     return id;
   }
   
-  @Override
-  public Deferred<TimeSeriesStringId> resolveByteId(final TimeSeriesByteId id,
-                                                    final Span span) {
-    // TODO Auto-generated method stub
-    return null;
-  }
-  
   /** @return The number of buckets to spread data into. */
   public int saltBuckets() {
     return salt_buckets;
@@ -770,7 +760,7 @@ public class Schema implements StorageSchema {
   }
   
   @VisibleForTesting
-  TimeSeriesDataStore dataStore() {
+  Tsdb1xDataStore dataStore() {
     return data_store;
   }
   
@@ -795,4 +785,24 @@ public class Schema implements StorageSchema {
   }
 
   
+
+  @Override
+  public Deferred<Object> write(TimeSeriesStringId id, TimeSeriesValue<?> value,
+      Span span) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public Deferred<TimeSeriesStringId> resolveByteId(TimeSeriesByteId id, final Span span) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public Deferred<Object> shutdown() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
 }

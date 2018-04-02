@@ -83,13 +83,6 @@ import net.opentsdb.utils.DateTime;
 public class Tsdb1xScanners implements HBaseExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(Tsdb1xScanners.class);
   
-  /** The state of the scanners. */
-  public static enum State {
-    CONTINUE,
-    COMPLETE,
-    EXCEPTION
-  }
-  
   /** The upstream query node that owns this scanner set. */
   protected final Tsdb1xQueryNode node;
   
@@ -298,7 +291,6 @@ public class Tsdb1xScanners implements HBaseExecutor {
       }
       current_result = result;
     }
-    
     // just extra safe locking. Shouldn't ever happen.
     if (!initialized) {
       synchronized (this) {
@@ -395,7 +387,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
     node.onError(t);
   }
 
-  /** Closes the scanners. */
+  @Override
   public void close() {
     if (scanners != null) {
       for (final Tsdb1xScanner[] scnrs : scanners) {
@@ -408,6 +400,21 @@ public class Tsdb1xScanners implements HBaseExecutor {
         }
       }
     }
+  }
+  
+  @Override
+  public State state() {
+    if (!initialized && scanners == null) {
+      return State.CONTINUE;
+    }
+    for (final Tsdb1xScanner scanner : scanners.get(scanner_index)) {
+      if (scanner.state() == State.CONTINUE) {
+        return State.CONTINUE;
+      } else if (scanner.state() == State.EXCEPTION) {
+        return State.EXCEPTION;
+      }
+    }
+    return State.COMPLETE;
   }
   
   /**
@@ -841,13 +848,24 @@ public class Tsdb1xScanners implements HBaseExecutor {
     // TODO - figure out how to downsample on higher resolution data
     final Tsdb1xScanner[] scnrs = scanners.get(scanner_index);
     for (final Tsdb1xScanner scanner : scnrs) {
-      try {
-        scanner.fetchNext(current_result, span);
-      } catch (Exception e) {
-        LOG.error("Failed to execute query on scanner: " + scanner, e);
-        node.onError(e);
-        throw e;
+      if (scanner.state() == State.CONTINUE) {
+        try {
+          scanner.fetchNext(current_result, span);
+        } catch (Exception e) {
+          LOG.error("Failed to execute query on scanner: " + scanner, e);
+          node.onError(e);
+          throw e;
+        }
+      } else {
+        scannerDone();
       }
+    }
+    
+    if (scanners_done == scnrs.length) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("All scanners were already complete! That was unexpected.");
+      }
+      
     }
   }
   

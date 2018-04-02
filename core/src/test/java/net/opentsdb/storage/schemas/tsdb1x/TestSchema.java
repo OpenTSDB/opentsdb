@@ -41,13 +41,10 @@ import net.opentsdb.core.Registry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.storage.StorageException;
-import net.opentsdb.storage.TimeSeriesDataStore;
-import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdFactory;
 import net.opentsdb.uid.UniqueIdStore;
@@ -110,14 +107,14 @@ public class TestSchema extends SchemaBase {
     UniqueIdStore us = mock(UniqueIdStore.class);
     UniqueIdFactory uf = mock(UniqueIdFactory.class);
     UniqueId uc = mock(UniqueId.class);
-    TimeSeriesDataStoreFactory sf = mock(TimeSeriesDataStoreFactory.class);
-    TimeSeriesDataStore s = mock(TimeSeriesDataStore.class);
+    Tsdb1xDataStoreFactory sf = mock(Tsdb1xDataStoreFactory.class);
+    Tsdb1xDataStore s = mock(Tsdb1xDataStore.class);
     
     when(tsdb.getConfig()).thenReturn(config);
     when(tsdb.getRegistry()).thenReturn(registry);
-    when(registry.getPlugin(TimeSeriesDataStoreFactory.class, TESTID))
+    when(registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
       .thenReturn(sf);
-    when(sf.newInstance(tsdb, TESTID)).thenReturn(s);
+    when(sf.newInstance(eq(tsdb), eq(TESTID), any(Schema.class))).thenReturn(s);
     when(registry.getSharedObject(TESTID + "_uidstore"))
       .thenReturn(us);
     when(registry.getPlugin(UniqueIdFactory.class, "LRU"))
@@ -167,15 +164,33 @@ public class TestSchema extends SchemaBase {
   }
   
   @Test
+  public void ctorNullStoreFromFactory() throws Exception {
+    TSDB tsdb = mock(TSDB.class);
+    Configuration config = UnitTestConfiguration.getConfiguration();
+    Registry registry = mock(Registry.class);
+    when(tsdb.getRegistry()).thenReturn(registry);
+    when(tsdb.getConfig()).thenReturn(config);
+    Tsdb1xDataStoreFactory store_factory = mock(Tsdb1xDataStoreFactory.class);
+    when(registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class)).thenReturn(store_factory);
+    when(store_factory.newInstance(eq(tsdb), eq(null), any(Schema.class)))
+      .thenReturn(null);
+    try {
+      new Schema(tsdb, null);
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
+  }
+  
+  @Test
   public void ctorStoreInstantiationFailure() throws Exception {
     TSDB tsdb = mock(TSDB.class);
     Configuration config = UnitTestConfiguration.getConfiguration();
     Registry registry = mock(Registry.class);
     when(tsdb.getRegistry()).thenReturn(registry);
     when(tsdb.getConfig()).thenReturn(config);
-    TimeSeriesDataStoreFactory store_factory = mock(TimeSeriesDataStoreFactory.class);
-    when(registry.getPlugin(TimeSeriesDataStoreFactory.class, null)).thenReturn(store_factory);
-    when(store_factory.newInstance(tsdb, null)).thenThrow(new UnitTestException());
+    Tsdb1xDataStoreFactory store_factory = mock(Tsdb1xDataStoreFactory.class);
+    when(registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class)).thenReturn(store_factory);
+    when(store_factory.newInstance(eq(tsdb), eq(null), any(Schema.class)))
+      .thenThrow(new UnitTestException());
     try {
       new Schema(tsdb, null);
       fail("Expected UnitTestException");
