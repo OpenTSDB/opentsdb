@@ -68,9 +68,21 @@ public class TestPropertiesFileProvider {
   }
   
   @Test
+  public void ctorNoProtocol() throws Exception {
+    try {
+      new PropertiesFileProvider(factory, config, timer, reload_keys, 
+          "opentsdb.conf").close();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
   public void ctorWithFile() throws Exception {
     new PropertiesFileProvider(factory, config, timer, reload_keys, 
-        "opentsdb.conf").close();
+        "file://opentsdb.conf").close();
+    
+    new PropertiesFileProvider(factory, config, timer, reload_keys, 
+        "FiLe://opentsdb.conf").close();
   }
   
   @Test
@@ -91,7 +103,7 @@ public class TestPropertiesFileProvider {
       .withAnyArguments()
       .thenReturn(mock(FileInputStream.class));
     final PropertiesFileProvider provider = new PropertiesFileProvider(factory, 
-        config, timer, reload_keys, "opentsdb.conf");
+        config, timer, reload_keys, "file://opentsdb.conf");
     
     assertEquals(2, provider.cache().size());
     assertEquals("foo", provider.cache().get("tsd.conf"));
@@ -131,7 +143,7 @@ public class TestPropertiesFileProvider {
       .withAnyArguments()
       .thenReturn(mock(FileInputStream.class));
     final PropertiesFileProvider provider = new PropertiesFileProvider(factory, config, 
-        timer, reload_keys, "opentsdb.conf");
+        timer, reload_keys, "file://opentsdb.conf");
     
     assertNull(provider.getSetting("no.such.key"));
     ConfigurationOverride override = provider.getSetting("tsd.conf");

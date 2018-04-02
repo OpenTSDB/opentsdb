@@ -100,7 +100,12 @@ public class PropertiesFileProvider extends Provider {
         throw new ConfigurationException("No default file name was found.");
       }
     } else {
-      this.file_name = file_name;
+      int idx = file_name.toLowerCase().indexOf("file://");
+      if (idx < 0) {
+        throw new IllegalArgumentException("File name did not start "
+            + "with `file://`: " + file_name);
+      }
+      this.file_name = file_name.substring(7);
     }
     
     cache = Maps.newConcurrentMap();
