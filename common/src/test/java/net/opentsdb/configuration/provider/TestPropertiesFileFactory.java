@@ -42,11 +42,11 @@ public class TestPropertiesFileFactory {
   @Test
   public void newInstance() throws Exception {
     try (final PropertiesFileFactory factory = new PropertiesFileFactory()) {
-      assertEquals("file://.conf", factory.newInstance(
+      assertEquals("foo.conf", factory.newInstance(
           mock(Configuration.class), 
           mock(HashedWheelTimer.class),
           Collections.emptySet(),
-          "file://.conf").source());
+          "file://foo.conf").source());
     }
   }
   
