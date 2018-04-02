@@ -40,6 +40,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -138,12 +139,7 @@ public class MockDataStore implements TimeSeriesDataStore {
   public String id() {
     return "MockDataStore";
   }
-
-  @Override
-  public String version() {
-    return "0.0.0";
-  }
-
+  
   class MockSpan {
     private List<MockRow> rows = Lists.newArrayList();
     private final TimeSeriesStringId id;
@@ -706,6 +702,12 @@ public class MockDataStore implements TimeSeriesDataStore {
   @Override
   public Collection<TypeToken<?>> types() {
     return Lists.newArrayList(NumericType.TYPE);
+  }
+  
+  @Override
+  public Deferred<TimeSeriesStringId> resolveByteId(final TimeSeriesByteId id,
+                                                    final Span span) {
+    return Deferred.fromError(new UnsupportedOperationException());
   }
   
 }

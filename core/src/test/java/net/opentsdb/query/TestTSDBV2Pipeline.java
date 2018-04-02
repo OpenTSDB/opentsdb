@@ -41,13 +41,15 @@ import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
 import net.opentsdb.storage.MockDataStore;
+import net.opentsdb.storage.MockDataStoreFactory;
+import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 
 public class TestTSDBV2Pipeline {
 
   private DefaultTSDB tsdb;
   private Configuration config;
   private DefaultRegistry registry;
-  private MockDataStore mds;
+  private MockDataStoreFactory factory;
   
   @Before
   public void before() throws Exception {
@@ -58,8 +60,9 @@ public class TestTSDBV2Pipeline {
     when(tsdb.getRegistry()).thenReturn(registry);
     
     config.register("MockDataStore.timestamp", 1483228800000L, false, "UT");
-    mds = new MockDataStore(tsdb, "mock");
-    when(registry.getDefaultStore()).thenReturn(mds);
+    factory = new MockDataStoreFactory();
+    when(registry.getDefaultPlugin(TimeSeriesDataStoreFactory.class))
+      .thenReturn(factory);
   }
     
   @Test

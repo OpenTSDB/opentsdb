@@ -73,6 +73,7 @@ import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.MockTrace;
+import net.opentsdb.storage.HBaseExecutor.State;
 import net.opentsdb.storage.MockBase.MockScanner;
 import net.opentsdb.storage.schemas.tsdb1x.ResolvedFilter;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
@@ -157,6 +158,7 @@ public class TestTsdb1xScanners extends UTBase {
     assertNull(scanners.current_result);
     assertNull(scanners.scanner_filter);
     assertFalse(scanners.has_failed);
+    assertEquals(State.CONTINUE, scanners.state());
   }
   
   @Test
@@ -200,6 +202,7 @@ public class TestTsdb1xScanners extends UTBase {
     assertNull(scanners.current_result);
     assertNull(scanners.scanner_filter);
     assertFalse(scanners.has_failed);
+    assertEquals(State.CONTINUE, scanners.state());
   }
   
   @Test
@@ -233,6 +236,7 @@ public class TestTsdb1xScanners extends UTBase {
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
     assertEquals("avg", scanners.rollup_group_by);
     assertEquals("sum", scanners.rollup_aggregation);
+    assertEquals(State.CONTINUE, scanners.state());
     
     query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
@@ -248,6 +252,7 @@ public class TestTsdb1xScanners extends UTBase {
     scanners = new Tsdb1xScanners(node, query);
     assertEquals("avg", scanners.rollup_group_by);
     assertEquals("max", scanners.rollup_aggregation);
+    assertEquals(State.CONTINUE, scanners.state());
   }
 
   @Test
@@ -1872,6 +1877,9 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void initializeResolveMetricOnly() throws Exception {
+    final List<Scanner> caught = Lists.newArrayList();
+    catchTsdb1xScanners(caught);
+    
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
     scanners.initialize(null);
     
@@ -1895,6 +1903,9 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void initializeResolveTags() throws Exception {
+    final List<Scanner> caught = Lists.newArrayList();
+    catchTsdb1xScanners(caught);
+    
     query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Integer.toString(START_TS))
@@ -1937,6 +1948,9 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void initializeNSUNMetric() throws Exception {
+    final List<Scanner> caught = Lists.newArrayList();
+    catchTsdb1xScanners(caught);
+    
     query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Integer.toString(START_TS))
@@ -1968,6 +1982,9 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void initializeNSUNTagk() throws Exception {
+    final List<Scanner> caught = Lists.newArrayList();
+    catchTsdb1xScanners(caught);
+    
     query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Integer.toString(START_TS))
@@ -2064,6 +2081,9 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void initializeNSUNTagv() throws Exception {
+    final List<Scanner> caught = Lists.newArrayList();
+    catchTsdb1xScanners(caught);
+    
     query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Integer.toString(START_TS))
@@ -2109,6 +2129,8 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void fetchNext() throws Exception {
+    final List<Scanner> caught = Lists.newArrayList();
+    catchTsdb1xScanners(caught);
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
     
     Tsdb1xQueryResult results = null;
@@ -2162,6 +2184,9 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void scannerDoneNoSalt() throws Exception {
+    final List<Scanner> caught = Lists.newArrayList();
+    catchTsdb1xScanners(caught);
+    
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
     scanners.initialize(null);
     scanners.current_result = mock(Tsdb1xQueryResult.class);
@@ -2183,6 +2208,9 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void scannerDoneWithSalt() throws Exception {
+    final List<Scanner> caught = Lists.newArrayList();
+    catchTsdb1xScanners(caught);
+    
     Tsdb1xQueryNode node = saltedNode();
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
     scanners.initialize(null);
@@ -2221,6 +2249,9 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void scannerDoneFallback() throws Exception {
+    final List<Scanner> caught = Lists.newArrayList();
+    catchTsdb1xScanners(caught);
+    
     query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Integer.toString(START_TS))
@@ -2273,6 +2304,9 @@ public class TestTsdb1xScanners extends UTBase {
   
   @Test
   public void scannerDoneException() throws Exception {
+    final List<Scanner> caught = Lists.newArrayList();
+    catchTsdb1xScanners(caught);
+    
     doThrow(new UnitTestException()).when(node).onNext(any(QueryResult.class));
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
@@ -2298,6 +2332,7 @@ public class TestTsdb1xScanners extends UTBase {
   public void scanNext() throws Exception {
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
     Tsdb1xScanner scanner = mock(Tsdb1xScanner.class);
+    when(scanner.state()).thenReturn(State.CONTINUE);
     scanners.scanners = Lists.<Tsdb1xScanner[]>newArrayList(
         new Tsdb1xScanner[] { scanner }
         );
@@ -2315,6 +2350,62 @@ public class TestTsdb1xScanners extends UTBase {
     } catch (UnitTestException e) { }
     verify(node, times(1)).onError(any(UnitTestException.class));
     verify(node, never()).onNext(any(QueryResult.class));
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+  }
+  
+  @Test
+  public void scanNextSalted() throws Exception {
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanner scanner1 = mock(Tsdb1xScanner.class);
+    when(scanner1.state()).thenReturn(State.CONTINUE);
+    Tsdb1xScanner scanner2 = mock(Tsdb1xScanner.class);
+    when(scanner2.state()).thenReturn(State.CONTINUE);
+    scanners.scanners = Lists.<Tsdb1xScanner[]>newArrayList(
+        new Tsdb1xScanner[] { scanner1, scanner2 }
+        );
+    
+    scanners.scanNext(null);
+    verify(scanner1, times(1)).fetchNext(null, null);
+    verify(scanner2, times(1)).fetchNext(null, null);
+    verify(node, never()).onError(any(Throwable.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    
+    doThrow(new UnitTestException()).when(scanner2).fetchNext(null, null);
+    try {
+      scanners.scanNext(null);
+      fail("Expected UnitTestException");
+    } catch (UnitTestException e) { }
+    verify(node, times(1)).onError(any(UnitTestException.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+  }
+  
+  @Test
+  public void scanNextSaltedPartial() throws Exception {
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanner scanner1 = mock(Tsdb1xScanner.class);
+    when(scanner1.state()).thenReturn(State.COMPLETE);
+    Tsdb1xScanner scanner2 = mock(Tsdb1xScanner.class);
+    when(scanner2.state()).thenReturn(State.CONTINUE);
+    scanners.scanners = Lists.<Tsdb1xScanner[]>newArrayList(
+        new Tsdb1xScanner[] { scanner1, scanner2 }
+        );
+    
+    scanners.scanNext(null);
+    verify(scanner1, never()).fetchNext(null, null);
+    verify(scanner2, times(1)).fetchNext(null, null);
+    verify(node, never()).onError(any(Throwable.class));
+    verify(node, never()).onNext(any(QueryResult.class));
+    verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    
+    // all done unexpected
+    when(scanner2.state()).thenReturn(State.COMPLETE);
+    scanners.scanNext(null);
+    verify(scanner1, never()).fetchNext(null, null);
+    verify(scanner2, times(1)).fetchNext(null, null);
+    verify(node, never()).onError(any(Throwable.class));
+    verify(node, times(1)).onNext(any(QueryResult.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
   }
   
@@ -2354,6 +2445,28 @@ public class TestTsdb1xScanners extends UTBase {
     verify(scanner, times(2)).close();
     verify(scanner2, times(2)).close();
     verify(scanner3, times(2)).close();
+  }
+
+  @Test
+  public void state() throws Exception {
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xScanner[] array = new Tsdb1xScanner[] {
+        mock(Tsdb1xScanner.class),
+        mock(Tsdb1xScanner.class)
+    };
+    scanners.scanners = Lists.<Tsdb1xScanner[]>newArrayList(array);
+    
+    when(array[0].state()).thenReturn(State.COMPLETE);
+    when(array[1].state()).thenReturn(State.COMPLETE);
+    assertEquals(State.COMPLETE, scanners.state());
+    
+    when(array[0].state()).thenReturn(State.COMPLETE);
+    when(array[1].state()).thenReturn(State.CONTINUE);
+    assertEquals(State.CONTINUE, scanners.state());
+    
+    when(array[0].state()).thenReturn(State.COMPLETE);
+    when(array[1].state()).thenReturn(State.EXCEPTION);
+    assertEquals(State.EXCEPTION, scanners.state());
   }
   
   Tsdb1xQueryNode saltedNode() throws Exception {
@@ -2416,7 +2529,9 @@ public class TestTsdb1xScanners extends UTBase {
         public Tsdb1xScanner answer(InvocationOnMock invocation)
             throws Throwable {
           scanners.add((Scanner) invocation.getArguments()[1]);
-          return mock(Tsdb1xScanner.class);
+          Tsdb1xScanner mock_scanner = mock(Tsdb1xScanner.class);
+          when(mock_scanner.state()).thenReturn(State.CONTINUE);
+          return mock_scanner;
         }
     });
   }

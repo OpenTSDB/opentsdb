@@ -66,6 +66,7 @@ import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.MockTrace;
+import net.opentsdb.storage.HBaseExecutor.State;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.utils.UnitTestException;
 
@@ -171,6 +172,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertEquals(0, mget.outstanding);
     assertFalse(mget.has_failed);
     assertNull(mget.current_result);
+    assertEquals(State.CONTINUE, mget.state());
     
     // assert sorted
     assertArrayEquals(Bytes.concat(METRIC_BYTES, TAGK_BYTES, TAGV_BYTES), 
@@ -219,6 +221,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertEquals(0, mget.outstanding);
     assertFalse(mget.has_failed);
     assertNull(mget.current_result);
+    assertEquals(State.CONTINUE, mget.state());
   }
 
   @Test
@@ -261,6 +264,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertEquals(0, mget.rollup_index);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
     assertNull(mget.fallback_timestamp);
+    assertEquals(State.CONTINUE, mget.state());
     assertTrue(mget.filter instanceof FilterList);
     FilterList filter = (FilterList) mget.filter;
     assertEquals(4, filter.filters().size());
@@ -294,6 +298,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertEquals(0, mget.rollup_index);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
     assertNull(mget.fallback_timestamp);
+    assertEquals(State.CONTINUE, mget.state());
     assertTrue(mget.filter instanceof FilterList);
     filter = (FilterList) mget.filter;
     assertEquals(4, filter.filters().size());
@@ -327,6 +332,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertEquals(0, mget.rollup_index);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
     assertNull(mget.fallback_timestamp);
+    assertEquals(State.CONTINUE, mget.state());
     assertTrue(mget.filter instanceof FilterList);
     filter = (FilterList) mget.filter;
     assertEquals(2, filter.filters().size());
@@ -360,6 +366,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     assertEquals(0, mget.rollup_index);
     assertEquals(START_TS - 900, mget.timestamp.epoch());
     assertNull(mget.fallback_timestamp);
+    assertEquals(State.CONTINUE, mget.state());
     assertTrue(mget.filter instanceof FilterList);
     filter = (FilterList) mget.filter;
     assertEquals(2, filter.filters().size());
@@ -989,6 +996,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     // full some outstanding
     mget.onComplete();
+    assertEquals(State.CONTINUE, mget.state());
     assertSame(result, mget.current_result);
     verify(node, never()).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -998,6 +1006,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     // all done
     mget.outstanding = 0;
     mget.onComplete();
+    assertEquals(State.COMPLETE, mget.state());
     assertNull(mget.current_result);
     verify(node, times(1)).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -1015,6 +1024,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     // full some outstanding
     mget.onComplete();
+    assertEquals(State.CONTINUE, mget.state());
     assertSame(result, mget.current_result);
     verify(node, never()).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -1032,6 +1042,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     // fire away
     mget.onComplete();
+    assertEquals(State.CONTINUE, mget.state());
     assertSame(result, mget.current_result);
     assertEquals(1, mget.outstanding);
     verify(node, never()).onNext(result);
@@ -1040,6 +1051,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     verify(mget, times(1)).nextBatch(0, START_TS - 900);
     
     mget.onComplete();
+    assertEquals(State.CONTINUE, mget.state());
     assertSame(result, mget.current_result);
     assertEquals(2, mget.outstanding);
     verify(node, never()).onNext(result);
@@ -1049,6 +1061,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     
     // busy
     mget.onComplete();
+    assertEquals(State.CONTINUE, mget.state());
     assertSame(result, mget.current_result);
     assertEquals(2, mget.outstanding);
     verify(node, never()).onNext(result);
@@ -1059,6 +1072,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     // nothing left to do
     mget.outstanding = 0;
     mget.onComplete();
+    assertEquals(State.COMPLETE, mget.state());
     assertNull(mget.current_result);
     verify(node, times(1)).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -1091,6 +1105,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     // should fallback to raw now
     mget.outstanding = 0;
     mget.onComplete();
+    assertEquals(State.CONTINUE, mget.state());
     verify(node, never()).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(node, never()).onError(any(Throwable.class));
@@ -1116,6 +1131,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     // should fallback to raw now
     mget.outstanding = 0;
     mget.onComplete();
+    assertEquals(State.CONTINUE, mget.state());
     verify(node, never()).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(node, never()).onError(any(Throwable.class));
@@ -1141,6 +1157,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     // should fallback to raw now
     mget.outstanding = 0;
     mget.onComplete();
+    assertEquals(State.COMPLETE, mget.state());
     verify(node, times(1)).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(node, never()).onError(any(Throwable.class));
@@ -1157,6 +1174,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     
     mget.fetchNext(result, null);
+    assertEquals(State.CONTINUE, mget.state());
     assertEquals(2, mget.outstanding);
     verify(node, never()).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -1174,6 +1192,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     mget.current_result = null;
     mget.outstanding = 0;
     mget.fetchNext(result, null);
+    assertEquals(State.CONTINUE, mget.state());
     verify(node, times(1)).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
     verify(node, never()).onError(any(Throwable.class));
@@ -1200,6 +1219,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     
     mget.fetchNext(result, trace.newSpan("UT").start());
+    assertEquals(State.COMPLETE, mget.state());
     assertEquals(0, mget.outstanding);
     verify(node, times(1)).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -1226,6 +1246,7 @@ public class TestTsdb1xMultiGet extends UTBase {
     Tsdb1xQueryResult result = mock(Tsdb1xQueryResult.class);
     
     mget.fetchNext(result, trace.newSpan("UT").start());
+    assertEquals(State.EXCEPTION, mget.state());
     assertEquals(0, mget.outstanding);
     verify(node, never()).onNext(result);
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());

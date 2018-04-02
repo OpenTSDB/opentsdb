@@ -29,6 +29,7 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
@@ -48,7 +49,7 @@ public class NumericMillisecondShard implements TimeSeries,
     Iterable<TimeSeriesValue<?>> {
   
   /** ID of the time series. */
-  private final TimeSeriesStringId id;  
+  private final TimeSeriesId id;  
   
   /** The *width* of the data (in ms) to be stored in this shard so we can 
    * calculate how many bytes are needed to store offsets from the base time. */
@@ -90,7 +91,7 @@ public class NumericMillisecondShard implements TimeSeries,
    * @param end The end of the data shard.
    * @throws IllegalArgumentException if the ID was null or span was less than 1.
    */
-  public NumericMillisecondShard(final TimeSeriesStringId id, 
+  public NumericMillisecondShard(final TimeSeriesId id, 
                                  final TimeStamp start,
                                  final TimeStamp end) {
     this(id, start, end, -1, 1);
@@ -107,7 +108,7 @@ public class NumericMillisecondShard implements TimeSeries,
    * @throws IllegalArgumentException if the ID was null or span was less than
    * 1 or the count was less than zero.
    */
-  public NumericMillisecondShard(final TimeSeriesStringId id, 
+  public NumericMillisecondShard(final TimeSeriesId id, 
                                  final TimeStamp start,
                                  final TimeStamp end, 
                                  final int order) {
@@ -126,7 +127,7 @@ public class NumericMillisecondShard implements TimeSeries,
    * @throws IllegalArgumentException if the ID was null or span was less than
    * 1 or the count was less than zero.
    */
-  public NumericMillisecondShard(final TimeSeriesStringId id, 
+  public NumericMillisecondShard(final TimeSeriesId id, 
                                  final TimeStamp start,
                                  final TimeStamp end, 
                                  final int order, 
@@ -325,7 +326,7 @@ public class NumericMillisecondShard implements TimeSeries,
   }
   
   @Override
-  public TimeSeriesStringId id() {
+  public TimeSeriesId id() {
     return id;
   }
 

@@ -49,7 +49,7 @@ import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.stats.Span;
-import net.opentsdb.storage.Tsdb1xScanners.State;
+import net.opentsdb.storage.HBaseExecutor.State;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.UnitTestException;

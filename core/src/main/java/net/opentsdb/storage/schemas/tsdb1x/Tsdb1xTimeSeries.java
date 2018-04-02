@@ -84,7 +84,7 @@ public class Tsdb1xTimeSeries implements TimeSeries {
 
   @Override
   public void close() {
-    data = null;
+    // no-op.
   }
   
   /**

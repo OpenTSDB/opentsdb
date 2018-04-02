@@ -156,6 +156,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
   /** An optional tracing child. */
   protected volatile Span child;
   
+  protected volatile State state;
+  
   /**
    * Default ctor that parses the query, sets up rollups and sorts (and
    * optionally salts) the TSUIDs.
@@ -320,7 +322,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
     } else {
       tables = Lists.newArrayList(((Tsdb1xHBaseDataStore) node.factory()).dataTable());
     }
-    
+    state = State.CONTINUE;
   }
   
   @Override
@@ -353,6 +355,11 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
   @Override
   public void close() {
     // no-op
+  }
+  
+  @Override
+  public State state() {
+    return state;
   }
   
   /**
@@ -429,7 +436,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
         child.setErrorTags(t)
              .finish();
       }
-      
+      state = State.EXCEPTION;
       node.onError(t);
     } else {
       if (LOG.isDebugEnabled()) {
@@ -457,6 +464,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
         if (child != null) {
           child.setSuccessTags().finish();
         }
+        state = State.COMPLETE;
         node.onNext(result);
       }
       
@@ -502,6 +510,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
         if (child != null) {
           child.setSuccessTags().finish();
         }
+        state = State.COMPLETE;
         node.onNext(result);
         return;
       }

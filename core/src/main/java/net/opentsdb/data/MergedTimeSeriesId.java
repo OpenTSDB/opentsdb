@@ -27,7 +27,7 @@ import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.storage.StorageSchema;
+import net.opentsdb.storage.TimeSeriesDataStore;
 import net.opentsdb.utils.ByteSet;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Bytes.ByteMap;
@@ -70,7 +70,7 @@ public class MergedTimeSeriesId {
     protected byte[] namespace;
     protected byte[] metric;
     protected TypeToken<? extends TimeSeriesId> type;
-    protected StorageSchema schema;
+    protected TimeSeriesDataStore data_store;
     
     /**
      * Sets the alias override to the given string or null.
@@ -165,7 +165,7 @@ public class MergedTimeSeriesId {
       if (type == null) {
         type = id.type();
         if (id instanceof TimeSeriesByteId) {
-          schema = ((TimeSeriesByteId) id).schema();
+          data_store = ((TimeSeriesByteId) id).dataStore();
         }
       } else {
         if (!type.equals(id.type())) {
@@ -175,12 +175,12 @@ public class MergedTimeSeriesId {
               + "ID's type: " + type);
         }
         if (id instanceof TimeSeriesByteId) {
-          if (!schema.equals(((TimeSeriesByteId) id).schema())) {
+          if (!data_store.equals(((TimeSeriesByteId) id).dataStore())) {
             // TODO - proper exception type
             throw new RuntimeException("Attempted to add an ID with a " 
-                + "different schema " + ((TimeSeriesByteId) id).schema() 
+                + "different schema " + ((TimeSeriesByteId) id).dataStore() 
                 + " that was not the same as the first "
-                + "ID's schema: " + schema);
+                + "ID's schema: " + data_store);
           }
         }
       }
@@ -561,7 +561,7 @@ public class MergedTimeSeriesId {
       }
       
       final BaseTimeSeriesByteId.Builder builder = 
-          BaseTimeSeriesByteId.newBuilder(schema);
+          BaseTimeSeriesByteId.newBuilder(data_store);
       if (Bytes.isNullOrEmpty(alias)) {
         builder.setAlias(alias);
       }

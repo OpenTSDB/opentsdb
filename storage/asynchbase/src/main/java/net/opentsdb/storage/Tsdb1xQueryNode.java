@@ -53,6 +53,7 @@ import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.Span;
+import net.opentsdb.storage.HBaseExecutor.State;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
@@ -192,7 +193,6 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
     } else {
       rollup_intervals = null;
     }
-    initialize();
   }
 
   @Override
@@ -244,6 +244,9 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
   @Override
   public void onNext(final QueryResult next) {
     sendUpstream(next);
+    if (executor.state() == State.COMPLETE) {
+      completeUpstream(sequence_id.get(), sequence_id.get());
+    }
   }
 
   @Override

@@ -14,10 +14,9 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
-import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.query.QueryNodeFactory;
@@ -40,8 +39,6 @@ import net.opentsdb.stats.Span;
  */
 public interface TimeSeriesDataStore extends QueryNodeFactory {
   
-  public String id();
-  
   /**
    * Writes the given value to the data store.
    * @param id A non-null ID for the value.
@@ -55,7 +52,22 @@ public interface TimeSeriesDataStore extends QueryNodeFactory {
                                          final TimeSeriesValue<?> value, 
                                          final Span span);
   
+  /**
+   * For stores that are able to encode time series IDs, this method should
+   * resolve the IDs to a string ID suitable for display or further 
+   * processing.
+   * 
+   * @param id A non-null byte ID.
+   * @param span An optional tracing span.
+   * @return A deferred resolving to the string ID or an exception on
+   * failure.
+   */
+  public Deferred<TimeSeriesStringId> resolveByteId(final TimeSeriesByteId id, 
+                                                    final Span span);
+
+  /**
+   * Releases resources held by the store. 
+   * @return A deferred resolving to null. 
+   */
   public Deferred<Object> shutdown();
-  
-  public String version();
 }
