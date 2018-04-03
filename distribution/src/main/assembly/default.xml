@@ -24,6 +24,7 @@
         <include>net.opentsdb:opentsdb-common</include>
         <include>net.opentsdb:opentsdb-core</include>
         <include>net.opentsdb:opentsdb-server-undertow</include>
+        <include>net.opentsdb:opentsdb-asynchbase</include>
       </includes>
       <outputDirectory>lib</outputDirectory>
       <useProjectArtifact>false</useProjectArtifact>
