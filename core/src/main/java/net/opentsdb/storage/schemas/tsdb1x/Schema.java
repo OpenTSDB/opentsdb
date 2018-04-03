@@ -77,6 +77,7 @@ public class Schema implements TimeSeriesDataStore {
   public static final long QUERY_DP_LIMIT_DEFAULT = 0;
   public static final String QUERY_REVERSE_KEY = "tsd.query.time.descending";
   public static final String QUERY_KEEP_FIRST_KEY = "tsd.query.duplicates.keep_earliest";
+  public static final String TIMELESS_SALTING_KEY = "tsd.storage.salt.timeless";
   
   /** Max time delta (in seconds) we can store in a column qualifier.  */
   public static final short MAX_RAW_TIMESPAN = 3600;
@@ -203,6 +204,12 @@ public class Schema implements TimeSeriesDataStore {
       tsdb.getConfig().register(QUERY_KEEP_FIRST_KEY, false, true,
           "Whether or not to keep the earliest value (true) when "
           + "de-duplicating or to keep the latest version (false).");
+    }
+    if (!tsdb.getConfig().hasProperty(TIMELESS_SALTING_KEY)) {
+      tsdb.getConfig().register(TIMELESS_SALTING_KEY, true, false,
+          "Whether or not timestamps are incorporated into the salting "
+          + "calculations. When true, time is not incorporated, when false "
+          + "it is included.");
     }
     
     codecs = Maps.newHashMapWithExpectedSize(1);

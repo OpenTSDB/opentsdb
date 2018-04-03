@@ -673,6 +673,9 @@ public class Tsdb1xScanners implements HBaseExecutor {
         }
         
         scan_filters.add(new KeyRegexpFilter(regex, Const.ASCII_CHARSET));
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(QueryUtil.byteRegexToString(node.schema(), regex));
+        }
       }
       
       if (node.rollupIntervals() != null && 
@@ -834,6 +837,10 @@ public class Tsdb1xScanners implements HBaseExecutor {
     if (child != null) {
       child.setSuccessTags()
            .finish();
+    }
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Configured " + scanners.size() + " scanner sets with " 
+          + scanners.get(0).length + " scanners per set.");
     }
     scanNext(span);
   }

@@ -17,6 +17,7 @@ package net.opentsdb.storage;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.hbase.async.HBaseClient;
 
@@ -26,6 +27,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
+import net.opentsdb.configuration.ConfigurationView.ConfigurationEntryWrapper;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -54,6 +56,15 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
   public static final String UID_TABLE_KEY = "uid_table";
   public static final String TREE_TABLE_KEY = "tree_table";
   public static final String META_TABLE_KEY = "meta_table";
+  
+  /** AsyncHBase config. */
+  public static final String ZNODE_PARENT_KEY = "zookeeper.znode.parent";
+  public static final String ZK_QUORUM_KEY = "zookeeper.quorum";
+  public static final String AUTH_ENABLED_KEY = "auth.enable";
+  public static final String KB_PRINCIPAL_KEY = "kerberos.principal";
+  public static final String KB_ENABLED_KEY = "kerberos.enable";
+  public static final String SASL_CLIENT_KEY = "sasl.clientconfig";
+  public static final String META_SPLIT_KEY = "meta.split";
   
   public static final String MULTI_GET_CONCURRENT_KEY = "tsd.query.multiget.concurrent";
   public static final String MULTI_GET_BATCH_KEY = "tsd.query.multiget.batch_size";
@@ -111,6 +122,7 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
     final Configuration config = tsdb.getConfig();
     synchronized(config) {
       if (!config.hasProperty(getConfigKey(DATA_TABLE_KEY))) {
+        System.out.println("REGISTERED: " + getConfigKey(DATA_TABLE_KEY));
         config.register(getConfigKey(DATA_TABLE_KEY), "tsdb", false, 
             "The name of the raw data table for OpenTSDB.");
       }
@@ -135,6 +147,38 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
       meta_table = config.getString(getConfigKey(META_TABLE_KEY))
           .getBytes(Const.ASCII_CHARSET);
       
+      // asynchbase flags
+      if (!config.hasProperty(getConfigKey(ZK_QUORUM_KEY))) {
+        config.register(getConfigKey(ZK_QUORUM_KEY), "localhost:2181", false, 
+            "The comma separated list of Zookeeper servers and ports.");
+      }
+      if (!config.hasProperty(getConfigKey(ZNODE_PARENT_KEY))) {
+        config.register(getConfigKey(ZNODE_PARENT_KEY), "/hbase", false, 
+            "The base znode for HBase.");
+      }
+      if (!config.hasProperty(getConfigKey(AUTH_ENABLED_KEY))) {
+        config.register(getConfigKey(AUTH_ENABLED_KEY), "false", false, 
+            "Whether or not authentication is required to connect to "
+            + "HBase region servers.");
+      }
+      if (!config.hasProperty(getConfigKey(KB_PRINCIPAL_KEY))) {
+        config.register(getConfigKey(KB_PRINCIPAL_KEY), null, false, 
+            "The principal template for kerberos authentication.");
+      }
+      if (!config.hasProperty(getConfigKey(KB_ENABLED_KEY))) {
+        config.register(getConfigKey(KB_ENABLED_KEY), "false", false, 
+            "Whether or not kerberos is enabled for authentication.");
+      }
+      if (!config.hasProperty(getConfigKey(SASL_CLIENT_KEY))) {
+        config.register(getConfigKey(SASL_CLIENT_KEY), "Client", false, 
+            "The SASL entry for the client in the JAAS config.");
+      }
+      if (!config.hasProperty(getConfigKey(META_SPLIT_KEY))) {
+        config.register(getConfigKey(META_SPLIT_KEY), "false", false, 
+            "Whether or not the meta table is split.");
+      }
+      
+      // more bits
       if (!config.hasProperty(EXPANSION_LIMIT_KEY)) {
         config.register(EXPANSION_LIMIT_KEY, 4096, true,
             "The maximum number of UIDs to expand in a literal filter "
@@ -186,6 +230,38 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
       }
     }
     
+    async_config.overrideConfig("hbase.zookeeper.quorum", 
+        config.getString(getConfigKey(ZK_QUORUM_KEY)));
+    async_config.overrideConfig("hbase.zookeeper.znode.parent", 
+        config.getString(getConfigKey(ZNODE_PARENT_KEY)));
+    async_config.overrideConfig("hbase.security.auth.enable", 
+        config.getString(getConfigKey(AUTH_ENABLED_KEY)));
+    async_config.overrideConfig("hbase.kerberos.regionserver.principal", 
+        config.getString(getConfigKey(KB_PRINCIPAL_KEY)));
+    if (config.getBoolean(getConfigKey(KB_ENABLED_KEY))) {
+      async_config.overrideConfig("hbase.security.authentication", 
+          "kerberos");
+    }
+    async_config.overrideConfig("hbase.sasl.clientconfig", 
+        config.getString(getConfigKey(SASL_CLIENT_KEY)));
+    async_config.overrideConfig("hbase.meta.split", 
+        config.getString(getConfigKey(META_SPLIT_KEY)));
+    
+//    Map<String, ConfigurationEntryWrapper> cfg = tsdb.getConfig().getView().getEntries();
+//    for (final Entry<String, ConfigurationEntryWrapper> entry : cfg.entrySet()) {
+//      if (entry.getValue().getOverrides() != null && 
+//          !entry.getValue().getOverrides().isEmpty()) {
+//        final Object obj = entry.getValue().getOverrides().get(
+//            entry.getValue().getOverrides().size() - 1).getValue();
+//        async_config.overrideConfig(entry.getKey(), obj == null ? null : obj.toString());
+//        System.out.println("KEY: " + entry.getKey() + "  V: " + (obj == null ? null : obj.toString()));
+//      } else {
+//        final Object obj = entry.getValue().getSchema().getDefaultValue();
+//        async_config.overrideConfig(entry.getKey(),
+//            obj == null ? null : obj.toString());
+//        System.out.println("KEY: " + entry.getKey() + "  V: " + (obj == null ? null : obj.toString()));
+//      }
+//    }
     // TODO - shared client!
     client = new HBaseClient(async_config);
     
@@ -257,7 +333,11 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
     if (Strings.isNullOrEmpty(suffix)) {
       throw new IllegalArgumentException("Suffix cannot be null.");
     }
-    return CONFIG_PREFIX + id + "." + suffix;
+    if (Strings.isNullOrEmpty(id)) {
+      return CONFIG_PREFIX + suffix;
+    } else {
+      return CONFIG_PREFIX + id + "." + suffix;
+    }
   }
   
   /** @return The schema assigned to this store. */
