@@ -322,6 +322,26 @@ public class TSUID implements TimeSeriesByteId {
     return schema;
   }
 
+  @Override
+  public String toString() {
+    final StringBuilder buf = new StringBuilder()
+        .append("alias=")
+        .append(alias() != null ? alias() : "null")
+        .append(", namespace=")
+        .append(namespace())
+        .append(", metric=")
+        .append(metric())
+        .append(", tags=")
+        .append(tags())
+        .append(", aggregated_tags=")
+        .append(aggregatedTags())
+        .append(", disjoint_tags=")
+        .append(disjointTags())
+        .append(", uniqueIds=")
+        .append(uniqueIds());
+    return buf.toString();
+  }
+  
   /** @return The original TSUID. */
   public byte[] tsuid() {
     return tsuid;

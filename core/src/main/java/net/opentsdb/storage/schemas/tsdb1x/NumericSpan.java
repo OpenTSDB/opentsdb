@@ -71,8 +71,6 @@ public class NumericSpan implements Span<NumericType> {
     }
     
     if (!rows.isEmpty()) {
-      // TODO - this is a really imperfect check if we're adding stuff
-      // from multiple threads. We may need to actually track order.
       if (rows.get(rows.size() - 1).base_timestamp == 
           seq.base_timestamp) {
         // in this case we had a row continuation across a scan, which
@@ -83,7 +81,27 @@ public class NumericSpan implements Span<NumericType> {
         return;
       } else if (rows.get(rows.size() - 1).base_timestamp >= 
           seq.base_timestamp) {
-        throw new IllegalStateException("How did this come in out of order??");
+        // out of order so  walk back till we find a match the location
+        // to insert it.
+        int idx = rows.size() - 2;
+        if (idx < 0) {
+          rows.add(0, seq);
+          return;
+        }
+        for (; idx >= 0; idx--) {
+          final long ts = rows.get(idx).base_timestamp;
+          if (ts == seq.base_timestamp) {
+            rows.get(idx).addColumn(Schema.APPENDS_PREFIX, 
+                new byte[] { Schema.APPENDS_PREFIX, 0, 0 }, seq.data);
+            rows.get(idx).dedupe(keep_earliest, reversed);
+            return;
+          }
+          
+          if (ts < seq.base_timestamp) {
+            rows.add(idx + 1, seq);
+            return;
+          }
+        }
       }
     }
     rows.add(seq);

@@ -18,9 +18,12 @@ import java.util.Map;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.storage.TimeSeriesDataStore;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 
@@ -67,6 +70,11 @@ public class SchemaFactory extends BaseTSDBPlugin
     return schema;
   }
 
+  @Override
+  public TypeToken<? extends TimeSeriesId> idType() {
+    return Const.TS_BYTE_ID;
+  }
+  
   @Override
   public String id() {
     return "Tsdb1xSchemaFactory";

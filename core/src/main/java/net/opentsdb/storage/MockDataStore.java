@@ -114,6 +114,11 @@ public class MockDataStore implements TimeSeriesDataStore {
   }
   
   @Override
+  public Deferred<List<byte[]>> encodeJoinKeys(final List<String> join_keys, final Span span) {
+    return Deferred.fromResult(null);
+  }
+  
+  @Override
   public Deferred<Object> shutdown() {
     if (thread_pool != null) {
       thread_pool.shutdownNow();
