@@ -129,7 +129,11 @@ public class GroupByNumericIterator implements QueryIterator,
       if (source == null) {
         throw new IllegalArgumentException("Null time series are not allowed in the sources.");
       }
-      interpolators[iterator_max] = (QueryIteratorInterpolator<NumericType>) ((GroupByConfig) node.config()).getInterpolator().newInterpolator(NumericType.TYPE, source, ((GroupByConfig) node.config()).getInterpolatorConfig());
+      interpolators[iterator_max] = (QueryIteratorInterpolator<NumericType>) 
+          ((GroupByConfig) node.config()).getInterpolator()
+            .newInterpolator(NumericType.TYPE, 
+                             source, ((GroupByConfig) node.config())
+                               .getInterpolatorConfig());
       if (interpolators[iterator_max].hasNext()) {
         has_next = true;
         if (interpolators[iterator_max].nextReal().compare(RelationalOperator.LT, next_ts)) {
@@ -169,7 +173,7 @@ public class GroupByNumericIterator implements QueryIterator,
     boolean longs = true;
     for (int i = 0; i < iterator_max; i++) {
       final TimeSeriesValue<NumericType> v = interpolators[i].next(next_ts);
-      if (v == null) {
+      if (v == null || v.value() == null) {
         // skip it
       } else if (!v.value().isInteger() && Double.isNaN(v.value().doubleValue())) {
         if (infectious_nan) {

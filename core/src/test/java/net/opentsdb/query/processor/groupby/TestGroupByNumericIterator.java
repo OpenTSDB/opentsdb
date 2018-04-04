@@ -63,7 +63,7 @@ public class TestGroupByNumericIterator {
   @Before
   public void before() throws Exception {
     interpolator_config = NumericInterpolatorConfig.newBuilder()
-        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setFillPolicy(FillPolicy.NONE)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
         .build();
     config = GroupByConfig.newBuilder()
@@ -462,6 +462,10 @@ public class TestGroupByNumericIterator {
   
   @Test
   public void itearateInfectiousNan() throws Exception {
+    interpolator_config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build();
     config = GroupByConfig.newBuilder()
         .setAggregator("sum")
         .setId("Testing")
