@@ -190,7 +190,6 @@ public class MergedTimeSeriesId {
 
     /** @return The merged time series ID. */
     public TimeSeriesId build() {
-      System.out.println("TYPE: " + type);
       if (type.equals(Const.TS_STRING_ID)) {
         return mergeStringIds();
       } else if (type.equals(Const.TS_BYTE_ID)) {
@@ -494,7 +493,7 @@ public class MergedTimeSeriesId {
               } else {
                 tags.put(pair.getKey(), pair.getValue());
               }
-            } else if (!existing_value.equals(pair.getValue())) {
+            } else if (Bytes.memcmp(existing_value, pair.getValue()) != 0) {
               // move to agg
               if (aggregated_tags == null) {
                 aggregated_tags = new ByteSet();
@@ -533,7 +532,7 @@ public class MergedTimeSeriesId {
             if (id.aggregatedTags() != null && !id.aggregatedTags().isEmpty()) {
               boolean matched = false;
               for (final byte[] other : id.aggregatedTags()) {
-                if (tag.equals(other)) {
+                if (Bytes.memcmp(tag, other) == 0) {
                   matched = true;
                   break;
                 }
