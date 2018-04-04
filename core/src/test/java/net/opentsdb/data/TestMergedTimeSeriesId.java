@@ -29,13 +29,20 @@ import net.opentsdb.storage.TimeSeriesDataStore;
 
 public class TestMergedTimeSeriesId {
   private static final byte[] BYTES_1 = "Tyrell".getBytes();
+  private static final byte[] BYTES_1_ALT = "Tyrell".getBytes();
   private static final byte[] BYTES_2 = "Lanister".getBytes();
+  private static final byte[] BYTES_2_ALT = "Lanister".getBytes();
   private static final byte[] BYTES_3 = "Medici".getBytes();
+  private static final byte[] BYTES_3_ALT = "Medici".getBytes();
   private static final byte[] FAMILY = "Family".getBytes();
   private static final byte[] DRAGON = "Dragon".getBytes();
+  private static final byte[] DRAGON_ALT = "Dragon".getBytes();
   private static final byte[] DRAGON_1 = "Drogon".getBytes();
+  private static final byte[] DRAGON_1_ALT = "Drogon".getBytes();
   private static final byte[] DRAGON_2 = "Rhaegal".getBytes();
+  private static final byte[] DRAGON_2_ALT = "Rhaegal".getBytes();
   private static final byte[] METRIC = "ice.dragon".getBytes();
+  private static final byte[] METRIC_ALT = "ice.dragon".getBytes();
   
   private TimeSeriesDataStore data_store;
   
@@ -126,7 +133,7 @@ public class TestMergedTimeSeriesId {
         .build();
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .setNamespace(BYTES_2)
-        .setMetric(METRIC)
+        .setMetric(METRIC_ALT)
         .build();
     builder = MergedTimeSeriesId.newBuilder()
         .addSeries(c)
@@ -135,7 +142,7 @@ public class TestMergedTimeSeriesId {
       assertEquals(Const.TS_BYTE_ID, builder.type);
       
       d = BaseTimeSeriesByteId.newBuilder(mock(TimeSeriesDataStore.class))
-          .setNamespace(BYTES_2)
+          .setNamespace(BYTES_2_ALT)
           .setMetric(METRIC)
           .build();
       try {
@@ -229,7 +236,7 @@ public class TestMergedTimeSeriesId {
         .build();
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .setNamespace(BYTES_2)
-        .setMetric(METRIC)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(c)
@@ -316,9 +323,9 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC)
         .build();
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
-        .addTags(FAMILY, BYTES_1)
-        .addTags(DRAGON, DRAGON_1)
-        .setMetric(METRIC)
+        .addTags(FAMILY, BYTES_1_ALT)
+        .addTags(DRAGON_ALT, DRAGON_1_ALT)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(c)
@@ -363,8 +370,8 @@ public class TestMergedTimeSeriesId {
         .build();
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_2)
-        .addTags(DRAGON, DRAGON_1)
-        .setMetric(METRIC)
+        .addTags(DRAGON_ALT, DRAGON_1_ALT)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(c)
@@ -407,9 +414,9 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC)
         .build();
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
-        .addTags(FAMILY, BYTES_2)
-        .addTags(DRAGON, DRAGON_1)
-        .setMetric(METRIC)
+        .addTags(FAMILY, BYTES_2_ALT)
+        .addTags(DRAGON_ALT, DRAGON_1_ALT)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(c)
@@ -453,8 +460,8 @@ public class TestMergedTimeSeriesId {
         .build();
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_2)
-        .addTags(DRAGON, DRAGON_1)
-        .setMetric(METRIC)
+        .addTags(DRAGON_ALT, DRAGON_1_ALT)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(c)
@@ -498,8 +505,8 @@ public class TestMergedTimeSeriesId {
         .build();
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addAggregatedTag(FAMILY)
-        .addTags(DRAGON, DRAGON_1)
-        .setMetric(METRIC)
+        .addTags(DRAGON_ALT, DRAGON_1_ALT)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(c)
@@ -543,8 +550,8 @@ public class TestMergedTimeSeriesId {
         .build();
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
-        .addTags(DRAGON, DRAGON_1)
-        .setMetric(METRIC)
+        .addTags(DRAGON_ALT, DRAGON_1_ALT)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(c)
@@ -588,8 +595,8 @@ public class TestMergedTimeSeriesId {
         .build();
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addDisjointTag(FAMILY)
-        .addTags(DRAGON, DRAGON_1)
-        .setMetric(METRIC)
+        .addTags(DRAGON_ALT, DRAGON_1_ALT)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(c)
@@ -634,9 +641,9 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC)
         .build();
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
-        .addTags(FAMILY, BYTES_1)
-        .addTags(BYTES_2, BYTES_3)
-        .setMetric(METRIC)
+        .addTags(FAMILY, BYTES_1_ALT)
+        .addTags(BYTES_2_ALT, BYTES_3_ALT)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(c)
@@ -685,8 +692,8 @@ public class TestMergedTimeSeriesId {
         .build();
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(BYTES_3, DRAGON_2)
-        .addTags(BYTES_2, BYTES_3)
-        .setMetric(METRIC)
+        .addTags(BYTES_2_ALT, BYTES_3_ALT)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(c)
@@ -731,9 +738,9 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC)
         .build();
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
-        .addTags(FAMILY, BYTES_1)
-        .addAggregatedTag(DRAGON)
-        .setMetric(METRIC)
+        .addTags(FAMILY, BYTES_1_ALT)
+        .addAggregatedTag(DRAGON_ALT)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(c)
@@ -776,9 +783,9 @@ public class TestMergedTimeSeriesId {
         .setMetric(METRIC)
         .build();
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
-        .addTags(FAMILY, BYTES_1)
-        .addTags(DRAGON, DRAGON_1)
-        .setMetric(METRIC)
+        .addTags(FAMILY, BYTES_1_ALT)
+        .addTags(DRAGON_ALT, DRAGON_1_ALT)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(c)
@@ -830,13 +837,13 @@ public class TestMergedTimeSeriesId {
         .build();
     TimeSeriesByteId e = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
-        .addTags(DRAGON, DRAGON_1)
-        .setMetric(METRIC)
+        .addTags(DRAGON_ALT, DRAGON_1_ALT)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId f = BaseTimeSeriesByteId.newBuilder(data_store)
         .addTags(FAMILY, BYTES_1)
-        .addTags(BYTES_3, DRAGON_2)
-        .setMetric(METRIC)
+        .addTags(BYTES_3, DRAGON_2_ALT)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(d)
@@ -882,8 +889,8 @@ public class TestMergedTimeSeriesId {
         .build();
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addAggregatedTag(FAMILY)
-        .addAggregatedTag(DRAGON)
-        .setMetric(METRIC)
+        .addAggregatedTag(DRAGON_ALT)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(c)
@@ -929,7 +936,7 @@ public class TestMergedTimeSeriesId {
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addAggregatedTag(FAMILY)
         .addAggregatedTag(BYTES_3)
-        .setMetric(METRIC)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(c)
@@ -979,7 +986,7 @@ public class TestMergedTimeSeriesId {
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addAggregatedTag(BYTES_1)
         .addAggregatedTag(BYTES_3)
-        .setMetric(METRIC)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(c)
@@ -1028,7 +1035,7 @@ public class TestMergedTimeSeriesId {
     TimeSeriesByteId d = BaseTimeSeriesByteId.newBuilder(data_store)
         .addDisjointTag(FAMILY)
         .addDisjointTag(BYTES_3)
-        .setMetric(METRIC)
+        .setMetric(METRIC_ALT)
         .build();
     TimeSeriesByteId merged_bytes = (TimeSeriesByteId) MergedTimeSeriesId.newBuilder()
         .addSeries(c)
