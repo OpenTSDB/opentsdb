@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,15 +14,16 @@
 // limitations under the License.
 package net.opentsdb.query.processor.groupby;
 
+import java.util.List;
 import java.util.Set;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import net.opentsdb.query.QueryIteratorInterpolatorConfig;
 import net.opentsdb.query.QueryIteratorInterpolatorFactory;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.utils.ByteSet;
 
 /**
  * The configuration class for a {@link GroupBy} query node.
@@ -32,7 +33,7 @@ import net.opentsdb.utils.ByteSet;
 public class GroupByConfig implements QueryNodeConfig {
   private final String id;
   private final Set<String> tag_keys;
-  private final ByteSet encoded_tag_keys;
+  private final List<byte[]> encoded_tag_keys;
   private final String aggregator;
   private final boolean infectious_nan;
   private final QueryIteratorInterpolatorFactory interpolator;
@@ -75,7 +76,7 @@ public class GroupByConfig implements QueryNodeConfig {
   
   /** @return An optional encoded tag key list. May be null if encoding
    * is not used in the pipeline. */
-  public ByteSet getEncodedTagKeys() {
+  public List<byte[]> getEncodedTagKeys() {
     return encoded_tag_keys;
   }
   
@@ -108,7 +109,7 @@ public class GroupByConfig implements QueryNodeConfig {
   public static class Builder {
     private String id;
     private Set<String> tag_keys;
-    private ByteSet encoded_tag_keys;
+    private List<byte[]> encoded_tag_keys;
     private String aggregator;
     private boolean infectious_nan;
     private QueryIteratorInterpolatorFactory interpolator;
@@ -139,7 +140,7 @@ public class GroupByConfig implements QueryNodeConfig {
      * schema in use then use {@link #setTagKeys(Set)}.
      * @return The builder.
      */
-    public Builder setTagKeys(final ByteSet encoded_tag_keys) {
+    public Builder setTagKeys(final List<byte[]> encoded_tag_keys) {
       this.encoded_tag_keys = encoded_tag_keys;
       return this;
     }
@@ -163,7 +164,7 @@ public class GroupByConfig implements QueryNodeConfig {
      */
     public Builder addTagKey(final byte[] encoded_tag_key) {
       if (encoded_tag_keys == null) {
-        encoded_tag_keys = new ByteSet();
+        encoded_tag_keys = Lists.newArrayList();
       }
       encoded_tag_keys.add(encoded_tag_key);
       return this;

@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import java.util.List;
+
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.data.TimeSeriesByteId;
@@ -65,6 +67,15 @@ public interface TimeSeriesDataStore extends QueryNodeFactory {
   public Deferred<TimeSeriesStringId> resolveByteId(final TimeSeriesByteId id, 
                                                     final Span span);
 
+  /**
+   * TODO - doc
+   * @param join_keys
+   * @param span
+   * @return
+   */
+  public Deferred<List<byte[]>> encodeJoinKeys(final List<String> join_keys, 
+                                               final Span span);
+  
   /**
    * Releases resources held by the store. 
    * @return A deferred resolving to null. 

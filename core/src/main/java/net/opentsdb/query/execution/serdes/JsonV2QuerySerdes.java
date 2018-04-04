@@ -21,6 +21,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Optional;
 
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -53,7 +57,9 @@ import net.opentsdb.utils.Exceptions;
  * @since 3.0
  */
 public class JsonV2QuerySerdes implements TimeSeriesSerdes {
-
+  private static final Logger LOG = LoggerFactory.getLogger(
+      JsonV2QuerySerdes.class);
+  
   /** The JSON generator used for writing. */
   private final JsonGenerator json;
   
@@ -163,12 +169,12 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
             for (final Entry<String, String> entry : id.tags().entrySet()) {
               json.writeStringField(entry.getKey(), entry.getValue());
             }
+            json.writeEndObject();
             json.writeArrayFieldStart("aggregateTags");
             for (final String tag : id.aggregatedTags()) {
               json.writeString(tag);
             }
             json.writeEndArray();
-            json.writeEndObject();
             json.writeObjectFieldStart("dps");
             
             long ts = 0;
@@ -202,6 +208,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
           
           json.flush();
         } catch (IOException e) {
+          LOG.error("Unexpected exception", e);
           throw new QueryExecutionException("Unexpected exception "
               + "serializing: " + result, 500, e);
         }
@@ -225,13 +232,14 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
         Deferred.group(deferreds)
           .addCallback(new ResolveCB())
           .addErrback(new ErrorCB())
-          .join();
+          .join(); // TODO - grrr I hate this! See if we can async it.
       } else {
         new ResolveCB().call(null);
       }
     } catch (InterruptedException e) {
       throw new QueryExecutionException("Failed to resolve IDs", 500, e);
     } catch (Exception e) {
+      LOG.error("Unexpected exception", e);
       throw new QueryExecutionException("Failed to resolve IDs", 500, e);
     }
   }

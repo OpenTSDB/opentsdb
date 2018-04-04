@@ -54,13 +54,46 @@ public class TestNumericSpan {
     assertEquals(1, span.rows.size());
     assertEquals(BASE_TIME + 3600, span.rows.get(0).base_timestamp);
     
+    // earlier row
     seq = new NumericRowSeq(BASE_TIME);
     seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
         NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 0));
-    try {
-      span.addSequence(seq, false);
-      fail("Expected IllegalStateException e");
-    } catch (IllegalStateException e) { }
+    
+    span.addSequence(seq, false);
+    assertEquals(2, span.rows.size());
+    assertEquals(BASE_TIME, span.rows.get(0).base_timestamp);
+    assertEquals(BASE_TIME + 3600, span.rows.get(1).base_timestamp);
+    
+    // later row
+    seq = new NumericRowSeq(BASE_TIME + (3600 * 3));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 0));
+    span.addSequence(seq, false);
+    assertEquals(3, span.rows.size());
+    assertEquals(BASE_TIME, span.rows.get(0).base_timestamp);
+    assertEquals(BASE_TIME + 3600, span.rows.get(1).base_timestamp);
+    assertEquals(BASE_TIME + (3600 * 3), span.rows.get(2).base_timestamp);
+    
+    // merge earlier
+    seq = new NumericRowSeq(BASE_TIME);
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 0));
+    span.addSequence(seq, false);
+    assertEquals(3, span.rows.size());
+    assertEquals(BASE_TIME, span.rows.get(0).base_timestamp);
+    assertEquals(BASE_TIME + 3600, span.rows.get(1).base_timestamp);
+    assertEquals(BASE_TIME + (3600 * 3), span.rows.get(2).base_timestamp);
+    
+    // insert earlier
+    seq = new NumericRowSeq(BASE_TIME + (3600 * 2));
+    seq.addColumn(Schema.APPENDS_PREFIX, APPEND_Q, 
+        NumericCodec.encodeAppendValue(OffsetResolution.SECONDS, 0, 0));
+    span.addSequence(seq, false);
+    assertEquals(4, span.rows.size());
+    assertEquals(BASE_TIME, span.rows.get(0).base_timestamp);
+    assertEquals(BASE_TIME + 3600, span.rows.get(1).base_timestamp);
+    assertEquals(BASE_TIME + (3600 * 2), span.rows.get(2).base_timestamp);
+    assertEquals(BASE_TIME + (3600 * 3), span.rows.get(3).base_timestamp);
   }
   
   @Test

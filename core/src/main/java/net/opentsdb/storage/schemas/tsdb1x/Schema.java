@@ -15,11 +15,13 @@
 package net.opentsdb.storage.schemas.tsdb1x;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
@@ -32,6 +34,7 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -51,6 +54,7 @@ import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
 import net.opentsdb.storage.TimeSeriesDataStore;
+import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdFactory;
 import net.opentsdb.uid.UniqueIdStore;
@@ -222,6 +226,11 @@ public class Schema implements TimeSeriesDataStore {
     return data_store.newNode(context, config);
   }
 
+  @Override
+  public Deferred<List<byte[]>> encodeJoinKeys(final List<String> join_keys, final Span span) {
+    return getIds(UniqueIdType.TAGK, join_keys, span);
+  }
+  
   @Override
   public Collection<TypeToken<?>> types() {
     return data_store.types();
@@ -625,7 +634,18 @@ public class Schema implements TimeSeriesDataStore {
   }
   
   public void prefixKeyWithSalt(final byte[] row_key, final int bucket) {
-    // TODO - implement
+    if (salt_width == 1) {
+      row_key[0] = (byte) bucket;
+      return;
+    }
+    
+    final byte[] salt = new byte[salt_width];
+    int shift = 0;
+    for (int i = 0; i <= salt_width; i++) {
+      salt[salt_width - i] = (byte) (bucket >>> shift);
+      shift += 8;
+    }
+    System.arraycopy(salt, 0, row_key, 0, salt_width);
   }
   
   public RollupConfig rollupConfig() {
@@ -790,9 +810,7 @@ public class Schema implements TimeSeriesDataStore {
   UniqueId tagValues() {
     return tag_values;
   }
-
   
-
   @Override
   public Deferred<Object> write(TimeSeriesStringId id, TimeSeriesValue<?> value,
       Span span) {
@@ -802,8 +820,154 @@ public class Schema implements TimeSeriesDataStore {
 
   @Override
   public Deferred<TimeSeriesStringId> resolveByteId(TimeSeriesByteId id, final Span span) {
-    // TODO Auto-generated method stub
-    return null;
+    final Span child;
+    if (span != null && span.isDebug()) {
+      child = span.newChild(getClass().getName() + ".decode")
+          .start();
+    } else {
+      child = null;
+    }
+    
+    final List<byte[]> tagks = Lists.newArrayListWithCapacity(id.tags().size());
+    final List<byte[]> tagvs = Lists.newArrayListWithCapacity(id.tags().size());
+    final List<String> tagk_strings = Lists.newArrayListWithCapacity(id.tags().size());
+    final List<String> tagv_strings = Lists.newArrayListWithCapacity(id.tags().size());
+    for (final Entry<byte[], byte[]> pair : id.tags().entrySet()) {
+      tagks.add(pair.getKey());
+      tagvs.add(pair.getValue());
+    }
+    
+    // resolve the tag keys
+    final BaseTimeSeriesStringId.Builder builder = 
+        BaseTimeSeriesStringId.newBuilder();
+    class FinalCB implements Callback<TimeSeriesStringId, ArrayList<Object>> {
+      @Override
+      public TimeSeriesStringId call(final ArrayList<Object> ignored) throws Exception {
+        if (tagk_strings != null) {
+          for (int i = 0; i < tagk_strings.size(); i++) {
+            builder.addTags(tagk_strings.get(i), tagv_strings.get(i));
+          }
+        }
+        
+        final TimeSeriesStringId id = builder.build();
+        if (child != null) {
+          child.setSuccessTags()
+               .finish();
+        }
+        return id;
+      }
+    }
+    
+    class AggDisjointTagCB implements Callback<Object, List<String>> {
+      final boolean is_disjoint; // false => agg tags
+      
+      AggDisjointTagCB(final boolean is_disjoint) {
+        this.is_disjoint = is_disjoint;
+      }
+      
+      @Override
+      public Object call(final List<String> names) throws Exception {
+        for (int i = 0; i < names.size(); i++) {
+          if (Strings.isNullOrEmpty(names.get(i))) {
+            throw new NoSuchUniqueId(Schema.TAGK_TYPE, 
+                is_disjoint ? id.disjointTags().get(i) : id.aggregatedTags().get(i));
+          }
+          if (is_disjoint) {
+            builder.addDisjointTag(names.get(i));
+          } else {
+            builder.addAggregatedTag(names.get(i));
+          }
+        }
+        return null;
+      }
+    }
+    
+    class TagKeyCB implements Callback<Object, List<String>> {
+      @Override
+      public Object call(final List<String> names) throws Exception {
+        for (int i = 0; i < names.size(); i++) {
+          if (Strings.isNullOrEmpty(names.get(i))) {
+            throw new NoSuchUniqueId(Schema.TAGK_TYPE, tagks.get(i));
+          }
+          tagk_strings.add(names.get(i));
+        }
+        return null;
+      }
+    }
+    
+    class TagValueCB implements Callback<Object, List<String>> {
+      @Override
+      public Object call(final List<String> values) throws Exception {
+        for (int i = 0; i < values.size(); i++) {
+          if (Strings.isNullOrEmpty(values.get(i))) {
+            throw new NoSuchUniqueId(Schema.TAGV_TYPE, tagvs.get(i));
+          }
+          tagv_strings.add(values.get(i));
+        }
+        return null;
+      }
+    }
+    
+    class MetricCB implements Callback<Object, String> {
+      @Override
+      public Object call(final String metric) throws Exception {
+        if (Strings.isNullOrEmpty(metric)) {
+          throw new NoSuchUniqueId(Schema.METRIC_TYPE, id.metric());
+        }
+        builder.setMetric(metric);
+        return null;
+      }
+    }
+    
+    class ErrCB implements Callback<Object, Exception> {
+      @Override
+      public Object call(final Exception ex) throws Exception {
+        if (child != null) {
+          child.setErrorTags()
+               .log("Exception", 
+                   (ex instanceof DeferredGroupException) ? 
+                       Exceptions.getCause((DeferredGroupException) ex) : ex)
+               .finish();
+        }
+        if (ex instanceof DeferredGroupException) {
+          final Exception t = (Exception) Exceptions
+              .getCause((DeferredGroupException) ex);
+          throw t;
+        }
+        throw ex;
+      }
+    }
+    
+    final List<Deferred<Object>> deferreds = 
+        Lists.newArrayListWithCapacity(3);
+    try {
+      // resolve the metric
+      deferreds.add(getName(UniqueIdType.METRIC, id.metric(), 
+          child != null ? child : span)
+            .addCallback(new MetricCB()));
+      
+      if (!id.tags().isEmpty()) {
+        deferreds.add(this.getNames(UniqueIdType.TAGK, tagks, child)
+            .addCallback(new TagKeyCB()));
+        deferreds.add(this.getNames(UniqueIdType.TAGV, tagvs, child)
+            .addCallback(new TagValueCB()));
+      }
+      
+      if (!id.aggregatedTags().isEmpty()) {
+        deferreds.add(this.getNames(UniqueIdType.TAGK, id.aggregatedTags(), child)
+            .addCallback(new AggDisjointTagCB(false)));
+      }
+      
+      if (!id.disjointTags().isEmpty()) {
+        deferreds.add(this.getNames(UniqueIdType.TAGK, id.disjointTags(), child)
+            .addCallback(new AggDisjointTagCB(true)));
+      }
+      
+      return Deferred.group(deferreds)
+          .addCallbacks(new FinalCB(), new ErrCB());
+    } catch (Exception e) {
+      return Deferred.fromError(e);
+    }
   }
 
   @Override

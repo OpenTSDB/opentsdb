@@ -16,9 +16,14 @@ package net.opentsdb.query;
 
 import java.time.ZoneId;
 import java.util.Collection;
+import java.util.List;
+import java.util.Set;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.exceptions.QueryExecutionException;
@@ -101,6 +106,7 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
       Filter filter = Strings.isNullOrEmpty(metric.getFilter()) ? null : q.getFilter(metric.getFilter());
       if (filter != null) {
         GroupByConfig.Builder gb_config = null;
+        final Set<String> join_keys = Sets.newHashSet();
         for (TagVFilter v : filter.getTags()) {
           if (v.isGroupBy()) {
             NumericInterpolatorConfig nic = NumericInterpolatorFactory.parse(
@@ -112,11 +118,24 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
                   .setQueryIteratorInterpolatorConfig(nic)
                   .setId("groupBy_" + metric.getId());
             }
-            gb_config.addTagKey(v.getTagk());
+            join_keys.add(v.getTagk());
           }
         }
         
         if (gb_config != null) {
+          if (factory.idType() == Const.TS_BYTE_ID) {
+            try {
+              List<byte[]> keys = store.encodeJoinKeys(
+                  Lists.newArrayList(join_keys), null /* TODO */)
+                  .join(); // TODO <--- DO NOT JOIN here! Find a way to async it.
+              gb_config.setTagKeys(keys);
+            } catch (InterruptedException e) {
+              throw new QueryExecutionException("Unexpected interruption", 0, e);
+            } catch (Exception e) {
+              throw new QueryExecutionException("Unexpected exception", 0, e);
+            }
+          }
+          gb_config.setTagKeys(join_keys);
           gb_config.setAggregator( 
               !Strings.isNullOrEmpty(metric.getAggregator()) ?
               metric.getAggregator() : q.getTime().getAggregator());
