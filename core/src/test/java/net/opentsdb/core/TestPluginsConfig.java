@@ -795,13 +795,13 @@ public class TestPluginsConfig {
     
     final Class<?> clazz = MockPluginBaseClean.class;
     verify(config, times(1)).registerPlugin(eq(clazz), 
-        eq("net.opentsdb.core.TestPluginsConfig.MockPluginCleanA"), 
+        eq("MockPluginCleanA"), 
         any(MockPluginCleanA.class));
     verify(config, times(1)).registerPlugin(eq(clazz), 
-        eq("net.opentsdb.core.TestPluginsConfig.MockPluginCleanB"), 
+        eq("MockPluginCleanB"), 
         any(MockPluginCleanB.class));
     verify(config, times(1)).registerPlugin(eq(clazz), 
-        eq("net.opentsdb.core.TestPluginsConfig.MockPluginCleanC"), 
+        eq("MockPluginCleanC"), 
         any(MockPluginCleanC.class));
   }
   
@@ -880,13 +880,13 @@ public class TestPluginsConfig {
     
     Class<?> clazz = MockPluginBaseClean.class;
     verify(config, times(1)).registerPlugin(eq(clazz), 
-        eq("net.opentsdb.core.TestPluginsConfig.MockPluginCleanA"), 
+        eq("MockPluginCleanA"), 
         any(MockPluginCleanA.class));
     verify(config, times(1)).registerPlugin(eq(clazz), 
-        eq("net.opentsdb.core.TestPluginsConfig.MockPluginCleanB"), 
+        eq("MockPluginCleanB"), 
         any(MockPluginCleanB.class));
     verify(config, times(1)).registerPlugin(eq(clazz), 
-        eq("net.opentsdb.core.TestPluginsConfig.MockPluginCleanC"), 
+        eq("MockPluginCleanC"), 
         any(MockPluginCleanC.class));
     
     clazz = MockPluginBase.class;
@@ -919,13 +919,13 @@ public class TestPluginsConfig {
     
     Class<?> clazz = MockPluginBaseClean.class;
     verify(config, times(1)).registerPlugin(eq(clazz), 
-        eq("net.opentsdb.core.TestPluginsConfig.MockPluginCleanA"), 
+        eq("MockPluginCleanA"), 
         any(MockPluginCleanA.class));
     verify(config, times(1)).registerPlugin(eq(clazz), 
-        eq("net.opentsdb.core.TestPluginsConfig.MockPluginCleanB"), 
+        eq("MockPluginCleanB"), 
         any(MockPluginCleanB.class));
     verify(config, times(1)).registerPlugin(eq(clazz), 
-        eq("net.opentsdb.core.TestPluginsConfig.MockPluginCleanC"), 
+        eq("MockPluginCleanC"), 
         any(MockPluginCleanC.class));
     
     clazz = MockPluginBase.class;
@@ -986,13 +986,13 @@ public class TestPluginsConfig {
     
     Class<?> clazz = MockPluginBaseClean.class;
     verify(config, times(1)).registerPlugin(eq(clazz), 
-        eq("net.opentsdb.core.TestPluginsConfig.MockPluginCleanA"), 
+        eq("MockPluginCleanA"), 
         any(MockPluginCleanA.class));
     verify(config, times(1)).registerPlugin(eq(clazz), 
-        eq("net.opentsdb.core.TestPluginsConfig.MockPluginCleanB"), 
+        eq("MockPluginCleanB"), 
         any(MockPluginCleanB.class));
     verify(config, times(1)).registerPlugin(eq(clazz), 
-        eq("net.opentsdb.core.TestPluginsConfig.MockPluginCleanC"), 
+        eq("MockPluginCleanC"), 
         any(MockPluginCleanC.class));
     
     verify(config, never()).registerPlugin(eq(clazz), 
@@ -1059,13 +1059,13 @@ public class TestPluginsConfig {
     
     Class<?> clazz = MockPluginBaseClean.class;
     verify(config, times(1)).registerPlugin(eq(clazz), 
-        eq("net.opentsdb.core.TestPluginsConfig.MockPluginCleanA"), 
+        eq("MockPluginCleanA"), 
         any(MockPluginCleanA.class));
     verify(config, times(1)).registerPlugin(eq(clazz), 
-        eq("net.opentsdb.core.TestPluginsConfig.MockPluginCleanB"), 
+        eq("MockPluginCleanB"), 
         any(MockPluginCleanB.class));
     verify(config, times(1)).registerPlugin(eq(clazz), 
-        eq("net.opentsdb.core.TestPluginsConfig.MockPluginCleanC"), 
+        eq("MockPluginCleanC"), 
         any(MockPluginCleanC.class));
     
     verify(config, never()).registerPlugin(eq(clazz), 

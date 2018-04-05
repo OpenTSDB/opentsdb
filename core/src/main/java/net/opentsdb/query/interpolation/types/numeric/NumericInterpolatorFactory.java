@@ -17,6 +17,7 @@ package net.opentsdb.query.interpolation.types.numeric;
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.query.QueryIteratorInterpolator;
@@ -37,7 +38,8 @@ public class NumericInterpolatorFactory {
   /**
    * The default factory that builds interpolators from the given config.
    */
-  public static class Default implements QueryIteratorInterpolatorFactory {
+  public static class Default extends BaseTSDBPlugin 
+                              implements QueryIteratorInterpolatorFactory {
     @Override
     public QueryIteratorInterpolator<? extends TimeSeriesDataType> newInterpolator(
         final TypeToken<? extends TimeSeriesDataType> type,
@@ -52,6 +54,45 @@ public class NumericInterpolatorFactory {
       }
       return new NumericInterpolator(source, 
           (NumericInterpolatorConfig) config);
+    }
+
+    @Override
+    public String id() {
+      return "Default";
+    }
+
+    @Override
+    public String version() {
+      return "3.0.0";
+    }
+  }
+  
+  public static class LERP extends BaseTSDBPlugin 
+                           implements QueryIteratorInterpolatorFactory {
+  @Override
+  public QueryIteratorInterpolator<? extends TimeSeriesDataType> newInterpolator(
+        final TypeToken<? extends TimeSeriesDataType> type,
+        final TimeSeries source, 
+        final QueryIteratorInterpolatorConfig config) {
+      if (config == null) {
+        throw new IllegalArgumentException("Config cannot be null.");
+      }
+      if (!(config instanceof NumericInterpolatorConfig)) {
+        throw new IllegalArgumentException("Config was not of the type "
+            + "NumericInterpolatorConfig: " + config.getClass());
+      }
+      return new NumericLERP(source, 
+        (NumericInterpolatorConfig) config);
+    }
+    
+    @Override
+    public String id() {
+      return "LERP";
+    }
+    
+    @Override
+    public String version() {
+      return "3.0.0";
     }
   }
   

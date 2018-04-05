@@ -113,8 +113,14 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
                 !Strings.isNullOrEmpty(metric.getAggregator()) ?
                     metric.getAggregator() : q.getTime().getAggregator());
             if (gb_config == null) {
+              
+              QueryIteratorInterpolatorFactory nif = tsdb.getRegistry().getPlugin(
+                  QueryIteratorInterpolatorFactory.class, "LERP");
+              if (nif == null) {
+                throw new QueryExecutionException("Unable to find the LERP interpolator.", 0);
+              }
               gb_config = GroupByConfig.newBuilder()
-                  .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
+                  .setQueryIteratorInterpolatorFactory(nif)
                   .setQueryIteratorInterpolatorConfig(nic)
                   .setId("groupBy_" + metric.getId());
             }
