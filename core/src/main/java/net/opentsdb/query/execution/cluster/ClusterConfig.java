@@ -133,7 +133,9 @@ public class ClusterConfig implements Comparable<ClusterConfig> {
     
     Exception exception = null;
     try {
-      final Class<?> clazz = ClassUtil.findClass(implementation_name);
+      //final Class<?> clazz = ClassUtil.findClass(implementation_name);
+      // ^^ disappeared in later Jackson versions :(
+      final Class<?> clazz = Class.forName(implementation_name);
       implementation = (ClusterConfigPlugin) clazz.newInstance();
     } catch (Exception e) {
       exception = e;

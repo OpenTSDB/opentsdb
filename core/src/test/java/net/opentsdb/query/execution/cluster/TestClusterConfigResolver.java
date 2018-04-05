@@ -138,32 +138,32 @@ public class TestClusterConfigResolver {
   public void typeFromId() throws Exception {
     final ClusterConfigResolver resolver = new ClusterConfigResolver();
     resolver.init(type);
-    JavaType type = resolver.typeFromId("TestClusterConfigPlugin$UTPlugin");
+    JavaType type = resolver.typeFromId(null, "TestClusterConfigPlugin$UTPlugin");
     assertEquals(TestClusterConfigPlugin.UTPlugin.Config.class, 
         type.getRawClass());
         
-    type = resolver.typeFromId(
+    type = resolver.typeFromId(null, 
         "net.opentsdb.query.execution.cluster.TestClusterConfigResolver$UTConfig");
     assertEquals(UTConfig.class, type.getRawClass());
     
     try {
-      resolver.typeFromId("");
+      resolver.typeFromId(null, "");
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
     try {
-      resolver.typeFromId(
+      resolver.typeFromId(null, 
           "net.opentsdb.query.execution.cluster.TestClusterConfigResolver");
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      resolver.typeFromId("net.opentsdb.nosuchclass");
+      resolver.typeFromId(null, "net.opentsdb.nosuchclass");
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
     try {
-      resolver.typeFromId(null);
+      resolver.typeFromId(null, null);
       fail("Expected NullPointerException");
     } catch (NullPointerException e) { }
   }

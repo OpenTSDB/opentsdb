@@ -14,11 +14,13 @@
 // limitations under the License.
 package net.opentsdb.query.execution;
 
+import java.io.IOException;
+
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import com.fasterxml.jackson.databind.DatabindContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.jsontype.TypeIdResolver;
 import com.fasterxml.jackson.databind.type.TypeFactory;
-import com.fasterxml.jackson.databind.util.ClassUtil;
 import com.google.common.reflect.TypeToken;
 
 /**
@@ -80,11 +82,11 @@ public class QueryExecutorConfigResolver implements TypeIdResolver{
   }
 
   @Override
-  public JavaType typeFromId(final String type) {
+  public JavaType typeFromId(final DatabindContext ctx, final String id)
+      throws IOException {
     return TypeFactory.defaultInstance()
-        .constructSpecializedType(base_type, typeOf(type).getRawType());
+      .constructSpecializedType(base_type, typeOf(id).getRawType());
   }
-  
   /**
    * Attempts to locate the given {@link QueryExecutorConfig} Config class using
    * either the simple version of a {@link QueryExecutorConfig} or the 
@@ -99,11 +101,20 @@ public class QueryExecutorConfigResolver implements TypeIdResolver{
     try {
       // TODO - search plugins as well as they likely won't be on our class
       // path.
-      final Class<?> clazz = ClassUtil.findClass(name);
+      //final Class<?> clazz = ClassUtil.findClass(name); // aw where'd it go?
+      final Class<?> clazz = Class.forName(name);
       return TypeToken.of(clazz);
     } catch (ClassNotFoundException e) {
         throw new IllegalStateException("Unable to find Config "
             + "implementation: '" + name + "'");
     }
   }
+
+  
+  @Override
+  public String getDescForKnownTypeIds() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+  
 }
