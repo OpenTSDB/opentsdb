@@ -133,22 +133,22 @@ public class TestQueryExecutorConfigResolver {
     final QueryExecutorConfigResolver resolver = 
         new QueryExecutorConfigResolver();
     resolver.init(type);
-    JavaType type = resolver.typeFromId(
+    JavaType type = resolver.typeFromId(null,
         "net.opentsdb.query.execution.TestQueryExecutorConfig$UTConfig");
     assertEquals(TestQueryExecutorConfig.UTConfig.class, type.getRawClass());
     
     try {
-      resolver.typeFromId("");
+      resolver.typeFromId(null, "");
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
     try {
-      resolver.typeFromId("net.opentsdb.nosuchclass");
+      resolver.typeFromId(null, "net.opentsdb.nosuchclass");
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
     try {
-      resolver.typeFromId(null);
+      resolver.typeFromId(null, null);
       fail("Expected NullPointerException");
     } catch (NullPointerException e) { }
   }

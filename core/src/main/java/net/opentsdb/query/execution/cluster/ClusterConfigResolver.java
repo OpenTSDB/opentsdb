@@ -15,6 +15,7 @@
 package net.opentsdb.query.execution.cluster;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import com.fasterxml.jackson.databind.DatabindContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.jsontype.TypeIdResolver;
 import com.fasterxml.jackson.databind.jsontype.impl.TypeIdResolverBase;
@@ -84,7 +85,7 @@ public class ClusterConfigResolver extends TypeIdResolverBase {
   }
 
   @Override
-  public JavaType typeFromId(final String type) {
+  public JavaType typeFromId(final DatabindContext ctx, final String type) {
     return TypeFactory.defaultInstance()
         .constructSpecializedType(base_type, typeOf(type).getRawType());
   }
@@ -103,7 +104,8 @@ public class ClusterConfigResolver extends TypeIdResolverBase {
     try {
       // TODO - search plugins as well as they likely won't be on our class
       // path.
-      final Class<?> clazz = ClassUtil.findClass(name);
+      //final Class<?> clazz = ClassUtil.findClass(name); // aw where'd it go?
+      final Class<?> clazz = Class.forName(name);
       return TypeToken.of(clazz);
     } catch (ClassNotFoundException e) {
         throw new IllegalStateException("Unable to find Config "

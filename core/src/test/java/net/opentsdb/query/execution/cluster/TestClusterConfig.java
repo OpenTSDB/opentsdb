@@ -503,8 +503,8 @@ public class TestClusterConfig {
   @Test
   public void initializeExceptionOnImplementationInit() throws Exception {
     ClusterConfigPlugin mock = mock(ClusterConfigPlugin.class);
-    PowerMockito.mockStatic(ClassUtil.class);
-    when(ClassUtil.findClass(anyString())).thenThrow(new RuntimeException("Boo!"));
+    PowerMockito.mockStatic(Class.class);
+    when(Class.forName(anyString())).thenThrow(new RuntimeException("Boo!"));
     PowerMockito.mockStatic(PluginLoader.class);
     when(PluginLoader.loadSpecificPlugin(anyString(), any(Class.class)))
       .thenReturn(mock);

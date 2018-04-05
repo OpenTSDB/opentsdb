@@ -132,17 +132,17 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>2.4.3</version>
+            <version>2.9.5</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
-            <version>2.4.3</version>
+            <version>2.9.5</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.4.3</version>
+            <version>2.9.5</version>
         </dependency>
 		
         <dependency>
@@ -258,7 +258,41 @@
            <autoReleaseAfterClose>true</autoReleaseAfterClose>
         </configuration>
       </plugin>
+	  
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>owasp-dep-check</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.owasp</groupId>
+            <artifactId>dependency-check-maven</artifactId>
+            <version>3.0.2</version>
+            <configuration>
+              <cveUrl12Modified>https://nvd.nist.gov/feeds/xml/cve/1.2/nvdcve-modified.xml.gz</cveUrl12Modified>
+              <cveUrl20Modified>https://nvd.nist.gov/feeds/xml/cve/2.0/nvdcve-2.0-modified.xml.gz</cveUrl20Modified>
+              <cveUrl12Base>https://nvd.nist.gov/feeds/xml/cve/1.2/nvdcve-%d.xml.gz</cveUrl12Base>
+              <cveUrl20Base>https://nvd.nist.gov/feeds/xml/cve/2.0/nvdcve-2.0-%d.xml.gz</cveUrl20Base>
+              <cveValidForHours>48</cveValidForHours>
+              <failOnError>false</failOnError>
+              <failBuildOnCVSS>5</failBuildOnCVSS>
+              <outputDirectory>owaspreport</outputDirectory>
+              <format>ALL</format>
+            </configuration>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>check</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+	</profile>
+  </profiles>
 
 </project>
