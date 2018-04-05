@@ -401,7 +401,11 @@ public class PluginsConfig extends Validatable {
                   final PluginConfig waiting = new PluginConfig();
                   waiting.setPlugin(plugin.getClass().getCanonicalName());
                   waiting.setType(type.getCanonicalName());
-                  waiting.setId(plugin.getClass().getCanonicalName());
+                  if (Strings.isNullOrEmpty(plugin.id())) {
+                    waiting.setId(plugin.getClass().getCanonicalName());
+                  } else {
+                    waiting.setId(plugin.id());
+                  }
                   waiting.clazz = type;
                   waiting.instantiated_plugin = plugin;
                   waiting_on_init.add(waiting);

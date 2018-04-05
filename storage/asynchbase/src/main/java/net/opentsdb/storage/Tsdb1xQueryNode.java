@@ -177,7 +177,7 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
           .dynamicString(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY));
     }
     
-    if (((Tsdb1xHBaseDataStore) factory).schema() != null && 
+    if (((Tsdb1xHBaseDataStore) factory).schema().rollupConfig() != null && 
         rollup_usage != RollupUsage.ROLLUP_RAW) {
       Downsampler ds = query.getMetrics().get(0).getDownsampler();
       if (ds != null) {

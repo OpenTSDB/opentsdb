@@ -16,6 +16,7 @@ package net.opentsdb.query;
 
 import com.google.common.reflect.TypeToken;
 
+import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 
@@ -24,7 +25,7 @@ import net.opentsdb.data.TimeSeriesDataType;
  * 
  * @since 3.0
  */
-public interface QueryIteratorInterpolatorFactory {
+public interface QueryIteratorInterpolatorFactory extends TSDBPlugin {
 
   /**
    * Returns a new interpolator for the given data type if present.
