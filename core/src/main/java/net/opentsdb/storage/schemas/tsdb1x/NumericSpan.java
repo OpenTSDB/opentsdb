@@ -70,41 +70,42 @@ public class NumericSpan implements Span<NumericType> {
       return;
     }
     
-    if (!rows.isEmpty()) {
-      if (rows.get(rows.size() - 1).base_timestamp == 
-          seq.base_timestamp) {
-        // in this case we had a row continuation across a scan, which
-        // can easily happen with wide rows so add it.
-        rows.get(rows.size() - 1).addColumn(Schema.APPENDS_PREFIX, 
-            new byte[] { Schema.APPENDS_PREFIX, 0, 0 }, seq.data);
-        rows.get(rows.size() - 1).dedupe(keep_earliest, reversed);
-        return;
-      } else if (rows.get(rows.size() - 1).base_timestamp >= 
-          seq.base_timestamp) {
-        // out of order so  walk back till we find a match the location
-        // to insert it.
-        int idx = rows.size() - 2;
-        if (idx < 0) {
-          rows.add(0, seq);
+    if (rows.isEmpty()) {
+      rows.add(seq);
+      return;
+    }
+    
+    int idx = rows.size() - 1;
+    if (rows.get(idx).base_timestamp == seq.base_timestamp) {
+      // in this case we had a row continuation across a scan, which
+      // can easily happen with wide rows so add it.
+      rows.get(idx).addColumn(Schema.APPENDS_PREFIX, 
+          new byte[] { Schema.APPENDS_PREFIX, 0, 0 }, seq.data);
+      rows.get(idx).dedupe(keep_earliest, reversed);
+      return;
+    } else if (rows.get(idx).base_timestamp >= seq.base_timestamp) {
+      // out of order so  walk back till we find a match the location
+      // to insert it.
+      for (; idx >= 0; idx--) {
+        final long ts = rows.get(idx).base_timestamp;
+        if (ts == seq.base_timestamp) {
+          rows.get(idx).addColumn(Schema.APPENDS_PREFIX, 
+              new byte[] { Schema.APPENDS_PREFIX, 0, 0 }, seq.data);
+          rows.get(idx).dedupe(keep_earliest, reversed);
           return;
         }
-        for (; idx >= 0; idx--) {
-          final long ts = rows.get(idx).base_timestamp;
-          if (ts == seq.base_timestamp) {
-            rows.get(idx).addColumn(Schema.APPENDS_PREFIX, 
-                new byte[] { Schema.APPENDS_PREFIX, 0, 0 }, seq.data);
-            rows.get(idx).dedupe(keep_earliest, reversed);
-            return;
-          }
-          
-          if (ts < seq.base_timestamp) {
-            rows.add(idx + 1, seq);
-            return;
-          }
+        
+        if (ts < seq.base_timestamp) {
+          rows.add(idx + 1, seq);
+          return;
         }
       }
+      
+      // put it at the top
+      rows.add(0, seq);
+    } else {
+      rows.add(seq);
     }
-    rows.add(seq);
   }
   
   @Override
