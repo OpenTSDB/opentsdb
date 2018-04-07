@@ -103,6 +103,28 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
       QueryNode node = store.newNode(this, config);
       addVertex(node);
 
+      final Downsampler downsampler = metric.getDownsampler() != null ? 
+          metric.getDownsampler() : q.getTime().getDownsampler();
+      // downsample
+      if (downsampler != null) {
+        DownsampleConfig.Builder ds = DownsampleConfig.newBuilder()
+            .setId("downsample_" + metric.getId())
+            .setAggregator(downsampler.getAggregator())
+            .setInterval(downsampler.getInterval())
+            .setQuery(q);
+        if (!Strings.isNullOrEmpty(downsampler.getTimezone())) {
+          ds.setTimeZone(ZoneId.of(downsampler.getTimezone()));
+        }
+        final NumericInterpolatorConfig nic = 
+            NumericInterpolatorFactory.parse(downsampler.getAggregator());
+        ds.setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
+          .setQueryIteratorInterpolatorConfig(nic);
+        QueryNode down = new DownsampleFactory("Downsample").newNode(this, ds.build());
+        addVertex(down);
+        addDagEdge(down, node);
+        node = down;
+      }
+      
       Filter filter = Strings.isNullOrEmpty(metric.getFilter()) ? null : q.getFilter(metric.getFilter());
       if (filter != null) {
         GroupByConfig.Builder gb_config = null;
@@ -153,28 +175,6 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
         }
       }
 
-      final Downsampler downsampler = metric.getDownsampler() != null ? 
-          metric.getDownsampler() : q.getTime().getDownsampler();
-      // downsample
-      if (downsampler != null) {
-        DownsampleConfig.Builder ds = DownsampleConfig.newBuilder()
-            .setId("downsample_" + metric.getId())
-            .setAggregator(downsampler.getAggregator())
-            .setInterval(downsampler.getInterval())
-            .setQuery(q);
-        if (!Strings.isNullOrEmpty(downsampler.getTimezone())) {
-          ds.setTimeZone(ZoneId.of(downsampler.getTimezone()));
-        }
-        final NumericInterpolatorConfig nic = 
-            NumericInterpolatorFactory.parse(downsampler.getAggregator());
-        ds.setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-          .setQueryIteratorInterpolatorConfig(nic);
-        QueryNode down = new DownsampleFactory("Downsample").newNode(this, ds.build());
-        addVertex(down);
-        addDagEdge(down, node);
-        node = down;
-      }
-      
       if (metric.isRate()) {
         QueryNode rate = new RateFactory("Rate").newNode(this, 
             metric.getRateOptions() == null ? RateOptions.newBuilder().build() : metric.getRateOptions());
