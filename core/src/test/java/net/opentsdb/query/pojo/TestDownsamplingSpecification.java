@@ -69,7 +69,7 @@ public class TestDownsamplingSpecification {
 
   @Test(expected = RuntimeException.class)
   public void testBadFillPolicy() {
-    new DownsamplingSpecification("10m-avg-max");
+    new DownsamplingSpecification("10m-nosuchagg-nosuchagg");
   }
 
   @Test (expected = IllegalArgumentException.class)
@@ -140,7 +140,7 @@ public class TestDownsamplingSpecification {
 
   @Test(expected = IllegalArgumentException.class)
   public void testStringCtorBadFillPolicy() {
-    new DownsamplingSpecification("10m-avg-max");
+    new DownsamplingSpecification("10m-nosuchagg-nosuchagg");
   }
   
   @Test

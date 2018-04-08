@@ -421,10 +421,12 @@ public class Tsdb1xScanners implements HBaseExecutor {
    * Configures the start row key for a scanner with room for salt.
    * @param metric A non-null and non-empty metric UID.
    * @param rollup_interval An optional rollup interval.
+   * @param fuzzy_key An optional fuzzy row key when enabled.
    * @return A non-null and non-empty byte array.
    */
   byte[] setStartKey(final byte[] metric, 
-                     final RollupInterval rollup_interval) {
+                     final RollupInterval rollup_interval,
+                     final byte[] fuzzy_key) {
     long start = query.getTime().startTime().epoch();
     
     if (rollup_interval != null) {
@@ -461,9 +463,14 @@ public class Tsdb1xScanners implements HBaseExecutor {
     // Don't return negative numbers.
     start = start > 0L ? start : 0L;
     
-    final byte[] start_key = new byte[node.schema().saltWidth() + 
-                                      node.schema().metricWidth() +
-                                      Schema.TIMESTAMP_BYTES];
+    final byte[] start_key;
+    if (fuzzy_key != null) {
+      start_key = Arrays.copyOf(fuzzy_key, fuzzy_key.length);
+    } else {
+      start_key = new byte[node.schema().saltWidth() + 
+                           node.schema().metricWidth() +
+                           Schema.TIMESTAMP_BYTES];
+    }
     System.arraycopy(metric, 0, start_key, node.schema().saltWidth(), metric.length);
     Bytes.setInt(start_key, (int) start, (node.schema().saltWidth() + 
                                           node.schema().metricWidth()));
@@ -630,62 +637,57 @@ public class Tsdb1xScanners implements HBaseExecutor {
     }
     
     try {
+      final boolean explicit_tags = query.getFilters() != null && 
+          !query.getFilters().isEmpty() ? 
+          query.getFilters().get(0).getExplicitTags() : false;
       int size = node.rollupIntervals() == null ? 
           1 : node.rollupIntervals().size() + 1;
       scanners = Lists.newArrayListWithCapacity(size);
       
-      List<ScanFilter> scan_filters = null;
-      List<ScanFilter> raw_filters = null;
+      final byte[] fuzzy_key;
+      final byte[] fuzzy_mask;
+      final String regex;
       if (row_key_literals != null) {
-        final byte[] fuzzy_key;
-        final byte[] fuzzy_mask;
-        if (query.getFilters() != null && 
-            query.getFilters().get(0).getExplicitTags() && 
-            enable_fuzzy_filter) {
+        if (explicit_tags && enable_fuzzy_filter) {
           fuzzy_key = new byte[node.schema().saltWidth() 
                                + node.schema().metricWidth() 
                                + Schema.TIMESTAMP_BYTES 
                                + (row_key_literals.size() * 
-                                   (node.schema().tagkWidth() + node.schema().tagvWidth()))];
+                                   (node.schema().tagkWidth() 
+                                       + node.schema().tagvWidth()))];
+          // copy the metric UID into the fuzzy key.
+          System.arraycopy(metric, 0, fuzzy_key, 
+              node.schema().saltWidth(), metric.length);
           fuzzy_mask = new byte[fuzzy_key.length];
         } else {
           fuzzy_key = null;
           fuzzy_mask = null;
         }
         
-        final String regex = QueryUtil.getRowKeyUIDRegex(
+        regex = QueryUtil.getRowKeyUIDRegex(
             node.schema(), 
             group_bys, 
             row_key_literals, 
-            query.getFilters() == null ? false : query.getFilters().get(0).getExplicitTags(), 
+            explicit_tags, 
             fuzzy_key, 
             fuzzy_mask);
         if (Strings.isNullOrEmpty(regex)) {
           throw new RuntimeException("WTF????");
         }
-        
-        scan_filters = Lists.newArrayListWithCapacity(fuzzy_key != null ? 2 : 1);
-        
-        // fuzzy mask first, then regex. Ordering is important.
-        if (fuzzy_key != null) {
-          scan_filters.add(new FuzzyRowFilter(
-              new FuzzyRowFilter.FuzzyFilterPair(fuzzy_key, fuzzy_mask)));
-        }
-        
-        scan_filters.add(new KeyRegexpFilter(regex, Const.ASCII_CHARSET));
         if (LOG.isDebugEnabled()) {
-          LOG.debug(QueryUtil.byteRegexToString(node.schema(), regex));
+          LOG.debug("Scanner regular expression: " + 
+              QueryUtil.byteRegexToString(node.schema(), regex));
         }
+      } else {
+        fuzzy_key = null;
+        fuzzy_mask = null;
+        regex = null;
       }
       
+      final ScanFilter rollup_filter;
       if (node.rollupIntervals() != null && 
+          !node.rollupIntervals().isEmpty() && 
           node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
-        // make a raw and copy 
-        raw_filters = scan_filters;
-        scan_filters = Lists.newArrayList();
-        if (raw_filters != null) {
-          scan_filters.addAll(raw_filters);
-        }
         
         // set qualifier filters
         if (rollup_group_by != null && rollup_group_by.equals("avg")) {
@@ -704,11 +706,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
                   (byte) node.schema().rollupConfig().getIdForAggregator("count")
               })));
           
-          if (scan_filters != null) {
-            scan_filters.add(new FilterList(filters, Operator.MUST_PASS_ONE));
-          } else {
-            scan_filters = Lists.newArrayList(new FilterList(filters, Operator.MUST_PASS_ONE));
-          }
+          rollup_filter = new FilterList(filters, Operator.MUST_PASS_ONE);
         } else {
           // it's another aggregation
           final List<ScanFilter> filters = Lists.newArrayListWithCapacity(2);
@@ -720,15 +718,10 @@ public class Tsdb1xScanners implements HBaseExecutor {
                   (byte) node.schema().rollupConfig().getIdForAggregator(rollup_group_by)
               })));
           
-          if (scan_filters != null) {
-            scan_filters.add(new FilterList(filters, Operator.MUST_PASS_ONE));
-          } else {
-            scan_filters = Lists.newArrayList(new FilterList(filters, Operator.MUST_PASS_ONE));
-          }
+          rollup_filter = new FilterList(filters, Operator.MUST_PASS_ONE);
         }
       } else {
-        // copy them over.
-        raw_filters = scan_filters;
+        rollup_filter = null;
       }
       
       int idx = 0;
@@ -739,7 +732,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
           final Tsdb1xScanner[] array = new Tsdb1xScanner[node.schema().saltWidth() > 0 ? 
               node.schema().saltBuckets() : 1];
           scanners.add(array);
-          final byte[] start_key = setStartKey(metric, interval);
+          final byte[] start_key = setStartKey(metric, interval, fuzzy_key);
           final byte[] stop_key = setStopKey(metric, interval);
           
           for (int x = 0; x < array.length; x++) {
@@ -764,12 +757,10 @@ public class Tsdb1xScanners implements HBaseExecutor {
               scanner.setStopKey(stop_key);
             }
             
-            if (scan_filters != null) {
-              if (scan_filters.size() == 1) {
-                scanner.setFilter(scan_filters.get(0));
-              } else {
-                scanner.setFilter(new FilterList(scan_filters));
-              }
+            setScannerFilter(scanner, i, regex, fuzzy_key, fuzzy_mask, rollup_filter);
+            
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Instantiating rollup: " + scanner);
             }
             
             array[x] = new Tsdb1xScanner(this, scanner, x, interval);
@@ -789,7 +780,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
         final Tsdb1xScanner[] array = new Tsdb1xScanner[node.schema().saltWidth() > 0 ? 
             node.schema().saltBuckets() : 1];
         scanners.add(array);
-        final byte[] start_key = setStartKey(metric, null);
+        final byte[] start_key = setStartKey(metric, null, fuzzy_key);
         final byte[] stop_key = setStopKey(metric, null);
         
         for (int i = 0; i < array.length; i++) {
@@ -813,12 +804,10 @@ public class Tsdb1xScanners implements HBaseExecutor {
             scanner.setStopKey(stop_key);
           }
           
-          if (raw_filters != null) {
-            if (raw_filters.size() == 1) {
-              scanner.setFilter(raw_filters.get(0));
-            } else {
-              scanner.setFilter(new FilterList(raw_filters));
-            }
+          setScannerFilter(scanner, i, regex, fuzzy_key, fuzzy_mask, null);
+          
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Instantiating raw table scanner: " + scanner);
           }
           
           array[i] = new Tsdb1xScanner(this, scanner, i, null);
@@ -843,6 +832,52 @@ public class Tsdb1xScanners implements HBaseExecutor {
           + scanners.get(0).length + " scanners per set.");
     }
     scanNext(span);
+  }
+  
+  /**
+   * Compiles the filter list to add to a scanner when applicable.
+   * @param scanner A non-null scanner to add the filters to.
+   * @param salt_bucket An optional salt bucket
+   * @param regex An optional regular expression to match.
+   * @param fuzzy_key An optional fuzzy row key filter.
+   * @param fuzzy_mask An optional mask for fuzzy matching. Can't be null
+   * if the fuzzy_key was set.
+   * @param rollup_filter An optional rollup filter.
+   */
+  void setScannerFilter(final Scanner scanner, 
+                        final int salt_bucket, 
+                        final String regex, 
+                        final byte[] fuzzy_key, 
+                        final byte[] fuzzy_mask, 
+                        final ScanFilter rollup_filter) {
+    if (regex == null && fuzzy_key == null && rollup_filter == null) {
+      return;
+    }
+    
+    List<ScanFilter> filters = Lists.newArrayListWithCapacity(3);
+    if (fuzzy_key != null) {
+      final byte[] key = node.schema().saltWidth() < 1 ? 
+          fuzzy_key : Arrays.copyOf(fuzzy_key, fuzzy_key.length);
+      if (node.schema().saltWidth() > 0) {
+        node.schema().prefixKeyWithSalt(key, salt_bucket);
+      }
+      filters.add(new FuzzyRowFilter(
+              new FuzzyRowFilter.FuzzyFilterPair(key, fuzzy_mask)));
+    }
+    
+    if (regex != null) {
+      filters.add(new KeyRegexpFilter(regex, Const.ASCII_CHARSET));
+    }
+    
+    if (rollup_filter != null) {
+      filters.add(rollup_filter);
+    }
+    
+    if (filters.size() == 1) {
+      scanner.setFilter(filters.get(0));
+    } else {
+      scanner.setFilter(new FilterList(filters, Operator.MUST_PASS_ALL));
+    }
   }
   
   /**

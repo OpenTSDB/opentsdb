@@ -67,6 +67,7 @@ public class NumericInterpolatorFactory {
     }
   }
   
+  /** The linear interpolation factory. */
   public static class LERP extends BaseTSDBPlugin 
                            implements QueryIteratorInterpolatorFactory {
   @Override
@@ -120,6 +121,9 @@ public class NumericInterpolatorFactory {
     } else if (parts.length == 2) {
       aggregator = parts[1];
       fill = null;
+    } else if (parts.length == 1) {
+      aggregator = parts[0];
+      fill = null;
     } else {
       return NumericInterpolatorConfig.newBuilder()
           .setFillPolicy(FillPolicy.NONE)
@@ -130,6 +134,10 @@ public class NumericInterpolatorFactory {
     final FillPolicy fill_policy;
     if (Strings.isNullOrEmpty(fill) && aggregator.equals("zimsum")) {
       fill_policy = FillPolicy.ZERO;
+    } else if (Strings.isNullOrEmpty(fill) && aggregator.contains("max")) {
+      fill_policy = FillPolicy.MIN;
+    } else if (Strings.isNullOrEmpty(fill) && aggregator.contains("min")) {
+      fill_policy = FillPolicy.MAX;
     } else if (Strings.isNullOrEmpty(fill)) {
       fill_policy = FillPolicy.NONE;
     } else {

@@ -726,7 +726,7 @@ public class Tsdb1xScanner {
     
     @Override
     public Object call(final Boolean matched) throws Exception {
-      if (matched) {
+      if (matched != null && matched) {
         result.decode(row, rollup_interval);
       }
       return null;

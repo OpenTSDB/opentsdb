@@ -66,6 +66,16 @@ public class NumericInterpolatorConfig implements QueryIteratorInterpolatorConfi
     return new BaseNumericFillPolicy(this);
   }
   
+  @Override
+  public String toString() {
+    return new StringBuilder()
+        .append("fill=")
+        .append(fill_policy)
+        .append(", realFill=")
+        .append(real_fill)
+        .toString();
+  }
+  
   /** @return A new builder for the config. */
   public static Builder newBuilder() {
     return new Builder();

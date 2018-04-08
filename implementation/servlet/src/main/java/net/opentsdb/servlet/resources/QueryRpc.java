@@ -434,19 +434,19 @@ final public class QueryRpc {
         final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(json);
         serdes.serialize(context, options, output, result);
         
-        if (options.showSummary()) {
-          json.writeObjectFieldStart("summary");
-          json.writeStringField("queryHash", Bytes.byteArrayToString(
-              query.buildTimelessHashCode().asBytes()));
-          json.writeStringField("queryId", Bytes.byteArrayToString(
-              query.buildHashCode().asBytes()));
-          json.writeStringField("traceId", context.stats().trace() == null ? "null" : 
-            context.stats().trace().traceId());
-          if (context.stats().trace() != null) {
-            //trace.serializeJSON("trace", json);
-          }
-          json.writeEndObject();
-        }
+//        if (options.showSummary()) {
+//          json.writeObjectFieldStart("summary");
+//          json.writeStringField("queryHash", Bytes.byteArrayToString(
+//              query.buildTimelessHashCode().asBytes()));
+//          json.writeStringField("queryId", Bytes.byteArrayToString(
+//              query.buildHashCode().asBytes()));
+//          json.writeStringField("traceId", context.stats().trace() == null ? "null" : 
+//            context.stats().trace().traceId());
+//          if (context.stats().trace() != null) {
+//            //trace.serializeJSON("trace", json);
+//          }
+//          json.writeEndObject();
+//        }
         
         // final
         json.writeEndArray();
