@@ -102,6 +102,10 @@ public class TestNumericInterpolatorFactory {
     assertEquals(FillPolicy.NONE, config.fillPolicy());
     assertEquals(FillWithRealPolicy.NONE, config.realFillPolicy());
     
+    config = NumericInterpolatorFactory.parse("sum");
+    assertEquals(FillPolicy.NONE, config.fillPolicy());
+    assertEquals(FillWithRealPolicy.NONE, config.realFillPolicy());
+    
     config = NumericInterpolatorFactory.parse("1m-sum-nan");
     assertEquals(FillPolicy.NOT_A_NUMBER, config.fillPolicy());
     assertEquals(FillWithRealPolicy.NONE, config.realFillPolicy());
@@ -128,6 +132,22 @@ public class TestNumericInterpolatorFactory {
     
     config = NumericInterpolatorFactory.parse("1m");
     assertEquals(FillPolicy.NONE, config.fillPolicy());
+    assertEquals(FillWithRealPolicy.NONE, config.realFillPolicy());
+    
+    config = NumericInterpolatorFactory.parse("1m-mimmax");
+    assertEquals(FillPolicy.MIN, config.fillPolicy());
+    assertEquals(FillWithRealPolicy.NONE, config.realFillPolicy());
+    
+    config = NumericInterpolatorFactory.parse("1m-max");
+    assertEquals(FillPolicy.MIN, config.fillPolicy());
+    assertEquals(FillWithRealPolicy.NONE, config.realFillPolicy());
+    
+    config = NumericInterpolatorFactory.parse("1m-mimmin");
+    assertEquals(FillPolicy.MAX, config.fillPolicy());
+    assertEquals(FillWithRealPolicy.NONE, config.realFillPolicy());
+    
+    config = NumericInterpolatorFactory.parse("1m-min");
+    assertEquals(FillPolicy.MAX, config.fillPolicy());
     assertEquals(FillWithRealPolicy.NONE, config.realFillPolicy());
     
     try {

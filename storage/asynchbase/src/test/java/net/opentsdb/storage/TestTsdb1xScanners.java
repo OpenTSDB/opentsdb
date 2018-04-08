@@ -54,6 +54,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Bytes;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.Const;
@@ -265,11 +266,16 @@ public class TestTsdb1xScanners extends UTBase {
         .build();
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
-    byte[] start = scanners.setStartKey(METRIC_BYTES, null);
+    byte[] start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
     
+    // with fuzzy
+    byte[] fuzzy = Bytes.concat(new byte[3], new byte[4], TAGK_BYTES, new byte[3]);
+    start = scanners.setStartKey(METRIC_BYTES, null, fuzzy);
+    assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, TAGK_BYTES, new byte[3]), start);
+    
     // rollup
-    start = scanners.setStartKey(METRIC_BYTES, interval);
+    start = scanners.setStartKey(METRIC_BYTES, interval, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
     
     // rollup further in
@@ -282,7 +288,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setMetric(METRIC_STRING))
         .build();
     scanners = new Tsdb1xScanners(node, query);
-    start = scanners.setStartKey(METRIC_BYTES, interval);
+    start = scanners.setStartKey(METRIC_BYTES, interval, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
     
     // rollup with rate on edge
@@ -296,7 +302,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setMetric(METRIC_STRING))
         .build();
     scanners = new Tsdb1xScanners(node, query);
-    start = scanners.setStartKey(METRIC_BYTES, interval);
+    start = scanners.setStartKey(METRIC_BYTES, interval, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900 - 86400, null), start);
     
     // downsample
@@ -312,7 +318,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setMetric(METRIC_STRING))
         .build();
     scanners = new Tsdb1xScanners(node, query);
-    start = scanners.setStartKey(METRIC_BYTES, null);
+    start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900, null), start);
     
     // downsample 2 hours
@@ -328,7 +334,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setMetric(METRIC_STRING))
         .build();
     scanners = new Tsdb1xScanners(node, query);
-    start = scanners.setStartKey(METRIC_BYTES, null);
+    start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, START_TS - 900, null), start);
     
     // downsample prefer the metric
@@ -347,7 +353,7 @@ public class TestTsdb1xScanners extends UTBase {
                 .setInterval("1h")))
         .build();
     scanners = new Tsdb1xScanners(node, query);
-    start = scanners.setStartKey(METRIC_BYTES, null);
+    start = scanners.setStartKey(METRIC_BYTES, null, null);
     assertArrayEquals(makeRowKey(METRIC_BYTES, END_TS - 900, null), start);
   }
   
@@ -635,7 +641,7 @@ public class TestTsdb1xScanners extends UTBase {
     verify(caught.get(0), times(1)).setMaxNumRows(1024);
     verify(caught.get(0), times(1)).setReversed(false);
     verify(caught.get(0), times(1)).setStartKey(
-        makeRowKey(METRIC_BYTES, START_TS - 900, null));
+        makeRowKey(METRIC_BYTES, START_TS - 900, TAGK_BYTES, new byte[3]));
     verify(caught.get(0), times(1)).setStopKey(
         makeRowKey(METRIC_BYTES, END_TS - 900 + 3600, null));
     FilterList filter = (FilterList) storage.getLastScanner().getFilter();
@@ -1386,7 +1392,7 @@ public class TestTsdb1xScanners extends UTBase {
     verify(caught.get(0), times(1)).setMaxNumRows(1024);
     verify(caught.get(0), times(1)).setReversed(false);
     verify(caught.get(0), times(1)).setStartKey(
-        makeRowKey(METRIC_BYTES, START_TS - 900, null));
+        makeRowKey(METRIC_BYTES, START_TS - 900, TAGK_BYTES, new byte[3]));
     verify(caught.get(0), times(1)).setStopKey(
         makeRowKey(METRIC_BYTES, 1514851200, null));
     verify(caught.get(0), times(1)).setFilter(any(FilterList.class));
@@ -1404,7 +1410,7 @@ public class TestTsdb1xScanners extends UTBase {
     verify(caught.get(1), times(1)).setMaxNumRows(1024);
     verify(caught.get(1), times(1)).setReversed(false);
     verify(caught.get(1), times(1)).setStartKey(
-        makeRowKey(METRIC_BYTES, START_TS - 900, null));
+        makeRowKey(METRIC_BYTES, START_TS - 900, TAGK_BYTES, new byte[3]));
     verify(caught.get(1), times(1)).setStopKey(
         makeRowKey(METRIC_BYTES, END_TS - 900 + 3600, null));
     verify(caught.get(1), times(1)).setFilter(any(FuzzyRowFilter.class));

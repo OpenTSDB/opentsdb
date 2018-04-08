@@ -398,7 +398,8 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
             }
             throw new StorageException("UID resolution failed for ID " 
                 + ids.get(i), results.get(i).getException());
-          } else if (results.get(i).getCells() == null) {
+          } else if (results.get(i).getCells() == null ||
+                     results.get(i).getCells().isEmpty()) {
             names.add(null);
           } else {
             names.add(new String(results.get(i).getCells().get(0).value(), 
@@ -611,7 +612,8 @@ public class Tsdb1xUniqueIdStore implements UniqueIdStore {
             }
             throw new StorageException("UID resolution failed for name " 
                 + names.get(i), results.get(i).getException());
-          } else if (results.get(i).getCells() != null) {
+          } else if (results.get(i).getCells() != null &&
+                     !results.get(i).getCells().isEmpty()) {
             uids.add(results.get(i).getCells().get(0).value());
           } else {
             uids.add(null);

@@ -433,16 +433,17 @@ public class Schema implements TimeSeriesDataStore {
     class ErrorCB implements Callback<List<ResolvedFilter>, Exception> {
       @Override
       public List<ResolvedFilter> call(final Exception ex) throws Exception {
+        Throwable t = ex;
+        if (t instanceof DeferredGroupException) {
+          t = Exceptions.getCause((DeferredGroupException) ex);
+        }
         if (child != null) {
           child.setErrorTags()
-            .log("Exception", 
-                (ex instanceof DeferredGroupException) ? 
-                    Exceptions.getCause((DeferredGroupException) ex) : ex)
+            .log("Exception", t)
             .finish();
         }
-        throw new StorageException("Failed to fetch IDs.", 
-            (ex instanceof DeferredGroupException) ? 
-                Exceptions.getCause((DeferredGroupException) ex) : ex);
+        throw new StorageException("Failed to resolve IDs: " 
+            + t.getMessage(), t);
       }
     }
     

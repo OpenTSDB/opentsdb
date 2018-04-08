@@ -26,7 +26,9 @@ public enum FillPolicy {
   ZERO("zero"),
   NOT_A_NUMBER("nan"),
   NULL("null"),
-  SCALAR("scalar");
+  SCALAR("scalar"),
+  MIN("min"),
+  MAX("max");
 
   // The user-friendly name of this policy.
   private final String name;

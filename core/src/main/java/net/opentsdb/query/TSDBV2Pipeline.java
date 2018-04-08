@@ -125,19 +125,35 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
         node = down;
       }
       
+      if (metric.isRate()) {
+        QueryNode rate = new RateFactory("Rate").newNode(this, 
+            metric.getRateOptions() == null ? RateOptions.newBuilder().build() : metric.getRateOptions());
+        addVertex(rate);
+        addDagEdge(rate, node);
+        node = rate;
+      }
+      
       Filter filter = Strings.isNullOrEmpty(metric.getFilter()) ? null : q.getFilter(metric.getFilter());
       if (filter != null) {
         GroupByConfig.Builder gb_config = null;
         final Set<String> join_keys = Sets.newHashSet();
         for (TagVFilter v : filter.getTags()) {
           if (v.isGroupBy()) {
-            NumericInterpolatorConfig nic = NumericInterpolatorFactory.parse(
-                !Strings.isNullOrEmpty(metric.getAggregator()) ?
-                    metric.getAggregator() : q.getTime().getAggregator());
+            String agg = !Strings.isNullOrEmpty(metric.getAggregator()) ?
+                metric.getAggregator() : q.getTime().getAggregator();
+            NumericInterpolatorConfig nic = NumericInterpolatorFactory.parse(agg);
             if (gb_config == null) {
-              
-              QueryIteratorInterpolatorFactory nif = tsdb.getRegistry().getPlugin(
-                  QueryIteratorInterpolatorFactory.class, "LERP");
+              QueryIteratorInterpolatorFactory nif;
+              // TODO - find a better way
+              if (agg.contains("zimsum") || 
+                  agg.contains("mimmax") ||
+                  agg.contains("mimmin")) {
+                nif = tsdb.getRegistry().getPlugin(
+                    QueryIteratorInterpolatorFactory.class, "Default");
+              } else {
+                nif = tsdb.getRegistry().getPlugin(
+                    QueryIteratorInterpolatorFactory.class, "LERP");
+              }
               if (nif == null) {
                 throw new QueryExecutionException("Unable to find the LERP interpolator.", 0);
               }
@@ -175,14 +191,6 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
         }
       }
 
-      if (metric.isRate()) {
-        QueryNode rate = new RateFactory("Rate").newNode(this, 
-            metric.getRateOptions() == null ? RateOptions.newBuilder().build() : metric.getRateOptions());
-        addVertex(rate);
-        addDagEdge(rate, node);
-        node = rate;
-      }
-      
       addDagEdge(this, node);
     }
     

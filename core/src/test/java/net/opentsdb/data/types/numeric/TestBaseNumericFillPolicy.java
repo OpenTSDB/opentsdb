@@ -60,7 +60,10 @@ public class TestBaseNumericFillPolicy {
         .setRealFillPolicy(FillWithRealPolicy.NONE)
         .build());
     assertTrue(fill.isInteger());
-    assertTrue(Double.isNaN(fill.fill().doubleValue()));
+    try {
+      fill.fill().doubleValue();
+      fail("Expected UnsupportedOperationException");
+    } catch (UnsupportedOperationException e) { }
     assertEquals(0, fill.fill().toDouble(), 0.001);
     assertEquals(0, fill.fill().longValue());
     
@@ -68,33 +71,38 @@ public class TestBaseNumericFillPolicy {
         .setFillPolicy(FillPolicy.NONE)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
         .build());
-    try {
-      fill.isInteger();
-      fail("Expected UnsupportedOperationException");
-    } catch (UnsupportedOperationException e) { }
+    assertFalse(fill.isInteger());
     assertNull(fill.fill());
     
     fill = new BaseNumericFillPolicy(NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NULL)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
         .build());
-    try {
-      fill.isInteger();
-      fail("Expected UnsupportedOperationException");
-    } catch (UnsupportedOperationException e) { }
+    assertFalse(fill.isInteger());
     assertNull(fill.fill());
     
     fill = new BaseNumericFillPolicy(NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.SCALAR)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
         .build());
-    try {
-      fill.isInteger();
-      fail("Expected UnsupportedOperationException");
-    } catch (UnsupportedOperationException e) { }
+    assertFalse(fill.isInteger());
     try {
       fill.fill();
       fail("Expected UnsupportedOperationException");
     } catch (UnsupportedOperationException e) { }
+    
+    fill = new BaseNumericFillPolicy(NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.MAX)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build());
+    assertFalse(fill.isInteger());
+    assertEquals(Double.MAX_VALUE, fill.fill().doubleValue(), 0.00001);
+    
+    fill = new BaseNumericFillPolicy(NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.MIN)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build());
+    assertFalse(fill.isInteger());
+    assertEquals(Double.MIN_VALUE, fill.fill().doubleValue(), 0.00001);
   }
 }

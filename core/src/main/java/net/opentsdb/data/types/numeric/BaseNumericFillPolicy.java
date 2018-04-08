@@ -21,7 +21,20 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
  * A base class that implements some of the numeric fill policies. For those
  * that are added later that this class does not support, it will throw
  * {@link UnsupportedOperationException}s.
- * 
+ * <p>
+ * TODO - find a way to determine if we should return a long or double.
+ * For now min and max will return a double.
+ * <p>
+ * Implementation:
+ * <ul>
+ * <li>NONE: isInteger=false, value=null</li>
+ * <li>NULL: isInteger=false, value=null</li>
+ * <li>ZERO: isInteger=true, value=0</li>
+ * <li>NOT_A_NUMBER: isInteger=false, value=NaN</li>
+ * <li>MIN: isInteger=false, value=Double.MIN_VALUE</li>
+ * <li>MAX: isInteger=false, value=Double.MAX_VALUE</li>
+ * <li>SCALAR: isInteger=false, value=UnsupportedOperationException</li>
+ * </ul>
  * @since 3.0
  */
 public class BaseNumericFillPolicy implements QueryFillPolicy<NumericType>, 
@@ -50,6 +63,8 @@ public class BaseNumericFillPolicy implements QueryFillPolicy<NumericType>,
       return null;
     case ZERO:
     case NOT_A_NUMBER:
+    case MIN:
+    case MAX:
       return this;
     default:
       throw new UnsupportedOperationException("This class must be overidden to "
@@ -62,11 +77,8 @@ public class BaseNumericFillPolicy implements QueryFillPolicy<NumericType>,
     switch(config.fillPolicy()) {
     case ZERO:
       return true;
-    case NOT_A_NUMBER:
-      return false;
     default:
-      throw new UnsupportedOperationException("This class must be overidden to "
-          + "support the policy.");
+      return false;
     }
   }
 
@@ -79,7 +91,17 @@ public class BaseNumericFillPolicy implements QueryFillPolicy<NumericType>,
   @Override
   public double doubleValue() {
     // If here then we're a NaN fill
-    return Double.NaN;
+    switch(config.fillPolicy()) {
+    case NOT_A_NUMBER:
+      return Double.NaN;
+    case MIN:
+      return Double.MIN_VALUE;
+    case MAX:
+      return Double.MAX_VALUE;
+    default:
+      throw new UnsupportedOperationException("This class must be "
+          + "overidden to support the policy.");
+    }
   }
 
   @Override

@@ -53,7 +53,7 @@ public abstract class BaseNumericAggregator implements NumericAggregator {
    * An implementation of a numeric value. Takes either a long or a double and
    * implements the {@link NumericType} over it.
    */
-  protected class NumericValue implements NumericType {
+  protected static class NumericValue implements NumericType {
     private final boolean is_integer;
     private final long value;
     
