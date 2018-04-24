@@ -133,15 +133,17 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
         node = rate;
       }
       
-      Filter filter = Strings.isNullOrEmpty(metric.getFilter()) ? null : q.getFilter(metric.getFilter());
+      Filter filter = Strings.isNullOrEmpty(metric.getFilter()) ? null 
+          : q.getFilter(metric.getFilter());
+      String agg = !Strings.isNullOrEmpty(metric.getAggregator()) ?
+          metric.getAggregator() : q.getTime().getAggregator();
+      NumericInterpolatorConfig nic = NumericInterpolatorFactory.parse(agg);
       if (filter != null) {
         GroupByConfig.Builder gb_config = null;
         final Set<String> join_keys = Sets.newHashSet();
         for (TagVFilter v : filter.getTags()) {
           if (v.isGroupBy()) {
-            String agg = !Strings.isNullOrEmpty(metric.getAggregator()) ?
-                metric.getAggregator() : q.getTime().getAggregator();
-            NumericInterpolatorConfig nic = NumericInterpolatorFactory.parse(agg);
+            
             if (gb_config == null) {
               QueryIteratorInterpolatorFactory nif;
               // TODO - find a better way
@@ -189,6 +191,35 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
           addDagEdge(gb, node);
           node = gb;
         }
+      } else if (!agg.toLowerCase().equals("none")) {
+        // we agg all 
+        QueryIteratorInterpolatorFactory nif;
+        // TODO - find a better way
+        if (agg.contains("zimsum") || 
+            agg.contains("mimmax") ||
+            agg.contains("mimmin")) {
+          nif = tsdb.getRegistry().getPlugin(
+              QueryIteratorInterpolatorFactory.class, "Default");
+        } else {
+          nif = tsdb.getRegistry().getPlugin(
+              QueryIteratorInterpolatorFactory.class, "LERP");
+        }
+        if (nif == null) {
+          throw new QueryExecutionException("Unable to find the LERP interpolator.", 0);
+        }
+        GroupByConfig.Builder gb_config = GroupByConfig.newBuilder()
+            .setQueryIteratorInterpolatorFactory(nif)
+            .setQueryIteratorInterpolatorConfig(nic)
+            .setId("groupBy_" + metric.getId())
+            .setGroupAll(true);
+        gb_config.setAggregator( 
+            !Strings.isNullOrEmpty(metric.getAggregator()) ?
+            metric.getAggregator() : q.getTime().getAggregator());
+        
+        QueryNode gb = new GroupByFactory("GroupBy").newNode(this, gb_config.build());
+        addVertex(gb);
+        addDagEdge(gb, node);
+        node = gb;
       }
 
       addDagEdge(this, node);

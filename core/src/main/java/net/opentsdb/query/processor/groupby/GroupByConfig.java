@@ -38,15 +38,16 @@ public class GroupByConfig implements QueryNodeConfig {
   private final boolean infectious_nan;
   private final QueryIteratorInterpolatorFactory interpolator;
   private final QueryIteratorInterpolatorConfig interpolator_config;
+  private final boolean group_all;
   
   private GroupByConfig(final Builder builder) {
     if (Strings.isNullOrEmpty(builder.id)) {
       throw new IllegalArgumentException("ID cannot be null or empty.");
     }
-    if (builder.tag_keys == null) {
+    if (!builder.group_all && builder.tag_keys == null) {
       throw new IllegalArgumentException("Tag keys cannot be null.");
     }
-    if (builder.tag_keys.isEmpty()) {
+    if (!builder.group_all && builder.tag_keys.isEmpty()) {
       throw new IllegalArgumentException("Tag keys cannot be empty.");
     }
     if (Strings.isNullOrEmpty(builder.aggregator)) {
@@ -62,6 +63,7 @@ public class GroupByConfig implements QueryNodeConfig {
     infectious_nan = builder.infectious_nan;
     interpolator = builder.interpolator;
     interpolator_config = builder.interpolator_config;
+    group_all = builder.group_all;
   }
   
   @Override
@@ -101,6 +103,11 @@ public class GroupByConfig implements QueryNodeConfig {
     return interpolator_config;
   }
   
+  /** @return Whether or not to group by just the metric or the given tags. */
+  public boolean groupAll() {
+    return group_all;
+  }
+  
   /** @return A new builder to work from. */
   public static Builder newBuilder() {
     return new Builder();
@@ -114,6 +121,7 @@ public class GroupByConfig implements QueryNodeConfig {
     private boolean infectious_nan;
     private QueryIteratorInterpolatorFactory interpolator;
     private QueryIteratorInterpolatorConfig interpolator_config;
+    private boolean group_all;
     
     /**
      * @param id A non-null and on-empty Id for the group by function.
@@ -206,6 +214,15 @@ public class GroupByConfig implements QueryNodeConfig {
     public Builder setQueryIteratorInterpolatorConfig(
         final QueryIteratorInterpolatorConfig interpolator_config) {
       this.interpolator_config = interpolator_config;
+      return this;
+    }
+    
+    /**
+     * @param group_all Whether or not to group by all tags (just on metrics)
+     * @return The builder.
+     */
+    public Builder setGroupAll(final boolean group_all) {
+      this.group_all = group_all;
       return this;
     }
     

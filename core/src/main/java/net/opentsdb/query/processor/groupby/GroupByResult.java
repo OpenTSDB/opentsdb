@@ -47,16 +47,16 @@ public class GroupByResult implements QueryResult {
   private static final Logger LOG = LoggerFactory.getLogger(GroupByResult.class);
   
   /** Used to denote when all of the upstreams are done with this result set. */
-  private final CountDownLatch latch;
+  protected final CountDownLatch latch;
   
   /** The parent node. */
-  private final GroupBy node;
+  protected final GroupBy node;
   
   /** The downstream result received by the group by node. */
-  private final QueryResult next;
+  protected final QueryResult next;
   
   /** The map of hash codes to groups. */
-  private final Map<Long, TimeSeries> groups;
+  protected final Map<Long, TimeSeries> groups;
   
   /**
    * The default ctor.
@@ -74,6 +74,7 @@ public class GroupByResult implements QueryResult {
     latch = new CountDownLatch(node.upstreams());
     this.node = node;
     this.next = next;
+    boolean group_all = ((GroupByConfig) node.config()).groupAll();
     groups = Maps.newHashMap();
     
     if (next.idType().equals(Const.TS_STRING_ID)) {
@@ -82,22 +83,24 @@ public class GroupByResult implements QueryResult {
         final StringBuilder buf = new StringBuilder()
             .append(id.metric());
         
-        boolean matched = true;
-        for (final String key : ((GroupByConfig) node.config()).getTagKeys()) {
-          final String tagv = id.tags().get(key);
-          if (tagv == null) {
-            if (LOG.isDebugEnabled()) {
-              LOG.debug("Dropping series from group by due to missing tag key: " 
-                  + key + "  " + series.id());
+        if (!group_all) {
+          boolean matched = true;
+          for (final String key : ((GroupByConfig) node.config()).getTagKeys()) {
+            final String tagv = id.tags().get(key);
+            if (tagv == null) {
+              if (LOG.isDebugEnabled()) {
+                LOG.debug("Dropping series from group by due to missing tag key: " 
+                    + key + "  " + series.id());
+              }
+              matched = false;
+              break;
             }
-            matched = false;
-            break;
+            buf.append(tagv);
           }
-          buf.append(tagv);
-        }
-        
-        if (!matched) {
-          continue;
+          
+          if (!matched) {
+            continue;
+          }
         }
         
         final long hash = LongHashFunction.xx_r39().hashChars(buf.toString());
@@ -109,11 +112,13 @@ public class GroupByResult implements QueryResult {
         group.addSource(series);
       }
     } else if (next.idType().equals(Const.TS_BYTE_ID)) {
-      if (((GroupByConfig) node.config()).getEncodedTagKeys() == null) {
+      if (!((GroupByConfig) node.config()).groupAll() && 
+          ((GroupByConfig) node.config()).getEncodedTagKeys() == null) {
         // TODO - proper exception
         throw new RuntimeException("Time series IDs were returned as "
             + "bytes but no encoded tags were provided in the group-by config.");
       }
+      
       for (final TimeSeries series : next.timeSeries()) {
         final TimeSeriesByteId id = (TimeSeriesByteId) series.id();
         // TODO - bench me, may be a better way
@@ -121,27 +126,30 @@ public class GroupByResult implements QueryResult {
         
         try {
           buf.write(id.metric());
-          boolean matched = true;
-          for (final byte[] key : ((GroupByConfig) node.config()).getEncodedTagKeys()) {
-            if (id.tags() == null || id.tags().size() < 1) {
-              matched = false;
-              break;
+          if (!group_all) {
+            boolean matched = true;
+            for (final byte[] key : ((GroupByConfig) node.config())
+                  .getEncodedTagKeys()) {
+              if (id.tags() == null || id.tags().size() < 1) {
+                matched = false;
+                break;
+              }
+              
+              final byte[] tagv = id.tags().get(key);
+              if (tagv == null) {
+                if (LOG.isDebugEnabled()) {
+                  LOG.debug("Dropping series from group by due to "
+                      + "missing tag key: " + key + "  " + series.id());
+                }
+                matched = false;
+                break;
+              }
+              buf.write(tagv);
             }
             
-            final byte[] tagv = id.tags().get(key);
-            if (tagv == null) {
-              if (LOG.isDebugEnabled()) {
-                LOG.debug("Dropping series from group by due to missing tag key: " 
-                    + key + "  " + series.id());
-              }
-              matched = false;
-              break;
+            if (!matched) {
+              continue;
             }
-            buf.write(tagv);
-          }
-          
-          if (!matched) {
-            continue;
           }
           
           final long hash = LongHashFunction.xx_r39().hashBytes(buf.toByteArray());
