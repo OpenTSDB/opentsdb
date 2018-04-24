@@ -42,25 +42,25 @@ import net.opentsdb.data.TimeSeriesValue;
  */
 public class GroupByTimeSeries implements TimeSeries {
   /** The node this series belongs to. */
-  private final GroupBy node;
+  protected final GroupBy node;
   
   /** The set of types in this series. */
-  private final Set<TypeToken<?>> types;
+  protected final Set<TypeToken<?>> types;
   
   /** The ID merger combining all of the time series IDs. */
-  private final MergedTimeSeriesId.Builder merging_id;
+  protected final MergedTimeSeriesId.Builder merging_id;
   
   /** The list of sources for this series. */
-  private Set<TimeSeries> sources;
+  protected Set<TimeSeries> sources;
   
   /** Whether or not the types have been unioned yet with the factories supported. */
-  private boolean types_unioned = false;
+  protected boolean types_unioned = false;
   
   /** The constructed time series ID. */
-  private TimeSeriesId id;
+  protected TimeSeriesId id;
   
   /** Whether or not an iterator or iterators have been fetched. */
-  private boolean iterators_returned;
+  protected boolean iterators_returned;
   
   /**
    * Default ctor.

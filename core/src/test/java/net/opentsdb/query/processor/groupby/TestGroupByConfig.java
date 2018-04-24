@@ -15,6 +15,8 @@
 package net.opentsdb.query.processor.groupby;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -56,6 +58,40 @@ public class TestGroupByConfig {
     assertEquals("GBy", config.getId());
     assertTrue(config.getTagKeys().contains("host"));
     assertTrue(config.getTagKeys().contains("dc"));
+    assertFalse(config.groupAll());
+    assertSame(interpolator, config.getInterpolator());
+    assertSame(interpolator_config, config.getInterpolatorConfig());
+    
+    config = GroupByConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("GBy")
+        .setGroupAll(true)
+        .setQueryIteratorInterpolatorFactory(interpolator)
+        .setQueryIteratorInterpolatorConfig(interpolator_config)
+        .build();
+    
+    assertEquals("sum", config.getAggregator());
+    assertEquals("GBy", config.getId());
+    assertNull(config.getTagKeys());
+    assertTrue(config.groupAll());
+    assertSame(interpolator, config.getInterpolator());
+    assertSame(interpolator_config, config.getInterpolatorConfig());
+    
+    config = GroupByConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("GBy")
+        .setTagKeys(Sets.newHashSet("host"))
+        .addTagKey("dc")
+        .setGroupAll(true)
+        .setQueryIteratorInterpolatorFactory(interpolator)
+        .setQueryIteratorInterpolatorConfig(interpolator_config)
+        .build();
+    
+    assertEquals("sum", config.getAggregator());
+    assertEquals("GBy", config.getId());
+    assertTrue(config.getTagKeys().contains("host"));
+    assertTrue(config.getTagKeys().contains("dc"));
+    assertTrue(config.groupAll());
     assertSame(interpolator, config.getInterpolator());
     assertSame(interpolator_config, config.getInterpolatorConfig());
     

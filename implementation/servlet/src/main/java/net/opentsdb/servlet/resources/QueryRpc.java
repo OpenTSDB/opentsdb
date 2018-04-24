@@ -26,6 +26,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.servlet.AsyncContext;
+import javax.servlet.AsyncEvent;
+import javax.servlet.AsyncListener;
 import javax.servlet.ServletConfig;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -348,6 +350,42 @@ final public class QueryRpc {
         // TODO - stats
         .build();
     request.setAttribute(CONTEXT_KEY, ctx);
+    class AsyncTimeout implements AsyncListener {
+
+      @Override
+      public void onComplete(AsyncEvent event) throws IOException {
+        // TODO Auto-generated method stub
+        LOG.debug("Yay the async was all done!");
+      }
+
+      @Override
+      public void onTimeout(AsyncEvent event) throws IOException {
+        // TODO Auto-generated method stub
+        LOG.error("The query has timed out");
+        try {
+          ctx.close();
+        } catch (Exception e) {
+          LOG.error("Failed to close the query: ", e);
+        }
+        throw new QueryExecutionException("The query has exceeded "
+            + "the timeout limit.", 504);
+      }
+
+      @Override
+      public void onError(AsyncEvent event) throws IOException {
+        // TODO Auto-generated method stub
+        LOG.error("WTF? An error for the AsyncTimeout?: " + event);
+      }
+
+      @Override
+      public void onStartAsync(AsyncEvent event) throws IOException {
+        // TODO Auto-generated method stub
+        LOG.debug("Starting an async something or other");
+      }
+
+    }
+
+    async.addListener(new AsyncTimeout());
     
     if (setup_span != null) {
       setup_span.setTag("Status", "OK")
