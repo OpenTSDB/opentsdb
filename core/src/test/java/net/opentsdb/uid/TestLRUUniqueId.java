@@ -283,6 +283,23 @@ public class TestLRUUniqueId {
   }
   
   @Test
+  public void getNamesSameIDs() throws Exception {
+    when(store.getNames(any(UniqueIdType.class), any(List.class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromResult(Lists.newArrayList(STRING1, STRING1, STRING1)));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    
+    List<String> names = lru.getNames(Lists.newArrayList(UID1, UID1, UID1), null).join();
+    assertEquals(STRING1, names.get(0));
+    assertEquals(STRING1, names.get(1));
+    assertEquals(STRING1, names.get(2));
+    verify(store, times(1)).getNames(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    assertEquals(1, lru.nameCache().size());
+    assertEquals(1, lru.idCache().size());
+  }
+  
+  @Test
   public void getNamesIllegalArgumentException() throws Exception {
     LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
         UniqueIdType.METRIC, store);
@@ -672,6 +689,23 @@ public class TestLRUUniqueId {
     assertEquals("OK", trace.spans.get(0).tags.get("status"));
     assertEquals("false", trace.spans.get(0).tags.get("fromCache"));
     assertEquals("true", trace.spans.get(1).tags.get("fromCache"));
+  }
+  
+  @Test
+  public void getIdsSameNames() throws Exception {
+    when(store.getIds(any(UniqueIdType.class), any(List.class), 
+        any(Span.class)))
+      .thenReturn(Deferred.fromResult(Lists.newArrayList(UID1, UID1, UID1)));
+    LRUUniqueId lru = new LRUUniqueId(tsdb, DEFAULT_ID, 
+        UniqueIdType.METRIC, store);
+    
+    List<byte[]> ids = lru.getIds(Lists.newArrayList(STRING1, STRING1, STRING1), null).join();
+    assertArrayEquals(UID1, ids.get(0));
+    assertArrayEquals(UID1, ids.get(1));
+    assertArrayEquals(UID1, ids.get(2));
+    verify(store, times(1)).getIds(eq(UniqueIdType.METRIC), any(List.class), any(Span.class));
+    assertEquals(1, lru.nameCache().size());
+    assertEquals(1, lru.idCache().size());
   }
   
   @Test

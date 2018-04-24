@@ -270,6 +270,8 @@ public class LRUUniqueId implements UniqueId {
         for (int i = 0; i < misses.size(); i++) {
           final String name = store_names.get(i);
           if (Strings.isNullOrEmpty(name)) {
+            // this'll throw an exception later
+            ids_idx++;
             continue;
           }
           
@@ -290,7 +292,10 @@ public class LRUUniqueId implements UniqueId {
             id_cache.put(UniqueId.uidToString(misses.get(i)), name);
             name_cache.put(name, misses.get(i));
           }
-          names.set(ids_idx, name);
+          // always advance the index. If the same tag value is used multiple
+          // times in one ID we don't want to be stuck writing to the same
+          // index over and over.
+          names.set(ids_idx++, name);
         }
         
         if (child != null) {
@@ -456,6 +461,8 @@ public class LRUUniqueId implements UniqueId {
         for (int i = 0; i < misses.size(); i++) {
           final byte[] id = store_uids.get(i);
           if (Bytes.isNullOrEmpty(id)) {
+            // this'll throw an exception later
+            names_idx++;
             continue;
           }
           
@@ -477,7 +484,10 @@ public class LRUUniqueId implements UniqueId {
             id_cache.put(UniqueId.uidToString(id), misses.get(i));
           }
           
-          uids.set(names_idx, id);
+          // always advance the index. If the same tag value is used multiple
+          // times in one ID we don't want to be stuck writing to the same
+          // index over and over.
+          uids.set(names_idx++, id);
         }
         
         if (child != null) {
