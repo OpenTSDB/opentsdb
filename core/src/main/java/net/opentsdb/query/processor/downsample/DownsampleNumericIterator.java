@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2014  The OpenTSDB Authors.
+// Copyright (C) 2014-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -434,10 +434,14 @@ public class DownsampleNumericIterator implements QueryIterator {
         }
       }
       
-      if (longs) {
-        dp.reset(interval_start, aggregator.run(long_values, value_idx));
+      if (value_idx < 1) {
+        dp.reset(interpolator.next(interval_ts));
+      } else if (longs) {
+        dp.resetTimestamp(interval_start);
+        aggregator.run(long_values, value_idx, dp);
       } else {
-        dp.reset(interval_start, aggregator.run(double_values, value_idx));
+        dp.resetTimestamp(interval_start);
+        aggregator.run(double_values, value_idx, false/* TODO -!! */, dp);
       }
       
       config.nextTimestamp(interval_start);

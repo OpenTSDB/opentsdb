@@ -33,7 +33,7 @@ import net.opentsdb.data.iterators.IteratorGroup;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.types.annotation.AnnotationType;
 import net.opentsdb.data.types.annotation.MockAnnotationIterator;
-import net.opentsdb.data.types.numeric.MockNumericIterator;
+import net.opentsdb.data.types.numeric.MockNumericTimeSeries;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.pojo.Expression;
 import net.opentsdb.query.pojo.Join;

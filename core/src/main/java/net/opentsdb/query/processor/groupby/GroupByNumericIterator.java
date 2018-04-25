@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -61,7 +61,7 @@ public class GroupByNumericIterator implements QueryIterator,
   private final TimeStamp next_next_ts = new MillisecondTimeStamp(0);
   
   /** The data point set and returned by the iterator. */
-  private final MutableNumericType dp = new MutableNumericType();
+  private final MutableNumericType dp;
   
   /** The list of interpolators containing the real sources. */
   private final QueryIteratorInterpolator<NumericType>[] interpolators;
@@ -120,7 +120,9 @@ public class GroupByNumericIterator implements QueryIterator,
     if (((GroupByConfig) node.config()).getInterpolator() == null) {
       throw new IllegalArgumentException("Interpolator cannot be null.");
     }
+    dp = new MutableNumericType();
     next_ts.setMax();
+    dp.resetNull(next_ts);
     // TODO - better way of supporting aggregators
     aggregator = Aggregators.get(((GroupByConfig) node.config()).getAggregator());
     infectious_nan = ((GroupByConfig) node.config()).getInfectiousNan();
@@ -152,7 +154,7 @@ public class GroupByNumericIterator implements QueryIterator,
 
   @Override
   public NumericType value() {
-    return dp;
+    return dp.value();
   }
 
   @Override
@@ -171,28 +173,30 @@ public class GroupByNumericIterator implements QueryIterator,
     next_next_ts.setMax();
     value_idx = 0;
     boolean longs = true;
+    boolean had_nan = false;
     for (int i = 0; i < iterator_max; i++) {
       final TimeSeriesValue<NumericType> v = interpolators[i].next(next_ts);
       if (v == null || v.value() == null) {
         // skip it
       } else if (!v.value().isInteger() && Double.isNaN(v.value().doubleValue())) {
         if (infectious_nan) {
-          longs = false;
-          shiftToDouble();
-          double_values[value_idx] = Double.NaN;
-          value_idx++;
+          if (longs) {
+            longs = false;
+            shiftToDouble();
+          }
+          double_values[value_idx++] = Double.NaN;
         }
+        had_nan = true;
       } else {
         if (v.value().isInteger() && longs) {
-          long_values[value_idx] = v.value().longValue();
+          long_values[value_idx++] = v.value().longValue();
         } else {
           if (longs) {
             longs = false;
             shiftToDouble();
           }
-          double_values[value_idx] = v.value().toDouble();
+          double_values[value_idx++] = v.value().toDouble();
         }
-        value_idx++;
       }
       
       if (interpolators[i].hasNext()) {
@@ -204,10 +208,23 @@ public class GroupByNumericIterator implements QueryIterator,
     }
     
     // sum it
-    if (longs) {
-      dp.reset(next_ts, aggregator.run(long_values, value_idx));
+    if (value_idx < 1) {
+      if (had_nan) {
+        dp.reset(next_ts, Double.NaN);
+      } else 
+      if (interpolators[0].fillPolicy().fill() == null) {
+        dp.resetNull(next_ts);
+      } else {
+        dp.reset(next_ts, interpolators[0].fillPolicy().fill());
+      }
     } else {
-      dp.reset(next_ts, aggregator.run(double_values, value_idx));
+      if (longs) {
+        dp.resetTimestamp(next_ts);
+        aggregator.run(long_values, value_idx, dp);
+      } else {
+        dp.resetTimestamp(next_ts);
+        aggregator.run(double_values, value_idx, infectious_nan, dp);
+      }
     }
 
     next_ts.update(next_next_ts);

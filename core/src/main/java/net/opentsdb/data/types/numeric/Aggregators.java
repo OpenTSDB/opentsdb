@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2017  The OpenTSDB Authors.
+// Copyright (C) 2010-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import net.opentsdb.core.Aggregator;
 import net.opentsdb.exceptions.IllegalDataException;
 
 /**
@@ -161,7 +160,9 @@ public final class Aggregators {
     aggregators.put("none", NONE);
     aggregators.put("median", MEDIAN);
     aggregators.put("mult", MULTIPLY);
+    aggregators.put("multiply", MULTIPLY);
     aggregators.put("dev", DEV);
+    aggregators.put("stdev", DEV);
     aggregators.put("count", COUNT);
     aggregators.put("zimsum", ZIMSUM);
     aggregators.put("mimmin", MIMMIN);
@@ -215,21 +216,42 @@ public final class Aggregators {
     }
 
     @Override
-    public NumericType run(final long[] values, final int limit) {
+    public void run(final long[] values, 
+                    final int limit,
+                    final MutableNumericType dp) {
+      if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
+      }
+      // TODO - overflow check
       long sum = 0;
       for (int i = 0; i < limit; i++) {
         sum += values[i];
       }
-      return new NumericValue(sum);
+      dp.resetValue(sum);
     }
     
     @Override
-    public NumericType run(final double[] values, final int limit) {
+    public void run(final double[] values, 
+                    final int limit, 
+                    final boolean infectious_nans,
+                    final MutableNumericType dp) {
+      if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
+      }
       double sum = 0;
+      int nans = 0;
       for (int i = 0; i < limit; i++) {
+        if (Double.isNaN(values[i]) && !infectious_nans) {
+          nans++;
+          continue;
+        }
         sum += values[i];
       }
-      return new NumericValue(sum);
+      if (nans == limit) {
+        dp.resetValue(Double.NaN);
+      } else {
+        dp.resetValue(sum);
+      }
     }
   }
 
@@ -242,25 +264,45 @@ public final class Aggregators {
     }
 
     @Override
-    public NumericType run(final long[] values, final int limit) {
+    public void run(final long[] values, 
+                    final int limit,
+                    final MutableNumericType dp) {
+      if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
+      }
       long min = values[0];
       for (int i = 1; i < limit; i++) {
         if (values[i] < min) {
           min = values[i];
         }
       }
-      return new NumericValue(min);
+      dp.resetValue(min);
     }
     
     @Override
-    public NumericType run(final double[] values, final int limit) {
+    public void run(final double[] values, 
+                    final int limit, 
+                    final boolean infectious_nans,
+                    final MutableNumericType dp) {
+      if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
+      }
       double min = values[0];
+      int nans = 0;
       for (int i = 1; i < limit; i++) {
+        if (Double.isNaN(values[i]) && infectious_nans) {
+          nans++;
+          continue;
+        }
         if (values[i] < min) {
           min = values[i];
         }
       }
-      return new NumericValue(min);
+      if (nans == limit || (nans > 0 && infectious_nans)) {
+        dp.resetValue(Double.NaN);
+      } else {
+        dp.resetValue(min);
+      }
     }
     
   }
@@ -274,25 +316,45 @@ public final class Aggregators {
     }
     
     @Override
-    public NumericType run(final long[] values, final int limit) {
+    public void run(final long[] values, 
+                    final int limit,
+                    final MutableNumericType dp) {
+      if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
+      }
       long max = values[0];
       for (int i = 1; i < limit; i++) {
         if (values[i] > max) {
           max = values[i];
         }
       }
-      return new NumericValue(max);
+      dp.resetValue(max);
     }
     
     @Override
-    public NumericType run(final double[] values, final int limit) {
+    public void run(final double[] values, 
+                    final int limit, 
+                    final boolean infectious_nans,
+                    final MutableNumericType dp) {
+      if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
+      }
       double max = values[0];
+      int nans = 0;
       for (int i = 1; i < limit; i++) {
+        if (Double.isNaN(values[i]) && infectious_nans) {
+          nans++;
+          continue;
+        }
         if (values[i] > max) {
           max = values[i];
         }
       }
-      return new NumericValue(max);
+      if (nans == limit || (nans > 0 && infectious_nans)) {
+        dp.resetValue(Double.NaN);
+      } else {
+        dp.resetValue(max);
+      }
     }
     
   }
@@ -308,25 +370,57 @@ public final class Aggregators {
     }
 
     @Override
-    public NumericType run(final long[] values, final int limit) {
+    public void run(final long[] values, 
+                    final int limit,
+                    final MutableNumericType dp) {
+      // short circuit
+      if (limit == 1) {
+        dp.resetValue(values[0]);
+        return;
+      } else if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
+      }
+      
+      // TODO - overflow check
       long sum = 0;
       for (int i = 0; i < limit; i++) {
         sum += values[i];
       }
       double avg = (double) sum / (double) limit;
       if (avg % 1 == 0) {
-        return new NumericValue(sum / limit);
+        dp.resetValue(sum / limit);
+      } else {
+        dp.resetValue(avg);
       }
-      return new NumericValue(avg);
     }
     
     @Override
-    public NumericType run(final double[] values, final int limit) {
+    public void run(final double[] values, 
+                    final int limit, 
+                    final boolean infectious_nans,
+                    final MutableNumericType dp) {
+      // short circuit
+      if (limit == 1) {
+        dp.resetValue(values[0]);
+        return;
+      } else if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
+      }
+      
       double sum = 0;
+      int nans = 0;
       for (int i = 0; i < limit; i++) {
+        if (Double.isNaN(values[i]) && !infectious_nans) {
+          nans++;
+          continue;
+        }
         sum += values[i];
       }
-      return new NumericValue(sum / (double) limit);
+      if (nans == limit|| (nans > 0 && infectious_nans)) {
+        dp.resetValue(Double.NaN);
+      } else {
+        dp.resetValue(sum / (double) (limit - nans));
+      }
     }
   }
 
@@ -340,27 +434,54 @@ public final class Aggregators {
     }
 
     @Override
-    public NumericType run(final long[] values, final int limit) {
+    public void run(final long[] values, 
+                    final int limit,
+                    final MutableNumericType dp) {
       if (limit == 1) {
-        return new NumericValue(values[0]);
+        dp.resetValue(values[0]);
+        return;
+      } else if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
       }
+      
+      // ugg, we can't violate the sorting of the source and we can't
+      // sort anyway since the limit may be less than the length with
+      // garbage in a previously used array. so we have to copy.
       final long[] copy = limit == values.length ? values : 
-        Arrays.copyOf(values, limit);
+          Arrays.copyOf(values, limit);
       Arrays.sort(copy);
       
-      return new NumericValue(copy[copy.length / 2]);
+      dp.resetValue(copy[copy.length / 2]);
     }
 
     @Override
-    public NumericType run(final double[] values, final int limit) {
+    public void run(final double[] values, 
+                    final int limit, 
+                    final boolean infectious_nans,
+                    final MutableNumericType dp) {
       if (limit == 1) {
-        return new NumericValue(values[0]);
+        dp.resetValue(values[0]);
+        return;
+      } else if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
       }
+      
       final double[] copy = limit == values.length ? values : 
         Arrays.copyOf(values, limit);
       Arrays.sort(copy);
-      
-      return new NumericValue(copy[copy.length / 2]);
+      if (Double.isNaN(copy[copy.length - 1]) && infectious_nans) {
+        dp.resetValue(Double.NaN);
+      } else {
+        int end = copy.length - 1;
+        while (Double.isNaN(copy[end])) {
+          end--;
+          if (end < 0) {
+            dp.resetValue(Double.NaN);
+            return;
+          }
+        }
+        dp.resetValue(copy[(end + 1) / 2]);
+      }
     }
     
   }
@@ -379,12 +500,17 @@ public final class Aggregators {
     }
     
     @Override
-    public NumericType run(final long[] values, final int limit) {
+    public void run(final long[] values, 
+                    final int limit,
+                    final MutableNumericType dp) {
       throw new UnsupportedOperationException("None cannot actually be called.");
     }
     
     @Override
-    public NumericType run(final double[] values, final int limit) {
+    public void run(final double[] values, 
+                    final int limit, 
+                    final boolean infectious_nans,
+                    final MutableNumericType dp) {
       throw new UnsupportedOperationException("None cannot actually be called.");
     }
     
@@ -400,21 +526,44 @@ public final class Aggregators {
     }
 
     @Override
-    public NumericType run(final long[] values, final int limit) {
+    public void run(final long[] values, 
+                    final int limit,
+                    final MutableNumericType dp) {
+      if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
+      }
+      
+      // TODO - overflow
       long product = 1;
       for (int i = 0; i < limit; i++) {
         product *= values[i];
       }
-      return new NumericValue(product);
+      dp.resetValue(product);
     }
     
     @Override
-    public NumericType run(final double[] values, final int limit) {
+    public void run(final double[] values, 
+                    final int limit, 
+                    final boolean infectious_nans,
+                    final MutableNumericType dp) {
+      if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
+      }
+      
       double product = 1;
+      int nans = 0;
       for (int i = 0; i < limit; i++) {
+        if (Double.isNaN(values[i]) && !infectious_nans) {
+          nans++;
+          continue;
+        }
         product *= values[i];
       }
-      return new NumericValue(product);
+      if (nans == limit|| (nans > 0 && infectious_nans)) {
+        dp.resetValue(Double.NaN);
+      } else {
+        dp.resetValue(product);
+      }
     }
     
   }
@@ -434,10 +583,16 @@ public final class Aggregators {
     }
 
     @Override
-    public NumericType run(final long[] values, final int limit) {
+    public void run(final long[] values, 
+                    final int limit,
+                    final MutableNumericType dp) {
       if (limit == 1) {
-        return new NumericValue(0L);
+        dp.resetValue(0L);
+        return;
+      } else if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
       }
+      
       double old_mean = values[0];
       long n = 2;
       double new_mean = 0.;
@@ -452,21 +607,34 @@ public final class Aggregators {
 
       double stdev = Math.sqrt(M2 / (n - 1));
       if (stdev % 1 == 0) {
-        return new NumericValue((long) stdev);
+        dp.resetValue((long) stdev);
+      } else {
+        dp.resetValue(stdev);
       }
-      return new NumericValue(stdev);
     }
 
     @Override
-    public NumericType run(final double[] values, final int limit) {
+    public void run(final double[] values, 
+                    final int limit, 
+                    final boolean infectious_nans,
+                    final MutableNumericType dp) {
       if (limit == 1) {
-        return new NumericValue(0L);
+        dp.resetValue(0.0);
+        return;
+      } else if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
       }
+      
+      int nans = Double.isNaN(values[0]) ? 1 : 0;
       double old_mean = values[0];
       long n = 2;
       double new_mean = 0.;
       double M2 = 0.;
       for (int i = 1; i < limit; i++) {
+        if (Double.isNaN(values[i]) && !infectious_nans) {
+          nans++;
+          continue;
+        }
         final double x = values[i];
         new_mean = old_mean + (x - old_mean) / n;
         M2 += (x - old_mean) * (x - new_mean);
@@ -474,7 +642,11 @@ public final class Aggregators {
         n++;
       }
       
-      return new NumericValue(Math.sqrt(M2 / (n - 1)));
+      if (nans == limit || (nans > 0 && infectious_nans)) {
+        dp.resetValue(Double.NaN);
+      } else {
+        dp.resetValue(Math.sqrt(M2 / (n - 1)));
+      }
     }
     
   }
@@ -489,13 +661,18 @@ public final class Aggregators {
     }
     
     @Override
-    public NumericType run(final long[] values, final int limit) {
-      return new NumericValue(limit);
+    public void run(final long[] values, 
+                    final int limit,
+                    final MutableNumericType dp) {
+      dp.resetValue(limit);
     }
     
     @Override
-    public NumericType run(final double[] values, final int limit) {
-      return new NumericValue(limit);
+    public void run(final double[] values, 
+                    final int limit, 
+                    final boolean infectious_nans,
+                    final MutableNumericType dp) {
+      dp.resetValue(limit);
     }
     
   }
@@ -526,7 +703,13 @@ public final class Aggregators {
     }
 
     @Override
-    public NumericType run(final long[] values, final int limit) {
+    public void run(final long[] values, 
+                    final int limit,
+                    final MutableNumericType dp) {
+      if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
+      }
+      
       final Percentile percentile =
         this.estimation == null
             ? new Percentile(this.percentile)
@@ -538,20 +721,37 @@ public final class Aggregators {
       percentile.setData(local_values.getElements());
       final double p = percentile.evaluate();
       if (p % 1 == 0) {
-        return new NumericValue((long) p);
+        dp.resetValue((long) p);
+      } else {
+        dp.resetValue(p);
       }
-      return new NumericValue(p);
     }
 
     @Override
-    public NumericType run(final double[] values, final int limit) {
+    public void run(final double[] values, 
+                    final int limit, 
+                    final boolean infectious_nans,
+                    final MutableNumericType dp) {
+      if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
+      }
+      
       final Percentile percentile = new Percentile(this.percentile);
       final ResizableDoubleArray local_values = new ResizableDoubleArray();
+      int nans = 0;
       for (int i = 0; i < limit; i++) {
+        if (Double.isNaN(values[i]) && !infectious_nans) {
+          nans++;
+          continue;
+        }
         local_values.addElement(values[i]);
       }
-      percentile.setData(local_values.getElements());
-      return new NumericValue(percentile.evaluate());
+      if (nans == limit || (nans > 0 && infectious_nans)) {
+        dp.resetValue(Double.NaN);
+      } else {
+        percentile.setData(local_values.getElements());
+        dp.resetValue(percentile.evaluate());
+      }
     }
 
   }
@@ -665,13 +865,32 @@ public final class Aggregators {
     }
     
     @Override
-    public NumericType run(final long[] values, final int limit) {
-      return new NumericValue(values[0]);
+    public void run(final long[] values, 
+                    final int limit,
+                    final MutableNumericType dp) {
+      if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
+      }
+      dp.resetValue(values[0]);
     }
 
     @Override
-    public NumericType run(final double[] values, final int limit) {
-      return new NumericValue(values[0]);
+    public void run(final double[] values, 
+                    final int limit, 
+                    final boolean infectious_nans,
+                    final MutableNumericType dp) {
+      if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
+      }
+      dp.resetValue(values[0]);
+      if (infectious_nans) {
+        for (int i = 0; i < limit; i++) {
+          if (Double.isNaN(values[i])) {
+            dp.resetValue(Double.NaN);
+            return;
+          }
+        }
+      }
     }
     
   }
@@ -685,13 +904,32 @@ public final class Aggregators {
     }
     
     @Override
-    public NumericType run(final long[] values, final int limit) {
-      return new NumericValue(values[limit - 1]);
+    public void run(final long[] values, 
+                    final int limit, 
+                    final MutableNumericType dp) {
+      if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
+      }
+      dp.resetValue(values[limit - 1]);
     }
 
     @Override
-    public NumericType run(final double[] values, final int limit) {
-      return new NumericValue(values[limit - 1]);
+    public void run(final double[] values, 
+                    final int limit, 
+                    final boolean infectious_nans,
+                    final MutableNumericType dp) {
+      if (limit < 1) {
+        throw new IllegalDataException("Limit must be greater than 0");
+      }
+      dp.resetValue(values[limit - 1]);
+      if (infectious_nans) {
+        for (int i = 0; i < limit; i++) {
+          if (Double.isNaN(values[i])) {
+            dp.resetValue(Double.NaN);
+            return;
+          }
+        }
+      }
     }
     
   }
