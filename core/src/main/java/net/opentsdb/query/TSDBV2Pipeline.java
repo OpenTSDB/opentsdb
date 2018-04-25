@@ -27,10 +27,12 @@ import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
 import net.opentsdb.query.pojo.Downsampler;
+import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.RateOptions;
@@ -111,12 +113,16 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
             .setId("downsample_" + metric.getId())
             .setAggregator(downsampler.getAggregator())
             .setInterval(downsampler.getInterval())
+            .setQuery(q)
+            .setFill(downsampler.getFillPolicy() != null ? true : false)
             .setQuery(q);
         if (!Strings.isNullOrEmpty(downsampler.getTimezone())) {
           ds.setTimeZone(ZoneId.of(downsampler.getTimezone()));
         }
-        final NumericInterpolatorConfig nic = 
-            NumericInterpolatorFactory.parse(downsampler.getAggregator());
+        final NumericInterpolatorConfig nic = NumericInterpolatorConfig.newBuilder()
+            .setFillPolicy(downsampler.getFillPolicy().getPolicy())
+            .setRealFillPolicy(FillWithRealPolicy.NONE)
+            .build();
         ds.setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
           .setQueryIteratorInterpolatorConfig(nic);
         QueryNode down = new DownsampleFactory("Downsample").newNode(this, ds.build());
