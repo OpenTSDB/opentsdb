@@ -247,7 +247,7 @@ public final class Aggregators {
         }
         sum += values[i];
       }
-      if (nans == limit) {
+      if (nans == limit || (nans > 0 && infectious_nans)) {
         dp.resetValue(Double.NaN);
       } else {
         dp.resetValue(sum);
