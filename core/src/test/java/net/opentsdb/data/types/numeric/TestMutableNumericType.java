@@ -226,6 +226,19 @@ public class TestMutableNumericType {
     assertEquals(1, dp.timestamp().msEpoch());
     assertNull(dp.value());
     
+    dp.reset(ts, 0);
+    dp.resetValue(42);
+    assertEquals(1, dp.timestamp().msEpoch());
+    assertEquals(42, dp.value().longValue());
+    
+    dp.resetValue(42.5);
+    assertEquals(1, dp.timestamp().msEpoch());
+    assertEquals(42.5, dp.value().doubleValue(), 0.001);
+    
+    dp.resetTimestamp(new MillisecondTimeStamp(2));
+    assertEquals(2, dp.timestamp().msEpoch());
+    assertEquals(42.5, dp.value().doubleValue(), 0.001);
+    
     try {
       dp.reset(null, 42);
       fail("Expected IllegalArgumentException");

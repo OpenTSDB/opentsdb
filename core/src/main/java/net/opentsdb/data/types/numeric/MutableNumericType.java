@@ -286,9 +286,65 @@ public final class MutableNumericType implements NumericType,
     nulled = true;
   }
   
+  /**
+   * Resets just the value of the data point. Good for use with aggregators
+   * but be CAREFUL not to return without updating the timestamp.
+   * @param value The value to set.
+   */
+  public void resetValue(final long value) {
+    this.value = value;
+    is_integer = true;
+    nulled = false;
+  }
+  
+  /**
+   * Resets just the value of the data point. Good for use with aggregators
+   * but be CAREFUL not to return without updating the timestamp.
+   * @param value The value to set.
+   */
+  public void resetValue(final double value) {
+    this.value = Double.doubleToRawLongBits(value);
+    is_integer = false;
+    nulled = false;
+  }
+  
+  /**
+   * Resets just the timestamp of the data point. Good for use with 
+   * aggregators but be CAREFUL not to return without updating the value.
+   * @param timestamp The timestamp to set.
+   */
+  public void resetTimestamp(final TimeStamp timestamp) {
+    if (timestamp == null) {
+      throw new IllegalArgumentException("Timestamp cannot be null");
+    }
+    if (timestamp.units().ordinal() < this.timestamp.units().ordinal()) {
+      this.timestamp = timestamp.getCopy();
+    } else {
+      this.timestamp.update(timestamp);
+    }
+  }
+  
   @Override
   public TypeToken<NumericType> type() {
     return NumericType.TYPE;
   }
 
+  @Override
+  public String toString() {
+    final StringBuilder buf = new StringBuilder()
+        .append("timestamp=")
+        .append(timestamp)
+        .append(", nulled=")
+        .append(nulled)
+        .append(", isInteger=")
+        .append(isInteger())
+        .append(", value=");
+    if (isInteger()) {
+      buf.append(longValue());
+    } else {
+      buf.append(doubleValue());
+    }
+    return buf.toString();
+        
+  }
 }

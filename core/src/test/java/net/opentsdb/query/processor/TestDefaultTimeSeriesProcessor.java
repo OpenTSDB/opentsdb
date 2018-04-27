@@ -41,7 +41,7 @@ import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
-import net.opentsdb.data.types.numeric.MockNumericIterator;
+import net.opentsdb.data.types.numeric.MockNumericTimeSeries;
 import net.opentsdb.data.types.numeric.MutableNumericType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.context.DefaultQueryContext;
@@ -57,8 +57,8 @@ public class TestDefaultTimeSeriesProcessor {
   private List<List<MutableNumericType>> data_a;
   private List<List<MutableNumericType>> data_b;
   
-  private MockNumericIterator it_a;
-  private MockNumericIterator it_b;
+  private MockNumericTimeSeries it_a;
+  private MockNumericTimeSeries it_b;
   
   private QueryContext context;
   private TimeSeriesProcessor processor;

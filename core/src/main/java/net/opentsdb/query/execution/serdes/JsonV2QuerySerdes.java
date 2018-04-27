@@ -187,7 +187,9 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
                   ? value.timestamp().msEpoch() 
                   : value.timestamp().msEpoch() / 1000;
               
-              if (value.value().isInteger()) {
+              if (value.value() == null) {
+                json.writeNullField(Long.toString(ts));
+              } else if (value.value().isInteger()) {
                 json.writeNumberField(Long.toString(ts), 
                     value.value().longValue());
               } else {

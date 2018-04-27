@@ -24,7 +24,7 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
-import net.opentsdb.data.types.numeric.MockNumericIterator;
+import net.opentsdb.data.types.numeric.MockNumericTimeSeries;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.processor.TimeSeriesProcessor;
 
@@ -37,7 +37,7 @@ public class MockAnnotationIterator extends
   public RuntimeException ex;
   public boolean throw_ex;
   
-  private MockNumericIterator parent;
+  private MockNumericTimeSeries parent;
   
   @Override
   public Deferred<Object> initialize() {

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2012-2017  The OpenTSDB Authors.
+// Copyright (C) 2012-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,12 +18,16 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Random;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import net.opentsdb.core.Aggregator;
+import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.exceptions.IllegalDataException;
 
 public final class TestAggregators {
 
@@ -82,57 +86,58 @@ public final class TestAggregators {
     }
   }
 
-//  @Test
-//  public void testStdDevKnownValues() {
-//    final long[] values = new long[10000];
-//    for (int i = 0; i < values.length; i++) {
-//      values[i] = i;
-//    }
-//    // Expected value calculated by NumPy
-//    // $ python2.7
-//    // >>> import numpy
-//    // >>> numpy.std(range(10000))
-//    // 2886.7513315143719
-//    final double expected = 2886.7513315143719D;
-//    final double epsilon = 0.01;
-//    checkSimilarStdDev(values, expected, epsilon);
-//  }
-//
-//  @Test
-//  public void testStdDevRandomValues() {
-//    final long[] values = new long[1000];
-//    for (int i = 0; i < values.length; i++) {
-//      values[i] = random.nextLong();
-//    }
-//    final double expected = naiveStdDev(values);
-//    // Calculate the epsilon based on the percentage of the number.
-//    final double epsilon = EPSILON_PERCENTAGE * expected;
-//    checkSimilarStdDev(values, expected, epsilon);
-//  }
-//
-//  @Test
-//  public void testStdDevNoDeviation() {
-//    final long[] values = {3,3,3};
-//
-//    final double expected = 0;
-//    checkSimilarStdDev(values, expected, 0);
-//  }
-//
-//  @Test
-//  public void testStdDevFewDataInputs() {
-//    final long[] values = {1,2};
-//
-//    final double expected = 0.5;
-//    checkSimilarStdDev(values, expected, 0);
-//  }
+  @Test
+  public void testStdDevKnownValues() {
+    final long[] values = new long[10000];
+    for (int i = 0; i < values.length; i++) {
+      values[i] = i;
+    }
+    // Expected value calculated by NumPy
+    // $ python2.7
+    // >>> import numpy
+    // >>> numpy.std(range(10000))
+    // 2886.7513315143719
+    final double expected = 2886.7513315143719D;
+    final double epsilon = 0.01;
+    checkSimilarStdDev(values, expected, epsilon);
+  }
 
-//  private static void checkSimilarStdDev(final long[] values,
-//                                         final double expected,
-//                                         final double epsilon) {
-//    final Numbers numbers = new Numbers(values);
-//    final Aggregator agg = Aggregators.get("dev");
-//    Assert.assertEquals(expected, agg.runLong(numbers), Math.max(epsilon, 1.0));
-//  }
+  @Test
+  public void testStdDevRandomValues() {
+    final long[] values = new long[1000];
+    for (int i = 0; i < values.length; i++) {
+      values[i] = random.nextLong();
+    }
+    final double expected = naiveStdDev(values);
+    // Calculate the epsilon based on the percentage of the number.
+    final double epsilon = EPSILON_PERCENTAGE * expected;
+    checkSimilarStdDev(values, expected, epsilon);
+  }
+
+  @Test
+  public void testStdDevNoDeviation() {
+    final long[] values = {3,3,3};
+
+    final double expected = 0;
+    checkSimilarStdDev(values, expected, 0);
+  }
+
+  @Test
+  public void testStdDevFewDataInputs() {
+    final long[] values = {1,2};
+
+    final double expected = 0.5;
+    checkSimilarStdDev(values, expected, 0);
+  }
+
+  private static void checkSimilarStdDev(final long[] values,
+                                         final double expected,
+                                         final double epsilon) {
+    final NumericAggregator agg = Aggregators.get("dev");
+    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    agg.run(values, values.length, dp);
+    Assert.assertEquals(expected, dp.value().toDouble(), Math.max(epsilon, 1.0));
+  }
 
   private static double naiveStdDev(long[] values) {
     double sum = 0;
@@ -149,116 +154,561 @@ public final class TestAggregators {
     return Math.sqrt(variance);
   }
 
-//  @Test
-//  public void testPercentiles() {
-//    final long[] longValues = new long[1000];
-//    for (int i = 0; i < longValues.length; i++) {
-//      longValues[i] = i+1;
-//    }
-//
-//    Numbers values = new Numbers(longValues);
-//    assertAggregatorEquals(500, Aggregators.get("p50"), values);
-//    assertAggregatorEquals(750, Aggregators.get("p75"), values);
-//    assertAggregatorEquals(900, Aggregators.get("p90"), values);
-//    assertAggregatorEquals(950, Aggregators.get("p95"), values);
-//    assertAggregatorEquals(990, Aggregators.get("p99"), values);
-//    assertAggregatorEquals(999, Aggregators.get("p999"), values);
-//
-//    assertAggregatorEquals(500, Aggregators.get("ep50r3"), values);
-//    assertAggregatorEquals(750, Aggregators.get("ep75r3"), values);
-//    assertAggregatorEquals(900, Aggregators.get("ep90r3"), values);
-//    assertAggregatorEquals(950, Aggregators.get("ep95r3"), values);
-//    assertAggregatorEquals(990, Aggregators.get("ep99r3"), values);
-//    assertAggregatorEquals(999, Aggregators.get("ep999r3"), values);
-//    
-//    assertAggregatorEquals(500, Aggregators.get("ep50r7"), values);
-//    assertAggregatorEquals(750, Aggregators.get("ep75r7"), values);
-//    assertAggregatorEquals(900, Aggregators.get("ep90r7"), values);
-//    assertAggregatorEquals(950, Aggregators.get("ep95r7"), values);
-//    assertAggregatorEquals(990, Aggregators.get("ep99r7"), values);
-//    assertAggregatorEquals(999, Aggregators.get("ep999r7"), values);
-//  }
-//
-//  @Test
-//  public void testFirst() {
-//    final long[] values = new long[10];
-//    for (int i = 0; i < values.length; i++) {
-//      values[i] = i;
-//    }
-//    
-//    Aggregator agg = Aggregators.FIRST;
-//    Numbers numbers = new Numbers(values);
-//    assertEquals(0, agg.runLong(numbers));
-//    
-//    final double[] doubles = new double[10];
-//    double val = 0.5;
-//    for (int i = 0; i < doubles.length; i++) {
-//      doubles[i] = val++;
-//    }
-//    
-//    numbers = new Numbers(doubles);
-//    assertEquals(0.5, agg.runDouble(numbers), EPSILON_PERCENTAGE);
-//  }
-//  
-//  @Test
-//  public void testLast() {
-//    final long[] values = new long[10];
-//    for (int i = 0; i < values.length; i++) {
-//      values[i] = i;
-//    }
-//    
-//    Aggregator agg = Aggregators.LAST;
-//    Numbers numbers = new Numbers(values);
-//    assertEquals(9, agg.runLong(numbers));
-//    
-//    final double[] doubles = new double[10];
-//    double val = 0.5;
-//    for (int i = 0; i < doubles.length; i++) {
-//      doubles[i] = val++;
-//    }
-//    
-//    numbers = new Numbers(doubles);
-//    assertEquals(9.5, agg.runDouble(numbers), EPSILON_PERCENTAGE);
-//  }
-//  
-//  @Test
-//  public void testMedian() {
-//    final Aggregator agg = Aggregators.get("median");
-//    Numbers numbers = new Numbers(new long[] { 5, 2, -1, 400, 3 });
-//    assertEquals(3, agg.runLong(numbers));
-//    
-//    numbers = new Numbers(new long[] { 5, 2, -1, 400, 3, -42 });
-//    assertEquals(3, agg.runLong(numbers));
-//    
-//    numbers = new Numbers(new long[] { 42 });
-//    assertEquals(42, agg.runLong(numbers));
-//    
-//    numbers = new Numbers(new long[] { });
-//    try {
-//      assertEquals(42, agg.runLong(numbers));
-//      fail("Expected IllegalStateException");
-//    } catch (IllegalStateException e) { }
-//    
-//    numbers = new Numbers(new double[] { 5.1, 2.434, -1.99, 400.69487, 3.15168 });
-//    assertEquals(3.15168, agg.runDouble(numbers), 0.0001);
-//    
-//    numbers = new Numbers(new double[] { 5.1, 2.434, -1.99, 400.69487, 
-//        3.15168, -42 });
-//    assertEquals(3.15168, agg.runDouble(numbers), 0.0001);
-//    
-//    numbers = new Numbers(new double[] { 42.5 });
-//    assertEquals(42.5, agg.runDouble(numbers), 0.0001);
-//    
-//    numbers = new Numbers(new double[] { });
-//    assertTrue(Double.isNaN(agg.runDouble(numbers)));
-//  }
-//  
-  private void assertAggregatorEquals(long value, Aggregator agg, Numbers numbers) {
-    if (numbers.isInteger()) {
-      Assert.assertEquals(value, agg.runLong(numbers));
-    } else {
-      Assert.assertEquals((double)value, agg.runDouble(numbers), 1.0);
+  @Test
+  public void sum() throws Exception {
+    NumericAggregator agg = Aggregators.get("sum");
+    
+    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    agg.run(new long[] { 1, 2, 3 }, 3, dp);
+    assertEquals(6, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 2, dp);
+    assertEquals(3, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 1, dp);
+    assertEquals(1, dp.longValue());
+    
+    try {
+      agg.run(new long[] { 1, 2, 3 }, 0, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 3, false, dp);
+    assertEquals(6.75, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 2, false, dp);
+    assertEquals(3.50, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 1, false, dp);
+    assertEquals(1.25, dp.doubleValue(), 0.001);
+    
+    try {
+      agg.run(new double[] { 1.25, 2.25, 3.25 }, 0, false, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, false, dp);
+    assertEquals(4.50, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, false, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+  }
+  
+  @Test
+  public void min() throws Exception {
+    NumericAggregator agg = Aggregators.get("min");
+    
+    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    agg.run(new long[] { 1, 2, 3 }, 3, dp);
+    assertEquals(1, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 2, dp);
+    assertEquals(1, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 1, dp);
+    assertEquals(1, dp.longValue());
+    
+    try {
+      agg.run(new long[] { 1, 2, 3 }, 0, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 3, false, dp);
+    assertEquals(1.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 2, false, dp);
+    assertEquals(1.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 1, false, dp);
+    assertEquals(1.25, dp.doubleValue(), 0.001);
+    
+    try {
+      agg.run(new double[] { 1.25, 2.25, 3.25 }, 0, false, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, false, dp);
+    assertEquals(1.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, false, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+  }
+  
+  @Test
+  public void max() throws Exception {
+    NumericAggregator agg = Aggregators.get("max");
+    
+    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    agg.run(new long[] { 1, 2, 3 }, 3, dp);
+    assertEquals(3, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 2, dp);
+    assertEquals(2, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 1, dp);
+    assertEquals(1, dp.longValue());
+    
+    try {
+      agg.run(new long[] { 1, 2, 3 }, 0, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 3, false, dp);
+    assertEquals(3.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 2, false, dp);
+    assertEquals(2.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 1, false, dp);
+    assertEquals(1.25, dp.doubleValue(), 0.001);
+    
+    try {
+      agg.run(new double[] { 1.25, 2.25, 3.25 }, 0, false, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, false, dp);
+    assertEquals(3.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, false, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+  }
+  
+  @Test
+  public void avg() throws Exception {
+    NumericAggregator agg = Aggregators.get("avg");
+    
+    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    agg.run(new long[] { 1, 2, 3 }, 3, dp);
+    assertEquals(2, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 2, dp);
+    assertEquals(1.5, dp.doubleValue(), 0.001);
+    
+    agg.run(new long[] { 1, 2, 3 }, 1, dp);
+    assertEquals(1, dp.longValue());
+    
+    try {
+      agg.run(new long[] { 1, 2, 3 }, 0, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 3, false, dp);
+    assertEquals(2.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 2, false, dp);
+    assertEquals(1.75, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 1, false, dp);
+    assertEquals(1.25, dp.doubleValue(), 0.001);
+    
+    try {
+      agg.run(new double[] { 1.25, 2.25, 3.25 }, 0, false, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, false, dp);
+    assertEquals(2.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, false, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+  }
+  
+  @Test
+  public void median() throws Exception {
+    NumericAggregator agg = Aggregators.get("median");
+    
+    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    agg.run(new long[] { 1, 2, 3 }, 3, dp);
+    assertEquals(2, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 2, dp);
+    assertEquals(2, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 1, dp);
+    assertEquals(1, dp.longValue());
+    
+    try {
+      agg.run(new long[] { 1, 2, 3 }, 0, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 3, false, dp);
+    assertEquals(2.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 2, false, dp);
+    assertEquals(2.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 1, false, dp);
+    assertEquals(1.25, dp.doubleValue(), 0.001);
+    
+    try {
+      agg.run(new double[] { 1.25, 2.25, 3.25 }, 0, false, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, false, dp);
+    assertEquals(3.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, false, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+  }
+  
+  @Test
+  public void none() throws Exception {
+    NumericAggregator agg = Aggregators.get("none");
+    
+    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    try {
+      agg.run(new long[] { 1, 2, 3 }, 3, dp);
+      fail("Expected UnsupportedOperationException");
+    } catch (UnsupportedOperationException e) { }
+    
+    try {
+      agg.run(new double[] { 1.25, 2.25, 3.25 }, 3, false, dp);
+      fail("Expected UnsupportedOperationException");
+    } catch (UnsupportedOperationException e) { }
+  }
+  
+  @Test
+  public void multiply() throws Exception {
+    NumericAggregator agg = Aggregators.get("multiply");
+    
+    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    agg.run(new long[] { 1, 2, 3 }, 3, dp);
+    assertEquals(6, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 2, dp);
+    assertEquals(2, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 1, dp);
+    assertEquals(1, dp.longValue());
+    
+    try {
+      agg.run(new long[] { 1, 2, 3 }, 0, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 3, false, dp);
+    assertEquals(9.140625, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 2, false, dp);
+    assertEquals(2.8125, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 1, false, dp);
+    assertEquals(1.25, dp.doubleValue(), 0.001);
+    
+    try {
+      agg.run(new double[] { 1.25, 2.25, 3.25 }, 0, false, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, false, dp);
+    assertEquals(4.0625, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, false, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+  }
+  
+  @Test
+  public void stdev() throws Exception {
+    NumericAggregator agg = Aggregators.get("stdev");
+    
+    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    agg.run(new long[] { 1, 2, 3 }, 3, dp);
+    assertEquals(0.816, dp.doubleValue(), 0.001);
+    
+    agg.run(new long[] { 1, 2, 3 }, 2, dp);
+    assertEquals(0.5, dp.doubleValue(), 0.001);
+    
+    agg.run(new long[] { 1, 2, 3 }, 1, dp);
+    assertEquals(0, dp.longValue());
+    
+    try {
+      agg.run(new long[] { 1, 2, 3 }, 0, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 3, false, dp);
+    assertEquals(0.816, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 2, false, dp);
+    assertEquals(0.5, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 1, false, dp);
+    assertEquals(0, dp.doubleValue(), 0.001);
+    
+    try {
+      agg.run(new double[] { 1.25, 2.25, 3.25 }, 0, false, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, false, dp);
+    assertEquals(1, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, false, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+  }
+  
+  @Test
+  public void count() throws Exception {
+    NumericAggregator agg = Aggregators.get("count");
+    
+    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    agg.run(new long[] { 1, 2, 3 }, 3, dp);
+    assertEquals(3, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 2, dp);
+    assertEquals(2, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 1, dp);
+    assertEquals(1, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 0, dp);
+    assertEquals(0, dp.longValue());
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 3, false, dp);
+    assertEquals(3, dp.longValue());
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 2, false, dp);
+    assertEquals(2, dp.longValue());
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 1, false, dp);
+    assertEquals(1, dp.longValue());
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 0, false, dp);
+    assertEquals(0, dp.longValue());
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, false, dp);
+    assertEquals(3, dp.longValue());
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, true, dp);
+    assertEquals(3, dp.longValue());
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, false, dp);
+    assertEquals(3, dp.longValue());
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, true, dp);
+    assertEquals(3, dp.longValue());
+  }
+  
+  @Test
+  public void percentiles() throws Exception {
+    NumericAggregator agg = Aggregators.get("p99");
+    
+    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    agg.run(new long[] { 1, 2, 3 }, 3, dp);
+    assertEquals(3, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 2, dp);
+    assertEquals(2, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 1, dp);
+    assertEquals(1, dp.longValue());
+    
+    try {
+      agg.run(new long[] { 1, 2, 3 }, 0, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 3, false, dp);
+    assertEquals(3.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 2, false, dp);
+    assertEquals(2.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 1, false, dp);
+    assertEquals(1.25, dp.doubleValue(), 0.001);
+    
+    try {
+      agg.run(new double[] { 1.25, 2.25, 3.25 }, 0, false, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, false, dp);
+    assertEquals(3.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, false, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+  }
+  
+  @Test
+  public void first() throws Exception {
+    NumericAggregator agg = Aggregators.get("first");
+    
+    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    agg.run(new long[] { 1, 2, 3 }, 3, dp);
+    assertEquals(1, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 2, dp);
+    assertEquals(1, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 1, dp);
+    assertEquals(1, dp.longValue());
+    
+    try {
+      agg.run(new long[] { 1, 2, 3 }, 0, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 3, false, dp);
+    assertEquals(1.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 2, false, dp);
+    assertEquals(1.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 1, false, dp);
+    assertEquals(1.25, dp.doubleValue(), 0.001);
+    
+    try {
+      agg.run(new double[] { 1.25, 2.25, 3.25 }, 0, false, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, false, dp);
+    assertEquals(1.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, false, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+  }
+  
+  @Test
+  public void last() throws Exception {
+    NumericAggregator agg = Aggregators.get("last");
+    
+    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    agg.run(new long[] { 1, 2, 3 }, 3, dp);
+    assertEquals(3, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 2, dp);
+    assertEquals(2, dp.longValue());
+    
+    agg.run(new long[] { 1, 2, 3 }, 1, dp);
+    assertEquals(1, dp.longValue());
+    
+    try {
+      agg.run(new long[] { 1, 2, 3 }, 0, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 3, false, dp);
+    assertEquals(3.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 2, false, dp);
+    assertEquals(2.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, 2.25, 3.25 }, 1, false, dp);
+    assertEquals(1.25, dp.doubleValue(), 0.001);
+    
+    try {
+      agg.run(new double[] { 1.25, 2.25, 3.25 }, 0, false, dp);
+      fail("Expected IllegalDataException");
+    } catch (IllegalDataException e) { }
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, false, dp);
+    assertEquals(3.25, dp.doubleValue(), 0.001);
+    
+    agg.run(new double[] { 1.25, Double.NaN, 3.25 }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, false, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    
+    agg.run(new double[] { Double.NaN, Double.NaN, Double.NaN }, 3, true, dp);
+    assertTrue(Double.isNaN(dp.doubleValue()));
+  }
+  @Test
+  public void testPercentiles() {
+    final long[] longValues = new long[1000];
+    for (int i = 0; i < longValues.length; i++) {
+      longValues[i] = i+1;
     }
+  
+    Numbers values = new Numbers(longValues);
+    assertAggregatorEquals(500, Aggregators.get("p50"), values);
+    assertAggregatorEquals(750, Aggregators.get("p75"), values);
+    assertAggregatorEquals(900, Aggregators.get("p90"), values);
+    assertAggregatorEquals(950, Aggregators.get("p95"), values);
+    assertAggregatorEquals(990, Aggregators.get("p99"), values);
+    assertAggregatorEquals(999, Aggregators.get("p999"), values);
+  
+    assertAggregatorEquals(500, Aggregators.get("ep50r3"), values);
+    assertAggregatorEquals(750, Aggregators.get("ep75r3"), values);
+    assertAggregatorEquals(900, Aggregators.get("ep90r3"), values);
+    assertAggregatorEquals(950, Aggregators.get("ep95r3"), values);
+    assertAggregatorEquals(990, Aggregators.get("ep99r3"), values);
+    assertAggregatorEquals(999, Aggregators.get("ep999r3"), values);
+    
+    assertAggregatorEquals(500, Aggregators.get("ep50r7"), values);
+    assertAggregatorEquals(750, Aggregators.get("ep75r7"), values);
+    assertAggregatorEquals(900, Aggregators.get("ep90r7"), values);
+    assertAggregatorEquals(950, Aggregators.get("ep95r7"), values);
+    assertAggregatorEquals(990, Aggregators.get("ep99r7"), values);
+    assertAggregatorEquals(999, Aggregators.get("ep999r7"), values);
+  }
+  
+  private void assertAggregatorEquals(long value, NumericAggregator agg, Numbers numbers) {
+    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    if (numbers.isInteger()) {
+      agg.run(numbers.longs, numbers.longs.length, dp);
+    } else {
+      agg.run(numbers.doubles, numbers.doubles.length, false, dp);
+    }
+    Assert.assertEquals((double) value, dp.toDouble(), 1.0);
     numbers.reset();
   }
 }
