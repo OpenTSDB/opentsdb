@@ -136,6 +136,13 @@ public class TestTagVNotLiteralOrFilter {
     assertFalse(filter.match(tags).join());
     assertTrue(((TagVNotLiteralOrFilter)filter).isCaseInsensitive());
   }
+
+  @Test
+  public void matchSingleCharacterTagValue() throws Exception {
+    TagVFilter filter = new TagVNotLiteralOrFilter(TAGK, "c");
+    tags.put(TAGK, "c");
+    assertFalse(filter.match(tags).join());
+  }
   
   @Test (expected = IllegalArgumentException.class)
   public void ctorNullTagk() throws Exception {

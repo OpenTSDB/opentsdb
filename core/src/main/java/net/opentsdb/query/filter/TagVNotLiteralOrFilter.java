@@ -62,8 +62,11 @@ public class TagVNotLiteralOrFilter extends TagVFilter {
     this.case_insensitive = case_insensitive;
     
     // we have to have at least one character.
-    if (filter == null || filter.length() < 2) {
+    if (filter == null || filter.isEmpty()) {
       throw new IllegalArgumentException("Filter cannot be null or empty");
+    }
+    if (filter.length() == 1 && filter.charAt(0) == '|') {
+      throw new IllegalArgumentException("Filter must contain more than just a pipe");
     }
     final String[] split = filter.split("\\|");
     if (case_insensitive) {
