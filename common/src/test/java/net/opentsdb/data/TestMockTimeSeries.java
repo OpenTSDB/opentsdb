@@ -31,7 +31,7 @@ import org.mockito.stubbing.Answer;
 
 import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.data.TimeStamp.RelationalOperator;
+import net.opentsdb.data.TimeStamp.Op;
 
 public class TestMockTimeSeries {
 
@@ -149,18 +149,18 @@ public class TestMockTimeSeries {
         series.iterator(type1).get();
     assertTrue(iterator.hasNext());
     TimeSeriesValue<? extends TimeSeriesDataType> v = iterator.next();
-    assertTrue(v.timestamp().compare(RelationalOperator.EQ, ts1));
+    assertTrue(v.timestamp().compare(Op.EQ, ts1));
     
     assertTrue(iterator.hasNext());
     v = iterator.next();
-    assertTrue(v.timestamp().compare(RelationalOperator.EQ, ts2));
+    assertTrue(v.timestamp().compare(Op.EQ, ts2));
     
     assertFalse(iterator.hasNext());
     
     iterator = series.iterator(type2).get();
     assertTrue(iterator.hasNext());
     v = iterator.next();
-    assertTrue(v.timestamp().compare(RelationalOperator.EQ, ts1));
+    assertTrue(v.timestamp().compare(Op.EQ, ts1));
     
     assertFalse(iterator.hasNext());
     

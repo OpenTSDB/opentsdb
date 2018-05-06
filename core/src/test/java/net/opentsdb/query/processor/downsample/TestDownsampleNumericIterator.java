@@ -32,7 +32,7 @@ import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.RelationalOperator;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -2617,8 +2617,8 @@ public class TestDownsampleNumericIterator {
     int iterations = 0;
     while (it.hasNext()) {
       TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-      assertTrue(daily.compare(RelationalOperator.EQ, v.timestamp()));
-      if (monthly.compare(RelationalOperator.EQ, v.timestamp())) {
+      assertTrue(daily.compare(Op.EQ, v.timestamp()));
+      if (monthly.compare(Op.EQ, v.timestamp())) {
         assertEquals(1, v.value().longValue());
         monthly.add(Period.ofMonths(1));
       } else {
@@ -2652,7 +2652,7 @@ public class TestDownsampleNumericIterator {
     iterations = 0;
     while (it.hasNext()) {
       TimeSeriesValue<NumericType> v = (TimeSeriesValue<NumericType>) it.next();
-      assertTrue(monthly.compare(RelationalOperator.EQ, v.timestamp()));
+      assertTrue(monthly.compare(Op.EQ, v.timestamp()));
       assertEquals(1, v.value().longValue());
       monthly.add(Period.ofMonths(1));
       iterations++;

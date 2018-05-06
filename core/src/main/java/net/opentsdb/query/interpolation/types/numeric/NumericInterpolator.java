@@ -21,7 +21,7 @@ import java.util.Optional;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.RelationalOperator;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
@@ -106,7 +106,7 @@ public class NumericInterpolator implements QueryIteratorInterpolator<NumericTyp
     }
     
     has_next = false;
-    if (timestamp.compare(RelationalOperator.EQ, next.timestamp())) {
+    if (timestamp.compare(Op.EQ, next.timestamp())) {
       response.reset(next);
       if (previous == null) {
         previous = new MutableNumericValue(next);

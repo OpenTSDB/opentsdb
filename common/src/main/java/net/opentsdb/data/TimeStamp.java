@@ -35,7 +35,7 @@ public interface TimeStamp {
   public static TimeStampComparator COMPARATOR = new TimeStampComparator();
   
   /** Comparator used when evaluating TimeStamp order. */
-  public enum RelationalOperator {
+  public enum Op {
     /** Less Than */
     LT,
     
@@ -117,7 +117,7 @@ public interface TimeStamp {
    * @throws IllegalArgumentException if either argument was null.
    * @throws UnsupportedOperationException if the comparator was not supported.
    */
-  public boolean compare(final RelationalOperator comparator, 
+  public boolean compare(final Op comparator, 
       final TimeStamp compareTo);
   
   /**
@@ -185,10 +185,10 @@ public interface TimeStamp {
       if (v1 == v2) {
         return 0;
       }
-      if (v1.compare(RelationalOperator.EQ, v2)) {
+      if (v1.compare(Op.EQ, v2)) {
         return 0;
       }
-      return v1.compare(RelationalOperator.LT, v2) ? -1 : 1;
+      return v1.compare(Op.LT, v2) ? -1 : 1;
     }
 
   }

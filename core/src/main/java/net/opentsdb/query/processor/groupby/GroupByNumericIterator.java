@@ -24,7 +24,7 @@ import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.RelationalOperator;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericAggregator;
@@ -138,7 +138,7 @@ public class GroupByNumericIterator implements QueryIterator,
                                .getInterpolatorConfig());
       if (interpolators[iterator_max].hasNext()) {
         has_next = true;
-        if (interpolators[iterator_max].nextReal().compare(RelationalOperator.LT, next_ts)) {
+        if (interpolators[iterator_max].nextReal().compare(Op.LT, next_ts)) {
           next_ts.update(interpolators[iterator_max].nextReal());
         }
       }
@@ -201,7 +201,7 @@ public class GroupByNumericIterator implements QueryIterator,
       
       if (interpolators[i].hasNext()) {
         has_next = true;
-        if (interpolators[i].nextReal().compare(RelationalOperator.LT, next_next_ts)) {
+        if (interpolators[i].nextReal().compare(Op.LT, next_next_ts)) {
           next_next_ts.update(interpolators[i].nextReal());
         }
       }

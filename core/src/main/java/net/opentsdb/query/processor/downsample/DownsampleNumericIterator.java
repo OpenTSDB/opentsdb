@@ -26,7 +26,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.RelationalOperator;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericAggregator;
@@ -138,8 +138,8 @@ public class DownsampleNumericIterator implements QueryIterator {
         // make sure there is a value within our query interval
         TimeStamp interval_before_last = config.end().getCopy();
         config.nextTimestamp(interval_before_last);
-        if (interpolator.nextReal().compare(RelationalOperator.GTE, interval_before_last) ||
-            interpolator.nextReal().compare(RelationalOperator.LT, config.start())) {
+        if (interpolator.nextReal().compare(Op.GTE, interval_before_last) ||
+            interpolator.nextReal().compare(Op.LT, config.start())) {
           has_next = false;
         } else {
           value = interpolator.next(interval_ts);
@@ -153,7 +153,7 @@ public class DownsampleNumericIterator implements QueryIterator {
             (!value.value().isInteger() && Double.isNaN(value.value().doubleValue())))) {
           if (interpolator.hasNext()) {
             config.nextTimestamp(interval_ts);
-            if (interval_ts.compare(RelationalOperator.GT, config.end())) {
+            if (interval_ts.compare(Op.GT, config.end())) {
               value = null;
               break;
             }
@@ -185,7 +185,7 @@ public class DownsampleNumericIterator implements QueryIterator {
     
     if (config.fill() && !config.runAll()) {
       value = interpolator.next(interval_ts);
-      if (interval_ts.compare(RelationalOperator.LTE, config.end())) {
+      if (interval_ts.compare(Op.LTE, config.end())) {
         has_next = true;
       }
     } else if (interpolator.hasNext()) {
@@ -194,7 +194,7 @@ public class DownsampleNumericIterator implements QueryIterator {
           (!value.value().isInteger() && Double.isNaN(value.value().doubleValue())))) {
         if (interpolator.hasNext()) {
           config.nextTimestamp(interval_ts);
-          if (interval_ts.compare(RelationalOperator.GT, config.end())) {
+          if (interval_ts.compare(Op.GT, config.end())) {
             value = null;
             break;
           }
@@ -277,12 +277,12 @@ public class DownsampleNumericIterator implements QueryIterator {
       // blow out anything earlier than the first timestamp
       if (next_dp != null) {
         // out of bounds
-        if (next_dp.timestamp().compare(RelationalOperator.GT, config.end())) {
+        if (next_dp.timestamp().compare(Op.GT, config.end())) {
           next_dp = null;
         }
         
         while (next_dp != null && next_dp.value() != null && 
-            next_dp.timestamp().compare(RelationalOperator.LT, interval_start)) {
+            next_dp.timestamp().compare(Op.LT, interval_start)) {
           if (iterator.hasNext()) {
             next_dp = (TimeSeriesValue<NumericType>) iterator.next();
           } else {
@@ -388,11 +388,11 @@ public class DownsampleNumericIterator implements QueryIterator {
         }
         
         if (config.runAll() || 
-            next_dp.timestamp().compare(RelationalOperator.LT, interval_end)) {
+            next_dp.timestamp().compare(Op.LT, interval_end)) {
           // when running through all the dps, make sure we don't go over the 
           // end timestamp of the query.
           if (config.runAll() && 
-              next_dp.timestamp().compare(RelationalOperator.GT, interval_end)) {
+              next_dp.timestamp().compare(Op.GT, interval_end)) {
             next_dp = null;
             break;
           }
@@ -424,7 +424,7 @@ public class DownsampleNumericIterator implements QueryIterator {
         } else if (value_idx == 0) {
           config.nextTimestamp(interval_start);
           config.nextTimestamp(interval_end);
-          if (interval_start.compare(RelationalOperator.GT, config.end())) {
+          if (interval_start.compare(Op.GT, config.end())) {
             next_dp = null;
             break;
           }
@@ -446,7 +446,7 @@ public class DownsampleNumericIterator implements QueryIterator {
       
       config.nextTimestamp(interval_start);
       config.nextTimestamp(interval_end);
-      if (interval_start.compare(RelationalOperator.GT, config.end())) {
+      if (interval_start.compare(Op.GT, config.end())) {
         next_dp = null;
       }
       has_next = next_dp != null;

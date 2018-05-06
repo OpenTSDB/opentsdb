@@ -38,7 +38,7 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp.RelationalOperator;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryContext;
@@ -138,7 +138,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
             TimeSeriesValue<NumericType> value = 
                 (TimeSeriesValue<NumericType>) iterator.next();
             while (value != null && value.timestamp().compare(
-                RelationalOperator.LT, query.getTime().startTime())) {
+                Op.LT, query.getTime().startTime())) {
               if (iterator.hasNext()) {
                 value = (TimeSeriesValue<NumericType>) iterator.next();
               } else {
@@ -148,9 +148,9 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
             if (value == null) {
               continue;
             }
-            if (value.timestamp().compare(RelationalOperator.LT, 
+            if (value.timestamp().compare(Op.LT, 
                       query.getTime().startTime()) ||
-                value.timestamp().compare(RelationalOperator.GT, 
+                value.timestamp().compare(Op.GT, 
                       query.getTime().endTime())) {
               continue;
             }
@@ -179,7 +179,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
             
             long ts = 0;
             while(value != null) {
-              if (value.timestamp().compare(RelationalOperator.GT, 
+              if (value.timestamp().compare(Op.GT, 
                   query.getTime().endTime())) {
                 break;
               }
