@@ -28,7 +28,7 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.RelationalOperator;
 import net.opentsdb.data.types.numeric.Aggregators;
-import net.opentsdb.data.types.numeric.MutableNumericType;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIterator;
@@ -104,7 +104,7 @@ public class DownsampleNumericIterator implements QueryIterator {
   private TimeSeriesValue<NumericType> value;
   
   /** The value we'll actually return to a caller. */
-  private MutableNumericType response;
+  private MutableNumericValue response;
   
   /**
    * Default ctor. This will seek to the proper source timestamp.
@@ -168,7 +168,7 @@ public class DownsampleNumericIterator implements QueryIterator {
         }
       }
     }
-    response = new MutableNumericType();
+    response = new MutableNumericValue();
   }
 
   @Override
@@ -222,7 +222,7 @@ public class DownsampleNumericIterator implements QueryIterator {
     private TimeSeriesValue<NumericType> next_dp = null;
     
     /** The data point set and returned by the iterator. */
-    private final MutableNumericType dp;
+    private final MutableNumericValue dp;
       
     /** An array of long values used when all sources return longs. */
     private long[] long_values;
@@ -270,7 +270,7 @@ public class DownsampleNumericIterator implements QueryIterator {
         next_dp = (TimeSeriesValue<NumericType>) iterator.next();
       }
       
-      dp = new MutableNumericType();
+      dp = new MutableNumericValue();
       has_next = iterator.hasNext();
       long_values = new long[2];
       

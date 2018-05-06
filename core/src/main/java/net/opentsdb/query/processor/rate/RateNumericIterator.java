@@ -20,7 +20,7 @@ import java.util.Optional;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp.RelationalOperator;
-import net.opentsdb.data.types.numeric.MutableNumericType;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
@@ -40,13 +40,13 @@ public class RateNumericIterator implements QueryIterator {
   private final RateOptions options;
   
   /** The previous raw value to calculate the rate. */
-  private MutableNumericType prev_data;
+  private MutableNumericValue prev_data;
   
   /** The rate that will be returned at the {@link #next} call. */
-  private final MutableNumericType next_rate = new MutableNumericType();
+  private final MutableNumericValue next_rate = new MutableNumericValue();
   
   /** Users see this rate after they called next. */
-  private final MutableNumericType prev_rate = new MutableNumericType();
+  private final MutableNumericValue prev_rate = new MutableNumericValue();
   
   /** Whether or not the iterator has another real or filled value. */
   private boolean has_next;
@@ -105,7 +105,7 @@ public class RateNumericIterator implements QueryIterator {
       }
       
       if (prev_data == null) {
-        prev_data = new MutableNumericType(next);
+        prev_data = new MutableNumericValue(next);
         continue;
       }
       

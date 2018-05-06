@@ -47,7 +47,7 @@ import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
 import net.opentsdb.data.types.annotation.MockAnnotationIterator;
 import net.opentsdb.data.types.numeric.MockNumericTimeSeries;
-import net.opentsdb.data.types.numeric.MutableNumericType;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.context.DefaultQueryContext;
 import net.opentsdb.query.context.QueryContext;
@@ -70,8 +70,8 @@ public class TestJexlBinderProcessor {
   private TimeSeriesStringId id_a;
   private TimeSeriesStringId id_b;
   
-  private List<List<MutableNumericType>> data_a;
-  private List<List<MutableNumericType>> data_b;
+  private List<List<MutableNumericValue>> data_a;
+  private List<List<MutableNumericValue>> data_b;
   
   private Map<String, NumericFillPolicy> fills;
   

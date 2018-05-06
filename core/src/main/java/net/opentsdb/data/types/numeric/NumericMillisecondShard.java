@@ -260,11 +260,11 @@ public class NumericMillisecondShard implements TimeSeries,
     private int read_offset_idx;
     private int read_value_idx;
     private int write_idx;
-    private MutableNumericType dp;
+    private MutableNumericValue dp;
     private TimeStamp timestamp;
     
     protected LocalIterator() {
-      dp = new MutableNumericType();
+      dp = new MutableNumericValue();
       timestamp = new MillisecondTimeStamp(0);
       write_idx = write_offset_idx;
     }

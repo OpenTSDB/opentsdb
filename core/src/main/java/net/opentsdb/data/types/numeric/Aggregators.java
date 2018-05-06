@@ -218,7 +218,7 @@ public final class Aggregators {
     @Override
     public void run(final long[] values, 
                     final int limit,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit < 1) {
         throw new IllegalDataException("Limit must be greater than 0");
       }
@@ -234,7 +234,7 @@ public final class Aggregators {
     public void run(final double[] values, 
                     final int limit, 
                     final boolean infectious_nans,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit < 1) {
         throw new IllegalDataException("Limit must be greater than 0");
       }
@@ -266,7 +266,7 @@ public final class Aggregators {
     @Override
     public void run(final long[] values, 
                     final int limit,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit < 1) {
         throw new IllegalDataException("Limit must be greater than 0");
       }
@@ -283,7 +283,7 @@ public final class Aggregators {
     public void run(final double[] values, 
                     final int limit, 
                     final boolean infectious_nans,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit < 1) {
         throw new IllegalDataException("Limit must be greater than 0");
       }
@@ -318,7 +318,7 @@ public final class Aggregators {
     @Override
     public void run(final long[] values, 
                     final int limit,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit < 1) {
         throw new IllegalDataException("Limit must be greater than 0");
       }
@@ -335,7 +335,7 @@ public final class Aggregators {
     public void run(final double[] values, 
                     final int limit, 
                     final boolean infectious_nans,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit < 1) {
         throw new IllegalDataException("Limit must be greater than 0");
       }
@@ -372,7 +372,7 @@ public final class Aggregators {
     @Override
     public void run(final long[] values, 
                     final int limit,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       // short circuit
       if (limit == 1) {
         dp.resetValue(values[0]);
@@ -398,7 +398,7 @@ public final class Aggregators {
     public void run(final double[] values, 
                     final int limit, 
                     final boolean infectious_nans,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       // short circuit
       if (limit == 1) {
         dp.resetValue(values[0]);
@@ -436,7 +436,7 @@ public final class Aggregators {
     @Override
     public void run(final long[] values, 
                     final int limit,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit == 1) {
         dp.resetValue(values[0]);
         return;
@@ -458,7 +458,7 @@ public final class Aggregators {
     public void run(final double[] values, 
                     final int limit, 
                     final boolean infectious_nans,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit == 1) {
         dp.resetValue(values[0]);
         return;
@@ -502,7 +502,7 @@ public final class Aggregators {
     @Override
     public void run(final long[] values, 
                     final int limit,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       throw new UnsupportedOperationException("None cannot actually be called.");
     }
     
@@ -510,7 +510,7 @@ public final class Aggregators {
     public void run(final double[] values, 
                     final int limit, 
                     final boolean infectious_nans,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       throw new UnsupportedOperationException("None cannot actually be called.");
     }
     
@@ -528,7 +528,7 @@ public final class Aggregators {
     @Override
     public void run(final long[] values, 
                     final int limit,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit < 1) {
         throw new IllegalDataException("Limit must be greater than 0");
       }
@@ -545,7 +545,7 @@ public final class Aggregators {
     public void run(final double[] values, 
                     final int limit, 
                     final boolean infectious_nans,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit < 1) {
         throw new IllegalDataException("Limit must be greater than 0");
       }
@@ -585,7 +585,7 @@ public final class Aggregators {
     @Override
     public void run(final long[] values, 
                     final int limit,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit == 1) {
         dp.resetValue(0L);
         return;
@@ -617,7 +617,7 @@ public final class Aggregators {
     public void run(final double[] values, 
                     final int limit, 
                     final boolean infectious_nans,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit == 1) {
         dp.resetValue(0.0);
         return;
@@ -663,7 +663,7 @@ public final class Aggregators {
     @Override
     public void run(final long[] values, 
                     final int limit,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       dp.resetValue(limit);
     }
     
@@ -671,7 +671,7 @@ public final class Aggregators {
     public void run(final double[] values, 
                     final int limit, 
                     final boolean infectious_nans,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       dp.resetValue(limit);
     }
     
@@ -705,7 +705,7 @@ public final class Aggregators {
     @Override
     public void run(final long[] values, 
                     final int limit,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit < 1) {
         throw new IllegalDataException("Limit must be greater than 0");
       }
@@ -731,7 +731,7 @@ public final class Aggregators {
     public void run(final double[] values, 
                     final int limit, 
                     final boolean infectious_nans,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit < 1) {
         throw new IllegalDataException("Limit must be greater than 0");
       }
@@ -867,7 +867,7 @@ public final class Aggregators {
     @Override
     public void run(final long[] values, 
                     final int limit,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit < 1) {
         throw new IllegalDataException("Limit must be greater than 0");
       }
@@ -878,7 +878,7 @@ public final class Aggregators {
     public void run(final double[] values, 
                     final int limit, 
                     final boolean infectious_nans,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit < 1) {
         throw new IllegalDataException("Limit must be greater than 0");
       }
@@ -906,7 +906,7 @@ public final class Aggregators {
     @Override
     public void run(final long[] values, 
                     final int limit, 
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit < 1) {
         throw new IllegalDataException("Limit must be greater than 0");
       }
@@ -917,7 +917,7 @@ public final class Aggregators {
     public void run(final double[] values, 
                     final int limit, 
                     final boolean infectious_nans,
-                    final MutableNumericType dp) {
+                    final MutableNumericValue dp) {
       if (limit < 1) {
         throw new IllegalDataException("Limit must be greater than 0");
       }

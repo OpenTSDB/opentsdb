@@ -53,7 +53,7 @@ public class TestMockNumericIterator {
   private TimeSeriesProcessor processor;
   private TimeSeriesGroupId group;
   private TimeSeriesStringId id;
-  private List<List<MutableNumericType>> data;
+  private List<List<MutableNumericValue>> data;
 //  
 //  @Before
 //  public void before() throws Exception {
