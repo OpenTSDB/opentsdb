@@ -24,6 +24,52 @@ import org.junit.Test;
 public class TestMutableNumericType {
 
   @Test
+  public void ctors() throws Exception {
+    MutableNumericType dp = new MutableNumericType();
+    assertFalse(dp.isInteger());
+    assertTrue(Double.isNaN(dp.doubleValue()));
+    assertTrue(Double.isNaN(dp.toDouble()));
+    try {
+      dp.longValue();
+      fail("Expected ClassCastException");
+    } catch (ClassCastException e) { }
+    
+    dp = new MutableNumericType(42);
+    assertTrue(dp.isInteger());
+    assertEquals(42, dp.longValue());
+    assertEquals(42, dp.toDouble(), 0.001);
+    try {
+      dp.doubleValue();
+      fail("Expected ClassCastException");
+    } catch (ClassCastException e) { }
+    
+    dp = new MutableNumericType(42.5);
+    assertFalse(dp.isInteger());
+    assertEquals(42.5, dp.doubleValue(), 0.001);
+    assertEquals(42.5, dp.toDouble(), 0.001);
+    try {
+      dp.longValue();
+      fail("Expected ClassCastException");
+    } catch (ClassCastException e) { }
+    assertEquals("42.5", dp.toString());
+    
+    MutableNumericType copy = new MutableNumericType(dp);
+    assertFalse(copy.isInteger());
+    assertEquals(42.5, copy.doubleValue(), 0.001);
+    assertEquals(42.5, copy.toDouble(), 0.001);
+    try {
+      copy.longValue();
+      fail("Expected ClassCastException");
+    } catch (ClassCastException e) { }
+    assertEquals("42.5", copy.toString());
+    
+    try {
+      new MutableNumericType(null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
   public void set() throws Exception {
     MutableNumericType dp = new MutableNumericType();
     assertFalse(dp.isInteger());
