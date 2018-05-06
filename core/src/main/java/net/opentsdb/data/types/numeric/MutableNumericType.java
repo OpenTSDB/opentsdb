@@ -29,6 +29,43 @@ public class MutableNumericType implements NumericType {
   private long value = Double.doubleToLongBits(Double.NaN);
   
   /**
+   * Default ctor sets the value to {@link Double#NaN}.
+   */
+  public MutableNumericType() { }
+  
+  /**
+   * Ctor setting the value.
+   * @param value The value to set.
+   */
+  public MutableNumericType(final long value) {
+    set(value);
+  }
+  
+  /**
+   * Ctor setting the value.
+   * @param value The value to set.
+   */
+  public MutableNumericType(final double value) {
+    set(value);
+  }
+  
+  /**
+   * Ctor cloning the value from another NumericType.
+   * @param value A non-null value to clone.
+   * @throws IllegalArgumentException if the value was null.
+   */
+  public MutableNumericType(final NumericType value) {
+    if (value == null) {
+      throw new IllegalArgumentException("Value cannot be null.");
+    }
+    if (value.isInteger()) {
+      set(value.longValue());
+    } else {
+      set(value.doubleValue());
+    }
+  }
+  
+  /**
    * Sets the value to a long.
    * @param value A value to store.
    */
