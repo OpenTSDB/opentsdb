@@ -35,9 +35,9 @@ import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.ZonedNanoTimeStamp;
 
 /**
- * Tests {@link MutableNumericType}.
+ * Tests {@link MutableNumericValue}.
  */
-public class TestMutableNumericType {
+public class TestMutableNumericValue {
   private MillisecondTimeStamp ts;
   
   @Before
@@ -47,19 +47,19 @@ public class TestMutableNumericType {
   
   @Test
   public void ctors() throws Exception {
-    MutableNumericType dp = new MutableNumericType(ts, 42);
+    MutableNumericValue dp = new MutableNumericValue(ts, 42);
     assertNotSame(ts, dp.timestamp());
     assertEquals(1, dp.timestamp().msEpoch());
     assertTrue(dp.isInteger());
     assertEquals(42, dp.longValue());
     
-    dp = new MutableNumericType(ts, 42.5);
+    dp = new MutableNumericValue(ts, 42.5);
     assertNotSame(ts, dp.timestamp());
     assertEquals(1, dp.timestamp().msEpoch());
     assertFalse(dp.isInteger());
     assertEquals(42.5, dp.doubleValue(), 0.001);
     
-    dp = new MutableNumericType(dp);
+    dp = new MutableNumericValue(dp);
     assertNotSame(ts, dp.timestamp());
     assertEquals(1, dp.timestamp().msEpoch());
     assertFalse(dp.isInteger());
@@ -79,7 +79,7 @@ public class TestMutableNumericType {
       public double toDouble() { return 42D; }
     }
     
-    dp = new MutableNumericType(ts, new IntDP());
+    dp = new MutableNumericValue(ts, new IntDP());
     assertNotSame(ts, dp.timestamp());
     assertEquals(1, dp.timestamp().msEpoch());
     assertTrue(dp.isInteger());
@@ -99,7 +99,7 @@ public class TestMutableNumericType {
       public double toDouble() { return 42.5D; }
     }
     
-    dp = new MutableNumericType(ts, new FloatDP());
+    dp = new MutableNumericValue(ts, new FloatDP());
     assertNotSame(ts, dp.timestamp());
     assertEquals(1, dp.timestamp().msEpoch());
     assertFalse(dp.isInteger());
@@ -107,40 +107,40 @@ public class TestMutableNumericType {
     
     TimeSeriesValue<NumericType> mock = mock(TimeSeriesValue.class);
     when(mock.timestamp()).thenReturn(ts);
-    dp = new MutableNumericType(mock);
+    dp = new MutableNumericValue(mock);
     assertNotSame(ts, dp.timestamp());
     assertEquals(1, dp.timestamp().msEpoch());
     assertNull(dp.value());
     
     try {
-      new MutableNumericType(null, 42);
+      new MutableNumericValue(null, 42);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new MutableNumericType(null, 42.5);
+      new MutableNumericValue(null, 42.5);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new MutableNumericType((TimeSeriesValue<NumericType>) null);
+      new MutableNumericValue((TimeSeriesValue<NumericType>) null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new MutableNumericType(null, new IntDP());
+      new MutableNumericValue(null, new IntDP());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new MutableNumericType(ts, (NumericType) null);
+      new MutableNumericValue(ts, (NumericType) null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
   public void reset() throws Exception {
-    final MutableNumericType dp = new MutableNumericType(ts, 42.5);
+    final MutableNumericValue dp = new MutableNumericValue(ts, 42.5);
     dp.resetNull(ts);
     assertEquals(1, dp.timestamp().msEpoch());
     assertNull(dp.value());
@@ -163,7 +163,7 @@ public class TestMutableNumericType {
     assertFalse(dp.isInteger());
     assertEquals(24.5, dp.doubleValue(), 0.001);
         
-    final MutableNumericType dupe = new MutableNumericType();
+    final MutableNumericValue dupe = new MutableNumericValue();
     assertNotSame(ts, dupe.timestamp());
     assertEquals(0, dupe.timestamp().msEpoch());
     assertTrue(dupe.isInteger());
@@ -272,7 +272,7 @@ public class TestMutableNumericType {
 
   @Test
   public void resetWithHigherResolutionTimeStamp() throws Exception {
-    MutableNumericType dp = new MutableNumericType(ts, 42.5);
+    MutableNumericValue dp = new MutableNumericValue(ts, 42.5);
     assertEquals(Const.UTC, dp.timestamp().timezone());
     
     final ZoneId denver = ZoneId.of("America/Denver");
@@ -283,13 +283,13 @@ public class TestMutableNumericType {
     assertEquals(1000, dp.timestamp().epoch());
     assertEquals(500, dp.timestamp().nanos());
     
-    dp = new MutableNumericType(ts, 42.5);
+    dp = new MutableNumericValue(ts, 42.5);
     dp.reset(zoned, 44.1);
     assertEquals(denver, dp.timestamp().timezone());
     assertEquals(1000, dp.timestamp().epoch());
     assertEquals(500, dp.timestamp().nanos());
     
-    dp = new MutableNumericType(ts, 42.5);
+    dp = new MutableNumericValue(ts, 42.5);
     dp.resetNull(zoned);
     assertEquals(denver, dp.timestamp().timezone());
     assertEquals(1000, dp.timestamp().epoch());
@@ -308,18 +308,18 @@ public class TestMutableNumericType {
       @Override
       public double toDouble() { return 42D; }
     }
-    dp = new MutableNumericType(ts, 42.5);
+    dp = new MutableNumericValue(ts, 42.5);
     dp.reset(zoned, new IntDP());
     assertEquals(denver, dp.timestamp().timezone());
     assertEquals(1000, dp.timestamp().epoch());
     assertEquals(500, dp.timestamp().nanos());
     
-    MutableNumericType dupe = new MutableNumericType(dp);
+    MutableNumericValue dupe = new MutableNumericValue(dp);
     assertEquals(denver, dupe.timestamp().timezone());
     assertEquals(1000, dupe.timestamp().epoch());
     assertEquals(500, dupe.timestamp().nanos());
     
-    dp = new MutableNumericType(ts, 42.5);
+    dp = new MutableNumericValue(ts, 42.5);
     dp.reset(dupe);
     assertEquals(denver, dp.timestamp().timezone());
     assertEquals(1000, dp.timestamp().epoch());

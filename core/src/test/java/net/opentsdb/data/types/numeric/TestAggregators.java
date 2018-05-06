@@ -134,7 +134,7 @@ public final class TestAggregators {
                                          final double expected,
                                          final double epsilon) {
     final NumericAggregator agg = Aggregators.get("dev");
-    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    MutableNumericValue dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 0);
     agg.run(values, values.length, dp);
     Assert.assertEquals(expected, dp.value().toDouble(), Math.max(epsilon, 1.0));
   }
@@ -158,7 +158,7 @@ public final class TestAggregators {
   public void sum() throws Exception {
     NumericAggregator agg = Aggregators.get("sum");
     
-    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    MutableNumericValue dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 0);
     agg.run(new long[] { 1, 2, 3 }, 3, dp);
     assertEquals(6, dp.longValue());
     
@@ -204,7 +204,7 @@ public final class TestAggregators {
   public void min() throws Exception {
     NumericAggregator agg = Aggregators.get("min");
     
-    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    MutableNumericValue dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 0);
     agg.run(new long[] { 1, 2, 3 }, 3, dp);
     assertEquals(1, dp.longValue());
     
@@ -250,7 +250,7 @@ public final class TestAggregators {
   public void max() throws Exception {
     NumericAggregator agg = Aggregators.get("max");
     
-    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    MutableNumericValue dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 0);
     agg.run(new long[] { 1, 2, 3 }, 3, dp);
     assertEquals(3, dp.longValue());
     
@@ -296,7 +296,7 @@ public final class TestAggregators {
   public void avg() throws Exception {
     NumericAggregator agg = Aggregators.get("avg");
     
-    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    MutableNumericValue dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 0);
     agg.run(new long[] { 1, 2, 3 }, 3, dp);
     assertEquals(2, dp.longValue());
     
@@ -342,7 +342,7 @@ public final class TestAggregators {
   public void median() throws Exception {
     NumericAggregator agg = Aggregators.get("median");
     
-    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    MutableNumericValue dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 0);
     agg.run(new long[] { 1, 2, 3 }, 3, dp);
     assertEquals(2, dp.longValue());
     
@@ -388,7 +388,7 @@ public final class TestAggregators {
   public void none() throws Exception {
     NumericAggregator agg = Aggregators.get("none");
     
-    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    MutableNumericValue dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 0);
     try {
       agg.run(new long[] { 1, 2, 3 }, 3, dp);
       fail("Expected UnsupportedOperationException");
@@ -404,7 +404,7 @@ public final class TestAggregators {
   public void multiply() throws Exception {
     NumericAggregator agg = Aggregators.get("multiply");
     
-    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    MutableNumericValue dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 0);
     agg.run(new long[] { 1, 2, 3 }, 3, dp);
     assertEquals(6, dp.longValue());
     
@@ -450,7 +450,7 @@ public final class TestAggregators {
   public void stdev() throws Exception {
     NumericAggregator agg = Aggregators.get("stdev");
     
-    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    MutableNumericValue dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 0);
     agg.run(new long[] { 1, 2, 3 }, 3, dp);
     assertEquals(0.816, dp.doubleValue(), 0.001);
     
@@ -496,7 +496,7 @@ public final class TestAggregators {
   public void count() throws Exception {
     NumericAggregator agg = Aggregators.get("count");
     
-    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    MutableNumericValue dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 0);
     agg.run(new long[] { 1, 2, 3 }, 3, dp);
     assertEquals(3, dp.longValue());
     
@@ -538,7 +538,7 @@ public final class TestAggregators {
   public void percentiles() throws Exception {
     NumericAggregator agg = Aggregators.get("p99");
     
-    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    MutableNumericValue dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 0);
     agg.run(new long[] { 1, 2, 3 }, 3, dp);
     assertEquals(3, dp.longValue());
     
@@ -584,7 +584,7 @@ public final class TestAggregators {
   public void first() throws Exception {
     NumericAggregator agg = Aggregators.get("first");
     
-    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    MutableNumericValue dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 0);
     agg.run(new long[] { 1, 2, 3 }, 3, dp);
     assertEquals(1, dp.longValue());
     
@@ -630,7 +630,7 @@ public final class TestAggregators {
   public void last() throws Exception {
     NumericAggregator agg = Aggregators.get("last");
     
-    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    MutableNumericValue dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 0);
     agg.run(new long[] { 1, 2, 3 }, 3, dp);
     assertEquals(3, dp.longValue());
     
@@ -702,7 +702,7 @@ public final class TestAggregators {
   }
   
   private void assertAggregatorEquals(long value, NumericAggregator agg, Numbers numbers) {
-    MutableNumericType dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    MutableNumericValue dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 0);
     if (numbers.isInteger()) {
       agg.run(numbers.longs, numbers.longs.length, dp);
     } else {

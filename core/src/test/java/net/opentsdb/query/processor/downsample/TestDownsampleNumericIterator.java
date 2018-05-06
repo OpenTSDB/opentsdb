@@ -33,7 +33,7 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.RelationalOperator;
-import net.opentsdb.data.types.numeric.MutableNumericType;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryContext;
@@ -2782,33 +2782,33 @@ public class TestDownsampleNumericIterator {
     source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
-    MutableNumericType nully = new MutableNumericType();
+    MutableNumericValue nully = new MutableNumericValue();
     nully.resetNull(new MillisecondTimeStamp(BASE_TIME + 5000L * 0));
     ((MockTimeSeries) source).addValue(nully);
     //((MockTimeSeries) source).addValue(new MutableNumericType(
     //    new MillisecondTimeStamp(BASE_TIME + 5000L * 0), 1));
-    nully = new MutableNumericType();
+    nully = new MutableNumericValue();
     nully.resetNull(new MillisecondTimeStamp(BASE_TIME + 5000L * 2));
     ((MockTimeSeries) source).addValue(nully);
     //((MockTimeSeries) source).addValue(new MutableNumericType(
     //    new MillisecondTimeStamp(BASE_TIME + 5000L * 1), 2));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 2), 4));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 3), 8));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 4), 16));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 5), 32));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 6), 64));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 7), 128));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 8), 256));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 9), 512));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 10), 1024));
     query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
@@ -2919,33 +2919,33 @@ public class TestDownsampleNumericIterator {
     source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 0), 1));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 1), 2));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 2), 4));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 3), 8));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 4), 16));
-    MutableNumericType nully = new MutableNumericType();
+    MutableNumericValue nully = new MutableNumericValue();
     nully.resetNull(new MillisecondTimeStamp(BASE_TIME + 5000L * 5));
     ((MockTimeSeries) source).addValue(nully);
     //((MockTimeSeries) source).addValue(new MutableNumericType(
     //    new MillisecondTimeStamp(BASE_TIME + 5000L * 5), 32));
-    nully = new MutableNumericType();
+    nully = new MutableNumericValue();
     nully.resetNull(new MillisecondTimeStamp(BASE_TIME + 5000L * 6));
     ((MockTimeSeries) source).addValue(nully);
     //((MockTimeSeries) source).addValue(new MutableNumericType(
     //    new MillisecondTimeStamp(BASE_TIME + 5000L * 6), 64));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 7), 128));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 8), 256));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 9), 512));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 10), 1024));
     query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
@@ -3012,33 +3012,33 @@ public class TestDownsampleNumericIterator {
     source = new MockTimeSeries(BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 0), 1));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 1), 2));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 2), 4));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 3), 8));
-    MutableNumericType nully = new MutableNumericType();
+    MutableNumericValue nully = new MutableNumericValue();
     nully.resetNull(new MillisecondTimeStamp(BASE_TIME + 5000L * 4));
     ((MockTimeSeries) source).addValue(nully);
-    nully = new MutableNumericType();
+    nully = new MutableNumericValue();
     nully.resetNull(new MillisecondTimeStamp(BASE_TIME + 5000L * 6));
     ((MockTimeSeries) source).addValue(nully);
     //((MockTimeSeries) source).addValue(new MutableNumericType(
     //    new MillisecondTimeStamp(BASE_TIME + 5000L * 4), 16));
     //((MockTimeSeries) source).addValue(new MutableNumericType(
     //    new MillisecondTimeStamp(BASE_TIME + 5000L * 5), 32));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 6), 64));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 7), 128));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 8), 256));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 9), 512));
-    ((MockTimeSeries) source).addValue(new MutableNumericType(
+    ((MockTimeSeries) source).addValue(new MutableNumericValue(
         new MillisecondTimeStamp(BASE_TIME + 5000L * 10), 1024));
     query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()

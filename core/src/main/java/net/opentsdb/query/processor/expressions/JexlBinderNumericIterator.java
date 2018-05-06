@@ -37,7 +37,7 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.IteratorStatus;
 import net.opentsdb.data.iterators.TimeSeriesIterator;
-import net.opentsdb.data.types.numeric.MutableNumericType;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.pojo.Expression;
@@ -68,7 +68,7 @@ public class JexlBinderNumericIterator extends
   private final Map<String, TimeSeriesIterator<?>> iterators;
 
   /** The data point we'll update and send upstream. */
-  private MutableNumericType dp;
+  private MutableNumericValue dp;
   
   /** The context where we'll dump results for processing through the expression */
   // TODO - see if this can be shared
@@ -297,7 +297,7 @@ public class JexlBinderNumericIterator extends
 
   protected void setId() {
     id = merger.build();
-    dp = new MutableNumericType();
+    dp = new MutableNumericValue();
   }
   
   @Override

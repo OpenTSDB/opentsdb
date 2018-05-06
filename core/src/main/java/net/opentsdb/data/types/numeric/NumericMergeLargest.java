@@ -112,7 +112,7 @@ public class NumericMergeLargest implements DataShardMergeStrategy<NumericType> 
     int non_finites = 0;
     int differences = 0;
     
-    final MutableNumericType v = new MutableNumericType();
+    final MutableNumericValue v = new MutableNumericValue();
     final TimeStamp next = new MillisecondTimeStamp(Long.MAX_VALUE);
     // loop till all the values are nulled out.
     while (true) {

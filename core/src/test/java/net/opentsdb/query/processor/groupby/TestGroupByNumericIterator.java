@@ -43,7 +43,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.MockNumericTimeSeries;
-import net.opentsdb.data.types.numeric.MutableNumericType;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
@@ -770,14 +770,14 @@ public class TestGroupByNumericIterator {
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
-    MutableNumericType dp = new MutableNumericType(
+    MutableNumericValue dp = new MutableNumericValue(
         new MillisecondTimeStamp(1000), 4);
     ((MockNumericTimeSeries) ts2).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(3000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(3000), Double.NaN);
     ((MockNumericTimeSeries) ts2).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(5000), 8);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(5000), 8);
     ((MockNumericTimeSeries) ts2).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(7000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(7000), Double.NaN);
     ((MockNumericTimeSeries) ts2).add(dp);
     
     source_map = Maps.newHashMapWithExpectedSize(3);
@@ -837,14 +837,14 @@ public class TestGroupByNumericIterator {
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
-    MutableNumericType dp = new MutableNumericType(
+    MutableNumericValue dp = new MutableNumericValue(
         new MillisecondTimeStamp(1000), 4);
     ((MockNumericTimeSeries) ts2).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(3000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(3000), Double.NaN);
     ((MockNumericTimeSeries) ts2).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(5000), 8);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(5000), 8);
     ((MockNumericTimeSeries) ts2).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(7000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(7000), Double.NaN);
     ((MockNumericTimeSeries) ts2).add(dp);
     
     source_map = Maps.newHashMapWithExpectedSize(3);
@@ -903,15 +903,15 @@ public class TestGroupByNumericIterator {
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
-    MutableNumericType dp = new MutableNumericType(
+    MutableNumericValue dp = new MutableNumericValue(
         new MillisecondTimeStamp(1000), 4);
     ((MockNumericTimeSeries) ts2).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(3000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(3000), Double.NaN);
     dp.resetNull(new MillisecondTimeStamp(3000));
     ((MockNumericTimeSeries) ts2).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(5000), 8);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(5000), 8);
     ((MockNumericTimeSeries) ts2).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(7000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(7000), Double.NaN);
     dp.resetNull(new MillisecondTimeStamp(7000));
     ((MockNumericTimeSeries) ts2).add(dp);
     
@@ -971,15 +971,15 @@ public class TestGroupByNumericIterator {
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
-    MutableNumericType dp = new MutableNumericType(
+    MutableNumericValue dp = new MutableNumericValue(
         new MillisecondTimeStamp(1000), 1);
     ((MockNumericTimeSeries) ts1).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(3000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(3000), Double.NaN);
     dp.resetNull(new MillisecondTimeStamp(3000));
     ((MockNumericTimeSeries) ts1).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(5000), 2);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(5000), 2);
     ((MockNumericTimeSeries) ts1).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(7000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(7000), Double.NaN);
     dp.resetNull(new MillisecondTimeStamp(7000));
     ((MockNumericTimeSeries) ts1).add(dp);
     
@@ -987,14 +987,14 @@ public class TestGroupByNumericIterator {
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
-    dp = new MutableNumericType(new MillisecondTimeStamp(1000), 4);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 4);
     ((MockNumericTimeSeries) ts2).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(3000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(3000), Double.NaN);
     dp.resetNull(new MillisecondTimeStamp(3000));
     ((MockNumericTimeSeries) ts2).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(5000), 8);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(5000), 8);
     ((MockNumericTimeSeries) ts2).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(7000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(7000), Double.NaN);
     dp.resetNull(new MillisecondTimeStamp(7000));
     ((MockNumericTimeSeries) ts2).add(dp);
     
@@ -1002,14 +1002,14 @@ public class TestGroupByNumericIterator {
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
-    dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 0);
     ((MockNumericTimeSeries) ts3).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(3000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(3000), Double.NaN);
     dp.resetNull(new MillisecondTimeStamp(3000));
     ((MockNumericTimeSeries) ts3).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(5000), 3);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(5000), 3);
     ((MockNumericTimeSeries) ts3).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(7000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(7000), Double.NaN);
     dp.resetNull(new MillisecondTimeStamp(7000));
     ((MockNumericTimeSeries) ts3).add(dp);
     
@@ -1067,40 +1067,40 @@ public class TestGroupByNumericIterator {
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
-    MutableNumericType dp = new MutableNumericType(
+    MutableNumericValue dp = new MutableNumericValue(
         new MillisecondTimeStamp(1000), 1);
     ((MockNumericTimeSeries) ts1).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(3000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(3000), Double.NaN);
     ((MockNumericTimeSeries) ts1).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(5000), 2);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(5000), 2);
     ((MockNumericTimeSeries) ts1).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(7000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(7000), Double.NaN);
     ((MockNumericTimeSeries) ts1).add(dp);
     
     ts2 = new MockNumericTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
-    dp = new MutableNumericType(new MillisecondTimeStamp(1000), 4);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 4);
     ((MockNumericTimeSeries) ts2).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(3000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(3000), Double.NaN);
     ((MockNumericTimeSeries) ts2).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(5000), 8);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(5000), 8);
     ((MockNumericTimeSeries) ts2).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(7000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(7000), Double.NaN);
     ((MockNumericTimeSeries) ts2).add(dp);
     
     ts3 = new MockNumericTimeSeries(
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("a")
         .build());
-    dp = new MutableNumericType(new MillisecondTimeStamp(1000), 0);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(1000), 0);
     ((MockNumericTimeSeries) ts3).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(3000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(3000), Double.NaN);
     ((MockNumericTimeSeries) ts3).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(5000), 3);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(5000), 3);
     ((MockNumericTimeSeries) ts3).add(dp);
-    dp = new MutableNumericType(new MillisecondTimeStamp(7000), Double.NaN);
+    dp = new MutableNumericValue(new MillisecondTimeStamp(7000), Double.NaN);
     ((MockNumericTimeSeries) ts3).add(dp);
     
     source_map = Maps.newHashMapWithExpectedSize(3);

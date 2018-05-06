@@ -22,7 +22,7 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.RelationalOperator;
-import net.opentsdb.data.types.numeric.MutableNumericType;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
 import net.opentsdb.query.QueryIteratorInterpolator;
@@ -54,13 +54,13 @@ public class NumericInterpolator implements QueryIteratorInterpolator<NumericTyp
   protected final Iterator<TimeSeriesValue<?>> iterator;
   
   /** The previous real value. */
-  protected MutableNumericType previous;
+  protected MutableNumericValue previous;
   
   /** The next real value. */
   protected TimeSeriesValue<NumericType> next;
   
   /** The value filled when lerping. */
-  protected MutableNumericType response;
+  protected MutableNumericValue response;
   
   /** Whether or not the source iterator has more data. */
   protected boolean has_next;
@@ -88,7 +88,7 @@ public class NumericInterpolator implements QueryIteratorInterpolator<NumericTyp
       iterator = null;
     }
     
-    response = new MutableNumericType();
+    response = new MutableNumericValue();
   }
   
   @Override
@@ -109,7 +109,7 @@ public class NumericInterpolator implements QueryIteratorInterpolator<NumericTyp
     if (timestamp.compare(RelationalOperator.EQ, next.timestamp())) {
       response.reset(next);
       if (previous == null) {
-        previous = new MutableNumericType(next);
+        previous = new MutableNumericValue(next);
       } else {
         previous.reset(next);
       }

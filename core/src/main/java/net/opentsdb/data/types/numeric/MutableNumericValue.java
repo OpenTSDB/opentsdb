@@ -28,7 +28,7 @@ import net.opentsdb.data.TimeStamp;
  * 
  * @since 3.0
  */
-public final class MutableNumericType implements NumericType, 
+public final class MutableNumericValue implements NumericType, 
                                                  TimeSeriesValue<NumericType> {
 
   //NOTE: Fields are not final to make an instance available to store a new
@@ -49,7 +49,7 @@ public final class MutableNumericType implements NumericType,
   /**
    * Initialize a new mutable data point with a {@link Long} value of 0.
    */
-  public MutableNumericType() {
+  public MutableNumericValue() {
     nulled = false;
     timestamp = new MillisecondTimeStamp(0);
   }
@@ -60,7 +60,7 @@ public final class MutableNumericType implements NumericType,
    * @param value A numeric value.
    * @throws IllegalArgumentException if the timestamp was null.
    */
-  public MutableNumericType(final TimeStamp timestamp, 
+  public MutableNumericValue(final TimeStamp timestamp, 
                             final long value) {
     if (timestamp == null) {
       throw new IllegalArgumentException("Timestamp cannot be null.");
@@ -76,7 +76,7 @@ public final class MutableNumericType implements NumericType,
    * @param value A numeric value.
    * @throws IllegalArgumentException if the timestamp was null.
    */
-  public MutableNumericType(final TimeStamp timestamp, 
+  public MutableNumericValue(final TimeStamp timestamp, 
                             final double value) {
     if (timestamp == null) {
       throw new IllegalArgumentException("Timestamp cannot be null.");
@@ -94,7 +94,7 @@ public final class MutableNumericType implements NumericType,
    * @param value A numeric value.
    * @throws IllegalArgumentException if the timestamp or value was null.
    */
-  public MutableNumericType(final TimeStamp timestamp, final NumericType value) {
+  public MutableNumericValue(final TimeStamp timestamp, final NumericType value) {
     if (timestamp == null) {
       throw new IllegalArgumentException("Timestamp cannot be null.");
     }
@@ -118,7 +118,7 @@ public final class MutableNumericType implements NumericType,
    * @param value A non-null value to copy from.
    * @throws IllegalArgumentException if the value was null.
    */
-  public MutableNumericType(final TimeSeriesValue<NumericType> value) {
+  public MutableNumericValue(final TimeSeriesValue<NumericType> value) {
     if (value == null) {
       throw new IllegalArgumentException("Value cannot be null.");
     }
