@@ -159,11 +159,11 @@ public class ZonedNanoTimeStamp implements TimeStamp {
     if (!(o instanceof TimeStamp)) {
       return false;
     }
-    return compare(RelationalOperator.EQ, (TimeStamp) o);
+    return compare(Op.EQ, (TimeStamp) o);
   }
   
   @Override
-  public boolean compare(final RelationalOperator comparator, 
+  public boolean compare(final Op comparator, 
                          final TimeStamp compareTo) {
     if (compareTo == null) {
       throw new IllegalArgumentException("Timestamp cannot be null.");
@@ -431,7 +431,7 @@ public class ZonedNanoTimeStamp implements TimeStamp {
     
     TimeStamp next = this.getCopy();
     int incremented = 0;
-    while (next.compare(RelationalOperator.LTE, original)) {
+    while (next.compare(Op.LTE, original)) {
       if (incremented > 0) {
         // save an op
         update(next);

@@ -19,7 +19,7 @@ import java.util.Optional;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp.RelationalOperator;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIterator;
@@ -110,7 +110,7 @@ public class RateNumericIterator implements QueryIterator {
       }
       
       // validation similar to TSDB 2.x
-      if (next.timestamp().compare(RelationalOperator.LTE, prev_data.timestamp())) {
+      if (next.timestamp().compare(Op.LTE, prev_data.timestamp())) {
         throw new IllegalStateException("Next timestamp [" + next.timestamp() 
           + " ] cannot be less than or equal to the previous [" + 
             prev_data.timestamp() + "] timestamp.");

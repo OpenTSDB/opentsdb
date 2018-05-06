@@ -28,7 +28,7 @@ import java.time.temporal.ChronoUnit;
 
 import org.junit.Test;
 
-import net.opentsdb.data.TimeStamp.RelationalOperator;
+import net.opentsdb.data.TimeStamp.Op;
 
 public class TestZonedNanoTimeStamp {
   final static ZoneId UTC = ZoneId.of("UTC");
@@ -237,64 +237,64 @@ public class TestZonedNanoTimeStamp {
     ZonedNanoTimeStamp ts1 = new ZonedNanoTimeStamp(1483272000, 500, AF);
     ZonedNanoTimeStamp ts2 = new ZonedNanoTimeStamp(1483272000, 501, AF);
     
-    assertTrue(ts1.compare(RelationalOperator.LT, ts2));
-    assertTrue(ts1.compare(RelationalOperator.LTE, ts2));
-    assertFalse(ts1.compare(RelationalOperator.GT, ts2));
-    assertFalse(ts1.compare(RelationalOperator.GTE, ts2));
-    assertFalse(ts1.compare(RelationalOperator.EQ, ts2));
-    assertTrue(ts1.compare(RelationalOperator.NE, ts2));
+    assertTrue(ts1.compare(Op.LT, ts2));
+    assertTrue(ts1.compare(Op.LTE, ts2));
+    assertFalse(ts1.compare(Op.GT, ts2));
+    assertFalse(ts1.compare(Op.GTE, ts2));
+    assertFalse(ts1.compare(Op.EQ, ts2));
+    assertTrue(ts1.compare(Op.NE, ts2));
     
-    assertFalse(ts2.compare(RelationalOperator.LT, ts1));
-    assertFalse(ts2.compare(RelationalOperator.LTE, ts1));
-    assertTrue(ts2.compare(RelationalOperator.GT, ts1));
-    assertTrue(ts2.compare(RelationalOperator.GTE, ts1));
-    assertFalse(ts2.compare(RelationalOperator.EQ, ts1));
-    assertTrue(ts2.compare(RelationalOperator.NE, ts1));
+    assertFalse(ts2.compare(Op.LT, ts1));
+    assertFalse(ts2.compare(Op.LTE, ts1));
+    assertTrue(ts2.compare(Op.GT, ts1));
+    assertTrue(ts2.compare(Op.GTE, ts1));
+    assertFalse(ts2.compare(Op.EQ, ts1));
+    assertTrue(ts2.compare(Op.NE, ts1));
     
     // compare the seconds now
     ts1 = new ZonedNanoTimeStamp(1483272000, 500, AF);
     ts2 = new ZonedNanoTimeStamp(1483272001, 500, AF);
     
-    assertTrue(ts1.compare(RelationalOperator.LT, ts2));
-    assertTrue(ts1.compare(RelationalOperator.LTE, ts2));
-    assertFalse(ts1.compare(RelationalOperator.GT, ts2));
-    assertFalse(ts1.compare(RelationalOperator.GTE, ts2));
-    assertFalse(ts1.compare(RelationalOperator.EQ, ts2));
-    assertTrue(ts1.compare(RelationalOperator.NE, ts2));
+    assertTrue(ts1.compare(Op.LT, ts2));
+    assertTrue(ts1.compare(Op.LTE, ts2));
+    assertFalse(ts1.compare(Op.GT, ts2));
+    assertFalse(ts1.compare(Op.GTE, ts2));
+    assertFalse(ts1.compare(Op.EQ, ts2));
+    assertTrue(ts1.compare(Op.NE, ts2));
     
-    assertFalse(ts2.compare(RelationalOperator.LT, ts1));
-    assertFalse(ts2.compare(RelationalOperator.LTE, ts1));
-    assertTrue(ts2.compare(RelationalOperator.GT, ts1));
-    assertTrue(ts2.compare(RelationalOperator.GTE, ts1));
-    assertFalse(ts2.compare(RelationalOperator.EQ, ts1));
-    assertTrue(ts2.compare(RelationalOperator.NE, ts1));
+    assertFalse(ts2.compare(Op.LT, ts1));
+    assertFalse(ts2.compare(Op.LTE, ts1));
+    assertTrue(ts2.compare(Op.GT, ts1));
+    assertTrue(ts2.compare(Op.GTE, ts1));
+    assertFalse(ts2.compare(Op.EQ, ts1));
+    assertTrue(ts2.compare(Op.NE, ts1));
     
     ts1 = new ZonedNanoTimeStamp(1483272000, 100500, AF);
     ts2 = new ZonedNanoTimeStamp(1483272001, 500, AF);
     
-    assertTrue(ts1.compare(RelationalOperator.LT, ts2));
-    assertTrue(ts1.compare(RelationalOperator.LTE, ts2));
-    assertFalse(ts1.compare(RelationalOperator.GT, ts2));
-    assertFalse(ts1.compare(RelationalOperator.GTE, ts2));
-    assertFalse(ts1.compare(RelationalOperator.EQ, ts2));
-    assertTrue(ts1.compare(RelationalOperator.NE, ts2));
+    assertTrue(ts1.compare(Op.LT, ts2));
+    assertTrue(ts1.compare(Op.LTE, ts2));
+    assertFalse(ts1.compare(Op.GT, ts2));
+    assertFalse(ts1.compare(Op.GTE, ts2));
+    assertFalse(ts1.compare(Op.EQ, ts2));
+    assertTrue(ts1.compare(Op.NE, ts2));
     
-    assertFalse(ts2.compare(RelationalOperator.LT, ts1));
-    assertFalse(ts2.compare(RelationalOperator.LTE, ts1));
-    assertTrue(ts2.compare(RelationalOperator.GT, ts1));
-    assertTrue(ts2.compare(RelationalOperator.GTE, ts1));
-    assertFalse(ts2.compare(RelationalOperator.EQ, ts1));
-    assertTrue(ts2.compare(RelationalOperator.NE, ts1));
+    assertFalse(ts2.compare(Op.LT, ts1));
+    assertFalse(ts2.compare(Op.LTE, ts1));
+    assertTrue(ts2.compare(Op.GT, ts1));
+    assertTrue(ts2.compare(Op.GTE, ts1));
+    assertFalse(ts2.compare(Op.EQ, ts1));
+    assertTrue(ts2.compare(Op.NE, ts1));
     
     ts1 = new ZonedNanoTimeStamp(1483272000, 500, AF);
     ts2 = new ZonedNanoTimeStamp(1483272000, 500, AF);
     
-    assertFalse(ts1.compare(RelationalOperator.LT, ts2));
-    assertTrue(ts1.compare(RelationalOperator.LTE, ts2));
-    assertFalse(ts1.compare(RelationalOperator.GT, ts2));
-    assertTrue(ts1.compare(RelationalOperator.GTE, ts2));
-    assertTrue(ts1.compare(RelationalOperator.EQ, ts2));
-    assertFalse(ts1.compare(RelationalOperator.NE, ts2));
+    assertFalse(ts1.compare(Op.LT, ts2));
+    assertTrue(ts1.compare(Op.LTE, ts2));
+    assertFalse(ts1.compare(Op.GT, ts2));
+    assertTrue(ts1.compare(Op.GTE, ts2));
+    assertTrue(ts1.compare(Op.EQ, ts2));
+    assertFalse(ts1.compare(Op.NE, ts2));
     
     try {
       ts1.compare(null, ts2);
@@ -302,7 +302,7 @@ public class TestZonedNanoTimeStamp {
     } catch (IllegalArgumentException e) { }
     
     try {
-      ts1.compare(RelationalOperator.LT, null);
+      ts1.compare(Op.LT, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

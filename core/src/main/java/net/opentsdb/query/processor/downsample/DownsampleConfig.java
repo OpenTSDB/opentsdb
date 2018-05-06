@@ -24,7 +24,7 @@ import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.ZonedNanoTimeStamp;
-import net.opentsdb.data.TimeStamp.RelationalOperator;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.query.QueryIteratorInterpolatorConfig;
 import net.opentsdb.query.QueryIteratorInterpolatorFactory;
 import net.opentsdb.query.QueryNodeConfig;
@@ -144,25 +144,25 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
       start = new ZonedNanoTimeStamp(q.getTime().startTime().epoch(), 
           q.getTime().startTime().nanos(), timezone);
       start.snapToPreviousInterval(interval_part, units);
-      if (start.compare(RelationalOperator.LT, q.getTime().startTime())) {
+      if (start.compare(Op.LT, q.getTime().startTime())) {
         nextTimestamp(start);
       }
       end = new ZonedNanoTimeStamp(q.getTime().endTime().epoch(), 
           q.getTime().endTime().nanos(), timezone);
       end.snapToPreviousInterval(interval_part, units);
-      if (end.compare(RelationalOperator.LTE, start)) {
+      if (end.compare(Op.LTE, start)) {
         throw new IllegalArgumentException("Snapped end time: " + end 
             + " must be greater than the start time: " + start);
       }
     } else {
       start = q.getTime().startTime().getCopy();
       start.snapToPreviousInterval(interval_part, units);
-      if (start.compare(RelationalOperator.LT, q.getTime().startTime())) {
+      if (start.compare(Op.LT, q.getTime().startTime())) {
         nextTimestamp(start);
       }
       end = q.getTime().endTime().getCopy();
       end.snapToPreviousInterval(interval_part, units);
-      if (end.compare(RelationalOperator.LTE, start)) {
+      if (end.compare(Op.LTE, start)) {
         throw new IllegalArgumentException("Snapped end time: " + end 
             + " must be greater than the start time: " + start);
       }
