@@ -18,7 +18,7 @@ import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.data.types.numeric.BaseNumericFillPolicy;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
-import net.opentsdb.query.QueryIteratorInterpolatorConfig;
+import net.opentsdb.query.QueryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 
 /**
@@ -27,7 +27,7 @@ import net.opentsdb.query.pojo.FillPolicy;
  * 
  * @since 3.0
  */
-public class NumericInterpolatorConfig implements QueryIteratorInterpolatorConfig {
+public class NumericInterpolatorConfig implements QueryInterpolatorConfig {
 
   /** The numeric fill policy. */
   protected final FillPolicy fill_policy;

@@ -27,7 +27,7 @@ import net.opentsdb.data.TimeStamp;
  * 
  * @since 3.0
  */
-public interface QueryIteratorInterpolator<T extends TimeSeriesDataType> {
+public interface QueryInterpolator<T extends TimeSeriesDataType> {
   
   /** @return Whether or not the underlying source has another real value. */
   public boolean hasNext();

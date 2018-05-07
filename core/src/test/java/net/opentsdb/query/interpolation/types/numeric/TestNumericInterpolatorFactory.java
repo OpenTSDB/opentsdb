@@ -32,7 +32,7 @@ import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.ScalarNumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory.Default;
-import net.opentsdb.query.QueryIteratorInterpolator;
+import net.opentsdb.query.QueryInterpolator;
 import net.opentsdb.query.pojo.FillPolicy;
 
 public class TestNumericInterpolatorFactory {
@@ -43,8 +43,8 @@ public class TestNumericInterpolatorFactory {
     when(source.iterator(NumericType.TYPE)).thenReturn(Optional.empty());
     Default factory = new Default();
     
-    QueryIteratorInterpolator<NumericType> interpolator = 
-        (QueryIteratorInterpolator<NumericType>)
+    QueryInterpolator<NumericType> interpolator = 
+        (QueryInterpolator<NumericType>)
           factory.newInterpolator(NumericType.TYPE, source, 
               NumericInterpolatorConfig.newBuilder()
                 .setFillPolicy(FillPolicy.NONE)
@@ -54,7 +54,7 @@ public class TestNumericInterpolatorFactory {
     assertEquals(FillWithRealPolicy.NONE, 
         interpolator.fillPolicy().realPolicy());
     
-    interpolator = (QueryIteratorInterpolator<NumericType>)
+    interpolator = (QueryInterpolator<NumericType>)
           factory.newInterpolator(NumericType.TYPE, source, 
               NumericInterpolatorConfig.newBuilder()
                 .setFillPolicy(FillPolicy.NULL)
@@ -64,7 +64,7 @@ public class TestNumericInterpolatorFactory {
     assertEquals(FillWithRealPolicy.PREFER_NEXT, 
         interpolator.fillPolicy().realPolicy());
     
-    interpolator = (QueryIteratorInterpolator<NumericType>)
+    interpolator = (QueryInterpolator<NumericType>)
         factory.newInterpolator(NumericType.TYPE, source, 
             NumericInterpolatorConfig.newBuilder()
               .setFillPolicy(FillPolicy.NOT_A_NUMBER)
@@ -74,7 +74,7 @@ public class TestNumericInterpolatorFactory {
     assertEquals(FillWithRealPolicy.PREFER_NEXT, 
         interpolator.fillPolicy().realPolicy());
     
-    interpolator = (QueryIteratorInterpolator<NumericType>)
+    interpolator = (QueryInterpolator<NumericType>)
         factory.newInterpolator(NumericType.TYPE, source, 
             NumericInterpolatorConfig.newBuilder()
               .setFillPolicy(FillPolicy.ZERO)
@@ -84,7 +84,7 @@ public class TestNumericInterpolatorFactory {
     assertEquals(FillWithRealPolicy.PREFER_NEXT, 
         interpolator.fillPolicy().realPolicy());
     
-    interpolator = (QueryIteratorInterpolator<NumericType>)
+    interpolator = (QueryInterpolator<NumericType>)
         factory.newInterpolator(NumericType.TYPE, source, 
             ScalarNumericInterpolatorConfig.newBuilder()
               .setValue(42)

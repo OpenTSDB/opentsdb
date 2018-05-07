@@ -27,7 +27,7 @@ import org.junit.Test;
 
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.query.QueryIteratorInterpolatorFactory;
+import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
@@ -50,7 +50,7 @@ public class TestDownsampleConfig {
             .setMetric("sys.cpu.user"))
         .build();
     
-    QueryIteratorInterpolatorFactory factory = 
+    QueryInterpolatorFactory factory = 
         new NumericInterpolatorFactory.Default();
     NumericInterpolatorConfig factory_config = NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NONE)
@@ -264,7 +264,7 @@ public class TestDownsampleConfig {
             .setMetric("sys.cpu.user"))
         .build();
     
-    QueryIteratorInterpolatorFactory factory = 
+    QueryInterpolatorFactory factory = 
         new NumericInterpolatorFactory.Default();
     NumericInterpolatorConfig factory_config = NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NONE)
@@ -340,7 +340,7 @@ public class TestDownsampleConfig {
             .setMetric("sys.cpu.user"))
         .build();
     
-    QueryIteratorInterpolatorFactory factory = 
+    QueryInterpolatorFactory factory = 
         new NumericInterpolatorFactory.Default();
     NumericInterpolatorConfig factory_config = NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NONE)
@@ -390,7 +390,7 @@ public class TestDownsampleConfig {
             .setMetric("sys.cpu.user"))
         .build();
     
-    QueryIteratorInterpolatorFactory factory = 
+    QueryInterpolatorFactory factory = 
         new NumericInterpolatorFactory.Default();
     NumericInterpolatorConfig factory_config = NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NONE)

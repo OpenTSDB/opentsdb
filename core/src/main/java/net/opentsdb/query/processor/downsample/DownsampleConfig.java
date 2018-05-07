@@ -25,8 +25,8 @@ import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.query.QueryIteratorInterpolatorConfig;
-import net.opentsdb.query.QueryIteratorInterpolatorFactory;
+import net.opentsdb.query.QueryInterpolatorConfig;
+import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.utils.DateTime;
@@ -71,10 +71,10 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
   private final TimeSeriesQuery query;
   
   /** The interpolator factory. */
-  private final QueryIteratorInterpolatorFactory interpolator;
+  private final QueryInterpolatorFactory interpolator;
   
   /** The interpolator factory config. */
-  private final QueryIteratorInterpolatorConfig interpolator_config;
+  private final QueryInterpolatorConfig interpolator_config;
   
   /** The numeric part of the parsed interval. */
   private final int interval_part;
@@ -211,12 +211,12 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
   }
   
   /** @return The non-null interpolator factory. */
-  public QueryIteratorInterpolatorFactory interpolator() {
+  public QueryInterpolatorFactory interpolator() {
     return interpolator;
   }
   
   /** @return The optional interpolator config. May be null. */
-  public QueryIteratorInterpolatorConfig interpolatorConfig() {
+  public QueryInterpolatorConfig interpolatorConfig() {
     return interpolator_config;
   }
   
@@ -283,8 +283,8 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
     private boolean run_all;
     private boolean fill;
     private TimeSeriesQuery query;
-    private QueryIteratorInterpolatorFactory interpolator;
-    private QueryIteratorInterpolatorConfig interpolator_config;
+    private QueryInterpolatorFactory interpolator;
+    private QueryInterpolatorConfig interpolator_config;
     
     /**
      * @param id A non-null and on-empty Id for the group by function.
@@ -364,7 +364,7 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
      * @return The builder.
      */
     public Builder setQueryIteratorInterpolatorFactory(
-        final QueryIteratorInterpolatorFactory interpolator) {
+        final QueryInterpolatorFactory interpolator) {
       this.interpolator = interpolator;
       return this;
     }
@@ -374,7 +374,7 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
      * @return The builder.
      */
     public Builder setQueryIteratorInterpolatorConfig(
-        final QueryIteratorInterpolatorConfig interpolator_config) {
+        final QueryInterpolatorConfig interpolator_config) {
       this.interpolator_config = interpolator_config;
       return this;
     }

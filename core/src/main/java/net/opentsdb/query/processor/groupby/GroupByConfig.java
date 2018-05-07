@@ -21,8 +21,8 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import net.opentsdb.query.QueryIteratorInterpolatorConfig;
-import net.opentsdb.query.QueryIteratorInterpolatorFactory;
+import net.opentsdb.query.QueryInterpolatorConfig;
+import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNodeConfig;
 
 /**
@@ -36,8 +36,8 @@ public class GroupByConfig implements QueryNodeConfig {
   private final List<byte[]> encoded_tag_keys;
   private final String aggregator;
   private final boolean infectious_nan;
-  private final QueryIteratorInterpolatorFactory interpolator;
-  private final QueryIteratorInterpolatorConfig interpolator_config;
+  private final QueryInterpolatorFactory interpolator;
+  private final QueryInterpolatorConfig interpolator_config;
   private final boolean group_all;
   
   private GroupByConfig(final Builder builder) {
@@ -94,12 +94,12 @@ public class GroupByConfig implements QueryNodeConfig {
   }
   
   /** @return The non-null interpolator factory. */
-  public QueryIteratorInterpolatorFactory getInterpolator() {
+  public QueryInterpolatorFactory getInterpolator() {
     return interpolator;
   }
   
   /** @return The optional interpolator config. May be null. */
-  public QueryIteratorInterpolatorConfig getInterpolatorConfig() {
+  public QueryInterpolatorConfig getInterpolatorConfig() {
     return interpolator_config;
   }
   
@@ -119,8 +119,8 @@ public class GroupByConfig implements QueryNodeConfig {
     private List<byte[]> encoded_tag_keys;
     private String aggregator;
     private boolean infectious_nan;
-    private QueryIteratorInterpolatorFactory interpolator;
-    private QueryIteratorInterpolatorConfig interpolator_config;
+    private QueryInterpolatorFactory interpolator;
+    private QueryInterpolatorConfig interpolator_config;
     private boolean group_all;
     
     /**
@@ -202,7 +202,7 @@ public class GroupByConfig implements QueryNodeConfig {
      * @return The builder.
      */
     public Builder setQueryIteratorInterpolatorFactory(
-        final QueryIteratorInterpolatorFactory interpolator) {
+        final QueryInterpolatorFactory interpolator) {
       this.interpolator = interpolator;
       return this;
     }
@@ -212,7 +212,7 @@ public class GroupByConfig implements QueryNodeConfig {
      * @return The builder.
      */
     public Builder setQueryIteratorInterpolatorConfig(
-        final QueryIteratorInterpolatorConfig interpolator_config) {
+        final QueryInterpolatorConfig interpolator_config) {
       this.interpolator_config = interpolator_config;
       return this;
     }

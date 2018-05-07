@@ -19,7 +19,7 @@ import java.util.concurrent.ExecutorService;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryIteratorInterpolatorFactory;
+import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.storage.TimeSeriesDataStore;
 
@@ -105,12 +105,12 @@ public interface Registry {
   public QueryNodeFactory getQueryNodeFactory(final String id);
   
   /**
-   * Fetch a {@link QueryIteratorInterpolatorFactory} if present in the 
+   * Fetch a {@link QueryInterpolatorFactory} if present in the 
    * interpolator cache or plugin map.
    * @param id A non-null and non-empty ID for the interpolator factory.
    * @return The factory if found, null if such an inerpolator does not exist.
    */
-  public QueryIteratorInterpolatorFactory 
+  public QueryInterpolatorFactory 
       getQueryIteratorInterpolatorFactory(final String id);
   
   /**

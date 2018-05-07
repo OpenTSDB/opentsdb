@@ -32,7 +32,7 @@ import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIterator;
-import net.opentsdb.query.QueryIteratorInterpolator;
+import net.opentsdb.query.QueryInterpolator;
 import net.opentsdb.query.QueryNode;
 
 /**
@@ -92,7 +92,7 @@ public class DownsampleNumericIterator implements QueryIterator {
   private final TimeSeries source;
   
   /** The interpolator to use for filling missing intervals. */
-  private final QueryIteratorInterpolator<NumericType> interpolator;
+  private final QueryInterpolator<NumericType> interpolator;
   
   /** The current interval timestamp marking the start of the interval. */
   private TimeStamp interval_ts;
@@ -127,8 +127,10 @@ public class DownsampleNumericIterator implements QueryIterator {
     this.source = source;
     aggregator = Aggregators.get(((DownsampleConfig) node.config()).aggregator());
     config = (DownsampleConfig) node.config();
-    interpolator = (QueryIteratorInterpolator<NumericType>) config.interpolator().newInterpolator(
-        NumericType.TYPE, new DownsamplingNumericTimeSeries(), config.interpolatorConfig());
+    interpolator = (QueryInterpolator<NumericType>) config.interpolator().newInterpolator(
+        NumericType.TYPE, 
+        (TimeSeries) new DownsamplingNumericTimeSeries(), 
+        config.interpolatorConfig());
     interval_ts = config.start().getCopy();
     
     if (config.fill() && !config.runAll()) {
