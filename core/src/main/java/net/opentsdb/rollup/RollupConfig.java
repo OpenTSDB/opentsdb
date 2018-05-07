@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.exceptions.IllegalDataException;
+import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
 
 import org.slf4j.Logger;
@@ -34,8 +36,6 @@ import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.stumbleupon.async.Deferred;
-import com.stumbleupon.async.DeferredGroupException;
 import java.util.TreeMap;
 
 /**
@@ -107,6 +107,7 @@ public class RollupConfig {
       reverse_intervals.put(config_interval.getTable(), config_interval);
       reverse_intervals.put(config_interval.getPreAggregationTable(), 
           config_interval);
+      config_interval.setConfig(this);
       LOG.info("Loaded rollup interval: " + config_interval);
     }
     
@@ -281,7 +282,7 @@ public class RollupConfig {
     if (Strings.isNullOrEmpty(aggregator)) {
       throw new IllegalArgumentException("Aggregator cannot be null or empty.");
     }
-    Integer id = aggregations_to_ids.get(aggregator.toLowerCase());
+    Integer id = aggregations_to_ids.get(queryToRollupAggregation(aggregator));
     if (id == null) {
       throw new IllegalArgumentException("No ID found mapping to aggregator: " 
           + aggregator);
@@ -289,9 +290,92 @@ public class RollupConfig {
     return id;
   }
   
+  /**
+   * Converts the old 2.x style qualifiers from {@code sum:<offset>} to 
+   * the assigned ID. 
+   * @param qualifier A non-null qualifier of at least 6 bytes.
+   * @return The mapped ID if configured or IllegalArgumentException if 
+   * the mapping wasn't found.
+   * @throws IllegalArgumentException if the qualifier as null, less than
+   * 6 bytes or the aggregation was not assigned an ID.
+   * @throws IllegalDataException if the aggregation was unrecognized.
+   */
+  public int getIdForAggregator(final byte[] qualifier) {
+    if (qualifier == null || qualifier.length < 6) {
+      throw new IllegalArgumentException("Qualifier can't be null or "
+          + "less than 6 bytes.");
+    }
+    switch (qualifier[0]) {
+    case 'S':
+    case 's':
+      return getIdForAggregator("sum");
+    case 'c':
+    case 'C':
+      return getIdForAggregator("count");
+    case 'm':
+    case 'M':
+      if (qualifier[1] == 'A' || qualifier[1] == 'a') {
+        return getIdForAggregator("max");
+      } else {
+        return getIdForAggregator("min");
+      }
+    }
+    throw new IllegalDataException("Unrecognized qualifier: " 
+        + Bytes.pretty(qualifier));
+  }
+  
+  /**
+   * Returns the index of the time offset in the qualifier given an
+   * older 2.x style rollup of the form {@code sum:<offset>}.
+   * @param qualifier A non-null qualifier of at least 6 bytes.
+   * @return A 0 based index in the array when the offset begins.
+   * @throws IllegalArgumentException if the qualifier as null or less 
+   * than 6 bytes
+   * @throws IllegalDataException if the aggregation was unrecognized.
+   */
+  public int getOffsetStartFromQualifier(final byte[] qualifier) {
+    if (qualifier == null || qualifier.length < 6) {
+      throw new IllegalArgumentException("Qualifier can't be null or "
+          + "less than 6 bytes.");
+    }
+    switch (qualifier[0]) {
+    case 'S':
+    case 's':
+    case 'M':
+    case 'm':
+      return 4;
+    case 'C':
+    case 'c':
+      return 6;
+    }
+    throw new IllegalDataException("Unrecognized qualifier: " 
+        + Bytes.pretty(qualifier));
+  }
+  
   @Override
   public String toString() {
     return JSON.serializeToString(this);
+  }
+  
+  /**
+   * Converts aggregations from a query to those that may be stored in
+   * a database. E.g. if the query asks for `zimsum` we only store `sum`.
+   * @param agg The non-null aggregate to convert.
+   * @return A converted aggregate or the original aggregate (lowercased)
+   * @throws NullPointerException if the agg was null.
+   */
+  public static String queryToRollupAggregation(String agg) {
+    agg = agg.toLowerCase();
+    if (agg.equals("zimsum")) {
+      return "sum";
+    }
+    if (agg.equals("mimmax")) {
+      return "max";
+    }
+    if (agg.equals("mimmin")) {
+      return "min";
+    }
+    return agg;
   }
   
   public static Builder builder() {
