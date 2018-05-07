@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -27,11 +29,13 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.Files;
 import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
@@ -62,6 +66,7 @@ import net.opentsdb.uid.UniqueIdStore;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.Exceptions;
+import net.opentsdb.utils.JSON;
 
 /**
  * The interface for an OpenTSDB version 1 and version 2 schema where 
@@ -107,6 +112,8 @@ public class Schema implements TimeSeriesDataStore {
   protected int tagv_width;
   protected int salt_buckets;
   protected int salt_width;
+  
+  protected final RollupConfig rollup_config;
   
   protected Map<TypeToken<?>, Codec> codecs;
   
@@ -187,6 +194,28 @@ public class Schema implements TimeSeriesDataStore {
     if (tag_values == null) {
       throw new IllegalStateException("Factory " + uid_factory 
           + " returned a null UniqueId instance.");
+    }
+    
+    key = configKey("rollups.enable");
+    final boolean rollups_enabled = tsdb.getConfig().getBoolean(key);
+    if (rollups_enabled) {
+      key = configKey("rollups.config");
+      value = tsdb.getConfig().getString(key);
+      if (Strings.isNullOrEmpty(value)) { 
+        throw new ConfigurationException("Null value for config key: " + key);
+      }
+      
+      if (value.endsWith(".json")) {
+        try {
+          value = Files.toString(new File(value), Const.UTF8_CHARSET);
+        } catch (IOException e) {
+          throw new IllegalArgumentException("Failed to open conf file: " 
+              + value, e);
+        }
+      }
+      rollup_config = JSON.parseToObject(value, RollupConfig.class);
+    } else {
+      rollup_config = null;
     }
     
     if (!tsdb.getConfig().hasProperty(QUERY_BYTE_LIMIT_KEY)) {
@@ -652,8 +681,7 @@ public class Schema implements TimeSeriesDataStore {
   }
   
   public RollupConfig rollupConfig() {
-    // TODO - implement
-    return null;
+    return rollup_config;
   }
   
   /**
@@ -786,6 +814,18 @@ public class Schema implements TimeSeriesDataStore {
       tsdb.getConfig().register(key, null, false, 
           "The name of the data store factory to load and associate "
               + "with this schema.");
+    }
+    
+    key = configKey("rollups.enable");
+    if (!tsdb.getConfig().hasProperty(key)) {
+      tsdb.getConfig().register(key, false, false, 
+          "Whether or not rollups are enabled for this schema.");
+    }
+    
+    key = configKey("rollups.config");
+    if (!tsdb.getConfig().hasProperty(key)) {
+      tsdb.getConfig().register(key, null, false, 
+          "The path to a JSON file containing the rollup configuration.");
     }
   }
   
