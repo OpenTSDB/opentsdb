@@ -16,7 +16,10 @@ package net.opentsdb.rollup;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import java.nio.charset.Charset;
 
@@ -31,6 +34,7 @@ public class TestRollupInterval {
   private final static String preagg_table = "tsdb-rollup-agg-10m";
   private final static byte[] table = rollup_table.getBytes(CHARSET);
   private final static byte[] agg_table = preagg_table.getBytes(CHARSET);
+  private final static RollupConfig CONFIG = mock(RollupConfig.class);
   
   @Test
   public void ctor1SecondHour() throws Exception {
@@ -546,6 +550,20 @@ public class TestRollupInterval {
     assertEquals(preagg_table, interval.getPreAggregationTable());
     assertEquals(0, Bytes.memcmp(table, interval.getTemporalTable()));
     assertEquals(0, Bytes.memcmp(agg_table, interval.getGroupbyTable()));
+  }
+  
+  @Test
+  public void config() throws Exception {
+    RollupInterval interval = RollupInterval.builder()
+        .setTable(rollup_table)
+        .setPreAggregationTable(preagg_table)
+        .setInterval("1s")
+        .setRowSpan("1h")
+        .setDefaultInterval(true)
+        .build();
+    assertNull(interval.rollupConfig());
+    interval.setConfig(CONFIG);
+    assertSame(CONFIG, interval.rollupConfig());
   }
   
   @Test
