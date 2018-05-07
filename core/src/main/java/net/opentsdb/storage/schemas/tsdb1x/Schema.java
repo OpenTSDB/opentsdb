@@ -41,6 +41,7 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.meta.MetaDataStorageSchema;
 import net.opentsdb.query.QueryIteratorFactory;
@@ -216,8 +217,9 @@ public class Schema implements TimeSeriesDataStore {
           + "it is included.");
     }
     
-    codecs = Maps.newHashMapWithExpectedSize(1);
+    codecs = Maps.newHashMapWithExpectedSize(2);
     codecs.put(NumericType.TYPE, new NumericCodec());
+    codecs.put(NumericSummaryType.TYPE, new NumericSummaryCodec());
   }
   
   @Override
