@@ -29,7 +29,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import net.opentsdb.query.QueryIteratorInterpolatorFactory;
+import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
@@ -66,7 +66,7 @@ public class TestDownsample {
             .setMetric("sys.cpu.user"))
         .build();
     
-    QueryIteratorInterpolatorFactory factory = 
+    QueryInterpolatorFactory factory = 
         new NumericInterpolatorFactory.Default();
     NumericInterpolatorConfig factory_config = NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NONE)

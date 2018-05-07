@@ -151,16 +151,16 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
           if (v.isGroupBy()) {
             
             if (gb_config == null) {
-              QueryIteratorInterpolatorFactory nif;
+              QueryInterpolatorFactory nif;
               // TODO - find a better way
               if (agg.contains("zimsum") || 
                   agg.contains("mimmax") ||
                   agg.contains("mimmin")) {
                 nif = tsdb.getRegistry().getPlugin(
-                    QueryIteratorInterpolatorFactory.class, "Default");
+                    QueryInterpolatorFactory.class, "Default");
               } else {
                 nif = tsdb.getRegistry().getPlugin(
-                    QueryIteratorInterpolatorFactory.class, "LERP");
+                    QueryInterpolatorFactory.class, "LERP");
               }
               if (nif == null) {
                 throw new QueryExecutionException("Unable to find the LERP interpolator.", 0);
@@ -199,16 +199,16 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
         }
       } else if (!agg.toLowerCase().equals("none")) {
         // we agg all 
-        QueryIteratorInterpolatorFactory nif;
+        QueryInterpolatorFactory nif;
         // TODO - find a better way
         if (agg.contains("zimsum") || 
             agg.contains("mimmax") ||
             agg.contains("mimmin")) {
           nif = tsdb.getRegistry().getPlugin(
-              QueryIteratorInterpolatorFactory.class, "Default");
+              QueryInterpolatorFactory.class, "Default");
         } else {
           nif = tsdb.getRegistry().getPlugin(
-              QueryIteratorInterpolatorFactory.class, "LERP");
+              QueryInterpolatorFactory.class, "LERP");
         }
         if (nif == null) {
           throw new QueryExecutionException("Unable to find the LERP interpolator.", 0);

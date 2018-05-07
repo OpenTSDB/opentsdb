@@ -30,7 +30,7 @@ import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIterator;
-import net.opentsdb.query.QueryIteratorInterpolator;
+import net.opentsdb.query.QueryInterpolator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 
@@ -64,7 +64,7 @@ public class GroupByNumericIterator implements QueryIterator,
   private final MutableNumericValue dp;
   
   /** The list of interpolators containing the real sources. */
-  private final QueryIteratorInterpolator<NumericType>[] interpolators;
+  private final QueryInterpolator<NumericType>[] interpolators;
   
   /** An array of long values used when all sources return longs. */
   private long[] long_values;
@@ -126,12 +126,12 @@ public class GroupByNumericIterator implements QueryIterator,
     // TODO - better way of supporting aggregators
     aggregator = Aggregators.get(((GroupByConfig) node.config()).getAggregator());
     infectious_nan = ((GroupByConfig) node.config()).getInfectiousNan();
-    interpolators = new QueryIteratorInterpolator[sources.size()];
+    interpolators = new QueryInterpolator[sources.size()];
     for (final TimeSeries source : sources) {
       if (source == null) {
         throw new IllegalArgumentException("Null time series are not allowed in the sources.");
       }
-      interpolators[iterator_max] = (QueryIteratorInterpolator<NumericType>) 
+      interpolators[iterator_max] = (QueryInterpolator<NumericType>) 
           ((GroupByConfig) node.config()).getInterpolator()
             .newInterpolator(NumericType.TYPE, 
                              source, ((GroupByConfig) node.config())

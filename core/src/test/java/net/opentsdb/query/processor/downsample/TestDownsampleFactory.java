@@ -37,7 +37,7 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryIteratorInterpolatorFactory;
+import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
@@ -100,7 +100,7 @@ public class TestDownsampleFactory {
             .setMetric("sys.cpu.user"))
         .build();
     
-    QueryIteratorInterpolatorFactory interpolator_factory = 
+    QueryInterpolatorFactory interpolator_factory = 
         new NumericInterpolatorFactory.Default();
     NumericInterpolatorConfig factory_config = NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NONE)

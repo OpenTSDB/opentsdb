@@ -25,7 +25,7 @@ import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
-import net.opentsdb.query.QueryIteratorInterpolator;
+import net.opentsdb.query.QueryInterpolator;
 
 /**
  * An interpolator for numeric data points that fills with the given 
@@ -41,7 +41,7 @@ import net.opentsdb.query.QueryIteratorInterpolator;
  * 
  * @since 3.0
  */
-public class NumericInterpolator implements QueryIteratorInterpolator<NumericType> {
+public class NumericInterpolator implements QueryInterpolator<NumericType> {
   
   /** The config. */
   protected final NumericInterpolatorConfig config;

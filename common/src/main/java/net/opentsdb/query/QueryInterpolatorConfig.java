@@ -19,6 +19,6 @@ package net.opentsdb.query;
  * 
  * @since 3.0
  */
-public interface QueryIteratorInterpolatorConfig {
+public interface QueryInterpolatorConfig {
 
 }

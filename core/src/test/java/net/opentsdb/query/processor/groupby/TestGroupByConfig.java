@@ -25,7 +25,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Sets;
 
-import net.opentsdb.query.QueryIteratorInterpolatorFactory;
+import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
@@ -36,7 +36,7 @@ public class TestGroupByConfig {
 
   @Test
   public void build() throws Exception {
-    final QueryIteratorInterpolatorFactory interpolator = 
+    final QueryInterpolatorFactory interpolator = 
         new NumericInterpolatorFactory.Default();
     final NumericInterpolatorConfig interpolator_config = 
         ScalarNumericInterpolatorConfig.newBuilder()

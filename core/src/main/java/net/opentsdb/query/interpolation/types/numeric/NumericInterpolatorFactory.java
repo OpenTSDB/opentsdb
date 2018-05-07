@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,15 +14,18 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation.types.numeric;
 
+import java.util.Iterator;
+
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.query.QueryIteratorInterpolator;
-import net.opentsdb.query.QueryIteratorInterpolatorConfig;
-import net.opentsdb.query.QueryIteratorInterpolatorFactory;
+import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.query.QueryInterpolator;
+import net.opentsdb.query.QueryInterpolatorConfig;
+import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.pojo.FillPolicy;
 
@@ -39,12 +42,12 @@ public class NumericInterpolatorFactory {
    * The default factory that builds interpolators from the given config.
    */
   public static class Default extends BaseTSDBPlugin 
-                              implements QueryIteratorInterpolatorFactory {
+                              implements QueryInterpolatorFactory {
     @Override
-    public QueryIteratorInterpolator<? extends TimeSeriesDataType> newInterpolator(
+    public QueryInterpolator<? extends TimeSeriesDataType> newInterpolator(
         final TypeToken<? extends TimeSeriesDataType> type,
         final TimeSeries source, 
-        final QueryIteratorInterpolatorConfig config) {
+        final QueryInterpolatorConfig config) {
       if (config == null) {
         throw new IllegalArgumentException("Config cannot be null.");
       }
@@ -57,6 +60,15 @@ public class NumericInterpolatorFactory {
     }
 
     @Override
+    public QueryInterpolator<? extends TimeSeriesDataType> newInterpolator(
+        TypeToken<? extends TimeSeriesDataType> type,
+        Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator,
+        QueryInterpolatorConfig config) {
+      // TODO Auto-generated method stub
+      return null;
+    }
+    
+    @Override
     public String id() {
       return "Default";
     }
@@ -65,16 +77,17 @@ public class NumericInterpolatorFactory {
     public String version() {
       return "3.0.0";
     }
+    
   }
   
   /** The linear interpolation factory. */
   public static class LERP extends BaseTSDBPlugin 
-                           implements QueryIteratorInterpolatorFactory {
+                           implements QueryInterpolatorFactory {
   @Override
-  public QueryIteratorInterpolator<? extends TimeSeriesDataType> newInterpolator(
+  public QueryInterpolator<? extends TimeSeriesDataType> newInterpolator(
         final TypeToken<? extends TimeSeriesDataType> type,
         final TimeSeries source, 
-        final QueryIteratorInterpolatorConfig config) {
+        final QueryInterpolatorConfig config) {
       if (config == null) {
         throw new IllegalArgumentException("Config cannot be null.");
       }
@@ -84,6 +97,15 @@ public class NumericInterpolatorFactory {
       }
       return new NumericLERP(source, 
         (NumericInterpolatorConfig) config);
+    }
+    
+    @Override
+    public QueryInterpolator<? extends TimeSeriesDataType> newInterpolator(
+        TypeToken<? extends TimeSeriesDataType> type,
+        Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator,
+        QueryInterpolatorConfig config) {
+      // TODO Auto-generated method stub
+      return null;
     }
     
     @Override

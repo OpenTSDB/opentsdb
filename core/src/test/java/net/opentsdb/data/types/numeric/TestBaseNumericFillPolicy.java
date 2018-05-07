@@ -41,6 +41,8 @@ public class TestBaseNumericFillPolicy {
       new BaseNumericFillPolicy(null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+    
+    assertTrue(fill.config() instanceof NumericInterpolatorConfig);
   }
   
   @Test

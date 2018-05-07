@@ -14,18 +14,21 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import java.util.Iterator;
+
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
+import net.opentsdb.data.TimeSeriesValue;
 
 /**
  * A factory interface for generating interator interpolators.
  * 
  * @since 3.0
  */
-public interface QueryIteratorInterpolatorFactory extends TSDBPlugin {
+public interface QueryInterpolatorFactory extends TSDBPlugin {
 
   /**
    * Returns a new interpolator for the given data type if present.
@@ -36,8 +39,22 @@ public interface QueryIteratorInterpolatorFactory extends TSDBPlugin {
    * exist for the requested type. In such an event, the series should log and 
    * be dropped.
    */
-  public QueryIteratorInterpolator<? extends TimeSeriesDataType> newInterpolator(
+  public QueryInterpolator<? extends TimeSeriesDataType> newInterpolator(
       final TypeToken<? extends TimeSeriesDataType> type, 
       final TimeSeries source, 
-      final QueryIteratorInterpolatorConfig config);
+      final QueryInterpolatorConfig config);
+
+  /**
+   * Returns a new interpolator for the given data type if present.
+   * @param type A non-null data type for the interpolator to work on.
+   * @param iterator A non-null time series source.
+   * @param config An optional config for the interpolator.
+   * @return An instantiated interpolator or null if an implementation does not
+   * exist for the requested type. In such an event, the series should log and 
+   * be dropped.
+   */
+  public QueryInterpolator<? extends TimeSeriesDataType> newInterpolator(
+      final TypeToken<? extends TimeSeriesDataType> type, 
+      final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator, 
+      final QueryInterpolatorConfig config);
 }
