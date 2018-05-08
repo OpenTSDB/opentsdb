@@ -191,7 +191,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     Schema schema = mock(Schema.class);
     when(data_store.schema()).thenReturn(schema);
     
-    when(rollup_config.getRollupIntervals(3600, "1h"))
+    when(rollup_config.getRollupIntervals(3600, "1h", true))
       .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
           .setInterval("1h")
           .setTable("tsdb-1h")
@@ -205,13 +205,13 @@ public class TestTsdb1xQueryNode extends UTBase {
           .setRowSpan("1d")
           .build()));
     
-    when(rollup_config.getRollupIntervals(1800, "30m"))
-    .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
-        .setInterval("30m")
-        .setTable("tsdb-30m")
-        .setPreAggregationTable("tsdb-agg-30m")
-        .setRowSpan("1d")
-        .build()));
+    when(rollup_config.getRollupIntervals(1800, "30m", true))
+      .thenReturn(Lists.<RollupInterval>newArrayList(RollupInterval.builder()
+          .setInterval("30m")
+          .setTable("tsdb-30m")
+          .setPreAggregationTable("tsdb-agg-30m")
+          .setRowSpan("1d")
+          .build()));
     
     when(schema.rollupConfig()).thenReturn(rollup_config);
     
