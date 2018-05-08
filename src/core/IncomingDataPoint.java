@@ -136,6 +136,11 @@ public class IncomingDataPoint {
     return tsuid;
   }
   
+  /** @param moretags the hashmap of kv pair to add */
+  public final void addTags(HashMap<String, String> moretags) {
+    this.tags.putAll(moretags);
+  }
+  
   /** @param metric the metric to set */
   public final void setMetric(String metric) {
     this.metric = metric;

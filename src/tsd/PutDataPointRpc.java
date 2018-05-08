@@ -312,6 +312,7 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
       throw new BadRequestException("No datapoints found in content");
     }
 
+    final HashMap<String, String> query_tags = new HashMap<String, String>();
     final boolean show_details = query.hasQueryStringParam("details");
     final boolean show_summary = query.hasQueryStringParam("summary");
     final boolean synchronous = query.hasQueryStringParam("sync");
@@ -326,7 +327,18 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
     int queued = 0;
     final List<Deferred<Boolean>> deferreds = synchronous ? 
         new ArrayList<Deferred<Boolean>>(dps.size()) : null;
-    
+        
+    if (tsdb.getConfig().enable_header_tag()) {
+      LOG.debug("Looking for tag header " + tsdb.getConfig().get_name_header_tag());
+      final String header_tag_value = query.getHeaderValue(tsdb.getConfig().get_name_header_tag()) ;
+      if (header_tag_value != null) {
+        LOG.debug(" header found with value:" + header_tag_value);
+        Tags.parse(query_tags, header_tag_value);
+      } else {
+        LOG.debug(" no such header in request");
+      }
+    }
+        
     for (final IncomingDataPoint dp : dps) {
       final DataPointType type;
       if (dp instanceof RollUpDataPoint) {
@@ -387,10 +399,16 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
       }
       
       try {
+        /** Add additionnal tags from HTTP header */
+        if ( (query_tags != null) && (query_tags.size() > 0) ) {
+          dp.addTags(query_tags);
+        }
+        
         if (!dp.validate(details)) {
           illegal_arguments.incrementAndGet();
           continue;
         }
+        
         // TODO - refactor the add calls someday or move some of this into the 
         // actual data point class.
         final Deferred<Boolean> deferred;
