@@ -66,32 +66,41 @@ public class TestNumericInterpolator {
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
     source.add(1000, 1000);
     
-    NumericLERP lerp = new NumericLERP(source, config);
-    assertTrue(lerp.has_next);
-    assertEquals(1000, lerp.nextReal().msEpoch());
+    NumericInterpolator interpolator = new NumericInterpolator(source, config);
+    assertTrue(interpolator.has_next);
+    assertEquals(1000, interpolator.nextReal().msEpoch());
+    
+    interpolator = new NumericInterpolator(
+        source.iterator(NumericType.TYPE).get(), config);
+    assertTrue(interpolator.has_next);
+    assertEquals(1000, interpolator.nextReal().msEpoch());
     
     // empty source
     source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
         .setMetric("foo")
         .build(), new MillisecondTimeStamp(1000), new MillisecondTimeStamp(5000));
-    lerp = new NumericLERP(source, config);
-    assertFalse(lerp.has_next);
+    interpolator = new NumericInterpolator(source, config);
+    assertFalse(interpolator.has_next);
     
     // no such type in source
     TimeSeries mock_source = mock(TimeSeries.class);
     when(mock_source.iterator(any(TypeToken.class)))
         .thenReturn(Optional.<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>>empty());
-    lerp = new NumericLERP(source, config);
-    assertFalse(lerp.has_next);
+    interpolator = new NumericInterpolator(source, config);
+    assertFalse(interpolator.has_next);
+    
+    interpolator = new NumericInterpolator(
+        (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) null, config);
+    assertFalse(interpolator.has_next);
     
     try {
-      new NumericLERP(null, config);
+      new NumericInterpolator((TimeSeries) null, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new NumericLERP(source, null);
+      new NumericInterpolator(source, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

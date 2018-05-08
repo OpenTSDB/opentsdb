@@ -33,6 +33,7 @@ import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.MutableNumericValue;
@@ -176,7 +177,8 @@ public class TestNumericSummaryInterpolator {
     assertTrue(interpolator.hasNext());
     
     try {
-      new NumericSummaryInterpolator((Iterator) null, config);
+      new NumericSummaryInterpolator(
+          (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) null, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -578,7 +580,6 @@ public class TestNumericSummaryInterpolator {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) interpolator.next(
               new MillisecondTimeStamp(ts));
-      print(tsv);
       assertEquals(ts, tsv.timestamp().msEpoch());
       assertEquals(sums[i], tsv.value().value(0).longValue());
       assertEquals(counts[i++], tsv.value().value(2).longValue());
@@ -610,7 +611,6 @@ public class TestNumericSummaryInterpolator {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) interpolator.next(
               new MillisecondTimeStamp(ts));
-      print(tsv);
       assertEquals(ts, tsv.timestamp().msEpoch());
       assertEquals(sums[i], tsv.value().value(0).longValue());
       assertEquals(counts[i++], tsv.value().value(2).longValue());
@@ -633,7 +633,6 @@ public class TestNumericSummaryInterpolator {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) interpolator.next(
               new MillisecondTimeStamp(ts));
-      print(tsv);
       assertEquals(ts, tsv.timestamp().msEpoch());
       if (sums[i] < 0) {
         assertTrue(Double.isNaN(tsv.value().value(0).doubleValue()));
@@ -690,7 +689,6 @@ public class TestNumericSummaryInterpolator {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) interpolator.next(
               new MillisecondTimeStamp(ts));
-      print(tsv);
       assertEquals(ts, tsv.timestamp().msEpoch());
       if (sums[i] < 0) {
         assertTrue(Double.isNaN(tsv.value().value(0).doubleValue()));
@@ -762,7 +760,6 @@ public class TestNumericSummaryInterpolator {
       final TimeSeriesValue<NumericSummaryType> tsv = 
           (TimeSeriesValue<NumericSummaryType>) interpolator.next(
               new MillisecondTimeStamp(ts));
-      print(tsv);
       assertEquals(ts, tsv.timestamp().msEpoch());
       if (sums[i] < 0) {
         assertTrue(Double.isNaN(tsv.value().value(0).doubleValue()));

@@ -23,6 +23,7 @@ import net.opentsdb.core.BaseTSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryInterpolator;
 import net.opentsdb.query.QueryInterpolatorConfig;
 import net.opentsdb.query.QueryInterpolatorFactory;
@@ -51,12 +52,18 @@ public class NumericInterpolatorFactory {
       if (config == null) {
         throw new IllegalArgumentException("Config cannot be null.");
       }
-      if (!(config instanceof NumericInterpolatorConfig)) {
+      if (!(config instanceof NumericInterpolatorConfig) && 
+          !(config instanceof NumericSummaryInterpolatorConfig)) {
         throw new IllegalArgumentException("Config was not of the type "
             + "NumericInterpolatorConfig: " + config.getClass());
       }
-      return new NumericInterpolator(source, 
-          (NumericInterpolatorConfig) config);
+      if (type == NumericType.TYPE) {
+        return new NumericInterpolator(source, 
+            (NumericInterpolatorConfig) config);
+      } else {
+        return new NumericSummaryInterpolator(source, 
+            (NumericSummaryInterpolatorConfig) config);
+      }
     }
 
     @Override
@@ -64,8 +71,21 @@ public class NumericInterpolatorFactory {
         TypeToken<? extends TimeSeriesDataType> type,
         Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator,
         QueryInterpolatorConfig config) {
-      // TODO Auto-generated method stub
-      return null;
+      if (config == null) {
+        throw new IllegalArgumentException("Config cannot be null.");
+      }
+      if (!(config instanceof NumericInterpolatorConfig) && 
+          !(config instanceof NumericSummaryInterpolatorConfig)) {
+        throw new IllegalArgumentException("Config was not of the type "
+            + "NumericInterpolatorConfig: " + config.getClass());
+      }
+      if (type == NumericType.TYPE) {
+        return new NumericInterpolator(iterator, 
+            (NumericInterpolatorConfig) config);
+      } else {
+        return new NumericSummaryInterpolator(iterator, 
+            (NumericSummaryInterpolatorConfig) config);
+      }
     }
     
     @Override
@@ -83,20 +103,27 @@ public class NumericInterpolatorFactory {
   /** The linear interpolation factory. */
   public static class LERP extends BaseTSDBPlugin 
                            implements QueryInterpolatorFactory {
-  @Override
-  public QueryInterpolator<? extends TimeSeriesDataType> newInterpolator(
-        final TypeToken<? extends TimeSeriesDataType> type,
-        final TimeSeries source, 
-        final QueryInterpolatorConfig config) {
+    @Override
+    public QueryInterpolator<? extends TimeSeriesDataType> newInterpolator(
+          final TypeToken<? extends TimeSeriesDataType> type,
+          final TimeSeries source, 
+          final QueryInterpolatorConfig config) {
       if (config == null) {
         throw new IllegalArgumentException("Config cannot be null.");
       }
-      if (!(config instanceof NumericInterpolatorConfig)) {
+      if (!(config instanceof NumericInterpolatorConfig) && 
+          !(config instanceof NumericSummaryInterpolatorConfig)) {
         throw new IllegalArgumentException("Config was not of the type "
             + "NumericInterpolatorConfig: " + config.getClass());
       }
-      return new NumericLERP(source, 
-        (NumericInterpolatorConfig) config);
+      if (type == NumericType.TYPE) {
+        return new NumericLERP(source, 
+            (NumericInterpolatorConfig) config);
+      } else {
+        // TODO - implement me
+        throw new UnsupportedOperationException("LERP has not been "
+            + "implemented for summaries yet.");
+      }
     }
     
     @Override
@@ -104,8 +131,22 @@ public class NumericInterpolatorFactory {
         TypeToken<? extends TimeSeriesDataType> type,
         Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator,
         QueryInterpolatorConfig config) {
-      // TODO Auto-generated method stub
-      return null;
+      if (config == null) {
+        throw new IllegalArgumentException("Config cannot be null.");
+      }
+      if (!(config instanceof NumericInterpolatorConfig) && 
+          !(config instanceof NumericSummaryInterpolatorConfig)) {
+        throw new IllegalArgumentException("Config was not of the type "
+            + "NumericInterpolatorConfig: " + config.getClass());
+      }
+      if (type == NumericType.TYPE) {
+        return new NumericLERP(iterator, 
+            (NumericInterpolatorConfig) config);
+      } else {
+        // TODO - implement me
+        throw new UnsupportedOperationException("LERP has not been "
+            + "implemented for summaries yet.");
+      }
     }
     
     @Override
