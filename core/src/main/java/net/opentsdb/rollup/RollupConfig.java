@@ -164,8 +164,30 @@ public class RollupConfig {
    * @throws IllegalArgumentException if the interval is null or empty
    * @throws NoSuchRollupForIntervalException if the interval was not configured
    */
-  public List<RollupInterval> getRollupInterval(final long interval, 
-                                                final String str_interval) {
+  public List<RollupInterval> getRollupIntervals(final long interval, 
+                                                 final String str_interval) {
+    return getRollupIntervals(interval, str_interval, false);
+  }
+  
+  /**
+   * Fetches the RollupInterval corresponding to the integer interval in seconds.
+   * It returns a list of matching RollupInterval and best next matches in the 
+   * order. It will help to search on the next best rollup tables.
+   * It is guaranteed that it return a non-empty list
+   * For example if the interval is 1 day
+   *  then it may return RollupInterval objects in the order
+   *    1 day, 1 hour, 10 minutes, 1 minute
+   * @param interval The interval in seconds to lookup
+   * @param str_interval String representation of the  interval, for logging
+   * @param skip_default Whether or not to include the default interval 
+   * the results.
+   * @return The RollupInterval object configured for the given interval
+   * @throws IllegalArgumentException if the interval is null or empty
+   * @throws NoSuchRollupForIntervalException if the interval was not configured
+   */
+  public List<RollupInterval> getRollupIntervals(final long interval, 
+                                                 final String str_interval,
+                                                 final boolean skip_default) {
     
     if (interval <= 0) {
       throw new IllegalArgumentException("Interval cannot be null or empty");
@@ -177,15 +199,24 @@ public class RollupConfig {
     
     for (RollupInterval rollup: forward_intervals.values()) {
       if (rollup.getIntervalSeconds() == interval) {
+        if (rollup.isDefaultInterval() && skip_default) {
+          right_match = true;
+          continue;
+        }
+        
         rollups.put((long) rollup.getIntervalSeconds(), rollup);
         right_match = true;
-      }
-      else if (interval % rollup.getIntervalSeconds() == 0) {
+      } else if (interval % rollup.getIntervalSeconds() == 0) {
+        if (rollup.isDefaultInterval() && skip_default) {
+          right_match = true;
+          continue;
+        }
+        
         rollups.put((long) rollup.getIntervalSeconds(), rollup);
       }
     }
 
-    if (rollups.isEmpty()) {
+    if (rollups.isEmpty() && !right_match) {
       throw new NoSuchRollupForIntervalException(Long.toString(interval));
     }
     

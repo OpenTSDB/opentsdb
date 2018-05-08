@@ -112,7 +112,7 @@ public class RollupInterval {
   @Override
   public String toString() {
     final StringBuilder buf = new StringBuilder();
-    buf.append("table=").append(temporal_table_name)
+    buf.append("{table=").append(temporal_table_name)
        .append(", preAggTable=").append(groupby_table_name)
        .append(", rowSpan=").append(row_span)
        .append(", isDefaultInterval=").append(is_default_interval)
@@ -121,7 +121,8 @@ public class RollupInterval {
        .append(", unit_multipier=").append(unit_multiplier)
        .append(", intervals=").append(intervals)
        .append(", interval=").append(interval)
-       .append(", interval_units=").append(interval_units);
+       .append(", interval_units=").append(interval_units)
+       .append("}");
     return buf.toString();
   }
 

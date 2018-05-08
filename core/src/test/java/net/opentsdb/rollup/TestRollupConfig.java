@@ -20,6 +20,8 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.List;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -36,7 +38,6 @@ public class TestRollupConfig {
   private final static String tsdb_table = "tsdb";
   private final static String rollup_table = "tsdb-rollup-10m";
   private final static String preagg_table = "tsdb-rollup-agg-10m";
-  
   
   private RollupConfig.Builder builder;
   private RollupInterval raw;
@@ -168,7 +169,6 @@ public class TestRollupConfig {
   @Test
   public void getRollupIntervalString() throws Exception {
     final RollupConfig config = builder.build();
-    
     assertSame(raw, config.getRollupInterval("1m"));
     assertSame(tenmin, config.getRollupInterval("10m"));
     
@@ -186,6 +186,8 @@ public class TestRollupConfig {
       config.getRollupInterval("");
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+    
+    
   }
   
   @Test
@@ -208,6 +210,62 @@ public class TestRollupConfig {
     
     try {
       config.getRollupIntervalForTable("");
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
+  public void getRollupIntervals() throws Exception {
+    RollupConfig config = builder.build();
+    
+    List<RollupInterval> intervals = config.getRollupIntervals(60, "1m");
+    assertEquals(1, intervals.size());
+    assertSame(raw, intervals.get(0));
+    
+    intervals = config.getRollupIntervals(600, "10m");
+    assertEquals(2, intervals.size());
+    assertSame(tenmin, intervals.get(0));
+    assertSame(raw, intervals.get(1));
+    
+    intervals = config.getRollupIntervals(1200, "20m");
+    assertEquals(2, intervals.size());
+    assertSame(tenmin, intervals.get(0));
+    assertSame(raw, intervals.get(1));
+    
+    intervals = config.getRollupIntervals(720, "12m");
+    assertEquals(1, intervals.size());
+    assertSame(raw, intervals.get(0));
+    
+    try {
+      config.getRollupIntervals(1, "1s");
+      fail("Expected NoSuchRollupForIntervalException");
+    } catch (NoSuchRollupForIntervalException e) { }
+    
+    intervals = config.getRollupIntervals(60, "1m", true);
+    assertEquals(0, intervals.size());
+    
+    intervals = config.getRollupIntervals(600, "10m", true);
+    assertEquals(1, intervals.size());
+    assertSame(tenmin, intervals.get(0));
+    
+    intervals = config.getRollupIntervals(1200, "20m", true);
+    assertEquals(1, intervals.size());
+    assertSame(tenmin, intervals.get(0));
+    
+    intervals = config.getRollupIntervals(720, "12m", true);
+    assertEquals(0, intervals.size());
+    
+    // str_interval is used for logging
+    intervals = config.getRollupIntervals(60, null);
+    assertEquals(1, intervals.size());
+    assertSame(raw, intervals.get(0));
+    
+    intervals = config.getRollupIntervals(60, "");
+    assertEquals(1, intervals.size());
+    assertSame(raw, intervals.get(0));
+    
+    try {
+      config.getRollupIntervals(0, "1m");
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
