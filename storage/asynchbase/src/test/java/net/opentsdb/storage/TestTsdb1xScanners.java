@@ -23,6 +23,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
@@ -153,7 +154,6 @@ public class TestTsdb1xScanners extends UTBase {
     assertNull(scanners.scanners);
     assertEquals(0, scanners.scanner_index);
     assertNull(scanners.filter_cb);
-    assertEquals("avg", scanners.rollup_group_by);
     assertNull(scanners.rollup_aggregation);
     assertEquals(0, scanners.scanners_done);
     assertNull(scanners.current_result);
@@ -197,7 +197,6 @@ public class TestTsdb1xScanners extends UTBase {
     assertNull(scanners.scanners);
     assertEquals(0, scanners.scanner_index);
     assertNull(scanners.filter_cb);
-    assertEquals("avg", scanners.rollup_group_by);
     assertNull(scanners.rollup_aggregation);
     assertEquals(0, scanners.scanners_done);
     assertNull(scanners.current_result);
@@ -235,7 +234,6 @@ public class TestTsdb1xScanners extends UTBase {
         .build();
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
-    assertEquals("avg", scanners.rollup_group_by);
     assertEquals("sum", scanners.rollup_aggregation);
     assertEquals(State.CONTINUE, scanners.state());
     
@@ -251,7 +249,6 @@ public class TestTsdb1xScanners extends UTBase {
             .setMetric(METRIC_STRING))
         .build();
     scanners = new Tsdb1xScanners(node, query);
-    assertEquals("avg", scanners.rollup_group_by);
     assertEquals("max", scanners.rollup_aggregation);
     assertEquals(State.CONTINUE, scanners.state());
   }
@@ -483,10 +480,12 @@ public class TestTsdb1xScanners extends UTBase {
     verify(caught.get(0), times(6)).setFamily(Tsdb1xHBaseDataStore.DATA_FAMILY);
     verify(caught.get(0), times(6)).setMaxNumRows(1024);
     verify(caught.get(0), times(6)).setReversed(false);
-    verify(caught.get(0), times(6)).setStartKey(
-        makeRowKey(MockBase.concatByteArrays(new byte[] { 0 }, METRIC_BYTES), START_TS - 900, null));
-    verify(caught.get(0), times(6)).setStopKey(
-        makeRowKey(MockBase.concatByteArrays(new byte[] { 0 }, METRIC_BYTES), END_TS - 900 + 3600, null));
+    for (int i = 0; i < 6; i++) {
+      verify(caught.get(0), times(1)).setStartKey(
+          makeRowKey(MockBase.concatByteArrays(new byte[] { (byte) i }, METRIC_BYTES), START_TS - 900, null));
+      verify(caught.get(0), times(1)).setStopKey(
+          makeRowKey(MockBase.concatByteArrays(new byte[] { (byte) i }, METRIC_BYTES), END_TS - 900 + 3600, null));
+    }
     verify(caught.get(0), never()).setFilter(any(ScanFilter.class));
     assertTrue(scanners.initialized);
     for (int i = 0; i < 6; i++) {
@@ -586,10 +585,12 @@ public class TestTsdb1xScanners extends UTBase {
     verify(caught.get(0), times(6)).setFamily(Tsdb1xHBaseDataStore.DATA_FAMILY);
     verify(caught.get(0), times(6)).setMaxNumRows(1024);
     verify(caught.get(0), times(6)).setReversed(false);
-    verify(caught.get(0), times(6)).setStartKey(
-        makeRowKey(MockBase.concatByteArrays(new byte[] { 0 }, METRIC_BYTES), START_TS - 900, null));
-    verify(caught.get(0), times(6)).setStopKey(
-        makeRowKey(MockBase.concatByteArrays(new byte[] { 0 }, METRIC_BYTES), END_TS - 900 + 3600, null));
+    for (int i = 0; i < 6; i++) {
+      verify(caught.get(0), times(1)).setStartKey(
+          makeRowKey(MockBase.concatByteArrays(new byte[] { (byte) i }, METRIC_BYTES), START_TS - 900, null));
+      verify(caught.get(0), times(1)).setStopKey(
+          makeRowKey(MockBase.concatByteArrays(new byte[] { (byte) i }, METRIC_BYTES), END_TS - 900 + 3600, null));
+    }
     verify(caught.get(0), times(6)).setFilter(any(KeyRegexpFilter.class));
     assertTrue(scanners.initialized);
     for (int i = 0; i < 6; i++) {
@@ -910,7 +911,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setAggregator("avg")
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("1h")
-                .setAggregator("sum")))
+                .setAggregator("avg")))
         .addMetric(Metric.newBuilder()
             .setMetric(METRIC_STRING))
         .build();
@@ -1016,10 +1017,14 @@ public class TestTsdb1xScanners extends UTBase {
       verify(caught.get(i), times(1)).setFamily(Tsdb1xHBaseDataStore.DATA_FAMILY);
       verify(caught.get(i), times(1)).setMaxNumRows(1024);
       verify(caught.get(i), times(1)).setReversed(false);
+//      verify(caught.get(i), times(1)).setStartKey(
+//          makeRowKey(MockBase.concatByteArrays(new byte[] { 0 }, METRIC_BYTES), START_TS - 900, null));
+//      verify(caught.get(i), times(1)).setStopKey(
+//          makeRowKey(MockBase.concatByteArrays(new byte[] { 0 }, METRIC_BYTES), 1514851200, null));
       verify(caught.get(i), times(1)).setStartKey(
-          makeRowKey(MockBase.concatByteArrays(new byte[] { 0 }, METRIC_BYTES), START_TS - 900, null));
+          makeRowKey(MockBase.concatByteArrays(new byte[] { (byte) i }, METRIC_BYTES), START_TS - 900, null));
       verify(caught.get(i), times(1)).setStopKey(
-          makeRowKey(MockBase.concatByteArrays(new byte[] { 0 }, METRIC_BYTES), 1514851200, null));
+          makeRowKey(MockBase.concatByteArrays(new byte[] { (byte) i }, METRIC_BYTES), 1514851200, null));
       verify(caught.get(i), times(1)).setFilter(any(FilterList.class));
       FilterList filter = (FilterList) filters.get(i);
       assertEquals(2, filter.filters().size());
@@ -1034,9 +1039,9 @@ public class TestTsdb1xScanners extends UTBase {
       verify(caught.get(i), times(1)).setMaxNumRows(1024);
       verify(caught.get(i), times(1)).setReversed(false);
       verify(caught.get(i), times(1)).setStartKey(
-          makeRowKey(MockBase.concatByteArrays(new byte[] { 0 }, METRIC_BYTES), START_TS - 900, null));
+          makeRowKey(MockBase.concatByteArrays(new byte[] { (byte) (i - 6) }, METRIC_BYTES), START_TS - 900, null));
       verify(caught.get(i), times(1)).setStopKey(
-          makeRowKey(MockBase.concatByteArrays(new byte[] { 0 }, METRIC_BYTES), END_TS - 900 + 3600, null));
+          makeRowKey(MockBase.concatByteArrays(new byte[] { (byte) (i - 6) }, METRIC_BYTES), END_TS - 900 + 3600, null));
       verify(caught.get(i), never()).setFilter(any(ScanFilter.class));
     }
     assertTrue(scanners.initialized);
@@ -1064,7 +1069,7 @@ public class TestTsdb1xScanners extends UTBase {
             .setAggregator("avg")
             .setDownsampler(Downsampler.newBuilder()
                 .setInterval("1h")
-                .setAggregator("sum")))
+                .setAggregator("avg")))
         .addMetric(Metric.newBuilder()
             .setMetric(METRIC_STRING))
         .build();
@@ -1097,9 +1102,9 @@ public class TestTsdb1xScanners extends UTBase {
       verify(caught.get(i), times(1)).setMaxNumRows(1024);
       verify(caught.get(i), times(1)).setReversed(false);
       verify(caught.get(i), times(1)).setStartKey(
-          makeRowKey(MockBase.concatByteArrays(new byte[] { 0 }, METRIC_BYTES), START_TS - 900, null));
+          makeRowKey(MockBase.concatByteArrays(new byte[] { (byte) i }, METRIC_BYTES), START_TS - 900, null));
       verify(caught.get(i), times(1)).setStopKey(
-          makeRowKey(MockBase.concatByteArrays(new byte[] { 0 }, METRIC_BYTES), 1514851200, null));
+          makeRowKey(MockBase.concatByteArrays(new byte[] { (byte) i }, METRIC_BYTES), 1514851200, null));
       verify(caught.get(i), times(1)).setFilter(any(FilterList.class));
       FilterList filter = (FilterList) filters.get(i);
       assertEquals(4, filter.filters().size());
@@ -1116,9 +1121,9 @@ public class TestTsdb1xScanners extends UTBase {
       verify(caught.get(i), times(1)).setMaxNumRows(1024);
       verify(caught.get(i), times(1)).setReversed(false);
       verify(caught.get(i), times(1)).setStartKey(
-          makeRowKey(MockBase.concatByteArrays(new byte[] { 0 }, METRIC_BYTES), START_TS - 900, null));
+          makeRowKey(MockBase.concatByteArrays(new byte[] { (byte) (i - 6) }, METRIC_BYTES), START_TS - 900, null));
       verify(caught.get(i), times(1)).setStopKey(
-          makeRowKey(MockBase.concatByteArrays(new byte[] { 0 }, METRIC_BYTES), END_TS - 900 + 3600, null));
+          makeRowKey(MockBase.concatByteArrays(new byte[] { (byte) (i - 6) }, METRIC_BYTES), END_TS - 900 + 3600, null));
       verify(caught.get(i), never()).setFilter(any(ScanFilter.class));
     }
     assertTrue(scanners.initialized);
@@ -1458,6 +1463,8 @@ public class TestTsdb1xScanners extends UTBase {
     resolutions.add(r);
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
+    scanners.current_result = results;
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
     
     assertEquals(1, scanners.group_bys.size());
@@ -1496,6 +1503,7 @@ public class TestTsdb1xScanners extends UTBase {
         .build();
     
     scanners = new Tsdb1xScanners(node, query);
+    scanners.current_result = results;
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
     
     assertEquals(1, scanners.group_bys.size());
@@ -1546,6 +1554,8 @@ public class TestTsdb1xScanners extends UTBase {
     resolutions.add(r);
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
+    scanners.current_result = results;
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
     
     assertEquals(1, scanners.group_bys.size());
@@ -1585,6 +1595,7 @@ public class TestTsdb1xScanners extends UTBase {
         .build();
     
     scanners = new Tsdb1xScanners(node, query);
+    scanners.current_result = results;
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
     
     assertEquals(1, scanners.group_bys.size());
@@ -1628,6 +1639,8 @@ public class TestTsdb1xScanners extends UTBase {
     resolutions.add(r);
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
+    scanners.current_result = results;
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
     
     assertEquals(1, scanners.group_bys.size());
@@ -1643,6 +1656,7 @@ public class TestTsdb1xScanners extends UTBase {
     
     // under the cardinality threshold.
     scanners = new Tsdb1xScanners(node, query);
+    scanners.current_result = results;
     Whitebox.setInternalState(scanners, "max_multi_get_cardinality", 1);
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
     
@@ -1693,6 +1707,8 @@ public class TestTsdb1xScanners extends UTBase {
     resolutions.add(r);
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
+    scanners.current_result = results;
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
     
     assertEquals(1, scanners.group_bys.size());
@@ -1705,7 +1721,6 @@ public class TestTsdb1xScanners extends UTBase {
     assertNull(scanners.scanner_filter);
     assertTrue(scanners.could_multi_get);
     assertEquals(1, scanners.scanners.size());
-    
   }
   
   @Test
@@ -1806,6 +1821,8 @@ public class TestTsdb1xScanners extends UTBase {
     resolutions.add(r);
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
+    scanners.current_result = results;
     try {
       scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
       fail("Expected NoSuchUniqueName");
@@ -1813,6 +1830,7 @@ public class TestTsdb1xScanners extends UTBase {
     
     // skipping works
     scanners = new Tsdb1xScanners(node, query);
+    scanners.current_result = results;
     Whitebox.setInternalState(scanners, "skip_nsun_tagvs", true);
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
     
@@ -1864,6 +1882,8 @@ public class TestTsdb1xScanners extends UTBase {
     resolutions.add(r);
     
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
+    scanners.current_result = results;
     Whitebox.setInternalState(scanners, "expansion_limit", 3);
     scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
     
@@ -1877,6 +1897,59 @@ public class TestTsdb1xScanners extends UTBase {
     assertNull(scanners.row_key_literals.get(TAGK_B_BYTES));
     assertEquals(1, scanners.scanner_filter.getTags().size());
     assertEquals(TAGK_B_STRING, scanners.scanner_filter.getTags().get(0).getTagk());
+    assertFalse(scanners.could_multi_get);
+    assertEquals(1, scanners.scanners.size());
+  }
+  
+  @Test
+  public void filterCBCurrentResultsNull() throws Exception {
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("sum"))
+        .addFilter(Filter.newBuilder()
+            .setId("f1")
+            .setExplicitTags(true)
+            .addFilter(TagVFilter.newBuilder()
+                .setTagk(TAGK_STRING)
+                .setFilter(TAGV_STRING + "|" + TAGV_B_STRING)
+                .setType("literal_or")
+                .setGroupBy(true))
+            .addFilter(TagVFilter.newBuilder()
+                .setTagk(TAGK_B_STRING)
+                .setFilter("*")
+                .setType("wildcard")
+                .setGroupBy(false)))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING)
+            .setFilter("f1"))
+        .build();
+    
+    List<ResolvedFilter> resolutions = Lists.newArrayList();
+    ResolvedFilterImplementation r = new ResolvedFilterImplementation();
+    r.tag_key = TAGK_BYTES;
+    r.tag_values = Lists.newArrayList(TAGV_BYTES, TAGV_B_BYTES);
+    resolutions.add(r);
+    r = new ResolvedFilterImplementation();
+    r.tag_key = TAGK_B_BYTES;
+    resolutions.add(r);
+    
+    Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    try {
+      scanners.new FilterCB(METRIC_BYTES, null).call(resolutions);
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
+    
+    assertEquals(1, scanners.group_bys.size());
+    assertArrayEquals(TAGK_BYTES, scanners.group_bys.get(0));
+    assertEquals(2, scanners.row_key_literals.size());
+    List<byte[]> uids = scanners.row_key_literals.get(TAGK_BYTES);
+    assertEquals(2, uids.size());
+    assertArrayEquals(TAGV_BYTES, uids.get(0));
+    assertArrayEquals(TAGV_B_BYTES, uids.get(1));
+    assertNull(scanners.row_key_literals.get(TAGK_B_BYTES));
+    assertNull(scanners.scanner_filter);
     assertFalse(scanners.could_multi_get);
     assertEquals(1, scanners.scanners.size());
   }
@@ -2390,6 +2463,8 @@ public class TestTsdb1xScanners extends UTBase {
   @Test
   public void scanNextSaltedPartial() throws Exception {
     Tsdb1xScanners scanners = new Tsdb1xScanners(node, query);
+    Tsdb1xQueryResult results = mock(Tsdb1xQueryResult.class);
+    scanners.current_result = results;
     Tsdb1xScanner scanner1 = mock(Tsdb1xScanner.class);
     when(scanner1.state()).thenReturn(State.COMPLETE);
     Tsdb1xScanner scanner2 = mock(Tsdb1xScanner.class);
@@ -2399,8 +2474,8 @@ public class TestTsdb1xScanners extends UTBase {
         );
     
     scanners.scanNext(null);
-    verify(scanner1, never()).fetchNext(null, null);
-    verify(scanner2, times(1)).fetchNext(null, null);
+    verify(scanner1, never()).fetchNext(results, null);
+    verify(scanner2, times(1)).fetchNext(results, null);
     verify(node, never()).onError(any(Throwable.class));
     verify(node, never()).onNext(any(QueryResult.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -2408,8 +2483,8 @@ public class TestTsdb1xScanners extends UTBase {
     // all done unexpected
     when(scanner2.state()).thenReturn(State.COMPLETE);
     scanners.scanNext(null);
-    verify(scanner1, never()).fetchNext(null, null);
-    verify(scanner2, times(1)).fetchNext(null, null);
+    verify(scanner1, never()).fetchNext(results, null);
+    verify(scanner2, times(1)).fetchNext(results, null);
     verify(node, never()).onError(any(Throwable.class));
     verify(node, times(1)).onNext(any(QueryResult.class));
     verify(node, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -2495,6 +2570,14 @@ public class TestTsdb1xScanners extends UTBase {
     when(schema.metricWidth()).thenReturn(3);
     when(schema.getId(UniqueIdType.METRIC, METRIC_STRING, null))
       .thenReturn(Deferred.fromResult(METRIC_BYTES));
+    doAnswer(new Answer<Void>() {
+      @Override
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        int bucket = (int) invocation.getArguments()[1];
+        ((byte[]) invocation.getArguments()[0])[0] = (byte) bucket;
+        return null;
+      }
+    }).when(schema).prefixKeyWithSalt(any(byte[].class), anyInt());
     
     when(data_store.dynamicString(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY)).thenReturn("Rollup_Fallback");
     when(data_store.dynamicInt(Tsdb1xHBaseDataStore.EXPANSION_LIMIT_KEY)).thenReturn(4096);
