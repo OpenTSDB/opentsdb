@@ -165,6 +165,16 @@ public abstract class AbstractHttpQuery {
     return headers;
   }
   
+  /**
+   * Return the value of the given HTTP Header
+   * first match wins
+   * @return Header value as string
+   */
+   public String getHeaderValue(final String headerName) {
+     if (headerName == null) { return null; }
+     return request.headers().get(headerName);
+   }
+  
   /** @param stats The stats object to mark after writing is complete */
   public void setStats(final QueryStats stats) {
     this.stats = stats;
