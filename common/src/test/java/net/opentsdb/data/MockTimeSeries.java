@@ -70,6 +70,13 @@ public class MockTimeSeries implements TimeSeries {
     types.add(value);
   }
   
+  /** Flushes the map of data but leaves the ID alone. Also resets 
+   * the closed flag. */
+  public void clear() {
+    data.clear();
+    closed = false;
+  }
+  
   @Override
   public TimeSeriesStringId id() {
     return id;
