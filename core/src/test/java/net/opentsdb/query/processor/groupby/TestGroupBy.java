@@ -33,15 +33,26 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
+import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
+import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.rollup.RollupConfig;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ GroupBy.class })
 public class TestGroupBy {
+  private static final RollupConfig CONFIG = mock(RollupConfig.class);
+
+  private DefaultInterpolationConfig interpolation_config;
   private QueryPipelineContext context;
   private QueryNodeFactory factory;
   private GroupByConfig config;
@@ -51,14 +62,37 @@ public class TestGroupBy {
   public void before() throws Exception {
     context = mock(QueryPipelineContext.class);
     factory = new GroupByFactory("GroupBy");
+    
+    NumericInterpolatorConfig numeric_config = 
+        NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .build();
+    
+    NumericSummaryInterpolatorConfig summary_config = 
+        NumericSummaryInterpolatorConfig.newBuilder()
+        .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+        .addExpectedSummary(0)
+        .setRollupConfig(CONFIG)
+        .build();
+    
+    interpolation_config = DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE, numeric_config, 
+            new NumericInterpolatorFactory.Default())
+        .add(NumericSummaryType.TYPE, summary_config, 
+            new NumericInterpolatorFactory.Default())
+        .build();
+    
     config = GroupByConfig.newBuilder()
         .setAggregator("sum")
         .setId("GB")
         .addTagKey("host")
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     upstream = mock(QueryNode.class);
-    when(context.upstream(any(QueryNode.class))).thenReturn(Lists.newArrayList(upstream));
+    when(context.upstream(any(QueryNode.class)))
+      .thenReturn(Lists.newArrayList(upstream));
   }
   
   @Test
