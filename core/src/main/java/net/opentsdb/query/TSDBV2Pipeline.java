@@ -316,7 +316,9 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
               RollupConfig.queryToRollupAggregation(agg)));
         }
       }
-      builder.add(NumericSummaryType.TYPE, nsic.build(), nif);
+      builder.add(NumericSummaryType.TYPE, nsic.build(), 
+          tsdb.getRegistry().getPlugin(
+              QueryInterpolatorFactory.class, "Default"));
     }
     return builder.build();
   }

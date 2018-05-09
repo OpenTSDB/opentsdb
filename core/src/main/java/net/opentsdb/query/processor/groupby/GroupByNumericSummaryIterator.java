@@ -165,6 +165,7 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
     dp.clear();
     resetIndices();
     
+    boolean had_nan = false;
     for (int i = 0; i < iterator_max; i++) {
       final TimeSeriesValue<NumericSummaryType> v = 
           interpolators[i].next(next_ts);
@@ -190,6 +191,7 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
               if (infectious_nan) {
                 accumulator.add(value.doubleValue());
               }
+              had_nan = true;
               // skip non-infectious nans.
             } else {
               accumulator.add(value.doubleValue());
@@ -224,6 +226,9 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
       if (sum == null || count == null) {
         // no-op
         // TODO - log and track a metric
+        if (had_nan) {
+          dp.resetValue(avg_id, Double.NaN);
+        }
       } else {
         dp.resetValue(avg_id, (sum.toDouble() / count.toDouble()));
       }
@@ -235,6 +240,11 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
         if (accumulator.valueIndex() > 0) {
           accumulator.run(aggregator, infectious_nan);
           dp.resetValue(entry.getKey(), (NumericType) accumulator.dp());
+        }
+      }
+      if (dp.summariesAvailable().isEmpty() && had_nan) {
+        for (int summary : config.expectedSummaries()) {
+          dp.resetValue(summary, Double.NaN);
         }
       }
       dp.resetTimestamp(next_ts);

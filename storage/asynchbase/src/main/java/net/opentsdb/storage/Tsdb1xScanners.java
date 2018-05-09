@@ -344,6 +344,13 @@ public class Tsdb1xScanners implements HBaseExecutor {
             scanner_index++;
             scanners_done = 0;
             scanNext(null /** TODO - span */);
+          } else {
+            final Tsdb1xQueryResult result;
+            synchronized (this) {
+              result = current_result;
+              current_result = null;
+            }
+            node.onNext(result);
           }
         }
       } catch (Exception e) {
