@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,13 +32,14 @@ import com.google.common.collect.Lists;
 
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
+import net.opentsdb.data.MockTimeSeries;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
@@ -57,8 +58,9 @@ public class TestDownsampleFactory {
   @Test
   public void ctor() throws Exception {
     final DownsampleFactory factory = new DownsampleFactory("Downsample");
-    assertEquals(1, factory.types().size());
+    assertEquals(2, factory.types().size());
     assertTrue(factory.types().contains(NumericType.TYPE));
+    assertTrue(factory.types().contains(NumericSummaryType.TYPE));
     assertEquals("Downsample", factory.id());
     
     try {
@@ -75,11 +77,11 @@ public class TestDownsampleFactory {
   @Test
   public void registerIteratorFactory() throws Exception {
     final DownsampleFactory factory = new DownsampleFactory("Downsample");
-    assertEquals(1, factory.types().size());
+    assertEquals(2, factory.types().size());
     
     QueryIteratorFactory mock = mock(QueryIteratorFactory.class);
     factory.registerIteratorFactory(NumericType.TYPE, mock);
-    assertEquals(1, factory.types().size());
+    assertEquals(2, factory.types().size());
     
     try {
       factory.registerIteratorFactory(null, mock);
@@ -147,6 +149,23 @@ public class TestDownsampleFactory {
     Iterator<TimeSeriesValue<?>> iterator = factory.newIterator(
         NumericType.TYPE, node, ImmutableMap.<String, TimeSeries>builder()
         .put("a", source)
+        .build());
+    assertTrue(iterator.hasNext());
+    
+    MockTimeSeries mockts = new MockTimeSeries(
+        BaseTimeSeriesStringId.newBuilder()
+        .setMetric("a")
+        .build());
+    
+    MutableNumericSummaryValue v = new MutableNumericSummaryValue();
+    v.resetTimestamp(new MillisecondTimeStamp(30000));
+    v.resetValue(0, 42);
+    v.resetValue(2, 2);
+    mockts.addValue(v);
+    
+    iterator = factory.newIterator(
+        NumericSummaryType.TYPE, node, ImmutableMap.<String, TimeSeries>builder()
+        .put("a", mockts)
         .build());
     assertTrue(iterator.hasNext());
     

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,6 @@ import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
-import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
@@ -209,6 +208,9 @@ public class Downsample extends AbstractQueryNode {
       if (type == null) {
         throw new IllegalArgumentException("Type cannot be null.");
       }
+      if (!source.types().contains(type)) {
+        return Optional.empty();
+      }
       final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
           Downsample.this.factory().newIterator(type, Downsample.this, 
               Lists.newArrayList(source));
@@ -232,7 +234,8 @@ public class Downsample extends AbstractQueryNode {
 
     @Override
     public Collection<TypeToken<?>> types() {
-      return Lists.newArrayList(NumericType.TYPE);
+      // TODO - join with the factories supported.
+      return source.types();
     }
 
     @Override
