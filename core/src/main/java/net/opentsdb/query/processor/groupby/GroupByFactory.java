@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import java.util.Map;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
@@ -39,7 +40,10 @@ public class GroupByFactory extends BaseQueryNodeFactory {
    */
   public GroupByFactory(final String id) {
     super(id);
-    registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
+    registerIteratorFactory(NumericType.TYPE, 
+        new NumericIteratorFactory());
+    registerIteratorFactory(NumericSummaryType.TYPE, 
+        new NumericSummaryIteratorFactory());
   }
   
   @Override
@@ -66,6 +70,25 @@ public class GroupByFactory extends BaseQueryNodeFactory {
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
                                                     final Map<String, TimeSeries> sources) {
       return new GroupByNumericIterator(node, sources);
+    }
+    
+  }
+
+  /**
+   * Factory for summary iterators.
+   */
+  protected class NumericSummaryIteratorFactory implements QueryIteratorFactory {
+
+    @Override
+    public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
+                                                    final Collection<TimeSeries> sources) {
+      return new GroupByNumericSummaryIterator(node, sources);
+    }
+
+    @Override
+    public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
+                                                    final Map<String, TimeSeries> sources) {
+      return new GroupByNumericSummaryIterator(node, sources);
     }
     
   }
