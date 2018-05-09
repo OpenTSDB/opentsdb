@@ -20,6 +20,7 @@ import java.util.Map;
 
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
@@ -41,6 +42,8 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
   public DownsampleFactory(final String id) {
     super(id);
     registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
+    registerIteratorFactory(NumericSummaryType.TYPE, 
+        new NumericSummaryIteratorFactory());
   }
 
   @Override
@@ -67,6 +70,25 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
                                                     final Map<String, TimeSeries> sources) {
       return new DownsampleNumericIterator(node, sources.values().iterator().next());
+    }
+    
+  }
+
+  /**
+   * Handles summaries.
+   */
+  protected class NumericSummaryIteratorFactory implements QueryIteratorFactory {
+
+    @Override
+    public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
+                                                    final Collection<TimeSeries> sources) {
+      return new DownsampleNumericSummaryIterator(node, sources.iterator().next());
+    }
+
+    @Override
+    public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
+                                                    final Map<String, TimeSeries> sources) {
+      return new DownsampleNumericSummaryIterator(node, sources.values().iterator().next());
     }
     
   }
