@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,8 +25,7 @@ import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.ZonedNanoTimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
-import net.opentsdb.query.QueryInterpolatorConfig;
-import net.opentsdb.query.QueryInterpolatorFactory;
+import net.opentsdb.query.QueryInterpolationConfig;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.utils.DateTime;
@@ -70,11 +69,8 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
   /** The query. */
   private final TimeSeriesQuery query;
   
-  /** The interpolator factory. */
-  private final QueryInterpolatorFactory interpolator;
-  
-  /** The interpolator factory config. */
-  private final QueryInterpolatorConfig interpolator_config;
+  /** The interpolator config. */
+  private QueryInterpolationConfig interpolation_config;
   
   /** The numeric part of the parsed interval. */
   private final int interval_part;
@@ -105,11 +101,8 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
     if (Strings.isNullOrEmpty(builder.aggregator)) {
       throw new IllegalArgumentException("Aggregator cannot be null or empty.");
     }
-    if (builder.interpolator == null) {
-      throw new IllegalArgumentException("Interpolator factory cannot be null.");
-    }
-    if (builder.interpolator_config == null) {
-      throw new IllegalArgumentException("Interpolator config cannot be null.");
+    if (builder.interpolation_config == null) {
+      throw new IllegalArgumentException("Interpolation config cannot be null.");
     }
     if (builder.query == null) {
       throw new IllegalArgumentException("Query cannot be null.");
@@ -122,8 +115,7 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
     run_all = builder.run_all;
     fill = builder.fill;
     query = builder.query;
-    interpolator = builder.interpolator;
-    interpolator_config = builder.interpolator_config;
+    interpolation_config = builder.interpolation_config;
     
     if (!run_all) {
       interval_part = DateTime.getDurationInterval(interval);
@@ -210,14 +202,9 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
     return query;
   }
   
-  /** @return The non-null interpolator factory. */
-  public QueryInterpolatorFactory interpolator() {
-    return interpolator;
-  }
-  
-  /** @return The optional interpolator config. May be null. */
-  public QueryInterpolatorConfig interpolatorConfig() {
-    return interpolator_config;
+  /** @return The optional interpolation config. May be null. */
+  public QueryInterpolationConfig interpolationConfig() {
+    return interpolation_config;
   }
   
   /** @return The numeric part of the raw interval. */
@@ -283,8 +270,7 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
     private boolean run_all;
     private boolean fill;
     private TimeSeriesQuery query;
-    private QueryInterpolatorFactory interpolator;
-    private QueryInterpolatorConfig interpolator_config;
+    private QueryInterpolationConfig interpolation_config;
     
     /**
      * @param id A non-null and on-empty Id for the group by function.
@@ -360,22 +346,12 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
     }
     
     /**
-     * @param interpolator The non-null interpolator factory to use.
+     * @param interpolation_config The non-null interpolator config to use.
      * @return The builder.
      */
-    public Builder setQueryIteratorInterpolatorFactory(
-        final QueryInterpolatorFactory interpolator) {
-      this.interpolator = interpolator;
-      return this;
-    }
-    
-    /**
-     * @param interpolator_config An optional interpolator config.
-     * @return The builder.
-     */
-    public Builder setQueryIteratorInterpolatorConfig(
-        final QueryInterpolatorConfig interpolator_config) {
-      this.interpolator_config = interpolator_config;
+    public Builder setQueryInterpolationConfig(
+        final QueryInterpolationConfig interpolation_config) {
+      this.interpolation_config = interpolation_config;
       return this;
     }
     

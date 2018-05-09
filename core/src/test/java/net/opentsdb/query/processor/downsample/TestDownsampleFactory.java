@@ -35,20 +35,25 @@ import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
+import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
+import net.opentsdb.rollup.RollupConfig;
 
 public class TestDownsampleFactory {
-
+  private static final RollupConfig CONFIG = mock(RollupConfig.class);
+  
   @Test
   public void ctor() throws Exception {
     final DownsampleFactory factory = new DownsampleFactory("Downsample");
@@ -100,11 +105,25 @@ public class TestDownsampleFactory {
             .setMetric("sys.cpu.user"))
         .build();
     
-    QueryInterpolatorFactory interpolator_factory = 
-        new NumericInterpolatorFactory.Default();
-    NumericInterpolatorConfig factory_config = NumericInterpolatorConfig.newBuilder()
-        .setFillPolicy(FillPolicy.NONE)
-        .setRealFillPolicy(FillWithRealPolicy.NONE)
+    NumericInterpolatorConfig numeric_config = 
+        NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .build();
+    
+    NumericSummaryInterpolatorConfig summary_config = 
+        NumericSummaryInterpolatorConfig.newBuilder()
+        .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+        .addExpectedSummary(0)
+        .setRollupConfig(CONFIG)
+        .build();
+    
+    DefaultInterpolationConfig interpolation_config = DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE, numeric_config, 
+            new NumericInterpolatorFactory.Default())
+        .add(NumericSummaryType.TYPE, summary_config, 
+            new NumericInterpolatorFactory.Default())
         .build();
     
     DownsampleConfig config = DownsampleConfig.newBuilder()
@@ -112,8 +131,7 @@ public class TestDownsampleFactory {
         .setId("foo")
         .setInterval("15s")
         .setQuery(q)
-        .setQueryIteratorInterpolatorFactory(interpolator_factory)
-        .setQueryIteratorInterpolatorConfig(factory_config)
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     final DownsampleFactory factory = new DownsampleFactory("Downsample");

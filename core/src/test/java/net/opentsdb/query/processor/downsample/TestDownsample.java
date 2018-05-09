@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,20 +29,27 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import net.opentsdb.query.QueryInterpolatorFactory;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
+import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
+import net.opentsdb.rollup.RollupConfig;
 
 public class TestDownsample {
+  private static final RollupConfig CONFIG = mock(RollupConfig.class);
+  
+  private DefaultInterpolationConfig interpolation_config;
   private QueryPipelineContext context;
   private QueryNodeFactory factory;
   private DownsampleConfig config;
@@ -66,11 +73,25 @@ public class TestDownsample {
             .setMetric("sys.cpu.user"))
         .build();
     
-    QueryInterpolatorFactory factory = 
-        new NumericInterpolatorFactory.Default();
-    NumericInterpolatorConfig factory_config = NumericInterpolatorConfig.newBuilder()
-        .setFillPolicy(FillPolicy.NONE)
-        .setRealFillPolicy(FillWithRealPolicy.NONE)
+    NumericInterpolatorConfig numeric_config = 
+        NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .build();
+    
+    NumericSummaryInterpolatorConfig summary_config = 
+        NumericSummaryInterpolatorConfig.newBuilder()
+        .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+        .addExpectedSummary(0)
+        .setRollupConfig(CONFIG)
+        .build();
+    
+    interpolation_config = DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE, numeric_config, 
+            new NumericInterpolatorFactory.Default())
+        .add(NumericSummaryType.TYPE, summary_config, 
+            new NumericInterpolatorFactory.Default())
         .build();
     
     config = DownsampleConfig.newBuilder()
@@ -78,8 +99,7 @@ public class TestDownsample {
         .setId("foo")
         .setInterval("15s")
         .setQuery(q)
-        .setQueryIteratorInterpolatorFactory(factory)
-        .setQueryIteratorInterpolatorConfig(factory_config)
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
   }
   
