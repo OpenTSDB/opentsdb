@@ -14,16 +14,11 @@
 // limitations under the License.
 package net.opentsdb.query.processor.downsample;
 
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.Optional;
 
-import com.google.common.collect.Lists;
-import com.google.common.reflect.TypeToken;
-
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
-import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
@@ -127,10 +122,10 @@ public class DownsampleNumericIterator implements QueryIterator {
     this.source = source;
     aggregator = Aggregators.get(((DownsampleConfig) node.config()).aggregator());
     config = (DownsampleConfig) node.config();
-    interpolator = (QueryInterpolator<NumericType>) config.interpolator().newInterpolator(
+    interpolator = (QueryInterpolator<NumericType>) config
+        .interpolationConfig().newInterpolator(
         NumericType.TYPE, 
-        (TimeSeries) new DownsamplingNumericTimeSeries(), 
-        config.interpolatorConfig());
+        (Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) new Downsampler());
     interval_ts = config.start().getCopy();
     
     if (config.fill() && !config.runAll()) {
@@ -218,7 +213,7 @@ public class DownsampleNumericIterator implements QueryIterator {
    * values from the source timeseries. It's a child class so we share the same
    * reference for the config and source.
    */
-  private class DownsamplingNumericTimeSeries implements TimeSeries, 
+  private class Downsampler implements 
       Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> {
     /** The last data point extracted from the source. */
     private TimeSeriesValue<NumericType> next_dp = null;
@@ -252,7 +247,7 @@ public class DownsampleNumericIterator implements QueryIterator {
      * Default ctor.
      */
     @SuppressWarnings("unchecked")
-    DownsamplingNumericTimeSeries() {
+    Downsampler() {
       interval_start = config.start().getCopy();
       if (config.runAll()) {
         interval_end = config.end().getCopy();
@@ -336,37 +331,7 @@ public class DownsampleNumericIterator implements QueryIterator {
         double_values[i] = (double) long_values[i];
       }
     }
-
-    @Override
-    public TimeSeriesId id() {
-      return source.id();
-    }
-
-    @Override
-    public Optional<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterator(
-        TypeToken<?> type) {
-      if (type == NumericType.TYPE) {
-        return Optional.of(this);
-      }
-      return Optional.empty();
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public Collection<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators() {
-      return Lists.<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>>newArrayList(this);
-    }
-
-    @Override
-    public Collection<TypeToken<?>> types() {
-      return Lists.newArrayList(NumericType.TYPE);
-    }
-
-    @Override
-    public void close() {
-      source.close();
-    }
-
+    
     @Override
     public boolean hasNext() {
       return has_next;

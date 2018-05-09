@@ -26,11 +26,16 @@ import com.google.common.collect.Sets;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.data.types.numeric.Aggregators;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
+import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.Filter;
@@ -38,8 +43,10 @@ import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.processor.groupby.GroupByFactory;
 import net.opentsdb.query.processor.rate.RateFactory;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.storage.TimeSeriesDataStore;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
+import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
@@ -101,6 +108,7 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
         throw new QueryExecutionException("Unable to get a data store "
             + "instance from factory: " + factory.id(), 0);
       }
+      final Schema schema = store instanceof Schema ? (Schema) store : null;
 
       QueryNode node = store.newNode(this, config);
       addVertex(node);
@@ -119,12 +127,7 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
         if (!Strings.isNullOrEmpty(downsampler.getTimezone())) {
           ds.setTimeZone(ZoneId.of(downsampler.getTimezone()));
         }
-        final NumericInterpolatorConfig nic = NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(downsampler.getFillPolicy().getPolicy())
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build();
-        ds.setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-          .setQueryIteratorInterpolatorConfig(nic);
+        ds.setQueryInterpolationConfig(downsampleInterpolationConfig(metric, downsampler, schema));
         QueryNode down = new DownsampleFactory("Downsample").newNode(this, ds.build());
         addVertex(down);
         addDagEdge(down, node);
@@ -241,4 +244,42 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
     return "TsdbV2Pipeline";
   }
 
+  /**
+   * Helper method to generate a config for downsampling interpolation.
+   * @param metric The query metric.
+   * @param downsampler The query downsampler.
+   * @param schema The 1x schema.
+   * @return A non-null interpolation config.
+   */
+  private DefaultInterpolationConfig downsampleInterpolationConfig(
+      final Metric metric, 
+      final Downsampler downsampler, 
+      final Schema schema) {
+    FillPolicy policy = downsampler.getFillPolicy().getPolicy();
+    DefaultInterpolationConfig.Builder builder = DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE,
+             NumericInterpolatorConfig.newBuilder()
+               .setFillPolicy(policy)
+               .setRealFillPolicy(FillWithRealPolicy.NONE)
+               .build(),
+             new NumericInterpolatorFactory.Default());
+    
+    if (schema != null && schema.rollupConfig() != null) {
+      NumericSummaryInterpolatorConfig.Builder nsic = 
+          NumericSummaryInterpolatorConfig.newBuilder()
+          .setDefaultFillPolicy(policy)
+          .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
+          .setRollupConfig(schema.rollupConfig());
+      if (downsampler.getAggregator().toLowerCase().equals("avg")) {
+        nsic.setSync(true)
+            .setComponentAggregator(Aggregators.SUM);
+      }
+        nsic.addExpectedSummary(schema.rollupConfig().getIdForAggregator(
+            RollupConfig.queryToRollupAggregation(downsampler.getAggregator())));
+      builder.add(NumericSummaryType.TYPE, 
+          nsic.build(), 
+          new NumericInterpolatorFactory.Default());
+    }
+    return builder.build();
+  }
 }

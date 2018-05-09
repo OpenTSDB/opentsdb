@@ -41,6 +41,7 @@ import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.ScalarNumericInterpolatorConfig;
@@ -54,6 +55,8 @@ import org.junit.Test;
 @SuppressWarnings("unchecked")
 public class TestDownsampleNumericIterator {
 
+  private NumericInterpolatorConfig numeric_config;
+  private DefaultInterpolationConfig interpolation_config;
   private TimeSeries source;
   private TimeSeriesQuery query;
   private DownsampleConfig config;
@@ -73,7 +76,15 @@ public class TestDownsampleNumericIterator {
   
   @Before
   public void before() {
+    numeric_config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NONE)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build();
     
+    interpolation_config = DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE, numeric_config, 
+            new NumericInterpolatorFactory.Default())
+        .build();
   }
   
   @Test
@@ -101,11 +112,7 @@ public class TestDownsampleNumericIterator {
         .setId("foo")
         .setInterval("1000s")
         .setQuery(query)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -160,11 +167,7 @@ public class TestDownsampleNumericIterator {
         .setId("foo")
         .setInterval("1000s")
         .setQuery(query)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -203,11 +206,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1000s")
         .setQuery(query)
         .setFill(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -307,11 +306,7 @@ public class TestDownsampleNumericIterator {
         .setId("foo")
         .setInterval("10s")
         .setQuery(query)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -381,11 +376,7 @@ public class TestDownsampleNumericIterator {
         .setId("foo")
         .setInterval("15s")
         .setQuery(query)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -445,11 +436,7 @@ public class TestDownsampleNumericIterator {
         .setId("foo")
         .setInterval("15s")
         .setQuery(query)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -509,11 +496,7 @@ public class TestDownsampleNumericIterator {
         .setId("foo")
         .setInterval("15s")
         .setQuery(query)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -573,11 +556,7 @@ public class TestDownsampleNumericIterator {
         .setId("foo")
         .setInterval("15s")
         .setQuery(query)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -637,11 +616,7 @@ public class TestDownsampleNumericIterator {
         .setId("foo")
         .setInterval("15s")
         .setQuery(query)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -704,11 +679,7 @@ public class TestDownsampleNumericIterator {
         .setId("foo")
         .setInterval("10s")
         .setQuery(query)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -743,11 +714,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("10s")
         .setQuery(query)
         .setFill(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -810,11 +777,7 @@ public class TestDownsampleNumericIterator {
         .setId("foo")
         .setInterval("10s")
         .setQuery(query)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -844,11 +807,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("10s")
         .setQuery(query)
         .setFill(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -916,11 +875,7 @@ public class TestDownsampleNumericIterator {
         .setId("foo")
         .setInterval("10s")
         .setQuery(query)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -945,11 +900,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("10s")
         .setQuery(query)
         .setFill(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1007,11 +958,7 @@ public class TestDownsampleNumericIterator {
         .setId("foo")
         .setInterval("10s")
         .setQuery(query)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1026,11 +973,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("10s")
         .setQuery(query)
         .setFill(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1058,10 +1001,7 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 5000L * 9, 512);
     ((NumericMillisecondShard) source).add(BASE_TIME + 5000L * 10, 1024);
     Iterator<TimeSeriesValue<?>> i = source.iterator(NumericType.TYPE).get();
-    while (i.hasNext()) {
-      TimeSeriesValue<NumericType> v=  (TimeSeriesValue<NumericType>) i.next();
-      System.out.println(v.timestamp() + " " + v.value().longValue());
-    }
+    
     query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(1356998460000L))
@@ -1077,11 +1017,7 @@ public class TestDownsampleNumericIterator {
         .setId("foo")
         .setInterval("10s")
         .setQuery(query)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1096,11 +1032,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("10s")
         .setQuery(query)
         .setFill(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1139,11 +1071,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("0all")
         .setQuery(query)
         .setRunAll(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1164,11 +1092,7 @@ public class TestDownsampleNumericIterator {
         .setQuery(query)
         .setFill(true)
         .setRunAll(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1212,11 +1136,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("0all")
         .setQuery(query)
         .setRunAll(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1237,11 +1157,7 @@ public class TestDownsampleNumericIterator {
         .setQuery(query)
         .setFill(true)
         .setRunAll(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1285,11 +1201,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("0all")
         .setQuery(query)
         .setRunAll(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1305,11 +1217,7 @@ public class TestDownsampleNumericIterator {
         .setQuery(query)
         .setFill(true)
         .setRunAll(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1348,11 +1256,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("0all")
         .setQuery(query)
         .setRunAll(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1368,11 +1272,7 @@ public class TestDownsampleNumericIterator {
         .setQuery(query)
         .setFill(true)
         .setRunAll(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1411,11 +1311,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1d")
         .setQuery(query)
         .setTimeZone(ZoneId.of("America/Denver"))
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1459,11 +1355,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1h")
         .setQuery(query)
         //.setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1489,11 +1381,7 @@ public class TestDownsampleNumericIterator {
         .setQuery(query)
         .setFill(true)
         //.setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1523,11 +1411,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1h")
         .setQuery(query)
         .setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1552,11 +1436,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1h")
         .setQuery(query)
         .setTimeZone(AF)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1592,11 +1472,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("4h")
         .setQuery(query)
         .setTimeZone(AF)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1640,11 +1516,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1d")
         .setQuery(query)
         //.setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1675,11 +1547,7 @@ public class TestDownsampleNumericIterator {
         .setQuery(query)
         .setFill(true)
         //.setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1714,11 +1582,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1d")
         .setQuery(query)
         .setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1749,11 +1613,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1d")
         .setQuery(query)
         .setTimeZone(FJ)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1785,11 +1645,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1d")
         .setQuery(query)
         .setTimeZone(AF)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1825,11 +1681,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("3d")
         .setQuery(query)
         .setTimeZone(AF)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1872,11 +1724,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1w")
         .setQuery(query)
         //.setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1907,11 +1755,7 @@ public class TestDownsampleNumericIterator {
         .setQuery(query)
         .setFill(true)
         //.setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1951,11 +1795,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1w")
         .setQuery(query)
         .setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -1986,11 +1826,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1w")
         .setQuery(query)
         .setTimeZone(FJ)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2026,11 +1862,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1w")
         .setQuery(query)
         .setTimeZone(AF)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2066,11 +1898,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("2w")
         .setQuery(query)
         .setTimeZone(AF)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2124,11 +1952,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1n")
         .setQuery(query)
         //.setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2158,11 +1982,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1n")
         .setQuery(query)
         .setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2188,11 +2008,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1n")
         .setQuery(query)
         .setTimeZone(FJ)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2218,11 +2034,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1n")
         .setQuery(query)
         .setTimeZone(AF)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2259,11 +2071,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("3n")
         .setQuery(query)
         .setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2307,11 +2115,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1y")
         .setQuery(query)
         //.setTimeZone(AF)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2346,11 +2150,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1y")
         .setQuery(query)
         .setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2386,11 +2186,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1y")
         .setQuery(query)
         .setTimeZone(FJ)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2425,11 +2221,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1y")
         .setQuery(query)
         .setTimeZone(AF)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2475,11 +2267,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("3y")
         .setQuery(query)
         .setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2518,11 +2306,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1d")
         .setQuery(query)
         .setTimeZone(ZoneId.of("America/Denver"))
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2537,11 +2321,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1d")
         .setQuery(query)
         .setTimeZone(ZoneId.of("America/Denver"))
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2601,11 +2381,7 @@ public class TestDownsampleNumericIterator {
         .setFill(true)
         .setQuery(query)
         //.setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2636,11 +2412,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1d")
         .setQuery(query)
         //.setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2691,11 +2463,7 @@ public class TestDownsampleNumericIterator {
         .setQuery(query)
         .setFill(true)
         //.setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2753,11 +2521,7 @@ public class TestDownsampleNumericIterator {
         .setQuery(query)
         //.setFill(true)
         //.setTimeZone(TV)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2825,11 +2589,7 @@ public class TestDownsampleNumericIterator {
         .setId("foo")
         .setInterval("10s")
         .setQuery(query)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2869,11 +2629,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("10s")
         .setQuery(query)
         .setFill(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -2962,11 +2718,7 @@ public class TestDownsampleNumericIterator {
         .setId("foo")
         .setInterval("10s")
         .setQuery(query)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -3055,11 +2807,7 @@ public class TestDownsampleNumericIterator {
         .setId("foo")
         .setInterval("10s")
         .setQuery(query)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -3099,11 +2847,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("10s")
         .setQuery(query)
         .setFill(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -3166,17 +2910,23 @@ public class TestDownsampleNumericIterator {
             .setMetric("a"))
         .build();
 
+    numeric_config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build();
+    
+    interpolation_config = DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE, numeric_config, 
+            new NumericInterpolatorFactory.Default())
+        .build();
+    
     config = DownsampleConfig.newBuilder()
         .setAggregator("avg")
         .setId("foo")
         .setInterval("1000s")
         .setQuery(query)
         .setFill(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NOT_A_NUMBER)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -3254,6 +3004,16 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 7200000, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 9200000, 50);
     
+    numeric_config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NULL)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build();
+    
+    interpolation_config = DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE, numeric_config, 
+            new NumericInterpolatorFactory.Default())
+        .build();
+    
     query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(BASE_TIME))
@@ -3270,11 +3030,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1000s")
         .setQuery(query)
         .setFill(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NULL)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -3352,6 +3108,16 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 7200000, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 9200000, 50);
     
+    numeric_config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.ZERO)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build();
+    
+    interpolation_config = DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE, numeric_config, 
+            new NumericInterpolatorFactory.Default())
+        .build();
+    
     query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(BASE_TIME))
@@ -3368,11 +3134,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1000s")
         .setQuery(query)
         .setFill(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.ZERO)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -3450,6 +3212,17 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 7200000, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 9200000, 50);
     
+    numeric_config = ScalarNumericInterpolatorConfig.newBuilder()
+        .setValue(42)
+        .setFillPolicy(FillPolicy.SCALAR)
+        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .build();
+    
+    interpolation_config = DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE, numeric_config, 
+            new NumericInterpolatorFactory.Default())
+        .build();
+    
     query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(BASE_TIME))
@@ -3466,12 +3239,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1000s")
         .setQuery(query)
         .setFill(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(ScalarNumericInterpolatorConfig.newBuilder()
-            .setValue(42)
-            .setFillPolicy(FillPolicy.SCALAR)
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -3549,6 +3317,16 @@ public class TestDownsampleNumericIterator {
     ((NumericMillisecondShard) source).add(BASE_TIME + 7200000, 40);
     ((NumericMillisecondShard) source).add(BASE_TIME + 9200000, 50);
     
+    numeric_config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NONE)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .build();
+    
+    interpolation_config = DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE, numeric_config, 
+            new NumericInterpolatorFactory.Default())
+        .build();
+    
     query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Long.toString(BASE_TIME))
@@ -3565,11 +3343,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1000s")
         .setQuery(query)
         .setFill(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
@@ -3656,6 +3430,16 @@ public class TestDownsampleNumericIterator {
             .setId("m1")
             .setMetric("a"))
         .build();
+    
+    numeric_config = NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NONE)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_PREVIOUS)
+        .build();
+    
+    interpolation_config = DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE, numeric_config, 
+            new NumericInterpolatorFactory.Default())
+        .build();
 
     config = DownsampleConfig.newBuilder()
         .setAggregator("avg")
@@ -3663,11 +3447,7 @@ public class TestDownsampleNumericIterator {
         .setInterval("1000s")
         .setQuery(query)
         .setFill(true)
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(FillPolicy.NONE)
-            .setRealFillPolicy(FillWithRealPolicy.PREFER_PREVIOUS)
-            .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     setupMock();
