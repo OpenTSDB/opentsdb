@@ -57,7 +57,7 @@ public class GroupByNumericIterator implements QueryIterator,
   /** The next timestamp to return. */
   private final TimeStamp next_ts = new MillisecondTimeStamp(0);
   
-  /** The next timestamp evaulated when returning the next value. */
+  /** The next timestamp evaluated when returning the next value. */
   private final TimeStamp next_next_ts = new MillisecondTimeStamp(0);
   
   /** The data point set and returned by the iterator. */
@@ -117,9 +117,6 @@ public class GroupByNumericIterator implements QueryIterator,
     if (Strings.isNullOrEmpty(((GroupByConfig) node.config()).getAggregator())) {
       throw new IllegalArgumentException("Aggregator cannot be null or empty."); 
     }
-    if (((GroupByConfig) node.config()).getInterpolator() == null) {
-      throw new IllegalArgumentException("Interpolator cannot be null.");
-    }
     dp = new MutableNumericValue();
     next_ts.setMax();
     dp.resetNull(next_ts);
@@ -129,13 +126,12 @@ public class GroupByNumericIterator implements QueryIterator,
     interpolators = new QueryInterpolator[sources.size()];
     for (final TimeSeries source : sources) {
       if (source == null) {
-        throw new IllegalArgumentException("Null time series are not allowed in the sources.");
+        throw new IllegalArgumentException("Null time series are not "
+            + "allowed in the sources.");
       }
       interpolators[iterator_max] = (QueryInterpolator<NumericType>) 
-          ((GroupByConfig) node.config()).getInterpolator()
-            .newInterpolator(NumericType.TYPE, 
-                             source, ((GroupByConfig) node.config())
-                               .getInterpolatorConfig());
+          ((GroupByConfig) node.config()).interpolationConfig()
+            .newInterpolator(NumericType.TYPE, source);
       if (interpolators[iterator_max].hasNext()) {
         has_next = true;
         if (interpolators[iterator_max].nextReal().compare(Op.LT, next_ts)) {

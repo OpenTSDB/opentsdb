@@ -202,7 +202,7 @@ public class DownsampleConfig implements QueryNodeConfig, TimeSpecification {
     return query;
   }
   
-  /** @return The optional interpolation config. May be null. */
+  /** @return The interpolation config. */
   public QueryInterpolationConfig interpolationConfig() {
     return interpolation_config;
   }

@@ -146,7 +146,6 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
           : q.getFilter(metric.getFilter());
       String agg = !Strings.isNullOrEmpty(metric.getAggregator()) ?
           metric.getAggregator() : q.getTime().getAggregator();
-      NumericInterpolatorConfig nic = NumericInterpolatorFactory.parse(agg);
       if (filter != null) {
         GroupByConfig.Builder gb_config = null;
         final Set<String> join_keys = Sets.newHashSet();
@@ -154,23 +153,9 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
           if (v.isGroupBy()) {
             
             if (gb_config == null) {
-              QueryInterpolatorFactory nif;
-              // TODO - find a better way
-              if (agg.contains("zimsum") || 
-                  agg.contains("mimmax") ||
-                  agg.contains("mimmin")) {
-                nif = tsdb.getRegistry().getPlugin(
-                    QueryInterpolatorFactory.class, "Default");
-              } else {
-                nif = tsdb.getRegistry().getPlugin(
-                    QueryInterpolatorFactory.class, "LERP");
-              }
-              if (nif == null) {
-                throw new QueryExecutionException("Unable to find the LERP interpolator.", 0);
-              }
               gb_config = GroupByConfig.newBuilder()
-                  .setQueryIteratorInterpolatorFactory(nif)
-                  .setQueryIteratorInterpolatorConfig(nic)
+                  .setQueryInterpolationConfig(
+                      groupByInterpolationConfig(q, metric, downsampler, schema))
                   .setId("groupBy_" + metric.getId());
             }
             join_keys.add(v.getTagk());
@@ -202,23 +187,9 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
         }
       } else if (!agg.toLowerCase().equals("none")) {
         // we agg all 
-        QueryInterpolatorFactory nif;
-        // TODO - find a better way
-        if (agg.contains("zimsum") || 
-            agg.contains("mimmax") ||
-            agg.contains("mimmin")) {
-          nif = tsdb.getRegistry().getPlugin(
-              QueryInterpolatorFactory.class, "Default");
-        } else {
-          nif = tsdb.getRegistry().getPlugin(
-              QueryInterpolatorFactory.class, "LERP");
-        }
-        if (nif == null) {
-          throw new QueryExecutionException("Unable to find the LERP interpolator.", 0);
-        }
         GroupByConfig.Builder gb_config = GroupByConfig.newBuilder()
-            .setQueryIteratorInterpolatorFactory(nif)
-            .setQueryIteratorInterpolatorConfig(nic)
+            .setQueryInterpolationConfig(
+                groupByInterpolationConfig(q, metric, downsampler, schema))
             .setId("groupBy_" + metric.getId())
             .setGroupAll(true);
         gb_config.setAggregator( 
@@ -282,4 +253,72 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
     }
     return builder.build();
   }
+
+  /**
+   * Helper method to generate a config for groupby interpolation.
+   * @param q The original query.
+   * @param metric The query metric.
+   * @param downsampler
+   * @param schema The 1x schema.
+   * @return A non-null interpolation config.
+   */
+  private DefaultInterpolationConfig groupByInterpolationConfig(
+      final net.opentsdb.query.pojo.TimeSeriesQuery q, 
+      final Metric metric, 
+      final Downsampler downsampler, 
+      final Schema schema) {
+    FillPolicy policy = downsampler == null ? 
+        FillPolicy.NONE : downsampler.getFillPolicy().getPolicy();
+    QueryInterpolatorFactory nif;
+    String agg = !Strings.isNullOrEmpty(metric.getAggregator()) ?
+        metric.getAggregator().toLowerCase() : 
+          q.getTime().getAggregator().toLowerCase();
+    if (agg.contains("zimsum") || 
+        agg.contains("mimmax") ||
+        agg.contains("mimmin")) {
+      nif = tsdb.getRegistry().getPlugin(
+          QueryInterpolatorFactory.class, "Default");
+    } else {
+      nif = tsdb.getRegistry().getPlugin(
+          QueryInterpolatorFactory.class, "LERP");
+    }
+    if (nif == null) {
+      throw new QueryExecutionException("Unable to find the "
+          + "LERP interpolator.", 0);
+    }
+    
+    DefaultInterpolationConfig.Builder builder = 
+        DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE,
+             NumericInterpolatorConfig.newBuilder()
+               .setFillPolicy(policy)
+               .setRealFillPolicy(FillWithRealPolicy.NONE)
+               .build(),
+             nif);
+    if (schema != null && schema.rollupConfig() != null) {
+      NumericSummaryInterpolatorConfig.Builder nsic = 
+          NumericSummaryInterpolatorConfig.newBuilder()
+          .setDefaultFillPolicy(policy)
+          .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
+          .setRollupConfig(schema.rollupConfig());
+      if (downsampler != null) {
+        final String ds_agg = downsampler.getAggregator().toLowerCase();
+        nsic.addExpectedSummary(schema.rollupConfig().getIdForAggregator(
+            RollupConfig.queryToRollupAggregation(ds_agg)));
+      } else {
+        if (agg.equals("avg")) {
+          nsic.addExpectedSummary(schema.rollupConfig().getIdForAggregator("sum"))
+              .addExpectedSummary(schema.rollupConfig().getIdForAggregator("count"))
+              .setSync(true)
+              .setComponentAggregator(Aggregators.SUM);
+        } {
+          nsic.addExpectedSummary(schema.rollupConfig().getIdForAggregator(
+              RollupConfig.queryToRollupAggregation(agg)));
+        }
+      }
+      builder.add(NumericSummaryType.TYPE, nsic.build(), nif);
+    }
+    return builder.build();
+  }
+
 }
