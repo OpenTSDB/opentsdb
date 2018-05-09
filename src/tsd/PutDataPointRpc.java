@@ -281,11 +281,15 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
     }
 
     final List<IncomingDataPoint> dps;
+    //noinspection TryWithIdenticalCatches
     try {
       checkAuthorization(tsdb, query);
       dps = query.serializer()
               .parsePutV1(IncomingDataPoint.class, HttpJsonSerializer.TR_INCOMING);
-    } catch (BadRequestException | IllegalArgumentException e) {
+    } catch (BadRequestException e) {
+      illegal_arguments.incrementAndGet();
+      throw e;
+    } catch (IllegalArgumentException e) {
       illegal_arguments.incrementAndGet();
       throw e;
     }
