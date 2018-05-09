@@ -77,14 +77,6 @@ public interface Authorization {
   public abstract AuthState hasPermission(final AuthState state, final Permissions permission);
 
   /**
-   * Determines if the user has a specified role
-   * @param state
-   * @param role
-   * @return
-   */
-  public abstract AuthState hasRole(final AuthState state, final Roles role);
-
-  /**
    * Determines if the user is allowed to execute the given query.
    * The returned state contains a status code regarding whether or not the query
    * is allowed. If the query IS allowed, the same user state passed as an 

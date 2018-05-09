@@ -335,8 +335,8 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
         raw_dps.incrementAndGet();
       }
 
-      /**
-       * Error back callback to handle storage failures
+      /*
+        Error back callback to handle storage failures
        */
       final class PutErrback implements Callback<Boolean, Exception> {
         public Boolean call(final Exception arg) {
@@ -809,43 +809,49 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
   }
 
   private void checkAuthorization(final TSDB tsdb, final HttpQuery query) {
-    Authentication authentication = tsdb.getAuth();
-    try {
-      if (authentication.isReady(tsdb, query.channel())) {
-        AuthState authState = (AuthState) query.channel().getAttachment();
-        Authorization authorization = authentication.authorization();
-        if ((authorization.hasPermission(authState, Permissions.TELNET_PUT).getStatus() != AuthState.AuthStatus.SUCCESS)) {
-          http_requests_forbidden.incrementAndGet();
-          throw new BadRequestException(HttpResponseStatus.FORBIDDEN, "Forbidden for " + query.getQueryPath());
+    if (tsdb.getConfig().getBoolean("tsd.core.authentication.enable")) {
+      Authentication authentication = tsdb.getAuth();
+      try {
+        if (authentication.isReady(tsdb, query.channel())) {
+          AuthState authState = (AuthState) query.channel().getAttachment();
+          Authorization authorization = authentication.authorization();
+          if ((authorization.hasPermission(authState, Permissions.TELNET_PUT).getStatus() != AuthState.AuthStatus.SUCCESS)) {
+            http_requests_forbidden.incrementAndGet();
+            throw new BadRequestException(HttpResponseStatus.FORBIDDEN, "Forbidden for " + query.getQueryPath());
+          }
+        } else {
+          http_requests_unauthorized.incrementAndGet();
+          throw new BadRequestException(HttpResponseStatus.UNAUTHORIZED, "Unauthorized for " + query.getQueryPath());
         }
-      } else {
+      } catch (BadRequestException e) {
         http_requests_unauthorized.incrementAndGet();
-        throw new BadRequestException(HttpResponseStatus.UNAUTHORIZED, "Unauthorized for " + query.getQueryPath());
+        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, "Unable to check Authentication for" + query.getQueryPath());
       }
-    } catch (BadRequestException e) {
-      http_requests_unauthorized.incrementAndGet();
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, "Unable to check Authentication for" + query.getQueryPath());
     }
     // No exceptions thrown, everything is fine.
   }
 
   private void checkAuthorization(final TSDB tsdb, final Channel chan, final String command) {
-    Authentication authentication = tsdb.getAuth();
-    try {
-      if (authentication.isReady(tsdb, chan)) {
-        AuthState authState = (AuthState) chan.getAttachment();
-        Authorization authorization = authentication.authorization();
-        if ((authorization.hasPermission(authState, Permissions.TELNET_PUT).getStatus() != AuthState.AuthStatus.SUCCESS)) {
-          telnet_requests_forbidden.incrementAndGet();
-          throw new IllegalArgumentException("Unauthorized command: " + command);
+    if (tsdb.getConfig().getBoolean("tsd.core.authentication.enable")) {
+      Authentication authentication = tsdb.getAuth();
+      try {
+        if (authentication == null) {
+          throw new IllegalStateException("Authentication is enabled but the Authentication class is NULL");
+        } else if (authentication.isReady(tsdb, chan)) {
+          AuthState authState = (AuthState) chan.getAttachment();
+          Authorization authorization = authentication.authorization();
+          if ((authorization.hasPermission(authState, Permissions.TELNET_PUT).getStatus() != AuthState.AuthStatus.SUCCESS)) {
+            telnet_requests_forbidden.incrementAndGet();
+            throw new IllegalArgumentException("Unauthorized command: " + command);
+          }
+        } else {
+          telnet_requests_unauthorized.incrementAndGet();
+          throw new IllegalArgumentException("Unauthenticated command: " + command);
         }
-      } else {
+      } catch (BadRequestException e) {
         telnet_requests_unauthorized.incrementAndGet();
-        throw new IllegalArgumentException("Unauthenticated command: " + command);
+        throw new IllegalArgumentException("Unable to check Authentication for command: " + command);
       }
-    } catch (BadRequestException e) {
-      telnet_requests_unauthorized.incrementAndGet();
-      throw new IllegalArgumentException("Unable to check Authentication for command: " + command);
     }
     // No exceptions thrown, everything is fine.
   }

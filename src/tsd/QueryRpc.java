@@ -844,18 +844,22 @@ final class QueryRpc implements HttpRpc {
   }
 
   private void checkAuthorization(final TSDB tsdb, final Channel chan, final net.opentsdb.query.pojo.Query data_query) {
-    if (tsdb.getAuth().isReady(tsdb, chan)) {
-      final AuthState state = tsdb.getAuth().authorization().allowQuery(
-              (AuthState) chan.getAttachment(), data_query);
-      handleAuthorization(state);
+    if (tsdb.getConfig().getBoolean("tsd.core.authentication.enable")) {
+      if (tsdb.getAuth().isReady(tsdb, chan)) {
+        final AuthState state = tsdb.getAuth().authorization().allowQuery(
+            (AuthState) chan.getAttachment(), data_query);
+        handleAuthorization(state);
+      }
     }
   }
 
   private void checkAuthorization(final TSDB tsdb, final Channel chan, final TSQuery data_query) {
-    if (tsdb.getAuth().isReady(tsdb, chan)) {
-      final AuthState state = tsdb.getAuth().authorization().allowQuery(
-              (AuthState) chan.getAttachment(), data_query);
-      handleAuthorization(state);
+    if (tsdb.getConfig().getBoolean("tsd.core.authentication.enable")) {
+      if (tsdb.getAuth().isReady(tsdb, chan)) {
+        final AuthState state = tsdb.getAuth().authorization().allowQuery(
+            (AuthState) chan.getAttachment(), data_query);
+        handleAuthorization(state);
+      }
     }
   }
 

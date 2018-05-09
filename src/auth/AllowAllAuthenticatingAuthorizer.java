@@ -23,8 +23,10 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * The default authentication and authorization plugin. This plugin allows all users with no real authentication
@@ -34,160 +36,190 @@ import java.util.Set;
  * @author jonathan.creasy
  * @since 2.4.0
  */
+@SuppressWarnings("unused")
 public class AllowAllAuthenticatingAuthorizer implements Authentication, Authorization {
-    private Set<Roles> roles = new HashSet<Roles>();
-    private AuthState accessDenied = new AuthState() {
-        Channel channel;
+  private Roles roles;
 
-        @Override
-        public String getUser() {
-            return "guest";
-        }
-
-        @Override
-        public AuthStatus getStatus() {
-            return AuthStatus.FORBIDDEN;
-        }
-
-        @Override
-        public String getMessage() {
-            return "Guest User forbidden by AllowAllAuthenticatingAuthorizer";
-        }
-
-        @Override
-        public Throwable getException() {
-            return null;
-        }
-
-        @Override
-        public void setChannel(Channel channel) {
-            this.channel = channel;
-        }
-
-        @Override
-        public byte[] getToken() {
-            return new byte[0];
-        }
-    };
-    private AuthState accessGranted = new AuthState() {
-        Channel channel;
-
-        @Override
-        public String getUser() {
-            return "guest";
-        }
-
-        @Override
-        public AuthStatus getStatus() {
-            return AuthStatus.SUCCESS;
-        }
-
-        @Override
-        public String getMessage() {
-            return "Guest User allowed by AllowAllAuthenticatingAuthorizer";
-        }
-
-        @Override
-        public Throwable getException() {
-            return null;
-        }
-
-        @Override
-        public void setChannel(Channel channel) {
-            this.channel = channel;
-        }
-
-        @Override
-        public byte[] getToken() {
-            return new byte[0];
-        }
-    };
+  static AuthState accessDenied = new AuthState() {
+    Channel channel;
 
     @Override
-    public void initialize(TSDB tsdb) {
-        roles.add(Roles.ADMINISTRATOR);
+    public String getUser() {
+      return "guest";
     }
 
     @Override
-    public Deferred<Object> shutdown() {
-        return null;
+    public AuthStatus getStatus() {
+      return AuthStatus.FORBIDDEN;
     }
 
     @Override
-    public String version() {
-        return null;
+    public String getMessage() {
+      return "Guest User forbidden by AllowAllAuthenticatingAuthorizer";
     }
 
     @Override
-    public void collectStats(StatsCollector collector) {
-
+    public Throwable getException() {
+      return null;
     }
 
     @Override
-    public AuthState authenticateTelnet(Channel channel, String[] command) {
-        return accessGranted;
+    public void setChannel(Channel channel) {
+      this.channel = channel;
     }
 
     @Override
-    public AuthState authenticateHTTP(Channel channel, HttpRequest req) {
-        return accessGranted;
+    public byte[] getToken() {
+      return new byte[0];
+    }
+  };
+  static AuthState accessGranted = new AuthState() {
+    Channel channel;
+
+    @Override
+    public String getUser() {
+      return "guest";
     }
 
     @Override
-    public Authorization authorization() {
-        return null;
+    public AuthStatus getStatus() {
+      return AuthStatus.SUCCESS;
     }
 
     @Override
-    public boolean isReady(TSDB tsdb, Channel chan) {
-        if (tsdb.getAuth() != null && tsdb.getAuth().authorization() != null) {
-            if (chan.getAttachment() == null || !(chan.getAttachment() instanceof AuthState)) {
-                throw new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR,
-                        "Authentication was enabled but the authentication state for "
-                                + "this channel was not set properly");
-            }
-            return true;
-        } else {
-            return false;
-        }
+    public String getMessage() {
+      return "Guest User allowed by AllowAllAuthenticatingAuthorizer";
     }
 
     @Override
-    public AuthState hasPermission(AuthState state, Permissions permission) {
-        for (Roles role : this.roles) {
-            if (role.hasPermission(permission)) {
-                return accessGranted;
-            }
-        }
-        return accessDenied;
+    public Throwable getException() {
+      return null;
     }
 
     @Override
-    public AuthState hasRole(AuthState state, Roles role) {
-        if (roles.contains(role)) {
-            return accessGranted;
-        } else {
-            return accessDenied;
-        }
+    public void setChannel(Channel channel) {
+      this.channel = channel;
     }
 
     @Override
-    public AuthState allowQuery(AuthState state, TSQuery query) {
-        for (Roles role : this.roles) {
-            if (role.hasPermission(Permissions.HTTP_QUERY)) {
-                return accessGranted;
-            }
-        }
-        return accessDenied;
+    public byte[] getToken() {
+      return new byte[0];
     }
+  };
 
-    @Override
-    public AuthState allowQuery(AuthState state, Query query) {
-        for (Roles role : this.roles) {
-            if (role.hasPermission(Permissions.HTTP_QUERY)) {
-                return accessGranted;
-            }
-        }
-        return accessDenied;
+  private static final AtomicLong queries_allowed = new AtomicLong();
+  private static final AtomicLong queries_denied = new AtomicLong();
+  private static final AtomicLong authentication_http_allowed = new AtomicLong();
+  private static final AtomicLong authentication_http_denied = new AtomicLong();
+  private static final AtomicLong authentication_telnet_allowed = new AtomicLong();
+  private static final AtomicLong authentication_telnet_denied = new AtomicLong();
+  private static final AtomicLong authorization_role_allowed = new AtomicLong();
+  private static final AtomicLong authorization_permission_allowed = new AtomicLong();
+  private static final AtomicLong authorization_role_denied = new AtomicLong();
+  private static final AtomicLong authorization_permission_denied = new AtomicLong();
+
+  public Roles getRoles() {
+    return roles;
+  }
+
+  public void setRoles(Roles roles) {
+    this.roles = roles;
+  }
+
+  public AuthState getAccessDenied() {
+    return accessDenied;
+  }
+
+  public AuthState getAccessGranted() {
+    return accessGranted;
+  }
+
+  @Override
+  public void initialize(final TSDB tsdb) {
+  }
+
+  @Override
+  public Deferred<Object> shutdown() {
+    return null;
+  }
+
+  @Override
+  public String version() {
+    return "2.4.0";
+  }
+
+  @Override
+  public void collectStats(final StatsCollector collector) {
+    collector.record("authorization.queries.allowed", queries_allowed);
+    collector.record("authorization.queries.denied", queries_denied);
+    collector.record("authorization.allowed", authorization_role_allowed, "type=role");
+    collector.record("authorization.denied", authorization_role_denied, "type=role");
+    collector.record("authorization.allowed", authorization_permission_allowed, "type=permission");
+    collector.record("authorization.denied", authorization_permission_denied, "type=permission");
+    collector.record("authentication.succeeded", authentication_http_allowed, "type=http");
+    collector.record("authentication.denied", authentication_http_denied, "type=http");
+    collector.record("authentication.succeeded", authentication_telnet_allowed, "type=telnet");
+    collector.record("authentication.denied", authentication_telnet_denied, "type=telnet");
+  }
+
+  @Override
+  public AuthState authenticateTelnet(final Channel channel, final String[] command) {
+    authentication_telnet_allowed.getAndIncrement();
+    return accessGranted;
+  }
+
+  @Override
+  public AuthState authenticateHTTP(final Channel channel, final HttpRequest req) {
+    authentication_http_allowed.getAndIncrement();
+    return accessGranted;
+  }
+
+  @Override
+  public Authorization authorization() {
+    return null;
+  }
+
+  @Override
+  public boolean isReady(final TSDB tsdb, final Channel chan) {
+    if (tsdb.getAuth() != null && tsdb.getAuth().authorization() != null) {
+      if (chan.getAttachment() == null || !(chan.getAttachment() instanceof AuthState)) {
+        throw new BadRequestException(HttpResponseStatus.INTERNAL_SERVER_ERROR,
+            "Authentication was enabled but the authentication state for "
+                + "this channel was not set properly");
+      }
+      return true;
+    } else {
+      return false;
     }
+  }
+
+  @Override
+  public AuthState hasPermission(final AuthState state, final Permissions permission) {
+    if (this.roles != null && this.roles.hasPermission(permission)) {
+      authorization_permission_allowed.getAndIncrement();
+      return accessGranted;
+    }
+    authorization_permission_denied.getAndIncrement();
+    return accessDenied;
+  }
+
+  @Override
+  public AuthState allowQuery(final AuthState state, final TSQuery query) {
+    if (this.roles != null && this.roles.hasPermission(Permissions.HTTP_QUERY)) {
+      queries_allowed.getAndIncrement();
+      return accessGranted;
+    }
+    queries_denied.getAndIncrement();
+    return accessDenied;
+  }
+
+  @Override
+  public AuthState allowQuery(final AuthState state, final Query query) {
+    if (this.roles != null && this.roles.hasPermission(Permissions.HTTP_QUERY)) {
+      queries_allowed.getAndIncrement();
+      return accessGranted;
+    }
+    queries_denied.getAndIncrement();
+    return accessDenied;
+  }
 }

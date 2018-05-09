@@ -16,9 +16,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.*;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -28,6 +27,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.auth.Authentication;
+import net.opentsdb.auth.Authorization;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -40,6 +42,7 @@ import net.opentsdb.utils.Threads;
 import org.hbase.async.Bytes;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.Scanner;
+import org.jboss.netty.channel.Channel;
 import org.jboss.netty.util.HashedWheelTimer;
 import org.jboss.netty.util.Timeout;
 import org.jboss.netty.util.TimerTask;
@@ -129,10 +132,22 @@ public class BaseTsdbTest {
       .thenReturn(timer);
     PowerMockito.whenNew(HBaseClient.class).withAnyArguments()
       .thenReturn(client);
-    
+
+    final AuthState state = mock(AuthState.class);
+    when(state.getStatus()).thenReturn(AuthState.AuthStatus.SUCCESS);
+
+    final Authorization authorization = mock(Authorization.class);
+    when(authorization.allowQuery(any(AuthState.class), any(TSQuery.class))).thenReturn(state);
+
+    final Authentication authentication = mock(Authentication.class);
+    when(authentication.authorization()).thenReturn(authorization);
+    when(authentication.isReady(any(TSDB.class), any(Channel.class))).thenReturn(true);
+
     config = new Config(false);
     config.overrideConfig("tsd.storage.enable_compaction", "false");
+    config.overrideConfig("tsd.core.authentication.enable", "false");
     tsdb = PowerMockito.spy(new TSDB(config));
+    when(tsdb.getAuth()).thenReturn(authentication);
 
     config.setAutoMetric(true);
     

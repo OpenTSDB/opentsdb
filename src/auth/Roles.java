@@ -13,35 +13,42 @@
 
 package net.opentsdb.auth;
 
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Suggested standard Roles for OpenTSDB Users
+ *
  * @author jonathan.creasy
  * @since 2.4.0
  */
-public enum Roles {
-    ADMINISTRATOR(EnumSet.allOf(Permissions.class)),
-    PUTONLY(EnumSet.of(Permissions.HTTP_PUT, Permissions.TELNET_PUT)),
-    WRITER(EnumSet.of(Permissions.HTTP_PUT, Permissions.TELNET_PUT, Permissions.CREATE_TAGV)),
-    READER(EnumSet.of(Permissions.HTTP_QUERY)),
-    CREATOR(EnumSet.of(Permissions.CREATE_METRIC, Permissions.CREATE_TAGK, Permissions.CREATE_TAGV)),
-    GUEST(EnumSet.noneOf(Permissions.class));
+public class Roles {
+  final static EnumSet<Permissions> ADMINISTRATOR = EnumSet.allOf(Permissions.class);
+  final static EnumSet<Permissions> PUTONLY = EnumSet.of(Permissions.HTTP_PUT, Permissions.TELNET_PUT);
+  final static EnumSet<Permissions> WRITER = EnumSet.of(Permissions.HTTP_PUT, Permissions.TELNET_PUT, Permissions.CREATE_TAGV);
+  final static EnumSet<Permissions> READER = EnumSet.of(Permissions.HTTP_QUERY);
+  final static EnumSet<Permissions> CREATOR = EnumSet.of(Permissions.CREATE_METRIC, Permissions.CREATE_TAGK, Permissions.CREATE_TAGV);
+  final static EnumSet<Permissions> GUEST = EnumSet.noneOf(Permissions.class);
 
-    private Set<EnumSet<Permissions>> grantedPermissions;
+  private final Set<EnumSet<Permissions>> grantedPermissions = new HashSet<>();
 
-    Roles(final EnumSet<Permissions>... providedRoles) {
-        Collections.addAll(this.grantedPermissions, providedRoles);
+  Roles() {
+    this.grantedPermissions.add(GUEST);
+  }
+
+  Roles(final EnumSet<Permissions> permissions) {
+    this.grantedPermissions.add(permissions);
+  }
+
+  public void grantPermissions(final EnumSet<Permissions> permissions) {
+    grantedPermissions.add(permissions);
+  }
+
+  Boolean hasPermission(final Permissions permission) {
+    for (EnumSet<Permissions> permissions : this.grantedPermissions) {
+      if (permissions.contains(permission)) {
+        return true;
+      }
     }
-
-    public Boolean hasPermission(final Permissions permission) {
-        for(EnumSet<Permissions> permissions : grantedPermissions) {
-            if (permissions.contains(permission)) {
-                return true;
-            }
-        }
-        return false;
-    }
+    return false;
+  }
 }
