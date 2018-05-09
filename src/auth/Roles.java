@@ -29,7 +29,7 @@ public class Roles {
   final static EnumSet<Permissions> CREATOR = EnumSet.of(Permissions.CREATE_METRIC, Permissions.CREATE_TAGK, Permissions.CREATE_TAGV);
   final static EnumSet<Permissions> GUEST = EnumSet.noneOf(Permissions.class);
 
-  private final Set<EnumSet<Permissions>> grantedPermissions = new HashSet<>();
+  private final Set<EnumSet<Permissions>> grantedPermissions = new HashSet<EnumSet<Permissions>>();
 
   Roles() {
     this.grantedPermissions.add(GUEST);

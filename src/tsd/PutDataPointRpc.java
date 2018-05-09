@@ -30,6 +30,7 @@ import net.opentsdb.auth.AuthState;
 import net.opentsdb.auth.Authentication;
 import net.opentsdb.auth.Authorization;
 import net.opentsdb.auth.Permissions;
+import org.apache.zookeeper.KeeperException;
 import org.hbase.async.HBaseException;
 import org.hbase.async.PleaseThrottleException;
 import org.jboss.netty.channel.Channel;
@@ -284,7 +285,7 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
       checkAuthorization(tsdb, query);
       dps = query.serializer()
               .parsePutV1(IncomingDataPoint.class, HttpJsonSerializer.TR_INCOMING);
-    } catch (IllegalArgumentException e) {
+    } catch (BadRequestException | IllegalArgumentException e) {
       illegal_arguments.incrementAndGet();
       throw e;
     }
