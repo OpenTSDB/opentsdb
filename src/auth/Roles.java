@@ -21,6 +21,7 @@ import java.util.*;
  * @author jonathan.creasy
  * @since 2.4.0
  */
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class Roles {
   final static EnumSet<Permissions> ADMINISTRATOR = EnumSet.allOf(Permissions.class);
   final static EnumSet<Permissions> PUTONLY = EnumSet.of(Permissions.HTTP_PUT, Permissions.TELNET_PUT);
@@ -29,13 +30,14 @@ public class Roles {
   final static EnumSet<Permissions> CREATOR = EnumSet.of(Permissions.CREATE_METRIC, Permissions.CREATE_TAGK, Permissions.CREATE_TAGV);
   final static EnumSet<Permissions> GUEST = EnumSet.noneOf(Permissions.class);
 
+  @SuppressWarnings("Convert2Diamond")
   private final Set<EnumSet<Permissions>> grantedPermissions = new HashSet<EnumSet<Permissions>>();
 
-  Roles() {
+  public Roles() {
     this.grantedPermissions.add(GUEST);
   }
 
-  Roles(final EnumSet<Permissions> permissions) {
+  public Roles(final EnumSet<Permissions> permissions) {
     this.grantedPermissions.add(permissions);
   }
 
@@ -43,7 +45,7 @@ public class Roles {
     grantedPermissions.add(permissions);
   }
 
-  Boolean hasPermission(final Permissions permission) {
+  public Boolean hasPermission(final Permissions permission) {
     for (EnumSet<Permissions> permissions : this.grantedPermissions) {
       if (permissions.contains(permission)) {
         return true;

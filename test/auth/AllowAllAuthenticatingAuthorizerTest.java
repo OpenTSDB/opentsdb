@@ -59,14 +59,14 @@ public class AllowAllAuthenticatingAuthorizerTest {
   public void hasPermissionAdministrator() throws Exception {
     AuthState authState = mock(AuthState.class);
     this.authenticatingAuthorizer.setRoles(new Roles(Roles.ADMINISTRATOR));
-    this.authenticatingAuthorizer.hasPermission(authState, Permissions.TELNET_PUT);
+    assertEquals(AllowAllAuthenticatingAuthorizer.accessGranted, this.authenticatingAuthorizer.hasPermission(authState, Permissions.TELNET_PUT));
   }
 
   @Test
   public void hasPermissionGuest() throws Exception {
     AuthState authState = mock(AuthState.class);
     this.authenticatingAuthorizer.setRoles(new Roles(Roles.GUEST));
-    this.authenticatingAuthorizer.hasPermission(authState, Permissions.TELNET_PUT);
+    assertEquals(AllowAllAuthenticatingAuthorizer.accessDenied, this.authenticatingAuthorizer.hasPermission(authState, Permissions.TELNET_PUT));
   }
 
   @Test
@@ -75,7 +75,7 @@ public class AllowAllAuthenticatingAuthorizerTest {
     TSQuery tsQuery = mock(TSQuery.class);
     Roles roles = new Roles(Roles.ADMINISTRATOR);
     this.authenticatingAuthorizer.setRoles(roles);
-    assertEquals(this.authenticatingAuthorizer.allowQuery(authState, tsQuery), AllowAllAuthenticatingAuthorizer.accessGranted);
+    assertEquals(AllowAllAuthenticatingAuthorizer.accessGranted, this.authenticatingAuthorizer.allowQuery(authState, tsQuery));
   }
 
   @Test
@@ -84,7 +84,7 @@ public class AllowAllAuthenticatingAuthorizerTest {
     TSQuery tsQuery = mock(TSQuery.class);
     Roles roles = new Roles(Roles.GUEST);
     this.authenticatingAuthorizer.setRoles(roles);
-    assertEquals(this.authenticatingAuthorizer.allowQuery(authState, tsQuery), AllowAllAuthenticatingAuthorizer.accessDenied);
+    assertEquals(AllowAllAuthenticatingAuthorizer.accessDenied, this.authenticatingAuthorizer.allowQuery(authState, tsQuery));
   }
 
   @Test
@@ -93,7 +93,7 @@ public class AllowAllAuthenticatingAuthorizerTest {
     Query query = mock(Query.class);
     Roles roles = new Roles(Roles.ADMINISTRATOR);
     this.authenticatingAuthorizer.setRoles(roles);
-    assertEquals(this.authenticatingAuthorizer.allowQuery(authState, query), AllowAllAuthenticatingAuthorizer.accessGranted);
+    assertEquals(AllowAllAuthenticatingAuthorizer.accessGranted, this.authenticatingAuthorizer.allowQuery(authState, query));
   }
 
   @Test
@@ -102,6 +102,6 @@ public class AllowAllAuthenticatingAuthorizerTest {
     Query query = mock(Query.class);
     Roles roles = new Roles(Roles.GUEST);
     this.authenticatingAuthorizer.setRoles(roles);
-    assertEquals(this.authenticatingAuthorizer.allowQuery(authState, query), AllowAllAuthenticatingAuthorizer.accessDenied);
+    assertEquals(AllowAllAuthenticatingAuthorizer.accessDenied, this.authenticatingAuthorizer.allowQuery(authState, query));
   }
 }
