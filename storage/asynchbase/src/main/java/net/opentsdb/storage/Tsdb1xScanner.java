@@ -37,7 +37,7 @@ import net.openhft.hashing.LongHashFunction;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.RelationalOperator;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
@@ -210,7 +210,7 @@ public class Tsdb1xScanner {
         owner.node().schema().baseTimestamp(row.get(0).key(), base_ts);
         if (result.isFull() || owner.node().sequenceEnd() != null && 
             base_ts.compare(
-                (scanner.isReversed() ? RelationalOperator.LT : RelationalOperator.GT), 
+                (scanner.isReversed() ? Op.LT : Op.GT), 
                   owner.node().sequenceEnd())) {
           // end of sequence encountered in the buffer. Push on up
           if (LOG.isDebugEnabled()) {
@@ -316,7 +316,7 @@ public class Tsdb1xScanner {
           owner.node().schema().baseTimestamp(row.get(0).key(), base_ts);
           if (owner.node().sequenceEnd() != null && 
               base_ts.compare(
-                  (scanner.isReversed() ? RelationalOperator.LT : RelationalOperator.GT), 
+                  (scanner.isReversed() ? Op.LT : Op.GT), 
                       owner.node().sequenceEnd())) {
             // end of sequence encountered in the buffer. Push on up
             if (LOG.isDebugEnabled()) {
@@ -425,7 +425,7 @@ public class Tsdb1xScanner {
             owner.node().schema().baseTimestamp(row.get(0).key(), base_ts);
             if (owner.node().sequenceEnd() != null && 
                 base_ts.compare(
-                    (scanner.isReversed() ? RelationalOperator.LT : RelationalOperator.GT), 
+                    (scanner.isReversed() ? Op.LT : Op.GT), 
                         owner.node().sequenceEnd())) {
               // end of sequence encountered in the buffer. Push on up
               if (LOG.isDebugEnabled()) {
@@ -465,7 +465,7 @@ public class Tsdb1xScanner {
             owner.node().schema().baseTimestamp(row.get(0).key(), base_ts);
             if ((owner.node().sequenceEnd() != null && 
                 base_ts.compare(
-                    (scanner.isReversed() ? RelationalOperator.LT : RelationalOperator.GT), 
+                    (scanner.isReversed() ? Op.LT : Op.GT), 
                         owner.node().sequenceEnd()))) {
               
               // end of sequence encountered in the buffer. Push on up

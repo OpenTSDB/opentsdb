@@ -32,12 +32,22 @@ import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
+import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
+import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.storage.TimeSeriesDataStore;
 
 public class TestGroupByResult {
-
+  private static final RollupConfig CONFIG = mock(RollupConfig.class);
+  
+  private DefaultInterpolationConfig interpolation_config;
   private GroupBy node;
   private GroupByConfig config;
   private QueryResult result;
@@ -49,12 +59,32 @@ public class TestGroupByResult {
   
   @Before
   public void before() throws Exception {
+    NumericInterpolatorConfig numeric_config = 
+        NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .build();
+    
+    NumericSummaryInterpolatorConfig summary_config = 
+        NumericSummaryInterpolatorConfig.newBuilder()
+        .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+        .addExpectedSummary(0)
+        .setRollupConfig(CONFIG)
+        .build();
+    
+    interpolation_config = DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE, numeric_config, 
+            new NumericInterpolatorFactory.Default())
+        .add(NumericSummaryType.TYPE, summary_config, 
+            new NumericInterpolatorFactory.Default())
+        .build();
+    
     config = GroupByConfig.newBuilder()
         .setAggregator("sum")
         .setId("Testing")
         .addTagKey("dc")
-        .setQueryIteratorInterpolatorFactory(
-            new NumericInterpolatorFactory.Default())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     node = mock(GroupBy.class);
     result = mock(QueryResult.class);
@@ -130,8 +160,7 @@ public class TestGroupByResult {
         .setId("Testing")
         .addTagKey("dc")
         .addTagKey("host")
-        .setQueryIteratorInterpolatorFactory(
-            new NumericInterpolatorFactory.Default())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -164,8 +193,7 @@ public class TestGroupByResult {
         .setId("Testing")
         .addTagKey("dc")
         .addTagKey("foo")
-        .setQueryIteratorInterpolatorFactory(
-            new NumericInterpolatorFactory.Default())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -179,8 +207,7 @@ public class TestGroupByResult {
         .setAggregator("sum")
         .setId("Testing")
         .setGroupAll(true)
-        .setQueryIteratorInterpolatorFactory(
-            new NumericInterpolatorFactory.Default())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -202,8 +229,7 @@ public class TestGroupByResult {
         .setId("Testing")
         .setGroupAll(true)
         .addTagKey("host") // <-- ignored
-        .setQueryIteratorInterpolatorFactory(
-            new NumericInterpolatorFactory.Default())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -260,8 +286,7 @@ public class TestGroupByResult {
         .addTagKey("host")
         .addTagKey("dc".getBytes())
         .addTagKey("host".getBytes())
-        .setQueryIteratorInterpolatorFactory(
-            new NumericInterpolatorFactory.Default())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -297,8 +322,7 @@ public class TestGroupByResult {
         .addTagKey("foo")
         .addTagKey("dc".getBytes())
         .addTagKey("foo".getBytes())
-        .setQueryIteratorInterpolatorFactory(
-            new NumericInterpolatorFactory.Default())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -313,8 +337,7 @@ public class TestGroupByResult {
         .setAggregator("sum")
         .setId("Testing")
         .setGroupAll(true)
-        .setQueryIteratorInterpolatorFactory(
-            new NumericInterpolatorFactory.Default())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -336,8 +359,7 @@ public class TestGroupByResult {
         .setId("Testing")
         .setGroupAll(true)
         .addTagKey("host") // <-- ignored
-        .setQueryIteratorInterpolatorFactory(
-            new NumericInterpolatorFactory.Default())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     when(node.config()).thenReturn(config);
     
@@ -372,8 +394,7 @@ public class TestGroupByResult {
         .setId("Testing")
         .addTagKey("dc")
         .addTagKey("dc".getBytes())
-        .setQueryIteratorInterpolatorFactory(
-            new NumericInterpolatorFactory.Default())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     when(node.config()).thenReturn(config);
     

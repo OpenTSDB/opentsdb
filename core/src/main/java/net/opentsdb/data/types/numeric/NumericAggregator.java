@@ -30,14 +30,14 @@ public interface NumericAggregator extends Aggregator<NumericType> {
    * @param max_index The maximum index within the array where real values are 
    * present.
    * @param dp A non-null data point that will have it's 
-   * {@link MutableNumericType#resetValue(double)} or 
-   * {@link MutableNumericType#resetValue(long)} called.
+   * {@link MutableNumericValue#resetValue(double)} or 
+   * {@link MutableNumericValue#resetValue(long)} called.
    * @return An aggregated value.
    * @throws IllegalDataException if the max_index was less than 1
    */
   public void run(final long[] values, 
                   final int max_index, 
-                  final MutableNumericType dp);
+                  final MutableNumericValue dp);
   
   /**
    * Aggregates the values in the array.
@@ -47,12 +47,12 @@ public interface NumericAggregator extends Aggregator<NumericType> {
    * @param infectious_nans When false we ignore NaNs, if true we include 
    * them in calculations meaning the output will generally be NaN.
    * @param dp A non-null data point that will have it's 
-   * {@link MutableNumericType#resetValue(double)} called.
+   * {@link MutableNumericValue#resetValue(double)} called.
    * @return An aggregated value.
    * @throws IllegalDataException if the max_index was less than 1
    */
   public void run(final double[] values, 
                   final int max_index, 
                   final boolean infectious_nans,
-                  final MutableNumericType dp);
+                  final MutableNumericValue dp);
 }

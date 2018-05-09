@@ -45,6 +45,7 @@ import net.opentsdb.query.filter.TagVWildcardFilter.TagVIWildcardFilter;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
@@ -133,10 +134,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
   
   /** The filter callback class instantiated when the query had filters
    * and used to pull out variables after initialization. */
-  protected FilterCB filter_cb;
-  
-  /** The rollup group by aggregation name. */
-  protected final String rollup_group_by;
+  protected FilterCB filter_cb; 
   
   /** The rollup downsampling aggregation by name. */
   protected final String rollup_aggregation;
@@ -255,18 +253,13 @@ public class Tsdb1xScanners implements HBaseExecutor {
       }
       
       if (ds != null) {
-        rollup_aggregation = ds.getAggregator();
+        rollup_aggregation = RollupConfig.queryToRollupAggregation(
+            ds.getAggregator());
       } else {
         rollup_aggregation = null;
       }
     } else {
       rollup_aggregation = null;
-    }
-    
-    if (Strings.isNullOrEmpty(query.getMetrics().get(0).getAggregator()) ) {
-      rollup_group_by = query.getTime().getAggregator();
-    } else {
-      rollup_group_by = query.getMetrics().get(0).getAggregator();
     }
   }
   
@@ -320,6 +313,10 @@ public class Tsdb1xScanners implements HBaseExecutor {
     synchronized (this) {
       scanners_done++;
       if (scanners_done >= scanners.get(scanner_index).length) {
+        if (current_result == null) {
+          throw new IllegalStateException("Current result was null but "
+              + "all scanners were finished.");
+        }
         send_upstream = true;
       }
     }
@@ -336,15 +333,24 @@ public class Tsdb1xScanners implements HBaseExecutor {
           }
           node.onNext(result);
         } else {
-          if (current_result.timeSeries() == null || 
-              current_result.timeSeries().isEmpty()) {
+          if ((current_result.timeSeries() == null || 
+              current_result.timeSeries().isEmpty()) && 
+              scanner_index + 1 < scanners.size()) {
             if (LOG.isDebugEnabled()) {
               LOG.debug("Scanner index at [" + scanner_index 
                   + "] returned an empty set, falling back.");
             }
             // fall back!
             scanner_index++;
+            scanners_done = 0;
             scanNext(null /** TODO - span */);
+          } else {
+            final Tsdb1xQueryResult result;
+            synchronized (this) {
+              result = current_result;
+              current_result = null;
+            }
+            node.onNext(result);
           }
         }
       } catch (Exception e) {
@@ -690,7 +696,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
           node.rollupUsage() != RollupUsage.ROLLUP_RAW) {
         
         // set qualifier filters
-        if (rollup_group_by != null && rollup_group_by.equals("avg")) {
+        if (rollup_aggregation != null && rollup_aggregation.equals("avg")) {
           // old and new schemas with literal agg names or prefixes.
           final List<ScanFilter> filters = Lists.newArrayListWithCapacity(4);
           filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
@@ -711,11 +717,11 @@ public class Tsdb1xScanners implements HBaseExecutor {
           // it's another aggregation
           final List<ScanFilter> filters = Lists.newArrayListWithCapacity(2);
           filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-              new BinaryPrefixComparator(rollup_group_by
+              new BinaryPrefixComparator(rollup_aggregation
                   .getBytes(Const.ASCII_CHARSET))));
           filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
               new BinaryPrefixComparator(new byte[] { 
-                  (byte) node.schema().rollupConfig().getIdForAggregator(rollup_group_by)
+                  (byte) node.schema().rollupConfig().getIdForAggregator(rollup_aggregation)
               })));
           
           rollup_filter = new FilterList(filters, Operator.MUST_PASS_ONE);
@@ -747,8 +753,8 @@ public class Tsdb1xScanners implements HBaseExecutor {
             if (node.schema().saltWidth() > 0) {
               final byte[] start_clone = Arrays.copyOf(start_key, start_key.length);
               final byte[] stop_clone = Arrays.copyOf(stop_key, stop_key.length);
-              node.schema().prefixKeyWithSalt(start_clone, i);
-              node.schema().prefixKeyWithSalt(stop_clone, i);
+              node.schema().prefixKeyWithSalt(start_clone, x);
+              node.schema().prefixKeyWithSalt(stop_clone, x);
               scanner.setStartKey(start_clone);
               scanner.setStopKey(stop_clone);
             } else {
@@ -757,7 +763,7 @@ public class Tsdb1xScanners implements HBaseExecutor {
               scanner.setStopKey(stop_key);
             }
             
-            setScannerFilter(scanner, i, regex, fuzzy_key, fuzzy_mask, rollup_filter);
+            setScannerFilter(scanner, x, regex, fuzzy_key, fuzzy_mask, rollup_filter);
             
             if (LOG.isDebugEnabled()) {
               LOG.debug("Instantiating rollup: " + scanner);

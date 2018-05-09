@@ -50,7 +50,7 @@ import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.iterators.SlicedTimeSeries;
-import net.opentsdb.data.types.numeric.MutableNumericType;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.AbstractQueryNode;
@@ -288,7 +288,7 @@ public class MockDataStore implements TimeSeriesDataStore {
                 .addTags("dc", dc)
                 .addTags("host", String.format("web%02d", h + 1))
                 .build();
-            MutableNumericType dp = new MutableNumericType();
+            MutableNumericValue dp = new MutableNumericValue();
             TimeStamp ts = new MillisecondTimeStamp(0);
             for (long i = 0; i < (ROW_WIDTH / interval); i++) {
               ts.updateMsEpoch(start_timestamp + (i * interval) + (t * ROW_WIDTH));

@@ -77,6 +77,9 @@ public class RollupInterval {
   
   /** The number of intervals in this span */
   private int intervals;
+
+  /** A pointer back to the config this interval belongs to. */
+  private RollupConfig config; 
   
   /** Tells whether it is the default rollup interval
    * Default interval is of 1m interval, and will be stored in normal
@@ -109,7 +112,7 @@ public class RollupInterval {
   @Override
   public String toString() {
     final StringBuilder buf = new StringBuilder();
-    buf.append("table=").append(temporal_table_name)
+    buf.append("{table=").append(temporal_table_name)
        .append(", preAggTable=").append(groupby_table_name)
        .append(", rowSpan=").append(row_span)
        .append(", isDefaultInterval=").append(is_default_interval)
@@ -118,7 +121,8 @@ public class RollupInterval {
        .append(", unit_multipier=").append(unit_multiplier)
        .append(", intervals=").append(intervals)
        .append(", interval=").append(interval)
-       .append(", interval_units=").append(interval_units);
+       .append(", interval_units=").append(interval_units)
+       .append("}");
     return buf.toString();
   }
 
@@ -304,6 +308,16 @@ public class RollupInterval {
   /** @return The width of each row as an interval string. */
   public String getRowSpan() {
     return row_span;
+  }
+  
+  /** @param config The rollup config this interval belongs to. */
+  public void setConfig(final RollupConfig config) {
+    this.config = config;
+  }
+  
+  /** @return The rollup config this interval belongs to. */
+  public RollupConfig rollupConfig() {
+    return config;
   }
   
   public static Builder builder() {

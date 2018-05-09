@@ -40,7 +40,7 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.core.Const;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.RelationalOperator;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
@@ -379,7 +379,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
     }
     
     if (node.sequenceEnd() != null) {
-      if (ts != null && ts.compare((reversed ? RelationalOperator.LT : RelationalOperator.GT), 
+      if (ts != null && ts.compare((reversed ? Op.LT : Op.GT), 
           node.sequenceEnd())) {
         tsuid_idx = -1;
         // DONE with segment
@@ -387,8 +387,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       }
     }
     if (ts != null && (reversed ? 
-        ts.compare(RelationalOperator.LT, query.getTime().startTime()) : 
-        ts.compare(RelationalOperator.GT, query.getTime().endTime()))) {
+        ts.compare(Op.LT, query.getTime().startTime()) : 
+        ts.compare(Op.GT, query.getTime().endTime()))) {
       // DONE with query!
       return true;
     }
@@ -402,7 +402,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       }
       
       if (node.sequenceEnd() != null) {
-        if (ts.compare((reversed ? RelationalOperator.LT : RelationalOperator.GT), 
+        if (ts.compare((reversed ? Op.LT : Op.GT), 
             node.sequenceEnd())) {
           tsuid_idx = -1;
           // DONE with segment
@@ -410,8 +410,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
         }
       }
       if (reversed ? 
-          ts.compare(RelationalOperator.LT, query.getTime().startTime()) : 
-          ts.compare(RelationalOperator.GT, query.getTime().endTime())) {
+          ts.compare(Op.LT, query.getTime().startTime()) : 
+          ts.compare(Op.GT, query.getTime().endTime())) {
         // DONE with query!
         return true;
       }

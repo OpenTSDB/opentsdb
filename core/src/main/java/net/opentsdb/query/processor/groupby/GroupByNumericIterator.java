@@ -24,13 +24,13 @@ import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.RelationalOperator;
+import net.opentsdb.data.TimeStamp.Op;
 import net.opentsdb.data.types.numeric.Aggregators;
-import net.opentsdb.data.types.numeric.MutableNumericType;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIterator;
-import net.opentsdb.query.QueryIteratorInterpolator;
+import net.opentsdb.query.QueryInterpolator;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
 
@@ -57,14 +57,14 @@ public class GroupByNumericIterator implements QueryIterator,
   /** The next timestamp to return. */
   private final TimeStamp next_ts = new MillisecondTimeStamp(0);
   
-  /** The next timestamp evaulated when returning the next value. */
+  /** The next timestamp evaluated when returning the next value. */
   private final TimeStamp next_next_ts = new MillisecondTimeStamp(0);
   
   /** The data point set and returned by the iterator. */
-  private final MutableNumericType dp;
+  private final MutableNumericValue dp;
   
   /** The list of interpolators containing the real sources. */
-  private final QueryIteratorInterpolator<NumericType>[] interpolators;
+  private final QueryInterpolator<NumericType>[] interpolators;
   
   /** An array of long values used when all sources return longs. */
   private long[] long_values;
@@ -117,28 +117,24 @@ public class GroupByNumericIterator implements QueryIterator,
     if (Strings.isNullOrEmpty(((GroupByConfig) node.config()).getAggregator())) {
       throw new IllegalArgumentException("Aggregator cannot be null or empty."); 
     }
-    if (((GroupByConfig) node.config()).getInterpolator() == null) {
-      throw new IllegalArgumentException("Interpolator cannot be null.");
-    }
-    dp = new MutableNumericType();
+    dp = new MutableNumericValue();
     next_ts.setMax();
     dp.resetNull(next_ts);
     // TODO - better way of supporting aggregators
     aggregator = Aggregators.get(((GroupByConfig) node.config()).getAggregator());
     infectious_nan = ((GroupByConfig) node.config()).getInfectiousNan();
-    interpolators = new QueryIteratorInterpolator[sources.size()];
+    interpolators = new QueryInterpolator[sources.size()];
     for (final TimeSeries source : sources) {
       if (source == null) {
-        throw new IllegalArgumentException("Null time series are not allowed in the sources.");
+        throw new IllegalArgumentException("Null time series are not "
+            + "allowed in the sources.");
       }
-      interpolators[iterator_max] = (QueryIteratorInterpolator<NumericType>) 
-          ((GroupByConfig) node.config()).getInterpolator()
-            .newInterpolator(NumericType.TYPE, 
-                             source, ((GroupByConfig) node.config())
-                               .getInterpolatorConfig());
+      interpolators[iterator_max] = (QueryInterpolator<NumericType>) 
+          ((GroupByConfig) node.config()).interpolationConfig()
+            .newInterpolator(NumericType.TYPE, source);
       if (interpolators[iterator_max].hasNext()) {
         has_next = true;
-        if (interpolators[iterator_max].nextReal().compare(RelationalOperator.LT, next_ts)) {
+        if (interpolators[iterator_max].nextReal().compare(Op.LT, next_ts)) {
           next_ts.update(interpolators[iterator_max].nextReal());
         }
       }
@@ -201,7 +197,7 @@ public class GroupByNumericIterator implements QueryIterator,
       
       if (interpolators[i].hasNext()) {
         has_next = true;
-        if (interpolators[i].nextReal().compare(RelationalOperator.LT, next_next_ts)) {
+        if (interpolators[i].nextReal().compare(Op.LT, next_next_ts)) {
           next_next_ts.update(interpolators[i].nextReal());
         }
       }

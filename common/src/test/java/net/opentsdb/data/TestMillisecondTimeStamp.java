@@ -28,7 +28,7 @@ import java.time.temporal.ChronoUnit;
 
 import org.junit.Test;
 
-import net.opentsdb.data.TimeStamp.RelationalOperator;
+import net.opentsdb.data.TimeStamp.Op;
 
 public class TestMillisecondTimeStamp {
   // Fri, 15 May 2015 14:21:13.432 UTC
@@ -107,35 +107,35 @@ public class TestMillisecondTimeStamp {
     final TimeStamp ts1 = new MillisecondTimeStamp(1000);
     TimeStamp ts2 = new MillisecondTimeStamp(2000);
     
-    assertTrue(ts1.compare(RelationalOperator.LT, ts2));
-    assertTrue(ts1.compare(RelationalOperator.LTE, ts2));
-    assertFalse(ts1.compare(RelationalOperator.GT, ts2));
-    assertFalse(ts1.compare(RelationalOperator.GTE, ts2));
-    assertFalse(ts1.compare(RelationalOperator.EQ, ts2));
-    assertTrue(ts1.compare(RelationalOperator.NE, ts2));
+    assertTrue(ts1.compare(Op.LT, ts2));
+    assertTrue(ts1.compare(Op.LTE, ts2));
+    assertFalse(ts1.compare(Op.GT, ts2));
+    assertFalse(ts1.compare(Op.GTE, ts2));
+    assertFalse(ts1.compare(Op.EQ, ts2));
+    assertTrue(ts1.compare(Op.NE, ts2));
     
     ts2.updateMsEpoch(1000);
-    assertTrue(ts1.compare(RelationalOperator.EQ, ts2));
+    assertTrue(ts1.compare(Op.EQ, ts2));
     
     // compare to something with a higher resolution
     ts2 = new ZonedNanoTimeStamp(1, 500, ZoneId.of("UTC"));
     
-    assertTrue(ts1.compare(RelationalOperator.LT, ts2));
-    assertTrue(ts1.compare(RelationalOperator.LTE, ts2));
-    assertFalse(ts1.compare(RelationalOperator.GT, ts2));
-    assertFalse(ts1.compare(RelationalOperator.GTE, ts2));
-    assertFalse(ts1.compare(RelationalOperator.EQ, ts2));
-    assertTrue(ts1.compare(RelationalOperator.NE, ts2));
+    assertTrue(ts1.compare(Op.LT, ts2));
+    assertTrue(ts1.compare(Op.LTE, ts2));
+    assertFalse(ts1.compare(Op.GT, ts2));
+    assertFalse(ts1.compare(Op.GTE, ts2));
+    assertFalse(ts1.compare(Op.EQ, ts2));
+    assertTrue(ts1.compare(Op.NE, ts2));
     
-    assertFalse(ts2.compare(RelationalOperator.LT, ts1));
-    assertFalse(ts2.compare(RelationalOperator.LTE, ts1));
-    assertTrue(ts2.compare(RelationalOperator.GT, ts1));
-    assertTrue(ts2.compare(RelationalOperator.GTE, ts1));
-    assertFalse(ts2.compare(RelationalOperator.EQ, ts1));
-    assertTrue(ts2.compare(RelationalOperator.NE, ts1));
+    assertFalse(ts2.compare(Op.LT, ts1));
+    assertFalse(ts2.compare(Op.LTE, ts1));
+    assertTrue(ts2.compare(Op.GT, ts1));
+    assertTrue(ts2.compare(Op.GTE, ts1));
+    assertFalse(ts2.compare(Op.EQ, ts1));
+    assertTrue(ts2.compare(Op.NE, ts1));
     
     try {
-      ts1.compare(RelationalOperator.LT, null);
+      ts1.compare(Op.LT, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     

@@ -14,11 +14,14 @@
 // limitations under the License.
 package net.opentsdb.query.interpolation.types.numeric;
 
+import java.util.Iterator;
+
 import net.opentsdb.data.TimeSeries;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.TimeStamp;
-import net.opentsdb.data.TimeStamp.RelationalOperator;
-import net.opentsdb.data.types.numeric.MutableNumericType;
+import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericType;
 
 /**
@@ -40,7 +43,8 @@ import net.opentsdb.data.types.numeric.NumericType;
 public class NumericLERP extends NumericInterpolator {
   
   /**
-   * Default ctor.
+   * Default ctor. If the source doesn't have data for our type it will
+   * always fill.
    * @param source A non-null source.
    * @param config The non-null config for the interpolator.
    * @throws IllegalArgumentException if the source or config were null.
@@ -48,6 +52,18 @@ public class NumericLERP extends NumericInterpolator {
   public NumericLERP(final TimeSeries source, 
                      final NumericInterpolatorConfig config) {
     super(source, config);
+  }
+  
+  /**
+   * Ctor from an iterator. If the iterator was null it will always fill.
+   * @param iterator An iterator source.
+   * @param config The non-null config for the interpolator.
+   * @throws IllegalArgumentException if the config was null.
+   */
+  public NumericLERP(
+      final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator, 
+      final NumericInterpolatorConfig config) {
+    super(iterator, config);
   }
   
   @SuppressWarnings("unchecked")
@@ -60,9 +76,9 @@ public class NumericLERP extends NumericInterpolator {
     }
     
     has_next = false;
-    if (timestamp.compare(RelationalOperator.EQ, next.timestamp())) {
+    if (timestamp.compare(Op.EQ, next.timestamp())) {
       if (previous == null) {
-        previous = new MutableNumericType(next);
+        previous = new MutableNumericValue(next);
       } else {
         previous.reset(next);
       }
@@ -73,7 +89,7 @@ public class NumericLERP extends NumericInterpolator {
         next = null;
       }
       return previous;
-    } else if (timestamp.compare(RelationalOperator.LT, next.timestamp())) {
+    } else if (timestamp.compare(Op.LT, next.timestamp())) {
       // lerp the lerp!
       if (previous == null) {
         if (next != null || iterator.hasNext()) {

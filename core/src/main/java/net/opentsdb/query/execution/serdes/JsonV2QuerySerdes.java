@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
@@ -29,6 +30,7 @@ import java.util.Optional;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
@@ -36,9 +38,11 @@ import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.data.TimeStamp.RelationalOperator;
+import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryContext;
@@ -125,20 +129,28 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
           int idx = 0;
           for (final TimeSeries series : 
             series != null ? series : result.timeSeries()) {
-            final Optional<Iterator<TimeSeriesValue<?>>> optional = 
+            final TypeToken<? extends TimeSeriesDataType> type;
+            Optional<Iterator<TimeSeriesValue<?>>> optional = 
                 series.iterator(NumericType.TYPE);
             if (!optional.isPresent()) {
-              continue;
+              optional = series.iterator(NumericSummaryType.TYPE);
+              if (!optional.isPresent()) {
+                continue;
+              } else {
+                type = NumericSummaryType.TYPE;
+              }
+            } else {
+              type = NumericType.TYPE;
             }
             final Iterator<TimeSeriesValue<?>> iterator = optional.get();
             if (!iterator.hasNext()) {
               continue;
             }
             
-            TimeSeriesValue<NumericType> value = 
-                (TimeSeriesValue<NumericType>) iterator.next();
+            TimeSeriesValue<? extends TimeSeriesDataType> value = 
+                (TimeSeriesValue<TimeSeriesDataType>) iterator.next();
             while (value != null && value.timestamp().compare(
-                RelationalOperator.LT, query.getTime().startTime())) {
+                Op.LT, query.getTime().startTime())) {
               if (iterator.hasNext()) {
                 value = (TimeSeriesValue<NumericType>) iterator.next();
               } else {
@@ -148,9 +160,9 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
             if (value == null) {
               continue;
             }
-            if (value.timestamp().compare(RelationalOperator.LT, 
+            if (value.timestamp().compare(Op.LT, 
                       query.getTime().startTime()) ||
-                value.timestamp().compare(RelationalOperator.GT, 
+                value.timestamp().compare(Op.GT, 
                       query.getTime().endTime())) {
               continue;
             }
@@ -179,23 +191,45 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
             
             long ts = 0;
             while(value != null) {
-              if (value.timestamp().compare(RelationalOperator.GT, 
+              if (value.timestamp().compare(Op.GT, 
                   query.getTime().endTime())) {
                 break;
               }
               ts = (opts != null && opts.msResolution()) 
                   ? value.timestamp().msEpoch() 
                   : value.timestamp().msEpoch() / 1000;
-              
+              final String ts_string = Long.toString(ts);
               if (value.value() == null) {
-                json.writeNullField(Long.toString(ts));
-              } else if (value.value().isInteger()) {
-                json.writeNumberField(Long.toString(ts), 
-                    value.value().longValue());
-              } else {
-                json.writeNumberField(Long.toString(ts), 
-                    value.value().doubleValue());
+                json.writeNullField(ts_string);
+              } else if (type == NumericType.TYPE) {
+                if (((TimeSeriesValue<NumericType>) value).value().isInteger()) {
+                  json.writeNumberField(ts_string, 
+                      ((TimeSeriesValue<NumericType>) value).value().longValue());
+                } else {
+                  json.writeNumberField(ts_string, 
+                      ((TimeSeriesValue<NumericType>) value).value().doubleValue());
+                }
+              } else if (type == NumericSummaryType.TYPE) {
+                final Collection<Integer> summaries = 
+                    ((TimeSeriesValue<NumericSummaryType>) value).value()
+                    .summariesAvailable();
+                if (!summaries.isEmpty()) {
+                  // JUST grab the first
+                  int summary = summaries.iterator().next();
+                  final NumericType v = ((TimeSeriesValue<NumericSummaryType>) value)
+                      .value().value(summary);
+                  if (v == null) {
+                    json.writeNullField(ts_string);
+                  } else if (v.isInteger()) {
+                    json.writeNumberField(ts_string, v.longValue());
+                  } else {
+                    json.writeNumberField(ts_string, v.doubleValue());
+                  }
+                } else {
+                  json.writeNullField(ts_string);
+                }
               }
+              
               if (iterator.hasNext()) {
                 value = (TimeSeriesValue<NumericType>) iterator.next();
               } else {

@@ -15,6 +15,7 @@
 package net.opentsdb.data.types.numeric;
 
 import net.opentsdb.query.QueryFillPolicy;
+import net.opentsdb.query.QueryInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 
 /**
@@ -120,6 +121,11 @@ public class BaseNumericFillPolicy implements QueryFillPolicy<NumericType>,
   @Override
   public FillWithRealPolicy realPolicy() {
     return config.realFillPolicy();
+  }
+
+  @Override
+  public QueryInterpolatorConfig config() {
+    return config;
   }
 
 }

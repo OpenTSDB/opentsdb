@@ -76,7 +76,6 @@ public class GroupByResult implements QueryResult {
     this.next = next;
     boolean group_all = ((GroupByConfig) node.config()).groupAll();
     groups = Maps.newHashMap();
-    
     if (next.idType().equals(Const.TS_STRING_ID)) {
       for (final TimeSeries series : next.timeSeries()) {
         final TimeSeriesStringId id = (TimeSeriesStringId) series.id();

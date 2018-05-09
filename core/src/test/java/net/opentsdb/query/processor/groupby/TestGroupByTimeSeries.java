@@ -37,15 +37,20 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
+import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.rollup.RollupConfig;
 
 public class TestGroupByTimeSeries {
-
+  private static final RollupConfig CONFIG = mock(RollupConfig.class);
+  
   private QueryNodeFactory factory;
   private GroupBy node;
   private GroupByConfig config;
@@ -56,17 +61,35 @@ public class TestGroupByTimeSeries {
   
   @Before
   public void before() throws Exception {
+    NumericInterpolatorConfig numeric_config = 
+        NumericInterpolatorConfig.newBuilder()
+        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .build();
+    
+    NumericSummaryInterpolatorConfig summary_config = 
+        NumericSummaryInterpolatorConfig.newBuilder()
+        .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+        .addExpectedSummary(0)
+        .setRollupConfig(CONFIG)
+        .build();
+    
+    DefaultInterpolationConfig interpolation_config = 
+        DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE, numeric_config, 
+            new NumericInterpolatorFactory.Default())
+        .add(NumericSummaryType.TYPE, summary_config, 
+            new NumericInterpolatorFactory.Default())
+        .build();
+    
     factory = new GroupByFactory("GroupBy");
     node = mock(GroupBy.class);
     config = GroupByConfig.newBuilder()
         .setAggregator("sum")
         .setId("GB")
         .addTagKey("host")
-        .setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-        .setQueryIteratorInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
-          .setFillPolicy(FillPolicy.NOT_A_NUMBER)
-          .setRealFillPolicy(FillWithRealPolicy.NONE)
-          .build())
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     when(node.factory()).thenReturn(factory);

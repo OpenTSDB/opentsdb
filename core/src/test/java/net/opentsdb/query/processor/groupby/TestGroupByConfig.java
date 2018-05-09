@@ -20,38 +20,60 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.collect.Sets;
 
-import net.opentsdb.query.QueryIteratorInterpolatorFactory;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
-import net.opentsdb.query.interpolation.types.numeric.ScalarNumericInterpolatorConfig;
+import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
+import net.opentsdb.rollup.RollupConfig;
 
 public class TestGroupByConfig {
+  private static final RollupConfig CONFIG = mock(RollupConfig.class);
+  
+  private DefaultInterpolationConfig interpolation_config;
 
-  @Test
-  public void build() throws Exception {
-    final QueryIteratorInterpolatorFactory interpolator = 
-        new NumericInterpolatorFactory.Default();
-    final NumericInterpolatorConfig interpolator_config = 
-        ScalarNumericInterpolatorConfig.newBuilder()
-        .setValue(42)
+  @Before
+  public void before() throws Exception {
+    NumericInterpolatorConfig numeric_config = 
+        NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
-        .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
         .build();
     
+    NumericSummaryInterpolatorConfig summary_config = 
+        NumericSummaryInterpolatorConfig.newBuilder()
+        .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
+        .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+        .addExpectedSummary(0)
+        .setRollupConfig(CONFIG)
+        .build();
+    
+    interpolation_config = DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE, numeric_config, 
+            new NumericInterpolatorFactory.Default())
+        .add(NumericSummaryType.TYPE, summary_config, 
+            new NumericInterpolatorFactory.Default())
+        .build();
+  }
+  
+  @Test
+  public void build() throws Exception {
     GroupByConfig config = GroupByConfig.newBuilder()
         .setAggregator("sum")
         .setId("GBy")
         .setTagKeys(Sets.newHashSet("host"))
         .addTagKey("dc")
-        .setQueryIteratorInterpolatorFactory(interpolator)
-        .setQueryIteratorInterpolatorConfig(interpolator_config)
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     assertEquals("sum", config.getAggregator());
@@ -59,23 +81,20 @@ public class TestGroupByConfig {
     assertTrue(config.getTagKeys().contains("host"));
     assertTrue(config.getTagKeys().contains("dc"));
     assertFalse(config.groupAll());
-    assertSame(interpolator, config.getInterpolator());
-    assertSame(interpolator_config, config.getInterpolatorConfig());
+    assertSame(interpolation_config, config.interpolationConfig());
     
     config = GroupByConfig.newBuilder()
         .setAggregator("sum")
         .setId("GBy")
         .setGroupAll(true)
-        .setQueryIteratorInterpolatorFactory(interpolator)
-        .setQueryIteratorInterpolatorConfig(interpolator_config)
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     assertEquals("sum", config.getAggregator());
     assertEquals("GBy", config.getId());
     assertNull(config.getTagKeys());
     assertTrue(config.groupAll());
-    assertSame(interpolator, config.getInterpolator());
-    assertSame(interpolator_config, config.getInterpolatorConfig());
+    assertSame(interpolation_config, config.interpolationConfig());
     
     config = GroupByConfig.newBuilder()
         .setAggregator("sum")
@@ -83,8 +102,7 @@ public class TestGroupByConfig {
         .setTagKeys(Sets.newHashSet("host"))
         .addTagKey("dc")
         .setGroupAll(true)
-        .setQueryIteratorInterpolatorFactory(interpolator)
-        .setQueryIteratorInterpolatorConfig(interpolator_config)
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
     
     assertEquals("sum", config.getAggregator());
@@ -92,8 +110,7 @@ public class TestGroupByConfig {
     assertTrue(config.getTagKeys().contains("host"));
     assertTrue(config.getTagKeys().contains("dc"));
     assertTrue(config.groupAll());
-    assertSame(interpolator, config.getInterpolator());
-    assertSame(interpolator_config, config.getInterpolatorConfig());
+    assertSame(interpolation_config, config.interpolationConfig());
     
     try {
       GroupByConfig.newBuilder()
@@ -101,8 +118,7 @@ public class TestGroupByConfig {
         .setId("GBy")
         .setTagKeys(Sets.newHashSet("host"))
         .addTagKey("dc")
-        .setQueryIteratorInterpolatorFactory(interpolator)
-        .setQueryIteratorInterpolatorConfig(interpolator_config)
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -113,8 +129,7 @@ public class TestGroupByConfig {
         .setId("GBy")
         .setTagKeys(Sets.newHashSet("host"))
         .addTagKey("dc")
-        .setQueryIteratorInterpolatorFactory(interpolator)
-        .setQueryIteratorInterpolatorConfig(interpolator_config)
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -125,8 +140,7 @@ public class TestGroupByConfig {
         //.setId("GBy")
         .setTagKeys(Sets.newHashSet("host"))
         .addTagKey("dc")
-        .setQueryIteratorInterpolatorFactory(interpolator)
-        .setQueryIteratorInterpolatorConfig(interpolator_config)
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -137,8 +151,7 @@ public class TestGroupByConfig {
         .setId("")
         .setTagKeys(Sets.newHashSet("host"))
         .addTagKey("dc")
-        .setQueryIteratorInterpolatorFactory(interpolator)
-        .setQueryIteratorInterpolatorConfig(interpolator_config)
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -149,8 +162,7 @@ public class TestGroupByConfig {
         .setId("GBy")
         //.setTagKeys(Sets.newHashSet("host"))
         //.addTagKey("dc")
-        .setQueryIteratorInterpolatorFactory(interpolator)
-        .setQueryIteratorInterpolatorConfig(interpolator_config)
+        .setQueryInterpolationConfig(interpolation_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
@@ -161,8 +173,7 @@ public class TestGroupByConfig {
         .setId("GBy")
         .setTagKeys(Sets.newHashSet("host"))
         .addTagKey("dc")
-        //.setQueryIteratorInterpolatorFactory(interpolator)
-        .setQueryIteratorInterpolatorConfig(interpolator_config)
+        //.setQueryInterpolationConfig(interpolation_config)
         .build();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }

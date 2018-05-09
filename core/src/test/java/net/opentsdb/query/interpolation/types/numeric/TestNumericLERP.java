@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -69,6 +69,10 @@ public class TestNumericLERP {
     assertTrue(lerp.has_next);
     assertEquals(1000, lerp.nextReal().msEpoch());
     
+    lerp = new NumericLERP(source.iterator(NumericType.TYPE).get(), config);
+    assertTrue(lerp.has_next);
+    assertEquals(1000, lerp.nextReal().msEpoch());
+    
     // empty source
     source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -84,8 +88,11 @@ public class TestNumericLERP {
     lerp = new NumericLERP(source, config);
     assertFalse(lerp.has_next);
     
+    lerp = new NumericLERP((Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>) null, config);
+    assertFalse(lerp.has_next);
+    
     try {
-      new NumericLERP(null, config);
+      new NumericLERP((TimeSeries) null, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     

@@ -26,11 +26,16 @@ import com.google.common.collect.Sets;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.data.types.numeric.Aggregators;
+import net.opentsdb.data.types.numeric.NumericSummaryType;
+import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
+import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.Filter;
@@ -38,8 +43,10 @@ import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.processor.groupby.GroupByFactory;
 import net.opentsdb.query.processor.rate.RateFactory;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.storage.TimeSeriesDataStore;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
+import net.opentsdb.storage.schemas.tsdb1x.Schema;
 import net.opentsdb.query.processor.downsample.DownsampleConfig;
 import net.opentsdb.query.processor.downsample.DownsampleFactory;
 import net.opentsdb.query.processor.groupby.GroupByConfig;
@@ -101,6 +108,7 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
         throw new QueryExecutionException("Unable to get a data store "
             + "instance from factory: " + factory.id(), 0);
       }
+      final Schema schema = store instanceof Schema ? (Schema) store : null;
 
       QueryNode node = store.newNode(this, config);
       addVertex(node);
@@ -119,12 +127,7 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
         if (!Strings.isNullOrEmpty(downsampler.getTimezone())) {
           ds.setTimeZone(ZoneId.of(downsampler.getTimezone()));
         }
-        final NumericInterpolatorConfig nic = NumericInterpolatorConfig.newBuilder()
-            .setFillPolicy(downsampler.getFillPolicy().getPolicy())
-            .setRealFillPolicy(FillWithRealPolicy.NONE)
-            .build();
-        ds.setQueryIteratorInterpolatorFactory(new NumericInterpolatorFactory.Default())
-          .setQueryIteratorInterpolatorConfig(nic);
+        ds.setQueryInterpolationConfig(downsampleInterpolationConfig(metric, downsampler, schema));
         QueryNode down = new DownsampleFactory("Downsample").newNode(this, ds.build());
         addVertex(down);
         addDagEdge(down, node);
@@ -143,7 +146,6 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
           : q.getFilter(metric.getFilter());
       String agg = !Strings.isNullOrEmpty(metric.getAggregator()) ?
           metric.getAggregator() : q.getTime().getAggregator();
-      NumericInterpolatorConfig nic = NumericInterpolatorFactory.parse(agg);
       if (filter != null) {
         GroupByConfig.Builder gb_config = null;
         final Set<String> join_keys = Sets.newHashSet();
@@ -151,23 +153,9 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
           if (v.isGroupBy()) {
             
             if (gb_config == null) {
-              QueryIteratorInterpolatorFactory nif;
-              // TODO - find a better way
-              if (agg.contains("zimsum") || 
-                  agg.contains("mimmax") ||
-                  agg.contains("mimmin")) {
-                nif = tsdb.getRegistry().getPlugin(
-                    QueryIteratorInterpolatorFactory.class, "Default");
-              } else {
-                nif = tsdb.getRegistry().getPlugin(
-                    QueryIteratorInterpolatorFactory.class, "LERP");
-              }
-              if (nif == null) {
-                throw new QueryExecutionException("Unable to find the LERP interpolator.", 0);
-              }
               gb_config = GroupByConfig.newBuilder()
-                  .setQueryIteratorInterpolatorFactory(nif)
-                  .setQueryIteratorInterpolatorConfig(nic)
+                  .setQueryInterpolationConfig(
+                      groupByInterpolationConfig(q, metric, downsampler, schema))
                   .setId("groupBy_" + metric.getId());
             }
             join_keys.add(v.getTagk());
@@ -199,23 +187,9 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
         }
       } else if (!agg.toLowerCase().equals("none")) {
         // we agg all 
-        QueryIteratorInterpolatorFactory nif;
-        // TODO - find a better way
-        if (agg.contains("zimsum") || 
-            agg.contains("mimmax") ||
-            agg.contains("mimmin")) {
-          nif = tsdb.getRegistry().getPlugin(
-              QueryIteratorInterpolatorFactory.class, "Default");
-        } else {
-          nif = tsdb.getRegistry().getPlugin(
-              QueryIteratorInterpolatorFactory.class, "LERP");
-        }
-        if (nif == null) {
-          throw new QueryExecutionException("Unable to find the LERP interpolator.", 0);
-        }
         GroupByConfig.Builder gb_config = GroupByConfig.newBuilder()
-            .setQueryIteratorInterpolatorFactory(nif)
-            .setQueryIteratorInterpolatorConfig(nic)
+            .setQueryInterpolationConfig(
+                groupByInterpolationConfig(q, metric, downsampler, schema))
             .setId("groupBy_" + metric.getId())
             .setGroupAll(true);
         gb_config.setAggregator( 
@@ -239,6 +213,114 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
   @Override
   public String id() {
     return "TsdbV2Pipeline";
+  }
+
+  /**
+   * Helper method to generate a config for downsampling interpolation.
+   * @param metric The query metric.
+   * @param downsampler The query downsampler.
+   * @param schema The 1x schema.
+   * @return A non-null interpolation config.
+   */
+  private DefaultInterpolationConfig downsampleInterpolationConfig(
+      final Metric metric, 
+      final Downsampler downsampler, 
+      final Schema schema) {
+    FillPolicy policy = downsampler.getFillPolicy().getPolicy();
+    DefaultInterpolationConfig.Builder builder = DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE,
+             NumericInterpolatorConfig.newBuilder()
+               .setFillPolicy(policy)
+               .setRealFillPolicy(FillWithRealPolicy.NONE)
+               .build(),
+             new NumericInterpolatorFactory.Default());
+    
+    if (schema != null && schema.rollupConfig() != null) {
+      NumericSummaryInterpolatorConfig.Builder nsic = 
+          NumericSummaryInterpolatorConfig.newBuilder()
+          .setDefaultFillPolicy(policy)
+          .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
+          .setRollupConfig(schema.rollupConfig());
+      if (downsampler.getAggregator().toLowerCase().equals("avg")) {
+        nsic.setSync(true)
+            .setComponentAggregator(Aggregators.SUM);
+      }
+        nsic.addExpectedSummary(schema.rollupConfig().getIdForAggregator(
+            RollupConfig.queryToRollupAggregation(downsampler.getAggregator())));
+      builder.add(NumericSummaryType.TYPE, 
+          nsic.build(), 
+          new NumericInterpolatorFactory.Default());
+    }
+    return builder.build();
+  }
+
+  /**
+   * Helper method to generate a config for groupby interpolation.
+   * @param q The original query.
+   * @param metric The query metric.
+   * @param downsampler
+   * @param schema The 1x schema.
+   * @return A non-null interpolation config.
+   */
+  private DefaultInterpolationConfig groupByInterpolationConfig(
+      final net.opentsdb.query.pojo.TimeSeriesQuery q, 
+      final Metric metric, 
+      final Downsampler downsampler, 
+      final Schema schema) {
+    FillPolicy policy = downsampler == null ? 
+        FillPolicy.NONE : downsampler.getFillPolicy().getPolicy();
+    QueryInterpolatorFactory nif;
+    String agg = !Strings.isNullOrEmpty(metric.getAggregator()) ?
+        metric.getAggregator().toLowerCase() : 
+          q.getTime().getAggregator().toLowerCase();
+    if (agg.contains("zimsum") || 
+        agg.contains("mimmax") ||
+        agg.contains("mimmin")) {
+      nif = tsdb.getRegistry().getPlugin(
+          QueryInterpolatorFactory.class, "Default");
+    } else {
+      nif = tsdb.getRegistry().getPlugin(
+          QueryInterpolatorFactory.class, "LERP");
+    }
+    if (nif == null) {
+      throw new QueryExecutionException("Unable to find the "
+          + "LERP interpolator.", 0);
+    }
+    
+    DefaultInterpolationConfig.Builder builder = 
+        DefaultInterpolationConfig.newBuilder()
+        .add(NumericType.TYPE,
+             NumericInterpolatorConfig.newBuilder()
+               .setFillPolicy(policy)
+               .setRealFillPolicy(FillWithRealPolicy.NONE)
+               .build(),
+             nif);
+    if (schema != null && schema.rollupConfig() != null) {
+      NumericSummaryInterpolatorConfig.Builder nsic = 
+          NumericSummaryInterpolatorConfig.newBuilder()
+          .setDefaultFillPolicy(policy)
+          .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
+          .setRollupConfig(schema.rollupConfig());
+      if (downsampler != null) {
+        final String ds_agg = downsampler.getAggregator().toLowerCase();
+        nsic.addExpectedSummary(schema.rollupConfig().getIdForAggregator(
+            RollupConfig.queryToRollupAggregation(ds_agg)));
+      } else {
+        if (agg.equals("avg")) {
+          nsic.addExpectedSummary(schema.rollupConfig().getIdForAggregator("sum"))
+              .addExpectedSummary(schema.rollupConfig().getIdForAggregator("count"))
+              .setSync(true)
+              .setComponentAggregator(Aggregators.SUM);
+        } {
+          nsic.addExpectedSummary(schema.rollupConfig().getIdForAggregator(
+              RollupConfig.queryToRollupAggregation(agg)));
+        }
+      }
+      builder.add(NumericSummaryType.TYPE, nsic.build(), 
+          tsdb.getRegistry().getPlugin(
+              QueryInterpolatorFactory.class, "Default"));
+    }
+    return builder.build();
   }
 
 }

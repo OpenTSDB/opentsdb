@@ -102,11 +102,11 @@ public class MillisecondTimeStamp implements TimeStamp {
     if (!(o instanceof TimeStamp)) {
       return false;
     }
-    return compare(RelationalOperator.EQ, (TimeStamp) o);
+    return compare(Op.EQ, (TimeStamp) o);
   }
   
   @Override
-  public boolean compare(final RelationalOperator comparator, 
+  public boolean compare(final Op comparator, 
       final TimeStamp compareTo) {
     if (compareTo == null) {
       throw new IllegalArgumentException("Timestamp cannot be null.");

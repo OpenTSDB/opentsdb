@@ -181,12 +181,18 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
         rollup_usage != RollupUsage.ROLLUP_RAW) {
       Downsampler ds = query.getMetrics().get(0).getDownsampler();
       if (ds != null) {
-        rollup_intervals = ((Tsdb1xHBaseDataStore) factory).schema().rollupConfig().getRollupInterval(
-            DateTime.parseDuration(ds.getInterval()) / 1000, ds.getInterval());
+        rollup_intervals = ((Tsdb1xHBaseDataStore) factory).schema()
+            .rollupConfig().getRollupIntervals(
+                DateTime.parseDuration(ds.getInterval()) / 1000, 
+                ds.getInterval(), 
+                true);
       } else if (query.getTime().getDownsampler() != null) {
         ds = query.getTime().getDownsampler();
-        rollup_intervals = ((Tsdb1xHBaseDataStore) factory).schema().rollupConfig().getRollupInterval(
-            DateTime.parseDuration(ds.getInterval()) / 1000, ds.getInterval());
+        rollup_intervals = ((Tsdb1xHBaseDataStore) factory).schema()
+            .rollupConfig().getRollupIntervals(
+                DateTime.parseDuration(ds.getInterval()) / 1000, 
+                ds.getInterval(), 
+                true);
       } else {
         rollup_intervals = null;
       }

@@ -113,6 +113,9 @@ public class GroupByTimeSeries implements TimeSeries {
       throw new IllegalArgumentException("Type cannot be null.");
     }
     iterators_returned = true;
+    if (!types.contains(type)) {
+      return Optional.empty();
+    }
     final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
         node.factory().newIterator(type, node, sources);
     if (iterator == null) {

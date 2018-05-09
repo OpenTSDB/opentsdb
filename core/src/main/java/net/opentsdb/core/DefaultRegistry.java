@@ -40,7 +40,7 @@ import net.opentsdb.data.DataShardMerger;
 import net.opentsdb.data.iterators.IteratorGroups;
 import net.opentsdb.data.types.numeric.NumericMergeLargest;
 import net.opentsdb.query.QueryIteratorFactory;
-import net.opentsdb.query.QueryIteratorInterpolatorFactory;
+import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.execution.CachingQueryExecutor;
 import net.opentsdb.query.execution.DefaultQueryExecutorFactory;
@@ -652,7 +652,7 @@ public class DefaultRegistry implements Registry {
   }
 
   @Override
-  public QueryIteratorInterpolatorFactory getQueryIteratorInterpolatorFactory(
+  public QueryInterpolatorFactory getQueryIteratorInterpolatorFactory(
       String id) {
     // TODO Auto-generated method stub
     return null;
