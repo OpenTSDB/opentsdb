@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 public class TimeShift implements Expression {
   /**
    * in place modify of TsdbResult array to increase timestamps by timeshift
+   *
    * @param data_query
    * @param results
    * @param params
@@ -32,10 +33,10 @@ public class TimeShift implements Expression {
   @Override
   public DataPoints[] evaluate(TSQuery data_query, List<DataPoints[]> results, List<String> params) {
     //not 100% sure what to do here -> do I need to think of the case where I have no data points
-    if(results == null || results.isEmpty()) {
+    if (results == null || results.isEmpty()) {
       return new DataPoints[]{};
     }
-    if(params == null || results.isEmpty()) {
+    if (params == null || params.isEmpty()) {
       throw new IllegalArgumentException("Need amount of timeshift to perform timeshift");
     }
 
@@ -48,7 +49,7 @@ public class TimeShift implements Expression {
 
     long timeshift = -1;
     if (param.startsWith("'") && param.endsWith("'")) {
-      timeshift = parseParam(param) / 1000;
+      timeshift = parseParam(param);
     } else {
       throw new RuntimeException("Invalid timeshift parameter: eg '10min'");
     }
@@ -57,15 +58,23 @@ public class TimeShift implements Expression {
       throw new RuntimeException("timeshift <= 0");
     }
 
-    DataPoints[] inputPoints = results.get(0);
+    return performShift(results.get(0), timeshift);
+  }
+
+  private static Boolean timeshiftIsInt(final long timeshift) {
+    return (timeshift == Math.floor(timeshift)) &&
+        !Double.isInfinite(timeshift);
+  }
+
+  DataPoints[] performShift(DataPoints[] inputPoints, long timeshift) {
     DataPoints[] outputPoints = new DataPoints[inputPoints.length];
-    for(int n = 0; n < inputPoints.length; n++) {
+    for (int n = 0; n < inputPoints.length; n++) {
       outputPoints[n] = shift(inputPoints[n], timeshift);
     }
     return outputPoints;
   }
 
-  public static long parseParam(String param) {
+  long parseParam(String param) {
     char[] chars = param.toCharArray();
     int tuIndex = 0;
     for (int c = 1; c < chars.length; c++) {
@@ -81,7 +90,7 @@ public class TimeShift implements Expression {
     }
 
     int time = Integer.parseInt(param.substring(1, tuIndex + 1));
-    String unit = param.substring(tuIndex + 1, param.length() - 1);
+    String unit = param.substring(tuIndex + 1, param.length()).trim();
     if ("sec".equals(unit)) {
       return TimeUnit.MILLISECONDS.convert(time, TimeUnit.SECONDS);
     } else if ("min".equals(unit)) {
@@ -92,44 +101,44 @@ public class TimeShift implements Expression {
       return TimeUnit.MILLISECONDS.convert(time, TimeUnit.DAYS);
     } else if ("week".equals(unit) || "weeks".equals(unit)) {
       //didn't have week so small cheat here
-      return TimeUnit.MILLISECONDS.convert(time*7, TimeUnit.DAYS);
-    }
-    else {
+      return TimeUnit.MILLISECONDS.convert(time * 7, TimeUnit.DAYS);
+    } else {
       throw new RuntimeException("unknown time unit=" + unit);
     }
   }
 
   /**
    * Adjusts the timestamp of each datapoint by timeshift
-   * @param points The data points to factor
+   *
+   * @param points    The data points to factor
    * @param timeshift The factor to multiply by
    * @return The resulting data points
    */
-  private DataPoints shift(final DataPoints points, final long timeshift) {
+  DataPoints shift(final DataPoints points, final long timeshift) {
     // TODO(cl) - Using an array as the size function may not return the exact
     // results and we should figure a way to avoid copying data anyway.
     final List<DataPoint> dps = new ArrayList<DataPoint>();
-    final boolean shift_is_int = (timeshift == Math.floor(timeshift)) &&
-            !Double.isInfinite(timeshift);
-    final SeekableView view = points.iterator();
-    while (view.hasNext()) {
-      DataPoint pt = view.next();
-      if (shift_is_int) {
-        dps.add(MutableDataPoint.ofLongValue(pt.timestamp() + timeshift,
-                pt.longValue()));
-      } else {
-        // NaNs are fine here, they'll just be re-computed as NaN
-        dps.add(MutableDataPoint.ofDoubleValue(pt.timestamp() + timeshift,
-                timeshift * pt.toDouble()));
-      }
+
+    for (DataPoint pt : points) {
+      dps.add(shift(pt, timeshift));
     }
+
     final DataPoint[] results = new DataPoint[dps.size()];
     dps.toArray(results);
     return new PostAggregatedDataPoints(points, results);
   }
 
-    @Override
+  DataPoint shift(final DataPoint pt, final long timeshift) {
+    if (timeshiftIsInt(timeshift)) {
+      return MutableDataPoint.ofLongValue(pt.timestamp() + timeshift, pt.longValue());
+    } else {
+      // NaNs are fine here, they'll just be re-computed as NaN
+      return MutableDataPoint.ofDoubleValue(pt.timestamp() + timeshift, timeshift * pt.toDouble());
+    }
+  }
+
+  @Override
   public String writeStringField(List<String> params, String inner_expression) {
-      return "timeshift(" + inner_expression + ")";
+    return "timeshift(" + inner_expression + ")";
   }
 }
