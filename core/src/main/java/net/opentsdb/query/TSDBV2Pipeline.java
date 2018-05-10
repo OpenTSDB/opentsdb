@@ -26,6 +26,7 @@ import com.google.common.collect.Sets;
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationException;
 import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -68,7 +69,7 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
   * @param sinks A collection of one or more sinks to publish to.
   * @throws IllegalArgumentException if any argument was null.
   */
-  public TSDBV2Pipeline(final DefaultTSDB tsdb, 
+  public TSDBV2Pipeline(final TSDB tsdb, 
                         final TimeSeriesQuery query, 
                         final QueryContext context,
                         final Collection<QuerySink> sinks) {

@@ -51,6 +51,7 @@ import com.google.common.collect.Sets;
 
 import jersey.repackaged.com.google.common.collect.ImmutableMap;
 import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.DefaultQueryContextBuilder;
@@ -68,7 +69,7 @@ import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.stats.DefaultQueryStats;
 import net.opentsdb.stats.Span;
-import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.stats.StatsCollectorBasic;
 import net.opentsdb.stats.Trace;
 import net.opentsdb.stats.Tracer;
 import net.opentsdb.utils.Bytes;
@@ -171,12 +172,16 @@ final public class QueryRpc {
       throw new WebApplicationException("Unable to pull TSDB instance from "
           + "servlet context.",
           Response.Status.INTERNAL_SERVER_ERROR);
-    } else if (!(obj instanceof DefaultTSDB)) {
+    } else if (!(obj instanceof TSDB)) {
       throw new WebApplicationException("Object stored for as the TSDB was "
           + "of the wrong type: " + obj.getClass(),
           Response.Status.INTERNAL_SERVER_ERROR);
     }
-    final DefaultTSDB tsdb = (DefaultTSDB) obj;
+    final TSDB tsdb = (TSDB) obj;
+    
+    if (tsdb.getStatsCollector() != null) {
+      tsdb.getStatsCollector().incrementCounter("query.new", "endpoint", "2x");
+    }
     
     // initiate the tracer
     final Trace trace;
@@ -497,6 +502,20 @@ final public class QueryRpc {
                      .finish();
         }
         
+        Object obj = servlet_config.getServletContext()
+            .getAttribute(OpenTSDBApplication.TSD_ATTRIBUTE);
+        if (obj == null) {
+          throw new WebApplicationException("Unable to pull TSDB instance from "
+              + "servlet context.",
+              Response.Status.INTERNAL_SERVER_ERROR);
+        } else if (!(obj instanceof TSDB)) {
+          throw new WebApplicationException("Object stored for as the TSDB was "
+              + "of the wrong type: " + obj.getClass(),
+              Response.Status.INTERNAL_SERVER_ERROR);
+        }
+        final TSDB tsdb = (TSDB) obj;
+        
+        tsdb.getStatsCollector().incrementCounter("query.success", "endpoint", "2x");
         query_success.incrementAndGet();
         LOG.info("Completing query=" 
             + JSON.serializeToString(ImmutableMap.<String, Object>builder()
@@ -993,7 +1012,7 @@ final public class QueryRpc {
    * @throws WebApplicationException if parsing was unsuccessful
    * @since 2.3
    */
-  public static TSQuery parseQuery(final DefaultTSDB tsdb, 
+  public static TSQuery parseQuery(final TSDB tsdb, 
                                    final HttpServletRequest request,
                                    final List<Object> expressions) {
     final TSQuery data_query = new TSQuery();
@@ -1319,12 +1338,12 @@ TODO - restore!
 //    return query;
 //  }
   
-  /** @param collector Populates the collector with statistics */
-  public void collectStats(final StatsCollector collector) {
-    collector.record("http.query.invalid_requests", query_invalid);
-    collector.record("http.query.exceptions", query_exceptions);
-    collector.record("http.query.success", query_success);
-  }
+//  /** @param collector Populates the collector with statistics */
+//  public void collectStats(final StatsCollector collector) {
+//    collector.record("http.query.invalid_requests", query_invalid);
+//    collector.record("http.query.exceptions", query_exceptions);
+//    collector.record("http.query.success", query_success);
+//  }
   
 //  public static class LastPointQuery {
 //    

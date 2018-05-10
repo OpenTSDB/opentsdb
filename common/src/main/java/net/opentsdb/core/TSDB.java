@@ -14,7 +14,9 @@
 // limitations under the License.
 package net.opentsdb.core;
 
+import io.netty.util.Timer;
 import net.opentsdb.configuration.Configuration;
+import net.opentsdb.stats.StatsCollector;
 
 /**
  * The core interface for an OpenTSDB client.
@@ -28,4 +30,12 @@ public interface TSDB {
   
   /** @return The non-null registry for components. */
   public Registry getRegistry();
+  
+  /** @return The non-null metric and stats collector/reporter. */
+  public StatsCollector getStatsCollector();
+
+  /** @return A timer used for scheduling non-critical maintenance tasks
+   * like metrics collection, expirations, etc. */
+  public Timer getMaintenanceTimer();
+  
 }
