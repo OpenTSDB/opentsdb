@@ -36,10 +36,10 @@ import java.util.Map.Entry;
  * 
  * @since 1.0
  */
-public abstract class StatsCollector {
+public abstract class StatsCollectorBasic {
 
   private static final Logger LOG =
-    LoggerFactory.getLogger(StatsCollector.class);
+    LoggerFactory.getLogger(StatsCollectorBasic.class);
 
   /** Tags to add to every stat emitted by the collector */
   private static Map<String, String> global_tags;
@@ -58,7 +58,7 @@ public abstract class StatsCollector {
    * @param prefix A prefix to add to every metric name, for example
    * `tsd'.
    */
-  public StatsCollector(final String prefix) {
+  public StatsCollectorBasic(final String prefix) {
     this.prefix = prefix;
     if (global_tags != null && !global_tags.isEmpty()) {
       for (final Entry<String, String> entry : global_tags.entrySet()) {

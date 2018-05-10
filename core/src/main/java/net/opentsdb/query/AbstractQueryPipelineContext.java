@@ -32,6 +32,7 @@ import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesId;
@@ -56,7 +57,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
       AbstractQueryPipelineContext.class);
   
   /** The TSDB to which we belong. */
-  protected final DefaultTSDB tsdb;
+  protected final TSDB tsdb;
   
   /** The query we're working on. */
   protected TimeSeriesQuery query;
@@ -103,7 +104,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
    * @param sinks A collection of one or more sinks to publish to.
    * @throws IllegalArgumentException if any argument was null.
    */
-  public AbstractQueryPipelineContext(final DefaultTSDB tsdb, 
+  public AbstractQueryPipelineContext(final TSDB tsdb, 
                                       final TimeSeriesQuery query, 
                                       final QueryContext context,
                                       final Collection<QuerySink> sinks) {

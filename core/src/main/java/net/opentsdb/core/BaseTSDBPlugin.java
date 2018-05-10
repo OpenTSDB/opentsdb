@@ -16,8 +16,6 @@ package net.opentsdb.core;
 
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.stats.StatsCollector;
-
 /**
  * The base class used for TSDB plugins of all types.
  * 
@@ -50,15 +48,4 @@ public abstract class BaseTSDBPlugin implements TSDBPlugin {
   @Override
   public abstract String version();
 
-  /**
-   * Called by the TSD when a request for statistics collection has come in. The
-   * implementation may provide one or more statistics. If no statistics are
-   * available for the implementation just ignore this.
-   * @param collector The collector used for emitting statistics.
-   */
-  public void collectStats(final StatsCollector collector) {
-    if (collector == null) {
-      return;
-    }
-  }
 }

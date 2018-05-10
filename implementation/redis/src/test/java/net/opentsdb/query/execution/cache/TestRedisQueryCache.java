@@ -49,6 +49,7 @@ import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
+import net.opentsdb.stats.BlackholeStatsCollector;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
@@ -79,6 +80,7 @@ public class TestRedisQueryCache {
     
     when(tsdb.getConfig()).thenReturn(config);
     when(tsdb.getRegistry()).thenReturn(registry);
+    when(tsdb.getStatsCollector()).thenReturn(new BlackholeStatsCollector());
     
     PowerMockito.whenNew(JedisPool.class).withAnyArguments()
       .thenReturn(connection_pool);

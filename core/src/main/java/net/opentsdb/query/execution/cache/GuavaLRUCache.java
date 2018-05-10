@@ -28,11 +28,13 @@ import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.stumbleupon.async.Deferred;
 
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import io.opentracing.Span;
+import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
-import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.Bytes.ByteArrayKey;
 import net.opentsdb.utils.Bytes;
@@ -72,7 +74,7 @@ import net.opentsdb.utils.DateTime;
  * 
  * @since 3.0
  */
-public class GuavaLRUCache extends QueryCachePlugin {
+public class GuavaLRUCache extends QueryCachePlugin implements TimerTask {
   private static final Logger LOG = LoggerFactory.getLogger(GuavaLRUCache.class);
   
   /** The default size limit in bytes. 128MB. */
@@ -86,6 +88,9 @@ public class GuavaLRUCache extends QueryCachePlugin {
   
   /** A counter to track how many values have been expired out of the cache. */
   private final AtomicLong expired;
+  
+  /** Reference to the TSDB used for metrics. */
+  private TSDB tsdb;
   
   /** The Guava cache implementation. */
   private Cache<ByteArrayKey, ExpiringValue> cache;
@@ -395,21 +400,6 @@ public class GuavaLRUCache extends QueryCachePlugin {
   public String version() {
     return "3.0.0";
   }
-
-  @Override
-  public void collectStats(final StatsCollector collector) {
-    if (collector == null) {
-      return;
-    }
-    final CacheStats stats = cache.stats();
-    collector.record("executor.plugin.guava.requestCount", stats.requestCount());
-    collector.record("executor.plugin.guava.hitCount", stats.hitCount());
-    collector.record("executor.plugin.guava.hitRate", stats.hitRate());
-    collector.record("executor.plugin.guava.missCount", stats.missCount());
-    collector.record("executor.plugin.guava.missRate", stats.missRate());
-    collector.record("executor.plugin.guava.evictionCount", stats.evictionCount());
-    collector.record("executor.plugin.guava.expiredCount", expired.get());
-  }
   
   @VisibleForTesting
   Cache<ByteArrayKey, ExpiringValue> cache() {
@@ -487,4 +477,32 @@ public class GuavaLRUCache extends QueryCachePlugin {
     }
     
   }
+
+  @Override
+  public void run(final Timeout ignored) throws Exception {
+    try {
+      final CacheStats stats = cache.stats();
+      tsdb.getStatsCollector().setGauge("query.readCache.guava.lru.requestCount", 
+          stats.requestCount(), (String[]) null);
+      tsdb.getStatsCollector().setGauge("query.readCache.guava.lru.hitCount", 
+          stats.hitCount(), (String[]) null);
+      tsdb.getStatsCollector().setGauge("query.readCache.guava.lru.hitRate", 
+          stats.hitRate(), (String[]) null);
+      tsdb.getStatsCollector().setGauge("query.readCache.guava.lru.missCount", 
+          stats.missCount(), (String[]) null);
+      tsdb.getStatsCollector().setGauge("query.readCache.guava.lru.missRate", 
+          stats.missRate(), (String[]) null);
+      tsdb.getStatsCollector().setGauge("query.readCache.guava.lru.evictionCount", 
+          stats.evictionCount(), (String[]) null);
+      tsdb.getStatsCollector().setGauge("query.readCache.guava.lru.expiredCount", 
+          expired.get(), (String[]) null);
+    } catch (Exception e) {
+      LOG.error("Unexpected exception recording LRU stats", e);
+    }
+    
+    tsdb.getMaintenanceTimer().newTimeout(this, 
+        tsdb.getConfig().getInt(DefaultTSDB.MAINT_TIMER_KEY), 
+        TimeUnit.MILLISECONDS);
+  }
+  
 }

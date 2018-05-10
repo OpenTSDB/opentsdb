@@ -68,6 +68,7 @@ import net.opentsdb.configuration.Configuration;
 //import net.opentsdb.meta.UIDMeta;
 //import net.opentsdb.query.expression.ExpressionFactory;
 import net.opentsdb.query.filter.TagVFilter;
+import net.opentsdb.stats.BlackholeStatsCollector;
 //import net.opentsdb.rollup.RollupConfig;
 //import net.opentsdb.rollup.RollupInterval;
 //import net.opentsdb.rollup.RollupUtils;
@@ -77,6 +78,7 @@ import net.opentsdb.query.filter.TagVFilter;
 //import net.opentsdb.stats.Histogram;
 //import net.opentsdb.stats.QueryStats;
 //import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.stats.StatsCollector;
 
 /**
  * Thread-safe implementation of the TSDB client.
@@ -86,6 +88,9 @@ import net.opentsdb.query.filter.TagVFilter;
  */
 public class DefaultTSDB implements TSDB {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultTSDB.class);
+
+  public static final String MAINT_TIMER_KEY = "tsd.maintenance.frequency";
+  public static final int MAINT_TIMER_DEFAULT = 60000;
   
 //  static final byte[] FAMILY = { 't' };
 //
@@ -109,10 +114,13 @@ public class DefaultTSDB implements TSDB {
 //  final UniqueId tag_values;
 
   /** Configuration object for all TSDB components */
-  final Configuration config;
+  private final Configuration config;
   
-  /** The plugin and object regsitry used by OpenTSDB. */
-  final Registry registry;
+  /** The plugin and object registry used by OpenTSDB. */
+  private final Registry registry;
+  
+  /** The metric reporter. */
+  private StatsCollector stats_collector;
 
   /** Timer used for various tasks such as idle timeouts or query timeouts */
   private final HashedWheelTimer timer;
@@ -306,7 +314,14 @@ public class DefaultTSDB implements TSDB {
   public DefaultTSDB(final Configuration config) {
     this.config = config;
     registry = new DefaultRegistry(this);
+    stats_collector = (StatsCollector) new BlackholeStatsCollector();
     timer = Threads.newTimer("MainTSDBTimer");
+    
+    if (!config.hasProperty(MAINT_TIMER_KEY)) {
+      config.register(MAINT_TIMER_KEY, MAINT_TIMER_DEFAULT, true, 
+          "How often, in milliseconds, to run maintenance tasks like "
+          + "collecting stats and cleaning caches.");
+    }
   }
   
   /**
@@ -316,7 +331,19 @@ public class DefaultTSDB implements TSDB {
    * exception on failure.
    */
   public Deferred<Object> initializeRegistry(final boolean load_plugins) {
-    return registry.initialize(load_plugins);
+    
+    class SetStatsCollector implements Callback<Object, Object> {
+      @Override
+      public Object call(Object arg) throws Exception {
+        final StatsCollector plugin = registry.getDefaultPlugin(StatsCollector.class);
+        if (plugin != null) {
+          stats_collector = plugin;
+        }
+        return null;
+      }
+    }
+    
+    return registry.initialize(load_plugins).addCallback(new SetStatsCollector());
   }
   
 //  /** @return The data point column family name */
@@ -565,6 +592,11 @@ public class DefaultTSDB implements TSDB {
    */
   public Registry getRegistry() {
     return registry;
+  }
+  
+  @Override
+  public StatsCollector getStatsCollector() {
+    return stats_collector;
   }
   
 //  /**
@@ -1949,8 +1981,8 @@ public class DefaultTSDB implements TSDB {
 //    return default_interval;
 //  }
 //  
-  /** @return the timer used for various house keeping functions */
-  public Timer getTimer() {
+  @Override
+  public Timer getMaintenanceTimer() {
     return timer;
   }
   
@@ -1977,4 +2009,5 @@ public class DefaultTSDB implements TSDB {
 //    }
 //  }
 
+  
 }
