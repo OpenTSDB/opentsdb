@@ -31,12 +31,8 @@ import org.junit.BeforeClass;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import com.google.common.collect.Maps;
-
 import net.opentsdb.common.Const;
-import net.opentsdb.configuration.Configuration;
-import net.opentsdb.configuration.UnitTestConfiguration;
-import net.opentsdb.core.Registry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
@@ -122,11 +118,8 @@ public class UTBase {
     NSUI_SERIES,
   }
   
-  protected static TSDB tsdb;
-  protected static Registry registry;
+  protected static MockTSDB tsdb;
   protected static Tsdb1xDataStoreFactory store_factory;
-  protected static Map<String, String> config_map;
-  protected static Configuration config;
   protected static HBaseClient client;
   protected static MockBase storage;
   protected static Tsdb1xHBaseDataStore data_store;
@@ -139,18 +132,13 @@ public class UTBase {
   
   @BeforeClass
   public static void beforeClass() throws Exception {
-    tsdb = mock(TSDB.class);
-    registry = mock(Registry.class);
+    tsdb = new MockTSDB();
     store_factory = mock(Tsdb1xDataStoreFactory.class);
     client = mock(HBaseClient.class);
-    config_map = Maps.newHashMap();
-    config = UnitTestConfiguration.getConfiguration(config_map);
     uid_factory = mock(UniqueIdFactory.class);
     data_store = mock(Tsdb1xHBaseDataStore.class);
     
-    when(tsdb.getConfig()).thenReturn(config);
-    when(tsdb.getRegistry()).thenReturn(registry);
-    when(registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
       .thenReturn(store_factory);
     when(store_factory.newInstance(any(TSDB.class), any(), any(Schema.class)))
       .thenReturn(data_store);    
@@ -165,12 +153,12 @@ public class UTBase {
     when(data_store.dataTable()).thenReturn("tsdb".getBytes(Const.ASCII_CHARSET));
     when(data_store.uidTable()).thenReturn(UID_TABLE);
     when(data_store.client()).thenReturn(client);
-    when(registry.getSharedObject(any())).thenReturn(data_store);
+    when(tsdb.registry.getSharedObject(any())).thenReturn(data_store);
    
-    when(registry.getPlugin(UniqueIdFactory.class, "LRU"))
+    when(tsdb.registry.getPlugin(UniqueIdFactory.class, "LRU"))
       .thenReturn(uid_factory);
     uid_store = new Tsdb1xUniqueIdStore(data_store);
-    when(registry.getSharedObject("default_uidstore"))
+    when(tsdb.registry.getSharedObject("default_uidstore"))
       .thenReturn(uid_store);
     when(uid_factory.newInstance(eq(tsdb), anyString(), 
         any(UniqueIdType.class), eq(uid_store))).thenAnswer(new Answer<UniqueId>() {

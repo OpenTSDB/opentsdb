@@ -18,6 +18,9 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
+
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericType;
@@ -68,6 +71,11 @@ public class RateFactory extends BaseQueryNodeFactory {
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
                                                     final Map<String, TimeSeries> sources) {
       return new RateNumericIterator(node, sources.values().iterator().next());
+    }
+
+    @Override
+    public Collection<TypeToken<?>> types() {
+      return Lists.newArrayList(NumericType.TYPE);
     }
     
   }

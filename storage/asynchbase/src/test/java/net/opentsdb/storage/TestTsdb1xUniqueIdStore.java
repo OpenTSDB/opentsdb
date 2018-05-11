@@ -158,7 +158,7 @@ public class TestTsdb1xUniqueIdStore extends UTBase {
     assertNotEquals(UNI_STRING, uid.getName(UniqueIdType.METRIC, UNI_BYTES, null).join());
     
     // now try it with UTF8
-    ((UnitTestConfiguration) config).override(
+    tsdb.config.override(
         data_store.getConfigKey(Tsdb1xUniqueIdStore.CHARACTER_SET_KEY), "UTF-8");
     uid = new Tsdb1xUniqueIdStore(data_store);
     
@@ -324,7 +324,7 @@ public class TestTsdb1xUniqueIdStore extends UTBase {
     assertEquals(TAGV_STRING, names.get(1));
     
     // UTF8
-    ((UnitTestConfiguration) config).override(
+    tsdb.config.override(
         data_store.getConfigKey(Tsdb1xUniqueIdStore.CHARACTER_SET_KEY), "UTF-8");
     uid = new Tsdb1xUniqueIdStore(data_store);
     
@@ -490,7 +490,7 @@ public class TestTsdb1xUniqueIdStore extends UTBase {
     assertNull(uid.getId(UniqueIdType.METRIC, UNI_STRING, null).join());
     
     // now try it with UTF8
-    ((UnitTestConfiguration) config).override(
+    tsdb.config.override(
         data_store.getConfigKey(Tsdb1xUniqueIdStore.CHARACTER_SET_KEY), "UTF-8");
     uid = new Tsdb1xUniqueIdStore(data_store);
     
@@ -655,7 +655,7 @@ public class TestTsdb1xUniqueIdStore extends UTBase {
     assertArrayEquals(TAGV_BYTES, ids.get(1));
     
     // UTF8
-    ((UnitTestConfiguration) config).override(
+    tsdb.config.override(
         data_store.getConfigKey(Tsdb1xUniqueIdStore.CHARACTER_SET_KEY), "UTF-8");
     uid = new Tsdb1xUniqueIdStore(data_store);
     
@@ -2374,7 +2374,7 @@ public class TestTsdb1xUniqueIdStore extends UTBase {
   private static final byte[] MAXID = { 0 };
 
   private static void resetConfig() {
-    final UnitTestConfiguration c = (UnitTestConfiguration) config;
+    final UnitTestConfiguration c = tsdb.config;
     if (c.hasProperty(data_store.getConfigKey(Tsdb1xUniqueIdStore.CHARACTER_SET_KEY))) {
       c.override(data_store.getConfigKey(Tsdb1xUniqueIdStore.CHARACTER_SET_KEY), 
           Tsdb1xUniqueIdStore.CHARACTER_SET_DEFAULT);

@@ -119,6 +119,10 @@ public class LRUUniqueId implements UniqueId, TimerTask {
     }
     id_cache = builder.<String, String>build();
     
+    tsdb.getMaintenanceTimer().newTimeout(this, 
+        tsdb.getConfig().getInt(DefaultTSDB.MAINT_TIMER_KEY), 
+        TimeUnit.MILLISECONDS);
+    
     LOG.info("Initialized LRU UniqueId cache for [" + type 
         + "] with a name limit of " + name_size 
         + " and an Id limit of " + id_size + " and mode " + mode);
@@ -602,6 +606,9 @@ public class LRUUniqueId implements UniqueId, TimerTask {
       LOG.error("Unexpected exception recording LRU stats", e);
     }
     
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Wrote stats for UID cache " + type + " and ID " + id);
+    }
     tsdb.getMaintenanceTimer().newTimeout(this, 
         tsdb.getConfig().getInt(DefaultTSDB.MAINT_TIMER_KEY), 
         TimeUnit.MILLISECONDS);

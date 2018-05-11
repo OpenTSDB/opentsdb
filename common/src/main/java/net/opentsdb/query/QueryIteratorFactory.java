@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.google.common.reflect.TypeToken;
+
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesValue;
@@ -29,6 +31,9 @@ import net.opentsdb.data.TimeSeriesValue;
  * @since 3.0
  */
 public interface QueryIteratorFactory {
+  
+  /** @return A non-null collection of types supported by this factory. */
+  public Collection<TypeToken<?>> types();
   
   /**
    * Returns an iterator using a non-keyed collection of time series sources.

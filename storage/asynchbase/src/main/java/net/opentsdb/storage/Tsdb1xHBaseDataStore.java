@@ -14,26 +14,16 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Map.Entry;
-
 import org.hbase.async.HBaseClient;
 
 import com.google.common.base.Strings;
-import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
-import net.opentsdb.configuration.ConfigurationView.ConfigurationEntryWrapper;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.data.TimeSeries;
-import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
-import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
@@ -289,33 +279,6 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
   public QueryNode newNode(final QueryPipelineContext context,
                            final QueryNodeConfig config) {
     return new Tsdb1xQueryNode(this, context, (QuerySourceConfig) config);
-  }
-
-  @Override
-  public Collection<TypeToken<?>> types() {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-  @Override
-  public void registerIteratorFactory(TypeToken<?> type,
-      QueryIteratorFactory factory) {
-    // TODO Auto-generated method stub
-    
-  }
-
-  @Override
-  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
-      TypeToken<?> type, QueryNode node, Collection<TimeSeries> sources) {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-  @Override
-  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
-      TypeToken<?> type, QueryNode node, Map<String, TimeSeries> sources) {
-    // TODO Auto-generated method stub
-    return null;
   }
   
   public Deferred<Object> shutdown() {

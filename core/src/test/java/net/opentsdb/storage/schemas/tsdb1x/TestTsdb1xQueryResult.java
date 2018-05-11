@@ -81,7 +81,7 @@ public class TestTsdb1xQueryResult extends SchemaBase {
         .addMetric(Metric.newBuilder()
             .setMetric(METRIC_STRING))
         .build();
-    when(source_config.configuration()).thenReturn(config);
+    when(source_config.configuration()).thenReturn(tsdb.config);
     when(source_config.query()).thenReturn(query);
   }
   
