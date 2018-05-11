@@ -30,9 +30,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import net.opentsdb.common.Const;
-import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
-import net.opentsdb.core.Registry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.MockTrace;
 import net.opentsdb.uid.LRUUniqueId;
@@ -98,9 +97,7 @@ public class SchemaBase {
     }
   }
   
-  public static TSDB tsdb;
-  public static Configuration config;
-  public static Registry registry;
+  public static MockTSDB tsdb;
   public static Tsdb1xDataStoreFactory store_factory;
   public static Tsdb1xDataStore store;
   public static UniqueIdStore uid_store;
@@ -115,25 +112,20 @@ public class SchemaBase {
   
   @BeforeClass
   public static void beforeClass() throws Exception {
-    tsdb = mock(TSDB.class);
-    config = UnitTestConfiguration.getConfiguration();
-    registry = mock(Registry.class);
+    tsdb = new MockTSDB();
     store_factory = mock(Tsdb1xDataStoreFactory.class);
     store = mock(Tsdb1xDataStore.class);
     uid_store = spy(new MockUIDStore(Const.ASCII_CHARSET));
     uid_factory = mock(UniqueIdFactory.class);
     
-    when(tsdb.getConfig()).thenReturn(config);
-    when(tsdb.getRegistry()).thenReturn(registry);
-    
     // return the default
-    when(registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
       .thenReturn(store_factory);
     when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
       .thenReturn(store);    
-    when(registry.getSharedObject("default_uidstore"))
+    when(tsdb.registry.getSharedObject("default_uidstore"))
       .thenReturn(uid_store);
-    when(registry.getPlugin(UniqueIdFactory.class, "LRU"))
+    when(tsdb.registry.getPlugin(UniqueIdFactory.class, "LRU"))
       .thenReturn(uid_factory);
     
     metrics = new LRUUniqueId(tsdb, null, UniqueIdType.METRIC, uid_store);
@@ -210,7 +202,7 @@ public class SchemaBase {
   
   /** Sets the UID widths and salt back to their defaults. */
   public static void resetConfig() throws Exception {
-    final UnitTestConfiguration c = (UnitTestConfiguration) config;
+    final UnitTestConfiguration c = tsdb.config;
     if (c.hasProperty("tsd.storage.uid.width.metric")) {
       c.override("tsd.storage.uid.width.metric", 3);
     }

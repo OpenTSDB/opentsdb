@@ -38,6 +38,7 @@ public class UnitTestConfiguration extends Configuration {
 
   public UnitTestConfiguration(final String[] providers) {
     super(providers);
+    register("tsd.maintenance.frequency", 60000, true, "UT");
   }
   
   /**

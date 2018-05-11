@@ -685,31 +685,6 @@ public class MockDataStore implements TimeSeriesDataStore {
   }
   
   @Override
-  public void registerIteratorFactory(final TypeToken<?> type,
-                                      final QueryIteratorFactory factory) {
-    throw new UnsupportedOperationException("Not implemented.");
-  }
-
-  @Override
-  public Iterator<TimeSeriesValue<?>> newIterator(final TypeToken<?> type,
-                                                  final QueryNode node, 
-                                                  final Collection<TimeSeries> sources) {
-    throw new UnsupportedOperationException("Not implemented.");
-  }
-
-  @Override
-  public Iterator<TimeSeriesValue<?>> newIterator(final TypeToken<?> type,
-                                                  final QueryNode node, 
-                                                  final Map<String, TimeSeries> sources) {
-    throw new UnsupportedOperationException("Not implemented.");
-  }
-  
-  @Override
-  public Collection<TypeToken<?>> types() {
-    return Lists.newArrayList(NumericType.TYPE);
-  }
-  
-  @Override
   public Deferred<TimeSeriesStringId> resolveByteId(final TimeSeriesByteId id,
                                                     final Span span) {
     return Deferred.fromError(new UnsupportedOperationException());

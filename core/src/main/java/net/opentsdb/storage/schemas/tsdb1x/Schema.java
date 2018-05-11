@@ -262,33 +262,6 @@ public class Schema implements TimeSeriesDataStore {
     return getIds(UniqueIdType.TAGK, join_keys, span);
   }
   
-  @Override
-  public Collection<TypeToken<?>> types() {
-    return data_store.types();
-  }
-
-  @Override
-  public void registerIteratorFactory(final TypeToken<?> type,
-                                      final QueryIteratorFactory factory) {
-    data_store.registerIteratorFactory(type, factory);
-  }
-
-  @Override
-  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
-      final TypeToken<?> type, 
-      final QueryNode node, 
-      final Collection<TimeSeries> sources) {
-    return data_store.newIterator(type, node, sources);
-  }
-
-  @Override
-  public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
-      final TypeToken<?> type, 
-      final QueryNode node, 
-      final Map<String, TimeSeries> sources) {
-    return data_store.newIterator(type, node, sources);
-  }
-  
   /**
    * Strips the salt and timestamp out of a key to get the TSUID of the
    * series.

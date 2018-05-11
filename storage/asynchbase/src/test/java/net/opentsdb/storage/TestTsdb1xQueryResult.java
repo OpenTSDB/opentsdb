@@ -85,7 +85,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     when(node.fetchDataType(any(byte.class))).thenReturn(true);
     when(node.schema()).thenReturn(schema);
     when(node.config()).thenReturn(source_config);
-    when(source_config.configuration()).thenReturn(config);
+    when(source_config.configuration()).thenReturn(tsdb.config);
     when(source_config.query()).thenReturn(query);
   }
   

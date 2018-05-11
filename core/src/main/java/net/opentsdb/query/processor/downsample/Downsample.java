@@ -37,6 +37,7 @@ import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.processor.ProcessorFactory;
 
 /**
  * A processing node that performs downsampling on each individual time series
@@ -212,7 +213,9 @@ public class Downsample extends AbstractQueryNode {
         return Optional.empty();
       }
       final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
-          Downsample.this.factory().newIterator(type, Downsample.this, 
+          ((ProcessorFactory) Downsample.this.factory()).newIterator(
+              type, 
+              Downsample.this, 
               Lists.newArrayList(source));
       if (iterator != null) {
         return Optional.of(iterator);
@@ -226,8 +229,10 @@ public class Downsample extends AbstractQueryNode {
       final List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = 
           Lists.newArrayListWithCapacity(types.size());
       for (final TypeToken<?> type : types) {
-        iterators.add(Downsample.this.factory().newIterator(type, Downsample.this, 
-              Lists.newArrayList(source)));
+        iterators.add(((ProcessorFactory) Downsample.this.factory()).newIterator(
+            type, 
+            Downsample.this, 
+            Lists.newArrayList(source)));
       }
       return iterators;
     }
