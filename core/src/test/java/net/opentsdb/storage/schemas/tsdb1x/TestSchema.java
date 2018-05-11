@@ -34,10 +34,8 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.ConfigurationException;
-import net.opentsdb.configuration.UnitTestConfiguration;
-import net.opentsdb.core.Registry;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
@@ -73,21 +71,20 @@ public class TestSchema extends SchemaBase {
   
   @Test
   public void ctorOverrides() throws Exception {
-    TSDB tsdb = mock(TSDB.class);
-    Configuration config = UnitTestConfiguration.getConfiguration();
-    when(tsdb.getConfig()).thenReturn(config);
-    when(tsdb.getRegistry()).thenReturn(registry);
-    
-    ((UnitTestConfiguration) config)
-      .register("tsd.storage.uid.width.metric", 4, false, "UT");
-    ((UnitTestConfiguration) config)
-      .register("tsd.storage.uid.width.tagk", 5, false, "UT");
-    ((UnitTestConfiguration) config)
-      .register("tsd.storage.uid.width.tagv", 6, false, "UT");
-    ((UnitTestConfiguration) config)
-      .register("tsd.storage.salt.buckets", 16, false, "UT");
-    ((UnitTestConfiguration) config)
-      .register("tsd.storage.salt.width", 1, false, "UT");
+    MockTSDB tsdb = new MockTSDB();
+    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+      .thenReturn(store_factory);
+    when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
+      .thenReturn(store);    
+    when(tsdb.registry.getSharedObject("default_uidstore"))
+      .thenReturn(uid_store);
+    when(tsdb.registry.getPlugin(UniqueIdFactory.class, "LRU"))
+      .thenReturn(uid_factory);
+    tsdb.config.register("tsd.storage.uid.width.metric", 4, false, "UT");
+    tsdb.config.register("tsd.storage.uid.width.tagk", 5, false, "UT");
+    tsdb.config.register("tsd.storage.uid.width.tagv", 6, false, "UT");
+    tsdb.config.register("tsd.storage.salt.buckets", 16, false, "UT");
+    tsdb.config.register("tsd.storage.salt.width", 1, false, "UT");
     
     Schema schema = new Schema(tsdb, null);
     assertEquals(4, schema.metricWidth());
@@ -101,39 +98,28 @@ public class TestSchema extends SchemaBase {
   
   @Test
   public void ctorID() throws Exception {
-    TSDB tsdb = mock(TSDB.class);
-    Registry registry = mock(Registry.class);
-    Configuration config = UnitTestConfiguration.getConfiguration();
+    MockTSDB tsdb = new MockTSDB();
     UniqueIdStore us = mock(UniqueIdStore.class);
     UniqueIdFactory uf = mock(UniqueIdFactory.class);
     UniqueId uc = mock(UniqueId.class);
     Tsdb1xDataStoreFactory sf = mock(Tsdb1xDataStoreFactory.class);
     Tsdb1xDataStore s = mock(Tsdb1xDataStore.class);
-    
-    when(tsdb.getConfig()).thenReturn(config);
-    when(tsdb.getRegistry()).thenReturn(registry);
-    when(registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
       .thenReturn(sf);
     when(sf.newInstance(eq(tsdb), eq(TESTID), any(Schema.class))).thenReturn(s);
-    when(registry.getSharedObject(TESTID + "_uidstore"))
+    when(tsdb.registry.getSharedObject(TESTID + "_uidstore"))
       .thenReturn(us);
-    when(registry.getPlugin(UniqueIdFactory.class, "LRU"))
+    when(tsdb.registry.getPlugin(UniqueIdFactory.class, "LRU"))
       .thenReturn(uf);
     when(uf.newInstance(eq(tsdb), anyString(), 
         any(UniqueIdType.class), eq(us))).thenReturn(uc);
     
-    ((UnitTestConfiguration) config)
-      .register("tsd.storage." + TESTID + ".uid.width.metric", 4, false, "UT");
-    ((UnitTestConfiguration) config)
-      .register("tsd.storage." + TESTID + ".uid.width.tagk", 5, false, "UT");
-    ((UnitTestConfiguration) config)
-      .register("tsd.storage." + TESTID + ".uid.width.tagv", 6, false, "UT");
-    ((UnitTestConfiguration) config)
-      .register("tsd.storage." + TESTID + ".salt.buckets", 16, false, "UT");
-    ((UnitTestConfiguration) config)
-      .register("tsd.storage." + TESTID + ".salt.width", 1, false, "UT");
-    ((UnitTestConfiguration) config)
-      .register("tsd.storage." + TESTID + ".data.store", TESTID, false, "UT");
+    tsdb.config.register("tsd.storage." + TESTID + ".uid.width.metric", 4, false, "UT");
+    tsdb.config.register("tsd.storage." + TESTID + ".uid.width.tagk", 5, false, "UT");
+    tsdb.config.register("tsd.storage." + TESTID + ".uid.width.tagv", 6, false, "UT");
+    tsdb.config.register("tsd.storage." + TESTID + ".salt.buckets", 16, false, "UT");
+    tsdb.config.register("tsd.storage." + TESTID + ".salt.width", 1, false, "UT");
+    tsdb.config.register("tsd.storage." + TESTID + ".data.store", TESTID, false, "UT");
     
     Schema schema = new Schema(tsdb, TESTID);
     assertEquals(4, schema.metricWidth());
@@ -150,13 +136,8 @@ public class TestSchema extends SchemaBase {
   
   @Test
   public void ctorNoStoreFactory() throws Exception {
-    TSDB tsdb = mock(TSDB.class);
-    Registry registry = mock(Registry.class);
-    Configuration config = UnitTestConfiguration.getConfiguration();
-    when(tsdb.getConfig()).thenReturn(config);
-    when(tsdb.getRegistry()).thenReturn(registry);
-    ((UnitTestConfiguration) config)
-      .register("tsd.storage.data.store", "NOTTHERE", false, "UT");
+    MockTSDB tsdb = new MockTSDB();
+    tsdb.config.register("tsd.storage.data.store", "NOTTHERE", false, "UT");
     try {
       new Schema(tsdb, null);
       fail("Expected ConfigurationException");
@@ -165,13 +146,10 @@ public class TestSchema extends SchemaBase {
   
   @Test
   public void ctorNullStoreFromFactory() throws Exception {
-    TSDB tsdb = mock(TSDB.class);
-    Configuration config = UnitTestConfiguration.getConfiguration();
-    Registry registry = mock(Registry.class);
-    when(tsdb.getRegistry()).thenReturn(registry);
-    when(tsdb.getConfig()).thenReturn(config);
+    MockTSDB tsdb = new MockTSDB();
     Tsdb1xDataStoreFactory store_factory = mock(Tsdb1xDataStoreFactory.class);
-    when(registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class)).thenReturn(store_factory);
+    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+      .thenReturn(store_factory);
     when(store_factory.newInstance(eq(tsdb), eq(null), any(Schema.class)))
       .thenReturn(null);
     try {
@@ -182,13 +160,10 @@ public class TestSchema extends SchemaBase {
   
   @Test
   public void ctorStoreInstantiationFailure() throws Exception {
-    TSDB tsdb = mock(TSDB.class);
-    Configuration config = UnitTestConfiguration.getConfiguration();
-    Registry registry = mock(Registry.class);
-    when(tsdb.getRegistry()).thenReturn(registry);
-    when(tsdb.getConfig()).thenReturn(config);
+    MockTSDB tsdb = new MockTSDB();
     Tsdb1xDataStoreFactory store_factory = mock(Tsdb1xDataStoreFactory.class);
-    when(registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class)).thenReturn(store_factory);
+    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+      .thenReturn(store_factory);
     when(store_factory.newInstance(eq(tsdb), eq(null), any(Schema.class)))
       .thenThrow(new UnitTestException());
     try {
@@ -723,17 +698,18 @@ public class TestSchema extends SchemaBase {
             schema.metricWidth() + Schema.TIMESTAMP_BYTES));
     
     // salt and diff metric width
-    TSDB tsdb = mock(TSDB.class);
-    Configuration config = UnitTestConfiguration.getConfiguration();
-    when(tsdb.getConfig()).thenReturn(config);
-    when(tsdb.getRegistry()).thenReturn(registry);
-    
-    ((UnitTestConfiguration) config)
-      .register("tsd.storage.uid.width.metric", 4, false, "UT");
-    ((UnitTestConfiguration) config)
-      .register("tsd.storage.salt.buckets", 16, false, "UT");
-    ((UnitTestConfiguration) config)
-      .register("tsd.storage.salt.width", 1, false, "UT");
+    MockTSDB tsdb = new MockTSDB();
+    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+      .thenReturn(store_factory);
+    when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
+      .thenReturn(store);    
+    when(tsdb.registry.getSharedObject("default_uidstore"))
+      .thenReturn(uid_store);
+    when(tsdb.registry.getPlugin(UniqueIdFactory.class, "LRU"))
+      .thenReturn(uid_factory);
+    tsdb.config.register("tsd.storage.uid.width.metric", 4, false, "UT");
+    tsdb.config.register("tsd.storage.salt.buckets", 16, false, "UT");
+    tsdb.config.register("tsd.storage.salt.width", 1, false, "UT");
     
     schema = new Schema(tsdb, null);
     

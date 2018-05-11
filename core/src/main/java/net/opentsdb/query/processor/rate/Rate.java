@@ -39,6 +39,7 @@ import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.pojo.RateOptions;
+import net.opentsdb.query.processor.ProcessorFactory;
 
 /**
  * A processing node that performs rate conversion on each individual time series
@@ -206,7 +207,9 @@ public class Rate extends AbstractQueryNode {
         throw new IllegalArgumentException("Type cannot be null.");
       }
       final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
-          Rate.this.factory().newIterator(type, Rate.this, 
+          ((ProcessorFactory) Rate.this.factory()).newIterator(
+              type, 
+              Rate.this, 
               Lists.newArrayList(source));
       if (iterator != null) {
         return Optional.of(iterator);
@@ -220,8 +223,10 @@ public class Rate extends AbstractQueryNode {
       final List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = 
           Lists.newArrayListWithCapacity(types.size());
       for (final TypeToken<?> type : types) {
-        iterators.add(Rate.this.factory().newIterator(type, Rate.this, 
-              Lists.newArrayList(source)));
+        iterators.add(((ProcessorFactory) Rate.this.factory()).newIterator(
+            type, 
+            Rate.this, 
+            Lists.newArrayList(source)));
       }
       return iterators;
     }

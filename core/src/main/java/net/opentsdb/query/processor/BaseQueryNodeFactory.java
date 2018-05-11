@@ -39,7 +39,7 @@ import net.opentsdb.query.QueryNodeFactory;
  * 
  * @since 3.0
  */
-public abstract class BaseQueryNodeFactory implements QueryNodeFactory {
+public abstract class BaseQueryNodeFactory implements ProcessorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(
       BaseQueryNodeFactory.class);
   

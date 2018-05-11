@@ -111,7 +111,7 @@ public class TestTsdb1xQueryNode extends UTBase {
             .setMetric(METRIC_STRING))
         .build();
     
-    when(source_config.configuration()).thenReturn(config);
+    when(source_config.configuration()).thenReturn(tsdb.config);
     when(source_config.query()).thenReturn(query);
     when(meta_schema.runQuery(any(TimeSeriesQuery.class)))
       .thenReturn(meta_deferred);
@@ -313,7 +313,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     } catch (IllegalArgumentException e) { }
     
     // no metrics
-    when(source_config.configuration()).thenReturn(config);
+    when(source_config.configuration()).thenReturn(tsdb.config);
     query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Integer.toString(START_TS))
@@ -329,7 +329,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     } catch (IllegalArgumentException e) { }
     
     // too many metrics
-    when(source_config.configuration()).thenReturn(config);
+    when(source_config.configuration()).thenReturn(tsdb.config);
     query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart(Integer.toString(START_TS))

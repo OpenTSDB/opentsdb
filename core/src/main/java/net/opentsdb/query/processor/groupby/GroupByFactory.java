@@ -18,6 +18,9 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
+
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
@@ -71,6 +74,11 @@ public class GroupByFactory extends BaseQueryNodeFactory {
                                                     final Map<String, TimeSeries> sources) {
       return new GroupByNumericIterator(node, sources);
     }
+
+    @Override
+    public Collection<TypeToken<?>> types() {
+      return Lists.newArrayList(NumericType.TYPE);
+    }
     
   }
 
@@ -91,5 +99,9 @@ public class GroupByFactory extends BaseQueryNodeFactory {
       return new GroupByNumericSummaryIterator(node, sources);
     }
     
+    @Override
+    public Collection<TypeToken<?>> types() {
+      return Lists.newArrayList(NumericSummaryType.TYPE);
+    }
   }
 }
