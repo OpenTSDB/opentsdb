@@ -33,6 +33,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.utils.UnitTestException;
 
@@ -42,6 +43,7 @@ public class TestAbstractQueryNode {
   private QueryPipelineContext context;
   private List<QueryNode> upstream;
   private List<QueryNode> downstream;
+  private List<TimeSeriesDataSource> downstream_sources;
   
   @Before
   public void before() throws Exception {
@@ -54,9 +56,13 @@ public class TestAbstractQueryNode {
     downstream = Lists.newArrayList(
         mock(QueryNode.class),
         mock(QueryNode.class));
+    downstream_sources = Lists.newArrayList(
+        mock(TimeSeriesDataSource.class),
+        mock(TimeSeriesDataSource.class));
     
     when(context.upstream(any(QueryNode.class))).thenReturn(upstream);
     when(context.downstream(any(QueryNode.class))).thenReturn(downstream);
+    when(context.downstreamSources(any(QueryNode.class))).thenReturn(downstream_sources);
   }
   
   @Test
@@ -64,10 +70,12 @@ public class TestAbstractQueryNode {
     final TestAQ node = new TestAQ(factory, context);
     assertNull(node.upstream);
     assertNull(node.downstream);
+    assertNull(node.downstream_sources);
     
     node.initialize();
     assertSame(upstream, node.upstream);
     assertSame(downstream, node.downstream);
+    assertSame(downstream_sources, node.downstream_sources);
   }
   
   @Test
@@ -192,6 +200,25 @@ public class TestAbstractQueryNode {
     node.completeUpstream(42, 42);
     verify(upstream.get(0), times(1)).onComplete(node, 42, 42);
     verify(upstream.get(1), times(1)).onComplete(node, 42, 42);
+  }
+  
+  @Test
+  public void fetchDownstream() throws Exception {
+    final TestAQ node = new TestAQ(factory, context);
+    node.initialize();
+    
+    node.fetchDownstream(null);
+    verify(downstream_sources.get(0), times(1)).fetchNext(null);
+    verify(downstream_sources.get(1), times(1)).fetchNext(null);
+    
+    doThrow(new UnitTestException()).when(downstream_sources.get(1))
+      .fetchNext(null);
+    try {
+      node.fetchDownstream(null);
+      fail("Expected UnitTestException");
+    } catch (UnitTestException e) { }
+    verify(downstream_sources.get(0), times(2)).fetchNext(null);
+    verify(downstream_sources.get(1), times(2)).fetchNext(null);
   }
   
   class TestAQ extends AbstractQueryNode {

@@ -19,7 +19,9 @@ import java.util.Collection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.exceptions.QueryUpstreamException;
+import net.opentsdb.stats.Span;
 
 /**
  * A base class for nodes that holds a link to the context, upstream and 
@@ -43,6 +45,9 @@ public abstract class AbstractQueryNode implements QueryNode {
   /** The downstream query nodes. */
   protected Collection<QueryNode> downstream;
   
+  /** The downstream source nodes. */
+  protected Collection<TimeSeriesDataSource> downstream_sources;
+  
   /**
    * The default ctor.
    * @param factory A non-null factory to generate iterators from.
@@ -65,6 +70,7 @@ public abstract class AbstractQueryNode implements QueryNode {
   public void initialize() {
     upstream = context.upstream(this);
     downstream = context.downstream(this);
+    downstream_sources = context.downstreamSources(this);
   }
   
   @Override
@@ -76,6 +82,16 @@ public abstract class AbstractQueryNode implements QueryNode {
     return factory;
   }
 
+  /**
+   * Calls {@link #fetchNext(Span)} on all of the downstream nodes.
+   * @param span An optional tracing span.
+   */
+  protected void fetchDownstream(final Span span) {
+    for (final TimeSeriesDataSource source : downstream_sources) {
+      source.fetchNext(span);
+    }
+  }
+  
   /**
    * Sends the result to each of the upstream subscribers.
    * 
