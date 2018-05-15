@@ -49,20 +49,19 @@ import net.opentsdb.query.execution.MultiClusterQueryExecutor;
 import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.QueryExecutorFactory;
 import net.opentsdb.query.execution.TimeSlicedCachingExecutor;
-import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.GuavaLRUCache;
+import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cluster.ClusterConfig;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
-import net.opentsdb.query.execution.serdes.TimeSeriesSerdes;
-import net.opentsdb.query.execution.serdes.UglyByteIteratorGroupsSerdes;
 import net.opentsdb.query.plan.DefaultQueryPlannerFactory;
 import net.opentsdb.query.plan.IteratorGroupsSlicePlanner;
 import net.opentsdb.query.plan.QueryPlannnerFactory;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.storage.TimeSeriesDataStore;
 import net.opentsdb.utils.Deferreds;
 import net.opentsdb.utils.JSON;
@@ -503,10 +502,6 @@ public class DefaultRegistry implements Registry {
     
     registerPlugin(QueryCachePlugin.class, null, query_cache);
     registerPlugin(QueryCachePlugin.class, "GuavaLRUCache", query_cache);
-    
-    final UglyByteIteratorGroupsSerdes ugly = new UglyByteIteratorGroupsSerdes();
-    serdes.put(null, ugly);
-    serdes.put("UglyByteSerdes", ugly);
     
     final TimeSeriesCacheKeyGenerator key_gen = 
         new DefaultTimeSeriesCacheKeyGenerator();

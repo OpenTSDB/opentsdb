@@ -47,7 +47,7 @@ import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
 import net.opentsdb.stats.BlackholeStatsCollector;
 import redis.clients.jedis.Jedis;
@@ -262,13 +262,13 @@ public class TestRedisQueryCache {
     RedisQueryCache cache = new RedisQueryCache();
     
     try {
-      cache.cache(key, data, 600000, TimeUnit.MILLISECONDS);
+      cache.cache(key, data, 600000, TimeUnit.MILLISECONDS, null);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
     assertNull(cache.initialize(tsdb).join(1));
 
-    cache.cache(key, data, 600000, TimeUnit.MILLISECONDS);
+    cache.cache(key, data, 600000, TimeUnit.MILLISECONDS, null);
     verify(connection_pool, times(1)).getResource();
     verify(instance, times(1)).set(key, data, RedisQueryCache.NX, 
         RedisQueryCache.EXP, 600000L);
@@ -276,16 +276,16 @@ public class TestRedisQueryCache {
     verify(instance, times(1)).close();
     
     try {
-      cache.cache(null, data, 600000, TimeUnit.MILLISECONDS);
+      cache.cache(null, data, 600000, TimeUnit.MILLISECONDS, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      cache.cache(new byte[] { }, data, 600000, TimeUnit.MILLISECONDS);
+      cache.cache(new byte[] { }, data, 600000, TimeUnit.MILLISECONDS, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    cache.cache(key, data, 0, TimeUnit.MILLISECONDS);
+    cache.cache(key, data, 0, TimeUnit.MILLISECONDS, null);
     verify(connection_pool, times(1)).getResource();
     verify(instance, times(1)).set(key, data, RedisQueryCache.NX, 
         RedisQueryCache.EXP, 600000L);
@@ -293,13 +293,13 @@ public class TestRedisQueryCache {
     verify(instance, times(1)).close();
     
     try {
-      cache.cache(key, data, 600000, TimeUnit.NANOSECONDS);
+      cache.cache(key, data, 600000, TimeUnit.NANOSECONDS, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     when(instance.set(key, data, RedisQueryCache.NX, RedisQueryCache.EXP, 
         600000L)).thenThrow(new IllegalArgumentException("Boo!"));
-    cache.cache(key, data, 600000, TimeUnit.MILLISECONDS);
+    cache.cache(key, data, 600000, TimeUnit.MILLISECONDS, null);
     verify(connection_pool, times(2)).getResource();
     verify(instance, times(2)).set(key, data, RedisQueryCache.NX, 
         RedisQueryCache.EXP, 600000L);
@@ -316,13 +316,13 @@ public class TestRedisQueryCache {
     RedisQueryCache cache = new RedisQueryCache();
     
     try {
-      cache.cache(keys, data, expirations, TimeUnit.MILLISECONDS);
+      cache.cache(keys, data, expirations, TimeUnit.MILLISECONDS, null);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
     assertNull(cache.initialize(tsdb).join(1));
 
-    cache.cache(keys, data, expirations, TimeUnit.MILLISECONDS);
+    cache.cache(keys, data, expirations, TimeUnit.MILLISECONDS, null);
     verify(connection_pool, times(1)).getResource();
     verify(instance, times(1)).set(new byte[] { 0, 0, 1 }, new byte[] { 42 }, 
         RedisQueryCache.NX, RedisQueryCache.EXP, 600000L);
@@ -332,16 +332,16 @@ public class TestRedisQueryCache {
     verify(instance, times(1)).close();
     
     try {
-      cache.cache(null, data, expirations, TimeUnit.MILLISECONDS);
+      cache.cache(null, data, expirations, TimeUnit.MILLISECONDS, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      cache.cache(new byte[][] { }, data, expirations, TimeUnit.MILLISECONDS);
+      cache.cache(new byte[][] { }, data, expirations, TimeUnit.MILLISECONDS, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    cache.cache(keys, data, new long[] { 600000, 0 }, TimeUnit.MILLISECONDS);
+    cache.cache(keys, data, new long[] { 600000, 0 }, TimeUnit.MILLISECONDS, null);
     verify(connection_pool, times(2)).getResource();
     verify(instance, times(2)).set(new byte[] { 0, 0, 1 }, new byte[] { 42 }, 
         RedisQueryCache.NX, RedisQueryCache.EXP, 600000L);
@@ -353,24 +353,24 @@ public class TestRedisQueryCache {
     verify(instance, times(2)).close();
     
     try {
-      cache.cache(keys, data, expirations, TimeUnit.NANOSECONDS);
+      cache.cache(keys, data, expirations, TimeUnit.NANOSECONDS, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      cache.cache(keys, data, null, TimeUnit.MILLISECONDS);
+      cache.cache(keys, data, null, TimeUnit.MILLISECONDS, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      cache.cache(keys, data, new long[] { 30000L }, TimeUnit.MILLISECONDS);
+      cache.cache(keys, data, new long[] { 30000L }, TimeUnit.MILLISECONDS, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     when(instance.set(new byte[] { 0, 0, 1 }, new byte[] { 42 }, 
         RedisQueryCache.NX, RedisQueryCache.EXP, 600000L))
         .thenThrow(new IllegalArgumentException("Boo!"));
-    cache.cache(keys, data, expirations, TimeUnit.MILLISECONDS);
+    cache.cache(keys, data, expirations, TimeUnit.MILLISECONDS, null);
     verify(connection_pool, times(3)).getResource();
     verify(instance, times(3)).set(new byte[] { 0, 0, 1 }, new byte[] { 42 }, 
         RedisQueryCache.NX, RedisQueryCache.EXP, 600000L);

@@ -871,5 +871,11 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
       }
     }
 
+    @Override
+    public String getId() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
   }
 }

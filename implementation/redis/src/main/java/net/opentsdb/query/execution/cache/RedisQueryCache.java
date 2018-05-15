@@ -24,13 +24,13 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Deferred;
 
-import io.opentracing.Span;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.core.TSDBPlugin;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
+import net.opentsdb.stats.Span;
 import net.opentsdb.stats.TsdbTrace;
-import net.opentsdb.utils.Bytes;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
@@ -43,7 +43,7 @@ import redis.clients.jedis.Protocol;
  * 
  * @since 3.0
  */
-public class RedisQueryCache extends QueryCachePlugin {
+public class RedisQueryCache implements QueryCachePlugin, TSDBPlugin {
   private static final Logger LOG = LoggerFactory.getLogger(
       RedisQueryCache.class);
   
@@ -189,14 +189,14 @@ public class RedisQueryCache extends QueryCachePlugin {
 
       public LocalExecution() {
         super(null);
-        if (context.getTracer() != null) {
-          setSpan(context, 
-              RedisQueryCache.this.getClass().getSimpleName(), 
-              upstream_span,
-              TsdbTrace.addTags(
-                  "key", Bytes.pretty(key),
-                  "startThread", Thread.currentThread().getName()));
-        }
+//        if (context.getTracer() != null) {
+//          setSpan(context, 
+//              RedisQueryCache.this.getClass().getSimpleName(), 
+//              upstream_span,
+//              TsdbTrace.addTags(
+//                  "key", Bytes.pretty(key),
+//                  "startThread", Thread.currentThread().getName()));
+//        }
       }
       
       /** Do da work */
@@ -268,14 +268,14 @@ public class RedisQueryCache extends QueryCachePlugin {
 
       public LocalExecution() {
         super(null);
-        if (context.getTracer() != null) {
-          setSpan(context, 
-              RedisQueryCache.this.getClass().getSimpleName(), 
-              upstream_span,
-              TsdbTrace.addTags(
-                  "keys", Integer.toString(keys.length),
-                  "startThread", Thread.currentThread().getName()));
-        }
+//        if (context.getTracer() != null) {
+//          setSpan(context, 
+//              RedisQueryCache.this.getClass().getSimpleName(), 
+//              upstream_span,
+//              TsdbTrace.addTags(
+//                  "keys", Integer.toString(keys.length),
+//                  "startThread", Thread.currentThread().getName()));
+//        }
       }
       
       /** Do da work */
@@ -356,7 +356,8 @@ public class RedisQueryCache extends QueryCachePlugin {
   public void cache(final byte[] key, 
                     final byte[] data, 
                     final long expiration, 
-                    final TimeUnit units) {
+                    final TimeUnit units,
+                    final Span upstream_span) {
     if (connection_pool == null) {
       throw new IllegalStateException("Cache has not been initialized.");
     }
@@ -387,7 +388,8 @@ public class RedisQueryCache extends QueryCachePlugin {
   public void cache(final byte[][] keys, 
                     final byte[][] data, 
                     final long[] expirations,
-                    final TimeUnit units) {
+                    final TimeUnit units,
+                    final Span upstream_span) {
     if (connection_pool == null) {
       throw new IllegalStateException("Cache has not been initialized.");
     }
