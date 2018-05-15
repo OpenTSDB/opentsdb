@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package net.opentsdb.query;
 
 import java.util.Collection;
 
+import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.stats.Span;
 
 /**
@@ -63,9 +64,17 @@ public interface QueryPipelineContext extends QueryNode {
    * Returns the downstream nodes for the requested node.
    * @param node A non-null query node.
    * @return A non-null collection of downstream nodes. May be empty if the node
-   * is a source node.
+   * is a terminal node.
    */
   public Collection<QueryNode> downstream(final QueryNode node);
+  
+  /**
+   * Returns the downstream source nodes for the requested node.
+   * @param node A non-null query node.
+   * @return A non-null collection of downstream data source nodes. May be
+   * empty if the node is a terminal node.
+   */
+  public Collection<TimeSeriesDataSource> downstreamSources(final QueryNode node);
   
   /**
    * The collection of sinks given by the calling API that will receive final

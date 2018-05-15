@@ -918,5 +918,10 @@ public final class Bytes {
     public byte[] key() {
       return key;
     }
+  
+    @Override
+    public String toString() {
+      return Bytes.pretty(key);
+    }
   }
 }

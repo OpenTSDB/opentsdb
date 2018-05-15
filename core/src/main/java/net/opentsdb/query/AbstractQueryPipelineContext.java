@@ -31,7 +31,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
@@ -178,6 +177,36 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
         downstream.size());
     for (final DefaultEdge e : downstream) {
       downstreams.add(graph.getEdgeTarget(e));
+    }
+    return downstreams;
+  }
+  
+  @Override
+  public Collection<TimeSeriesDataSource> downstreamSources(final QueryNode node) {
+    if (node == null) {
+      throw new IllegalArgumentException("Node cannot be null.");
+    }
+    if (!graph.containsVertex(node)) {
+      throw new IllegalArgumentException("The given node wasn't in this graph: " 
+          + node);
+    }
+    final Set<DefaultEdge> downstream = graph.outgoingEdgesOf(node);
+    if (downstream.isEmpty()) {
+      return Collections.emptyList();
+    }
+    final Set<TimeSeriesDataSource> downstreams = Sets.newHashSetWithExpectedSize(
+        downstream.size());
+    for (final DefaultEdge e : downstream) {
+      final QueryNode target = graph.getEdgeTarget(e);
+      if (downstreams.contains(target)) {
+        continue;
+      }
+      
+      if (target instanceof TimeSeriesDataSource) {
+        downstreams.add((TimeSeriesDataSource) target);
+      } else {
+        downstreams.addAll(downstreamSources(target));
+      }
     }
     return downstreams;
   }
@@ -338,6 +367,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     if (graph.vertexSet().size() == 1) {
       throw new IllegalStateException("Graph cannot be empty (with only the context).");
     }
+    final Set<TimeSeriesDataSource> source_set = Sets.newHashSet();
     final DepthFirstIterator<QueryNode, DefaultEdge> df_iterator = 
       new DepthFirstIterator<QueryNode, DefaultEdge>(graph);
     while (df_iterator.hasNext()) {
@@ -349,13 +379,17 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
       final Set<DefaultEdge> incoming = graph.incomingEdgesOf(node);
       if (incoming.size() == 1 && graph.getEdgeSource(incoming.iterator().next()) == this) {
         roots.add(node);
-      }
-      if (node instanceof TimeSeriesDataSource) {
-        sources.add((TimeSeriesDataSource) node);
+        if (node instanceof TimeSeriesDataSource) {
+          source_set.add((TimeSeriesDataSource) node);
+        } else {
+          source_set.addAll(downstreamSources(node));
+        }
       }
     }
+    
+    sources.addAll(source_set);
   }
-
+  
   /**
    * A helper to determine if the stream is finished and calls the sink's 
    * {@link QuerySink#onComplete()} method.
