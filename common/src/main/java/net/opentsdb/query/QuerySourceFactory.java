@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017 The OpenTSDB Authors.
+// Copyright (C) 2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,24 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.execution.serdes;
+package net.opentsdb.query;
+
+import net.opentsdb.data.TimeSeriesDataSource;
 
 /**
- * Interface used to encapsulate Serdes specific options at query time.
  * 
- * @since 3.0
  */
-public interface SerdesOptions {
+public interface QuerySourceFactory extends QueryNodeFactory {
+
+  /**
+   * Returns a new node given the context and config.
+   * @param context A non-null pipeline context.
+   * @param config An optional config.
+   */
+  public TimeSeriesDataSource newNode(final QueryPipelineContext context, 
+                                      final QueryNodeConfig config);
+  
+  /** @return The ID of the factory. */
+  public String id();
   
 }

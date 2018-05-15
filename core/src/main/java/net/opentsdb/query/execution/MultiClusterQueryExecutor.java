@@ -571,6 +571,12 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
       return cluster_override;
     }
     
+    @Override
+    public String getId() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+    
     /** @return A new builder. */
     public static Builder newBuilder() {
       return new Builder();

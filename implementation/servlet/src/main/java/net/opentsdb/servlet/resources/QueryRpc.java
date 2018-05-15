@@ -50,10 +50,12 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 
 import jersey.repackaged.com.google.common.collect.ImmutableMap;
+import net.opentsdb.common.Const;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.ConvertedQueryResult;
 import net.opentsdb.query.DefaultQueryContextBuilder;
 import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.TSSubQuery;
@@ -475,7 +477,7 @@ final public class QueryRpc {
         json.writeStartArray();
         
         final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(json);
-        serdes.serialize(context, options, output, result);
+        serdes.serialize(context, options, output, result, serdes_span);
         
 //        if (options.showSummary()) {
 //          json.writeObjectFieldStart("summary");

@@ -16,6 +16,8 @@ package net.opentsdb.query.execution.serdes;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import net.opentsdb.query.serdes.SerdesOptions;
+
 /**
  * Serdes options for the Json version 2 serializer.
  * 
