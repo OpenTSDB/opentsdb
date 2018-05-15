@@ -23,6 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -109,6 +110,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     assertEquals(TS_SINGLE_SERIES, v.timestamp().epoch());
     assertEquals(1, v.value().longValue());
     assertFalse(it.hasNext());
+    assertEquals(ChronoUnit.SECONDS, result.resolution());
   }
 
   @Test
@@ -126,6 +128,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     result.decode(row, null);
     
     assertTrue(result.timeSeries().isEmpty());
+    assertEquals(ChronoUnit.SECONDS, result.resolution());
   }
 
   @Test
@@ -165,6 +168,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     assertEquals(3, v.value().longValue());
     
     assertFalse(it.hasNext());
+    assertEquals(ChronoUnit.SECONDS, result.resolution());
   }
 
   @Test
@@ -190,6 +194,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     result.decode(row, null);
     
     assertTrue(result.timeSeries().isEmpty());
+    assertEquals(ChronoUnit.SECONDS, result.resolution());
   }
 
   @Test
@@ -224,6 +229,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     assertEquals(3, v.value().longValue());
     
     assertFalse(it.hasNext());
+    assertEquals(ChronoUnit.SECONDS, result.resolution());
   }
 
   @Test
@@ -244,6 +250,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     result.decode(row, null);
     
     assertTrue(result.timeSeries().isEmpty());
+    assertEquals(ChronoUnit.SECONDS, result.resolution());
   }
 
   @Test
@@ -289,6 +296,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     assertEquals(4, v.value().longValue());
     
     assertFalse(it.hasNext());
+    assertEquals(ChronoUnit.SECONDS, result.resolution());
   }
 
   @Test
@@ -316,6 +324,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     result.decode(row, null);
     
     assertTrue(result.timeSeries().isEmpty());
+    assertEquals(ChronoUnit.SECONDS, result.resolution());
   }
 
   @Test
@@ -351,6 +360,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     assertEquals(TS_SINGLE_SERIES, v.timestamp().epoch());
     assertEquals(1, v.value().value(0).longValue());
     assertFalse(it.hasNext());
+    assertEquals(ChronoUnit.SECONDS, result.resolution());
   }
   
   @Test
@@ -386,6 +396,7 @@ public class TestTsdb1xQueryResult extends UTBase {
     assertEquals(TS_SINGLE_SERIES, v.timestamp().epoch());
     assertEquals(1, v.value().value(0).longValue());
     assertFalse(it.hasNext());
+    assertEquals(ChronoUnit.SECONDS, result.resolution());
   }
   
   @Test

@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map.Entry;
@@ -200,12 +201,13 @@ public class NumericRowSeq implements RowSeq {
   }
   
   @Override
-  public void dedupe(final boolean keep_earliest, final boolean reverse) {
+  public ChronoUnit dedupe(final boolean keep_earliest, final boolean reverse) {
     dps = 0;
     // first pass, see if we even need to dedupe
     long last_offset = -1;
     long current_offset = 0;
     int idx = 0;
+    ChronoUnit resolution = null;
     
     boolean need_repair = false;
     while (idx < data.length) {
@@ -214,15 +216,24 @@ public class NumericRowSeq implements RowSeq {
         current_offset = NumericCodec.offsetFromNanoQualifier(data, idx);
         idx += NumericCodec.NS_Q_WIDTH;
         idx += NumericCodec.getValueLengthFromQualifier(data, idx - 1);
+        if (resolution == null) {
+          resolution = ChronoUnit.NANOS;
+        }
       } else if ((data[idx] & NumericCodec.MS_BYTE_FLAG) == 
           NumericCodec.MS_BYTE_FLAG) {
         current_offset = NumericCodec.offsetFromMsQualifier(data, idx);
         idx += NumericCodec.MS_Q_WIDTH;
         idx += NumericCodec.getValueLengthFromQualifier(data, idx - 1);
+        if (resolution == null) {
+          resolution = ChronoUnit.MILLIS;
+        }
       } else {
         current_offset = NumericCodec.offsetFromSecondQualifier(data, idx);
         idx += NumericCodec.S_Q_WIDTH;
         idx += NumericCodec.getValueLengthFromQualifier(data, idx - 1);
+        if (resolution == null) {
+          resolution = ChronoUnit.SECONDS;
+        }
       }
       dps++;
       if (current_offset <= last_offset) {
@@ -236,7 +247,7 @@ public class NumericRowSeq implements RowSeq {
       if (reverse) {
         reverse();
       }
-      return;
+      return resolution;
     }
     
     dps = 0;
@@ -251,6 +262,8 @@ public class NumericRowSeq implements RowSeq {
     //byte[] buf;
     int vlen;
     long encoded_value = 0;
+    // TODO - there's a possible optimization here to get the offset. For
+    // now we're only looking at the highest resolution amongst dupes.
     while (idx < data.length) {
       if ((data[idx] & NumericCodec.NS_BYTE_FLAG) == 
           NumericCodec.NS_BYTE_FLAG) {
@@ -312,6 +325,7 @@ public class NumericRowSeq implements RowSeq {
     } else {
       data = sorted;
     }
+    return resolution;
   }
   
   @Override

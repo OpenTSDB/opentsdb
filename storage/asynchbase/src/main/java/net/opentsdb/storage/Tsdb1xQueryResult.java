@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Map;
 
@@ -126,14 +127,14 @@ public class Tsdb1xQueryResult extends
     }
     
     if (numerics != null) {
-      numerics.dedupe(keep_earliest, reversed);
-      addSequence(hash, tsuid, numerics);
+      final ChronoUnit resolution = numerics.dedupe(keep_earliest, reversed);
+      addSequence(hash, tsuid, numerics, resolution);
     }
     
     if (row_sequences != null) {
       for (final RowSeq sequence : row_sequences.values()) {
-        sequence.dedupe(keep_earliest, reversed);
-        addSequence(hash, tsuid, sequence);
+        final ChronoUnit resolution = sequence.dedupe(keep_earliest, reversed);
+        addSequence(hash, tsuid, sequence, resolution);
       }
     }
   }

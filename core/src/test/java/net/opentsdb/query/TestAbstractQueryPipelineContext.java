@@ -28,6 +28,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 
 import org.junit.Before;
@@ -38,6 +39,8 @@ import com.google.common.collect.Lists;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.query.AbstractQueryPipelineContext.CumulativeQueryResult;
 
 public class TestAbstractQueryPipelineContext {
 
@@ -314,6 +317,7 @@ public class TestAbstractQueryPipelineContext {
     
     assertNull(ctx.single_results);
     result = mock(QueryResult.class);
+    when(result.resolution()).thenReturn(ChronoUnit.MILLIS);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(t1));
     when(result.source()).thenReturn(ctx.n1);
     ctx.onNext(result);
@@ -327,6 +331,7 @@ public class TestAbstractQueryPipelineContext {
     verify(sink2, times(1)).onComplete();
     
     result = mock(QueryResult.class);
+    when(result.resolution()).thenReturn(ChronoUnit.MILLIS);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(t1));
     when(result.source()).thenReturn(ctx.n2);
     ctx.onNext(result);
@@ -420,6 +425,71 @@ public class TestAbstractQueryPipelineContext {
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     ctx.init1();
+  }
+  
+  @Test
+  public void cumulativeQueryResult_addResults() throws Exception {
+    TestContext ctx = new TestContext(tsdb, query, context, 
+        Lists.newArrayList(sink1, sink2));
+    ctx.init1();
+    
+    final TimeSeries t1 = mock(TimeSeries.class);
+    final TimeSeries t2 = mock(TimeSeries.class);
+    final TimeSeries t3 = mock(TimeSeries.class);
+    
+    QueryResult result = mock(QueryResult.class);
+    when(result.resolution()).thenReturn(ChronoUnit.MILLIS);
+    when(result.timeSeries()).thenReturn(Lists.newArrayList(t1));
+    when(result.source()).thenReturn(ctx.n1);
+    
+    CumulativeQueryResult cqr = ctx.new CumulativeQueryResult(result);
+    assertEquals(1, cqr.timeSeries().size());
+    assertSame(t1, cqr.timeSeries().iterator().next());
+    assertEquals(ChronoUnit.MILLIS, cqr.resolution());
+    assertNull(cqr.timeSpecification());
+    assertEquals(0, cqr.sequenceId());
+    
+    // another result
+    result = mock(QueryResult.class);
+    when(result.resolution()).thenReturn(ChronoUnit.NANOS);
+    when(result.timeSeries()).thenReturn(Lists.newArrayList(t2));
+    when(result.source()).thenReturn(ctx.n2);
+    when(result.sequenceId()).thenReturn(4L);
+    
+    cqr.addResults(result);
+    assertEquals(2, cqr.timeSeries().size());
+    assertTrue(cqr.timeSeries().contains(t1));
+    assertTrue(cqr.timeSeries().contains(t2));
+    assertEquals(ChronoUnit.NANOS, cqr.resolution());
+    assertNull(cqr.timeSpecification());
+    assertEquals(4, cqr.sequenceId());
+    
+    // interspersed result
+    result = mock(QueryResult.class);
+    when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
+    when(result.timeSeries()).thenReturn(Lists.newArrayList(t3));
+    when(result.source()).thenReturn(ctx.n2);
+    when(result.sequenceId()).thenReturn(1L);
+    
+    cqr.addResults(result);
+    assertEquals(3, cqr.timeSeries().size());
+    assertTrue(cqr.timeSeries().contains(t1));
+    assertTrue(cqr.timeSeries().contains(t2));
+    assertTrue(cqr.timeSeries().contains(t3));
+    assertEquals(ChronoUnit.NANOS, cqr.resolution());
+    assertNull(cqr.timeSpecification());
+    assertEquals(4, cqr.sequenceId());
+    
+    result = mock(QueryResult.class);
+    when(result.timeSpecification()).thenReturn(mock(TimeSpecification.class));
+    when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
+    when(result.timeSeries()).thenReturn(Lists.newArrayList(t3));
+    when(result.source()).thenReturn(ctx.n2);
+    when(result.sequenceId()).thenReturn(1L);
+    try {
+      cqr.addResults(result);
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
   }
   
   class TestContext extends AbstractQueryPipelineContext {

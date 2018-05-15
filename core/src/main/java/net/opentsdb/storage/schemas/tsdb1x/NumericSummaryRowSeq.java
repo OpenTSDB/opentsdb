@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
@@ -166,9 +167,10 @@ public class NumericSummaryRowSeq implements RowSeq {
   }
   
   @Override
-  public void dedupe(final boolean keep_earliest, final boolean reverse) {
+  public ChronoUnit dedupe(final boolean keep_earliest, final boolean reverse) {
     dps = 0;
     size = 0;
+    ChronoUnit resolution = null;
     final Iterator<Entry<Integer, byte[]>> it = summary_data.entrySet().iterator();
     while (it.hasNext()) {
       final Entry<Integer, byte[]> entry = it.next();
@@ -191,9 +193,15 @@ public class NumericSummaryRowSeq implements RowSeq {
             NumericCodec.MS_BYTE_FLAG) {
           idx += NumericCodec.MS_Q_WIDTH;
           idx += NumericCodec.getValueLengthFromQualifier(data, idx - 1);
+          if (resolution == null) {
+            resolution = ChronoUnit.MILLIS;
+          }
         } else {
           idx += NumericCodec.S_Q_WIDTH;
           idx += NumericCodec.getValueLengthFromQualifier(data, idx - 1);
+          if (resolution == null) {
+            resolution = ChronoUnit.SECONDS;
+          }
         }
         local_dps++;
         if (current_offset <= last_offset) {
@@ -288,6 +296,7 @@ public class NumericSummaryRowSeq implements RowSeq {
       }
       dps += local_dps;
     }
+    return resolution;
   }
   
   @Override
