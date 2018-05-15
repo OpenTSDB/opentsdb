@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -288,7 +289,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
         if (single_results == null) {
           single_results = new CumulativeQueryResult(next);
         } else {
-          single_results.addResults(next.timeSeries());
+          single_results.addResults(next);
         }
       }
       try {
@@ -431,10 +432,18 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     /** The type of ID token pulled from the result. */
     private final TypeToken<? extends TimeSeriesId> id_type;
     
+    /** The max resolution for the results. */
+    private ChronoUnit resolution;
+    
+    /** The sequence ID to return. */
+    private long sequence_id = 0;
+    
     public CumulativeQueryResult(final QueryResult result) {
       series = Lists.newArrayList(result.timeSeries());
       time_specification = result.timeSpecification();
       id_type = result.idType();
+      resolution = result.resolution();
+      sequence_id = result.sequenceId();
     }
     
     @Override
@@ -449,7 +458,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
 
     @Override
     public long sequenceId() {
-      return 0;
+      return sequence_id;
     }
 
     @Override
@@ -463,16 +472,39 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     }
     
     @Override
+    public ChronoUnit resolution() {
+      return resolution;
+    }
+    
+    @Override
     public void close() {
       // No-Op
     }
     
     /**
      * Add the resulting time series to the accumulation.
-     * @param results A non-null collection of results. May be empty.
+     * @param next A non-null result.
      */
-    protected void addResults(final Collection<TimeSeries> results) {
-      series.addAll(results);
+    protected void addResults(final QueryResult next) {
+      if (time_specification != null || next.timeSpecification() != null) {
+        if ((time_specification == null && next.timeSpecification() != null) ||
+            (time_specification != null && next.timeSpecification() == null)) {
+          throw new IllegalStateException("Received a different time "
+              + "specification in query result: " + next);
+        }
+        
+        if (!time_specification.equals(next.timeSpecification())) {
+          throw new IllegalStateException("Received a different time "
+              + "specification in query result: " + next);
+        }
+      }
+      if (next.sequenceId() > sequence_id) {
+        sequence_id = next.sequenceId();
+      }
+      if (next.resolution().ordinal() < resolution.ordinal()) {
+        resolution = next.resolution();
+      }
+      series.addAll(next.timeSeries());
     }
   }
 }

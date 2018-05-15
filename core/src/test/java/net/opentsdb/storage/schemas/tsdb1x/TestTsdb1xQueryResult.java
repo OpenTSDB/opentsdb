@@ -23,6 +23,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Iterator;
 import java.util.List;
 
@@ -164,19 +165,21 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     seq.dedupe(false, false);
     
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
-        TSUID_A, seq);
+        TSUID_A, seq, ChronoUnit.MILLIS);
     assertEquals(1, result.results.size());
     assertEquals(48, result.bytes);
     assertEquals(4, result.dps);
     assertFalse(result.isFull());
+    assertEquals(ChronoUnit.MILLIS, result.resolution());
     
     // another TSUID
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_B),
-        TSUID_B, seq);
+        TSUID_B, seq, ChronoUnit.NANOS);
     assertEquals(2, result.results.size());
     assertEquals(96, result.bytes);
     assertEquals(8, result.dps);
     assertFalse(result.isFull());
+    assertEquals(ChronoUnit.NANOS, result.resolution());
     
     List<TimeSeries> series = Lists.newArrayList(result.timeSeries());
     assertEquals(2, series.size());
@@ -209,19 +212,21 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     seq.dedupe(false, false);
     
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
-        TSUID_A, seq);
+        TSUID_A, seq, ChronoUnit.SECONDS);
     assertEquals(1, result.results.size());
     assertEquals(48, result.bytes);
     assertEquals(4, result.dps);
     assertFalse(result.isFull());
+    assertEquals(ChronoUnit.SECONDS, result.resolution());
     
     // another TSUID
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_B),
-        TSUID_B, seq);
+        TSUID_B, seq, ChronoUnit.SECONDS);
     assertEquals(2, result.results.size());
     assertEquals(96, result.bytes);
     assertEquals(8, result.dps);
     assertFalse(result.isFull());
+    assertEquals(ChronoUnit.SECONDS, result.resolution());
     
     List<TimeSeries> series = Lists.newArrayList(result.timeSeries());
     assertEquals(2, series.size());
@@ -236,19 +241,21 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     seq.dedupe(false, false);
     
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
-        TSUID_A, seq);
+        TSUID_A, seq, ChronoUnit.MILLIS);
     assertEquals(2, result.results.size());
     assertEquals(144, result.bytes);
     assertEquals(12, result.dps);
     assertFalse(result.isFull());
+    assertEquals(ChronoUnit.MILLIS, result.resolution());
     
     // B
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_B),
-        TSUID_B, seq);
+        TSUID_B, seq, ChronoUnit.SECONDS);
     assertEquals(2, result.results.size());
     assertEquals(192, result.bytes);
     assertEquals(16, result.dps);
     assertFalse(result.isFull());
+    assertEquals(ChronoUnit.MILLIS, result.resolution());
     
     series = Lists.newArrayList(result.timeSeries());
     assertEquals(2, series.size());
@@ -281,19 +288,21 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     seq.dedupe(false, true);
     
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
-        TSUID_A, seq);
+        TSUID_A, seq, ChronoUnit.SECONDS);
     assertEquals(1, result.results.size());
     assertEquals(48, result.bytes);
     assertEquals(4, result.dps);
     assertFalse(result.isFull());
+    assertEquals(ChronoUnit.SECONDS, result.resolution());
     
     // another TSUID
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_B),
-        TSUID_B, seq);
+        TSUID_B, seq, ChronoUnit.MILLIS);
     assertEquals(2, result.results.size());
     assertEquals(96, result.bytes);
     assertEquals(8, result.dps);
     assertFalse(result.isFull());
+    assertEquals(ChronoUnit.MILLIS, result.resolution());
     
     List<TimeSeries> series = Lists.newArrayList(result.timeSeries());
     assertEquals(2, series.size());
@@ -308,19 +317,21 @@ public class TestTsdb1xQueryResult extends SchemaBase {
     seq.dedupe(false, true);
     
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_A),
-        TSUID_A, seq);
+        TSUID_A, seq, ChronoUnit.SECONDS);
     assertEquals(2, result.results.size());
     assertEquals(144, result.bytes);
     assertEquals(12, result.dps);
     assertFalse(result.isFull());
+    assertEquals(ChronoUnit.MILLIS, result.resolution());
     
     // B
     result.addSequence(LongHashFunction.xx_r39().hashBytes(TSUID_B),
-        TSUID_B, seq);
+        TSUID_B, seq, ChronoUnit.MILLIS);
     assertEquals(2, result.results.size());
     assertEquals(192, result.bytes);
     assertEquals(16, result.dps);
     assertFalse(result.isFull());
+    assertEquals(ChronoUnit.MILLIS, result.resolution());
     
     series = Lists.newArrayList(result.timeSeries());
     assertEquals(2, series.size());

@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -204,6 +205,11 @@ public class ConvertedQueryResult implements QueryResult, Runnable {
     return Const.TS_STRING_ID;
   }
 
+  @Override
+  public ChronoUnit resolution() {
+    return result.resolution();
+  }
+  
   @Override
   public void close() {
     result.close();

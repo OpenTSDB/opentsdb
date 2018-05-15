@@ -16,6 +16,7 @@ package net.opentsdb.query.processor.groupby;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -193,6 +194,11 @@ public class GroupByResult implements QueryResult {
   @Override
   public TypeToken<? extends TimeSeriesId> idType() {
     return next.idType();
+  }
+  
+  @Override
+  public ChronoUnit resolution() {
+    return next.resolution();
   }
   
   @Override

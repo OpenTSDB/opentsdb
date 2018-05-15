@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.storage;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -656,6 +657,11 @@ public class MockDataStore implements TimeSeriesDataStore {
     @Override
     public TypeToken<? extends TimeSeriesId> idType() {
       return Const.TS_STRING_ID;
+    }
+    
+    @Override
+    public ChronoUnit resolution() {
+      return ChronoUnit.MILLIS;
     }
     
     @Override

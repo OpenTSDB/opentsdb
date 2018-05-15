@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.downsample;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -133,16 +134,31 @@ public class Downsample extends AbstractQueryNode {
     /** The new downsampler time series applied to the result's time series. */
     private final List<TimeSeries> downsamplers;
     
+    /** The downsampled resolution. */
+    private final ChronoUnit resolution;
+    
     /**
      * Default ctor that dumps each time series into a new Downsampler time series.
      * @param results The non-null results set.
      */
-    private DownsampleResult(final QueryResult results) {
+    DownsampleResult(final QueryResult results) {
       latch = new CountDownLatch(Downsample.this.upstream.size());
       this.results = results;
       downsamplers = Lists.newArrayListWithCapacity(results.timeSeries().size());
       for (final TimeSeries series : results.timeSeries()) {
         downsamplers.add(new DownsampleTimeSeries(series));
+      }
+      
+      switch (config.units()) {
+      case NANOS:
+      case MICROS:
+        resolution = ChronoUnit.NANOS;
+        break;
+      case MILLIS:
+        resolution = ChronoUnit.MILLIS;
+        break;
+      default:
+        resolution = ChronoUnit.SECONDS;
       }
     }
     
@@ -169,6 +185,11 @@ public class Downsample extends AbstractQueryNode {
     @Override
     public TypeToken<? extends TimeSeriesId> idType() {
       return results.idType();
+    }
+    
+    @Override
+    public ChronoUnit resolution() {
+      return resolution;
     }
     
     @Override
