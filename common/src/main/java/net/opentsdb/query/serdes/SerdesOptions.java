@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query.serdes;
 
+import net.opentsdb.data.TimeStamp;
+
 /**
  * Interface used to encapsulate Serdes specific options at query time.
  * 
@@ -21,4 +23,9 @@ package net.opentsdb.query.serdes;
  */
 public interface SerdesOptions {
   
+  /** @return The inclusive start boundary of the serialization. */
+  public TimeStamp start();
+  
+  /** @return The inclusive end boundary of the serialization. */
+  public TimeStamp end();
 }
