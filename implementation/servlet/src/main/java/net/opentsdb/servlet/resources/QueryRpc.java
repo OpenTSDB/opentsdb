@@ -68,6 +68,7 @@ import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.stats.DefaultQueryStats;
 import net.opentsdb.stats.Span;
@@ -454,11 +455,13 @@ final public class QueryRpc {
     }
     
     final TSQuery ts_query = (TSQuery) request.getAttribute(V2_QUERY_KEY);
-    final JsonV2QuerySerdesOptions options = JsonV2QuerySerdesOptions.newBuilder()
+    final SerdesOptions options = JsonV2QuerySerdesOptions.newBuilder()
         .setMsResolution(ts_query.getMsResolution())
         .setShowQuery(ts_query.getShowQuery())
         .setShowStats(ts_query.getShowStats())
         .setShowSummary(ts_query.getShowSummary())
+        .setStart(query.getTime().startTime())
+        .setEnd(query.getTime().endTime())
         .build();
     
     /** The stream to write to. */

@@ -128,6 +128,8 @@ public class TestJsonV2QuerySerdes {
   public void serializeWithMilliseconds() throws Exception {
     final SerdesOptions conf = JsonV2QuerySerdesOptions.newBuilder()
         .setMsResolution(true)
+        .setStart(new MillisecondTimeStamp(1486045800000L))
+        .setEnd(new MillisecondTimeStamp(1486045860000L))
         .build();
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     final JsonGenerator generator = JSON.getFactory().createGenerator(output);
