@@ -39,6 +39,7 @@ import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.stats.StatsCollector;
 
 public class BaseExecutorTest {
   
@@ -77,6 +78,7 @@ public class BaseExecutorTest {
         eq(TimeUnit.MILLISECONDS))).thenReturn(timeout);
     when(graph.tsdb()).thenReturn(tsdb);
     when(tsdb.getRegistry()).thenReturn(registry);
+    when(tsdb.getStatsCollector()).thenReturn(mock(StatsCollector.class));
     when(pcontext.query()).thenReturn(query);
     when(pcontext.downstream(any(QueryNode.class)))
       .thenReturn(Lists.newArrayList(downstream));

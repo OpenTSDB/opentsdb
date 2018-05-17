@@ -68,7 +68,8 @@ public class BraveTracer implements Tracer {
         "A name for the service logged in traces coming from this"
         + " application.");
     tsdb.getConfig().register(ENDPOINT_KEY, null, true, 
-        "The host and endpoint to send traces to.");
+        "The host and endpoint to send traces to. E.g. "
+        + "'http://127.0.0.1:9411/api/v1/spans'");
     
     service_name = tsdb.getConfig().getString(SERVICE_NAME_KEY);
     if (Strings.isNullOrEmpty(service_name)) {

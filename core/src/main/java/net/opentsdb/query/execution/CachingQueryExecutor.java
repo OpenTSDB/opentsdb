@@ -51,6 +51,8 @@ import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.query.execution.serdes.BaseSerdesOptions;
+import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.stats.Span;
 
@@ -73,6 +75,9 @@ public class CachingQueryExecutor implements QuerySourceFactory {
   private static final Logger LOG = LoggerFactory.getLogger(
       CachingQueryExecutor.class);
   
+  /** Reference to the TSD. */
+  private final TSDB tsdb;
+  
   /** The default cache plugin to use. */
   private final QueryCachePlugin plugin;
   
@@ -89,7 +94,7 @@ public class CachingQueryExecutor implements QuerySourceFactory {
     if (node.getDefaultConfig() == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    
+    tsdb = node.graph().tsdb();
     plugin = (QueryCachePlugin) 
         node.graph().tsdb().getRegistry().getPlugin(
             QueryCachePlugin.class, 
@@ -125,6 +130,7 @@ public class CachingQueryExecutor implements QuerySourceFactory {
     if (tsdb == null) {
       throw new IllegalArgumentException("TSDB cannot be null.");
     }
+    this.tsdb = tsdb;
     plugin = tsdb.getRegistry().getDefaultPlugin(QueryCachePlugin.class);    
     serdes = tsdb.getRegistry().getDefaultPlugin(TimeSeriesSerdes.class);
     if (plugin == null) {
@@ -222,8 +228,12 @@ public class CachingQueryExecutor implements QuerySourceFactory {
           downstream.contains(next.source()) || 
           next.source() != LocalExecution.this)) {
         try {
-          final long expiration = key_generator.expiration(
-              (net.opentsdb.query.pojo.TimeSeriesQuery) context.query(), 
+          tsdb.getStatsCollector().incrementCounter("query.cache.executor.miss",
+              "node", "CachingQueryExecutor");
+          final net.opentsdb.query.pojo.TimeSeriesQuery query = 
+              (net.opentsdb.query.pojo.TimeSeriesQuery) context.query();
+          
+          final long expiration = key_generator.expiration(query, 
               config.expiration);
           if (expiration > 0) {
             // only serialize string IDs so in this case we're going to 
@@ -254,12 +264,20 @@ public class CachingQueryExecutor implements QuerySourceFactory {
               }
             }
             
-            serdes.serialize(context.queryContext(), null, baos, next, child)
+            // TODO - normalize times.
+            final SerdesOptions options = BaseSerdesOptions.newBuilder()
+                .setStart(query.getTime().startTime())
+                .setEnd(query.getTime().endTime())
+                .build();
+            serdes.serialize(context.queryContext(), options, baos, next, child)
               .addCallbacks(new SerdesCB(), new ErrorCB());
           }
         } catch (Exception e) {
           LOG.error("Failed to process results for cache", e);
         }
+      } else {
+        tsdb.getStatsCollector().incrementCounter("query.cache.executor.hit",
+            "node", "CachingQueryExecutor");
       }
       
       if (complete.compareAndSet(false, true)) {
@@ -420,7 +438,15 @@ public class CachingQueryExecutor implements QuerySourceFactory {
               child.setSuccessTags()
                    .finish();
             }
-            serdes.deserialize(null, 
+            
+            // TODO - normalize times.
+            final net.opentsdb.query.pojo.TimeSeriesQuery query = 
+                (net.opentsdb.query.pojo.TimeSeriesQuery) context.query();
+            final SerdesOptions options = BaseSerdesOptions.newBuilder()
+                .setStart(query.getTime().startTime())
+                .setEnd(query.getTime().endTime())
+                .build();
+            serdes.deserialize(options, 
                 new ByteArrayInputStream(cache_data), 
                 LocalExecution.this,
                 child);
