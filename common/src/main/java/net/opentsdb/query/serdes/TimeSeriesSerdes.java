@@ -12,13 +12,17 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package net.opentsdb.query.execution.serdes;
+package net.opentsdb.query.serdes;
 
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import com.stumbleupon.async.Deferred;
+
 import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.stats.Span;
 
 /**
  * TODO - better description and docs
@@ -35,18 +39,27 @@ public interface TimeSeriesSerdes {
    * @param options Options for serialization.
    * @param stream A non-null stream to write to.
    * @param result A non-null data set.
+   * @param span An optional tracer span.
+   * @return A non-null deferred resolving to a null on successful
+   * serialization or an exception if there was a failure.
    */
-  public void serialize(final QueryContext context,
-                        final SerdesOptions options,
-                        final OutputStream stream, 
-                        final QueryResult result);
+  public Deferred<Object> serialize(final QueryContext context,
+                                    final SerdesOptions options,
+                                    final OutputStream stream, 
+                                    final QueryResult result,
+                                    final Span span);
   
   /**
    * Parses the given stream into the proper data object.
    * @param options Options for deserialization.
    * @param stream A non-null stream. May be empty.
+   * @param node A non-null node to send the query results to on 
+   * successful deserialization or call with an exception.
+   * @param span An optional tracer span.
    * @return A non-null query result.
    */
-  public QueryResult deserialize(final SerdesOptions options, 
-                                 final InputStream stream);
+  public void deserialize(final SerdesOptions options, 
+                          final InputStream stream,
+                          final QueryNode node,
+                          final Span span);
 }

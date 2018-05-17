@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,18 +35,24 @@ import com.google.common.collect.Ordering;
 import com.google.common.hash.HashCode;
 import com.stumbleupon.async.Callback;
 
-import io.opentracing.Span;
-import net.opentsdb.core.Const;
+import net.opentsdb.common.Const;
 import net.opentsdb.core.DefaultRegistry;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
-import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.AbstractQueryNode;
+import net.opentsdb.query.ConvertedQueryResult;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QuerySourceFactory;
+import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
-import net.opentsdb.query.execution.serdes.TimeSeriesSerdes;
-import net.opentsdb.query.pojo.TimeSeriesQuery;
-import net.opentsdb.stats.TsdbTrace;
-import net.opentsdb.utils.JSON;
+import net.opentsdb.query.serdes.TimeSeriesSerdes;
+import net.opentsdb.stats.Span;
 
 /**
  * Executor that can either query a cache for a query and then send it 
@@ -58,31 +64,28 @@ import net.opentsdb.utils.JSON;
  * Once the caching plugin and serdes modules are set via the default config,
  * query time overridden settings are ignored. (TODO - should we allow?)
  * <p>
- * TODO - Load the key gen from registry.
- *
- * @param <T> The type of data handled by this executor.
+ * TODO - handle streaming
+ * TODO - merge execution graph with pipeline
  * 
  * @since 3.0
  */
-public class CachingQueryExecutor<T> extends QueryExecutor<T> {
+public class CachingQueryExecutor implements QuerySourceFactory {
   private static final Logger LOG = LoggerFactory.getLogger(
       CachingQueryExecutor.class);
   
-  /** The downstream executor that queries are passed to. */
-  private final QueryExecutor<T> executor;
-  
-  /** The cache plugin to use. */
+  /** The default cache plugin to use. */
   private final QueryCachePlugin plugin;
   
-  /** The serdes class to use. */
+  /** The default serdes class to use. */
   private final TimeSeriesSerdes serdes;
   
   /** A key generator used for reading and writing the cache data. */
   private final TimeSeriesCacheKeyGenerator key_generator;
   
-  @SuppressWarnings("unchecked")
   public CachingQueryExecutor(final ExecutionGraphNode node) {
-    super(node);
+    if (node == null) {
+      throw new IllegalArgumentException("Node cannot be null.");
+    }
     if (node.getDefaultConfig() == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
@@ -102,12 +105,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
       throw new IllegalArgumentException("Unable to find a serdes implementation "
           + "for ID: " + ((Config) node.getDefaultConfig()).serdes_id);
     }
-    executor = (QueryExecutor<T>) node.graph()
-        .getDownstreamExecutor(node.getExecutorId());
-    if (executor == null) {
-      throw new IllegalArgumentException("Unable to find a downstream executor.");
-    }
-    registerDownstreamExecutor(executor);
+    
     key_generator = (TimeSeriesCacheKeyGenerator) 
         node.graph().tsdb().getRegistry().getPlugin(
             TimeSeriesCacheKeyGenerator.class, 
@@ -118,178 +116,268 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
     }
   }
 
+  /**
+   * <b>TEMPORARY</b> Ctor till we get the execution graph code merged
+   * with the pipeline.
+   * @param tsdb A non-null TSD.
+   */
+  public CachingQueryExecutor(final TSDB tsdb) {
+    if (tsdb == null) {
+      throw new IllegalArgumentException("TSDB cannot be null.");
+    }
+    plugin = tsdb.getRegistry().getDefaultPlugin(QueryCachePlugin.class);    
+    serdes = tsdb.getRegistry().getDefaultPlugin(TimeSeriesSerdes.class);
+    if (plugin == null) {
+      throw new IllegalArgumentException("No default cache plugin loaded.");
+    }
+    if (serdes == null) {
+      throw new IllegalArgumentException("No default serdes plugin loaded.");
+    }
+    key_generator = new DefaultTimeSeriesCacheKeyGenerator();
+  }
+  
   @Override
-  public QueryExecution<T> executeQuery(final QueryContext context,
-                                        final TimeSeriesQuery query, 
-                                        final Span upstream_span) {
-    final LocalExecution ex = new LocalExecution(context, query, upstream_span);
-    ex.execute();
-    return ex;
+  public TimeSeriesDataSource newNode(final QueryPipelineContext context,
+                                      final QueryNodeConfig config) {
+    return new LocalExecution(context, config);
   }
   
   /** Local execution class. */
-  class LocalExecution extends QueryExecution<T> {
+  class LocalExecution extends AbstractQueryNode implements 
+      TimeSeriesDataSource {
     /** The default or overridden config. */
-    private final Config config;
-    
-    /** The query context. */
-    private final QueryContext context;
+    protected final Config config;
     
     /** A lock to determine when we've received results. Required when executing
      * simultaneously. */
-    private final AtomicBoolean complete;
+    protected final AtomicBoolean complete;
+
+    /** The key for the cache entry. */
+    protected final byte[] key;
     
     /** The cache execution to track. */
-    private QueryExecution<byte[]> cache_execution;
+    protected QueryExecution<byte[]> cache_execution;
     
-    /** The downstream execution to wait on (or cancel). */
-    private QueryExecution<T> downstream;
+    /** A child tracer if we got one. */
+    protected Span child;
     
     /**
      * Default ctor
      * @param context The query context.
-     * @param query The query itself.
-     * @param upstream_span An optional tracer span.
+     * @param QueryNodeConfig The config for the node.
      */
-    public LocalExecution(final QueryContext context, 
-                          final TimeSeriesQuery query, 
-                          final Span upstream_span) {
-      super(query);
-      this.context = context;
+    public LocalExecution(final QueryPipelineContext context, 
+                          final QueryNodeConfig config) {
+      super(CachingQueryExecutor.this, context);
       complete = new AtomicBoolean();
-      outstanding_executions.add(this);
-      
-      final QueryExecutorConfig override = 
-          context.getConfigOverride(node.getExecutorId());
-      if (override != null) {
-        config = (Config) override;
-      } else {
-        config = (Config) node.getDefaultConfig();
+
+      key = key_generator.generate(
+          (net.opentsdb.query.pojo.TimeSeriesQuery) context.query(), 
+          ((Config) config).use_timestamps);
+      this.config = (Config) config;
+//      final QueryExecutorConfig override = 
+//          context.getConfigOverride(node.getExecutorId());
+//      if (override != null) {
+//        config = (Config) override;
+//      } else {
+//        config = (Config) node.getDefaultConfig();
+//      }
+//      
+//      if (context.getTracer() != null) {
+//        setSpan(context, 
+//            CachingQueryExecutor.this.getClass().getSimpleName(), 
+//            upstream_span,
+//            TsdbTrace.addTags(
+//                "order", Integer.toString(query.getOrder()),
+//                "query", JSON.serializeToString(query),
+//                "startThread", Thread.currentThread().getName()));
+//      }
+    }
+    
+    @Override
+    public QueryNodeConfig config() {
+      return config;
+    }
+    
+    @Override
+    public String id() {
+      return config.getId();
+    }
+    
+    @Override
+    public void onComplete(final QueryNode downstream, 
+                           final long final_sequence,
+                           final long total_sequences) {
+      completeUpstream(final_sequence, total_sequences);
+    }
+    
+    @Override
+    public void onNext(final QueryResult next) {
+      // Only cache if the result source didn't come from this execution.
+      // If the cache implementation forgets to set the source of it's 
+      // result it would be null but all other nodes should have a proper
+      // source.
+      if (!complete.get() &&
+          next.source() != null && (
+          downstream.contains(next.source()) || 
+          next.source() != LocalExecution.this)) {
+        try {
+          final long expiration = key_generator.expiration(
+              (net.opentsdb.query.pojo.TimeSeriesQuery) context.query(), 
+              config.expiration);
+          if (expiration > 0) {
+            // only serialize string IDs so in this case we're going to 
+            // convert asynchronously and call ourselves back with the
+            // results.
+            if (next.idType() == Const.TS_BYTE_ID) {
+              // NOTE: If this implementation fails to call onError or
+              // onNext, we're screwed.
+              ConvertedQueryResult.convert(next, LocalExecution.this, child);
+              return;
+            }
+            
+            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            class SerdesCB implements Callback<Object, Object> {
+              @Override
+              public Object call(Object arg) throws Exception {
+                plugin.cache(key, baos.toByteArray(), expiration, 
+                    TimeUnit.MILLISECONDS, null);
+                return null;
+              }
+            }
+            
+            class ErrorCB implements Callback<Object, Exception> {
+              @Override
+              public Object call(final Exception ex) throws Exception {
+                LOG.warn("Failed to serialize result: " + next, ex);
+                return null;
+              }
+            }
+            
+            serdes.serialize(context.queryContext(), null, baos, next, child)
+              .addCallbacks(new SerdesCB(), new ErrorCB());
+          }
+        } catch (Exception e) {
+          LOG.error("Failed to process results for cache", e);
+        }
       }
       
-      if (context.getTracer() != null) {
-        setSpan(context, 
-            CachingQueryExecutor.this.getClass().getSimpleName(), 
-            upstream_span,
-            TsdbTrace.addTags(
-                "order", Integer.toString(query.getOrder()),
-                "query", JSON.serializeToString(query),
-                "startThread", Thread.currentThread().getName()));
+      if (complete.compareAndSet(false, true)) {
+        sendUpstream(next);
+        if (next.source() == null || next.source() == LocalExecution.this || 
+            (!downstream.contains(next.source()))) {
+          // only call complete if we had a cached result.
+          completeUpstream(next.sequenceId(), next.sequenceId());
+        }
+        
+        if (config.getSimultaneous()) {
+          try {
+            if (cache_execution != null) {
+              cache_execution.cancel();
+            }
+          } catch (Exception e) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Error cancelling the cache execution", e);
+            }
+          }
+        }
+      } else {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Race sending results upstream.");
+        }
       }
     }
     
-    /** Runs the query. */
-    public void execute() {
-      final byte[] key = key_generator.generate(query, config.use_timestamps);
-      
-      /** The callback for downstream data. */
-      class DownstreamCB implements Callback<Object, T> {
-        @Override
-        public Object call(final T results) throws Exception {
-          if (!complete.compareAndSet(false, true)) {
-            if (LOG.isDebugEnabled()) {
-              LOG.debug("Call downstream completed after the call to the cache.");
-            }
-            return null;
-          }
-          outstanding_executions.remove(LocalExecution.this);
-          callback(results,
-              TsdbTrace.successfulTags());
-          
-          final Span cache_span;
-          if (context.getTracer() != null) {
-            cache_span = context.getTracer().buildSpan(
-                CachingQueryExecutor.this.getClass().getSimpleName() 
-                  + "#cacheWrite")
-              .asChildOf(tracer_span)
-              .withTag("order", Integer.toString(query.getOrder()))
-              .withTag("query", JSON.serializeToString(query))
-              .withTag("startThread", Thread.currentThread().getName())
-              .start();
-          } else {
-            cache_span = null;
-          }
-          if (config.bypass) {
-            if (LOG.isDebugEnabled()) {
-              LOG.debug("Bypassing cache write.");
-            }
-            return null;
-          }
-          try {
-            final long expiration = key_generator.expiration(query, 
-                config.expiration);
-            if (expiration == 0) {
-              // told not to write to the cache.
-              return null;
-            }
-            
-            // TODO - run this in another thread pool. Would let us hit cache
-            // quicker if someone's firing off the same query.
-            final ByteArrayOutputStream output = new ByteArrayOutputStream();
-            //serdes.serialize(query, null, output, results);
-            output.close();
-            
-            final byte[] data = output.toByteArray();
-            plugin.cache(key, data, expiration, TimeUnit.MILLISECONDS);
-            if (cache_span != null) {
-              cache_span.setTag("status", "OK");
-              cache_span.setTag("finalThread", Thread.currentThread().getName());
-              cache_span.setTag("bytes", Integer.toString(data.length));
-              cache_span.finish();
-            }
-          } catch (Exception e) {
-            LOG.error("WTF?", e);
-            if (cache_span != null) {
-              cache_span.setTag("status", "Error");
-              cache_span.setTag("finalThread", Thread.currentThread().getName());
-              cache_span.setTag("error", e != null ? e.getMessage() : "Unknown");
-              cache_span.log(TsdbTrace.exceptionAnnotation(e));
-              cache_span.finish();
-            }
-          }
-          
-          if (config.simultaneous && cache_execution != null) {
-            // ^^ race here but shouldn't be a big deal.
-            try {
-              cache_execution.cancel();
-            } catch (Exception e) {
-              LOG.warn("Exception thrown cancelling cache execution: " 
-                  + cache_execution, e);
-            }
-          }
-          
-          return null;
-        }
+    @Override
+    public void fetchNext(final Span span) {
+      if (span != null) {
+        child = span.newChild(getClass().getName() + ".fetchNext()")
+            .start();
       }
+//      /** The callback for downstream data. */
+//      class DownstreamCB implements Callback<Object, T> {
+//        @Override
+//        public Object call(final T results) throws Exception {
+//          if (!complete.compareAndSet(false, true)) {
+//            if (LOG.isDebugEnabled()) {
+//              LOG.debug("Call downstream completed after the call to the cache.");
+//            }
+//            return null;
+//          }
+//          outstanding_executions.remove(LocalExecution.this);
+//          callback(results,
+//              TsdbTrace.successfulTags());
+//          
+//          final Span cache_span;
+//          if (context.getTracer() != null) {
+//            cache_span = context.getTracer().buildSpan(
+//                CachingQueryExecutor.this.getClass().getSimpleName() 
+//                  + "#cacheWrite")
+//              .asChildOf(tracer_span)
+//              .withTag("order", Integer.toString(query.getOrder()))
+//              .withTag("query", JSON.serializeToString(query))
+//              .withTag("startThread", Thread.currentThread().getName())
+//              .start();
+//          } else {
+//            cache_span = null;
+//          }
+//          if (config.bypass) {
+//            if (LOG.isDebugEnabled()) {
+//              LOG.debug("Bypassing cache write.");
+//            }
+//            return null;
+//          }
+//          try {
+//            final long expiration = key_generator.expiration(query, 
+//                config.expiration);
+//            if (expiration == 0) {
+//              // told not to write to the cache.
+//              return null;
+//            }
+//            
+//            // TODO - run this in another thread pool. Would let us hit cache
+//            // quicker if someone's firing off the same query.
+//            final ByteArrayOutputStream output = new ByteArrayOutputStream();
+//            //serdes.serialize(query, null, output, results);
+//            output.close();
+//            
+//            final byte[] data = output.toByteArray();
+//            plugin.cache(key, data, expiration, TimeUnit.MILLISECONDS, null);
+//            if (cache_span != null) {
+//              cache_span.setTag("status", "OK");
+//              cache_span.setTag("finalThread", Thread.currentThread().getName());
+//              cache_span.setTag("bytes", Integer.toString(data.length));
+//              cache_span.finish();
+//            }
+//          } catch (Exception e) {
+//            LOG.error("WTF?", e);
+//            if (cache_span != null) {
+//              cache_span.setTag("status", "Error");
+//              cache_span.setTag("finalThread", Thread.currentThread().getName());
+//              cache_span.setTag("error", e != null ? e.getMessage() : "Unknown");
+//              cache_span.log(TsdbTrace.exceptionAnnotation(e));
+//              cache_span.finish();
+//            }
+//          }
+//          
+//          if (config.simultaneous && cache_execution != null) {
+//            // ^^ race here but shouldn't be a big deal.
+//            try {
+//              cache_execution.cancel();
+//            } catch (Exception e) {
+//              LOG.warn("Exception thrown cancelling cache execution: " 
+//                  + cache_execution, e);
+//            }
+//          }
+//          
+//          return null;
+//        }
+//      }
       
       /** The callback for exceptions. Used for both cache and downstream. */
       class ErrorCB implements Callback<Object, Exception> {
-        final boolean is_downstream;
-        
-        ErrorCB(final boolean is_downstream) {
-          this.is_downstream = is_downstream;
-        }
-        
         @Override
         public Object call(final Exception ex) throws Exception {
-          if (is_downstream) {
-            if (!complete.compareAndSet(false, true)) {
-              LOG.warn("Downstream returned an exception but we were already "
-                  + "marked complete: " + this, ex);
-              return null;
-            }
-            outstanding_executions.remove(LocalExecution.this);
-            callback(ex,
-                TsdbTrace.exceptionTags(ex),
-                TsdbTrace.exceptionAnnotation(ex));
-            if (cache_execution != null) {
-              try {
-                cache_execution.cancel();
-              } catch (Exception e) {
-                LOG.warn("Exception canceling cache call", e);
-              }
-            }
-          } else {
             cache_execution = null;
             if (ex instanceof QueryExecutionCanceled) {
               return null;
@@ -298,13 +386,13 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
               if (LOG.isDebugEnabled()) {
                 LOG.debug("Firing query downstream after exception from cache.");
               }
-              downstream = executor.executeQuery(context, query, tracer_span);
-              downstream.deferred()
-                  .addCallback(new DownstreamCB())
-                  .addErrback(new ErrorCB(true));
+              if (child != null) {
+                child.setErrorTags(ex)
+                     .finish();
+              }
+              fetchDownstream(child);
             }
-            LOG.error("Exception returned from cache: " + this, ex);
-          }
+            LOG.warn("Exception returned from cache: " + this, ex);
           return null;
         }
       }
@@ -313,34 +401,29 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
       class CacheCB implements Callback<Object, byte[]> {
         @Override
         public Object call(final byte[] cache_data) throws Exception {
-          if (!complete.compareAndSet(false, true)) {
-            if (LOG.isDebugEnabled()) {
-              LOG.debug("Call to cache plugin: " + plugin + " completed after "
-                  + "the call to the downstream executor.");
-            }
-            return null;
-          }
           cache_execution = null;
-          outstanding_executions.remove(LocalExecution.this);
+          
           // cache miss, so start the downstream call if we haven't already.
           if (cache_data == null && !config.simultaneous) {
-            // unset completed so the downstream can make it through.
-            complete.set(false);
-            downstream = executor.executeQuery(context, query, tracer_span);
-            downstream.deferred()
-                .addCallback(new DownstreamCB())
-                .addErrback(new ErrorCB(true));
+            fetchDownstream(child);
           } else {
-            if (downstream != null) {
-              try {
-                downstream.cancel();
-              } catch (Exception e) {
-                LOG.warn("Exception thrown cancelling downstream executor: " 
-                    + downstream, e);
-              }
+            // TODO - see if we can cancel the other call.
+//            if (downstream != null) {
+//              try {
+//                downstream.cancel();
+//              } catch (Exception e) {
+//                LOG.warn("Exception thrown cancelling downstream executor: " 
+//                    + downstream, e);
+//              }
+//            }
+            if (child != null) {
+              child.setSuccessTags()
+                   .finish();
             }
-            callback(serdes.deserialize(null, new ByteArrayInputStream(cache_data)),
-                TsdbTrace.successfulTags());
+            serdes.deserialize(null, 
+                new ByteArrayInputStream(cache_data), 
+                LocalExecution.this,
+                child);
           }
           return null;
         }
@@ -351,34 +434,30 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
           if (LOG.isDebugEnabled()) {
             LOG.debug("Bypassing cache query.");
           }
-          downstream = executor.executeQuery(context, query, tracer_span);
-          downstream.deferred()
-            .addCallback(new DownstreamCB())
-            .addErrback(new ErrorCB(true));
-        } else {
-          if (config.simultaneous) {
+          fetchDownstream(child);
+        } else if (config.simultaneous) {
             // fire both before attaching callbacks to avoid a race on canceling
             // the executors.
-            cache_execution = plugin.fetch(context, key, null);
-            downstream = executor.executeQuery(context, query, tracer_span);
-          } else {
-            cache_execution = plugin.fetch(context, key, null);
-          }
+            cache_execution = plugin.fetch(context.queryContext(), key, child);
+            fetchDownstream(child);
+            cache_execution.deferred()
+              .addCallback(new CacheCB())
+              .addErrback(new ErrorCB());
+        } else {
+          cache_execution = plugin.fetch(context.queryContext(), key, child);
           cache_execution.deferred()
             .addCallback(new CacheCB())
-            .addErrback(new ErrorCB(false));
-          if (config.simultaneous) {
-            downstream.deferred()
-              .addCallback(new DownstreamCB())
-              .addErrback(new ErrorCB(true));
-          }
+            .addErrback(new ErrorCB());
         }
       } catch (Exception e) {
         try {
           final Exception ex = new QueryExecutionCanceled(
-              "Unexpected exception initiating query: " + this, 500, query.getOrder());
-          callback(e, TsdbTrace.exceptionTags(ex),
-                      TsdbTrace.exceptionAnnotation(ex));
+              "Unexpected exception initiating query: " + this, 500, 0/** TODO query.getOrder()*/);
+          if (child != null) {
+            child.setErrorTags(ex)
+                 .finish();
+          }
+          sendUpstream(ex);
         } catch (IllegalArgumentException ex) {
           // lost race, no prob.
         } catch (Exception ex) {
@@ -389,12 +468,20 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
     }
 
     @Override
-    public void cancel() {
-      if (!completed.get()) {
+    public void onError(final Throwable t) {
+      if (complete.compareAndSet(false, true)) {
+        sendUpstream(t);        
+      }
+    }
+    
+    @Override
+    public void close() {
+      if (!complete.get()) {
         try {
           final Exception e = new QueryExecutionCanceled(
-              "Query was cancelled upstream: " + this, 400, query.getOrder());
-          callback(e, TsdbTrace.canceledTags(e));
+              "Query was cancelled upstream: " + this, 400, 0/** TODO query.getOrder()*/);
+          //callback(e, TsdbTrace.canceledTags(e));
+          sendUpstream(e);
         } catch (IllegalArgumentException ex) {
           // lost race, no prob.
         } catch (Exception ex) {
@@ -402,7 +489,7 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
               + "exception: " + this, ex);
         }
       }
-      outstanding_executions.remove(LocalExecution.this);
+      
       if (cache_execution != null) {
         try {
           cache_execution.cancel();
@@ -412,12 +499,18 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
       }
       if (downstream != null) {
         try {
-          downstream.cancel();
+          // TODO - close all downstream?
+          //downstream.cancel();
         } catch (Exception e) {
           LOG.warn("Failed canceling downstream execution: " + downstream, e);
         }
       }
     }
+  }
+  
+  @Override
+  public String id() {
+    return getClass().getSimpleName();
   }
   
   @JsonInclude(Include.NON_NULL)
@@ -656,6 +749,13 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
       }
       
     }
+
+    
+    @Override
+    public String getId() {
+      // TODO Auto-generated method stub
+      return null;
+    }
   }
   
   @VisibleForTesting
@@ -673,5 +773,4 @@ public class CachingQueryExecutor<T> extends QueryExecutor<T> {
     return key_generator;
   }
 
-  
 }

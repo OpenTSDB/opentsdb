@@ -50,10 +50,12 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 
 import jersey.repackaged.com.google.common.collect.ImmutableMap;
+import net.opentsdb.common.Const;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.ConvertedQueryResult;
 import net.opentsdb.query.DefaultQueryContextBuilder;
 import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.TSSubQuery;
@@ -66,6 +68,7 @@ import net.opentsdb.query.execution.serdes.JsonV2QuerySerdesOptions;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
+import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
 import net.opentsdb.stats.DefaultQueryStats;
 import net.opentsdb.stats.Span;
@@ -452,11 +455,13 @@ final public class QueryRpc {
     }
     
     final TSQuery ts_query = (TSQuery) request.getAttribute(V2_QUERY_KEY);
-    final JsonV2QuerySerdesOptions options = JsonV2QuerySerdesOptions.newBuilder()
+    final SerdesOptions options = JsonV2QuerySerdesOptions.newBuilder()
         .setMsResolution(ts_query.getMsResolution())
         .setShowQuery(ts_query.getShowQuery())
         .setShowStats(ts_query.getShowStats())
         .setShowSummary(ts_query.getShowSummary())
+        .setStart(query.getTime().startTime())
+        .setEnd(query.getTime().endTime())
         .build();
     
     /** The stream to write to. */
@@ -475,7 +480,7 @@ final public class QueryRpc {
         json.writeStartArray();
         
         final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(json);
-        serdes.serialize(context, options, output, result);
+        serdes.serialize(context, options, output, result, serdes_span);
         
 //        if (options.showSummary()) {
 //          json.writeObjectFieldStart("summary");

@@ -24,12 +24,17 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
 
+import com.google.common.collect.Lists;
+
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import io.opentracing.Span;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.graph.ExecutionGraph;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
@@ -39,11 +44,15 @@ public class BaseExecutorTest {
   
   protected DefaultTSDB tsdb;
   protected QueryContext context;
+  protected QueryPipelineContext pcontext;
   protected DefaultRegistry registry;
   protected ExecutionGraph graph;
   protected Timer timer;
   protected Timeout timeout;
   protected Span span;
+  protected QueryNode upstream;
+  protected QueryNode downstream;
+  protected TimeSeriesDataSource source;
   
   protected TimeSeriesQuery query;
   protected ExecutionGraphNode node;
@@ -52,11 +61,15 @@ public class BaseExecutorTest {
   public void before() throws Exception {
     tsdb = mock(DefaultTSDB.class);
     context = mock(QueryContext.class);
+    pcontext = mock(QueryPipelineContext.class);
     registry = mock(DefaultRegistry.class);
     graph = mock(ExecutionGraph.class);
     timer = mock(Timer.class);
     timeout = mock(Timeout.class);
     span = mock(Span.class);
+    upstream = mock(QueryNode.class);
+    downstream = mock(QueryNode.class);
+    source = mock(TimeSeriesDataSource.class);
     
     when(context.getTimer()).thenReturn(timer);
     when(context.getTSDB()).thenReturn(tsdb);
@@ -64,6 +77,13 @@ public class BaseExecutorTest {
         eq(TimeUnit.MILLISECONDS))).thenReturn(timeout);
     when(graph.tsdb()).thenReturn(tsdb);
     when(tsdb.getRegistry()).thenReturn(registry);
+    when(pcontext.query()).thenReturn(query);
+    when(pcontext.downstream(any(QueryNode.class)))
+      .thenReturn(Lists.newArrayList(downstream));
+    when(pcontext.upstream(any(QueryNode.class)))
+      .thenReturn(Lists.newArrayList(upstream));
+    when(pcontext.downstreamSources(any(QueryNode.class)))
+      .thenReturn(Lists.newArrayList(source));
   }
   
   public static class MockExecutionGraph extends ExecutionGraph {

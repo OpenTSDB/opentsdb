@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -31,7 +32,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 
-import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
@@ -183,6 +183,36 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   }
   
   @Override
+  public Collection<TimeSeriesDataSource> downstreamSources(final QueryNode node) {
+    if (node == null) {
+      throw new IllegalArgumentException("Node cannot be null.");
+    }
+    if (!graph.containsVertex(node)) {
+      throw new IllegalArgumentException("The given node wasn't in this graph: " 
+          + node);
+    }
+    final Set<DefaultEdge> downstream = graph.outgoingEdgesOf(node);
+    if (downstream.isEmpty()) {
+      return Collections.emptyList();
+    }
+    final Set<TimeSeriesDataSource> downstreams = Sets.newHashSetWithExpectedSize(
+        downstream.size());
+    for (final DefaultEdge e : downstream) {
+      final QueryNode target = graph.getEdgeTarget(e);
+      if (downstreams.contains(target)) {
+        continue;
+      }
+      
+      if (target instanceof TimeSeriesDataSource) {
+        downstreams.add((TimeSeriesDataSource) target);
+      } else {
+        downstreams.addAll(downstreamSources(target));
+      }
+    }
+    return downstreams;
+  }
+  
+  @Override
   public Collection<QuerySink> sinks() {
     return sinks;
   }
@@ -259,7 +289,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
         if (single_results == null) {
           single_results = new CumulativeQueryResult(next);
         } else {
-          single_results.addResults(next.timeSeries());
+          single_results.addResults(next);
         }
       }
       try {
@@ -338,6 +368,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     if (graph.vertexSet().size() == 1) {
       throw new IllegalStateException("Graph cannot be empty (with only the context).");
     }
+    final Set<TimeSeriesDataSource> source_set = Sets.newHashSet();
     final DepthFirstIterator<QueryNode, DefaultEdge> df_iterator = 
       new DepthFirstIterator<QueryNode, DefaultEdge>(graph);
     while (df_iterator.hasNext()) {
@@ -349,13 +380,17 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
       final Set<DefaultEdge> incoming = graph.incomingEdgesOf(node);
       if (incoming.size() == 1 && graph.getEdgeSource(incoming.iterator().next()) == this) {
         roots.add(node);
-      }
-      if (node instanceof TimeSeriesDataSource) {
-        sources.add((TimeSeriesDataSource) node);
+        if (node instanceof TimeSeriesDataSource) {
+          source_set.add((TimeSeriesDataSource) node);
+        } else {
+          source_set.addAll(downstreamSources(node));
+        }
       }
     }
+    
+    sources.addAll(source_set);
   }
-
+  
   /**
    * A helper to determine if the stream is finished and calls the sink's 
    * {@link QuerySink#onComplete()} method.
@@ -397,10 +432,18 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     /** The type of ID token pulled from the result. */
     private final TypeToken<? extends TimeSeriesId> id_type;
     
+    /** The max resolution for the results. */
+    private ChronoUnit resolution;
+    
+    /** The sequence ID to return. */
+    private long sequence_id = 0;
+    
     public CumulativeQueryResult(final QueryResult result) {
       series = Lists.newArrayList(result.timeSeries());
       time_specification = result.timeSpecification();
       id_type = result.idType();
+      resolution = result.resolution();
+      sequence_id = result.sequenceId();
     }
     
     @Override
@@ -415,7 +458,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
 
     @Override
     public long sequenceId() {
-      return 0;
+      return sequence_id;
     }
 
     @Override
@@ -429,16 +472,39 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     }
     
     @Override
+    public ChronoUnit resolution() {
+      return resolution;
+    }
+    
+    @Override
     public void close() {
       // No-Op
     }
     
     /**
      * Add the resulting time series to the accumulation.
-     * @param results A non-null collection of results. May be empty.
+     * @param next A non-null result.
      */
-    protected void addResults(final Collection<TimeSeries> results) {
-      series.addAll(results);
+    protected void addResults(final QueryResult next) {
+      if (time_specification != null || next.timeSpecification() != null) {
+        if ((time_specification == null && next.timeSpecification() != null) ||
+            (time_specification != null && next.timeSpecification() == null)) {
+          throw new IllegalStateException("Received a different time "
+              + "specification in query result: " + next);
+        }
+        
+        if (!time_specification.equals(next.timeSpecification())) {
+          throw new IllegalStateException("Received a different time "
+              + "specification in query result: " + next);
+        }
+      }
+      if (next.sequenceId() > sequence_id) {
+        sequence_id = next.sequenceId();
+      }
+      if (next.resolution().ordinal() < resolution.ordinal()) {
+        resolution = next.resolution();
+      }
+      series.addAll(next.timeSeries());
     }
   }
 }

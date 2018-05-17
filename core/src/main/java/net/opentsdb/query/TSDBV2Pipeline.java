@@ -25,13 +25,13 @@ import com.google.common.collect.Sets;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.configuration.ConfigurationException;
-import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.data.types.numeric.Aggregators;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.execution.CachingQueryExecutor;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
@@ -202,7 +202,22 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
         addDagEdge(gb, node);
         node = gb;
       }
-
+      
+      // cache
+      try {
+        // if a plugin hasn't been configured, we'll get an exception so
+        // just ignore the cache at that point.
+        QueryNode cache = new CachingQueryExecutor(tsdb)
+            .newNode(this, CachingQueryExecutor.Config.newBuilder()
+                .setExpiration(60000)
+                .setExecutorId("foo")
+                .setExecutorType("bar")
+                .build());
+        addVertex(cache);
+        addDagEdge(cache, node);
+        node = cache; 
+      } catch (IllegalArgumentException e) { }
+      
       addDagEdge(this, node);
     }
     

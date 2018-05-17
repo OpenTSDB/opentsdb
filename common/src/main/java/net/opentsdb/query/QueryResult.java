@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 
 import com.google.common.reflect.TypeToken;
@@ -64,6 +65,10 @@ public interface QueryResult {
    * @return A non-null type token.
    */
   public TypeToken<? extends TimeSeriesId> idType();
+  
+  /** @return The non-null resolution of the underlying time series 
+   * timestamps. */
+  public ChronoUnit resolution();
   
   /**
    * Closes and releases resources used by this result set. Should be called

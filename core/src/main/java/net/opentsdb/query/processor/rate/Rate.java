@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.rate;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -168,6 +169,11 @@ public class Rate extends AbstractQueryNode {
     }
     
     @Override
+    public ChronoUnit resolution() {
+      return results.resolution();
+    }
+    
+    @Override
     public void close() {
       // NOTE - a race here. Should be idempotent.
       latch.countDown();
@@ -175,7 +181,6 @@ public class Rate extends AbstractQueryNode {
         results.close();
       }
     }
-
     
   }
   

@@ -14,6 +14,7 @@
 // limitations under the License.
 package net.opentsdb.query.processor.downsample;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -23,6 +24,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -44,6 +48,7 @@ import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
+import net.opentsdb.query.processor.downsample.Downsample.DownsampleResult;
 import net.opentsdb.rollup.RollupConfig;
 
 public class TestDownsample {
@@ -171,5 +176,78 @@ public class TestDownsample {
       .onError(any(Throwable.class));
     ds.onError(ex);
     verify(upstream, times(2)).onError(ex);
+  }
+
+  @Test
+  public void downsampleResultResolution() throws Exception {
+    QueryResult result = mock(QueryResult.class);
+    when(result.timeSeries()).thenReturn(Collections.emptyList());
+    Downsample ds = new Downsample(factory, context, config);
+    ds.initialize();
+    
+    DownsampleResult dr = ds.new DownsampleResult(result);
+    assertEquals(ChronoUnit.SECONDS, dr.resolution());
+    
+    q = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("1970/01/01-00:00:00")
+            .setEnd("1970/01/01-12:00:00")
+            .setAggregator("sum"))
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric("sys.cpu.user"))
+        .build();
+    
+    config = DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("1h")
+        .setQuery(q)
+        .setQueryInterpolationConfig(interpolation_config)
+        .build();
+    
+    ds = new Downsample(factory, context, config);
+    ds.initialize();
+    dr = ds.new DownsampleResult(result);
+    assertEquals(ChronoUnit.SECONDS, dr.resolution());
+    
+    config = DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("100ms")
+        .setQuery(q)
+        .setQueryInterpolationConfig(interpolation_config)
+        .build();
+    
+    ds = new Downsample(factory, context, config);
+    ds.initialize();
+    dr = ds.new DownsampleResult(result);
+    assertEquals(ChronoUnit.MILLIS, dr.resolution());
+    
+    config = DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("1000mu")
+        .setQuery(q)
+        .setQueryInterpolationConfig(interpolation_config)
+        .build();
+    
+    ds = new Downsample(factory, context, config);
+    ds.initialize();
+    dr = ds.new DownsampleResult(result);
+    assertEquals(ChronoUnit.NANOS, dr.resolution());
+    
+    config = DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("500ns")
+        .setQuery(q)
+        .setQueryInterpolationConfig(interpolation_config)
+        .build();
+    
+    ds = new Downsample(factory, context, config);
+    ds.initialize();
+    dr = ds.new DownsampleResult(result);
+    assertEquals(ChronoUnit.NANOS, dr.resolution());
   }
 }

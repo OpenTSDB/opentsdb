@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,35 +30,47 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
+import com.google.common.reflect.TypeToken;
 import com.stumbleupon.async.Deferred;
-import com.stumbleupon.async.TimeoutException;
-import io.opentracing.Span;
+
+import net.opentsdb.common.Const;
 import net.opentsdb.configuration.Configuration;
-import net.opentsdb.data.iterators.DefaultIteratorGroups;
 import net.opentsdb.data.iterators.IteratorGroups;
-import net.opentsdb.exceptions.QueryExecutionException;
-import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.ConvertedQueryResult;
+import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.execution.CachingQueryExecutor.Config;
+import net.opentsdb.query.execution.CachingQueryExecutor.LocalExecution;
 import net.opentsdb.query.execution.TestQueryExecutor.MockDownstream;
-import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.cache.DefaultTimeSeriesCacheKeyGenerator;
+import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
-import net.opentsdb.query.execution.serdes.TimeSeriesSerdes;
-import net.opentsdb.query.execution.serdes.UglyByteIteratorGroupsSerdes;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
+import net.opentsdb.stats.Span;
+import net.opentsdb.query.serdes.SerdesOptions;
+import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.UnitTestException;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({ CachingQueryExecutor.class, ConvertedQueryResult.class })
 public class TestCachingQueryExecutor extends BaseExecutorTest {
   private QueryExecutor<IteratorGroups> executor;
   private MockDownstream<IteratorGroups> cache_execution;
@@ -67,7 +79,6 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   private QueryCachePlugin plugin;
   private TimeSeriesSerdes serdes;
   private TimeSeriesCacheKeyGenerator key_generator;
-  private MockDownstream<IteratorGroups> downstream;
   
   @SuppressWarnings("unchecked")
   @Before
@@ -75,13 +86,13 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     node = mock(ExecutionGraphNode.class);
     executor = mock(QueryExecutor.class);
     plugin = mock(QueryCachePlugin.class);
-    serdes = new UglyByteIteratorGroupsSerdes();
     config = (Config) Config.newBuilder()
         .setExpiration(60000)
         .setKeyGeneratorId("MyKeyGen")
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
+    serdes = mock(TimeSeriesSerdes.class);
     
     tsd_config = new Configuration(new String[] { 
         "--" + Configuration.CONFIG_PROVIDERS_KEY + "=RuntimeOverride" });
@@ -102,6 +113,8 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     when(executor.close()).thenReturn(Deferred.fromResult(null));
     when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
       .thenReturn(plugin);
+    when(registry.getDefaultPlugin(eq(QueryCachePlugin.class)))
+      .thenReturn(plugin);
     when(registry.getPlugin(eq(TimeSeriesCacheKeyGenerator.class), anyString()))
       .thenReturn(key_generator);
     when(registry.getSerdes(anyString()))
@@ -112,21 +125,15 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         return serdes;
       }
     });
+    when(registry.getDefaultPlugin(eq(TimeSeriesSerdes.class)))
+      .thenReturn(serdes);
     query = TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
             .setStart("1h-ago"))
         .addMetric(Metric.newBuilder()
             .setMetric("system.cpu.user"))
         .build();
-    downstream = new MockDownstream<IteratorGroups>(query);
-    when(executor.executeQuery(context, query, null))
-      .thenAnswer(new Answer<QueryExecution<IteratorGroups>>() {
-        @Override
-        public QueryExecution<IteratorGroups> answer(
-            InvocationOnMock invocation) throws Throwable {
-          return downstream;
-        }
-    });
+    when(pcontext.query()).thenReturn(query);
     cache_execution = new MockDownstream<IteratorGroups>(query);
     when(plugin.fetch(any(QueryContext.class), any(byte[].class), any(Span.class)))
       .thenAnswer(new Answer<QueryExecution<IteratorGroups>>() {
@@ -136,58 +143,37 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
           return cache_execution;
         }
       });
+    when(serdes.serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class)))
+      .thenReturn(Deferred.fromResult(null));
   }
   
   @Test
   public void ctor() throws Exception {
-    CachingQueryExecutor<IteratorGroups> executor = 
-        new CachingQueryExecutor<IteratorGroups>(node);
+    CachingQueryExecutor executor = new CachingQueryExecutor(node);
     assertSame(plugin, executor.plugin());
     assertSame(serdes, executor.serdes());
     assertTrue(executor.keyGenerator() instanceof 
         DefaultTimeSeriesCacheKeyGenerator);
-    assertEquals(1, executor.downstreamExecutors().size());
-    assertSame(this.executor, executor.downstreamExecutors().get(0));
     
     try {
-      new CachingQueryExecutor<IteratorGroups>(null);
+      new CachingQueryExecutor((ExecutionGraphNode) null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     when(node.getDefaultConfig()).thenReturn(null);
     try {
-      new CachingQueryExecutor<IteratorGroups>(node);
+      new CachingQueryExecutor(node);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     when(node.getDefaultConfig()).thenReturn(config);
-    when(graph.getDownstreamExecutor(anyString())).thenReturn(null);
-    try {
-      new CachingQueryExecutor<IteratorGroups>(node);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    final QueryExecutor<?> ex = executor;
-    when(graph.getDownstreamExecutor(anyString()))
-      .thenAnswer(new Answer<QueryExecutor<?>>() {
-      @Override
-      public QueryExecutor<?> answer(InvocationOnMock invocation)
-          throws Throwable {
-        return ex;
-      }
-    });
-    when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
-      .thenReturn(null);
-    try {
-      new CachingQueryExecutor<IteratorGroups>(node);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
     when(registry.getPlugin(eq(QueryCachePlugin.class), anyString()))
       .thenReturn(plugin);
     when(registry.getSerdes(anyString())).thenReturn(null);
     try {
-      new CachingQueryExecutor<IteratorGroups>(node);
+      new CachingQueryExecutor(node);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -202,530 +188,696 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     when(registry.getPlugin(eq(TimeSeriesCacheKeyGenerator.class), anyString()))
       .thenReturn(null);
     try {
-      new CachingQueryExecutor<IteratorGroups>(node);
+      new CachingQueryExecutor(node);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
+    
+    executor = new CachingQueryExecutor(tsdb);
+    assertSame(plugin, executor.plugin());
+    assertSame(serdes, executor.serdes());
+    assertTrue(executor.keyGenerator() instanceof 
+        DefaultTimeSeriesCacheKeyGenerator);
   }
 
   @Test
   public void executeCacheMiss() throws Exception {
-    final CachingQueryExecutor<IteratorGroups> executor = 
-        new CachingQueryExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    execution.fetchNext(null);
+    
     verify(plugin, times(1))
       .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
     verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+
     // cache miss
     cache_execution.callback(null);
+
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, times(1)).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+  }
+  
+  @Test
+  public void executeCacheHit() throws Exception {
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    execution.fetchNext(null);
     
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
     
-    final IteratorGroups results = new DefaultIteratorGroups();
-    downstream.callback(results);
-    assertSame(results, exec.deferred().join());
-    verify(this.executor, times(1)).executeQuery(context, query, null);
+    // cache hit
+    cache_execution.callback(new byte[] { 42 });
+    
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, times(1)).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+  }
+  
+  @Test
+  public void executeSimultaneous() throws Exception {
+    config = (Config) Config.newBuilder()
+        .setExpiration(60000)
+        .setSimultaneous(true)
+        .setExecutorId("LocalCache")
+        .setExecutorType("CachingQueryExecutor")
+        .build();
+    when(node.getDefaultConfig()).thenReturn(config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    execution.fetchNext(null);
+    
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, times(1)).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+  }
+  
+  @Test
+  public void executeBypass() throws Exception {
+    config = (Config) Config.newBuilder()
+        .setExpiration(60000)
+        .setBypass(true)
+        .setExecutorId("LocalCache")
+        .setExecutorType("CachingQueryExecutor")
+        .build();
+    when(node.getDefaultConfig()).thenReturn(config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    execution.fetchNext(null);
+    
+    verify(plugin, never())
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, times(1)).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+  }
+  
+  @Test
+  public void executeCacheException() throws Exception {
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    execution.fetchNext(null);
+    
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+    
+    // cache exception
+    cache_execution.callback(new IllegalStateException("Boo!"));
+    
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, times(1)).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+  }
+  
+  @Test
+  public void executeCacheExceptionSimultaneous() throws Exception {
+    config = (Config) Config.newBuilder()
+        .setExpiration(60000)
+        .setSimultaneous(true)
+        .setExecutorId("LocalCache")
+        .setExecutorType("CachingQueryExecutor")
+        .build();
+    when(node.getDefaultConfig()).thenReturn(config);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    execution.fetchNext(null);
+    
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, times(1)).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+    
+    // cache exception
+    cache_execution.callback(new IllegalStateException("Boo!"));
+    
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, times(1)).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+  }
+  
+  @Test
+  public void executeExceptionThrown() throws Exception {
+    when(plugin.fetch(any(QueryContext.class), any(byte[].class), 
+        any(Span.class))).thenThrow(new UnitTestException());
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    execution.fetchNext(null);
+    
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, times(1)).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+  }
+  
+  @Test
+  public void onNextFromDownstream() throws Exception {
+    final QueryResult next = mock(QueryResult.class);
+    when(next.source()).thenReturn(downstream);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    
+    execution.onNext(next);
+    
+    verify(plugin, never())
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
     verify(plugin, times(1)).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstream.cancelled);
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, times(1)).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, times(1)).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+    assertTrue(execution.complete.get());
+  }
+
+  @Test
+  public void onNextSimultaneousCacheFirst() throws Exception {
+    config = (Config) Config.newBuilder()
+        .setExpiration(60000)
+        .setSimultaneous(true)
+        .setExecutorId("LocalCache")
+        .setExecutorType("CachingQueryExecutor")
+        .build();
+    when(node.getDefaultConfig()).thenReturn(config);
+    QueryResult next = mock(QueryResult.class);
+    
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    when(next.source()).thenReturn(execution);
+    execution.initialize();
+    execution.fetchNext(null);
+    execution.cache_execution = null;
+    execution.onNext(next);
+    
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, times(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, times(1)).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, times(1)).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+    assertTrue(execution.complete.get());
+    assertFalse(cache_execution.cancelled);
+    
+    // downstream
+    next = mock(QueryResult.class);
+    when(next.source()).thenReturn(downstream);
+    execution.onNext(next);
+    
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, times(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, times(1)).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, times(1)).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+    assertTrue(execution.complete.get());
     assertFalse(cache_execution.cancelled);
   }
   
-//  @Test
-//  public void executeCacheHit() throws Exception {
-//    final CachingQueryExecutor<IteratorGroups> executor = 
-//        new CachingQueryExecutor<IteratorGroups>(node);
-//    final QueryExecution<IteratorGroups> exec = 
-//        executor.executeQuery(context, query, span);
-//    try {
-//      exec.deferred().join(1);
-//      fail("Expected TimeoutException");
-//    } catch (TimeoutException e) { }
-//    verify(plugin, times(1))
-//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-//    verify(this.executor, never()).executeQuery(context, query, null);
-//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-//        anyLong(), any(TimeUnit.class));
-//    assertTrue(executor.outstandingRequests().contains(exec));
-//    
-//    // cache hit
-//    IteratorGroups results = new DefaultIteratorGroups();
-//    final ByteArrayOutputStream output = new ByteArrayOutputStream();
-//    serdes.serialize(query, null, output, results);
-//    output.close();
-//    
-//    cache_execution.callback(output.toByteArray());
-//    
-//    results = exec.deferred().join();
-//    assertTrue(results.groups().isEmpty());
-//    verify(this.executor, never()).executeQuery(context, query, null);
-//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-//        anyLong(), any(TimeUnit.class));
-//    assertFalse(executor.outstandingRequests().contains(exec));
-//    assertFalse(downstream.cancelled);
-//    assertFalse(cache_execution.cancelled);
-//  }
-
   @Test
-  public void executeCacheMissNoCaching() throws Exception {
+  public void onNextSimultaneousDownstreamFirst() throws Exception {
+    config = (Config) Config.newBuilder()
+        .setExpiration(60000)
+        .setSimultaneous(true)
+        .setExecutorId("LocalCache")
+        .setExecutorType("CachingQueryExecutor")
+        .build();
+    when(node.getDefaultConfig()).thenReturn(config);
+    QueryResult next = mock(QueryResult.class);
+    when(next.source()).thenReturn(downstream);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    execution.fetchNext(null);
+    
+    execution.onNext(next);
+    
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, times(1)).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, times(1)).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, times(1)).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, times(1)).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+    assertTrue(execution.complete.get());
+    assertTrue(cache_execution.cancelled);
+    
+    // cache hit
+    next = mock(QueryResult.class);
+    when(next.source()).thenReturn(execution);
+    execution.onNext(next);
+    
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, times(1)).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, times(1)).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, times(1)).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, times(1)).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+    assertTrue(execution.complete.get());
+    assertTrue(cache_execution.cancelled);
+  }
+  
+  @Test
+  public void onNextNullSource() throws Exception {
+    // Would happen if a plugin fails to set the source.
+    QueryResult next = mock(QueryResult.class);
+    
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    execution.fetchNext(null);
+    execution.cache_execution = null;
+    execution.onNext(next);
+    
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, times(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, times(1)).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+    assertTrue(execution.complete.get());
+    assertFalse(cache_execution.cancelled);
+  }
+  
+  @Test
+  public void onNextConvertIDs() throws Exception {
+    QueryResult next = mock(QueryResult.class);
+    when(next.source()).thenReturn(downstream);
+    when(next.idType()).thenAnswer(new Answer<TypeToken<?>>() {
+      @Override
+      public TypeToken<?> answer(InvocationOnMock invocation) throws Throwable {
+        return Const.TS_BYTE_ID;
+      }
+    });
+    PowerMockito.mockStatic(ConvertedQueryResult.class);
+    
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    execution.fetchNext(null);
+    execution.cache_execution = null;
+    execution.onNext(next);
+    
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+    assertFalse(execution.complete.get());
+    assertFalse(cache_execution.cancelled);
+    PowerMockito.verifyStatic(times(1));
+    ConvertedQueryResult.convert(next, execution, null);
+  }
+  
+  @Test
+  public void onNextSerdesThrowsException() throws Exception {
+    final QueryResult next = mock(QueryResult.class);
+    when(next.source()).thenReturn(downstream);
+    when(serdes.serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class)))
+      .thenThrow(new UnitTestException());
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    
+    execution.onNext(next);
+    
+    verify(plugin, never())
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, times(1)).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, times(1)).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+    assertTrue(execution.complete.get());
+  }
+  
+  @Test
+  public void onNextSerdesReturnsException() throws Exception {
+    final QueryResult next = mock(QueryResult.class);
+    when(next.source()).thenReturn(downstream);
+    when(serdes.serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class)))
+      .thenReturn(Deferred.fromError(new UnitTestException()));
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    
+    execution.onNext(next);
+    
+    verify(plugin, never())
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, times(1)).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, times(1)).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+    assertTrue(execution.complete.get());
+  }
+  
+  @Test
+  public void onNextZeroExpiration() throws Exception {
     config = (Config) Config.newBuilder()
         .setExpiration(0)
         .setExecutorId("LocalCache")
         .setExecutorType("CachingQueryExecutor")
         .build();
     when(node.getDefaultConfig()).thenReturn(config);
+    QueryResult next = mock(QueryResult.class);
+    when(next.source()).thenReturn(downstream);
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    execution.fetchNext(null);
     
-    final CachingQueryExecutor<IteratorGroups> executor = 
-        new CachingQueryExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
+    execution.onNext(next);
+    
     verify(plugin, times(1))
       .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
     verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    // cache miss
-    cache_execution.callback(null);
-    
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    final IteratorGroups results = new DefaultIteratorGroups();
-    downstream.callback(results);
-    assertSame(results, exec.deferred().join());
-    verify(this.executor, times(1)).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstream.cancelled);
-    assertFalse(cache_execution.cancelled);
-  }
-  
-//  @Test
-//  public void executeSimultaneousCacheFirst() throws Exception {
-//    config = (Config) Config.newBuilder()
-//        .setExpiration(60000)
-//        .setSimultaneous(true)
-//        .setExecutorId("LocalCache")
-//        .setExecutorType("CachingQueryExecutor")
-//        .build();
-//    when(node.getDefaultConfig()).thenReturn(config);
-//    
-//    final CachingQueryExecutor<IteratorGroups> executor = 
-//        new CachingQueryExecutor<IteratorGroups>(node);
-//    final QueryExecution<IteratorGroups> exec = 
-//        executor.executeQuery(context, query, span);
-//    try {
-//      exec.deferred().join(1);
-//      fail("Expected TimeoutException");
-//    } catch (TimeoutException e) { }
-//    verify(plugin, times(1))
-//      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-//    verify(this.executor, times(1)).executeQuery(context, query, null);
-//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-//        anyLong(), any(TimeUnit.class));
-//    assertTrue(executor.outstandingRequests().contains(exec));
-//    
-//    // cache hit
-//    IteratorGroups results = new DefaultIteratorGroups();
-//    final ByteArrayOutputStream output = new ByteArrayOutputStream();
-//    serdes.serialize(query, null, output, results);
-//    output.close();
-//    
-//    cache_execution.callback(output.toByteArray());
-//    
-//    results = exec.deferred().join();
-//    assertTrue(results.groups().isEmpty());
-//    verify(this.executor, times(1)).executeQuery(context, query, null);
-//    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-//        anyLong(), any(TimeUnit.class));
-//    assertFalse(executor.outstandingRequests().contains(exec));
-//    assertTrue(downstream.cancelled);
-//    assertFalse(cache_execution.cancelled);
-//  }
-  
-  @Test
-  public void executeSimultaneousDownstreamFirst() throws Exception {
-    config = (Config) Config.newBuilder()
-        .setExpiration(60000)
-        .setSimultaneous(true)
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
-        .build();
-    when(node.getDefaultConfig()).thenReturn(config);
-    
-    final CachingQueryExecutor<IteratorGroups> executor = 
-        new CachingQueryExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(this.executor, times(1)).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    // downstream
-    IteratorGroups results = new DefaultIteratorGroups();
-    downstream.callback(results);
-    
-    assertSame(results, exec.deferred().join());
-    verify(this.executor, times(1)).executeQuery(context, query, null);
-    verify(plugin, times(1)).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstream.cancelled);
-    assertTrue(cache_execution.cancelled);
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, times(1)).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+    assertTrue(execution.complete.get());
   }
   
   @Test
-  public void executeCacheException() throws Exception {
-    final CachingQueryExecutor<IteratorGroups> executor = 
-        new CachingQueryExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
+  public void onErrorDownstreamExceptionNotComplete() throws Exception {
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
     
-    // cache exception
-    cache_execution.callback(new IllegalStateException("Boo!"));
+    execution.onError(new UnitTestException());
     
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    final IteratorGroups results = new DefaultIteratorGroups();
-    downstream.callback(results);
-    assertSame(results, exec.deferred().join());
-    verify(this.executor, times(1)).executeQuery(context, query, null);
-    verify(plugin, times(1)).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstream.cancelled);
-    assertFalse(cache_execution.cancelled);
-  }
-  
-  @Test
-  public void executeCacheMissDownstreamException() throws Exception {
-    final CachingQueryExecutor<IteratorGroups> executor = 
-        new CachingQueryExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    // cache exception
-    cache_execution.callback(null);
-    
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    downstream.callback(new IllegalStateException("Boo!"));
-    final Deferred<IteratorGroups> deferred = exec.deferred();
-    try {
-      deferred.join();
-      fail("Expected IllegalStateException");
-    } catch (IllegalStateException e) { }
-    verify(this.executor, times(1)).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstream.cancelled);
-    assertFalse(cache_execution.cancelled);
-  }
-  
-  @Test
-  public void executeSimultaneousCacheException() throws Exception {
-    config = (Config) Config.newBuilder()
-        .setExpiration(60000)
-        .setSimultaneous(true)
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
-        .build();
-    when(node.getDefaultConfig()).thenReturn(config);
-    
-    final CachingQueryExecutor<IteratorGroups> executor = 
-        new CachingQueryExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(this.executor, times(1)).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    // cache exception
-    cache_execution.callback(new IllegalStateException("Boo!"));
-    
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    
-    IteratorGroups results = new DefaultIteratorGroups();
-    downstream.callback(results);
-    
-    assertSame(results, exec.deferred().join());
-    verify(this.executor, times(1)).executeQuery(context, query, null);
-    verify(plugin, times(1)).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstream.cancelled);
-    assertFalse(cache_execution.cancelled);
-  }
-  
-  @Test
-  public void executeSimultaneousDownstreamException() throws Exception {
-    config = (Config) Config.newBuilder()
-        .setExpiration(60000)
-        .setSimultaneous(true)
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
-        .build();
-    when(node.getDefaultConfig()).thenReturn(config);
-    
-    final CachingQueryExecutor<IteratorGroups> executor = 
-        new CachingQueryExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(this.executor, times(1)).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    downstream.callback(new IllegalStateException("Boo!"));
-    
-    try {
-      exec.deferred.join();
-      fail("Expected IllegalStateException");
-    } catch (IllegalStateException e) { }
-    verify(this.executor, times(1)).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstream.cancelled);
-    assertTrue(cache_execution.cancelled);
-  }
-  
-  @Test
-  public void executeCacheWaitCancel() throws Exception {
-    final CachingQueryExecutor<IteratorGroups> executor = 
-        new CachingQueryExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    exec.cancel();
-    
-    try {
-      exec.deferred().join();
-      fail("Expected QueryExecutionException");
-    } catch (QueryExecutionException e) { }
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstream.cancelled);
-    assertTrue(cache_execution.cancelled);
-  }
-  
-  @Test
-  public void executeDownstreamWaitCancel() throws Exception {
-    final CachingQueryExecutor<IteratorGroups> executor = 
-        new CachingQueryExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
-    verify(plugin, times(1))
-      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-    
-    cache_execution.callback(null);
-    
-    exec.cancel();
-    
-    try {
-      exec.deferred().join();
-      fail("Expected QueryExecutionException");
-    } catch (QueryExecutionException e) { }
-    verify(this.executor, times(1)).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertTrue(downstream.cancelled);
-    assertFalse(cache_execution.cancelled);
-  }
-
-  @Test
-  public void executeBypassDefault() throws Exception {
-    config = (Config) Config.newBuilder()
-        .setExpiration(60000)
-        .setBypass(true)
-        .setKeyGeneratorId("MyKeyGen")
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
-        .build();
-    when(node.getDefaultConfig()).thenReturn(config);
-    
-    final CachingQueryExecutor<IteratorGroups> executor = 
-        new CachingQueryExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
     verify(plugin, never())
       .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(this.executor, times(1)).executeQuery(context, query, null);
     verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-
-    final IteratorGroups results = new DefaultIteratorGroups();
-    downstream.callback(results);
-    assertSame(results, exec.deferred().join());
-    verify(this.executor, times(1)).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstream.cancelled);
-    assertFalse(cache_execution.cancelled);
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, times(1)).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+    assertTrue(execution.complete.get());
   }
   
   @Test
-  public void executeBypassOverride() throws Exception {
-    config = (Config) Config.newBuilder()
-        .setBypass(true)
-        .setExecutorId("LocalCache")
-        .setExecutorType("CachingQueryExecutor")
-        .build();
-    when(context.getConfigOverride(anyString()))
-      .thenReturn(config);
+  public void onErrorDownstreamExceptionComplete() throws Exception {
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    execution.complete.set(true);
     
-    final CachingQueryExecutor<IteratorGroups> executor = 
-        new CachingQueryExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
+    execution.onError(new UnitTestException());
+    
     verify(plugin, never())
       .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(this.executor, times(1)).executeQuery(context, query, null);
     verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
-
-    final IteratorGroups results = new DefaultIteratorGroups();
-    downstream.callback(results);
-    assertSame(results, exec.deferred().join());
-    verify(this.executor, times(1)).executeQuery(context, query, null);
-    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstream.cancelled);
-    assertFalse(cache_execution.cancelled);
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+    assertTrue(execution.complete.get());
   }
   
   @Test
-  public void close() throws Exception {
-    final CachingQueryExecutor<IteratorGroups> executor = 
-        new CachingQueryExecutor<IteratorGroups>(node);
-    final QueryExecution<IteratorGroups> exec = 
-        executor.executeQuery(context, query, span);
-    try {
-      exec.deferred().join(1);
-      fail("Expected TimeoutException");
-    } catch (TimeoutException e) { }
+  public void onComplete() throws Exception {
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    
+    execution.onComplete(mock(QueryNode.class), 42, 42);
+    verify(upstream, times(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
+  }
+  
+  @Test
+  public void closeNotComplete() throws Exception {
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    execution.fetchNext(null);
+    
     verify(plugin, times(1))
       .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
-    verify(this.executor, never()).executeQuery(context, query, null);
     verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertTrue(executor.outstandingRequests().contains(exec));
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
     
-    executor.close();
+    execution.close();
     
-    try {
-      exec.deferred().join();
-      fail("Expected QueryExecutionException");
-    } catch (QueryExecutionException e) { }
-    verify(this.executor, never()).executeQuery(context, query, null);
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
     verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
-        anyLong(), any(TimeUnit.class));
-    assertFalse(executor.outstandingRequests().contains(exec));
-    assertFalse(downstream.cancelled);
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, times(1)).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+    assertTrue(cache_execution.cancelled);
+  }
+  
+  @Test
+  public void closeComplete() throws Exception {
+    final CachingQueryExecutor executor = new CachingQueryExecutor(node);
+    LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
+    execution.initialize();
+    execution.fetchNext(null);
+    
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
+    
+    execution.complete.set(true);
+    execution.close();
+    
+    verify(plugin, times(1))
+      .fetch(any(QueryContext.class), any(byte[].class), any(Span.class));
+    verify(plugin, never()).cache(any(byte[].class), any(byte[].class), 
+        anyLong(), any(TimeUnit.class), any(Span.class));
+    verify(upstream, never()).onComplete(any(QueryNode.class), anyLong(), anyLong());
+    verify(upstream, never()).onNext(any(QueryResult.class));
+    verify(upstream, never()).onError(any(Throwable.class));
+    verify(source, never()).fetchNext(any(Span.class));
+    verify(serdes, never()).deserialize(any(SerdesOptions.class), 
+        any(InputStream.class), any(QueryNode.class), any(Span.class));
+    verify(serdes, never()).serialize(any(QueryContext.class), 
+        any(SerdesOptions.class), any(OutputStream.class), 
+        any(QueryResult.class), any(Span.class));
     assertTrue(cache_execution.cancelled);
   }
 

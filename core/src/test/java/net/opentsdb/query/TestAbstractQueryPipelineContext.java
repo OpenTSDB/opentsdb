@@ -28,6 +28,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 
 import org.junit.Before;
@@ -38,6 +39,8 @@ import com.google.common.collect.Lists;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
+import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.query.AbstractQueryPipelineContext.CumulativeQueryResult;
 
 public class TestAbstractQueryPipelineContext {
 
@@ -97,7 +100,7 @@ public class TestAbstractQueryPipelineContext {
   public void upstream() throws Exception {
     final TestContext ctx = new TestContext(tsdb, query, context, 
         Lists.newArrayList(sink1));
-    ctx.initialize();
+    ctx.init1();
     assertTrue(ctx.upstream(ctx).isEmpty());
     
     Collection<QueryNode> us = ctx.upstream(ctx.n3);
@@ -123,7 +126,7 @@ public class TestAbstractQueryPipelineContext {
   public void downstream() throws Exception {
     final TestContext ctx = new TestContext(tsdb, query, context, 
         Lists.newArrayList(sink1));
-    ctx.initialize();
+    ctx.init1();
     assertSame(ctx.n3, ctx.downstream(ctx.n1).iterator().next());
     assertSame(ctx.n3, ctx.downstream(ctx.n2).iterator().next());
     
@@ -147,10 +150,52 @@ public class TestAbstractQueryPipelineContext {
   }
   
   @Test
+  public void downstreamSources() throws Exception {
+    final TestContext ctx = new TestContext(tsdb, query, context, 
+        Lists.newArrayList(sink1));
+    ctx.init1();
+    Collection<TimeSeriesDataSource> ds = ctx.downstreamSources(ctx.n1);
+    assertEquals(2, ds.size());
+    assertTrue(ds.contains(ctx.s1));
+    assertTrue(ds.contains(ctx.s2));
+    
+    ds = ctx.downstreamSources(ctx.n2);
+    assertEquals(2, ds.size());
+    assertTrue(ds.contains(ctx.s1));
+    assertTrue(ds.contains(ctx.s2));
+    
+    ds = ctx.downstreamSources(ctx.n3);
+    assertEquals(2, ds.size());
+    assertTrue(ds.contains(ctx.s1));
+    assertTrue(ds.contains(ctx.s2));
+    
+    ds = ctx.downstreamSources(ctx.n4);
+    assertEquals(1, ds.size());
+    assertTrue(ds.contains(ctx.s1));
+    
+    ds = ctx.downstreamSources(ctx.n5);
+    assertEquals(1, ds.size());
+    assertTrue(ds.contains(ctx.s2));
+
+    assertTrue(ctx.downstream(ctx.s1).isEmpty());
+    assertTrue(ctx.downstream(ctx.s2).isEmpty());
+    
+    try {
+      ctx.downstream(null);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      ctx.downstream(mock(QueryNode.class));
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+  
+  @Test
   public void close() throws Exception {
     final TestContext ctx = new TestContext(tsdb, query, context, 
         Lists.newArrayList(sink1));
-    ctx.initialize();
+    ctx.init1();
     ctx.close();
     verify(ctx.n1, times(1)).close();
     verify(ctx.n2, times(1)).close();
@@ -165,24 +210,30 @@ public class TestAbstractQueryPipelineContext {
   public void fetchNext() throws Exception {
     TestContext ctx = new TestContext(tsdb, query, context, 
         Lists.newArrayList(sink1));
-    ctx.initialize();
+    ctx.init1();
+    assertTrue(ctx.sources.contains(ctx.s1));
+    assertTrue(ctx.sources.contains(ctx.s2));
+    // reset the sources so it's deterministic.
+    ctx.sources.clear();
+    ctx.sources.add(ctx.s1);
+    ctx.sources.add(ctx.s2);
     
     verify(ctx.s1, never()).fetchNext(null);
     verify(ctx.s2, never()).fetchNext(null);
     
     ctx.fetchNext(null);
-    verify(ctx.s1, never()).fetchNext(null);
-    verify(ctx.s2, times(1)).fetchNext(null);
+    verify(ctx.s1, times(1)).fetchNext(null);
+    verify(ctx.s2, never()).fetchNext(null);
     
     ctx.fetchNext(null);
     verify(ctx.s1, times(1)).fetchNext(null);
     verify(ctx.s2, times(1)).fetchNext(null);
     
     ctx.fetchNext(null);
-    verify(ctx.s1, times(1)).fetchNext(null);
-    verify(ctx.s2, times(2)).fetchNext(null);
+    verify(ctx.s1, times(2)).fetchNext(null);
+    verify(ctx.s2, times(1)).fetchNext(null);
     
-    doThrow(new IllegalStateException("Boo!")).when(ctx.s1).fetchNext(null);
+    doThrow(new IllegalStateException("Boo!")).when(ctx.s2).fetchNext(null);
     ctx.fetchNext(null);
     verify(ctx.s1, times(2)).fetchNext(null);
     verify(ctx.s2, times(2)).fetchNext(null);
@@ -191,7 +242,13 @@ public class TestAbstractQueryPipelineContext {
     // Test the single mutli-source case.
     when(context.mode()).thenReturn(QueryMode.SINGLE);
     ctx = new TestContext(tsdb, query, context, Lists.newArrayList(sink1));
-    ctx.initialize();
+    ctx.init1();
+    assertTrue(ctx.sources.contains(ctx.s1));
+    assertTrue(ctx.sources.contains(ctx.s2));
+    // reset the sources so it's deterministic.
+    ctx.sources.clear();
+    ctx.sources.add(ctx.s1);
+    ctx.sources.add(ctx.s2);
     
     verify(ctx.s1, never()).fetchNext(null);
     verify(ctx.s2, never()).fetchNext(null);
@@ -205,7 +262,7 @@ public class TestAbstractQueryPipelineContext {
   public void onComplete() throws Exception {
     final TestContext ctx = new TestContext(tsdb, query, context, 
         Lists.newArrayList(sink1, sink2));
-    ctx.initialize();
+    ctx.init1();
     
     doThrow(new IllegalStateException("Boo!")).when(sink1).onComplete();
     
@@ -228,7 +285,7 @@ public class TestAbstractQueryPipelineContext {
   public void onNext() throws Exception {
     TestContext ctx = new TestContext(tsdb, query, context, 
         Lists.newArrayList(sink1, sink2));
-    ctx.initialize();
+    ctx.init1();
     
     doThrow(new IllegalStateException("Boo!")).when(sink1).onNext(any());
     
@@ -253,13 +310,14 @@ public class TestAbstractQueryPipelineContext {
     // Test the single multi-source case
     when(context.mode()).thenReturn(QueryMode.SINGLE);
     ctx = new TestContext(tsdb, query, context, Lists.newArrayList(sink1, sink2));
-    ctx.initialize();
+    ctx.init1();
     
     final TimeSeries t1 = mock(TimeSeries.class);
     final TimeSeries t2 = mock(TimeSeries.class);
     
     assertNull(ctx.single_results);
     result = mock(QueryResult.class);
+    when(result.resolution()).thenReturn(ChronoUnit.MILLIS);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(t1));
     when(result.source()).thenReturn(ctx.n1);
     ctx.onNext(result);
@@ -273,6 +331,7 @@ public class TestAbstractQueryPipelineContext {
     verify(sink2, times(1)).onComplete();
     
     result = mock(QueryResult.class);
+    when(result.resolution()).thenReturn(ChronoUnit.MILLIS);
     when(result.timeSeries()).thenReturn(Lists.newArrayList(t1));
     when(result.source()).thenReturn(ctx.n2);
     ctx.onNext(result);
@@ -290,7 +349,7 @@ public class TestAbstractQueryPipelineContext {
   public void onError() throws Exception {
     final TestContext ctx = new TestContext(tsdb, query, context, 
         Lists.newArrayList(sink1, sink2));
-    ctx.initialize();
+    ctx.init1();
     
     doThrow(new IllegalStateException("Boo!")).when(sink1).onError(any());
     
@@ -303,7 +362,7 @@ public class TestAbstractQueryPipelineContext {
   public void addVertex() throws Exception {
     final TestContext ctx = new TestContext(tsdb, query, context, 
         Lists.newArrayList(sink1, sink2));
-    ctx.initialize();
+    ctx.init1();
     
     // same is ok
     ctx.addVertex(ctx.n1);
@@ -318,7 +377,7 @@ public class TestAbstractQueryPipelineContext {
   public void addDagEdge() throws Exception {
     final TestContext ctx = new TestContext(tsdb, query, context, 
         Lists.newArrayList(sink1, sink2));
-    ctx.initialize();
+    ctx.init1();
     
     // add existing is ok
     ctx.addDagEdge(ctx.n4, ctx.s1);
@@ -347,7 +406,17 @@ public class TestAbstractQueryPipelineContext {
   }
   
   @Test
-  public void initializeGraph() {
+  public void chainedSources() throws Exception {
+    TestContext ctx = new TestContext(tsdb, query, context, 
+        Lists.newArrayList(sink1));
+    
+    ctx.init2();
+    assertEquals(1, ctx.sources.size());
+    assertSame(ctx.s2, ctx.sources.get(0));
+  }
+  
+  @Test
+  public void initializeGraph() throws Exception {
     TestContext ctx = new TestContext(tsdb, query, context, 
         Lists.newArrayList(sink1, sink2));
     // empty is not allowed
@@ -355,7 +424,72 @@ public class TestAbstractQueryPipelineContext {
       ctx.initializeGraph();
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
-    ctx.initialize();
+    ctx.init1();
+  }
+  
+  @Test
+  public void cumulativeQueryResult_addResults() throws Exception {
+    TestContext ctx = new TestContext(tsdb, query, context, 
+        Lists.newArrayList(sink1, sink2));
+    ctx.init1();
+    
+    final TimeSeries t1 = mock(TimeSeries.class);
+    final TimeSeries t2 = mock(TimeSeries.class);
+    final TimeSeries t3 = mock(TimeSeries.class);
+    
+    QueryResult result = mock(QueryResult.class);
+    when(result.resolution()).thenReturn(ChronoUnit.MILLIS);
+    when(result.timeSeries()).thenReturn(Lists.newArrayList(t1));
+    when(result.source()).thenReturn(ctx.n1);
+    
+    CumulativeQueryResult cqr = ctx.new CumulativeQueryResult(result);
+    assertEquals(1, cqr.timeSeries().size());
+    assertSame(t1, cqr.timeSeries().iterator().next());
+    assertEquals(ChronoUnit.MILLIS, cqr.resolution());
+    assertNull(cqr.timeSpecification());
+    assertEquals(0, cqr.sequenceId());
+    
+    // another result
+    result = mock(QueryResult.class);
+    when(result.resolution()).thenReturn(ChronoUnit.NANOS);
+    when(result.timeSeries()).thenReturn(Lists.newArrayList(t2));
+    when(result.source()).thenReturn(ctx.n2);
+    when(result.sequenceId()).thenReturn(4L);
+    
+    cqr.addResults(result);
+    assertEquals(2, cqr.timeSeries().size());
+    assertTrue(cqr.timeSeries().contains(t1));
+    assertTrue(cqr.timeSeries().contains(t2));
+    assertEquals(ChronoUnit.NANOS, cqr.resolution());
+    assertNull(cqr.timeSpecification());
+    assertEquals(4, cqr.sequenceId());
+    
+    // interspersed result
+    result = mock(QueryResult.class);
+    when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
+    when(result.timeSeries()).thenReturn(Lists.newArrayList(t3));
+    when(result.source()).thenReturn(ctx.n2);
+    when(result.sequenceId()).thenReturn(1L);
+    
+    cqr.addResults(result);
+    assertEquals(3, cqr.timeSeries().size());
+    assertTrue(cqr.timeSeries().contains(t1));
+    assertTrue(cqr.timeSeries().contains(t2));
+    assertTrue(cqr.timeSeries().contains(t3));
+    assertEquals(ChronoUnit.NANOS, cqr.resolution());
+    assertNull(cqr.timeSpecification());
+    assertEquals(4, cqr.sequenceId());
+    
+    result = mock(QueryResult.class);
+    when(result.timeSpecification()).thenReturn(mock(TimeSpecification.class));
+    when(result.resolution()).thenReturn(ChronoUnit.SECONDS);
+    when(result.timeSeries()).thenReturn(Lists.newArrayList(t3));
+    when(result.source()).thenReturn(ctx.n2);
+    when(result.sequenceId()).thenReturn(1L);
+    try {
+      cqr.addResults(result);
+      fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) { }
   }
   
   class TestContext extends AbstractQueryPipelineContext {
@@ -370,14 +504,7 @@ public class TestAbstractQueryPipelineContext {
     public TestContext(DefaultTSDB tsdb, TimeSeriesQuery query, QueryContext context,
         Collection<QuerySink> sinks) {
       super(tsdb, query, context, sinks);
-    }
-
-    @Override
-    public void initialize() {
-      // sets up the following DAG:
-      // n1 --> n3 --> n4 --> s1
-      //        ^  |
-      // n2 ----|  |-> n5 --> s2
+      
       when(n1.id()).thenReturn("n1");
       when(n2.id()).thenReturn("n2");
       when(n3.id()).thenReturn("n3");
@@ -385,6 +512,18 @@ public class TestAbstractQueryPipelineContext {
       when(n5.id()).thenReturn("n5");
       when(s1.id()).thenReturn("s1");
       when(s2.id()).thenReturn("s2");
+    }
+
+    @Override
+    public void initialize() {
+      initializeGraph();
+    }
+    
+    public void init1() {
+      // sets up the following DAG:
+      // n1 --> n3 --> n4 --> s1
+      //        ^  |
+      // n2 ----|  |-> n5 --> s2
       
       addVertex(n1);
       addVertex(n2);
@@ -404,9 +543,28 @@ public class TestAbstractQueryPipelineContext {
       addDagEdge(this, n2);
       
       doThrow(new IllegalStateException("Boo!")).when(n4).close();
-      initializeGraph();
+      initialize();
     }
 
+    public void init2() {
+      // sets up the following DAG:
+      // n1 --> s2 --> s1
+      //        ^
+      // n2 ----|
+      
+      addVertex(s1);
+      addVertex(s2);
+      addVertex(n1);
+      addVertex(n2);
+      
+      addDagEdge(s2, s1);
+      addDagEdge(n1, s2);
+      addDagEdge(n2, s2);
+      addDagEdge(this, n1);
+      addDagEdge(this, n2);
+      initialize();
+    }
+    
     @Override
     public String id() {
       return "TestContext";

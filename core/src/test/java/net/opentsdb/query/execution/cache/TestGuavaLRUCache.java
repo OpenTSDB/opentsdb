@@ -30,11 +30,11 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import io.opentracing.Span;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.UnitTestConfiguration;
 import net.opentsdb.core.DefaultTSDB;
-import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.QueryContext;
+import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
 
 @RunWith(PowerMockRunner.class)
@@ -88,11 +88,11 @@ public class TestGuavaLRUCache {
     assertEquals(0, cache.cache().size());
     
     cache.cache(new byte[] { 0, 0, 1 }, new byte[] { 0, 0, 1 }, 60000, 
-        TimeUnit.MILLISECONDS);
+        TimeUnit.MILLISECONDS, span);
     cache.cache(new byte[] { 0, 0, 2 }, new byte[] { 0, 0, 2 }, 60000, 
-        TimeUnit.MILLISECONDS);
+        TimeUnit.MILLISECONDS, span);
     cache.cache(new byte[] { 0, 0, 3 }, new byte[] { 0, 0, 3 }, 60000, 
-        TimeUnit.MILLISECONDS);
+        TimeUnit.MILLISECONDS, span);
     
     assertEquals(3, cache.cache().size());
     assertEquals(9, cache.bytesStored());
@@ -136,13 +136,13 @@ public class TestGuavaLRUCache {
     
     // null value
     cache.cache(new byte[] { 0, 0, 5 }, null, 60000, 
-        TimeUnit.MILLISECONDS);
+        TimeUnit.MILLISECONDS, span);
     assertNull(cache.fetch(context, new byte[] { 0, 0, 5 }, span)
         .deferred().join());
     
     // empty value
     cache.cache(new byte[] { 0, 0, 5 }, new byte[] { }, 60000, 
-        TimeUnit.MILLISECONDS);
+        TimeUnit.MILLISECONDS, span);
     assertEquals(0, cache.fetch(context, new byte[] { 0, 0, 5 }, span)
         .deferred().join().length);
   }
@@ -161,7 +161,7 @@ public class TestGuavaLRUCache {
       .thenReturn(61000000000L);
     
     cache.cache(new byte[] { 0, 0, 1 }, new byte[] { 0, 0, 1 }, 60000, 
-        TimeUnit.MILLISECONDS);
+        TimeUnit.MILLISECONDS, span);
     
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
         cache.fetch(context, new byte[] { 0, 0, 1 }, span).deferred().join());
@@ -213,7 +213,7 @@ public class TestGuavaLRUCache {
     };
     
     cache.cache(keys, values, new long[] { 60000, 60000, 60000 }, 
-        TimeUnit.MILLISECONDS);
+        TimeUnit.MILLISECONDS, span);
 
     assertEquals(3, cache.cache().size());
     assertEquals(9, cache.bytesStored());
@@ -300,7 +300,7 @@ public class TestGuavaLRUCache {
     };
     
     cache.cache(keys, values, new long[] { 60000, 60000 }, 
-        TimeUnit.MILLISECONDS);
+        TimeUnit.MILLISECONDS, span);
 
     assertEquals(2, cache.cache().size());
     assertEquals(6, cache.bytesStored());
@@ -337,7 +337,7 @@ public class TestGuavaLRUCache {
       null
     };
     cache.cache(keys, values, new long[] { 60000, 60000 }, 
-        TimeUnit.MILLISECONDS);
+        TimeUnit.MILLISECONDS, span);
     results = cache.fetch(context, keys, span).deferred().join();
     assertNull(results[0]);
     assertNull(results[1]);
@@ -348,7 +348,7 @@ public class TestGuavaLRUCache {
       new byte[] { }
     };
     cache.cache(keys, values, new long[] { 60000, 60000 }, 
-        TimeUnit.MILLISECONDS);
+        TimeUnit.MILLISECONDS, span);
     results = cache.fetch(context, keys, span).deferred().join();
     assertEquals(0, results[0].length);
     assertEquals(0, results[1].length);
@@ -371,38 +371,38 @@ public class TestGuavaLRUCache {
     final GuavaLRUCache cache = new GuavaLRUCache();
     try {
       cache.cache(new byte[] { 0, 0, 1 }, new byte[] { 0, 0, 1 }, 60000, 
-          TimeUnit.MILLISECONDS);
+          TimeUnit.MILLISECONDS, span);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
     try {
       cache.cache(keys, values, new long[] { 60000, 60000, 6000 }, 
-          TimeUnit.MILLISECONDS);
+          TimeUnit.MILLISECONDS, span);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     
     cache.initialize(tsdb).join();
     
     try {
-      cache.cache(null, new byte[] { 0, 0, 1 }, 60000, TimeUnit.MILLISECONDS);
+      cache.cache(null, new byte[] { 0, 0, 1 }, 60000, TimeUnit.MILLISECONDS, span);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
       cache.cache(new byte[] { }, new byte[] { 0, 0, 1 }, 60000, 
-          TimeUnit.MILLISECONDS);
+          TimeUnit.MILLISECONDS, span);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
       cache.cache(null, values, new long[] { 60000, 60000, 60000 }, 
-          TimeUnit.MILLISECONDS);
+          TimeUnit.MILLISECONDS, span);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
       cache.cache(new byte[][] { }, values, new long[] { 60000, 60000, 60000 }, 
-          TimeUnit.MILLISECONDS);
+          TimeUnit.MILLISECONDS, span);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -414,7 +414,7 @@ public class TestGuavaLRUCache {
   
     try {
       cache.cache(keys, values, new long[] { 60000, 60000, 60000 }, 
-          TimeUnit.MILLISECONDS);
+          TimeUnit.MILLISECONDS, span);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
@@ -426,19 +426,19 @@ public class TestGuavaLRUCache {
   
     try {
       cache.cache(keys, null, new long[] { 60000, 60000, 60000 }, 
-          TimeUnit.MILLISECONDS);
+          TimeUnit.MILLISECONDS, span);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      cache.cache(keys, keys, null, TimeUnit.MILLISECONDS);
+      cache.cache(keys, keys, null, TimeUnit.MILLISECONDS, span);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     // wrong expirations length
     try {
       cache.cache(keys, keys, new long[] { 60000, 60000 }, 
-          TimeUnit.MILLISECONDS);
+          TimeUnit.MILLISECONDS, span);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

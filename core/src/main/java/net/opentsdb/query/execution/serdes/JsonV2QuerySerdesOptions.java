@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017 The OpenTSDB Authors.
+// Copyright (C) 2017-2018 The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,12 +16,15 @@ package net.opentsdb.query.execution.serdes;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import net.opentsdb.data.TimeStamp;
+import net.opentsdb.query.serdes.SerdesOptions;
+
 /**
  * Serdes options for the Json version 2 serializer.
  * 
  * @since 3.0
  */
-public class JsonV2QuerySerdesOptions implements SerdesOptions {
+public class JsonV2QuerySerdesOptions extends BaseSerdesOptions {
   /** Whether or not to show the TSUIDs. */
   private boolean show_tsuids;
   
@@ -42,11 +45,22 @@ public class JsonV2QuerySerdesOptions implements SerdesOptions {
    * @param builder Non-null builder.
    */
   protected JsonV2QuerySerdesOptions(final Builder builder) {
+    super(builder);
     show_tsuids = builder.showTsuids;
     msResolution = builder.msResolution;
     show_query = builder.showQuery;
     show_stats = builder.showStats;
     show_summary = builder.showSummary;
+  }
+  
+  @Override
+  public TimeStamp start() {
+    return start;
+  }
+  
+  @Override
+  public TimeStamp end() {
+    return end;
   }
   
   public boolean showTsuids() {
@@ -73,7 +87,7 @@ public class JsonV2QuerySerdesOptions implements SerdesOptions {
     return new Builder();
   }
   
-  public static class Builder {
+  public static class Builder extends BaseSerdesOptions.Builder {
     @JsonProperty
     private boolean showTsuids;
     @JsonProperty
@@ -110,7 +124,7 @@ public class JsonV2QuerySerdesOptions implements SerdesOptions {
       return this;
     }
     
-    public JsonV2QuerySerdesOptions build() {
+    public SerdesOptions build() {
       return new JsonV2QuerySerdesOptions(this);
     }
   }

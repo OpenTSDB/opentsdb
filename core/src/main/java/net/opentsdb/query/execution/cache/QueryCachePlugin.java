@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,27 +16,26 @@ package net.opentsdb.query.execution.cache;
 
 import java.util.concurrent.TimeUnit;
 
-import io.opentracing.Span;
-import net.opentsdb.core.BaseTSDBPlugin;
-import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
+import net.opentsdb.stats.Span;
 
 /**
- * An executor plugin that allows for various caching implementations, either
+ * A plugin that allows for various caching implementations, either
  * local or distributed. The interface works with byte arrays for maximum
  * flexibility and allows for either single key or multi-key writes and
  * reads.
  * <p>
  * Implementations should:
  * <ul>
- * <li>Throw {@link IllegalStateException} if the cache has not been initialized
- * prior to calling the cache or fetch methods.</li>
- * <li>Throw {@link IllegalArgumentException} if an invalid argument was given
- * in a cache or fetch call.</li>
+ * <li>Throw {@link IllegalStateException} if the cache has not been 
+ * initialized prior to calling the cache or fetch methods.</li>
+ * <li>Throw {@link IllegalArgumentException} if an invalid argument was 
+ * given in a cache or fetch call.</li>
  * </ul>
  * @since 3.0
  */
-public abstract class QueryCachePlugin extends BaseTSDBPlugin {
+public interface QueryCachePlugin {
 
   /**
    * Attempts to fetch a key from the cache. If no results were found, the 
@@ -50,9 +49,9 @@ public abstract class QueryCachePlugin extends BaseTSDBPlugin {
    * @throws IllegalStateException of the cache has not been initialized.
    * @throws IllegalArgumentException if the key was null or empty.
    */
-  public abstract QueryExecution<byte[]> fetch(final QueryContext context, 
-                                               final byte[] key,
-                                               final Span upstream_span);
+  public QueryExecution<byte[]> fetch(final QueryContext context, 
+                                      final byte[] key,
+                                      final Span upstream_span);
   
   /**
    * Attempts to fetch multiple keys from the cache in a single call. The 
@@ -70,9 +69,9 @@ public abstract class QueryCachePlugin extends BaseTSDBPlugin {
    * @throws IllegalStateException of the cache has not been initialized.
    * @throws IllegalArgumentException if the keys were null or empty.
    */
-  public abstract QueryExecution<byte[][]> fetch(final QueryContext context,
-                                                 final byte[][] keys,
-                                                 final Span upstream_span);
+  public QueryExecution<byte[][]> fetch(final QueryContext context,
+                                        final byte[][] keys,
+                                        final Span upstream_span);
   
   /**
    * Adds the given data to the cache using the given key. For expiring caches
@@ -82,13 +81,15 @@ public abstract class QueryCachePlugin extends BaseTSDBPlugin {
    * @param expiration A zero or positive integer indicating when the value
    * should expire in the future.
    * @param units The optional time units for the expiration.
+   * @param upstream_span An optional span for tracing.
    * @throws IllegalStateException of the cache has not been initialized.
    * @throws IllegalArgumentException if the key was null or empty.
    */
-  public abstract void cache(final byte[] key, 
-                             final byte[] data, 
-                             final long expiration, 
-                             final TimeUnit units);
+  public void cache(final byte[] key, 
+                    final byte[] data, 
+                    final long expiration, 
+                    final TimeUnit units,
+                    final Span upstream_span);
   
   /**
    * Adds the given data to the cache using the keys. The key and data arrays
@@ -99,13 +100,15 @@ public abstract class QueryCachePlugin extends BaseTSDBPlugin {
    * @param expirations A non-null and non-empty array of zero or positive 
    * integers indicating when the value should expire in the future.
    * @param units The optional time units for the expirations.
+   * @param upstream_span An optional span for tracing.
    * @throws IllegalStateException of the cache has not been initialized.
    * @throws IllegalArgumentException if the keys were null or empty or the
    * key and data arrays differed in length.
    */
-  public abstract void cache(final byte[][] keys, 
-                             final byte[][] data, 
-                             final long[] expirations, 
-                             final TimeUnit units);
+  public void cache(final byte[][] keys, 
+                    final byte[][] data, 
+                    final long[] expirations, 
+                    final TimeUnit units,
+                    final Span upstream_span);
   
 }
