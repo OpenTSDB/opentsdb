@@ -497,12 +497,6 @@ public class DefaultRegistry implements Registry {
     
     List<Deferred<Object>> deferreds = Lists.newArrayList();
     
-    final GuavaLRUCache query_cache = new GuavaLRUCache();
-    deferreds.add(query_cache.initialize(tsdb));
-    
-    registerPlugin(QueryCachePlugin.class, null, query_cache);
-    registerPlugin(QueryCachePlugin.class, "GuavaLRUCache", query_cache);
-    
     final TimeSeriesCacheKeyGenerator key_gen = 
         new DefaultTimeSeriesCacheKeyGenerator();
     deferreds.add(key_gen.initialize(tsdb));

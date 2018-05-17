@@ -164,7 +164,7 @@ public class Downsample extends AbstractQueryNode {
     
     @Override
     public TimeSpecification timeSpecification() {
-      return config;
+      return results.timeSpecification(); // TODO - return the config;
     }
 
     @Override

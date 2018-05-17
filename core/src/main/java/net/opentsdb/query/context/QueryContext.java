@@ -38,6 +38,7 @@ import com.stumbleupon.async.Deferred;
 import io.netty.util.Timer;
 import io.opentracing.Tracer;
 import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
@@ -677,7 +678,7 @@ public abstract class QueryContext {
   }
   
   /** @return The TSDB this context is owned by. */
-  public DefaultTSDB getTSDB() {
+  public TSDB getTSDB() {
     return tsdb;
   }
   
