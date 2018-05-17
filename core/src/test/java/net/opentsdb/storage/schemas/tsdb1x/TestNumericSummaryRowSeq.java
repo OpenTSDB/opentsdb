@@ -21,6 +21,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
+import java.time.temporal.ChronoUnit;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -559,7 +561,7 @@ public class TestNumericSummaryRowSeq {
     byte[] expected_sum = seq.summary_data.get(0);
     byte[] expected_count = seq.summary_data.get(2);
     
-    seq.dedupe(false, false);
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, false));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(6, seq.dataPoints());
@@ -589,7 +591,7 @@ public class TestNumericSummaryRowSeq {
             new byte[] { 4 })
         ); 
     
-    seq.dedupe(false, true);
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, true));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(6, seq.dataPoints());
@@ -649,7 +651,7 @@ public class TestNumericSummaryRowSeq {
     assertEquals(6, seq.dataPoints());
     assertEquals(NumericSummaryRowSeq.HEADER_SIZE + 28, seq.size());
     
-    seq.dedupe(false, false);
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, false));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(6, seq.dataPoints());
@@ -705,7 +707,7 @@ public class TestNumericSummaryRowSeq {
             new byte[] { 4 })
         ); 
     
-    seq.dedupe(false, true);
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, true));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(6, seq.dataPoints());
@@ -779,7 +781,7 @@ public class TestNumericSummaryRowSeq {
     assertEquals(10, seq.dataPoints());
     assertEquals(NumericSummaryRowSeq.HEADER_SIZE + 43, seq.size());
     
-    seq.dedupe(false, false);
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, false));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(6, seq.dataPoints());
@@ -825,7 +827,7 @@ public class TestNumericSummaryRowSeq {
     qualifier = RollupUtils.buildRollupQualifier(BASE_TIME + 600, (short) 0, 2, RAW);
     seq.addColumn(PREFIX, qualifier, new byte[] { -3 });
     
-   expected_sum = Bytes.concat(
+    expected_sum = Bytes.concat(
         buildExpected(null, 
             RollupUtils.buildRollupQualifier(BASE_TIME, (short) 0, 0, RAW), 
             new byte[] { 4 }),
@@ -836,7 +838,7 @@ public class TestNumericSummaryRowSeq {
             RollupUtils.buildRollupQualifier(BASE_TIME + 1200, (short) (7 | NumericCodec.FLAG_FLOAT), 0, RAW), 
             net.opentsdb.utils.Bytes.fromLong(Double.doubleToLongBits(24.75)))
         ); 
-   expected_count= Bytes.concat(
+    expected_count= Bytes.concat(
         buildExpected(null, 
             RollupUtils.buildRollupQualifier(BASE_TIME, (short) 0, 0, RAW), 
             new byte[] { 4 }),
@@ -850,7 +852,7 @@ public class TestNumericSummaryRowSeq {
     assertEquals(10, seq.dataPoints());
     assertEquals(NumericSummaryRowSeq.HEADER_SIZE + 43, seq.size());
     
-    seq.dedupe(true, false);
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(true, false));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(6, seq.dataPoints());
@@ -921,7 +923,7 @@ public class TestNumericSummaryRowSeq {
     assertEquals(10, seq.dataPoints());
     assertEquals(NumericSummaryRowSeq.HEADER_SIZE + 43, seq.size());
     
-    seq.dedupe(false, true);
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, true));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(6, seq.dataPoints());
@@ -949,7 +951,7 @@ public class TestNumericSummaryRowSeq {
         RollupUtils.buildRollupQualifier(BASE_TIME + 1200, (short) 0, 0, RAW), 
         new byte[] { 5 });
     
-    seq.dedupe(false, false);
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, false));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(2, seq.dataPoints());
@@ -1027,7 +1029,7 @@ public class TestNumericSummaryRowSeq {
             new byte[] { 4 })
         ); 
     
-    seq.dedupe(false, true);
+    assertEquals(ChronoUnit.SECONDS, seq.dedupe(false, true));
     assertArrayEquals(expected_sum, seq.summary_data.get(0));
     assertArrayEquals(expected_count, seq.summary_data.get(2));
     assertEquals(6, seq.dataPoints());

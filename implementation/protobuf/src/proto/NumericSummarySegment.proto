@@ -1,0 +1,44 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2018  The OpenTSDB Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+syntax = "proto3";
+
+option java_package = "net.opentsdb.data.pbuf";
+option java_outer_classname = "NumericSummarySegmentPB";
+
+/*
+ * A set of binary encoded net.opentsdb.data.types.NumericSummaryType 
+ * values.
+ */
+message NumericSummarySegment {
+
+  /* A single summary type with the summary ID included. */
+  message NumericSummary {
+    /* The encoded byte array. See the NumericSequence. */
+    bytes data = 1;
+    
+    /* The summary id for this set. */
+    uint32 summary_id = 2;
+  }
+
+  /* The collection of summaries for this sequence. */
+  repeated NumericSummary data = 1;
+  
+  /* How many bytes the timestamp offsets are encoded on. */
+  uint32 encoded_on = 2;
+  
+  /* The Java ChronoUnit ordinal of the resolution. */
+  uint32 resolution = 3;
+
+}

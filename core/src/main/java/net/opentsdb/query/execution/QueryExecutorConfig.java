@@ -22,6 +22,8 @@ import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
 
+import net.opentsdb.query.QueryNodeConfig;
+
 /**
  * The base class used for configuring an executor. This class must be
  * serializable via Jackson for use in query overrides. Extend the Builder
@@ -45,7 +47,7 @@ import com.google.common.hash.HashCode;
   property = "executorType",
   visible = true)
 @JsonTypeIdResolver(QueryExecutorConfigResolver.class)
-public abstract class QueryExecutorConfig implements 
+public abstract class QueryExecutorConfig implements QueryNodeConfig,
     Comparable<QueryExecutorConfig> {
   /** The class type of executor. */
   protected final String executor_type;

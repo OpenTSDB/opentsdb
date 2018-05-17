@@ -30,11 +30,12 @@ import com.stumbleupon.async.Deferred;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import io.opentracing.Span;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.query.context.QueryContext;
+import net.opentsdb.core.TSDBPlugin;
+import net.opentsdb.query.QueryContext;
 import net.opentsdb.query.execution.QueryExecution;
+import net.opentsdb.stats.Span;
 import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.Bytes.ByteArrayKey;
 import net.opentsdb.utils.Bytes;
@@ -74,7 +75,7 @@ import net.opentsdb.utils.DateTime;
  * 
  * @since 3.0
  */
-public class GuavaLRUCache extends QueryCachePlugin implements TimerTask {
+public class GuavaLRUCache implements QueryCachePlugin, TimerTask, TSDBPlugin {
   private static final Logger LOG = LoggerFactory.getLogger(GuavaLRUCache.class);
   
   /** The default size limit in bytes. 128MB. */
@@ -143,14 +144,14 @@ public class GuavaLRUCache extends QueryCachePlugin implements TimerTask {
       public LocalExecution() {
         super(null);
         
-        if (context.getTracer() != null) {
-          setSpan(context, 
-              GuavaLRUCache.this.getClass().getSimpleName(), 
-              upstream_span,
-              TsdbTrace.addTags(
-                  "key", Bytes.pretty(key),
-                  "startThread", Thread.currentThread().getName()));
-        }
+//        if (context.getTracer() != null) {
+//          setSpan(context, 
+//              GuavaLRUCache.this.getClass().getSimpleName(), 
+//              upstream_span,
+//              TsdbTrace.addTags(
+//                  "key", Bytes.pretty(key),
+//                  "startThread", Thread.currentThread().getName()));
+//        }
       }
       
       /** Do da work */
@@ -179,7 +180,6 @@ public class GuavaLRUCache extends QueryCachePlugin implements TimerTask {
               TsdbTrace.exceptionAnnotation(ex));
           return;
         }
-        
         
         final ByteArrayKey cache_key = new ByteArrayKey(key);
         final ExpiringValue value = cache.getIfPresent(cache_key);
@@ -236,12 +236,12 @@ public class GuavaLRUCache extends QueryCachePlugin implements TimerTask {
           }
         }
         
-        setSpan(context, 
-            GuavaLRUCache.this.getClass().getSimpleName(), 
-            upstream_span,
-            TsdbTrace.addTags(
-                "keys", buf.toString(),
-                "startThread", Thread.currentThread().getName()));
+//        setSpan(context, 
+//            GuavaLRUCache.this.getClass().getSimpleName(), 
+//            upstream_span,
+//            TsdbTrace.addTags(
+//                "keys", buf.toString(),
+//                "startThread", Thread.currentThread().getName()));
       }
       
       /** Do da work */
@@ -314,7 +314,8 @@ public class GuavaLRUCache extends QueryCachePlugin implements TimerTask {
   public void cache(final byte[] key, 
                     final byte[] data, 
                     final long expiration, 
-                    final TimeUnit units) {
+                    final TimeUnit units,
+                    final Span upstream_span) {
     if (cache == null) {
       throw new IllegalStateException("Cache has not been initialized.");
     }
@@ -346,7 +347,8 @@ public class GuavaLRUCache extends QueryCachePlugin implements TimerTask {
   public void cache(final byte[][] keys, 
                     final byte[][] data, 
                     final long[] expirations,
-                    final TimeUnit units) {
+                    final TimeUnit units,
+                    final Span upstream_span) {
     if (cache == null) {
       throw new IllegalStateException("Cache has not been initialized.");
     }
@@ -476,6 +478,15 @@ public class GuavaLRUCache extends QueryCachePlugin implements TimerTask {
       return DateTime.nanoTime() > expires;
     }
     
+    @Override
+    public String toString() {
+      return new StringBuilder()
+          .append("{value=")
+          .append(Bytes.pretty(value))
+          .append(", expires=")
+          .append(expires)
+          .toString();
+    }
   }
 
   @Override
@@ -503,6 +514,12 @@ public class GuavaLRUCache extends QueryCachePlugin implements TimerTask {
     tsdb.getMaintenanceTimer().newTimeout(this, 
         tsdb.getConfig().getInt(DefaultTSDB.MAINT_TIMER_KEY), 
         TimeUnit.MILLISECONDS);
+  }
+
+  
+  @Override
+  public Deferred<Object> shutdown() {
+    return Deferred.fromResult(null);
   }
   
 }

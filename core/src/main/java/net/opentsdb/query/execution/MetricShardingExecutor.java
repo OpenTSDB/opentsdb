@@ -376,6 +376,12 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       return merge_strategy;
     }
     
+    @Override
+    public String getId() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+    
     /** @return A new builder. */
     public static Builder newBuilder() {
       return new Builder();
@@ -467,6 +473,8 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
         return new Config(this);
       }
     }
+
+    
 
   }
 }

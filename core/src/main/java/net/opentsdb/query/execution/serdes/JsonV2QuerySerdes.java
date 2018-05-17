@@ -46,7 +46,11 @@ import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.serdes.SerdesOptions;
+import net.opentsdb.query.serdes.TimeSeriesSerdes;
+import net.opentsdb.stats.Span;
 import net.opentsdb.utils.Exceptions;
 
 /**
@@ -80,10 +84,11 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
   
   @SuppressWarnings("unchecked")
   @Override
-  public void serialize(final QueryContext context, 
-                        final SerdesOptions options,
-                        final OutputStream stream, 
-                        final QueryResult result) {
+  public Deferred<Object> serialize(final QueryContext context, 
+                                    final SerdesOptions options,
+                                    final OutputStream stream, 
+                                    final QueryResult result,
+                                    final Span span) {
     if (stream == null) {
       throw new IllegalArgumentException("Output stream may not be null.");
     }
@@ -248,7 +253,7 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
           throw new QueryExecutionException("Unexpected exception "
               + "serializing: " + result, 500, e);
         }
-        return null;
+        return Deferred.fromResult(null);
       }
       
     }
@@ -265,12 +270,11 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
     
     try {
       if (deferreds != null) {
-        Deferred.group(deferreds)
+        return Deferred.group(deferreds)
           .addCallback(new ResolveCB())
-          .addErrback(new ErrorCB())
-          .join(); // TODO - grrr I hate this! See if we can async it.
+          .addErrback(new ErrorCB());
       } else {
-        new ResolveCB().call(null);
+        return Deferred.fromResult(new ResolveCB().call(null));
       }
     } catch (InterruptedException e) {
       throw new QueryExecutionException("Failed to resolve IDs", 500, e);
@@ -281,10 +285,12 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
   }
 
   @Override
-  public QueryResult deserialize(final SerdesOptions options,
-                                    final InputStream stream) {
-    throw new UnsupportedOperationException("Not implemented for this "
-        + "class: " + getClass().getCanonicalName());
+  public void deserialize(final SerdesOptions options,
+                                    final InputStream stream,
+                                    final QueryNode node,
+                                    final Span span) {
+    node.onError(new UnsupportedOperationException("Not implemented for this "
+        + "class: " + getClass().getCanonicalName()));
   }
 
 }

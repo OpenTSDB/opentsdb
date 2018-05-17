@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.storage.schemas.tsdb1x;
 
+import java.time.temporal.ChronoUnit;
+
 import com.google.common.reflect.TypeToken;
 
 import net.opentsdb.data.TimeSeriesDataType;
@@ -58,8 +60,9 @@ public interface RowSeq {
    * last value recorded.
    * @param reverse Whether or not the result should be in time 
    * descending order.
+   * @return The highest resolution timestamp for this sequence.
    */
-  public void dedupe(final boolean keep_earliest, final boolean reverse);
+  public ChronoUnit dedupe(final boolean keep_earliest, final boolean reverse);
   
   /** @return The size of this object in bytes, including header. */
   public int size();

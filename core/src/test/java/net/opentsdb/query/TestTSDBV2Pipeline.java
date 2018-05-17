@@ -15,6 +15,7 @@
 package net.opentsdb.query;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -261,14 +262,15 @@ public class TestTSDBV2Pipeline {
       @Override
       public void onNext(QueryResult next) {
         assertEquals(8, next.timeSeries().size());
-        int idx = 0;
+        int[] metrics = new int[2];
         for (TimeSeries ts : next.timeSeries()) {
           long timestamp = start_ts;
           int values = 0;
-          if (idx++ > 3) {
-            assertEquals("sys.cpu.user", ((TimeSeriesStringId) ts.id()).metric());
+          // order is indeterminate
+          if (((TimeSeriesStringId) ts.id()).metric().equals("web.requests")) {
+            metrics[0]++;
           } else {
-            assertEquals("web.requests", ((TimeSeriesStringId) ts.id()).metric());
+            metrics[1]++;
           }
           Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
           while (it.hasNext()) {
@@ -279,6 +281,8 @@ public class TestTSDBV2Pipeline {
           }
           assertEquals((end_ts - start_ts) / MockDataStore.INTERVAL, values);
         }
+        assertEquals(4, metrics[0]);
+        assertEquals(4, metrics[1]);
         next.close();
         on_next++;
         if (on_next == 1) {
@@ -426,14 +430,15 @@ public class TestTSDBV2Pipeline {
       @Override
       public void onNext(QueryResult next) {
         assertEquals(4, next.timeSeries().size());
+        int[] metrics = new int[2];
         for (TimeSeries ts : next.timeSeries()) {
           long timestamp = end_ts - ((next.sequenceId() + 1) * MockDataStore.ROW_WIDTH);
           int values = 0;
-          
-          if (on_next % 2 == 0) {
-            assertEquals("web.requests", ((TimeSeriesStringId) ts.id()).metric());
+          // order is indeterminate
+          if (((TimeSeriesStringId) ts.id()).metric().equals("web.requests")) {
+            metrics[0]++;
           } else {
-            assertEquals("sys.cpu.user", ((TimeSeriesStringId) ts.id()).metric());
+            metrics[1]++;
           }
           Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
           while (it.hasNext()) {
@@ -444,6 +449,8 @@ public class TestTSDBV2Pipeline {
           }
           assertEquals(MockDataStore.ROW_WIDTH / MockDataStore.INTERVAL, values);
         }
+        assertTrue((metrics[0] == 4 && metrics[1] == 0) || 
+                   (metrics[0] == 0 && metrics[1] == 4));
         next.close();
         on_next++;
         if (on_next == 4) {
@@ -596,14 +603,15 @@ public class TestTSDBV2Pipeline {
       @Override
       public void onNext(QueryResult next) {
         assertEquals(4, next.timeSeries().size());
+        int[] metrics = new int[2];
         for (TimeSeries ts : next.timeSeries()) {
           long timestamp = end_ts - ((next.sequenceId() + 1) * MockDataStore.ROW_WIDTH);
           int values = 0;
-          
-          if (on_next % 2 == 0) {
-            assertEquals("web.requests", ((TimeSeriesStringId) ts.id()).metric());
+          // order is indeterminate
+          if (((TimeSeriesStringId) ts.id()).metric().equals("web.requests")) {
+            metrics[0]++;
           } else {
-            assertEquals("sys.cpu.user", ((TimeSeriesStringId) ts.id()).metric());
+            metrics[1]++;
           }
           Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
           while (it.hasNext()) {
@@ -614,6 +622,8 @@ public class TestTSDBV2Pipeline {
           }
           assertEquals(MockDataStore.ROW_WIDTH / MockDataStore.INTERVAL, values);
         }
+        assertTrue((metrics[0] == 4 && metrics[1] == 0) || 
+                   (metrics[0] == 0 && metrics[1] == 4));
         next.close();
         on_next++;
         if (on_next == 4) {
@@ -693,14 +703,15 @@ public class TestTSDBV2Pipeline {
       @Override
       public void onNext(QueryResult next) {
         assertEquals(4, next.timeSeries().size());
+        int[] metrics = new int[2];
         for (TimeSeries ts : next.timeSeries()) {
           long timestamp = end_ts - ((next.sequenceId() + 1) * MockDataStore.ROW_WIDTH);
           int values = 0;
-          
-          if (on_next < 2) {
-            assertEquals("web.requests", ((TimeSeriesStringId) ts.id()).metric());
+          // order is indeterminate
+          if (((TimeSeriesStringId) ts.id()).metric().equals("web.requests")) {
+            metrics[0]++;
           } else {
-            assertEquals("sys.cpu.user", ((TimeSeriesStringId) ts.id()).metric());
+            metrics[1]++;
           }
           Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
           while (it.hasNext()) {
@@ -711,6 +722,8 @@ public class TestTSDBV2Pipeline {
           }
           assertEquals(MockDataStore.ROW_WIDTH / MockDataStore.INTERVAL, values);
         }
+        assertTrue((metrics[0] == 4 && metrics[1] == 0) || 
+                   (metrics[0] == 0 && metrics[1] == 4));
         on_next++;
         if (on_next == 4) {
           call_limit.callback(null);
@@ -786,14 +799,15 @@ public class TestTSDBV2Pipeline {
       @Override
       public void onNext(QueryResult next) {
         assertEquals(4, next.timeSeries().size());
+        int[] metrics = new int[2];
         for (TimeSeries ts : next.timeSeries()) {
           long timestamp = end_ts - ((next.sequenceId() + 1) * MockDataStore.ROW_WIDTH);
           int values = 0;
-          
-          if (on_next < 2) {
-            assertEquals("web.requests", ((TimeSeriesStringId) ts.id()).metric());
+          // order is indeterminate
+          if (((TimeSeriesStringId) ts.id()).metric().equals("web.requests")) {
+            metrics[0]++;
           } else {
-            assertEquals("sys.cpu.user", ((TimeSeriesStringId) ts.id()).metric());
+            metrics[1]++;
           }
           Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
           while (it.hasNext()) {
@@ -804,6 +818,8 @@ public class TestTSDBV2Pipeline {
           }
           assertEquals(MockDataStore.ROW_WIDTH / MockDataStore.INTERVAL, values);
         }
+        assertTrue((metrics[0] == 4 && metrics[1] == 0) || 
+                   (metrics[0] == 0 && metrics[1] == 4));
         on_next++;
         if (on_next == 4) {
           call_limit.callback(null);
@@ -882,14 +898,15 @@ public class TestTSDBV2Pipeline {
       @Override
       public void onNext(QueryResult next) {
         assertEquals(4, next.timeSeries().size());
+        int[] metrics = new int[2];
         for (TimeSeries ts : next.timeSeries()) {
           long timestamp = end_ts - ((next.sequenceId() + 1) * MockDataStore.ROW_WIDTH);
           int values = 0;
-          
-          if (on_next < 2) {
-            assertEquals("web.requests", ((TimeSeriesStringId) ts.id()).metric());
+          // order is indeterminate
+          if (((TimeSeriesStringId) ts.id()).metric().equals("web.requests")) {
+            metrics[0]++;
           } else {
-            assertEquals("sys.cpu.user", ((TimeSeriesStringId) ts.id()).metric());
+            metrics[1]++;
           }
           Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
           while (it.hasNext()) {
@@ -900,6 +917,8 @@ public class TestTSDBV2Pipeline {
           }
           assertEquals(MockDataStore.ROW_WIDTH / MockDataStore.INTERVAL, values);
         }
+        assertTrue((metrics[0] == 4 && metrics[1] == 0) || 
+                   (metrics[0] == 0 && metrics[1] == 4));
         on_next++;
         if (on_next == 4) {
           call_limit.callback(null);
@@ -975,14 +994,15 @@ public class TestTSDBV2Pipeline {
       @Override
       public void onNext(QueryResult next) {
         assertEquals(4, next.timeSeries().size());
+        int[] metrics = new int[2];
         for (TimeSeries ts : next.timeSeries()) {
           long timestamp = end_ts - ((next.sequenceId() + 1) * MockDataStore.ROW_WIDTH);
           int values = 0;
-          
-          if (on_next < 2) {
-            assertEquals("web.requests", ((TimeSeriesStringId) ts.id()).metric());
+          // order is indeterminate
+          if (((TimeSeriesStringId) ts.id()).metric().equals("web.requests")) {
+            metrics[0]++;
           } else {
-            assertEquals("sys.cpu.user", ((TimeSeriesStringId) ts.id()).metric());
+            metrics[1]++;
           }
           Iterator<TimeSeriesValue<?>> it = ts.iterator(NumericType.TYPE).get();
           while (it.hasNext()) {
@@ -994,6 +1014,8 @@ public class TestTSDBV2Pipeline {
           assertEquals(MockDataStore.ROW_WIDTH / MockDataStore.INTERVAL, values);
         }
         on_next++;
+        assertTrue((metrics[0] == 4 && metrics[1] == 0) || 
+                   (metrics[0] == 0 && metrics[1] == 4));
         if (on_next == 4) {
           call_limit.callback(null);
         }

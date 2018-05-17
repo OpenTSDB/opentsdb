@@ -49,12 +49,12 @@ import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
-import net.opentsdb.query.execution.serdes.TimeSeriesSerdes;
 import net.opentsdb.query.plan.QueryPlannnerFactory;
 import net.opentsdb.query.plan.QueryPlanner;
 import net.opentsdb.query.plan.TimeSlicedQueryPlanner;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
+import net.opentsdb.query.serdes.TimeSeriesSerdes;
 import net.opentsdb.stats.TsdbTrace;
 import net.opentsdb.utils.Bytes;
 import net.opentsdb.utils.JSON;
@@ -342,7 +342,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
         // start the callback chain by fetching from the cache first. If an exception
         // is thrown immediately, catch and continue downstream.
         try {
-          cache_execution = plugin.fetch(context, keys, tracer_span);
+          cache_execution = null;//plugin.fetch(context, keys, tracer_span);
           cache_execution.deferred()
             .addCallback(new CacheCB())
             .addErrback(new ErrorCB(false));
@@ -551,7 +551,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
             expirations[i] = expiration;
             cache_keys[i] = keys[start_index + i];
           }
-          plugin.cache(cache_keys, data, expirations, TimeUnit.MILLISECONDS);
+          plugin.cache(cache_keys, data, expirations, TimeUnit.MILLISECONDS, null);
           if (cache_span != null) {
             final List<Map<String, Object>> cache_details = 
                 Lists.newArrayListWithCapacity(data.length);
@@ -679,6 +679,12 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
     /** @return Whether or not to bypass the cache query and write. */
     public boolean getBypass() {
       return bypass;
+    }
+    
+    @Override
+    public String getId() {
+      // TODO Auto-generated method stub
+      return null;
     }
     
     @Override
