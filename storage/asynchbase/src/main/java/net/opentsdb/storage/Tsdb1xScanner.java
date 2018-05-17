@@ -20,6 +20,7 @@ import java.util.List;
 
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +39,8 @@ import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.data.TimeStamp.Op;
+import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.stats.Span;
@@ -155,6 +158,14 @@ public class Tsdb1xScanner {
     }
     
     if (result.isFull()) {
+      if (owner.node().pipelineContext().queryContext().mode() == 
+          QueryMode.SINGLE) {
+        state = State.EXCEPTION;
+        owner.exception(new QueryExecutionException(
+            result.resultIsFullErrorMessage(),
+            HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE.getCode()));
+        return;
+      }
       if (LOG.isDebugEnabled()) {
         LOG.debug("Pausing scanner as upstream is full.");
       }
@@ -326,6 +337,12 @@ public class Tsdb1xScanner {
             keep_going = false;
             break;
           } else if (result.isFull()) {
+            if (owner.node().pipelineContext().queryContext().mode() == 
+                  QueryMode.SINGLE) {
+              throw new QueryExecutionException(
+                  result.resultIsFullErrorMessage(),
+                  HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE.getCode());
+            }
             if (LOG.isDebugEnabled()) {
               LOG.debug("Owner is full while in the scanner cache.");
             }
@@ -436,8 +453,14 @@ public class Tsdb1xScanner {
               keep_going = false;
               break;
             } else if (result.isFull()) {
+              if (owner.node().pipelineContext().queryContext().mode() == 
+                  QueryMode.SINGLE) {
+                throw new QueryExecutionException(
+                    result.resultIsFullErrorMessage(),
+                    HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE.getCode());
+              }
               if (LOG.isDebugEnabled()) {
-                LOG.debug("Owner is full. Buffering results and returning.");
+                LOG.debug("Owner is full while in the scanner cache.");
               }
               buffer(i, rows, false);
               keep_going = false;
@@ -476,6 +499,12 @@ public class Tsdb1xScanner {
               buffer(i, rows, true);
               return null;
             } else if (result.isFull()) {
+              if (owner.node().pipelineContext().queryContext().mode() == 
+                  QueryMode.SINGLE) {
+                throw new QueryExecutionException(
+                    result.resultIsFullErrorMessage(),
+                    HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE.getCode());
+              }
               if (LOG.isDebugEnabled()) {
                 LOG.debug("Owner is full. Buffering results and returning.");
               }
@@ -496,6 +525,11 @@ public class Tsdb1xScanner {
                  .finish();
           }
           return scanner.nextRows().addCallbacks(this, new ErrorCB(span));
+        } else if (owner.node().pipelineContext().queryContext().mode() == 
+              QueryMode.SINGLE) {
+          throw new QueryExecutionException(
+              result.resultIsFullErrorMessage(),
+              HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE.getCode());
         }
         
         if (owner.hasException()) {
@@ -578,6 +612,12 @@ public class Tsdb1xScanner {
           complete(child, 0);
         } else if (!result.isFull() && keep_going) {
           return scanner.nextRows().addCallbacks(ScannerCB.this, new ErrorCB(span));
+        } else if (result.isFull() && 
+            owner.node().pipelineContext().queryContext().mode() == 
+              QueryMode.SINGLE) {
+          complete(new QueryExecutionException(
+              result.resultIsFullErrorMessage(),
+              HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE.getCode()), child, 0);
         } else {
           // told not to keep going.
           owner.scannerDone();

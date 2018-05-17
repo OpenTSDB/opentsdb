@@ -44,6 +44,9 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
+import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryMode;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.rollup.RollupInterval;
@@ -61,6 +64,7 @@ public class TestTsdb1xScanner extends UTBase {
   private Tsdb1xQueryNode node;
   private Tsdb1xQueryResult results;
   private Schema schema; 
+  private QueryContext context;
   
   @Before
   public void before() throws Exception {
@@ -71,6 +75,14 @@ public class TestTsdb1xScanner extends UTBase {
     when(owner.node()).thenReturn(node);
     when(node.fetchDataType(any(byte.class))).thenReturn(true);
     when(node.schema()).thenReturn(schema);
+    
+    context = mock(QueryContext.class);
+    when(context.mode()).thenReturn(QueryMode.SINGLE);
+    QueryPipelineContext qpc = mock(QueryPipelineContext.class);
+    when(qpc.queryContext()).thenReturn(context);
+    when(node.pipelineContext()).thenReturn(qpc);
+
+    when(results.resultIsFullErrorMessage()).thenReturn("Boo!");
   }
   
   @Test
@@ -320,7 +332,8 @@ public class TestTsdb1xScanner extends UTBase {
   }
   
   @Test
-  public void scanFiltersFull() throws Exception {
+  public void scanFiltersFullNotSingleMode() throws Exception {
+    when(context.mode()).thenReturn(QueryMode.BOUNDED_CLIENT_STREAM);
     final Filter filter = Filter.newBuilder()
         .addFilter(TagVFilter.newBuilder()
             .setFilter(TAGV_B_STRING + ".*")
@@ -364,7 +377,50 @@ public class TestTsdb1xScanner extends UTBase {
   }
   
   @Test
-  public void scanFiltersFullRowBoundary() throws Exception {
+  public void scanFiltersFullSingleMode() throws Exception {
+    final Filter filter = Filter.newBuilder()
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter(TAGV_B_STRING + ".*")
+            .setTagk(TAGK_STRING)
+            .setType("regexp"))
+        .build();
+    when(owner.scannerFilter()).thenReturn(filter);
+    
+    Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
+    hbase_scanner.setMaxNumRows(2);
+    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    
+    doAnswer(new Answer<Void>() {
+        int count = 0;
+        @Override
+        public Void answer(InvocationOnMock invocation) throws Throwable {
+          if (count++ > 2) {
+            when(results.isFull()).thenReturn(true);
+          }
+          invocation.callRealMethod();
+          return null;
+        }
+      }).when(schema).baseTimestamp(any(byte[].class), any(TimeStamp.class));
+      
+    scanner.fetchNext(results, null);
+    
+    verify(hbase_scanner, times(2)).nextRows();
+    verify(hbase_scanner, times(1)).close();
+    verify(results, times(1)).decode(
+        any(ArrayList.class), any(RollupInterval.class));
+    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).exception(any(Throwable.class));
+    assertEquals(0, scanner.keepers.size());
+    assertEquals(0, scanner.skips.size());
+    assertTrue(scanner.keys_to_ids.isEmpty());
+    assertEquals(State.EXCEPTION, scanner.state());
+    assertNull(scanner.buffer());
+    verify(schema, times(2)).getName(UniqueIdType.METRIC, METRIC_BYTES, null);
+  }
+  
+  @Test
+  public void scanFiltersFullRowBoundaryNotSingleMode() throws Exception {
+    when(context.mode()).thenReturn(QueryMode.BOUNDED_CLIENT_STREAM);
     final Filter filter = Filter.newBuilder()
         .addFilter(TagVFilter.newBuilder()
             .setFilter(TAGV_B_STRING + ".*")
@@ -398,6 +454,45 @@ public class TestTsdb1xScanner extends UTBase {
     assertEquals(1, scanner.skips.size());
     assertTrue(scanner.keys_to_ids.isEmpty());
     assertEquals(State.CONTINUE, scanner.state());
+    assertNull(scanner.buffer());
+    verify(schema, times(2)).getName(UniqueIdType.METRIC, METRIC_BYTES, null);
+  }
+  
+  @Test
+  public void scanFiltersFullRowBoundarySingleMode() throws Exception {
+    final Filter filter = Filter.newBuilder()
+        .addFilter(TagVFilter.newBuilder()
+            .setFilter(TAGV_B_STRING + ".*")
+            .setTagk(TAGK_STRING)
+            .setType("regexp"))
+        .build();
+    when(owner.scannerFilter()).thenReturn(filter);
+    
+    Scanner hbase_scanner = metricStartStopScanner(Series.DOUBLE_SERIES, METRIC_BYTES);
+    hbase_scanner.setMaxNumRows(2);
+    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    
+    doAnswer(new Answer<Void>() {
+      @Override
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        when(results.isFull()).thenReturn(true);
+        return null;
+      }
+    }).when(results).decode(
+        any(ArrayList.class), any(RollupInterval.class));
+    
+    scanner.fetchNext(results, null);
+    
+    verify(hbase_scanner, times(1)).nextRows();
+    verify(hbase_scanner, times(1)).close();
+    verify(results, times(1)).decode(
+        any(ArrayList.class), any(RollupInterval.class));
+    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).exception(any(Throwable.class));
+    assertEquals(0, scanner.keepers.size());
+    assertEquals(0, scanner.skips.size());
+    assertTrue(scanner.keys_to_ids.isEmpty());
+    assertEquals(State.EXCEPTION, scanner.state());
     assertNull(scanner.buffer());
     verify(schema, times(2)).getName(UniqueIdType.METRIC, METRIC_BYTES, null);
   }
@@ -667,7 +762,8 @@ public class TestTsdb1xScanner extends UTBase {
   }
   
   @Test
-  public void scanNoFiltersFull() throws Exception {
+  public void scanNoFiltersFullNotSingle() throws Exception {
+    when(context.mode()).thenReturn(QueryMode.BOUNDED_CLIENT_STREAM);
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
     Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
@@ -699,7 +795,38 @@ public class TestTsdb1xScanner extends UTBase {
   }
   
   @Test
-  public void scanNoFiltersFullOnRowBoundary() throws Exception {
+  public void scanNoFiltersFullSingle() throws Exception {
+    Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
+    hbase_scanner.setMaxNumRows(2);
+    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    
+    doAnswer(new Answer<Void>() {
+      int count = 0;
+      @Override
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        if (count++ > 3) {
+          when(results.isFull()).thenReturn(true);
+        }
+        return null;
+      }
+    }).when(results).decode(
+        any(ArrayList.class), any(RollupInterval.class));
+    
+    scanner.fetchNext(results, null);
+    
+    verify(hbase_scanner, times(3)).nextRows();
+    verify(hbase_scanner, times(1)).close();
+    verify(results, times(5)).decode(
+        any(ArrayList.class), any(RollupInterval.class));
+    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).exception(any(Throwable.class));
+    assertEquals(State.EXCEPTION, scanner.state());
+    assertNull(scanner.buffer());
+  }
+  
+  @Test
+  public void scanNoFiltersFullOnRowBoundaryNotSingle() throws Exception {
+    when(context.mode()).thenReturn(QueryMode.BOUNDED_CLIENT_STREAM);
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     hbase_scanner.setMaxNumRows(2);
     Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
@@ -725,6 +852,36 @@ public class TestTsdb1xScanner extends UTBase {
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
+    assertNull(scanner.buffer());
+  }
+  
+  @Test
+  public void scanNoFiltersFullOnRowBoundarySingle() throws Exception {
+    Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
+    hbase_scanner.setMaxNumRows(2);
+    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    
+    doAnswer(new Answer<Void>() {
+      int count = 0;
+      @Override
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        if (count++ > 2) {
+          when(results.isFull()).thenReturn(true);
+        }
+        return null;
+      }
+    }).when(results).decode(
+        any(ArrayList.class), any(RollupInterval.class));
+    
+    scanner.fetchNext(results, null);
+    
+    verify(hbase_scanner, times(2)).nextRows();
+    verify(hbase_scanner, times(1)).close();
+    verify(results, times(4)).decode(
+        any(ArrayList.class), any(RollupInterval.class));
+    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).exception(any(Throwable.class));
+    assertEquals(State.EXCEPTION, scanner.state());
     assertNull(scanner.buffer());
   }
   
@@ -822,7 +979,8 @@ public class TestTsdb1xScanner extends UTBase {
   }
   
   @Test
-  public void fetchNextOwnerFull() throws Exception {
+  public void fetchNextOwnerFullNotSingle() throws Exception {
+    when(context.mode()).thenReturn(QueryMode.BOUNDED_CLIENT_STREAM);
     when(results.isFull()).thenReturn(true);
     Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
     Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
@@ -836,6 +994,24 @@ public class TestTsdb1xScanner extends UTBase {
     verify(owner, times(1)).scannerDone();
     verify(owner, never()).exception(any(Throwable.class));
     assertEquals(State.CONTINUE, scanner.state());
+    assertNull(scanner.buffer());
+  }
+  
+  @Test
+  public void fetchNextOwnerFullSingle() throws Exception {
+    when(results.isFull()).thenReturn(true);
+    Scanner hbase_scanner = metricStartStopScanner(Series.SINGLE_SERIES, METRIC_BYTES);
+    Tsdb1xScanner scanner = new Tsdb1xScanner(owner, hbase_scanner, 0, null);
+    
+    scanner.fetchNext(results, null);
+    
+    verify(hbase_scanner, never()).nextRows();
+    verify(hbase_scanner, never()).close();
+    verify(results, never()).decode(
+        any(ArrayList.class), any(RollupInterval.class));
+    verify(owner, never()).scannerDone();
+    verify(owner, times(1)).exception(any(Throwable.class));
+    assertEquals(State.EXCEPTION, scanner.state());
     assertNull(scanner.buffer());
   }
   

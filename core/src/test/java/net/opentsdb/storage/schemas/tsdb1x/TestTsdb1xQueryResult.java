@@ -348,4 +348,34 @@ public class TestTsdb1xQueryResult extends SchemaBase {
       assertEquals(-1, value);
     }
   }
+
+  @Test
+  public void resultIsFullErrorMessage() throws Exception {
+    Tsdb1xQueryResult result = new Tsdb1xQueryResult(9, node, schema);
+    
+    // not full
+    assertTrue(result.resultIsFullErrorMessage().contains("data points"));
+    
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Integer.toString(START_TS))
+            .setEnd(Integer.toString(END_TS))
+            .setAggregator("avg"))
+        .addMetric(Metric.newBuilder()
+            .setMetric(METRIC_STRING))
+        .addConfig(Schema.QUERY_BYTE_LIMIT_KEY, "42")
+        .addConfig(Schema.QUERY_DP_LIMIT_KEY, "24")
+        .build();
+    when(source_config.query()).thenReturn(query);
+    
+    // byte limit
+    result = new Tsdb1xQueryResult(9, node, schema);
+    result.bytes = 1024;
+    assertTrue(result.resultIsFullErrorMessage().contains("MB from storage"));
+    
+    // dp limit
+    result.bytes = 1;
+    result.dps = 42;
+    assertTrue(result.resultIsFullErrorMessage().contains("data points"));
+  }
 }

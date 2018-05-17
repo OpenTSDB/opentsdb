@@ -211,4 +211,23 @@ public class Tsdb1xQueryResult implements QueryResult {
       is_full = true;
     }
   }
+
+  /** @return An error message based on the byte or dp limit. Note that 
+   * this method doesn't check to see if we "are" full. If it's not full
+   * then the DP error is returned. */
+  public String resultIsFullErrorMessage() {
+    if (byte_limit > 0 && bytes > byte_limit) {
+      // TODO - properly format in MB or GB or KB...
+      final long mbs = (byte_limit / 1024 / 1024);
+      return "Sorry, you have attempted to fetch more than our maximum "
+          + "amount of " + (mbs > 0 ? mbs : 
+            ((double) byte_limit / 1024. / 1024.)) + "MB from storage. " 
+          + "Please try filtering using more tags or decrease your time range.";
+    }
+    
+    return "Sorry, you have attempted to fetch more than our limit of " 
+      + dp_limit + " data points. Please try filtering "
+      + "using more tags or decrease your time range.";
+  }
+  
 }
