@@ -133,13 +133,17 @@ public class CachingQueryExecutor implements QuerySourceFactory {
     this.tsdb = tsdb;
     plugin = tsdb.getRegistry().getDefaultPlugin(QueryCachePlugin.class);    
     serdes = tsdb.getRegistry().getDefaultPlugin(TimeSeriesSerdes.class);
+    key_generator = tsdb.getRegistry().getDefaultPlugin(TimeSeriesCacheKeyGenerator.class);
     if (plugin == null) {
       throw new IllegalArgumentException("No default cache plugin loaded.");
     }
     if (serdes == null) {
       throw new IllegalArgumentException("No default serdes plugin loaded.");
     }
-    key_generator = new DefaultTimeSeriesCacheKeyGenerator();
+    if (key_generator == null) {
+      throw new IllegalArgumentException("No default key generator loaded.");
+    }
+    
   }
   
   @Override
@@ -234,7 +238,10 @@ public class CachingQueryExecutor implements QuerySourceFactory {
               (net.opentsdb.query.pojo.TimeSeriesQuery) context.query();
           
           final long expiration = key_generator.expiration(query, 
-              config.expiration);
+              config.getExpiration());
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Calculated cache expiration: " + expiration);
+          }
           if (expiration > 0) {
             // only serialize string IDs so in this case we're going to 
             // convert asynchronously and call ourselves back with the

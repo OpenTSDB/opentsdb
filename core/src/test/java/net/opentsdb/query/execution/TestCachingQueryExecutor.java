@@ -117,6 +117,8 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
       .thenReturn(plugin);
     when(registry.getPlugin(eq(TimeSeriesCacheKeyGenerator.class), anyString()))
       .thenReturn(key_generator);
+    when(registry.getDefaultPlugin(eq(TimeSeriesCacheKeyGenerator.class)))
+    .thenReturn(key_generator);
     when(registry.getSerdes(anyString()))
       .thenAnswer(new Answer<TimeSeriesSerdes>() {
       @Override
