@@ -209,7 +209,6 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
         // just ignore the cache at that point.
         QueryNode cache = new CachingQueryExecutor(tsdb)
             .newNode(this, CachingQueryExecutor.Config.newBuilder()
-                .setExpiration(60000)
                 .setExecutorId("foo")
                 .setExecutorType("bar")
                 .build());

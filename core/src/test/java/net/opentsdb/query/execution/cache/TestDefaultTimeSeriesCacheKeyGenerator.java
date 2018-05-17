@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,8 +19,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 
@@ -31,9 +29,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import net.opentsdb.configuration.Configuration;
-import net.opentsdb.configuration.UnitTestConfiguration;
-import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.query.pojo.Downsampler;
@@ -47,14 +43,11 @@ import net.opentsdb.utils.DateTime;
 @PrepareForTest({ DateTime.class, TimeSeriesQuery.class, Timespan.class })
 public class TestDefaultTimeSeriesCacheKeyGenerator {
 
-  private DefaultTSDB tsdb;
-  private Configuration config;
+  private MockTSDB tsdb;
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(DefaultTSDB.class);
-    config = UnitTestConfiguration.getConfiguration();
-    when(tsdb.getConfig()).thenReturn(config);
+    tsdb = new MockTSDB();
   }
   
   @Test
@@ -66,20 +59,20 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
         generator.default_expiration);
     assertEquals(DefaultTimeSeriesCacheKeyGenerator.DEFAULT_MAX_EXPIRATION, 
         generator.default_max_expiration);
-    assertEquals(DefaultTimeSeriesCacheKeyGenerator.DEFAULT_INTERVAL, 
+    assertEquals(DateTime.parseDuration(DefaultTimeSeriesCacheKeyGenerator.DEFAULT_INTERVAL), 
         generator.default_interval);
     assertEquals(DefaultTimeSeriesCacheKeyGenerator.DEFAULT_HISTORICAL_CUTOFF, 
         generator.historical_cutoff);
     assertEquals(0, generator.step_interval);
     
     // overrides
-    config.register("tsd.query.cache.expiration", 120000, false, "UT");
-    config.register("tsd.query.cache.max_expiration", 3600000, false, "UT");
-    config.register("tsd.query.cache.default_interval", "30m", false, "UT");
-    config.register("tsd.query.cache.historical_cutoff", 864000, false, "UT");
-    config.register("tsd.query.cache.step_interval", 60000, false, "UT");
+    tsdb.config.override(DefaultTimeSeriesCacheKeyGenerator.EXPIRATION_KEY, 120000L);
+    tsdb.config.override(DefaultTimeSeriesCacheKeyGenerator.MAX_EXPIRATION_KEY, 3600000L);
+    tsdb.config.override(DefaultTimeSeriesCacheKeyGenerator.INTERVAL_KEY, "30m");
+    tsdb.config.override(DefaultTimeSeriesCacheKeyGenerator.HISTORICAL_CUTOFF_KEY, 864000L);
+    tsdb.config.override(DefaultTimeSeriesCacheKeyGenerator.STEP_INTERVAL_KEY, 60000L);
     
-    generator = new DefaultTimeSeriesCacheKeyGenerator();
+    // overrides will update the configs via callback.
     assertNull(generator.initialize(tsdb).join(1));
     assertEquals(120000, generator.default_expiration);
     assertEquals(3600000, generator.default_max_expiration);
@@ -243,6 +236,56 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
       .thenReturn(1493514769084L);
     PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
       .thenReturn(1493514769000L);
+    // 84 milliseconds difference.
+    assertEquals(10916, generator.expiration(query, -1));
+    
+    // old but no cutoff provided
+    PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
+      .thenReturn(1493414769000L);
+    assertEquals(10916, generator.expiration(query, -1));
+    
+    PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
+      .thenReturn(1493514769000L);
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user"))
+        .build();
+    assertEquals(10916, generator.expiration(query, -1));
+    
+    // regular
+    assertEquals(0, generator.expiration(query, 0));
+    assertEquals(30000, generator.expiration(query, 30000));
+    
+    assertEquals(60000, generator.expiration(null, -1));
+  }
+  
+  @Test
+  public void expirationMetricDownsampler() throws Exception {
+    PowerMockito.mockStatic(DateTime.class);
+    PowerMockito.when(DateTime.parseDuration(anyString())).thenReturn(60000L);
+    final DefaultTimeSeriesCacheKeyGenerator generator = 
+        new DefaultTimeSeriesCacheKeyGenerator();
+    generator.initialize(tsdb).join(1);
+    
+    TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart("3h-ago")
+            .setEnd("1h-ago"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user")
+            .setDownsampler(Downsampler.newBuilder()
+                .setAggregator("sum")
+                .setInterval("1m")))
+        .build();
+    
+    PowerMockito.when(DateTime.currentTimeMillis())
+      .thenReturn(1493514769084L);
+    PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
+      .thenReturn(1493514769000L);
+    // 84 milliseconds difference.
     assertEquals(10916, generator.expiration(query, -1));
     
     // old but no cutoff provided
@@ -272,11 +315,11 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
   public void expirationWithCutoff() throws Exception {
     PowerMockito.mockStatic(DateTime.class);
     PowerMockito.when(DateTime.parseDuration(anyString())).thenReturn(60000L);
-    config.register("tsd.query.cache.historical_cutoff", 120000, false, "UT");
-    config.register("tsd.query.cache.max_expiration", 120000, false, "UT");
     final DefaultTimeSeriesCacheKeyGenerator generator = 
         new DefaultTimeSeriesCacheKeyGenerator();
     generator.initialize(tsdb).join(1);
+    tsdb.config.override(DefaultTimeSeriesCacheKeyGenerator.HISTORICAL_CUTOFF_KEY, 120000L);
+    tsdb.config.override(DefaultTimeSeriesCacheKeyGenerator.MAX_EXPIRATION_KEY, 120000L);
     
     PowerMockito.when(DateTime.currentTimeMillis())
       .thenReturn(1493514769084L);
@@ -370,10 +413,10 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
   
   @Test
   public void expirationNoDSDiffInterval() throws Exception {
-    config.register("tsd.query.cache.default_interval", "5m", false, "UT");
     final DefaultTimeSeriesCacheKeyGenerator generator = 
         new DefaultTimeSeriesCacheKeyGenerator();
     generator.initialize(tsdb).join(1);
+    tsdb.config.override(DefaultTimeSeriesCacheKeyGenerator.INTERVAL_KEY, "5m");
     
     PowerMockito.mockStatic(DateTime.class);
     TimeSeriesQuery query = TimeSeriesQuery.newBuilder()
@@ -398,14 +441,15 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
 
   @Test
   public void expirationStepDown() throws Exception {
-    // 1 hour step interval
-    // 6 hour historical cutoff
-    config.register("tsd.query.cache.max_expiration", 86400000, false, "UT");
-    config.register("tsd.query.cache.historical_cutoff", 21600000, false, "UT");
-    config.register("tsd.query.cache.step_interval", 3600000, false, "UT");
     final DefaultTimeSeriesCacheKeyGenerator generator = 
         new DefaultTimeSeriesCacheKeyGenerator();
     generator.initialize(tsdb).join(1);
+    
+    // 1 hour step interval
+    // 6 hour historical cutoff
+    tsdb.config.override(DefaultTimeSeriesCacheKeyGenerator.MAX_EXPIRATION_KEY, 86400000L);
+    tsdb.config.override(DefaultTimeSeriesCacheKeyGenerator.HISTORICAL_CUTOFF_KEY, 21600000L);
+    tsdb.config.override(DefaultTimeSeriesCacheKeyGenerator.STEP_INTERVAL_KEY, 3600000L);
     
     PowerMockito.mockStatic(DateTime.class);
     PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))
@@ -506,14 +550,14 @@ public class TestDefaultTimeSeriesCacheKeyGenerator {
   
   @Test
   public void expirationStepDownAligned() throws Exception {
-    // 1 hour step interval
-    // 6 hour historical cutoff
-    config.register("tsd.query.cache.max_expiration", 86400000, false, "UT");
-    config.register("tsd.query.cache.historical_cutoff", 21600000, false, "UT");
-    config.register("tsd.query.cache.step_interval", 3600000, false, "UT");
     final DefaultTimeSeriesCacheKeyGenerator generator = 
         new DefaultTimeSeriesCacheKeyGenerator();
     generator.initialize(tsdb).join(1);
+    // 1 hour step interval
+    // 6 hour historical cutoff
+    tsdb.config.override(DefaultTimeSeriesCacheKeyGenerator.MAX_EXPIRATION_KEY, 86400000L);
+    tsdb.config.override(DefaultTimeSeriesCacheKeyGenerator.HISTORICAL_CUTOFF_KEY, 21600000L);
+    tsdb.config.override(DefaultTimeSeriesCacheKeyGenerator.STEP_INTERVAL_KEY, 3600000L);
     
     PowerMockito.mockStatic(DateTime.class);
     PowerMockito.when(DateTime.parseDateTimeString(anyString(), anyString()))

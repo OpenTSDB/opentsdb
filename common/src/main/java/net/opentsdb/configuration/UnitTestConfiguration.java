@@ -87,6 +87,7 @@ public class UnitTestConfiguration extends Configuration {
    * @param value A value to inject.
    * @throws IllegalArgumentException if the value failed validation.
    */
+  @SuppressWarnings({ "rawtypes", "unchecked" })
   public void override(final String key, final Object value) {
     final ConfigurationEntry entry = merged_config.get(key);
     if (entry == null) {
@@ -94,13 +95,18 @@ public class UnitTestConfiguration extends Configuration {
     }
     final ValidationResult result = entry.schema().validate(value);
     if (!result.isValid()) {
-      throw new IllegalArgumentException("Vad value: " + result.getMessage());
+      throw new IllegalArgumentException("Bad value: " + result.getMessage());
     }
     if (entry.settings() == null || entry.settings().isEmpty()) {
       entry.schema().default_value = value;
     } else {
       final ConfigurationOverride override = entry.settings().get(0);
       override.value = value;
+    }
+    if (entry.callbacks() != null) {
+      for (final ConfigurationCallback cb : entry.callbacks()) {
+        cb.update(key, value);
+      }
     }
   }
   
