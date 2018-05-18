@@ -16,8 +16,10 @@ package net.opentsdb.configuration;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -832,6 +834,21 @@ public class Configuration implements Closeable {
    */
   public ConfigurationView getView() {
     return new ConfigurationView(this);
+  }
+  
+  /** @return <b>WARN</b> A non-obfuscated map with non-null settings
+   * cast to strings. */
+  public Map<String, String> asUnsecuredMap() {
+    final Map<String, String> map = 
+        Maps.newHashMapWithExpectedSize(merged_config.size());
+    for (final Entry<String, ConfigurationEntry> entry : 
+        merged_config.entrySet()) {
+      final Object value = entry.getValue().getValue();
+      if (value != null) {
+        map.put(entry.getKey(), value.toString());        
+      }
+    }
+    return Collections.unmodifiableMap(map);
   }
   
   @Override
