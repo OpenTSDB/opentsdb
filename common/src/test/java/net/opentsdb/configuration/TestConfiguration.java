@@ -1059,6 +1059,71 @@ public class TestConfiguration {
   }
   
   @Test
+  public void asUnsecuredMap() throws Exception {
+    final String[] cli_args = new String[] {
+        "--my.custom.key=Super Secret!",
+        "--another.key=50.75",
+        "--" + Configuration.CONFIG_PROVIDERS_KEY 
+          + "=SystemProperties,CommandLine"
+    };
+    
+    try (final Configuration config = new Configuration(cli_args)) {
+      // just the defaults before registration.
+      Map<String, String> map = config.asUnsecuredMap();
+      assertEquals(2, map.size());
+      assertEquals("SystemProperties,CommandLine", map.get("config.providers"));
+      assertEquals("300", map.get("config.reload.interval"));
+      
+      ConfigurationEntrySchema schema = ConfigurationEntrySchema.newBuilder()
+          .setKey("tsd.conf")
+          .setDefaultValue(1L)
+          .setType(long.class)
+          .setSource("ut")
+          .build();
+      config.register(schema);
+      assertEquals(1L, (long) config.getTyped("tsd.conf", long.class));
+      
+      // register and pull from previous
+      schema = ConfigurationEntrySchema.newBuilder()
+          .setKey("my.custom.key")
+          .setDefaultValue("My secret!")
+          .setType(String.class)
+          .setSource("ut")
+          .isSecret()
+          .build();
+      config.register(schema);
+      assertEquals("Super Secret!", (String) config.getTyped("my.custom.key", String.class));
+      
+      schema = ConfigurationEntrySchema.newBuilder()
+          .setKey("another.key")
+          .setDefaultValue(0L)
+          .setType(double.class)
+          .setSource("ut")
+          .build();
+      config.register(schema);
+      assertEquals(50.75, (double) config.getTyped(
+          "another.key", double.class), 0.001);
+      
+      config.register(ConfigurationEntrySchema.newBuilder()
+          .setKey("null.key")
+          .setDefaultValue(null)
+          .setType(String.class)
+          .setSource("ut")
+          .isNullable());
+      assertNull(config.getTyped("null.key", String.class));
+      
+      // now just the bits we have registered, minus the nulls.
+      map = config.asUnsecuredMap();
+      assertEquals(5, map.size());
+      assertEquals("SystemProperties,CommandLine", map.get("config.providers"));
+      assertEquals("300", map.get("config.reload.interval"));
+      assertEquals("1", map.get("tsd.conf"));
+      assertEquals("Super Secret!", map.get("my.custom.key"));
+      assertEquals("50.75", map.get("another.key"));
+    }
+  }
+  
+  @Test
   public void close() throws Exception {
     final String[] cli_args = new String[] {
         "--" + Configuration.CONFIG_PROVIDERS_KEY 
