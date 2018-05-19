@@ -61,6 +61,7 @@ import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.PluginLoader;
 import net.opentsdb.utils.Threads;
+import net.opentsdb.auth.Authentication;
 import net.opentsdb.configuration.Configuration;
 //import net.opentsdb.meta.Annotation;
 //import net.opentsdb.meta.MetaDataCache;
@@ -321,6 +322,11 @@ public class DefaultTSDB implements TSDB {
       config.register(MAINT_TIMER_KEY, MAINT_TIMER_DEFAULT, true, 
           "How often, in milliseconds, to run maintenance tasks like "
           + "collecting stats and cleaning caches.");
+    }
+    if (!config.hasProperty(Authentication.AUTH_ENABLED_KEY)) {
+      config.register(Authentication.AUTH_ENABLED_KEY, false, false, 
+          "Whether or not authentication is enabled and required for "
+          + "any operations in OpenTSDB.");
     }
   }
   

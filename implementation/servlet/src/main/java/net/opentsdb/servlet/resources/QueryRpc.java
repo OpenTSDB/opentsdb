@@ -50,6 +50,9 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 
 import jersey.repackaged.com.google.common.collect.ImmutableMap;
+import net.opentsdb.auth.AuthState;
+import net.opentsdb.auth.Authentication;
+import net.opentsdb.auth.AuthState.AuthStatus;
 import net.opentsdb.common.Const;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
@@ -70,6 +73,7 @@ import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.serdes.SerdesOptions;
 import net.opentsdb.servlet.applications.OpenTSDBApplication;
+import net.opentsdb.servlet.filter.AuthFilter;
 import net.opentsdb.stats.DefaultQueryStats;
 import net.opentsdb.stats.Span;
 import net.opentsdb.stats.StatsCollectorBasic;
@@ -186,6 +190,20 @@ final public class QueryRpc {
       tsdb.getStatsCollector().incrementCounter("query.new", "endpoint", "2x");
     }
     
+    // check auth. 
+    final AuthState auth_state;
+    if (tsdb.getConfig().getBoolean(Authentication.AUTH_ENABLED_KEY)) {
+      if (request.getAttribute(AuthFilter.AUTH_STATE_KEY) == null || 
+          ((AuthState) request.getAttribute(AuthFilter.AUTH_STATE_KEY))
+            .getStatus() != AuthStatus.SUCCESS) {
+        throw new WebApplicationException("Access denied.", 
+            Response.Status.FORBIDDEN);
+      }
+      auth_state = (AuthState) request.getAttribute(AuthFilter.AUTH_STATE_KEY);
+    } else {
+      auth_state = null; // TODO - add an "unknown" auth user.
+    }
+    
     // initiate the tracer
     final Trace trace;
     final Span query_span;
@@ -195,6 +213,7 @@ final public class QueryRpc {
       query_span = trace.newSpanWithThread(this.getClass().getSimpleName())
           .withTag("endpoint", "/api/query")
           .withTag("startThread", Thread.currentThread().getName())
+          .withTag("user", auth_state != null ? auth_state.getUser() : "Unkown")
           // TODO - more useful info
           .start();
       request.setAttribute(TRACE_KEY, trace);
