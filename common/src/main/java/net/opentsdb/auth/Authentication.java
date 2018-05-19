@@ -30,6 +30,9 @@ package net.opentsdb.auth;
  */
 public interface Authentication {
   
+  /** The key from our config set when Authentication is required. */
+  public static final String AUTH_ENABLED_KEY = "tsd.core.authentication.enable";
+  
   // TODO - what are common methods we can define?
   
   /**
