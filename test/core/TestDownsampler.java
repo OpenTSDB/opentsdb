@@ -1234,8 +1234,8 @@ public class TestDownsampler {
         .setInterval("1h")
         .setRowSpan("1d")
         .build();
-    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
-        3600000, Aggregators.AVG);
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.AVG,
+        3600000, Aggregators.SUM);
     source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 0, 1),
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 1, 2),
@@ -1269,8 +1269,8 @@ public class TestDownsampler {
         .setInterval("1h")
         .setRowSpan("1d")
         .build();
-    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
-        3600000, Aggregators.COUNT);
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.COUNT,
+        3600000, Aggregators.SUM);
     source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 0, 1),
         MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 1, 2),
@@ -1304,8 +1304,8 @@ public class TestDownsampler {
         .setInterval("1h")
         .setRowSpan("1d")
         .build();
-    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
-        3600000, Aggregators.DEV);
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.DEV,
+        3600000, Aggregators.SUM);
     specification = new DownsamplingSpecification("10s-dev");
     downsampler = new Downsampler(source, specification, 0, 0, rollup_query);
     while (downsampler.hasNext()) {

@@ -775,8 +775,8 @@ public class SaltScanner {
                 LOG.error("Failed to decode histogram data point", t);
               }
             } else {
-              if (rollup_query.getGroupBy() == Aggregators.AVG || 
-                  rollup_query.getGroupBy() == Aggregators.DEV) {
+              if (rollup_query.getRollupAgg() == Aggregators.AVG || 
+                  rollup_query.getRollupAgg() == Aggregators.DEV) {
                 if (qual[0] == (byte) rollup_agg_id ||
                     qual[0] == (byte) rollup_count_id ||
                     Bytes.memcmp(RollupQuery.SUM, qual, 0, RollupQuery.SUM.length) == 0 ||

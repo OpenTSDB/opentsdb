@@ -163,9 +163,9 @@ public class Downsampler implements SeekableView, DataPoint {
   public DataPoint next() {
     if (hasNext()) {
       if (rollup_query != null && 
-          (rollup_query.getGroupBy() == Aggregators.AVG || 
-           rollup_query.getGroupBy() == Aggregators.DEV)) {
-        if (rollup_query.getGroupBy() == Aggregators.AVG) {
+          (rollup_query.getRollupAgg() == Aggregators.AVG || 
+           rollup_query.getRollupAgg() == Aggregators.DEV)) {
+        if (rollup_query.getRollupAgg() == Aggregators.AVG) {
           if (specification.getFunction() == Aggregators.AVG) {
             double sum = 0;
             long count = 0;
@@ -205,7 +205,7 @@ public class Downsampler implements SeekableView, DataPoint {
             accumulator.iterator = accumulator.values.iterator();
             value = specification.getFunction().runDouble(accumulator);
           }
-        } else if (rollup_query.getGroupBy() == Aggregators.DEV) {
+        } else if (rollup_query.getRollupAgg() == Aggregators.DEV) {
           throw new UnsupportedOperationException("Standard deviation over "
               + "rolled up data is not supported at this time");
         }

@@ -903,7 +903,7 @@ public class TestFillingDownsampler {
         .setInterval("1h")
         .setRowSpan("1d")
         .build();
-    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.AVG,
         3600000, Aggregators.SUM);
     final long baseTime = 1000L;
     final SeekableView source =
@@ -984,7 +984,7 @@ public class TestFillingDownsampler {
         .setInterval("1h")
         .setRowSpan("1d")
         .build();
-    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.COUNT,
         3600000, Aggregators.SUM);
     final long baseTime = 1000L;
     final SeekableView source =
@@ -1065,8 +1065,8 @@ public class TestFillingDownsampler {
         .setInterval("1h")
         .setRowSpan("1d")
         .build();
-    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.SUM,
-        3600000, Aggregators.DEV);
+    final RollupQuery rollup_query = new RollupQuery(interval, Aggregators.DEV,
+        3600000, Aggregators.SUM);
     final long baseTime = 1000L;
     final SeekableView source =
       SeekableViewsForTest.fromArray(new DataPoint[] {
