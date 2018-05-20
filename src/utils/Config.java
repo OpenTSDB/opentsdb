@@ -605,7 +605,7 @@ public class Config {
       + "Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, "
       + "X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since");
     default_map.put("tsd.query.timeout", "0");
-    default_map.put("tsd.storage.use_otsdb_timestamp", "true");
+    default_map.put("tsd.storage.use_otsdb_timestamp", "false");
     default_map.put("tsd.storage.use_max_value", "true");
     default_map.put("tsd.storage.get_date_tiered_compaction_start", "0");
 

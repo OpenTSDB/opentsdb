@@ -63,7 +63,6 @@ tsdb_SRC := \
 	src/core/HistogramSeekableView.java	\
 	src/core/HistogramSpan.java	\
 	src/core/HistogramSpanGroup.java	\
-	src/core/HistogramRowSeq.java	\
 	src/core/iHistogramRowSeq.java	\
 	src/core/IncomingDataPoint.java	\
 	src/core/IncomingDataPoints.java	\
