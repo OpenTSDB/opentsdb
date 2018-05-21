@@ -87,8 +87,6 @@ public final class UniqueId implements UniqueIdInterface {
   private static final short INITIAL_EXP_BACKOFF_DELAY = 800;
   /** Maximum number of results to return in suggest(). */
   private static final short MAX_SUGGESTIONS = 25;
-  /** Maximum number of  cache_hits. */
-  private static final long MAX_CACHE_SIZE = 2000000000L;
 
   /** HBase client to use.  */
   private final HBaseClient client;
@@ -256,14 +254,26 @@ public final class UniqueId implements UniqueIdInterface {
   }
 
   /**
-   * Due to the var cache_hits type is int, but the max of int is 
-   * 2147483648, and int happen spilling
+   * Resets the cache hits counter before rollover. Note that a few updates
+   * may be dropped due to race conditions at rollover.
    */
-  private void reNumCache() {
-    if (cache_hits > MAX_CACHE_SIZE) {
+  private void incrementCacheHits() {
+    if (cache_hits >= Long.MAX_VALUE) {
       cache_hits = 1;
     } else {
       cache_hits++;
+    }
+  }
+  
+  /**
+   * Resets the cache miss counter before rollover. Note that a few updates
+   * may be dropped due to race conditions at rollover.
+   */
+  private void incrementCacheMiss() {
+    if (cache_misses >= Long.MAX_VALUE) {
+      cache_misses = 1;
+    } else {
+      cache_misses++;
     }
   }
   
@@ -357,10 +367,10 @@ public final class UniqueId implements UniqueIdInterface {
     }
     final String name = getNameFromCache(id);
     if (name != null) {
-      reNumCache();
+      incrementCacheHits();
       return Deferred.fromResult(name);
     }
-    cache_misses++;
+    incrementCacheMiss();
     class GetNameCB implements Callback<String, String> {
       public String call(final String name) {
         if (name == null) {
@@ -430,10 +440,10 @@ public final class UniqueId implements UniqueIdInterface {
   public Deferred<byte[]> getIdAsync(final String name) {
     final byte[] id = getIdFromCache(name);
     if (id != null) {
-      reNumCache();
+      incrementCacheHits();
       return Deferred.fromResult(id);
     }
-    cache_misses++;
+    incrementCacheMiss();
     class GetIdCB implements Callback<byte[], byte[]> {
       public byte[] call(final byte[] id) {
         if (id == null) {
@@ -875,7 +885,7 @@ public final class UniqueId implements UniqueIdInterface {
     // Look in the cache first.
     final byte[] id = getIdFromCache(name);
     if (id != null) {
-      reNumCache();
+      incrementCacheHits();
       return Deferred.fromResult(id);
     }
     // Not found in our cache, so look in HBase instead.
