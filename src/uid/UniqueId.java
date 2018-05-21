@@ -83,6 +83,8 @@ public final class UniqueId implements UniqueIdInterface {
   private static final short INITIAL_EXP_BACKOFF_DELAY = 800;
   /** Maximum number of results to return in suggest(). */
   private static final short MAX_SUGGESTIONS = 25;
+  /** Maximum number of  cache_hits. */
+  private static final long MAX_CACHE_SIZE = 2000000000L;
 
   /** HBase client to use.  */
   private final HBaseClient client;
@@ -112,9 +114,9 @@ public final class UniqueId implements UniqueIdInterface {
     Collections.synchronizedSet(new HashSet<String>());
 
   /** Number of times we avoided reading from HBase thanks to the cache. */
-  private volatile int cache_hits;
+  private volatile long cache_hits;
   /** Number of times we had to read from HBase and populate the cache. */
-  private volatile int cache_misses;
+  private volatile long cache_misses;
   /** How many times we collided with an existing ID when attempting to 
    * generate a new UID */
   private volatile int random_id_collisions;
@@ -194,20 +196,32 @@ public final class UniqueId implements UniqueIdInterface {
   }
 
   /** The number of times we avoided reading from HBase thanks to the cache. */
-  public int cacheHits() {
+  public long cacheHits() {
     return cache_hits;
   }
 
   /** The number of times we had to read from HBase and populate the cache. */
-  public int cacheMisses() {
+  public long cacheMisses() {
     return cache_misses;
   }
 
   /** Returns the number of elements stored in the internal cache. */
-  public int cacheSize() {
+  public long cacheSize() {
     return name_cache.size() + id_cache.size();
   }
 
+  /**
+   * Due to the var cache_hits type is int, but the max of int is 
+   * 2147483648, and int happen spilling
+   */
+  private void reNumCache() {
+    if (cache_hits > MAX_CACHE_SIZE) {
+      cache_hits = 1;
+    } else {
+      cache_hits++;
+    }
+  }
+  
   /** Returns the number of random UID collisions */
   public int randomIdCollisions() {
     return random_id_collisions;
@@ -291,7 +305,7 @@ public final class UniqueId implements UniqueIdInterface {
     }
     final String name = getNameFromCache(id);
     if (name != null) {
-      cache_hits++;
+      reNumCache();
       return Deferred.fromResult(name);
     }
     cache_misses++;
@@ -346,7 +360,7 @@ public final class UniqueId implements UniqueIdInterface {
   public Deferred<byte[]> getIdAsync(final String name) {
     final byte[] id = getIdFromCache(name);
     if (id != null) {
-      cache_hits++;
+      reNumCache();
       return Deferred.fromResult(id);
     }
     cache_misses++;
@@ -773,7 +787,7 @@ public final class UniqueId implements UniqueIdInterface {
     // Look in the cache first.
     final byte[] id = getIdFromCache(name);
     if (id != null) {
-      cache_hits++;
+      reNumCache();
       return Deferred.fromResult(id);
     }
     // Not found in our cache, so look in HBase instead.
