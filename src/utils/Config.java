@@ -97,9 +97,6 @@ public class Config {
   /** tsd.storage.fix_duplicates */
   private boolean fix_duplicates = false;
 
-  /** tsd.http.header_tag */
-  private String http_header_tag = null;
-
   /** tsd.http.request.max_chunk */
   private int max_chunked_requests = 4096; 
   
@@ -229,16 +226,6 @@ public class Config {
   /** @return maximum number of rows to be fetched per round trip while scanning HBase */
   public int scanner_maxNumRows() {
     return scanner_max_num_rows;
-  }
-  
-  /** @return whether or not additional http header tag is allowed */
-  public boolean enable_header_tag() {
-    return http_header_tag != null ;
-  }
-  
-  /** @return the lookup value for additional http header tag */
-  public String get_name_header_tag() {
-    return http_header_tag ;
   }
   
   /** @return whether or not chunked requests are supported */
@@ -548,7 +535,6 @@ public class Config {
     default_map.put("tsd.core.stats_with_port", "false");    
     default_map.put("tsd.http.show_stack_trace", "true");
     default_map.put("tsd.http.query.allow_delete", "false");
-    default_map.put("tsd.http.header_tag", "");
     default_map.put("tsd.http.request.enable_chunked", "false");
     default_map.put("tsd.http.request.max_chunk", "4096");
     default_map.put("tsd.http.request.cors_domains", "");
@@ -665,9 +651,6 @@ public class Config {
       this.getBoolean("tsd.core.meta.enable_tsuid_tracking");
     if (this.hasProperty("tsd.http.request.max_chunk")) {
       max_chunked_requests = this.getInt("tsd.http.request.max_chunk");
-    }
-    if (this.hasProperty("tsd.http.header_tag")) {
-      http_header_tag = this.getString("tsd.http.header_tag");
     }
     enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
     fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
