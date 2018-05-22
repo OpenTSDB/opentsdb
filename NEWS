@@ -1,5 +1,33 @@
 OpenTSDB - User visible changes.
 
+* Version 2.3.1 (2018-04-21)
+
+Noteworthy Changes:
+  - When setting up aggregators, advance to the first data point equal to or greater
+    than the query start timestamp. This helps with calendar downsampling intervals.
+  - Add support to the Nagios check script for downsampling fill policies.
+
+Bug Fixes:
+  - Fix expression calculation by avoiding double execution and checking both
+    output types for boolean values.
+  - Fixing missing tools scripts in builds.
+  - Default HBase 1.2.5 in the OSX install script
+  - Upgrade AsyncBigtable to 0.3.1
+  - Log query stats when a channel is closed unexpectedly.
+  - Add the Java 8 path in the debian init script and remove Java 6.
+  - Pass the column family name to the get requests in the compaction scheduler.
+  - Fix a comparison issue in the UI on group by tags.
+  - Filter annotation queries by the starting timestamp, excluding those in a row that
+    began before the query start time.
+  - Tiny stap at purging backticks from Gnuplot scripts.
+  - Remove the `final` annotation from the meta classes so they can be extended.
+  - Fix the javacc maven plugin version.
+  - Fix the literal or filter to allow single character filters.
+  - Fix query start stats logging to use the ms instead of nano time.
+  - Move Jackson and Netty to newer versions for security reasons.
+  - Upgrade to AsyncHBase 1.8.2 for compatibility with HBase 1.3 and 2.0
+  - Fix the Highest Current calculation to handle empty time series.
+  - Change the cache hits counters to longs.
 
 * Version 2.3.0 (2016-12-31)
 
