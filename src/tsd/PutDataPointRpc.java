@@ -329,12 +329,18 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
         new ArrayList<Deferred<Boolean>>(dps.size()) : null;
         
     if (tsdb.getConfig().enable_header_tag()) {
-      LOG.debug("Looking for tag header " + tsdb.getConfig().get_name_header_tag());
-      final String header_tag_value = query.getHeaderValue(tsdb.getConfig().get_name_header_tag()) ;
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Looking for tag header " 
+            + tsdb.getConfig().get_name_header_tag());
+      }
+      final String header_tag_value = query.getHeaderValue(
+          tsdb.getConfig().get_name_header_tag()) ;
       if (header_tag_value != null) {
-        LOG.debug(" header found with value:" + header_tag_value);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(" header found with value:" + header_tag_value);
+        }
         Tags.parse(query_tags, header_tag_value);
-      } else {
+      } else if (LOG.isDebugEnabled()) {
         LOG.debug(" no such header in request");
       }
     }
