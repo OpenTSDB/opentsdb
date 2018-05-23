@@ -36,6 +36,8 @@ import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.common.Const;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TSDBPlugin;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesDataType;
@@ -64,7 +66,7 @@ import net.opentsdb.utils.Exceptions;
  * 
  * @since 3.0
  */
-public class JsonV2QuerySerdes implements TimeSeriesSerdes {
+public class JsonV2QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
   private static final Logger LOG = LoggerFactory.getLogger(
       JsonV2QuerySerdes.class);
   
@@ -291,6 +293,26 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes {
                                     final Span span) {
     node.onError(new UnsupportedOperationException("Not implemented for this "
         + "class: " + getClass().getCanonicalName()));
+  }
+
+  @Override
+  public String id() {
+    return "JsonV2QuerySerdes";
+  }
+
+  @Override
+  public Deferred<Object> initialize(final TSDB tsdb) {
+    return Deferred.fromResult(null);
+  }
+
+  @Override
+  public Deferred<Object> shutdown() {
+    return Deferred.fromResult(null);
+  }
+
+  @Override
+  public String version() {
+    return "3.0.0";
   }
 
 }

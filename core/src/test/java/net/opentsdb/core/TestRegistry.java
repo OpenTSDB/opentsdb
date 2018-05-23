@@ -234,7 +234,7 @@ public class TestRegistry {
         + "\"MockTest\",\"type\": "
         + "\"net.opentsdb.core.TestPluginsConfig$MockPluginBase\"}],"
         + "\"pluginLocations\": [],\"continueOnError\": false,"
-        + "\"shutdownReverse\": true}";
+        + "\"shutdownReverse\": true,\"loadDefaultInstances\":false}";
     config_map.put("tsd.plugin.config", json);
     
     final DefaultRegistry registry = new DefaultRegistry(tsdb);

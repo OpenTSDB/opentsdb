@@ -124,8 +124,11 @@ public class DefaultRegistry implements Registry {
       throw new IllegalArgumentException("TSDB cannot be null.");
     }
     
-    tsdb.getConfig().register(PLUGIN_CONFIG_KEY, null, false, 
-        "The path to a plugin configuration file.");
+    if (!tsdb.getConfig().hasProperty(PLUGIN_CONFIG_KEY)) {
+      tsdb.getConfig().register(PLUGIN_CONFIG_KEY, null, false, 
+          "The path to a plugin configuration file to override the "
+          + "built-in default.");
+    }
     tsdb.getConfig().register(DEFAULT_CLUSTERS_KEY, null, false, 
         "TODO");
     tsdb.getConfig().register(DEFAULT_GRAPHS_KEY, null, false, "TODO");
@@ -457,7 +460,7 @@ public class DefaultRegistry implements Registry {
     final String config = tsdb.getConfig().getString(PLUGIN_CONFIG_KEY);
     if (Strings.isNullOrEmpty(config)) {
       if (plugins == null) {
-        LOG.info("No plugin config provided. Instantiating empty plugin config.");
+        LOG.info("No plugin config provided. Using the default config.");
         plugins = new PluginsConfig();
       }
     } else {
