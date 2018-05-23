@@ -125,7 +125,7 @@ public class TestTimeBasedRoutingExecutor extends BaseExecutorTest {
         "--" + Configuration.CONFIG_PROVIDERS_KEY + "=RuntimeOverride" });
     when(tsdb.getConfig()).thenReturn(tsd_config);
     when(node.graph()).thenReturn(graph);
-    when(node.getDefaultConfig()).thenReturn(config);
+    when(node.getConfig()).thenReturn(config);
     when(graph.getDownstreamExecutor(anyString()))
       .thenAnswer(new Answer<QueryExecutor<?>>() {
       @Override
@@ -199,7 +199,7 @@ public class TestTimeBasedRoutingExecutor extends BaseExecutorTest {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    when(node.getDefaultConfig()).thenReturn(null);
+    when(node.getConfig()).thenReturn(null);
     try {
       new TimeBasedRoutingExecutor<IteratorGroups>(node);
       fail("Expected IllegalArgumentException");
@@ -219,7 +219,7 @@ public class TestTimeBasedRoutingExecutor extends BaseExecutorTest {
         .setExecutorId("Router")
         .setExecutorType("TimeBasedRoutingExecutor")
         .build();
-    when(node.getDefaultConfig()).thenReturn(config);
+    when(node.getConfig()).thenReturn(config);
     
     // same as query end time so start time falls within the first cache bucket
     when(DateTime.currentTimeMillis()).thenReturn(1483491600000L);

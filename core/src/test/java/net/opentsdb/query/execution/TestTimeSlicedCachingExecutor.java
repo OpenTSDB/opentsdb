@@ -119,7 +119,7 @@ public class TestTimeSlicedCachingExecutor extends BaseExecutorTest {
     key_generator = new DefaultTimeSeriesCacheKeyGenerator();
     key_generator.initialize(tsdb).join();
     when(node.graph()).thenReturn(graph);
-    when(node.getDefaultConfig()).thenReturn(config);
+    when(node.getConfig()).thenReturn(config);
     when(graph.getDownstreamExecutor(anyString()))
       .thenAnswer(new Answer<QueryExecutor<?>>() {
       @Override

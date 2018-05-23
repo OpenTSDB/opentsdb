@@ -109,13 +109,13 @@ public class HttpQueryV2Executor extends QueryExecutor<IteratorGroups> {
    */
   public HttpQueryV2Executor(final ExecutionGraphNode node) {
     super(node);
-    if (((Config) node.getDefaultConfig()) == null) {
+    if (((Config) node.getConfig()) == null) {
       throw new IllegalArgumentException("Config connot be null.");
     }
-    if (Strings.isNullOrEmpty(((Config) node.getDefaultConfig()).endpoint)) {
+    if (Strings.isNullOrEmpty(((Config) node.getConfig()).endpoint)) {
       default_endpoint = null;
     } else {
-      default_endpoint = ((Config) node.getDefaultConfig()).endpoint + "/api/query";
+      default_endpoint = ((Config) node.getConfig()).endpoint + "/api/query";
     }
   }
   

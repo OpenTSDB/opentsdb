@@ -49,7 +49,7 @@ public class TestDefaultQueryExecutorFactory {
     node = mock(ExecutionGraphNode.class);
     when(node.graph()).thenReturn(mock(ExecutionGraph.class));
     when(node.getExecutorId()).thenReturn("TextExec");
-    when(node.getDefaultConfig()).thenReturn(mock(QueryExecutorConfig.class));
+    when(node.getConfig()).thenReturn(mock(QueryExecutorConfig.class));
   }
   
   @SuppressWarnings({ "rawtypes", "unchecked" })

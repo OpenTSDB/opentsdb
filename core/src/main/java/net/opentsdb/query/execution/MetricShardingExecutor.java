@@ -87,20 +87,20 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
   @SuppressWarnings("unchecked")
   public MetricShardingExecutor(final ExecutionGraphNode node) {
     super(node);
-    if (node.getDefaultConfig() == null) {
+    if (node.getConfig() == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    if (((Config) node.getDefaultConfig()).parallel_executors < 1) {
+    if (((Config) node.getConfig()).parallel_executors < 1) {
       throw new IllegalArgumentException("Parallel executors must be one or "
           + "greater.");
     }
-    default_parallel_executors = ((Config) node.getDefaultConfig()).parallel_executors;
+    default_parallel_executors = ((Config) node.getConfig()).parallel_executors;
     default_data_merger = (DataMerger<T>) ((DefaultRegistry) node.graph().tsdb()
         .getRegistry()).getDataMerger(
-            ((Config) node.getDefaultConfig()).merge_strategy);
+            ((Config) node.getConfig()).merge_strategy);
     if (default_data_merger == null) {
       throw new IllegalArgumentException("No data merger found for: " 
-          + ((Config) node.getDefaultConfig()).merge_strategy);
+          + ((Config) node.getConfig()).merge_strategy);
     }
     
     executor = (QueryExecutor<T>) node.graph()

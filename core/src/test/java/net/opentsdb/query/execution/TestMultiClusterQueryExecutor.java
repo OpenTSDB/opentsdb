@@ -130,7 +130,7 @@ public class TestMultiClusterQueryExecutor extends BaseExecutorTest {
       }
     });
     when(node.graph()).thenReturn(graph);
-    when(node.getDefaultConfig()).thenReturn(config);
+    when(node.getConfig()).thenReturn(config);
     when(factory.newExecutor(any(ExecutionGraphNode.class)))
       .thenAnswer(new Answer<QueryExecutor<?>>() {
       @Override
@@ -176,7 +176,7 @@ public class TestMultiClusterQueryExecutor extends BaseExecutorTest {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
 
-    when(node.getDefaultConfig()).thenReturn(null);
+    when(node.getConfig()).thenReturn(null);
     try {
       new MultiClusterQueryExecutor<Long>(node);
       fail("Expected IllegalArgumentException");
@@ -187,7 +187,7 @@ public class TestMultiClusterQueryExecutor extends BaseExecutorTest {
         .setExecutorId("UT Executor")
         .setExecutorType("MultiClusterQueryExecutor")
         .build();
-    when(node.getDefaultConfig()).thenReturn(config);
+    when(node.getConfig()).thenReturn(config);
     try {
       new MultiClusterQueryExecutor<Long>(node);
       fail("Expected IllegalArgumentException");
@@ -198,7 +198,7 @@ public class TestMultiClusterQueryExecutor extends BaseExecutorTest {
         .setExecutorId("UT Executor")
         .setExecutorType("MultiClusterQueryExecutor")
         .build();
-    when(node.getDefaultConfig()).thenReturn(config);
+    when(node.getConfig()).thenReturn(config);
     try {
       new MultiClusterQueryExecutor<Long>(node);
       fail("Expected IllegalArgumentException");
@@ -209,7 +209,7 @@ public class TestMultiClusterQueryExecutor extends BaseExecutorTest {
         .setExecutorId("UT Executor")
         .setExecutorType("MultiClusterQueryExecutor")
         .build();
-    when(node.getDefaultConfig()).thenReturn(config);
+    when(node.getConfig()).thenReturn(config);
     when(registry.getClusterConfig("Default")).thenReturn(null);
     try {
       new MultiClusterQueryExecutor<Long>(node);
@@ -222,7 +222,7 @@ public class TestMultiClusterQueryExecutor extends BaseExecutorTest {
         .setExecutorId("UT Executor")
         .setExecutorType("MultiClusterQueryExecutor")
         .build();
-    when(node.getDefaultConfig()).thenReturn(config);
+    when(node.getConfig()).thenReturn(config);
     when(registry.getClusterConfig("Default")).thenReturn(cluster_config);
     try {
       new MultiClusterQueryExecutor<Long>(node);
@@ -278,7 +278,7 @@ public class TestMultiClusterQueryExecutor extends BaseExecutorTest {
         .setExecutorId("UT Executor")
         .setExecutorType("MultiClusterQueryExecutor")
         .build();
-    when(node.getDefaultConfig()).thenReturn(config);
+    when(node.getConfig()).thenReturn(config);
     final MultiClusterQueryExecutor<Long> executor = 
         new MultiClusterQueryExecutor<Long>(node);
     
@@ -337,7 +337,7 @@ public class TestMultiClusterQueryExecutor extends BaseExecutorTest {
         .setExecutorId("UT Executor")
         .setExecutorType("MultiClusterQueryExecutor")
         .build();
-    when(node.getDefaultConfig()).thenReturn(config);
+    when(node.getConfig()).thenReturn(config);
     final MultiClusterQueryExecutor<Long> executor = 
         new MultiClusterQueryExecutor<Long>(node);
     
