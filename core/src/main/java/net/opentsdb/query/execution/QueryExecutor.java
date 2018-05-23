@@ -69,7 +69,7 @@ public abstract class QueryExecutor<T> {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
-    if (node.getDefaultConfig() == null) {
+    if (node.getConfig() == null) {
       throw new IllegalArgumentException("Default config cannot be null.");
     }
     if (node.graph() == null) {

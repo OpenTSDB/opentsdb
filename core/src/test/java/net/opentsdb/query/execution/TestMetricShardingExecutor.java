@@ -74,7 +74,7 @@ public class TestMetricShardingExecutor extends BaseExecutorTest {
         .build();
 
     when(node.graph()).thenReturn(graph);
-    when(node.getDefaultConfig()).thenReturn(config);
+    when(node.getConfig()).thenReturn(config);
     when(registry.getDataMerger(anyString()))
       .thenAnswer(new Answer<DataMerger<?>>() {
       @Override
@@ -146,7 +146,7 @@ public class TestMetricShardingExecutor extends BaseExecutorTest {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    when(node.getDefaultConfig()).thenReturn(null);
+    when(node.getConfig()).thenReturn(null);
     try {
       new MetricShardingExecutor<Long>(node);
       fail("Expected IllegalArgumentException");
@@ -157,7 +157,7 @@ public class TestMetricShardingExecutor extends BaseExecutorTest {
         .setExecutorId("UT Executor")
         .setExecutorType("MetricShardingExecutor")
         .build();
-    when(node.getDefaultConfig()).thenReturn(config);
+    when(node.getConfig()).thenReturn(config);
     try {
       new MetricShardingExecutor<Long>(node);
       fail("Expected IllegalArgumentException");
@@ -168,7 +168,7 @@ public class TestMetricShardingExecutor extends BaseExecutorTest {
         .setExecutorId("UT Executor")
         .setExecutorType("MetricShardingExecutor")
         .build();
-    when(node.getDefaultConfig()).thenReturn(config);
+    when(node.getConfig()).thenReturn(config);
     when(graph.getDownstreamExecutor(anyString()))
     .thenAnswer(new Answer<QueryExecutor<?>>() {
     @Override

@@ -114,26 +114,26 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
   @SuppressWarnings("unchecked")
   public TimeSlicedCachingExecutor(final ExecutionGraphNode node) {
     super(node);
-    if (node.getDefaultConfig() == null) {
+    if (node.getConfig() == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
     
     plugin = (QueryCachePlugin) 
         node.graph().tsdb().getRegistry().getPlugin(
             QueryCachePlugin.class, 
-            ((Config) node.getDefaultConfig()).cache_id);
+            ((Config) node.getConfig()).cache_id);
     if (plugin == null) {
       throw new IllegalArgumentException("Unable to find a caching plugin "
-          + "for ID: " + ((Config) node.getDefaultConfig()).cache_id);
+          + "for ID: " + ((Config) node.getConfig()).cache_id);
     }
     serdes = (TimeSeriesSerdes) ((DefaultRegistry) node.graph().tsdb()
         .getRegistry()).getSerdes(
-            ((Config) node.getDefaultConfig()).serdes_id);
+            ((Config) node.getConfig()).serdes_id);
     if (serdes == null) {
       throw new IllegalArgumentException("Unable to find a serdes implementation "
-          + "for ID: " + ((Config) node.getDefaultConfig()).serdes_id);
+          + "for ID: " + ((Config) node.getConfig()).serdes_id);
     }
-    if (Strings.isNullOrEmpty(((Config) node.getDefaultConfig()).getPlannerId())) {
+    if (Strings.isNullOrEmpty(((Config) node.getConfig()).getPlannerId())) {
       throw new IllegalArgumentException("Default planner ID must be non-empty.");
     }
     executor = (QueryExecutor<T>) node.graph()
@@ -145,10 +145,10 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
     key_generator = (TimeSeriesCacheKeyGenerator) 
         node.graph().tsdb().getRegistry().getPlugin(
             TimeSeriesCacheKeyGenerator.class, 
-            ((Config) node.getDefaultConfig()).getKeyGeneratorId());
+            ((Config) node.getConfig()).getKeyGeneratorId());
     if (key_generator == null) {
       throw new IllegalArgumentException("Unable to find a key generator "
-          + "for ID: " + ((Config) node.getDefaultConfig()).getKeyGeneratorId());
+          + "for ID: " + ((Config) node.getConfig()).getKeyGeneratorId());
     }
   }
 
@@ -202,11 +202,11 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
       if (override != null) {
         config = (Config) override;
       } else {
-        config = (Config) node.getDefaultConfig();
+        config = (Config) node.getConfig();
       }
       
       final String plan_id = Strings.isNullOrEmpty(config.getPlannerId()) ? 
-          ((Config) node.getDefaultConfig()).getPlannerId() : config.getPlannerId();
+          ((Config) node.getConfig()).getPlannerId() : config.getPlannerId();
       final QueryPlannnerFactory<?> plan_factory = ((DefaultRegistry) context.getTSDB().getRegistry())
           .getQueryPlanner(plan_id);
       if (plan_factory == null) {

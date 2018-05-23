@@ -125,7 +125,7 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
         return null;
       }
     }).when(cleanup_pool).execute(any(Runnable.class));
-    when(node.getDefaultConfig()).thenReturn(config);
+    when(node.getConfig()).thenReturn(config);
     when(node.graph()).thenReturn(graph);
     when(context.getSessionObject(HttpQueryV2Executor.SESSION_HEADERS_KEY))
       .thenReturn(headers);
@@ -188,7 +188,7 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    when(node.getDefaultConfig()).thenReturn(null);
+    when(node.getConfig()).thenReturn(null);
     try {
       new HttpQueryV2Executor(node);
       fail("Expected IllegalArgumentException");
@@ -199,7 +199,7 @@ public class TestHttpQueryV2Executor extends BaseExecutorTest {
         .setExecutorId("Http")
         .setExecutorType("HttpQueryV2Executor")
         .build();
-    when(node.getDefaultConfig()).thenReturn(config);
+    when(node.getConfig()).thenReturn(config);
     new HttpQueryV2Executor(node);
   }
 

@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2017  The OpenTSDB Authors.
+// Copyright (C) 2017-2018  The OpenTSDB Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,8 +36,7 @@ public class TestExecutionGraphNode {
         .setExecutorId("TestNode")
         .setExecutorType("TimedQueryExecutor")
         .setUpstream("UpstreamNode")
-        .setDataType("Long")
-        .setDefaultConfig(TimedQueryExecutor.Config.newBuilder()
+        .setConfig(TimedQueryExecutor.Config.newBuilder()
             .setTimeout(60000)
             .setExecutorType("TimedQueryExecutor")
             .setExecutorId("TestNode")
@@ -47,30 +46,27 @@ public class TestExecutionGraphNode {
     assertEquals("TestNode", node.getExecutorId());
     assertEquals("TimedQueryExecutor", node.getExecutorType());
     assertEquals("UpstreamNode", node.getUpstream());
-    assertEquals("Long", node.getDataType());
     assertEquals(TimedQueryExecutor.Config.class, 
-        node.getDefaultConfig().getClass());
+        node.getConfig().getClass());
     assertNotNull(node.toString());
     
     String json = "{\"upstream\":\"UpstreamNode\",\"executorId\":\"TestNode\","
-        + "\"executorType\":\"TimedQueryExecutor\",\"dataType\":\"Long\","
-        + "\"defaultConfig\":{\"executorType\":\"TimedQueryExecutor\","
+        + "\"executorType\":\"TimedQueryExecutor\","
+        + "\"config\":{\"executorType\":\"TimedQueryExecutor\","
         + "\"timeout\":60000,\"executorId\":\"TestNode\"}}";
     node = JSON.parseToObject(json, ExecutionGraphNode.class);
     
     assertEquals("TestNode", node.getExecutorId());
     assertEquals("TimedQueryExecutor", node.getExecutorType());
     assertEquals("UpstreamNode", node.getUpstream());
-    assertEquals("Long", node.getDataType());
     assertEquals(TimedQueryExecutor.Config.class, 
-        node.getDefaultConfig().getClass());
+        node.getConfig().getClass());
     
     json = JSON.serializeToString(node);
     assertTrue(json.contains("\"executorId\":\"TestNode\""));
     assertTrue(json.contains("\"upstream\":\"UpstreamNode\""));
     assertTrue(json.contains("\"executorType\":\"TimedQueryExecutor\""));
-    assertTrue(json.contains("\"dataType\":\"Long\""));
-    assertTrue(json.contains("\"defaultConfig\":{"));
+    assertTrue(json.contains("\"config\":{"));
     
     // minimum reqs
     node = ExecutionGraphNode.newBuilder()
@@ -80,15 +76,13 @@ public class TestExecutionGraphNode {
     assertEquals("TestNode", node.getExecutorId());
     assertEquals("TimedQueryExecutor", node.getExecutorType());
     assertNull(node.getUpstream());
-    assertNull(node.getDataType());
-    assertNull(node.getDefaultConfig());
+    assertNull(node.getConfig());
     assertNotNull(node.toString());
     
     json = JSON.serializeToString(node);
     assertTrue(json.contains("\"executorId\":\"TestNode\""));
     assertFalse(json.contains("\"upstream\":\"UpstreamNode\""));
     assertTrue(json.contains("\"executorType\":\"TimedQueryExecutor\""));
-    assertFalse(json.contains("\"dataType\":\"Long\""));
     assertFalse(json.contains("\"defaultConfig\":{"));
     
     json = "{\"executorId\":\"TestNode\",\"executorType\":"
@@ -97,8 +91,7 @@ public class TestExecutionGraphNode {
     assertEquals("TestNode", node.getExecutorId());
     assertEquals("TimedQueryExecutor", node.getExecutorType());
     assertNull(node.getUpstream());
-    assertNull(node.getDataType());
-    assertNull(node.getDefaultConfig());
+    assertNull(node.getConfig());
     assertNotNull(node.toString());
     
     // clone
@@ -107,8 +100,7 @@ public class TestExecutionGraphNode {
     assertEquals("TestNode", clone.getExecutorId());
     assertEquals("TimedQueryExecutor", clone.getExecutorType());
     assertNull(clone.getUpstream());
-    assertNull(clone.getDataType());
-    assertNull(clone.getDefaultConfig());
+    assertNull(clone.getConfig());
     assertNotNull(clone.toString());
     
     // missing args
@@ -182,8 +174,7 @@ public class TestExecutionGraphNode {
         .setExecutorId("TestNode")
         .setExecutorType("TimedQueryExecutor")
         .setUpstream("UpstreamNode")
-        .setDataType("Long")
-        .setDefaultConfig(TimedQueryExecutor.Config.newBuilder()
+        .setConfig(TimedQueryExecutor.Config.newBuilder()
             .setTimeout(60000)
             .setExecutorId("TestNode")
             .setExecutorType("TimedQueryExecutor")
@@ -194,8 +185,7 @@ public class TestExecutionGraphNode {
         .setExecutorId("TestNode")
         .setExecutorType("TimedQueryExecutor")
         .setUpstream("UpstreamNode")
-        .setDataType("Long")
-        .setDefaultConfig(TimedQueryExecutor.Config.newBuilder()
+        .setConfig(TimedQueryExecutor.Config.newBuilder()
             .setTimeout(60000)
             .setExecutorId("TestNode")
             .setExecutorType("TimedQueryExecutor")
@@ -209,8 +199,7 @@ public class TestExecutionGraphNode {
         .setExecutorId("Foo")  // <-- Diff
         .setExecutorType("TimedQueryExecutor")
         .setUpstream("UpstreamNode")
-        .setDataType("Long")
-        .setDefaultConfig(TimedQueryExecutor.Config.newBuilder()
+        .setConfig(TimedQueryExecutor.Config.newBuilder()
             .setTimeout(60000)
             .setExecutorId("TestNode")
             .setExecutorType("TimedQueryExecutor")
@@ -224,8 +213,7 @@ public class TestExecutionGraphNode {
         .setExecutorId("TestNode")
         .setExecutorType("Another Type")  // <-- Diff
         .setUpstream("UpstreamNode")
-        .setDataType("Long")
-        .setDefaultConfig(TimedQueryExecutor.Config.newBuilder()
+        .setConfig(TimedQueryExecutor.Config.newBuilder()
             .setTimeout(60000)
             .setExecutorId("TestNode")
             .setExecutorType("TimedQueryExecutor")
@@ -239,8 +227,7 @@ public class TestExecutionGraphNode {
         .setExecutorId("TestNode")
         .setExecutorType("TimedQueryExecutor")
         .setUpstream("DiffNode")  // <-- Diff
-        .setDataType("Long")
-        .setDefaultConfig(TimedQueryExecutor.Config.newBuilder()
+        .setConfig(TimedQueryExecutor.Config.newBuilder()
             .setTimeout(60000)
             .setExecutorId("TestNode")
             .setExecutorType("TimedQueryExecutor")
@@ -254,8 +241,7 @@ public class TestExecutionGraphNode {
         .setExecutorId("TestNode")
         .setExecutorType("TimedQueryExecutor")
         //.setUpstream("UpstreamNode")  // <-- Diff
-        .setDataType("Long")
-        .setDefaultConfig(TimedQueryExecutor.Config.newBuilder()
+        .setConfig(TimedQueryExecutor.Config.newBuilder()
             .setTimeout(60000)
             .setExecutorId("TestNode")
             .setExecutorType("TimedQueryExecutor")
@@ -269,38 +255,7 @@ public class TestExecutionGraphNode {
         .setExecutorId("TestNode")
         .setExecutorType("TimedQueryExecutor")
         .setUpstream("UpstreamNode")
-        .setDataType("String")  // <-- Diff
-        .setDefaultConfig(TimedQueryExecutor.Config.newBuilder()
-            .setTimeout(60000)
-            .setExecutorId("TestNode")
-            .setExecutorType("TimedQueryExecutor")
-            .build())
-        .build();
-    assertNotEquals(n1.hashCode(), n2.hashCode());
-    assertNotEquals(n1, n2);
-    assertEquals(-1, n1.compareTo(n2));
-    
-    n2 = ExecutionGraphNode.newBuilder()
-        .setExecutorId("TestNode")
-        .setExecutorType("TimedQueryExecutor")
-        .setUpstream("UpstreamNode")
-        //.setDataType("Long")  // <-- Diff
-        .setDefaultConfig(TimedQueryExecutor.Config.newBuilder()
-            .setTimeout(60000)
-            .setExecutorId("TestNode")
-            .setExecutorType("TimedQueryExecutor")
-            .build())
-        .build();
-    assertNotEquals(n1.hashCode(), n2.hashCode());
-    assertNotEquals(n1, n2);
-    assertEquals(1, n1.compareTo(n2));
-    
-    n2 = ExecutionGraphNode.newBuilder()
-        .setExecutorId("TestNode")
-        .setExecutorType("TimedQueryExecutor")
-        .setUpstream("UpstreamNode")
-        .setDataType("Long")
-        .setDefaultConfig(TimedQueryExecutor.Config.newBuilder()
+        .setConfig(TimedQueryExecutor.Config.newBuilder()
             .setTimeout(30000)  // <-- Diff
             .setExecutorId("TestNode")
             .setExecutorType("TimedQueryExecutor")
@@ -314,7 +269,6 @@ public class TestExecutionGraphNode {
         .setExecutorId("TestNode")
         .setExecutorType("TimedQueryExecutor")
         .setUpstream("UpstreamNode")
-        .setDataType("Long")
         //.setDefaultConfig(TimedQueryExecutor.Config.newBuilder()  // <-- Diff
         //    .setTimeout(60000)
         //.setExecutorId("TestNode")

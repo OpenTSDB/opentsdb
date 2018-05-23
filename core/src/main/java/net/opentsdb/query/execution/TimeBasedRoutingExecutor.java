@@ -118,18 +118,18 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
    */
   public TimeBasedRoutingExecutor(final ExecutionGraphNode node) {
     super(node);
-    if (node.getDefaultConfig() == null) {
+    if (node.getConfig() == null) {
       throw new IllegalArgumentException("Default config cannot be null.");
     }
     if (node.graph() == null) {
       throw new IllegalStateException("Execution graph cannot be null.");
     }
-    if (Strings.isNullOrEmpty(((Config) node.getDefaultConfig()).getPlannerId())) {
+    if (Strings.isNullOrEmpty(((Config) node.getConfig()).getPlannerId())) {
       throw new IllegalArgumentException("Default planner ID must be non-empty.");
     }
     executors = Maps.newHashMapWithExpectedSize(
-        ((Config) node.getDefaultConfig()).times.size());
-    for (final TimeRange range : ((Config) node.getDefaultConfig()).times) {
+        ((Config) node.getConfig()).times.size());
+    for (final TimeRange range : ((Config) node.getConfig()).times) {
       @SuppressWarnings("unchecked")
       final QueryExecutor<T> executor = (QueryExecutor<T>) 
           node.graph().getDownstreamExecutor(range.executorId);
@@ -141,8 +141,8 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
       registerDownstreamExecutor(executor);
     }
     
-    caches = ((Config) node.getDefaultConfig()).caches;
-    tsds = ((Config) node.getDefaultConfig()).tsds;
+    caches = ((Config) node.getConfig()).caches;
+    tsds = ((Config) node.getConfig()).tsds;
   }
 
   @Override
@@ -316,11 +316,11 @@ public class TimeBasedRoutingExecutor<T> extends QueryExecutor<T> {
         if (override != null) {
           config = (Config) override;
         } else {
-          config = (Config) node.getDefaultConfig();
+          config = (Config) node.getConfig();
         }
         
         final String plan_id = Strings.isNullOrEmpty(config.getPlannerId()) ? 
-            ((Config) node.getDefaultConfig()).getPlannerId() : config.getPlannerId();
+            ((Config) node.getConfig()).getPlannerId() : config.getPlannerId();
         final QueryPlannnerFactory<?> plan_factory = ((DefaultRegistry) context.getTSDB().getRegistry())
             .getQueryPlanner(plan_id);
         if (plan_factory == null) {

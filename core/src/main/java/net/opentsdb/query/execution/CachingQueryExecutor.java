@@ -91,33 +91,33 @@ public class CachingQueryExecutor implements QuerySourceFactory {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
-    if (node.getDefaultConfig() == null) {
+    if (node.getConfig() == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
     tsdb = node.graph().tsdb();
     plugin = (QueryCachePlugin) 
         node.graph().tsdb().getRegistry().getPlugin(
             QueryCachePlugin.class, 
-            ((Config) node.getDefaultConfig()).cache_id);
+            ((Config) node.getConfig()).cache_id);
     if (plugin == null) {
       throw new IllegalArgumentException("Unable to find a caching plugin "
-          + "for ID: " + ((Config) node.getDefaultConfig()).cache_id);
+          + "for ID: " + ((Config) node.getConfig()).cache_id);
     }
     serdes = (TimeSeriesSerdes) ((DefaultRegistry) node.graph().tsdb()
         .getRegistry()).getSerdes(
-            ((Config) node.getDefaultConfig()).serdes_id);
+            ((Config) node.getConfig()).serdes_id);
     if (serdes == null) {
       throw new IllegalArgumentException("Unable to find a serdes implementation "
-          + "for ID: " + ((Config) node.getDefaultConfig()).serdes_id);
+          + "for ID: " + ((Config) node.getConfig()).serdes_id);
     }
     
     key_generator = (TimeSeriesCacheKeyGenerator) 
         node.graph().tsdb().getRegistry().getPlugin(
             TimeSeriesCacheKeyGenerator.class, 
-            ((Config) node.getDefaultConfig()).getKeyGeneratorId());
+            ((Config) node.getConfig()).getKeyGeneratorId());
     if (key_generator == null) {
       throw new IllegalArgumentException("Unable to find a key generator "
-          + "for ID: " + ((Config) node.getDefaultConfig()).getKeyGeneratorId());
+          + "for ID: " + ((Config) node.getConfig()).getKeyGeneratorId());
     }
   }
 
