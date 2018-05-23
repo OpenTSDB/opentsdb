@@ -69,17 +69,17 @@ public class TimedQueryExecutor<T> extends QueryExecutor<T> {
   @SuppressWarnings("unchecked")
   public TimedQueryExecutor(final ExecutionGraphNode node) {
     super(node);
-    if (node.getDefaultConfig() == null) {
+    if (node.getConfig() == null) {
       throw new IllegalArgumentException("Default config cannot be null.");
     }
     if (node.graph() == null) {
       throw new IllegalStateException("Execution graph cannot be null.");
     }
-    if (((Config) node.getDefaultConfig()).timeout < 1) {
+    if (((Config) node.getConfig()).timeout < 1) {
       throw new IllegalArgumentException("Default timeout must be greater "
           + "than zero.");
     }
-    default_timeout = ((Config) node.getDefaultConfig()).timeout;
+    default_timeout = ((Config) node.getConfig()).timeout;
     executor = (QueryExecutor<T>) 
         node.graph().getDownstreamExecutor(node.getExecutorId());
     if (executor == null) {

@@ -78,7 +78,7 @@ public class TestTimedQueryExecutor extends BaseExecutorTest {
     node = ExecutionGraphNode.newBuilder()
         .setExecutorId("UTExecutor")
         .setExecutorType("TimedQueryExecutor")
-        .setDefaultConfig(config)
+        .setConfig(config)
         .build();
     node.setExecutionGraph(graph);
     
@@ -127,7 +127,7 @@ public class TestTimedQueryExecutor extends BaseExecutorTest {
       node = ExecutionGraphNode.newBuilder()
           .setExecutorId("UTExecutor")
           .setExecutorType("TimedQueryExecutor")
-          .setDefaultConfig(config)
+          .setConfig(config)
           .build();
       node.setExecutionGraph(graph);
       when(graph.getDownstreamExecutor(anyString()))

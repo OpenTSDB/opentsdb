@@ -45,6 +45,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.core.DefaultTSDB;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.execution.QueryExecutor;
 import net.opentsdb.query.execution.QueryExecutorFactory;
 
@@ -126,18 +127,18 @@ public class ExecutionGraph implements Comparable<ExecutionGraph> {
   /**
    * Initializes the graph as per the config, looking for factories and 
    * instantiating executors.
-   * @param tsdb2 A non-null TSDB to pull factories from.
+   * @param tsdb A non-null TSDB to pull factories from.
    * @param id_prefix An optional prefix to use if this graph belongs to an
    * executor such as a cluster executor.
    * @return A deferred to wait on for initialization to complete. May return
    * an exception if the graph does not conform to specs.
    * @throws IllegalArgumentException if the TSDB was null.
    */
-  public Deferred<Object> initialize(final TSDB tsdb2, final String id_prefix) {
-    if (tsdb2 == null) {
+  public Deferred<Object> initialize(final TSDB tsdb, final String id_prefix) {
+    if (tsdb == null) {
       throw new IllegalArgumentException("TSDB cannot be null.");
     }
-    this.tsdb = tsdb2;
+    this.tsdb = tsdb;
     try {
       final Map<String, ExecutionGraphNode> map = 
           Maps.newHashMapWithExpectedSize(nodes.size());

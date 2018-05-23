@@ -103,19 +103,19 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
   @SuppressWarnings("unchecked")
   public MultiClusterQueryExecutor(final ExecutionGraphNode node) {
     super(node);
-    if (node.getDefaultConfig() == null) {
+    if (node.getConfig() == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    if (Strings.isNullOrEmpty(((Config) node.getDefaultConfig()).cluster_config)) {
+    if (Strings.isNullOrEmpty(((Config) node.getConfig()).cluster_config)) {
       throw new IllegalArgumentException("Cluster config cannot be null.");
     }
     cluster_graph = ((DefaultRegistry) node.graph().tsdb().getRegistry()).getClusterConfig(
-        ((Config) node.getDefaultConfig()).cluster_config);
+        ((Config) node.getConfig()).cluster_config);
     if (cluster_graph == null) {
       throw new IllegalArgumentException("No cluster found for: " 
-          + ((Config) node.getDefaultConfig()).cluster_config);
+          + ((Config) node.getConfig()).cluster_config);
     }
-    if (((Config) node.getDefaultConfig()).timeout < 0) {
+    if (((Config) node.getConfig()).timeout < 0) {
       throw new IllegalArgumentException("Timeout cannot be negative.");
     }
     if (cluster_graph.clusters().isEmpty()) {
@@ -135,13 +135,13 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
         LOG.debug("Instantiated executor sink for cluster: " + cluster_id);
       }
     }
-    default_timeout = ((Config) node.getDefaultConfig()).timeout;
+    default_timeout = ((Config) node.getConfig()).timeout;
     default_data_merger = (DataMerger<T>) ((DefaultRegistry) node.graph().tsdb()
         .getRegistry()).getDataMerger(
-            ((Config) node.getDefaultConfig()).merge_strategy);
+            ((Config) node.getConfig()).merge_strategy);
     if (default_data_merger == null) {
       throw new IllegalArgumentException("No data merger found for: " 
-          + ((Config) node.getDefaultConfig()).merge_strategy);
+          + ((Config) node.getConfig()).merge_strategy);
     }
   }
 
@@ -214,7 +214,7 @@ public class MultiClusterQueryExecutor<T> extends QueryExecutor<T> {
       if (override != null) {
         config = override;
       } else {
-        config = node.getDefaultConfig();
+        config = node.getConfig();
       }
       clusters = cluster_graph.setupQuery(context, 
           ((Config) config).cluster_override);
