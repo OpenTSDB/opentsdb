@@ -5,7 +5,7 @@
     <parent>
       <groupId>net.opentsdb</groupId>
       <artifactId>opentsdb</artifactId>
-      <version>3.0.84-SNAPSHOT</version>
+      <version>3.0.85-SNAPSHOT</version>
       <relativePath>../pom.xml</relativePath>
     </parent>
     
