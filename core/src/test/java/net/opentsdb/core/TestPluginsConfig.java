@@ -16,6 +16,7 @@ package net.opentsdb.core;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -70,36 +71,42 @@ public class TestPluginsConfig {
   @Test
   public void serdes() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean");
+    PluginConfig c = PluginConfig.newBuilder()
+      .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+      .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockB");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockB")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config = new PluginsConfig();
@@ -107,6 +114,7 @@ public class TestPluginsConfig {
     config.setConfigs(configs);
     
     String json = JSON.serializeToString(config);
+    System.out.println("JSON: " + json);
     assertTrue(json.contains("\"configs\":[{"));
     assertTrue(json.contains("\"type\":\"net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean\""));
     assertTrue(json.contains("\"plugin\":\"net.opentsdb.core.TestPluginsConfig$MockPluginA\""));
@@ -115,9 +123,11 @@ public class TestPluginsConfig {
     assertTrue(json.contains("\"id\":\"MockB\""));
     assertTrue(json.contains("\"continueOnError\":false"));
     assertTrue(json.contains("\"shutdownReverse\":true"));
-    assertTrue(json.contains("\"default\":true"));
+    assertTrue(json.contains("\"isDefault\":true"));
     assertTrue(json.contains("\"pluginLocations\":["));
     assertTrue(json.contains("\"nosuch.jar"));
+    assertTrue(json.contains("\"loadDefaultTypes\":true"));
+    assertTrue(json.contains("\"loadDefaultInstances\":true"));
     
     json = "{\"configs\":[{\"comment\":\"ignored\",\"type\":\""
         + "net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean\"},{\"plugin\":"
@@ -128,55 +138,64 @@ public class TestPluginsConfig {
         + ",{\"type\":\"net.opentsdb.core.TestPluginsConfig$MockPluginBase\"},"
         + "{\"plugin\":\"net.opentsdb.core.TestPluginsConfig$MockPluginA\","
         + "\"type\":\"net.opentsdb.core.TestPluginsConfig$MockPluginBase\","
-        + "\"default\":true},{\"plugin\":"
+        + "\"isDefault\":true},{\"plugin\":"
         + "\"net.opentsdb.core.TestPluginsConfig$MockPluginC\",\"type\":"
         + "\"net.opentsdb.core.TestPluginsConfig$MockPluginBase\",\"default\":true}],"
         + "\"pluginLocations\":[\"/tmp\"],"
-        + "\"continueOnError\":false,\"shutdownReverse\":true}";
+        + "\"continueOnError\":false,\"shutdownReverse\":true,"
+        + "\"loadDefaultTypes\":false,\"loadDefaultInstances\":false}";
     
     config = JSON.parseToObject(json, PluginsConfig.class);
     
     assertEquals(6, config.getConfigs().size());
     assertFalse(config.getContinueOnError());
     assertTrue(config.getShutdownReverse());
-    assertTrue(config.getConfigs().get(4).isDefault());
+    assertTrue(config.getConfigs().get(4).getIsDefault());
     assertEquals(1, config.getPluginLocations().size());
     assertEquals("/tmp", config.getPluginLocations().get(0));
+    assertFalse(config.getLoadDefaultInstances());
+    assertFalse(config.getLoadDefaultTypes());
   }
 
   @Test
   public void validateOK() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockB");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockB")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("GonnaThrow");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("GonnaThrow")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -187,36 +206,42 @@ public class TestPluginsConfig {
   @Test (expected = IllegalArgumentException.class)
   public void validateDuplicateID() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockTest"); // <-- BAD
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockTest") // <-- BAD
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("GonnaThrow");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("GonnaThrow")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -227,36 +252,42 @@ public class TestPluginsConfig {
   @Test
   public void validateDuplicateIDDiffType() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginCleanA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean");  // <-- OK
+    c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginCleanA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")  // <-- OK
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("GonnaThrow");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("GonnaThrow")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -267,36 +298,42 @@ public class TestPluginsConfig {
   @Test (expected = IllegalArgumentException.class)
   public void validateSpecificNullID() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    //c.setId("MockTest"); // <-- BAD
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        //.setId("MockTest") // <-- BAD
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("GonnaThrow");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("GonnaThrow")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -307,36 +344,42 @@ public class TestPluginsConfig {
   @Test (expected = IllegalArgumentException.class)
   public void validateSpecificEmptyID() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId(""); // <-- BAD
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("") // <-- BAD
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("GonnaThrow");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("GonnaThrow")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -347,37 +390,43 @@ public class TestPluginsConfig {
   @Test (expected = IllegalArgumentException.class)
   public void validateDefaultHasId() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockB");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockB")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setId("NotAllowed"); // <-- BAD
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setId("NotAllowed") // <-- BAD
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("GonnaThrow");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("GonnaThrow")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -388,36 +437,42 @@ public class TestPluginsConfig {
   @Test (expected = IllegalArgumentException.class)
   public void validateMultipleDefaults() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockB");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockB")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -476,25 +531,56 @@ public class TestPluginsConfig {
   }
   
   @Test
+  public void initializeNoDefaultImplementationsFound() throws Exception {
+    try {
+      config.initialize(tsdb).join(1);
+      fail("Expected PluginLoadException");
+    } catch (PluginLoadException e) { }
+  }
+  
+  @Test
   public void initializeNullList() throws Exception {
+    config.setLoadDefaultInstances(false);
     assertNull(config.initialize(tsdb).join(1));
+    assertEquals(PluginsConfig.DEFAULT_TYPES.size(), config.configs.size());
+  }
+  
+  @Test
+  public void initializeNullListNoDefaults() throws Exception {
+    config.setLoadDefaultTypes(false);
+    config.setLoadDefaultInstances(false);
+    assertNull(config.initialize(tsdb).join(1));
+    assertNull(config.configs);
   }
   
   @Test
   public void initializeEmptyList() throws Exception {
     config.setConfigs(Lists.<PluginConfig>newArrayList());
+    config.setLoadDefaultInstances(false);
     assertNull(config.initialize(tsdb).join(1));
+    assertEquals(PluginsConfig.DEFAULT_TYPES.size(), config.configs.size());
+  }
+  
+  @Test
+  public void initializeEmptyListNoDefaults() throws Exception {
+    config.setConfigs(Lists.<PluginConfig>newArrayList());
+    config.setLoadDefaultTypes(false);
+    config.setLoadDefaultInstances(false);
+    assertNull(config.initialize(tsdb).join(1));
+    assertTrue(config.configs.isEmpty());
   }
   
   @Test
   public void initializeSingleWithId() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
+    config.setLoadDefaultInstances(false);
     config.setConfigs(configs);
     
     assertNull(config.initialize(tsdb).join(1));
@@ -510,13 +596,15 @@ public class TestPluginsConfig {
   @Test
   public void initializeSingleDefault() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
+    config.setLoadDefaultInstances(false);
     
     assertNull(config.initialize(tsdb).join(1));
     
@@ -531,10 +619,11 @@ public class TestPluginsConfig {
   @Test
   public void initializeSingleCtorException() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -554,10 +643,11 @@ public class TestPluginsConfig {
   @Test
   public void initializeSingleInitException() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -577,10 +667,11 @@ public class TestPluginsConfig {
   @Test
   public void initializeSingleInitExceptionContinueOnError() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -596,10 +687,11 @@ public class TestPluginsConfig {
   @Test
   public void initializeSingleNoSuchPlugin() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginD");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginD")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -616,10 +708,11 @@ public class TestPluginsConfig {
   @Test
   public void initializeSingleNoSuchType() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$NoSuchMockPluginBase");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$NoSuchMockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -636,24 +729,28 @@ public class TestPluginsConfig {
   @Test
   public void initializeSinglesChain() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("DifferentID");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("DifferentID")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
+    config.setLoadDefaultInstances(false);
     config.setConfigs(configs);
     
     assertNull(config.initialize(tsdb).join(1));
@@ -679,22 +776,25 @@ public class TestPluginsConfig {
   @Test
   public void initializeSinglesChainExceptionInMiddle() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("ThrowingException");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("ThrowingException")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -721,22 +821,25 @@ public class TestPluginsConfig {
   @Test
   public void initializeSinglesChainExceptionInMiddleContinue() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("ThrowingException");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("ThrowingException")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -762,10 +865,11 @@ public class TestPluginsConfig {
   @Test
   public void initializeSingleWrongType() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseWrongType");
+    PluginConfig c = PluginConfig.newBuilder()
+       .setId("MockTest")
+       .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+       .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseWrongType")
+       .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -783,12 +887,34 @@ public class TestPluginsConfig {
   }
   
   @Test
-  public void initializeManyOfType() throws Exception {
+  public void initializeDupeTypesWithDefault() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.query.QueryInterpolatorFactory")
+        .build();
     configs.add(c);
     
+    c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.uid.UniqueIdFactory")
+        .build();
+    configs.add(c);
+    
+    config.setConfigs(configs);
+    config.setLoadDefaultInstances(false);
+    
+    assertNull(config.initialize(tsdb).join(1));
+    assertEquals(PluginsConfig.DEFAULT_TYPES.size(), config.configs.size());
+  }
+  
+  @Test
+  public void initializeManyOfType() throws Exception {
+    final List<PluginConfig> configs = Lists.newArrayList();
+    PluginConfig c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .build();
+    configs.add(c);
+    
+    config.setLoadDefaultInstances(false);
     config.setConfigs(configs);
     
     assertNull(config.initialize(tsdb).join(1));
@@ -808,8 +934,9 @@ public class TestPluginsConfig {
   @Test
   public void initializeManyOfTypeExceptionInInitOrCtor() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -836,8 +963,9 @@ public class TestPluginsConfig {
   @Test
   public void initializeManyOfTypeExceptionInInitOrCtorContinue() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -860,12 +988,14 @@ public class TestPluginsConfig {
   @Test
   public void initializeManyOfTypeChainWithException() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
 
@@ -904,12 +1034,14 @@ public class TestPluginsConfig {
   @Test
   public void initializeManyOfTypeChainWithExceptionContinue() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -943,36 +1075,42 @@ public class TestPluginsConfig {
   @Test
   public void initializeMixChain() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockB");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockB")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
     config.setConfigs(configs);
@@ -1019,39 +1157,44 @@ public class TestPluginsConfig {
   @Test
   public void initializeMixChainContinue() throws Exception {
     final List<PluginConfig> configs = Lists.newArrayList();
-    PluginConfig c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean");
+    PluginConfig c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockTest");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockTest")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setId("MockB");
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setId("MockB")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginB")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginA")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-    c = new PluginConfig();
-    c.setDefault(true);
-    c.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC");
-    c.setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase");
+    c = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginC")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBase")
+        .build();
     configs.add(c);
     
-
     config.setConfigs(configs);
     config.setContinueOnError(true);
     
@@ -1150,6 +1293,65 @@ public class TestPluginsConfig {
     assertEquals(0, ((MockPluginCleanB) config.instantiatedPlugins().get(2)).order);
     assertEquals(1, ((MockPluginB) config.instantiatedPlugins().get(1)).order);
     assertEquals(2, ((MockPluginA) config.instantiatedPlugins().get(0)).order);
+  }
+  
+  @Test
+  public void pluginConfigEquals() throws Exception {
+    PluginConfig c1 = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setId("MyPlugin")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginBaseCleanA")
+        .build();
+    PluginConfig c2 = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setId("MyPlugin")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginBaseCleanA")
+        .build();
+    
+    assertEquals(c1, c2);
+    assertFalse(c1.equals(null));
+    
+    c2 = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setId("MyPlugin2") // diff
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginBaseCleanA")
+        .build();
+    assertNotEquals(c1, c2);
+    
+    c2 = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        //.setId("MyPlugin") // diff
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginBaseCleanA")
+        .build();
+    assertNotEquals(c1, c2);
+    
+    c2 = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setId("MyPlugin")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseCleanA") // diff
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginBaseCleanA")
+        .build();
+    assertNotEquals(c1, c2);
+    
+    c2 = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setId("MyPlugin")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        .setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginBaseCleanB") // diff
+        .build();
+    assertNotEquals(c1, c2);
+    
+    c2 = PluginConfig.newBuilder()
+        .setIsDefault(true)
+        .setId("MyPlugin")
+        .setType("net.opentsdb.core.TestPluginsConfig$MockPluginBaseClean")
+        //.setPlugin("net.opentsdb.core.TestPluginsConfig$MockPluginBaseCleanA") // diff
+        .build();
+    assertNotEquals(c1, c2);
   }
   
   /** -------- MOCKS ---------- **/

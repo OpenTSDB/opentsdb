@@ -17,6 +17,8 @@ package net.opentsdb.core;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -24,7 +26,9 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -96,17 +100,54 @@ public class PluginsConfig extends Validatable {
   /** The key used for finding the plugin directory. */
   public static final String PLUGIN_PATH_KEY = "tsd.core.plugin_path";
   
+  public static final List<String> DEFAULT_TYPES = Lists.newArrayList();
+  static {
+    DEFAULT_TYPES.add("net.opentsdb.stats.StatsCollector");
+    DEFAULT_TYPES.add("net.opentsdb.query.QueryInterpolatorFactory");
+    DEFAULT_TYPES.add("net.opentsdb.uid.UniqueIdFactory");
+    DEFAULT_TYPES.add("net.opentsdb.query.serdes.TimeSeriesSerdes");
+    DEFAULT_TYPES.add("net.opentsdb.query.execution.QueryExecutorFactory");
+    DEFAULT_TYPES.add("net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStoreFactory");
+    DEFAULT_TYPES.add("net.opentsdb.storage.TimeSeriesDataStoreFactory");
+  }
+  
+  public static final Map<String, String> DEFAULT_IMPLEMENTATIONS = 
+      Maps.newHashMap();
+  static {
+    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.storage.TimeSeriesDataStoreFactory", 
+        "net.opentsdb.storage.schemas.tsdb1x.SchemaFactory");
+    DEFAULT_IMPLEMENTATIONS.put(
+        "net.opentsdb.storage.schemas.tsdb1x.Tsdb1xDataStoreFactory", 
+        "net.opentsdb.storage.Tsdb1xHBaseFactory");
+    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.query.serdes.TimeSeriesSerdes", 
+        "net.opentsdb.query.serdes.PBufSerdes");
+    DEFAULT_IMPLEMENTATIONS.put("net.opentsdb.stats.Tracer", 
+        "net.opentsdb.stats.BraveTracer");
+  }
+  
   /** The list of plugin configs. */
-  private List<PluginConfig> configs;
+  protected List<PluginConfig> configs;
   
   /** A list of plugin locations. */
-  private List<String> plugin_locations;
+  protected List<String> plugin_locations;
   
   /** Whether or not to continue initializing plugins on error. */
   private boolean continue_on_error;
   
   /** Whether or not to shutdown plugins in reverse initialization order. */
   private boolean shutdown_reverse = true;
+  
+  /** Whether or not to load the default types like TimeSeriesSerdes, 
+   * StatsCollector, etc. When true then regardless of the config, these 
+   * default plugins are scanned for and when found, instantiated and 
+   * loaded with their names. None are set as defaults though. Defined in
+   * {@link #getLoadDefaultTypes()} */
+  private boolean load_default_types = true;
+  
+  /** Whether or not to load the default instances defined in 
+   * {@link #getLoadDefaultInstances()}. These would be settings like 
+   * the AsyncHBase data store, Brave tracing, etc. */
+  private boolean load_default_instances = true;
   
   /** The list of configured and instantiated plugins. */
   private List<TSDBPlugin> instantiated_plugins;
@@ -143,6 +184,22 @@ public class PluginsConfig extends Validatable {
     this.shutdown_reverse = shutdown_reverse;
   }
   
+  /** @param load_default_types Whether or not to load the default types 
+   * like TimeSeriesSerdes, StatsCollector, etc. When true then regardless 
+   * of the config, these default plugins are scanned for and when found, 
+   * instantiated and loaded with their names. None are set as defaults 
+   * though. Defined in {@link #getLoadDefaultTypes()}*/
+  public void setLoadDefaultTypes(final boolean load_default_types) {
+    this.load_default_types = load_default_types;
+  }
+  
+  /** @param load_default_instances Whether or not to load the default 
+   * instances defined in {@link #getLoadDefaultInstances()}. These would 
+   * be settings like the AsyncHBase data store, Brave tracing, etc. */
+  public void setLoadDefaultInstances(final boolean load_default_instances) {
+    this.load_default_instances = load_default_instances;
+  }
+  
   /** @return An unmodifiable list of the configs. */
   public List<PluginConfig> getConfigs() {
     return configs == null ? Collections.emptyList() : 
@@ -158,6 +215,22 @@ public class PluginsConfig extends Validatable {
   /** @return Whether or not to shutdown plugins in reverse initialization order. */
   public boolean getShutdownReverse() {
     return shutdown_reverse;
+  }
+  
+  /** @return Whether or not to load the default types like 
+   * TimeSeriesSerdes, StatsCollector, etc. When true then regardless 
+   * of the config, these default plugins are scanned for and when found, 
+   * instantiated and loaded with their names. None are set as defaults 
+   * though. Defined in {@link #getLoadDefaultTypes()}*/
+  public boolean getLoadDefaultTypes() {
+    return load_default_types;
+  }
+  
+  /** @return Whether or not to load the default 
+   * instances defined in {@link #getLoadDefaultInstances()}. These would 
+   * be settings like the AsyncHBase data store, Brave tracing, etc. */
+  public boolean getLoadDefaultInstances() {
+    return load_default_instances;
   }
   
   /** @return A list of plugins and/or locations. */
@@ -250,9 +323,7 @@ public class PluginsConfig extends Validatable {
           + "containing plugin implementations. When found, the files "
           + "are loaded so that plugins can be instantiated.");
     }
-//    final String plugin_path = tsdb.getConfig()
-//        .getDirectoryName("tsd.core.plugin_path");
-    final String plugin_path = tsdb.getConfig().getString("tsd.core.plugin_path");
+    final String plugin_path = tsdb.getConfig().getString(PLUGIN_PATH_KEY);
     if (plugin_locations == null && !Strings.isNullOrEmpty(plugin_path)) {
       plugin_locations = Lists.newArrayListWithCapacity(1);
       plugin_locations.add(plugin_path);
@@ -282,6 +353,14 @@ public class PluginsConfig extends Validatable {
           }
         }
       }
+    }
+    
+    if (load_default_types) {
+      loadDefaultTypes();
+    }
+    
+    if (load_default_instances) {
+      loadDefaultInstances();
     }
     
     if (configs == null || configs.isEmpty()) {
@@ -353,7 +432,7 @@ public class PluginsConfig extends Validatable {
           }
           try {
             if (!(Strings.isNullOrEmpty(plugin_config.getId())) || 
-                plugin_config.isDefault()) {
+                plugin_config.getIsDefault()) {
               
               // load specific
               final Class<?> type = Class.forName(plugin_config.getType());
@@ -398,14 +477,15 @@ public class PluginsConfig extends Validatable {
                     Lists.newArrayListWithCapacity(plugins.size());
                 for (final TSDBPlugin plugin : plugins) {
                   deferreds.add(plugin.initialize(tsdb));
-                  final PluginConfig waiting = new PluginConfig();
-                  waiting.setPlugin(plugin.getClass().getCanonicalName());
-                  waiting.setType(type.getCanonicalName());
+                  final PluginConfig.Builder builder = PluginConfig.newBuilder()
+                       .setPlugin(plugin.getClass().getCanonicalName())
+                       .setType(type.getCanonicalName());
                   if (Strings.isNullOrEmpty(plugin.id())) {
-                    waiting.setId(plugin.getClass().getCanonicalName());
+                    builder.setId(plugin.getClass().getCanonicalName());
                   } else {
-                    waiting.setId(plugin.id());
+                    builder.setId(plugin.id());
                   }
+                  final PluginConfig waiting = builder.build();
                   waiting.clazz = type;
                   waiting.instantiated_plugin = plugin;
                   waiting_on_init.add(waiting);
@@ -607,18 +687,18 @@ public class PluginsConfig extends Validatable {
       }
       
       // make sure it's either a multi-type or single type with the proper info.
-      if (Strings.isNullOrEmpty(config.getId()) && !config.isDefault()) {
+      if (Strings.isNullOrEmpty(config.getId()) && !config.getIsDefault()) {
         if (multi_types.contains(config.getType())) {
           throw new IllegalArgumentException("Duplicate multi-type found. "
               + "Remove one of them:" + JSON.serializeToString(config));
         }
         multi_types.add(config.getType());
       } else {
-        if (config.isDefault() && !Strings.isNullOrEmpty(config.getId())) {
+        if (config.getIsDefault() && !Strings.isNullOrEmpty(config.getId())) {
           throw new IllegalArgumentException("Default configs cannot have "
               + "an ID: " + JSON.serializeToString(config));
         }
-        if (!config.isDefault()) {
+        if (!config.getIsDefault()) {
           if (Strings.isNullOrEmpty(config.getId())) {
             throw new IllegalArgumentException("Specific plugin instance must "
                 + "have an ID if it is not the default: " 
@@ -650,13 +730,13 @@ public class PluginsConfig extends Validatable {
    * @param config A non-null plugin config.
    */
   void registerPlugin(final PluginConfig config) {
-    if (Strings.isNullOrEmpty(config.getId()) && !config.isDefault()) {
+    if (Strings.isNullOrEmpty(config.getId()) && !config.getIsDefault()) {
       registerPlugin(config.clazz, 
           config.instantiated_plugin.getClass().getCanonicalName(), 
           config.instantiated_plugin);
     } else {
       registerPlugin(config.clazz, 
-          config.isDefault() ? null : config.getId(), 
+          config.getIsDefault() ? null : config.getId(), 
           config.instantiated_plugin);
     }
     instantiated_plugins.add(config.instantiated_plugin);
@@ -668,11 +748,51 @@ public class PluginsConfig extends Validatable {
     return instantiated_plugins;
   }
   
+  /** Loads the the {@link #DEFAULT_TYPES} */
+  void loadDefaultTypes() {
+    if (configs == null) {
+      configs = Lists.newArrayList();
+    }
+    for (final String type : DEFAULT_TYPES) {
+      final PluginConfig config = PluginConfig.newBuilder()
+          .setType(type)
+          .build();
+      if (!configs.contains(config)) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Will try to load default plugin type: " + type);
+        }
+        configs.add(config);
+      }
+    }
+  }
+  
+  /** Loads the {@link #DEFAULT_IMPLEMENTATIONS} */
+  void loadDefaultInstances() {
+    if (configs == null) {
+      configs = Lists.newArrayList();
+    }
+    for (final Entry<String, String> type : DEFAULT_IMPLEMENTATIONS.entrySet()) {
+      final PluginConfig config = PluginConfig.newBuilder()
+          .setType(type.getKey())
+          .setPlugin(type.getValue())
+          .setIsDefault(true)
+          .build();
+      if (!configs.contains(config)) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Will try to load default plugin implementation: " 
+              + type.getValue());
+        }
+        configs.add(config);
+      }
+    }
+  }
+  
   /**
    * A single plugin configuration.
    */
   @JsonInclude(Include.NON_DEFAULT)
   @JsonIgnoreProperties(ignoreUnknown = true)
+  @JsonDeserialize(builder = PluginConfig.Builder.class)
   public static class PluginConfig {
     /** The canonical class name of the plugin implementation. */
     private String plugin;
@@ -692,6 +812,16 @@ public class PluginsConfig extends Validatable {
     /** Used by the initialization routine for storing the instantiated plugin. */
     protected TSDBPlugin instantiated_plugin;
     
+    protected PluginConfig(final Builder builder) {
+      if (Strings.isNullOrEmpty(builder.type)) {
+        throw new IllegalArgumentException("Type cannot be null or empty.");
+      }
+      plugin = builder.plugin;
+      id = builder.id;
+      type = builder.type;
+      is_default = builder.isDefault;
+    }
+    
     /** @return The canonical class name of the plugin implementation. */
     public String getPlugin() {
       return plugin;
@@ -710,7 +840,7 @@ public class PluginsConfig extends Validatable {
     
     /** @return Whether or not the plugin should be identified as the default 
      * for a type. */
-    public boolean isDefault() {
+    public boolean getIsDefault() {
       return is_default;
     }
     
@@ -735,7 +865,22 @@ public class PluginsConfig extends Validatable {
     public void setDefault(final boolean is_default) {
       this.is_default = is_default;
     }
-  
+    
+    @Override
+    public boolean equals(final Object other) {
+      if (other == null) {
+        return false;
+      }
+      if (other == this) {
+        return true;
+      }
+      final PluginConfig c = (PluginConfig) other;
+      return Objects.equals(plugin, c.plugin) &&
+             Objects.equals(id, c.id) &&
+             Objects.equals(type, c.type) && 
+             Objects.equals(is_default, c.is_default);
+    }
+    
     @Override
     public String toString() {
       return new StringBuilder()
@@ -748,6 +893,46 @@ public class PluginsConfig extends Validatable {
           .append(", isDefault=")
           .append(is_default)
           .toString();
+    }
+    
+    public static Builder newBuilder() {
+      return new Builder();
+    }
+    
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    static class Builder {
+      @JsonProperty
+      private String plugin;
+      @JsonProperty
+      private String id;
+      @JsonProperty
+      private String type;
+      @JsonProperty
+      private boolean isDefault;
+      
+      public Builder setPlugin(final String plugin) {
+        this.plugin = plugin;
+        return this;
+      }
+      
+      public Builder setId(final String id) {
+        this.id = id;
+        return this;
+      }
+      
+      public Builder setType(final String type) {
+        this.type = type;
+        return this;
+      }
+      
+      public Builder setIsDefault(final boolean is_default) {
+        isDefault = is_default;
+        return this;
+      }
+      
+      public PluginConfig build() {
+        return new PluginConfig(this);
+      }
     }
   }
 }
