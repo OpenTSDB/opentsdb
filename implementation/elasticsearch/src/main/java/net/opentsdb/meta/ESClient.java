@@ -35,12 +35,14 @@ public interface ESClient {
    * returns the results in a list, one per cluster.
    * @param query The query to execute.
    * @param index The index to search.
+   * @param The number of records to return in the results.
    * @param span An optional tracing span.
    * @return A deferred resolving to a list of search response objects 
    * or an exception if the query couldn't execute.
    */
   public Deferred<List<SearchResponse>> runQuery(final QueryBuilder query, 
                                                  final String index,
+                                                 final int size,
                                                  final Span span);
   
 }

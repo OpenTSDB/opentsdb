@@ -162,6 +162,7 @@ public class ESClusterClient implements ESClient, TSDBPlugin {
   @Override
   public Deferred<List<SearchResponse>> runQuery(final QueryBuilder query,
                                                  final String index,
+                                                 final int size,
                                                  final Span span) {
     if (query == null) {
       return Deferred.fromError(new IllegalArgumentException(
@@ -208,8 +209,10 @@ public class ESClusterClient implements ESClient, TSDBPlugin {
       final SearchSourceBuilder search_builder = new SearchSourceBuilder()
           .timeout(TimeValue.timeValueMillis(
             tsdb.getConfig().getLong(QUERY_TIMEOUT_KEY)))
+          .size(size)
           .query(query);  
       search_request.source(search_builder);
+      search_request.indices(index);
       
       client.searchAsync(search_request, new FutureCB(), EMPTY_HEADERS);
     } catch (Exception e) {
