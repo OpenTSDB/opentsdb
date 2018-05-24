@@ -89,6 +89,7 @@
     <module>common</module>
     <module>core</module>
     <module>executors/http</module>
+	<module>implementation/elasticsearch</module>
 	<module>implementation/protobuf</module>
     <module>implementation/tracer-brave</module>
     <module>implementation/redis</module>
