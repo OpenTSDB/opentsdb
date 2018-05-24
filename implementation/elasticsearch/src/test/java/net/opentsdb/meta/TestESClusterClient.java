@@ -197,17 +197,17 @@ public class TestESClusterClient {
     
     // bad queries
     try {
-      es.runQuery(null, "idx", null).join();
+      es.runQuery(null, "idx", 1, null).join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      es.runQuery(query, null, null).join();
+      es.runQuery(query, null, 1, null).join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      es.runQuery(query, "", null).join();
+      es.runQuery(query, "", 1, null).join();
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
