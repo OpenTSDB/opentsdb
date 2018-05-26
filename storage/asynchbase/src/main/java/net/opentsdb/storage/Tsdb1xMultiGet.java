@@ -156,6 +156,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
   /** An optional tracing child. */
   protected volatile Span child;
   
+  /** The state of this executor. */
   protected volatile State state;
   
   /**
@@ -347,8 +348,9 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
     
     // see if we're all done
     if (outstanding == 0 && current_result != null && !has_failed) {
+      final Tsdb1xQueryResult temp = current_result;
       current_result = null;
-      node.onNext(result);
+      node.onNext(temp);
     }
   }
   
@@ -393,7 +395,7 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       return true;
     }
     
-    if (tsuid_idx + batch_size >= tsuids.size()) {
+    if (tsuid_idx >= 0 && tsuid_idx + batch_size >= tsuids.size()) {
       tsuid_idx = 0;
       
       incrementTimestamp();
@@ -489,7 +491,8 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
     
     if (outstanding <= 0) {
       // we're done. Possibly....
-      if ((current_result.timeSeries() == null || current_result.timeSeries().isEmpty()) && 
+      if ((current_result.timeSeries() == null || 
+          current_result.timeSeries().isEmpty()) && 
           rollups_enabled && node.rollupUsage() != RollupUsage.ROLLUP_NOFALLBACK) {
         // we can fallback!
         tsuid_idx = 0;
@@ -623,9 +626,9 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
     }
     
     try {
-    ((Tsdb1xHBaseDataStore) node.factory()).client().get(requests)
-      .addCallback(response_cb)
-      .addErrback(error_cb);
+      ((Tsdb1xHBaseDataStore) node.factory()).client().get(requests)
+        .addCallback(response_cb)
+        .addErrback(error_cb);
     } catch (Exception e) {
       LOG.error("Unexpected exception", e);
       onError(e);

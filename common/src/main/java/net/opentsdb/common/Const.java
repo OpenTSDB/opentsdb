@@ -60,12 +60,16 @@ public final class Const {
     MAX_NUM_TAGS = tags;
   }
   
-  /** The default ASCII character set for encoding tables and qualifiers that
-   * don't depend on user input that may be encoded with UTF.
-   * Charset to use with our server-side row-filter.
-   * We use this one because it preserves every possible byte unchanged.
+  /** The default extended ASCII character set for encoding tables and 
+   * qualifiers that don't depend on user input that may be encoded with 
+   * UTF. Charset to use with our server-side row-filter. This was used
+   * in 1.x and 2.x. We use this one because it preserves every 
+   * possible byte unchanged.
    */
-  public static final Charset ASCII_CHARSET = Charset.forName("ISO-8859-1");
+  public static final Charset ISO_8859_CHARSET = Charset.forName("ISO-8859-1");
+  
+  /** Just the basic ASCII character set. */
+  public static final Charset ASCII_US_CHARSET = Charset.forName("US-ASCII");
   
   /** Used for metrics, tags names and tag values */
   public static final Charset UTF8_CHARSET = Charset.forName("UTF8");

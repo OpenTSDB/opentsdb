@@ -74,6 +74,13 @@ public class JsonV2QuerySerdes implements TimeSeriesSerdes, TSDBPlugin {
   private final JsonGenerator json;
   
   /**
+   * Unused ctor for the plugin for now. TEMP!
+   */
+  public JsonV2QuerySerdes() {
+    json = null;
+  }
+  
+  /**
    * Default ctor.
    * @param generator A non-null JSON generator.
    */

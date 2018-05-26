@@ -422,7 +422,7 @@ public class PluginsConfig extends Validatable {
         
         if (index >= configs.size() || index < 0) {
           if (LOG.isDebugEnabled() && index > 0) {
-            LOG.debug("Completed loading.");
+            LOG.debug("Completed loading of plugins.");
           }
           deferred.callback(null);
         } else {
@@ -731,10 +731,33 @@ public class PluginsConfig extends Validatable {
    */
   void registerPlugin(final PluginConfig config) {
     if (Strings.isNullOrEmpty(config.getId()) && !config.getIsDefault()) {
+      // see if the plugin has already been registered.
+      final Map<String, TSDBPlugin> extant = plugins.get(config.clazz);
+      if (extant != null && extant.containsKey(
+          config.instantiated_plugin.getClass().getCanonicalName())) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Plugin already exists: " + config);
+        }
+        config.instantiated_plugin.shutdown();
+        return;
+      }
+      
       registerPlugin(config.clazz, 
           config.instantiated_plugin.getClass().getCanonicalName(), 
           config.instantiated_plugin);
     } else {
+      if (!config.getIsDefault()) {
+        // see if the plugin has already been registered.
+        final Map<String, TSDBPlugin> extant = plugins.get(config.clazz);
+        if (extant != null && extant.containsKey(config.getId())) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Plugin already exists: " + config);
+          }
+          config.instantiated_plugin.shutdown();
+          return;
+        }
+      }
+      
       registerPlugin(config.clazz, 
           config.getIsDefault() ? null : config.getId(), 
           config.instantiated_plugin);

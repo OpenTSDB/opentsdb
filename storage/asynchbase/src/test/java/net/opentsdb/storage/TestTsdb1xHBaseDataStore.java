@@ -58,8 +58,8 @@ public class TestTsdb1xHBaseDataStore {
   public void ctorDefault() throws Exception {
     final Tsdb1xHBaseDataStore store = 
         new Tsdb1xHBaseDataStore(factory, "UT", mock(Schema.class));
-    assertArrayEquals("tsdb".getBytes(Const.ASCII_CHARSET), store.dataTable());
-    assertArrayEquals("tsdb-uid".getBytes(Const.ASCII_CHARSET), store.uidTable());
+    assertArrayEquals("tsdb".getBytes(Const.ISO_8859_CHARSET), store.dataTable());
+    assertArrayEquals("tsdb-uid".getBytes(Const.ISO_8859_CHARSET), store.uidTable());
     assertSame(tsdb, store.tsdb());
     assertNotNull(store.uidStore());
     verify(registry, times(1)).registerSharedObject(eq("UT_uidstore"), 
