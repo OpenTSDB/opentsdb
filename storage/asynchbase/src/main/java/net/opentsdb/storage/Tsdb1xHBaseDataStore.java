@@ -73,7 +73,7 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
   public static final String MAX_MG_CARDINALITY_KEY = "tsd.query.multiget.max_cardinality";
   
   public static final byte[] DATA_FAMILY = 
-      "t".getBytes(Const.ASCII_CHARSET);
+      "t".getBytes(Const.ISO_8859_CHARSET);
   
   private final TSDB tsdb;
   private final String id;
@@ -117,25 +117,25 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
             "The name of the raw data table for OpenTSDB.");
       }
       data_table = config.getString(getConfigKey(DATA_TABLE_KEY))
-          .getBytes(Const.ASCII_CHARSET);
+          .getBytes(Const.ISO_8859_CHARSET);
       if (!config.hasProperty(getConfigKey(UID_TABLE_KEY))) {
         config.register(getConfigKey(UID_TABLE_KEY), "tsdb-uid", false, 
             "The name of the UID mapping table for OpenTSDB.");
       }
       uid_table = config.getString(getConfigKey(UID_TABLE_KEY))
-          .getBytes(Const.ASCII_CHARSET);
+          .getBytes(Const.ISO_8859_CHARSET);
       if (!config.hasProperty(getConfigKey(TREE_TABLE_KEY))) {
         config.register(getConfigKey(TREE_TABLE_KEY), "tsdb-tree", false, 
             "The name of the Tree table for OpenTSDB.");
       }
       tree_table = config.getString(getConfigKey(TREE_TABLE_KEY))
-          .getBytes(Const.ASCII_CHARSET);
+          .getBytes(Const.ISO_8859_CHARSET);
       if (!config.hasProperty(getConfigKey(META_TABLE_KEY))) {
         config.register(getConfigKey(META_TABLE_KEY), "tsdb-meta", false, 
             "The name of the Meta data table for OpenTSDB.");
       }
       meta_table = config.getString(getConfigKey(META_TABLE_KEY))
-          .getBytes(Const.ASCII_CHARSET);
+          .getBytes(Const.ISO_8859_CHARSET);
       
       // asynchbase flags
       if (!config.hasProperty(getConfigKey(ZK_QUORUM_KEY))) {
@@ -212,6 +212,15 @@ public class Tsdb1xHBaseDataStore implements Tsdb1xDataStore {
       }
       if (!config.hasProperty(ROWS_PER_SCAN_KEY)) {
         config.register(ROWS_PER_SCAN_KEY, "128", true,
+            "TODO");
+      }
+      
+      if (!config.hasProperty(MULTI_GET_CONCURRENT_KEY)) {
+        config.register(MULTI_GET_CONCURRENT_KEY, "20", true,
+            "TODO");
+      }
+      if (!config.hasProperty(MULTI_GET_BATCH_KEY)) {
+        config.register(MULTI_GET_BATCH_KEY, "1024", true,
             "TODO");
       }
       if (!config.hasProperty(MAX_MG_CARDINALITY_KEY)) {
