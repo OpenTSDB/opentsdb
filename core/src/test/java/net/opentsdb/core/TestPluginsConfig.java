@@ -1233,6 +1233,22 @@ public class TestPluginsConfig {
   }
   
   @Test
+  public void initializeDupeWithDefaults() throws Exception {
+    final List<PluginConfig> configs = Lists.newArrayList();
+    PluginConfig c = PluginConfig.newBuilder()
+        .setType("net.opentsdb.stats.StatsCollector")
+        .setId("BlackholeStatsCollector")
+        .setPlugin("net.opentsdb.stats.BlackholeStatsCollector")
+        .build();
+    configs.add(c);
+    
+    config.setLoadDefaultInstances(false);
+    config.setConfigs(configs);
+    
+    assertNull(config.initialize(tsdb).join(1));
+  }
+  
+  @Test
   public void shutdownEmpty() throws Exception {
     assertNull(config.shutdown().join());
   }

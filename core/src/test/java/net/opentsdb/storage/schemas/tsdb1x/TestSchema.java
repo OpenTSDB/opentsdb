@@ -728,4 +728,217 @@ public class TestSchema extends SchemaBase {
             schema.saltWidth() + schema.metricWidth() + Schema.TIMESTAMP_BYTES));
   }
   
+  @Test
+  public void prefixKeyWithSalt() throws Exception {
+    MockTSDB tsdb = new MockTSDB();
+    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+      .thenReturn(store_factory);
+    when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
+      .thenReturn(store);    
+    when(tsdb.registry.getSharedObject("default_uidstore"))
+      .thenReturn(uid_store);
+    when(tsdb.registry.getPlugin(UniqueIdFactory.class, "LRU"))
+      .thenReturn(uid_factory);
+    tsdb.config.register("tsd.storage.uid.width.metric", 4, false, "UT");
+    tsdb.config.register("tsd.storage.uid.width.tagk", 4, false, "UT");
+    tsdb.config.register("tsd.storage.uid.width.tagv", 4, false, "UT");
+    tsdb.config.register("tsd.storage.salt.buckets", 20, false, "UT");
+    tsdb.config.register("tsd.storage.salt.width", 1, false, "UT");
+    
+    Schema schema = new Schema(tsdb, null);
+    
+    byte[] key = new byte[] { 0, 0, -41, -87, -12, 91, 8, 107, 64, 0, 0, 
+        0, 1, 0, 0, 0, 1, 0, 0, 0, 2, 69, 124, 52, -106, 0, 0, 0, 22, 
+        34, -87, 25, 92, 0, 0, 0, 80, 6, 67, 94, -84, 0, 0, 0, 89, 0, 
+        0, -17, -1, 0, 0, 16, 116, 72, 112, 67, 25 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(6, key[0]);
+    
+    key = new byte[] { 0, -27, 89, 20, -100, 91, 8, 65, 16, 0, 0, 0, 1, 
+        0, 0, 0, 1, 0, 0, 0, 2, 16, -1, 42, -124, 0, 0, 0, 56, 0, 5, 
+        79, -91 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(7, key[0]);
+    
+    key = new byte[] { 12, -27, 89, 20, -100, 91, 8, 51, 0, 0, 0, 0, 1, 
+        0, 0, 0, 1, 0, 0, 0, 2, 16, -1, 44, 81, 0, 0, 0, 56, 0, 5, 79, 
+        -91 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(0, key[0]);
+    
+    // Switch every hour/interval
+    tsdb.config.override(Schema.TIMELESS_SALTING_KEY, false);
+    tsdb.config.override("tsd.storage.uid.width.metric", 4);
+    tsdb.config.override("tsd.storage.uid.width.tagk", 4);
+    tsdb.config.override("tsd.storage.uid.width.tagv", 4);
+    tsdb.config.override("tsd.storage.salt.buckets", 20);
+    tsdb.config.override("tsd.storage.salt.width", 1);
+    
+    schema = new Schema(tsdb, null);
+    
+    key = new byte[] { 0, 0, -41, -87, -12, 91, 8, 107, 64, 0, 0, 
+        0, 1, 0, 0, 0, 1, 0, 0, 0, 2, 69, 124, 52, -106, 0, 0, 0, 22, 
+        34, -87, 25, 92, 0, 0, 0, 80, 6, 67, 94, -84, 0, 0, 0, 89, 0, 
+        0, -17, -1, 0, 0, 16, 116, 72, 112, 67, 25 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(4, key[0]);
+    
+    key = new byte[] { 0, -27, 89, 20, -100, 91, 8, 65, 16, 0, 0, 0, 1, 
+        0, 0, 0, 1, 0, 0, 0, 2, 16, -1, 42, -124, 0, 0, 0, 56, 0, 5, 
+        79, -91 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(3, key[0]);
+    
+    key = new byte[] { 12, -27, 89, 20, -100, 91, 8, 51, 0, 0, 0, 0, 1, 
+        0, 0, 0, 1, 0, 0, 0, 2, 16, -1, 44, 81, 0, 0, 0, 56, 0, 5, 79, 
+        -91 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(6, key[0]);
+    
+    // OLD school. Don't do it!!
+    tsdb.config.override(Schema.OLD_SALTING_KEY, true);
+    tsdb.config.override(Schema.TIMELESS_SALTING_KEY, false);
+    tsdb.config.override("tsd.storage.uid.width.metric", 4);
+    tsdb.config.override("tsd.storage.uid.width.tagk", 4);
+    tsdb.config.override("tsd.storage.uid.width.tagv", 4);
+    tsdb.config.override("tsd.storage.salt.buckets", 20);
+    tsdb.config.override("tsd.storage.salt.width", 1);
+    
+    schema = new Schema(tsdb, null);
+    
+    key = new byte[] { 0, 0, -41, -87, -12, 91, 8, 107, 64, 0, 0, 
+        0, 1, 0, 0, 0, 1, 0, 0, 0, 2, 69, 124, 52, -106, 0, 0, 0, 22, 
+        34, -87, 25, 92, 0, 0, 0, 80, 6, 67, 94, -84, 0, 0, 0, 89, 0, 
+        0, -17, -1, 0, 0, 16, 116, 72, 112, 67, 25 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(10, key[0]);
+    
+    key = new byte[] { 0, -27, 89, 20, -100, 91, 8, 65, 16, 0, 0, 0, 1, 
+        0, 0, 0, 1, 0, 0, 0, 2, 16, -1, 42, -124, 0, 0, 0, 56, 0, 5, 
+        79, -91 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(8, key[0]);
+    
+    key = new byte[] { 12, -27, 89, 20, -100, 91, 8, 51, 0, 0, 0, 0, 1, 
+        0, 0, 0, 1, 0, 0, 0, 2, 16, -1, 44, 81, 0, 0, 0, 56, 0, 5, 79, 
+        -91 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(4, key[0]);
+  }
+  
+  @Test
+  public void prefixKeyWithSaltMultiByte() throws Exception {
+    MockTSDB tsdb = new MockTSDB();
+    when(tsdb.registry.getDefaultPlugin(Tsdb1xDataStoreFactory.class))
+      .thenReturn(store_factory);
+    when(store_factory.newInstance(any(TSDB.class), anyString(), any(Schema.class)))
+      .thenReturn(store);    
+    when(tsdb.registry.getSharedObject("default_uidstore"))
+      .thenReturn(uid_store);
+    when(tsdb.registry.getPlugin(UniqueIdFactory.class, "LRU"))
+      .thenReturn(uid_factory);
+    tsdb.config.register("tsd.storage.uid.width.metric", 4, false, "UT");
+    tsdb.config.register("tsd.storage.uid.width.tagk", 4, false, "UT");
+    tsdb.config.register("tsd.storage.uid.width.tagv", 4, false, "UT");
+    tsdb.config.register("tsd.storage.salt.buckets", 20, false, "UT");
+    tsdb.config.register("tsd.storage.salt.width", 3, false, "UT");
+    
+    Schema schema = new Schema(tsdb, null);
+    
+    byte[] key = new byte[] { 0, 0, 0, 0, -41, -87, -12, 91, 8, 107, 64, 0, 0, 
+        0, 1, 0, 0, 0, 1, 0, 0, 0, 2, 69, 124, 52, -106, 0, 0, 0, 22, 
+        34, -87, 25, 92, 0, 0, 0, 80, 6, 67, 94, -84, 0, 0, 0, 89, 0, 
+        0, -17, -1, 0, 0, 16, 116, 72, 112, 67, 25 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(6, key[2]);
+    assertEquals(0, key[1]);
+    assertEquals(0, key[0]);
+    
+    key = new byte[] { 0, 0, 0, -27, 89, 20, -100, 91, 8, 65, 16, 0, 0, 0, 1, 
+        0, 0, 0, 1, 0, 0, 0, 2, 16, -1, 42, -124, 0, 0, 0, 56, 0, 5, 
+        79, -91 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(7, key[2]);
+    assertEquals(0, key[1]);
+    assertEquals(0, key[0]);
+    
+    key = new byte[] { 0, 0, 12, -27, 89, 20, -100, 91, 8, 51, 0, 0, 0, 0, 1, 
+        0, 0, 0, 1, 0, 0, 0, 2, 16, -1, 44, 81, 0, 0, 0, 56, 0, 5, 79, 
+        -91 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(0, key[2]);
+    assertEquals(0, key[1]);
+    assertEquals(0, key[0]);
+    
+    // Switch every hour/interval
+    tsdb.config.override(Schema.TIMELESS_SALTING_KEY, false);
+    tsdb.config.override("tsd.storage.uid.width.metric", 4);
+    tsdb.config.override("tsd.storage.uid.width.tagk", 4);
+    tsdb.config.override("tsd.storage.uid.width.tagv", 4);
+    tsdb.config.override("tsd.storage.salt.buckets", 20);
+    tsdb.config.override("tsd.storage.salt.width", 3);
+    
+    schema = new Schema(tsdb, null);
+    
+    key = new byte[] { 0, 0, 0, 0, -41, -87, -12, 91, 8, 107, 64, 0, 0, 
+        0, 1, 0, 0, 0, 1, 0, 0, 0, 2, 69, 124, 52, -106, 0, 0, 0, 22, 
+        34, -87, 25, 92, 0, 0, 0, 80, 6, 67, 94, -84, 0, 0, 0, 89, 0, 
+        0, -17, -1, 0, 0, 16, 116, 72, 112, 67, 25 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(4, key[2]);
+    assertEquals(0, key[1]);
+    assertEquals(0, key[0]);
+    
+    key = new byte[] { 0, 0, 0, -27, 89, 20, -100, 91, 8, 65, 16, 0, 0, 0, 1, 
+        0, 0, 0, 1, 0, 0, 0, 2, 16, -1, 42, -124, 0, 0, 0, 56, 0, 5, 
+        79, -91 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(3, key[2]);
+    assertEquals(0, key[1]);
+    assertEquals(0, key[0]);
+    
+    key = new byte[] { 0, 0, 12, -27, 89, 20, -100, 91, 8, 51, 0, 0, 0, 0, 1, 
+        0, 0, 0, 1, 0, 0, 0, 2, 16, -1, 44, 81, 0, 0, 0, 56, 0, 5, 79, 
+        -91 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(6, key[2]);
+    assertEquals(0, key[1]);
+    assertEquals(0, key[0]);
+    
+    // OLD school. Don't do it!!
+    tsdb.config.override(Schema.OLD_SALTING_KEY, true);
+    tsdb.config.override(Schema.TIMELESS_SALTING_KEY, false);
+    tsdb.config.override("tsd.storage.uid.width.metric", 4);
+    tsdb.config.override("tsd.storage.uid.width.tagk", 4);
+    tsdb.config.override("tsd.storage.uid.width.tagv", 4);
+    tsdb.config.override("tsd.storage.salt.buckets", 20);
+    tsdb.config.override("tsd.storage.salt.width", 3);
+    
+    schema = new Schema(tsdb, null);
+    
+    key = new byte[] { 0, 0, 0, 0, -41, -87, -12, 91, 8, 107, 64, 0, 0, 
+        0, 1, 0, 0, 0, 1, 0, 0, 0, 2, 69, 124, 52, -106, 0, 0, 0, 22, 
+        34, -87, 25, 92, 0, 0, 0, 80, 6, 67, 94, -84, 0, 0, 0, 89, 0, 
+        0, -17, -1, 0, 0, 16, 116, 72, 112, 67, 25 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(10, key[2]);
+    assertEquals(0, key[1]);
+    assertEquals(0, key[0]);
+    
+    key = new byte[] { 0, 0, 0, -27, 89, 20, -100, 91, 8, 65, 16, 0, 0, 0, 1, 
+        0, 0, 0, 1, 0, 0, 0, 2, 16, -1, 42, -124, 0, 0, 0, 56, 0, 5, 
+        79, -91 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(8, key[2]);
+    assertEquals(0, key[1]);
+    assertEquals(0, key[0]);
+    
+    key = new byte[] { 0, 0, 12, -27, 89, 20, -100, 91, 8, 51, 0, 0, 0, 0, 1, 
+        0, 0, 0, 1, 0, 0, 0, 2, 16, -1, 44, 81, 0, 0, 0, 56, 0, 5, 79, 
+        -91 };
+    schema.prefixKeyWithSalt(key);
+    assertEquals(4, key[2]);
+    assertEquals(0, key[1]);
+    assertEquals(0, key[0]);
+  }
 }

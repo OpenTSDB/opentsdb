@@ -115,7 +115,7 @@ public class SchemaBase {
     tsdb = new MockTSDB();
     store_factory = mock(Tsdb1xDataStoreFactory.class);
     store = mock(Tsdb1xDataStore.class);
-    uid_store = spy(new MockUIDStore(Const.ASCII_CHARSET));
+    uid_store = spy(new MockUIDStore(Const.ISO_8859_CHARSET));
     uid_factory = mock(UniqueIdFactory.class);
     
     // return the default

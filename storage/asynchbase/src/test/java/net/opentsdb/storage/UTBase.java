@@ -94,8 +94,8 @@ public class UTBase {
   public static final int TS_NSUI_SERIES_COUNT = 16;
   public static final int TS_NSUI_SERIES_INTERVAL = 3600;
   
-  public static final byte[] DATA_TABLE = "tsdb".getBytes(Const.ASCII_CHARSET);
-  public static final byte[] UID_TABLE = "tsdb-uid".getBytes(Const.ASCII_CHARSET);
+  public static final byte[] DATA_TABLE = "tsdb".getBytes(Const.ISO_8859_CHARSET);
+  public static final byte[] UID_TABLE = "tsdb-uid".getBytes(Const.ISO_8859_CHARSET);
   
   // GMT: Monday, January 1, 2018 12:15:00 AM
   public static final int START_TS = 1514765700;
@@ -150,7 +150,7 @@ public class UTBase {
         return "tsd.mock." + (String) invocation.getArguments()[0];
       }
     });
-    when(data_store.dataTable()).thenReturn("tsdb".getBytes(Const.ASCII_CHARSET));
+    when(data_store.dataTable()).thenReturn("tsdb".getBytes(Const.ISO_8859_CHARSET));
     when(data_store.uidTable()).thenReturn(UID_TABLE);
     when(data_store.client()).thenReturn(client);
     when(tsdb.registry.getSharedObject(any())).thenReturn(data_store);
@@ -184,19 +184,19 @@ public class UTBase {
   public static void loadUIDTable() {
     bothUIDs(UniqueIdType.METRIC, METRIC_STRING, METRIC_BYTES);
     bothUIDs(UniqueIdType.METRIC, METRIC_B_STRING, METRIC_B_BYTES);
-    storage.throwException(METRIC_STRING_EX.getBytes(Const.ASCII_CHARSET), 
+    storage.throwException(METRIC_STRING_EX.getBytes(Const.ISO_8859_CHARSET), 
         new UnitTestException(), true);
     storage.throwException(METRIC_BYTES_EX, new UnitTestException(), true);
     
     bothUIDs(UniqueIdType.TAGK, TAGK_STRING, TAGK_BYTES);
     bothUIDs(UniqueIdType.TAGK, TAGK_B_STRING, TAGK_B_BYTES);
-    storage.throwException(TAGK_STRING_EX.getBytes(Const.ASCII_CHARSET), 
+    storage.throwException(TAGK_STRING_EX.getBytes(Const.ISO_8859_CHARSET), 
         new UnitTestException(), true);
     storage.throwException(TAGK_BYTES_EX, new UnitTestException(), true);
     
     bothUIDs(UniqueIdType.TAGV, TAGV_STRING, TAGV_BYTES);
     bothUIDs(UniqueIdType.TAGV, TAGV_B_STRING, TAGV_B_BYTES);
-    storage.throwException(TAGV_STRING_EX.getBytes(Const.ASCII_CHARSET), 
+    storage.throwException(TAGV_STRING_EX.getBytes(Const.ISO_8859_CHARSET), 
         new UnitTestException(), true);
     storage.throwException(TAGV_BYTES_EX, new UnitTestException(), true);
     
@@ -232,7 +232,7 @@ public class UTBase {
           + " isn't supported here.");
     }
     storage.addColumn(UID_TABLE, 
-        name.getBytes(Const.ASCII_CHARSET), 
+        name.getBytes(Const.ISO_8859_CHARSET), 
         Tsdb1xUniqueIdStore.ID_FAMILY,
         qualifier, 
         id);
@@ -240,7 +240,7 @@ public class UTBase {
         id, 
         Tsdb1xUniqueIdStore.NAME_FAMILY,
         qualifier, 
-        name.getBytes(Const.ASCII_CHARSET));
+        name.getBytes(Const.ISO_8859_CHARSET));
   }
   
   /**
@@ -276,7 +276,7 @@ public class UTBase {
    * @throws Exception
    */
   public static void loadRawData() throws Exception {
-    final byte[] table = "tsdb".getBytes(Const.ASCII_CHARSET);
+    final byte[] table = "tsdb".getBytes(Const.ISO_8859_CHARSET);
     for (int i = 0; i < TS_SINGLE_SERIES_COUNT; i++) {
       storage.addColumn(table, makeRowKey(
           METRIC_BYTES, 

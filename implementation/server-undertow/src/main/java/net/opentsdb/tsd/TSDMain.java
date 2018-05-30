@@ -65,6 +65,7 @@ import io.undertow.servlet.Servlets;
 import io.undertow.servlet.api.DeploymentInfo;
 import io.undertow.servlet.api.DeploymentManager;
 import io.undertow.servlet.api.FilterInfo;
+import net.opentsdb.auth.Authentication;
 import net.opentsdb.configuration.Configuration;
 import net.opentsdb.configuration.ConfigurationEntrySchema;
 import net.opentsdb.core.DefaultTSDB;
@@ -199,18 +200,26 @@ public class TSDMain {
                   .addMapping("/*"));
 
     // Load an authentication filter if so configured.
-    AuthFilter auth_filter = tsdb.getRegistry()
-        .getDefaultPlugin(AuthFilter.class);
-    if (auth_filter != null) {
-      final FilterInfo filter_info = new FilterInfo("tsdbAuthFilter", 
-          auth_filter.getClass());
-      filter_info.setAsyncSupported(true);
-      final  Map<String, String> conf = tsdb.getConfig().asUnsecuredMap();
-      for (final Entry<String, String> entry : conf.entrySet()) {
-        filter_info.addInitParam(entry.getKey(), entry.getValue());
+    if (tsdb.getConfig().getBoolean(Authentication.AUTH_ENABLED_KEY)) {
+      LOG.info("Authentication is enabled, searching for an auth filter.");
+      AuthFilter auth_filter = tsdb.getRegistry()
+          .getDefaultPlugin(AuthFilter.class);
+      if (auth_filter != null) {
+        final FilterInfo filter_info = new FilterInfo("tsdbAuthFilter", 
+            auth_filter.getClass());
+        filter_info.setAsyncSupported(true);
+        final  Map<String, String> conf = tsdb.getConfig().asUnsecuredMap();
+        for (final Entry<String, String> entry : conf.entrySet()) {
+          filter_info.addInitParam(entry.getKey(), entry.getValue());
+        }
+        servletBuilder = servletBuilder.addFilter(filter_info)
+            .addFilterUrlMapping("tsdbAuthFilter", "/*", DispatcherType.REQUEST);
+        LOG.info("Successfully loaded auth filter: " + auth_filter);
+      } else {
+        LOG.error("Failed to find an authentication filter. Not starting.");
+        System.exit(1);
+        return;
       }
-      servletBuilder = servletBuilder.addFilter(filter_info)
-          .addFilterUrlMapping("tsdbAuthFilter", "/*", DispatcherType.REQUEST);
     }
     
     final DeploymentManager manager = Servlets.defaultContainer()
