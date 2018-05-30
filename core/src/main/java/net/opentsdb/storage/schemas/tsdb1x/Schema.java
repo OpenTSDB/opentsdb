@@ -707,9 +707,9 @@ public class Schema implements TimeSeriesDataStore {
     }
     
     int shift = 0;
-    for (int i = 0; i <= salt_width; i++) {
-      row_key[salt_width - i] = 0;
-      row_key[salt_width - i] = (byte) (bucket >>> shift);
+    for (int i = 0; i < salt_width; i++) {
+      row_key[salt_width - i - 1] = 0;
+      row_key[salt_width - i - 1] = (byte) (bucket >>> shift);
       shift += 8;
     }
   }
