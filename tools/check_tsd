@@ -248,7 +248,7 @@ def main(argv):
         rv = 1
         nbad = nwarn
     else:
-        rv=0
+        rv = 0
     if options.verbose and len(datapoints) != npoints:
         print ('ignored %d/%d data points for being more than %ds old'
                % (len(datapoints) - npoints, len(datapoints), options.duration))
@@ -264,9 +264,16 @@ def main(argv):
     # in nrpe, pipe character is something special, but it's used in tag
     # searches.  Translate it to something else for the purposes of output.
     ttags = tags.replace("|",":")
+
+    # Retrieve metric name for performance data label.
+    perf_label = options.metric.split(".")[-1]
+
     if not rv:
-        print ('OK: %s%s: %d values OK, last=%r'
-               % (options.metric, ttags, npoints, val))
+        status = 'OK: %s%s: %d values OK, last=%r' \
+            % (options.metric, ttags, npoints, val)
+        status += ' | {0}={1};{2};{3};0;{3}'.format(
+            perf_label, npoints, options.warning, options.critical)
+        print(status)
     else:
         if rv == 1:
             level = 'WARNING'
@@ -274,9 +281,12 @@ def main(argv):
         elif rv == 2:
             level = 'CRITICAL'
             threshold = options.critical
-        print ('%s: %s%s %s %s: %d/%d bad values (%.1f%%) worst: %r @ %s'
-               % (level, options.metric, ttags, options.comparator, threshold,
-                  nbad, npoints, bad_pct, badval, badts))
+        status = '%s: %s%s %s %s: %d/%d bad values (%.1f%%) worst: %r @ %s' \
+            % (level, options.metric, ttags, options.comparator, threshold,
+               nbad, npoints, bad_pct, badval, badts)
+        status += ' | {0}={1};{2};{3};0;{3}'.format(
+            perf_label, npoints, options.warning, options.critical)
+        print(status)
     return rv
 
 
