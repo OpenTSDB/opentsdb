@@ -22,6 +22,9 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.ext.ExceptionMapper;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.Maps;
 
 import ch.qos.logback.classic.spi.ThrowableProxy;
@@ -38,7 +41,9 @@ import net.opentsdb.utils.JSON;
  */
 public class QueryExecutionExceptionMapper implements 
   ExceptionMapper<QueryExecutionException> {
-
+  private static final Logger LOG = LoggerFactory.getLogger(
+      QueryExecutionExceptionMapper.class);
+  
   /** Whether or not to show the stack traces. */
   private final boolean show_trace;
   
@@ -58,8 +63,8 @@ public class QueryExecutionExceptionMapper implements
   
   @Override
   public Response toResponse(final QueryExecutionException e) {
+    LOG.error("Query exception", e);
     final Map<String, Object> outer_map = Maps.newHashMapWithExpectedSize(1);
-
     outer_map.put("error", recursiveExceptions(0, e));
     final Status status = Status.fromStatusCode(e.getStatusCode());
     return Response.status(status != null ? status : Status.INTERNAL_SERVER_ERROR)

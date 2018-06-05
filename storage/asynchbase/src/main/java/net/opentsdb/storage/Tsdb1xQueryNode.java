@@ -308,15 +308,10 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
   @VisibleForTesting
   void setup(final Span span) {
     if (((Tsdb1xHBaseDataStore) factory).schema().metaSchema() != null) {
-      final Span child;
-      if (span != null) {
-        child = span.newChild(getClass().getName() + ".setup").start();
-      } else {
-        child = span;
-      }
-      ((Tsdb1xHBaseDataStore) factory).schema().metaSchema().runQuery(config.query())
-          .addCallback(new MetaCB(child))
-          .addErrback(new MetaErrorCB(child));
+      ((Tsdb1xHBaseDataStore) factory).schema().metaSchema()
+        .runQuery(config.query(), span)
+          .addCallback(new MetaCB(span))
+          .addErrback(new MetaErrorCB(span));
     } else {
       synchronized (this) {
         executor = new Tsdb1xScanners(Tsdb1xQueryNode.this, 
