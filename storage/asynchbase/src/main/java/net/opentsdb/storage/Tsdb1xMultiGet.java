@@ -536,6 +536,9 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
       synchronized (Tsdb1xMultiGet.this) {
         outstanding--;
       }
+      if (has_failed) {
+        return null;
+      }
       
       for (final GetResultOrException result : results) {
         if (result.getException() != null) {
@@ -547,10 +550,12 @@ public class Tsdb1xMultiGet implements HBaseExecutor {
           continue;
         }
         
-        current_result.decode(result.getCells(), 
-            (rollup_index < 0 || 
-             rollup_index >= node.rollupIntervals().size() 
-               ? null : node.rollupIntervals().get(rollup_index)));
+        if (current_result != null) {
+          current_result.decode(result.getCells(), 
+              (rollup_index < 0 || 
+               rollup_index >= node.rollupIntervals().size() 
+                 ? null : node.rollupIntervals().get(rollup_index)));
+        }
       }
       
       onComplete();
