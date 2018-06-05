@@ -580,6 +580,8 @@ public class TestTsdb1xQueryNode extends UTBase {
     
     assertNull(node.executor);
     assertTrue(node.initialized.get());
+    verify(upstream_a, times(1)).onNext(any(QueryResult.class));
+    verify(upstream_b, times(1)).onNext(any(QueryResult.class));
     verify(upstream_a, times(1)).onComplete(node, 0, 0);
     verify(upstream_b, times(1)).onComplete(node, 0, 0);
   }

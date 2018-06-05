@@ -389,6 +389,8 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
           LOG.debug("No data returned from meta store.");
         }
         initialized.compareAndSet(false, true);
+        sendUpstream(new Tsdb1xQueryResult(0, Tsdb1xQueryNode.this, 
+            ((Tsdb1xHBaseDataStore) factory).schema()));
         completeUpstream(0, 0);
         return null;
       case EXCEPTION:
