@@ -629,7 +629,7 @@ final public class QueryRpc {
       trace.firstSpan()
         .setTag("status", "Error")
         .setTag("finalThread", Thread.currentThread().getName())
-        .setTag("error", e.getMessage())
+        .setTag("error", e.getMessage() == null ? "null" : e.getMessage())
         .log("exception", e)
         .finish();
     }
