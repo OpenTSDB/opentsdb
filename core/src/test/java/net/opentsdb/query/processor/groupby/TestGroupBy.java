@@ -98,7 +98,7 @@ public class TestGroupBy {
   @Test
   public void ctorAndInitialize() throws Exception {
     GroupBy gb = new GroupBy(factory, context, config);
-    gb.initialize();
+    gb.initialize(null);
     assertSame(config, gb.config());
     verify(context, times(1)).upstream(gb);
     verify(context, times(1)).downstream(gb);
@@ -122,7 +122,7 @@ public class TestGroupBy {
   @Test
   public void onComplete() throws Exception {
     GroupBy gb = new GroupBy(factory, context, config);
-    gb.initialize();
+    gb.initialize(null);
     
     gb.onComplete(mock(QueryNode.class), 42, 42);
     verify(upstream, times(1)).onComplete(gb, 42, 42);
@@ -141,7 +141,7 @@ public class TestGroupBy {
     final QueryResult results = mock(QueryResult.class);
     
     GroupBy gb = new GroupBy(factory, context, config);
-    gb.initialize();
+    gb.initialize(null);
     
     gb.onNext(results);
     verify(upstream, times(1)).onNext(gb_results);
@@ -155,7 +155,7 @@ public class TestGroupBy {
   @Test
   public void onError() throws Exception {
     GroupBy gb = new GroupBy(factory, context, config);
-    gb.initialize();
+    gb.initialize(null);
     
     final IllegalArgumentException ex = new IllegalArgumentException("Boo!");
     

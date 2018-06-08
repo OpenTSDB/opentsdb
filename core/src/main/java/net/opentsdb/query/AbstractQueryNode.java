@@ -67,10 +67,19 @@ public abstract class AbstractQueryNode implements QueryNode {
   }
   
   @Override
-  public void initialize() {
+  public void initialize(final Span span) {
+    final Span child;
+    if (span != null) {
+      child = span.newChild(getClass() + ".initialize()").start();
+    } else {
+      child = null;
+    }
     upstream = context.upstream(this);
     downstream = context.downstream(this);
     downstream_sources = context.downstreamSources(this);
+    if (child != null) {
+      child.setSuccessTags().finish();
+    }
   }
   
   @Override

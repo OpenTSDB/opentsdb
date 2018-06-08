@@ -72,7 +72,7 @@ public class TestAbstractQueryNode {
     assertNull(node.downstream);
     assertNull(node.downstream_sources);
     
-    node.initialize();
+    node.initialize(null);
     assertSame(upstream, node.upstream);
     assertSame(downstream, node.downstream);
     assertSame(downstream_sources, node.downstream_sources);
@@ -81,7 +81,7 @@ public class TestAbstractQueryNode {
   @Test
   public void sendUpstream() throws Exception {
     final TestAQ node = new TestAQ(factory, context);
-    node.initialize();
+    node.initialize(null);
     
     try {
       node.sendUpstream((QueryResult) null);
@@ -97,7 +97,7 @@ public class TestAbstractQueryNode {
   @Test
   public void sendUpstreamExceptionSecond() throws Exception {
     final TestAQ node = new TestAQ(factory, context);
-    node.initialize();
+    node.initialize(null);
     doThrow(new UnitTestException())
       .when(upstream.get(1)).onNext(any(QueryResult.class));
     
@@ -113,7 +113,7 @@ public class TestAbstractQueryNode {
   @Test
   public void sendUpstreamExceptionFirst() throws Exception {
     final TestAQ node = new TestAQ(factory, context);
-    node.initialize();
+    node.initialize(null);
     doThrow(new UnitTestException())
       .when(upstream.get(0)).onNext(any(QueryResult.class));
     
@@ -129,7 +129,7 @@ public class TestAbstractQueryNode {
   @Test
   public void sendUpstreamThrowable() throws Exception {
     final TestAQ node = new TestAQ(factory, context);
-    node.initialize();
+    node.initialize(null);
     
     try {
       node.sendUpstream((Throwable) null);
@@ -145,7 +145,7 @@ public class TestAbstractQueryNode {
   @Test
   public void sendUpstreamThrowableExceptionSecond() throws Exception {
     final TestAQ node = new TestAQ(factory, context);
-    node.initialize();
+    node.initialize(null);
     doThrow(new UnitTestException())
       .when(upstream.get(1)).onError(any(Throwable.class));
    
@@ -158,7 +158,7 @@ public class TestAbstractQueryNode {
   @Test
   public void sendUpstreamThrowableExceptionFirst() throws Exception {
     final TestAQ node = new TestAQ(factory, context);
-    node.initialize();
+    node.initialize(null);
     doThrow(new UnitTestException())
       .when(upstream.get(0)).onError(any(Throwable.class));
    
@@ -171,7 +171,7 @@ public class TestAbstractQueryNode {
   @Test
   public void completeUpstream() throws Exception {
     final TestAQ node = new TestAQ(factory, context);
-    node.initialize();
+    node.initialize(null);
     
     node.completeUpstream(42, 42);
     verify(upstream.get(0), times(1)).onComplete(node, 42, 42);
@@ -181,7 +181,7 @@ public class TestAbstractQueryNode {
   @Test
   public void completeUpstreamExceptionSecond() throws Exception {
     final TestAQ node = new TestAQ(factory, context);
-    node.initialize();
+    node.initialize(null);
     doThrow(new UnitTestException())
       .when(upstream.get(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
@@ -193,7 +193,7 @@ public class TestAbstractQueryNode {
   @Test
   public void completeUpstreamExceptionFirst() throws Exception {
     final TestAQ node = new TestAQ(factory, context);
-    node.initialize();
+    node.initialize(null);
     doThrow(new UnitTestException())
       .when(upstream.get(0)).onComplete(any(QueryNode.class), anyLong(), anyLong());
     
@@ -205,7 +205,7 @@ public class TestAbstractQueryNode {
   @Test
   public void fetchDownstream() throws Exception {
     final TestAQ node = new TestAQ(factory, context);
-    node.initialize();
+    node.initialize(null);
     
     node.fetchDownstream(null);
     verify(downstream_sources.get(0), times(1)).fetchNext(null);

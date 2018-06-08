@@ -147,7 +147,7 @@ public class DefaultQueryContextBuilder implements QueryContextBuilder {
             .start();
       }
       context = new TSDBV2Pipeline(tsdb, query, this, sinks);
-      context.initialize();
+      context.initialize(local_span);
     }
     
     @Override
