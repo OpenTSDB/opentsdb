@@ -205,7 +205,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void executeCacheMiss() throws Exception {
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     execution.fetchNext(null);
     
     verify(plugin, times(1))
@@ -244,7 +244,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void executeCacheHit() throws Exception {
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     execution.fetchNext(null);
     
     verify(plugin, times(1))
@@ -290,7 +290,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     when(node.getConfig()).thenReturn(config);
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     execution.fetchNext(null);
     
     verify(plugin, times(1))
@@ -319,7 +319,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     when(node.getConfig()).thenReturn(config);
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     execution.fetchNext(null);
     
     verify(plugin, never())
@@ -341,7 +341,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void executeCacheException() throws Exception {
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     execution.fetchNext(null);
     
     verify(plugin, times(1))
@@ -387,7 +387,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     when(node.getConfig()).thenReturn(config);
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     execution.fetchNext(null);
     
     verify(plugin, times(1))
@@ -428,7 +428,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
         any(Span.class))).thenThrow(new UnitTestException());
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     execution.fetchNext(null);
     
     verify(plugin, times(1))
@@ -452,7 +452,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     when(next.source()).thenReturn(downstream);
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     
     execution.onNext(next);
     
@@ -486,7 +486,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
     when(next.source()).thenReturn(execution);
-    execution.initialize();
+    execution.initialize(null);
     execution.fetchNext(null);
     execution.cache_execution = null;
     execution.onNext(next);
@@ -542,7 +542,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     when(next.source()).thenReturn(downstream);
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     execution.fetchNext(null);
     
     execution.onNext(next);
@@ -592,7 +592,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     execution.fetchNext(null);
     execution.cache_execution = null;
     execution.onNext(next);
@@ -628,7 +628,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     execution.fetchNext(null);
     execution.cache_execution = null;
     execution.onNext(next);
@@ -662,7 +662,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
       .thenThrow(new UnitTestException());
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     
     execution.onNext(next);
     
@@ -692,7 +692,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
       .thenReturn(Deferred.fromError(new UnitTestException()));
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     
     execution.onNext(next);
     
@@ -724,7 +724,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
     when(next.source()).thenReturn(downstream);
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     execution.fetchNext(null);
     
     execution.onNext(next);
@@ -749,7 +749,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void onErrorDownstreamExceptionNotComplete() throws Exception {
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     
     execution.onError(new UnitTestException());
     
@@ -773,7 +773,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void onErrorDownstreamExceptionComplete() throws Exception {
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     execution.complete.set(true);
     
     execution.onError(new UnitTestException());
@@ -798,7 +798,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void onComplete() throws Exception {
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     
     execution.onComplete(mock(QueryNode.class), 42, 42);
     verify(upstream, times(1)).onComplete(any(QueryNode.class), anyLong(), anyLong());
@@ -808,7 +808,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void closeNotComplete() throws Exception {
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     execution.fetchNext(null);
     
     verify(plugin, times(1))
@@ -847,7 +847,7 @@ public class TestCachingQueryExecutor extends BaseExecutorTest {
   public void closeComplete() throws Exception {
     final CachingQueryExecutor executor = new CachingQueryExecutor(node);
     LocalExecution execution = (LocalExecution) executor.newNode(pcontext, config);
-    execution.initialize();
+    execution.initialize(null);
     execution.fetchNext(null);
     
     verify(plugin, times(1))

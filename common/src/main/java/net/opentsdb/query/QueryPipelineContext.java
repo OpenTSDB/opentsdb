@@ -43,8 +43,9 @@ public interface QueryPipelineContext extends QueryNode {
   /**
    * Called by the user's {@link #pipelineContext()} to initialize the pipeline. Must
    * be called before any of the node functions.
+   * @param span An optional tracing span.
    */
-  public void initialize();
+  public void initialize(final Span span);
   
   /**
    * Called by the upstream context or nodes to fetch the next set of data.

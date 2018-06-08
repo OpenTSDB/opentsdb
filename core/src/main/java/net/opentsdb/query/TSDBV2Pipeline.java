@@ -45,6 +45,7 @@ import net.opentsdb.query.pojo.RateOptions;
 import net.opentsdb.query.processor.groupby.GroupByFactory;
 import net.opentsdb.query.processor.rate.RateFactory;
 import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.stats.Span;
 import net.opentsdb.storage.TimeSeriesDataStore;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 import net.opentsdb.storage.schemas.tsdb1x.Schema;
@@ -77,7 +78,14 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
   }
   
   @Override
-  public void initialize() {
+  public void initialize(final Span span) {
+    final Span child;
+    if (span != null) {
+      child = span.newChild(getClass().getSimpleName() + ".initialize()")
+                   .start();
+    } else {
+      child = null;
+    }
     net.opentsdb.query.pojo.TimeSeriesQuery q = 
         (net.opentsdb.query.pojo.TimeSeriesQuery) query;
     // TODO - pick metric executors
@@ -222,7 +230,11 @@ public class TSDBV2Pipeline extends AbstractQueryPipelineContext {
     
     // TODO - expressions
     
-    initializeGraph();
+    initializeGraph(child);
+    
+    if (child != null) {
+      child.setSuccessTags().finish();
+    }
   }
   
   @Override

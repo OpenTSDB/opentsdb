@@ -14,6 +14,8 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import net.opentsdb.stats.Span;
+
 /**
  * A node in the query execution DAG that fetches and/or processes time series
  * data in some form. A node can fetch from a data base, merge results from
@@ -33,9 +35,10 @@ public interface QueryNode {
   /**
    * Called by the {@link QueryPipelineContext} after the DAG has been setup
    * to initialize the node. This is when the node should parse out bits it 
-   * needs from the query and config as well as setup any structures it needs. 
+   * needs from the query and config as well as setup any structures it needs.
+   * @span An optional tracing span. 
    */
-  public void initialize();
+  public void initialize(final Span span);
     
   /**
    * @return The config for this query node.

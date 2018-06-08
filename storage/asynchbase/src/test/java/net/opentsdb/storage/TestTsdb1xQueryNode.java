@@ -454,7 +454,7 @@ public class TestTsdb1xQueryNode extends UTBase {
   public void onComplete() throws Exception {
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
-    node.initialize();
+    node.initialize(null);
     
     node.onComplete(node, 1, 1);
     
@@ -466,7 +466,7 @@ public class TestTsdb1xQueryNode extends UTBase {
   public void onNextContinue() throws Exception {
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
-    node.initialize();
+    node.initialize(null);
     node.executor = mock(HBaseExecutor.class);
     when(node.executor.state()).thenReturn(State.CONTINUE);
     
@@ -484,7 +484,7 @@ public class TestTsdb1xQueryNode extends UTBase {
   public void onNextComplete() throws Exception {
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
-    node.initialize();
+    node.initialize(null);
     node.executor = mock(HBaseExecutor.class);
     when(node.executor.state()).thenReturn(State.COMPLETE);
     
@@ -502,7 +502,7 @@ public class TestTsdb1xQueryNode extends UTBase {
   public void onError() throws Exception {
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
-    node.initialize();
+    node.initialize(null);
     UnitTestException ex = new UnitTestException();
     
     node.onError(ex);
@@ -517,7 +517,7 @@ public class TestTsdb1xQueryNode extends UTBase {
         data_store, context, source_config);
     net.opentsdb.storage.Tsdb1xQueryNode.MetaErrorCB cb = 
         node.new MetaErrorCB(null);
-    node.initialize();
+    node.initialize(null);
     UnitTestException ex = new UnitTestException();
     
     cb.call(ex);
@@ -553,7 +553,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.result()).thenReturn(MetaResult.DATA);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
-    node.initialize();
+    node.initialize(null);
     
     node.new MetaCB(null).call(meta_result);
     
@@ -574,7 +574,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.result()).thenReturn(MetaResult.NO_DATA);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
-    node.initialize();
+    node.initialize(null);
     
     node.new MetaCB(null).call(meta_result);
     
@@ -593,7 +593,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.exception()).thenReturn(new UnitTestException());
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
-    node.initialize();
+    node.initialize(null);
     
     node.new MetaCB(null).call(meta_result);
     
@@ -660,7 +660,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
-    node.initialize();
+    node.initialize(null);
     
     node.resolveMeta(meta_result, null);
     
@@ -693,7 +693,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
-    node.initialize();
+    node.initialize(null);
     
     node.resolveMeta(meta_result, null);
     
@@ -721,7 +721,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
-    node.initialize();
+    node.initialize(null);
     
     node.resolveMeta(meta_result, null);
     
@@ -760,7 +760,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
-    node.initialize();
+    node.initialize(null);
     
     node.resolveMeta(meta_result, null);
     
@@ -791,7 +791,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
-    node.initialize();
+    node.initialize(null);
     
     node.resolveMeta(meta_result, null);
     
@@ -830,7 +830,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
-    node.initialize();
+    node.initialize(null);
     
     node.resolveMeta(meta_result, null);
     
@@ -861,7 +861,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     when(meta_result.timeSeries()).thenReturn(ids);
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
-    node.initialize();
+    node.initialize(null);
     
     try {
       node.resolveMeta(meta_result, null);
@@ -898,7 +898,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     });
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
-    node.initialize();
+    node.initialize(null);
     
     node.resolveMeta(meta_result, null);
     
@@ -937,7 +937,7 @@ public class TestTsdb1xQueryNode extends UTBase {
     });
     Tsdb1xQueryNode node = new Tsdb1xQueryNode(
         data_store, context, source_config);
-    node.initialize();
+    node.initialize(null);
     
     try {
       node.resolveMeta(meta_result, null);

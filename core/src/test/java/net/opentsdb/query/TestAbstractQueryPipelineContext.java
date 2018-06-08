@@ -41,6 +41,7 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSpecification;
 import net.opentsdb.query.AbstractQueryPipelineContext.CumulativeQueryResult;
+import net.opentsdb.stats.Span;
 
 public class TestAbstractQueryPipelineContext {
 
@@ -421,7 +422,7 @@ public class TestAbstractQueryPipelineContext {
         Lists.newArrayList(sink1, sink2));
     // empty is not allowed
     try {
-      ctx.initializeGraph();
+      ctx.initializeGraph(null);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) { }
     ctx.init1();
@@ -515,8 +516,8 @@ public class TestAbstractQueryPipelineContext {
     }
 
     @Override
-    public void initialize() {
-      initializeGraph();
+    public void initialize(final Span span) {
+      initializeGraph(null);
     }
     
     public void init1() {
@@ -543,7 +544,7 @@ public class TestAbstractQueryPipelineContext {
       addDagEdge(this, n2);
       
       doThrow(new IllegalStateException("Boo!")).when(n4).close();
-      initialize();
+      initialize(null);
     }
 
     public void init2() {
@@ -562,7 +563,7 @@ public class TestAbstractQueryPipelineContext {
       addDagEdge(n2, s2);
       addDagEdge(this, n1);
       addDagEdge(this, n2);
-      initialize();
+      initialize(null);
     }
     
     @Override
