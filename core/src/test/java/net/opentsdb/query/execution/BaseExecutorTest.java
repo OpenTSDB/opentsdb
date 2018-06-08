@@ -76,7 +76,6 @@ public class BaseExecutorTest {
     when(context.getTSDB()).thenReturn(tsdb);
     when(timer.newTimeout(any(TimerTask.class), anyLong(), 
         eq(TimeUnit.MILLISECONDS))).thenReturn(timeout);
-    when(graph.tsdb()).thenReturn(tsdb);
     when(tsdb.getRegistry()).thenReturn(registry);
     when(tsdb.getStatsCollector()).thenReturn(mock(StatsCollector.class));
     when(pcontext.query()).thenReturn(query);

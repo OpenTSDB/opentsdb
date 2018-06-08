@@ -194,7 +194,7 @@ public class ClusterConfig implements Comparable<ClusterConfig> {
             implementation.clusters().values()) {
             final ExecutionGraph graph_copy = 
                 ExecutionGraph.newBuilder(graph).build();
-            deferreds.add(graph_copy.initialize(tsdb, cluster.getCluster()));
+            //deferreds.add(graph_copy.initialize(tsdb, cluster.getCluster()));
             executors.put(cluster.getCluster(), graph_copy);
           }
           
@@ -267,7 +267,7 @@ public class ClusterConfig implements Comparable<ClusterConfig> {
       throw new IllegalArgumentException("No such cluster: " + cluster_id);
     }
     
-    final QueryExecutor<?> executor = cluster_graph.sinkExecutor();
+    final QueryExecutor<?> executor = null;//cluster_graph.sinkExecutor();
     if (executor == null) {
       throw new IllegalStateException("Graph: " + cluster_graph 
           + " returned a null executor.");

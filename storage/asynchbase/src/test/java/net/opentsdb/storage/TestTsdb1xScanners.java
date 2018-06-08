@@ -71,7 +71,7 @@ import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
-import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils.RollupUsage;
 import net.opentsdb.stats.MockTrace;
@@ -90,14 +90,14 @@ public class TestTsdb1xScanners extends UTBase {
 
   public Tsdb1xQueryNode node;
   public TimeSeriesQuery query;
-  public RollupConfig rollup_config;
+  public DefaultRollupConfig rollup_config;
   
   @Before
   public void before() throws Exception {
     node = mock(Tsdb1xQueryNode.class);
     when(node.schema()).thenReturn(schema);
-    when(node.factory()).thenReturn(data_store);
-    rollup_config = mock(RollupConfig.class);
+    when(node.parent()).thenReturn(data_store);
+    rollup_config = mock(DefaultRollupConfig.class);
     when(schema.rollupConfig()).thenReturn(rollup_config);
     
     PowerMockito.whenNew(Tsdb1xScanner.class).withAnyArguments()
@@ -2585,7 +2585,7 @@ public class TestTsdb1xScanners extends UTBase {
     
     node = mock(Tsdb1xQueryNode.class);
     when(node.schema()).thenReturn(schema);
-    when(node.factory()).thenReturn(data_store);
+    when(node.parent()).thenReturn(data_store);
     when(schema.rollupConfig()).thenReturn(rollup_config);
     
     when(client.newScanner(any(byte[].class))).thenReturn(mock(Scanner.class));
@@ -2593,7 +2593,7 @@ public class TestTsdb1xScanners extends UTBase {
   }
   
   void catchTables(final Tsdb1xQueryNode node, final List<byte[]> tables, final List<ScanFilter> filters) {
-    when(((Tsdb1xHBaseDataStore) node.factory()).client()
+    when(((Tsdb1xHBaseDataStore) node.parent()).client()
         .newScanner(any(byte[].class))).thenAnswer(new Answer<Scanner>() {
           @Override
           public Scanner answer(InvocationOnMock invocation) throws Throwable {

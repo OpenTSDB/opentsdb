@@ -38,31 +38,22 @@ import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.pojo.RateOptions;
 
 public class TestRateFactory {
 
   @Test
   public void ctor() throws Exception {
-    final RateFactory factory = new RateFactory("Downsample");
+    final RateFactory factory = new RateFactory();
     assertEquals(1, factory.types().size());
     assertTrue(factory.types().contains(NumericType.TYPE));
-    assertEquals("Downsample", factory.id());
-    
-    try {
-      new RateFactory(null);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      new RateFactory("");
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
+    assertEquals("rate", factory.id());
   }
   
   @Test
   public void registerIteratorFactory() throws Exception {
-    final RateFactory factory = new RateFactory("Downsample");
+    final RateFactory factory = new RateFactory();
     assertEquals(1, factory.types().size());
     
     QueryIteratorFactory mock = mock(QueryIteratorFactory.class);
@@ -83,12 +74,13 @@ public class TestRateFactory {
   @SuppressWarnings("unchecked")
   @Test
   public void newIterator() throws Exception {
+    final QueryResult result = mock(QueryResult.class);
     RateOptions config = RateOptions.newBuilder()
         .setId("foo")
         .setInterval("15s")
         .build();
     
-    final RateFactory factory = new RateFactory("Downsample");
+    final RateFactory factory = new RateFactory();
     
     final NumericMillisecondShard source = new NumericMillisecondShard(
         BaseTimeSeriesStringId.newBuilder()
@@ -100,57 +92,57 @@ public class TestRateFactory {
     when(node.config()).thenReturn(config);
     
     Iterator<TimeSeriesValue<?>> iterator = factory.newIterator(
-        NumericType.TYPE, node, ImmutableMap.<String, TimeSeries>builder()
+        NumericType.TYPE, node, result, ImmutableMap.<String, TimeSeries>builder()
         .put("a", source)
         .build());
     assertTrue(iterator.hasNext());
     
     try {
-      factory.newIterator(null, node, ImmutableMap.<String, TimeSeries>builder()
+      factory.newIterator(null, node, result, ImmutableMap.<String, TimeSeries>builder()
           .put("a", source)
           .build());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, null, ImmutableMap.<String, TimeSeries>builder()
+      factory.newIterator(NumericType.TYPE, null, result, ImmutableMap.<String, TimeSeries>builder()
           .put("a", source)
           .build());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, node, (Map) null);
+      factory.newIterator(NumericType.TYPE, node, result, (Map) null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, node, Collections.emptyMap());
+      factory.newIterator(NumericType.TYPE, node, result, Collections.emptyMap());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
-    iterator = factory.newIterator(NumericType.TYPE, node, 
+    iterator = factory.newIterator(NumericType.TYPE, node, result, 
         Lists.<TimeSeries>newArrayList(source));
     assertTrue(iterator.hasNext());
     
     try {
-      factory.newIterator(null, node, Lists.<TimeSeries>newArrayList(source));
+      factory.newIterator(null, node, result, Lists.<TimeSeries>newArrayList(source));
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, null, 
+      factory.newIterator(NumericType.TYPE, null, result, 
           Lists.<TimeSeries>newArrayList(source));
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, node, (List) null);
+      factory.newIterator(NumericType.TYPE, node, result, (List) null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      factory.newIterator(NumericType.TYPE, node, Collections.emptyList());
+      factory.newIterator(NumericType.TYPE, node, result, Collections.emptyList());
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }

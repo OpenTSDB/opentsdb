@@ -29,6 +29,7 @@ import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.BaseQueryNodeFactory;
 
 /**
@@ -40,10 +41,9 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
 
   /**
    * Default ctor.
-   * @param id A non-null and non-empty ID.
    */
-  public DownsampleFactory(final String id) {
-    super(id);
+  public DownsampleFactory() {
+    super("downsample");
     registerIteratorFactory(NumericType.TYPE, new NumericIteratorFactory());
     registerIteratorFactory(NumericSummaryType.TYPE, 
         new NumericSummaryIteratorFactory());
@@ -51,13 +51,25 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
 
   @Override
   public QueryNode newNode(final QueryPipelineContext context,
+                           final String id,
                            final QueryNodeConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    return new Downsample(this, context, (DownsampleConfig) config);
+    return new Downsample(this, context, id, (DownsampleConfig) config);
+  }
+  
+  @Override
+  public QueryNode newNode(QueryPipelineContext context, String id) {
+    // TODO Auto-generated method stub
+    return null;
   }
 
+  @Override
+  public Class<? extends QueryNodeConfig> nodeConfigClass() {
+    return DownsampleConfig.class;
+  }
+  
   /**
    * The default numeric iterator factory.
    */
@@ -65,12 +77,14 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
 
     @Override
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
+                                                    final QueryResult result,
                                                     final Collection<TimeSeries> sources) {
       return new DownsampleNumericIterator(node, sources.iterator().next());
     }
 
     @Override
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
+                                                    final QueryResult result,
                                                     final Map<String, TimeSeries> sources) {
       return new DownsampleNumericIterator(node, sources.values().iterator().next());
     }
@@ -89,14 +103,16 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
 
     @Override
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
+                                                    final QueryResult result,
                                                     final Collection<TimeSeries> sources) {
-      return new DownsampleNumericSummaryIterator(node, sources.iterator().next());
+      return new DownsampleNumericSummaryIterator(node, result, sources.iterator().next());
     }
 
     @Override
     public Iterator<TimeSeriesValue<?>> newIterator(final QueryNode node,
+                                                    final QueryResult result,
                                                     final Map<String, TimeSeries> sources) {
-      return new DownsampleNumericSummaryIterator(node, sources.values().iterator().next());
+      return new DownsampleNumericSummaryIterator(node, result, sources.values().iterator().next());
     }
     
     @Override
@@ -104,4 +120,5 @@ public class DownsampleFactory extends BaseQueryNodeFactory {
       return Lists.newArrayList(NumericSummaryType.TYPE);
     }
   }
+  
 }

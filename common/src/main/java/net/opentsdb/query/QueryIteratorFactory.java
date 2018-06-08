@@ -38,22 +38,26 @@ public interface QueryIteratorFactory {
   /**
    * Returns an iterator using a non-keyed collection of time series sources.
    * @param node A non-null query node the iterator belongs to.
+   * @param result The result this source is a part of.
    * @param sources A non-null and non-empty list of time series sources to
    * read from. 
    * @return A non-null iterator over a specific data type.
    */
   public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
       final QueryNode node,
+      final QueryResult result,
       final Collection<TimeSeries> sources);
 
   /**
    * Returns an iterator using a keyed collection of time series sources.
    * @param node A non-null query node the iterator belongs to.
+   * @param result The result this source is a part of.
    * @param sources A non-null and non-empty list of time series sources to
    * read from. 
    * @return A non-null iterator over a specific data type.
    */
   public Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> newIterator(
       final QueryNode node,
+      final QueryResult result,
       final Map<String, TimeSeries> sources);
 }

@@ -44,60 +44,12 @@ public class TestReadAheadNumericInterpolator {
   
   @Before
   public void before() throws Exception {
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build();
     fill_policy = new BaseNumericFillPolicy(config);
-  }
-  
-  @Test
-  public void foo() throws Exception {
-    NumericInterpolatorConfig config = NumericInterpolatorConfig.newBuilder()
-        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
-        .setRealFillPolicy(FillWithRealPolicy.PREFER_PREVIOUS)
-        .build();
-    BaseNumericFillPolicy fp = new BaseNumericFillPolicy(config);
-    
-    ReadAheadNumericInterpolator interpolator = new ReadAheadNumericInterpolator(fp);
-    
-    TimeSeriesValue<NumericType> tv = interpolator.next(new MillisecondTimeStamp(500));
-    System.out.println(tv);
-    
-    MutableNumericValue v = new MutableNumericValue();
-    v.resetTimestamp(new MillisecondTimeStamp(1000));
-    v.resetValue(42);
-    interpolator.setNext(v);
-    
-    v = new MutableNumericValue();
-    v.resetTimestamp(new MillisecondTimeStamp(2000));
-    v.resetValue(24);
-    interpolator.setNext(v);
-    
-    // read
-    tv = interpolator.next(new MillisecondTimeStamp(1000));
-    System.out.println(tv);
-    
-    // read
-    tv = interpolator.next(new MillisecondTimeStamp(1500));
-    System.out.println(tv);
-    
-    v = new MutableNumericValue();
-    v.resetTimestamp(new MillisecondTimeStamp(3000));
-    v.resetValue(16);
-    interpolator.setNext(v);
-    
-    tv = interpolator.next(new MillisecondTimeStamp(2000));
-    System.out.println(tv);
-    
-    tv = interpolator.next(new MillisecondTimeStamp(2500));
-    System.out.println(tv);
-    
-    tv = interpolator.next(new MillisecondTimeStamp(3000));
-    System.out.println(tv);
-    
-    tv = interpolator.next(new MillisecondTimeStamp(3500));
-    System.out.println(tv);
   }
   
   @Test
@@ -246,9 +198,10 @@ public class TestReadAheadNumericInterpolator {
 
   @Test
   public void fillRealsNone() throws Exception {
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NONE)
+        .setType(NumericType.TYPE.toString())
         .build();
     fill_policy = new BaseNumericFillPolicy(config);
     
@@ -300,9 +253,10 @@ public class TestReadAheadNumericInterpolator {
   
   @Test
   public void fillRealsPreviousOnly() throws Exception {
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREVIOUS_ONLY)
+        .setType(NumericType.TYPE.toString())
         .build();
     fill_policy = new BaseNumericFillPolicy(config);
     
@@ -354,9 +308,10 @@ public class TestReadAheadNumericInterpolator {
   
   @Test
   public void fillRealsPreferPrevious() throws Exception {
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_PREVIOUS)
+        .setType(NumericType.TYPE.toString())
         .build();
     fill_policy = new BaseNumericFillPolicy(config);
     
@@ -408,9 +363,10 @@ public class TestReadAheadNumericInterpolator {
   
   @Test
   public void fillRealsNextOnly() throws Exception {
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+        .setType(NumericType.TYPE.toString())
         .build();
     fill_policy = new BaseNumericFillPolicy(config);
     
@@ -462,9 +418,10 @@ public class TestReadAheadNumericInterpolator {
   
   @Test
   public void fillRealsPreviousNext() throws Exception {
-    config = NumericInterpolatorConfig.newBuilder()
+    config = (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
         .setFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+        .setType(NumericType.TYPE.toString())
         .build();
     fill_policy = new BaseNumericFillPolicy(config);
     

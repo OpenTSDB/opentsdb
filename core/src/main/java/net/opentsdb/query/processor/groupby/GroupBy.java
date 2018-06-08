@@ -47,12 +47,14 @@ public class GroupBy extends AbstractQueryNode {
    * Default ctor.
    * @param factory The non-null factory for generating iterators.
    * @param context The non-null pipeline context we belong to.
+   * @param id An ID for the node.
    * @param config A non-null group by config to configure the iterators with.
    */
   public GroupBy(final QueryNodeFactory factory, 
                  final QueryPipelineContext context, 
+                 final String id,
                  final GroupByConfig config) {
-    super(factory, context);
+    super(factory, context, id);
     if (config == null) {
       throw new IllegalArgumentException("Group By config cannot be null.");
     }
@@ -100,12 +102,7 @@ public class GroupBy extends AbstractQueryNode {
       }
     }
   }
-
-  @Override
-  public String id() {
-    return config.getId();
-  }
-
+  
   @Override
   public QueryNodeConfig config() {
     return config;

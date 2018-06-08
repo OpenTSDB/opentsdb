@@ -20,28 +20,27 @@ import java.util.Set;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.hash.HashCode;
 
+import net.opentsdb.query.BaseQueryNodeConfigWithInterpolators;
 import net.opentsdb.query.QueryInterpolationConfig;
 import net.opentsdb.query.QueryNodeConfig;
+import net.opentsdb.utils.JSON;
 
 /**
  * The configuration class for a {@link GroupBy} query node.
  * 
  * @since 3.0
  */
-public class GroupByConfig implements QueryNodeConfig {
-  private final String id;
+public class GroupByConfig extends BaseQueryNodeConfigWithInterpolators {
   private final Set<String> tag_keys;
   private final List<byte[]> encoded_tag_keys;
   private final String aggregator;
   private final boolean infectious_nan;
-  private final QueryInterpolationConfig interpolation_config;
   private final boolean group_all;
   
   private GroupByConfig(final Builder builder) {
-    if (Strings.isNullOrEmpty(builder.id)) {
-      throw new IllegalArgumentException("ID cannot be null or empty.");
-    }
+    super(builder);
     if (!builder.group_all && builder.tag_keys == null) {
       throw new IllegalArgumentException("Tag keys cannot be null.");
     }
@@ -51,15 +50,14 @@ public class GroupByConfig implements QueryNodeConfig {
     if (Strings.isNullOrEmpty(builder.aggregator)) {
       throw new IllegalArgumentException("Aggregator cannot be null or empty.");
     }
-    if (builder.interpolation_config == null) {
-      throw new IllegalArgumentException("Interpolation config cannot be null.");
+    if (interpolator_configs == null || interpolator_configs.isEmpty()) {
+      throw new IllegalArgumentException("Must include at least one"
+          + " interpolator config.");
     }
-    id = builder.id;
     tag_keys = builder.tag_keys;
     encoded_tag_keys = builder.encoded_tag_keys;
     aggregator = builder.aggregator;
     infectious_nan = builder.infectious_nan;
-    interpolation_config = builder.interpolation_config;
     group_all = builder.group_all;
   }
   
@@ -90,14 +88,26 @@ public class GroupByConfig implements QueryNodeConfig {
     return infectious_nan;
   }
   
-  /** @return The interpolation config. */
-  public QueryInterpolationConfig interpolationConfig() {
-    return interpolation_config;
-  }
-  
   /** @return Whether or not to group by just the metric or the given tags. */
   public boolean groupAll() {
     return group_all;
+  }
+  
+  @Override
+  public int compareTo(QueryNodeConfig o) {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+
+  @Override
+  public HashCode buildHashCode() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+  
+  @Override
+  public String toString() {
+    return JSON.serializeToString(this);
   }
   
   /** @return A new builder to work from. */
@@ -105,23 +115,12 @@ public class GroupByConfig implements QueryNodeConfig {
     return new Builder();
   }
   
-  public static class Builder {
-    private String id;
+  public static class Builder extends BaseQueryNodeConfigWithInterpolators.Builder {
     private Set<String> tag_keys;
     private List<byte[]> encoded_tag_keys;
     private String aggregator;
     private boolean infectious_nan;
-    private QueryInterpolationConfig interpolation_config;
     private boolean group_all;
-    
-    /**
-     * @param id A non-null and on-empty Id for the group by function.
-     * @return The builder.
-     */
-    public Builder setId(final String id) {
-      this.id = id;
-      return this;
-    }
     
     /**
      * @param tag_keys A non-null and non-empty set of tag keys to replace any
@@ -187,15 +186,6 @@ public class GroupByConfig implements QueryNodeConfig {
       this.infectious_nan = infectious_nan;
       return this;
     }
-    /**
-     * @param interpolation_config The non-null interpolator config to use.
-     * @return The builder.
-     */
-    public Builder setQueryInterpolationConfig(
-        final QueryInterpolationConfig interpolation_config) {
-      this.interpolation_config = interpolation_config;
-      return this;
-    }
     
     /**
      * @param group_all Whether or not to group by all tags (just on metrics)
@@ -213,4 +203,5 @@ public class GroupByConfig implements QueryNodeConfig {
       return new GroupByConfig(this);
     }
   }
+  
 }

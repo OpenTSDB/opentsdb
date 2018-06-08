@@ -29,7 +29,7 @@ import org.junit.Test;
 import com.google.common.base.Strings;
 import com.google.common.primitives.Bytes;
 
-import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 import net.opentsdb.rollup.RollupUtils;
 import net.opentsdb.storage.schemas.tsdb1x.NumericCodec;
@@ -42,7 +42,7 @@ public class TestNumericSummaryRowSeq {
   private final static String PREAGG_TABLE = "tsdb-rollup-agg-10m";
   private final static byte PREFIX = (byte) 0;
   
-  private static RollupConfig CONFIG;
+  private static DefaultRollupConfig CONFIG;
   private static RollupInterval RAW;
   private static RollupInterval TENMIN;
   
@@ -63,7 +63,7 @@ public class TestNumericSummaryRowSeq {
         .setRowSpan("1d")
         .build();
     
-    CONFIG = RollupConfig.builder()
+    CONFIG = DefaultRollupConfig.builder()
         .addAggregationId("Sum", 0)
         .addAggregationId("Max", 1)
         .addAggregationId("Count", 2)

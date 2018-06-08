@@ -21,7 +21,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -41,22 +40,20 @@ import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
 import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.rollup.RollupConfig;
 
 public class TestNumericSummaryInterpolator {
-  private static final RollupConfig CONFIG = mock(RollupConfig.class);
   
   private NumericSummaryInterpolatorConfig config;
   private MockTimeSeries source;
   
   @Before
   public void before() throws Exception {
-    config = NumericSummaryInterpolatorConfig.newBuilder()
+    config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
-        .setRollupConfig(CONFIG)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
     
     source = new MockTimeSeries(
@@ -190,13 +187,13 @@ public class TestNumericSummaryInterpolator {
   
   @Test
   public void ctorSync() throws Exception {
-    config = NumericSummaryInterpolatorConfig.newBuilder()
+    config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setSync(true)
-        .setRollupConfig(CONFIG)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
     
     NumericSummaryInterpolator interpolator = 
@@ -591,13 +588,13 @@ public class TestNumericSummaryInterpolator {
   
   @Test
   public void nextAlignedSynced() throws Exception {
-    config = NumericSummaryInterpolatorConfig.newBuilder()
+    config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setSync(true)
-        .setRollupConfig(CONFIG)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
     
     NumericSummaryInterpolator interpolator = 
@@ -709,13 +706,13 @@ public class TestNumericSummaryInterpolator {
   
   @Test
   public void nextNotAlignedSynced() throws Exception {
-    config = NumericSummaryInterpolatorConfig.newBuilder()
+    config = (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
         .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
         .setDefaultRealFillPolicy(FillWithRealPolicy.NONE)
         .addExpectedSummary(0)
         .addExpectedSummary(2)
         .setSync(true)
-        .setRollupConfig(CONFIG)
+        .setType(NumericSummaryType.TYPE.toString())
         .build();
     
     source.clear();

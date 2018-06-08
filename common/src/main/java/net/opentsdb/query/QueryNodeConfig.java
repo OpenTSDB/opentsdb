@@ -14,16 +14,22 @@
 // limitations under the License.
 package net.opentsdb.query;
 
+import com.google.common.hash.HashCode;
+
 /**
  * The configuration interface for a particular query node. Queries will populate
  * the configs when instantiating a DAG.
  * 
  * @since 3.0
  */
-public interface QueryNodeConfig {
+public interface QueryNodeConfig extends Comparable<QueryNodeConfig> {
 
   /**
    * @return The ID of the node in this config.
    */
   public String getId();
+  
+  /** @return A hash code for this configuration. */
+  public HashCode buildHashCode();
+  
 }

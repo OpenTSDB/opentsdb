@@ -40,19 +40,14 @@ import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.FillPolicy;
-import net.opentsdb.rollup.RollupConfig;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ GroupBy.class })
 public class TestGroupBy {
-  private static final RollupConfig CONFIG = mock(RollupConfig.class);
-
-  private DefaultInterpolationConfig interpolation_config;
+  
   private QueryPipelineContext context;
   private QueryNodeFactory factory;
   private GroupByConfig config;
@@ -61,34 +56,29 @@ public class TestGroupBy {
   @Before
   public void before() throws Exception {
     context = mock(QueryPipelineContext.class);
-    factory = new GroupByFactory("GroupBy");
+    factory = new GroupByFactory();
     
     NumericInterpolatorConfig numeric_config = 
-        NumericInterpolatorConfig.newBuilder()
-        .setFillPolicy(FillPolicy.NOT_A_NUMBER)
-        .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
-        .build();
+        (NumericInterpolatorConfig) NumericInterpolatorConfig.newBuilder()
+    .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+    .setRealFillPolicy(FillWithRealPolicy.PREFER_NEXT)
+    .setType(NumericType.TYPE.toString())
+    .build();
     
     NumericSummaryInterpolatorConfig summary_config = 
-        NumericSummaryInterpolatorConfig.newBuilder()
-        .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
-        .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
-        .addExpectedSummary(0)
-        .setRollupConfig(CONFIG)
-        .build();
+        (NumericSummaryInterpolatorConfig) NumericSummaryInterpolatorConfig.newBuilder()
+    .setDefaultFillPolicy(FillPolicy.NOT_A_NUMBER)
+    .setDefaultRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+    .addExpectedSummary(0)
+    .setType(NumericSummaryType.TYPE.toString())
+    .build();
     
-    interpolation_config = DefaultInterpolationConfig.newBuilder()
-        .add(NumericType.TYPE, numeric_config, 
-            new NumericInterpolatorFactory.Default())
-        .add(NumericSummaryType.TYPE, summary_config, 
-            new NumericInterpolatorFactory.Default())
-        .build();
-    
-    config = GroupByConfig.newBuilder()
+    config = (GroupByConfig) GroupByConfig.newBuilder()
         .setAggregator("sum")
-        .setId("GB")
         .addTagKey("host")
-        .setQueryInterpolationConfig(interpolation_config)
+        .setId("GB")
+        .addInterpolatorConfig(numeric_config)
+        .addInterpolatorConfig(summary_config)
         .build();
     upstream = mock(QueryNode.class);
     when(context.upstream(any(QueryNode.class)))
@@ -97,31 +87,26 @@ public class TestGroupBy {
   
   @Test
   public void ctorAndInitialize() throws Exception {
-    GroupBy gb = new GroupBy(factory, context, config);
+    GroupBy gb = new GroupBy(factory, context, null, config);
     gb.initialize(null);
     assertSame(config, gb.config());
     verify(context, times(1)).upstream(gb);
     verify(context, times(1)).downstream(gb);
     
     try {
-      new GroupBy(null, context, config);
+      new GroupBy(factory, null, null, config);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
     
     try {
-      new GroupBy(factory, null, config);
-      fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) { }
-    
-    try {
-      new GroupBy(factory, context, null);
+      new GroupBy(factory, context, null, null);
       fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) { }
   }
   
   @Test
   public void onComplete() throws Exception {
-    GroupBy gb = new GroupBy(factory, context, config);
+    GroupBy gb = new GroupBy(factory, context, null, config);
     gb.initialize(null);
     
     gb.onComplete(mock(QueryNode.class), 42, 42);
@@ -140,7 +125,7 @@ public class TestGroupBy {
       .thenReturn(gb_results);
     final QueryResult results = mock(QueryResult.class);
     
-    GroupBy gb = new GroupBy(factory, context, config);
+    GroupBy gb = new GroupBy(factory, context, null, config);
     gb.initialize(null);
     
     gb.onNext(results);
@@ -154,7 +139,7 @@ public class TestGroupBy {
   
   @Test
   public void onError() throws Exception {
-    GroupBy gb = new GroupBy(factory, context, config);
+    GroupBy gb = new GroupBy(factory, context, null, config);
     gb.initialize(null);
     
     final IllegalArgumentException ex = new IllegalArgumentException("Boo!");

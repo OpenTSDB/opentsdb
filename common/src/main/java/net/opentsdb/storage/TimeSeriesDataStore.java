@@ -21,7 +21,10 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.data.TimeSeriesByteId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.QueryNodeFactory;
+import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.stats.Span;
 
 /**
@@ -39,7 +42,40 @@ import net.opentsdb.stats.Span;
  * 
  * @since 3.0
  */
-public interface TimeSeriesDataStore extends QueryNodeFactory {
+public interface TimeSeriesDataStore {
+  
+
+  /**
+   * Instantiates a new node using the given context and the default
+   * configuration for this node.
+   * @param context A non-null query pipeline context.
+   * @param id An ID for this node.
+   * @return An instantiated node if successful.
+   */
+  public QueryNode newNode(final QueryPipelineContext context, 
+                           final String id);
+  
+  /**
+   * Instantiates a new node using the given context and config.
+   * @param context A non-null query pipeline context.
+   * @param id An ID for this node.
+   * @param config A query node config. May be null if the node does not
+   * require a configuration.
+   * @return An instantiated node if successful.
+   */
+  public QueryNode newNode(final QueryPipelineContext context, 
+                           final String id,
+                           final QueryNodeConfig config);
+  
+  /**
+   * The descriptive ID of the factory used when parsing queries.
+   * @return A non-null unique ID of the factory.
+   */
+  public String id();
+  
+  /** @return A class to use for serdes for configuring nodes of this
+   * type. */
+  public Class<? extends QueryNodeConfig> nodeConfigClass();
   
   /**
    * Writes the given value to the data store.

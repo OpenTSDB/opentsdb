@@ -24,9 +24,11 @@ public interface QuerySourceFactory extends QueryNodeFactory {
   /**
    * Returns a new node given the context and config.
    * @param context A non-null pipeline context.
+   * @param id An ID for the node.
    * @param config An optional config.
    */
   public TimeSeriesDataSource newNode(final QueryPipelineContext context, 
+                                      final String id,
                                       final QueryNodeConfig config);
   
   /** @return The ID of the factory. */

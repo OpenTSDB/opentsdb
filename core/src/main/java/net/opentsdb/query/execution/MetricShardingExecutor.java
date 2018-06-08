@@ -41,6 +41,8 @@ import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.data.DataMerger;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.BaseQueryNodeConfig;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.graph.ExecutionGraphNode;
 import net.opentsdb.query.plan.SplitMetricPlanner;
@@ -87,24 +89,25 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
   @SuppressWarnings("unchecked")
   public MetricShardingExecutor(final ExecutionGraphNode node) {
     super(node);
-    if (node.getConfig() == null) {
-      throw new IllegalArgumentException("Config cannot be null.");
-    }
-    if (((Config) node.getConfig()).parallel_executors < 1) {
-      throw new IllegalArgumentException("Parallel executors must be one or "
-          + "greater.");
-    }
-    default_parallel_executors = ((Config) node.getConfig()).parallel_executors;
-    default_data_merger = (DataMerger<T>) ((DefaultRegistry) node.graph().tsdb()
-        .getRegistry()).getDataMerger(
-            ((Config) node.getConfig()).merge_strategy);
-    if (default_data_merger == null) {
-      throw new IllegalArgumentException("No data merger found for: " 
-          + ((Config) node.getConfig()).merge_strategy);
-    }
-    
-    executor = (QueryExecutor<T>) node.graph()
-        .getDownstreamExecutor(node.getExecutorId());
+//    if (node.getConfig() == null) {
+//      throw new IllegalArgumentException("Config cannot be null.");
+//    }
+//    if (((Config) node.getConfig()).parallel_executors < 1) {
+//      throw new IllegalArgumentException("Parallel executors must be one or "
+//          + "greater.");
+//    }
+//    default_parallel_executors = ((Config) node.getConfig()).parallel_executors;
+//    default_data_merger = (DataMerger<T>) ((DefaultRegistry) node.graph().tsdb()
+//        .getRegistry()).getDataMerger(
+//            ((Config) node.getConfig()).merge_strategy);
+//    if (default_data_merger == null) {
+//      throw new IllegalArgumentException("No data merger found for: " 
+//          + ((Config) node.getConfig()).merge_strategy);
+//    }
+//    
+//    executor = (QueryExecutor<T>) node.graph()
+//        .getDownstreamExecutor(node.getId());
+    default_parallel_executors = 0;
     if (executor == null) {
       throw new IllegalArgumentException("Downstream executor was null: " + this);
     }
@@ -164,13 +167,13 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       }
       
       final int parallels;
-      final Config override = (Config) context.getConfigOverride(
-          node.getExecutorId());
-      if (override != null && override.getParallelExecutors() > 0) {
-        parallels = override.getParallelExecutors();
-      } else {
+//      final Config override = (Config) context.getConfigOverride(
+//          node.getId());
+//      if (override != null && override.getParallelExecutors() > 0) {
+//        parallels = override.getParallelExecutors();
+//      } else {
         parallels = default_parallel_executors;
-      }
+//      }
       
       // locked here so that a query that returns BEFORE we fire the proper
       // amount doesn't increment the index on us.
@@ -352,7 +355,7 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
   @JsonInclude(Include.NON_NULL)
   @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonDeserialize(builder = Config.Builder.class)
-  public static class Config extends QueryExecutorConfig {
+  public static class Config extends BaseQueryNodeConfig {
     private int parallel_executors;
     private String merge_strategy;
 
@@ -395,8 +398,7 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
       return (Builder) new Builder()
           .setParallelExecutors(config.parallel_executors)
           .setMergeStrategy(config.merge_strategy)
-          .setExecutorId(config.executor_id)
-          .setExecutorType(config.executor_type);
+          .setId(config.id);
     }
     
     @Override
@@ -408,8 +410,7 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
         return false;
       }
       final Config config = (Config) o;
-      return Objects.equal(executor_id, config.executor_id)
-          && Objects.equal(executor_type, config.executor_type)
+      return Objects.equal(id, config.id)
           && Objects.equal(parallel_executors, config.parallel_executors)
           && Objects.equal(merge_strategy, config.merge_strategy);
     }
@@ -422,19 +423,20 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
     @Override
     public HashCode buildHashCode() {
       return Const.HASH_FUNCTION().newHasher()
-        .putString(Strings.nullToEmpty(executor_id), Const.UTF8_CHARSET)
-        .putString(Strings.nullToEmpty(executor_type), Const.UTF8_CHARSET)
+        .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
         .putLong(parallel_executors)
         .putString(Strings.nullToEmpty(merge_strategy), Const.UTF8_CHARSET)
         .hash();
     }
 
     @Override
-    public int compareTo(QueryExecutorConfig config) {
+    public int compareTo(final QueryNodeConfig other) {
+      if (!(other instanceof Config)) {
+        return -1;
+      }
+      final Config config = (Config) other;
       return ComparisonChain.start()
-          .compare(executor_id, config.executor_id, 
-              Ordering.natural().nullsFirst())
-          .compare(executor_type, config.executor_type, 
+          .compare(id, config.id, 
               Ordering.natural().nullsFirst())
           .compare(parallel_executors, ((Config) config).parallel_executors)
           .compare(merge_strategy, ((Config) config).merge_strategy, 
@@ -442,7 +444,7 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
           .result();
     }
     
-    public static class Builder extends QueryExecutorConfig.Builder {
+    public static class Builder extends BaseQueryNodeConfig.Builder {
       @JsonProperty
       private int parallelExecutors;
       @JsonProperty
@@ -473,8 +475,6 @@ public class MetricShardingExecutor<T> extends QueryExecutor<T> {
         return new Config(this);
       }
     }
-
     
-
   }
 }

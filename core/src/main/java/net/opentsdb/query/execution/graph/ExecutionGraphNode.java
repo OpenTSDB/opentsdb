@@ -14,10 +14,10 @@
 // limitations under the License.
 package net.opentsdb.query.execution.graph;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -31,46 +31,38 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.query.execution.QueryExecutor;
-import net.opentsdb.query.execution.QueryExecutorConfig;
+import net.opentsdb.query.QueryNodeConfig;
 
 /**
- * A serializable executor node configuration for use in building DAG of 
- * executors.
+ * A serializable node configuration for use in building DAG of a query.
  * <p>
- * The only required value is {@link Builder#setExecutorId(String)}. This
+ * The only required value is {@link Builder#setId(String)}. This
  * must be a unique ID within the query graph. Additionally, if 
- * {@link Builder#setExecutorType(String)} was not set to a value, then
- * the {@link #getExecutorId()} must be the name of a {@link QueryNode} 
- * factory.
+ * {@link Builder#setType(String)} was not set to a value, then
+ * the {@link #getId()} must be the name of a {@link QueryNode} 
+ * factory. Each {@link #getType()} must be unique in the list.
  * <p>
- * An optional config can be supplied for the specific executor, 
- * otherwise the defaults are used.
- * <p>
- * If the node is a child of another executor, make sure to 
- * set {@link #getUpstream()} to the Id of the upstream executor.
+ * To construct the graph, link nodes by setting the 
+ * {@link Builder#setSources(List)} to one or more nodes. Make sure not
+ * to have any cycles in the graph.
  * 
  * @since 3.0
  */
 @JsonInclude(Include.NON_NULL)
-@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonDeserialize(builder = ExecutionGraphNode.Builder.class)
 public class ExecutionGraphNode implements Comparable<ExecutionGraphNode> {
   
-  /** The unique ID of this executor node within the graph. */
-  private String executor_id;
+  /** The unique ID of this node within the graph. */
+  private String id;
   
   /** The class of an {@link QueryNode} implementation. */
-  private String executor_type;
+  private String type;
   
-  /** An optional upstream executor ID. */
-  private String upstream;
+  /** An optional list of downstream sources. */
+  private List<String> sources;
   
-  /** An optional configuration for the executor. */
-  private QueryExecutorConfig config;
-  
-  /** The graph this node belongs to (set when the graph is initialized) */
-  private ExecutionGraph graph;
+  /** An optional configuration override. */
+  private QueryNodeConfig config;
   
   /**
    * Protected ctor to build from the builder.
@@ -79,73 +71,37 @@ public class ExecutionGraphNode implements Comparable<ExecutionGraphNode> {
    * empty.
    */
   protected ExecutionGraphNode(final Builder builder) {
-    if (Strings.isNullOrEmpty(builder.executorId)) {
+    if (Strings.isNullOrEmpty(builder.id)) {
       throw new IllegalArgumentException("ID cannot be null or empty");
     }
-    if (Strings.isNullOrEmpty(builder.executorType)) {
-      executor_type = builder.executorId;
+    if (Strings.isNullOrEmpty(builder.type)) {
+      type = builder.id;
     } else {
-      executor_type = builder.executorType;
+      type = builder.type;
     }
-    executor_id = builder.executorId;
-    upstream = builder.upstream;
+    id = builder.id;
+    sources = builder.sources;
     config = builder.config;
   }
   
-  /** @return The id of this executor node. */
-  public String getExecutorId() {
-    return executor_id;
+  /** @return The id of this node. */
+  public String getId() {
+    return id;
   }
   
-  /** @return The class of the executor implementation. */
-  public String getExecutorType() {
-    return executor_type;
+  /** @return The class of the implementation. */
+  public String getType() {
+    return type;
   }
     
-  /** @return An optional node ID of an upstream executor node. */
-  public String getUpstream() {
-    return upstream;
+  /** @return An optional lost of sources mapping to node IDs. */
+  public List<String> getSources() {
+    return sources;
   }
   
-  /** @return An optional configuration for the node. May be null. */
-  public QueryExecutorConfig getConfig() {
+  /** @return An optional node config override. */
+  public QueryNodeConfig getConfig() {
     return config;
-  }
-  
-  /**
-   * <b>WARNING:</b> Public only for unit testing. Don't play with it.
-   * @param graph The graph this node belongs to.
-   */
-  public void setExecutionGraph(final ExecutionGraph graph) {
-    this.graph = graph;
-  }
-  
-  /**
-   * Package private method used by the graph to override the node ID.
-   * @param id A non-null and non-empty node ID.
-   */
-  void resetId(final String id) {
-    if (Strings.isNullOrEmpty(id)) {
-      throw new IllegalArgumentException("ID cannot be null.");
-    }
-    this.executor_id = id;
-  }
-  
-  /**
-   * Package private method used by the graph to override the upstream ID.
-   * @param upstream A non-null and non-empty node ID.
-   */
-  void resetUpstream(final String upstream) {
-    if (Strings.isNullOrEmpty(upstream)) {
-      throw new IllegalArgumentException("Upstream cannot be null.");
-    }
-    this.upstream = upstream;
-  }
-  
-  /** @return The graph this node belongs to. Null if the graph has not been
-   * initialized yet. */
-  public ExecutionGraph graph() {
-    return graph;
   }
   
   @Override
@@ -157,9 +113,9 @@ public class ExecutionGraphNode implements Comparable<ExecutionGraphNode> {
       return false;
     }
     final ExecutionGraphNode node = (ExecutionGraphNode) o;
-    return Objects.equals(executor_id, node.executor_id)
-        && Objects.equals(upstream, node.upstream)
-        && Objects.equals(executor_type, node.executor_type)
+    return Objects.equals(id, node.id)
+        && Objects.equals(sources, node.sources)
+        && Objects.equals(type, node.type)
         && Objects.equals(config, node.config);
   }
   
@@ -171,14 +127,22 @@ public class ExecutionGraphNode implements Comparable<ExecutionGraphNode> {
   /** @return A HashCode object for deterministic, non-secure hashing */
   public HashCode buildHashCode() {
     final HashCode hc = Const.HASH_FUNCTION().newHasher()
-        .putString(Strings.nullToEmpty(executor_id), Const.UTF8_CHARSET)
-        .putString(Strings.nullToEmpty(upstream), Const.UTF8_CHARSET)
-        .putString(Strings.nullToEmpty(executor_type), Const.UTF8_CHARSET)
+        .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
+        .putString(Strings.nullToEmpty(type), Const.UTF8_CHARSET)
         .hash();
-    if (config != null) {
-      final List<HashCode> hashes = Lists.newArrayListWithCapacity(2);
+    if (sources != null && !sources.isEmpty()) {
+      final List<HashCode> hashes = 
+          Lists.newArrayListWithCapacity(sources.size() + 
+              (config != null ? 2 : 1));
       hashes.add(hc);
-      hashes.add(config.buildHashCode());
+      Collections.sort(sources);
+      for (final String source : sources) {
+        hashes.add(Const.HASH_FUNCTION().newHasher().putString(
+            source, Const.UTF8_CHARSET).hash());
+      }
+      if (config != null) {
+        hashes.add(config.buildHashCode());
+      }
       return Hashing.combineOrdered(hashes);
     }
     return hc;
@@ -187,11 +151,11 @@ public class ExecutionGraphNode implements Comparable<ExecutionGraphNode> {
   @Override
   public int compareTo(final ExecutionGraphNode o) {
     return ComparisonChain.start()
-        .compare(executor_id, o.executor_id, Ordering.natural().nullsFirst())
-        .compare(upstream, o.upstream, Ordering.natural().nullsFirst())
-        .compare(executor_type, o.executor_type, Ordering.natural().nullsFirst())
-        .compare(config, o.config, 
-            Ordering.natural().nullsFirst())
+        .compare(id, o.id, Ordering.natural().nullsFirst())
+        .compare(sources, o.sources, Ordering.<String>natural()
+            .lexicographical().nullsFirst())
+        .compare(type, o.type, Ordering.natural().nullsFirst())
+        .compare(config, o.config, Ordering.natural().nullsFirst())
         .result();
   }
   
@@ -199,16 +163,11 @@ public class ExecutionGraphNode implements Comparable<ExecutionGraphNode> {
   public String toString() {
     return new StringBuilder()
         .append("id=")
-        .append(executor_id)
-        .append(", upstream=")
-        .append(upstream)
-        .append(", executor=")
-        .append(executor_type)
-        .append(", config=[")
-        .append(config)
-        .append("], graph=[")
-        .append(graph == null ? null : graph.getId()) // don't print .toString() or it'll recurse.
-        .append("]")
+        .append(id)
+        .append(", sources=")
+        .append(sources)
+        .append(", type=")
+        .append(type)
         .toString();
   }
   
@@ -224,67 +183,70 @@ public class ExecutionGraphNode implements Comparable<ExecutionGraphNode> {
    */
   public static Builder newBuilder(final ExecutionGraphNode node) {
     return new Builder()
-        .setExecutorId(node.executor_id)
-        .setUpstream(node.upstream)
-        .setExecutorType(node.executor_type)
-        .setConfig(node.config); // TODO ! may need copy
+        .setId(node.id)
+        .setSources(node.sources != null ? 
+            Lists.newArrayList(node.sources) : null)
+        .setType(node.type);
   }
   
   /** Builder class for the graph node. */
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Builder {
     @JsonProperty
-    private String executorId;
+    private String id;
     @JsonProperty
-    private String executorType;
+    private String type;
     @JsonProperty
-    private String upstream;
+    private List<String> sources;
     @JsonProperty
-    private QueryExecutorConfig config;
+    private QueryNodeConfig config;
     
     /**
-     * @param executorId A non-null and non-empty ID for the node.
+     * @param id A non-null and non-empty ID for the node.
      * @return The builder.
      */
-    public Builder setExecutorId(final String executorId) {
-      this.executorId = executorId;
+    public Builder setId(final String id) {
+      this.id = id;
       return this;
     }
     
     /**
-     * @param executorType The class of the executor implementation.
+     * @param type The class of the implementation.
      * @return The builder.
      */
-    public Builder setExecutorType(final String executorType) {
-      this.executorType = executorType;
+    public Builder setType(final String type) {
+      this.type = type;
       return this;
     }
     
     /**
-     * @param upstream An optional upstream ID of an executor node.
+     * @param sources An optional list of sources consisting of the IDs 
+     * of a nodes in the graph.
      * @return The builder.
      */
-    public Builder setUpstream(final String upstream) {
-      this.upstream = upstream;
+    public Builder setSources(final List<String> sources) {
+      this.sources = sources;
       return this;
     }
     
     /**
-     * @param config An optional config for the executor.
+     * @param source A source to pull from for this node.
      * @return The builder.
      */
-    public Builder setConfig(final QueryExecutorConfig config) {
+    public Builder addSource(final String source) {
+      if (sources == null) {
+        sources = Lists.newArrayListWithExpectedSize(1);
+      }
+      sources.add(source);
+      return this;
+    }
+    
+    /**
+     * @param config An optional config for the node.
+     * @return The builder.
+     */
+    public Builder setConfig(final QueryNodeConfig config) {
       this.config = config;
-      return this;
-    }
-    
-    /**
-     * @param defaultConfig An optional default config for the executor.
-     * @return The builder.
-     */
-    @JsonIgnore
-    public Builder setDefaultConfig(
-        final QueryExecutorConfig.Builder defaultConfig) {
-      this.config = defaultConfig.build();
       return this;
     }
     

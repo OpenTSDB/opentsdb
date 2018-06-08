@@ -15,23 +15,30 @@
 package net.opentsdb.query;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Iterator;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.TimeoutException;
 
-import net.opentsdb.configuration.Configuration;
-import net.opentsdb.configuration.UnitTestConfiguration;
-import net.opentsdb.core.DefaultRegistry;
-import net.opentsdb.core.DefaultTSDB;
+import net.opentsdb.core.MockTSDB;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeSeriesValue;
@@ -41,35 +48,166 @@ import net.opentsdb.query.pojo.Filter;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.TimeSeriesQuery;
 import net.opentsdb.query.pojo.Timespan;
+import net.opentsdb.stats.MockStats;
+import net.opentsdb.stats.MockTrace;
+import net.opentsdb.stats.QueryStats;
 import net.opentsdb.storage.MockDataStore;
 import net.opentsdb.storage.MockDataStoreFactory;
 import net.opentsdb.storage.TimeSeriesDataStoreFactory;
 
-public class TestTSDBV2Pipeline {
-
-  private DefaultTSDB tsdb;
-  private Configuration config;
-  private DefaultRegistry registry;
-  private MockDataStoreFactory factory;
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({ TSDBV2QueryContextBuilder.class })
+public class TestTSDBV2QueryContextBuilder {
+  private static MockDataStoreFactory STORE_FACTORY;
+  private static QueryDataSourceFactory SOURCE_FACTORY;
+  private static MockTSDB TSDB;
+  
+  private TimeSeriesQuery query;
+  private QuerySink sink;
+  
+  @BeforeClass
+  public static void beforeClass() throws Exception {
+    TSDB = new MockTSDB();
+    STORE_FACTORY = new MockDataStoreFactory();
+    TSDB.config.register("MockDataStore.timestamp", 1483228800000L, false, "UT");
+    
+    QueryNodeFactory factory = mock(QueryNodeFactory.class);
+    when(factory.newNode(any(QueryPipelineContext.class), anyString()))
+      .thenAnswer(new Answer<QueryNode>() {
+        @Override
+        public QueryNode answer(InvocationOnMock invocation) throws Throwable {
+          return new PassThrough(factory, null, 
+              (String) invocation.getArguments()[1]);
+        }
+      });
+    when(factory.newNode(any(QueryPipelineContext.class), anyString(), any(QueryNodeConfig.class)))
+      .thenAnswer(new Answer<QueryNode>() {
+        @Override
+        public QueryNode answer(InvocationOnMock invocation) throws Throwable {
+          return new PassThrough(factory, null, 
+              (String) invocation.getArguments()[1]);
+        }
+      });
+    when(TSDB.registry.getQueryNodeFactory(anyString()))
+      .thenAnswer(new Answer<QueryNodeFactory>() {
+        @Override
+        public QueryNodeFactory answer(InvocationOnMock invocation)
+            throws Throwable {
+          String id = (String) invocation.getArguments()[0];
+          if (id.toLowerCase().equals("datasource")) {
+            return SOURCE_FACTORY;
+          }
+          
+          return factory;
+        }
+      });
+    when(TSDB.registry.getDefaultPlugin(TimeSeriesDataStoreFactory.class))
+      .thenReturn(STORE_FACTORY);
+    SOURCE_FACTORY = new QueryDataSourceFactory();
+    SOURCE_FACTORY.initialize(TSDB).join();
+  }
   
   @Before
   public void before() throws Exception {
-    tsdb = mock(DefaultTSDB.class);
-    config = UnitTestConfiguration.getConfiguration();
-    registry = mock(DefaultRegistry.class);
-    when(tsdb.getConfig()).thenReturn(config);
-    when(tsdb.getRegistry()).thenReturn(registry);
+    sink = mock(QuerySink.class);
     
-    config.register("MockDataStore.timestamp", 1483228800000L, false, "UT");
-    factory = new MockDataStoreFactory();
-    when(registry.getDefaultPlugin(TimeSeriesDataStoreFactory.class))
-      .thenReturn(factory);
+    long start_ts = 1483228800000L;
+    long end_ts = 1483236000000L;
+    
+    query = TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Long.toString(start_ts))
+            .setEnd(Long.toString(end_ts))
+            .setAggregator("sum"))
+        .addMetric(Metric.newBuilder()
+            .setMetric("sys.cpu.user")
+            .setFilter("f1")
+            .setId("m1"))
+        .addFilter(Filter.newBuilder()
+            .setId("f1")
+            .addFilter(TagVFilter.newBuilder()
+                .setFilter("web01")
+                .setType("literal_or")
+                .setTagk("host")
+                )
+            )
+        .build();
   }
+  
+  @Test
+  public void buildWithoutStats() throws Exception {
+    final QueryContext context = TSDBV2QueryContextBuilder.newBuilder(TSDB)
+        .setQuery(query)
+        .setMode(QueryMode.SINGLE)
+        .addQuerySink(sink)
+        .build();
     
+    assertEquals(QueryMode.SINGLE, context.mode());
+    assertSame(sink, context.sinks().iterator().next());
+    assertNull(context.stats());
+  }
+  
+  @Test
+  public void buildWithStats() throws Exception {
+    final MockTrace tracer = new MockTrace();
+    final QueryStats stats = new MockStats(tracer, tracer.newSpan("mock").start());
+    
+    final QueryContext context = TSDBV2QueryContextBuilder.newBuilder(TSDB)
+        .setQuery(query)
+        .setMode(QueryMode.SINGLE)
+        .addQuerySink(sink)
+        .setStats(stats)
+        .build();
+    
+    assertEquals(QueryMode.SINGLE, context.mode());
+    assertSame(sink, context.sinks().iterator().next());
+    assertSame(stats, context.stats());
+    assertEquals(3, tracer.spans.size());
+    context.close();
+    assertEquals(5, tracer.spans.size());
+  }
+  
+  @Test
+  public void buildErrors() throws Exception {
+    try {
+      TSDBV2QueryContextBuilder.newBuilder(null)
+        .setQuery(query)
+        .setMode(QueryMode.SINGLE)
+        .addQuerySink(sink)
+        .build();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      TSDBV2QueryContextBuilder.newBuilder(TSDB)
+        //.setQuery(query)
+        .setMode(QueryMode.SINGLE)
+        .addQuerySink(sink)
+        .build();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      TSDBV2QueryContextBuilder.newBuilder(TSDB)
+        .setQuery(query)
+        //.setMode(QueryMode.SINGLE)
+        .addQuerySink(sink)
+        .build();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+    
+    try {
+      TSDBV2QueryContextBuilder.newBuilder(TSDB)
+        .setQuery(query)
+        .setMode(QueryMode.SINGLE)
+        //.addQuerySink(sink)
+        .build();
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) { }
+  }
+
   @Test
   public void querySingleOneMetric() throws Exception {
-    MockDataStore mds = new MockDataStore(tsdb, "Mock");
-    
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
     
@@ -135,7 +273,7 @@ public class TestTSDBV2Pipeline {
     }
     
     TestListener listener = new TestListener();
-    QueryContext ctx = DefaultQueryContextBuilder.newBuilder(tsdb)
+    QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(TSDB)
         .setQuery(query)
         .setMode(QueryMode.SINGLE)
         .addQuerySink(listener)
@@ -146,12 +284,11 @@ public class TestTSDBV2Pipeline {
     listener.call_limit.join(1000);
     assertEquals(1, listener.on_next);
     assertEquals(0, listener.on_error);
-    mds.shutdown().join();
   }
-
+  
   @Test
   public void querySingleOneMetricNoMatch() throws Exception {
-    MockDataStore mds = new MockDataStore(tsdb, "Mock");
+    MockDataStore mds = new MockDataStore(TSDB, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -204,7 +341,7 @@ public class TestTSDBV2Pipeline {
     }
     
     TestListener listener = new TestListener();
-    QueryContext ctx = DefaultQueryContextBuilder.newBuilder(tsdb)
+    QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(TSDB)
         .setQuery(query)
         .setMode(QueryMode.SINGLE)
         .addQuerySink(listener)
@@ -220,7 +357,7 @@ public class TestTSDBV2Pipeline {
   
   @Test
   public void querySingleTwoMetrics() throws Exception {
-    MockDataStore mds = new MockDataStore(tsdb, "Mock");
+    MockDataStore mds = new MockDataStore(TSDB, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -298,7 +435,7 @@ public class TestTSDBV2Pipeline {
     }
     
     TestListener listener = new TestListener();
-    QueryContext ctx = DefaultQueryContextBuilder.newBuilder(tsdb)
+    QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(TSDB)
         .setQuery(query)
         .setMode(QueryMode.SINGLE)
         .addQuerySink(listener)
@@ -314,7 +451,7 @@ public class TestTSDBV2Pipeline {
   
   @Test
   public void querySingleTwoMetricsNoMatch() throws Exception {
-    MockDataStore mds = new MockDataStore(tsdb, "Mock");
+    MockDataStore mds = new MockDataStore(TSDB, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -371,7 +508,7 @@ public class TestTSDBV2Pipeline {
     }
     
     TestListener listener = new TestListener();
-    QueryContext ctx = DefaultQueryContextBuilder.newBuilder(tsdb)
+    QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(TSDB)
         .setQuery(query)
         .setMode(QueryMode.SINGLE)
         .addQuerySink(listener)
@@ -387,7 +524,7 @@ public class TestTSDBV2Pipeline {
   
   @Test
   public void queryBoundedClientStream() throws Exception {
-    MockDataStore mds = new MockDataStore(tsdb, "Mock");
+    MockDataStore mds = new MockDataStore(TSDB, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -467,7 +604,7 @@ public class TestTSDBV2Pipeline {
     }
     
     TestListener listener = new TestListener();
-    QueryContext ctx = DefaultQueryContextBuilder.newBuilder(tsdb)
+    QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(TSDB)
         .setQuery(query)
         .setMode(QueryMode.BOUNDED_CLIENT_STREAM)
         .addQuerySink(listener)
@@ -484,7 +621,7 @@ public class TestTSDBV2Pipeline {
 
   @Test
   public void queryBoundedClientStreamNoMatch() throws Exception {
-    MockDataStore mds = new MockDataStore(tsdb, "Mock");
+    MockDataStore mds = new MockDataStore(TSDB, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -543,7 +680,7 @@ public class TestTSDBV2Pipeline {
     }
     
     TestListener listener = new TestListener();
-    QueryContext ctx = DefaultQueryContextBuilder.newBuilder(tsdb)
+    QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(TSDB)
         .setQuery(query)
         .setMode(QueryMode.BOUNDED_CLIENT_STREAM)
         .addQuerySink(listener)
@@ -560,7 +697,7 @@ public class TestTSDBV2Pipeline {
 
   @Test
   public void queryContinousClientStream() throws Exception {
-    MockDataStore mds = new MockDataStore(tsdb, "Mock");
+    MockDataStore mds = new MockDataStore(TSDB, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -640,7 +777,7 @@ public class TestTSDBV2Pipeline {
     }
     
     TestListener listener = new TestListener();
-    QueryContext ctx = DefaultQueryContextBuilder.newBuilder(tsdb)
+    QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(TSDB)
         .setQuery(query)
         .setMode(QueryMode.CONTINOUS_CLIENT_STREAM)
         .addQuerySink(listener)
@@ -660,7 +797,7 @@ public class TestTSDBV2Pipeline {
 
   @Test
   public void queryBoundedServerSyncStream() throws Exception {
-    MockDataStore mds = new MockDataStore(tsdb, "Mock");
+    MockDataStore mds = new MockDataStore(TSDB, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -739,7 +876,7 @@ public class TestTSDBV2Pipeline {
     }
     
     TestListener listener = new TestListener();
-    QueryContext ctx = DefaultQueryContextBuilder.newBuilder(tsdb)
+    QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(TSDB)
         .setQuery(query)
         .setMode(QueryMode.BOUNDED_SERVER_SYNC_STREAM)
         .addQuerySink(listener)
@@ -756,7 +893,7 @@ public class TestTSDBV2Pipeline {
   
   @Test
   public void queryContinousServerSyncStream() throws Exception {
-    MockDataStore mds = new MockDataStore(tsdb, "Mock");
+    MockDataStore mds = new MockDataStore(TSDB, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -835,7 +972,7 @@ public class TestTSDBV2Pipeline {
     }
     
     TestListener listener = new TestListener();
-    QueryContext ctx = DefaultQueryContextBuilder.newBuilder(tsdb)
+    QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(TSDB)
         .setQuery(query)
         .setMode(QueryMode.CONTINOUS_SERVER_SYNC_STREAM)
         .addQuerySink(listener)
@@ -855,7 +992,7 @@ public class TestTSDBV2Pipeline {
 
   @Test
   public void queryBoundedServerAsyncStream() throws Exception {
-    MockDataStore mds = new MockDataStore(tsdb, "Mock");
+    MockDataStore mds = new MockDataStore(TSDB, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -934,7 +1071,7 @@ public class TestTSDBV2Pipeline {
     }
     
     TestListener listener = new TestListener();
-    QueryContext ctx = DefaultQueryContextBuilder.newBuilder(tsdb)
+    QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(TSDB)
         .setQuery(query)
         .setMode(QueryMode.BOUNDED_SERVER_ASYNC_STREAM)
         .addQuerySink(listener)
@@ -951,7 +1088,7 @@ public class TestTSDBV2Pipeline {
   
   @Test
   public void queryContinousServerAsyncStream() throws Exception {
-    MockDataStore mds = new MockDataStore(tsdb, "Mock");
+    MockDataStore mds = new MockDataStore(TSDB, "Mock");
     
     long start_ts = 1483228800000L;
     long end_ts = 1483236000000l;
@@ -1030,7 +1167,7 @@ public class TestTSDBV2Pipeline {
     }
     
     TestListener listener = new TestListener();
-    QueryContext ctx = DefaultQueryContextBuilder.newBuilder(tsdb)
+    QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(TSDB)
         .setQuery(query)
         .setMode(QueryMode.CONTINOUS_SERVER_ASYNC_STREAM)
         .addQuerySink(listener)
@@ -1046,5 +1183,37 @@ public class TestTSDBV2Pipeline {
     assertEquals(4, listener.on_next);
     assertEquals(0, listener.on_error);
     mds.shutdown().join();
+  }
+  
+  static class PassThrough extends AbstractQueryNode {
+
+    public PassThrough(final QueryNodeFactory factory, 
+                       final QueryPipelineContext context,
+                       final String id) {
+      super(factory, context, id);
+    }
+
+    @Override
+    public QueryNodeConfig config() { return null; }
+
+    @Override
+    public void close() { }
+
+    @Override
+    public void onComplete(QueryNode downstream, long final_sequence,
+        long total_sequences) {
+      completeUpstream(final_sequence, total_sequences);
+    }
+
+    @Override
+    public void onNext(QueryResult next) {
+      sendUpstream(next);
+    }
+
+    @Override
+    public void onError(Throwable t) {
+      sendUpstream(t);
+    }
+    
   }
 }

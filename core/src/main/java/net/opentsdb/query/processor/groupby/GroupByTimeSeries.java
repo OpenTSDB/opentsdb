@@ -30,6 +30,7 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataType;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesValue;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.processor.ProcessorFactory;
 
 /**
@@ -44,6 +45,9 @@ import net.opentsdb.query.processor.ProcessorFactory;
 public class GroupByTimeSeries implements TimeSeries {
   /** The node this series belongs to. */
   protected final GroupBy node;
+  
+  /** The query result this series belongs to. */
+  protected final QueryResult result;
   
   /** The set of types in this series. */
   protected final Set<TypeToken<?>> types;
@@ -66,12 +70,14 @@ public class GroupByTimeSeries implements TimeSeries {
   /**
    * Default ctor.
    * @param node The Non-null node this series belongs to.
+   * @param result The result this source is a part of.
    */
-  public GroupByTimeSeries(final GroupBy node) {
+  public GroupByTimeSeries(final GroupBy node, final QueryResult result) {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null");
     }
     this.node = node;
+    this.result = result;
     types = Sets.newHashSetWithExpectedSize(1);
     merging_id = MergedTimeSeriesId.newBuilder();
   }
@@ -118,7 +124,7 @@ public class GroupByTimeSeries implements TimeSeries {
       return Optional.empty();
     }
     final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator = 
-        ((ProcessorFactory) node.factory()).newIterator(type, node, sources);
+        ((ProcessorFactory) node.factory()).newIterator(type, node, result, sources);
     if (iterator == null) {
       return Optional.empty();  
     }
@@ -132,7 +138,7 @@ public class GroupByTimeSeries implements TimeSeries {
     final List<Iterator<TimeSeriesValue<? extends TimeSeriesDataType>>> iterators = 
         Lists.newArrayListWithCapacity(types.size());
     for (final TypeToken<?> type : types) {
-      iterators.add(((ProcessorFactory) node.factory()).newIterator(type, node, sources));
+      iterators.add(((ProcessorFactory) node.factory()).newIterator(type, node, result, sources));
     }
     return iterators;
   }

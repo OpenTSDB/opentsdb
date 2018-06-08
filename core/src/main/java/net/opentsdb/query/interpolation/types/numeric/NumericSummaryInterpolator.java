@@ -34,6 +34,7 @@ import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryFillPolicy;
 import net.opentsdb.query.QueryInterpolator;
+import net.opentsdb.query.QueryInterpolatorConfig;
 
 /**
  * An interpolator class for summary values. It can advance through an
@@ -76,15 +77,15 @@ public class NumericSummaryInterpolator implements
    * @throws IllegalArgumentException if the source or config was null.
    */
   public NumericSummaryInterpolator(final TimeSeries source, 
-                                    final NumericSummaryInterpolatorConfig config) {
+                                    final QueryInterpolatorConfig config) {
     if (source == null) {
       throw new IllegalArgumentException("Source cannot be null.");
     }
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    this.config = config;
-    fill_policy = config.queryFill();
+    this.config = (NumericSummaryInterpolatorConfig) config;
+    fill_policy = ((NumericSummaryInterpolatorConfig) config).queryFill();
     final Optional<Iterator<TimeSeriesValue<?>>> optional = 
         source.iterator(NumericSummaryType.TYPE);
     if (optional.isPresent()) {
@@ -104,15 +105,15 @@ public class NumericSummaryInterpolator implements
    */
   public NumericSummaryInterpolator(
       final Iterator<TimeSeriesValue<? extends TimeSeriesDataType>> iterator, 
-      final NumericSummaryInterpolatorConfig config) {
+      final QueryInterpolatorConfig config) {
     if (iterator == null) {
       throw new IllegalArgumentException("Source cannot be null.");
     }
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    this.config = config;
-    fill_policy = config.queryFill();
+    this.config = (NumericSummaryInterpolatorConfig) config;
+    fill_policy = ((NumericSummaryInterpolatorConfig) config).queryFill();
     this.iterator = iterator;
     response = new MutableNumericSummaryValue();
     initialize();

@@ -49,11 +49,11 @@ public class BaseNumericFillPolicy implements QueryFillPolicy<NumericType>,
    * @param policy A non-null policy to implement.
    * @throws IllegalArgumentException if the policy was null.
    */
-  public BaseNumericFillPolicy(final NumericInterpolatorConfig config) {
+  public BaseNumericFillPolicy(final QueryInterpolatorConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Config cannot be null.");
     }
-    this.config = config;
+    this.config = (NumericInterpolatorConfig) config;
   }
   
   @Override

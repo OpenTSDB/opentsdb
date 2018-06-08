@@ -34,7 +34,7 @@ public class TestRollupInterval {
   private final static String preagg_table = "tsdb-rollup-agg-10m";
   private final static byte[] table = rollup_table.getBytes(CHARSET);
   private final static byte[] agg_table = preagg_table.getBytes(CHARSET);
-  private final static RollupConfig CONFIG = mock(RollupConfig.class);
+  private final static DefaultRollupConfig CONFIG = mock(DefaultRollupConfig.class);
   
   @Test
   public void ctor1SecondHour() throws Exception {

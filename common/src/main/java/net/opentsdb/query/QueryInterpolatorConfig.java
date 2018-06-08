@@ -21,4 +21,18 @@ package net.opentsdb.query;
  */
 public interface QueryInterpolatorConfig {
 
+  /** An optional string matching the name of an interpolator factory
+   * registered with the TSD. If this name is null or empty then the
+   * default factory is used.
+   * @return The ID of a factory to fetch an interpolator from.
+   */
+  public String id();
+  
+  /**
+   * The type of {@link TimeSeriesDataType} the interpolator works on. 
+   * E.g. {@link NumericType}. For now this must be the full class name
+   * of a data type.
+   * @return A non-null data type name.
+   */
+  public String type();
 }

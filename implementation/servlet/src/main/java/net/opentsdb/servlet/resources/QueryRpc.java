@@ -59,7 +59,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.ConvertedQueryResult;
-import net.opentsdb.query.DefaultQueryContextBuilder;
+import net.opentsdb.query.TSDBV2QueryContextBuilder;
 import net.opentsdb.query.TSQuery;
 import net.opentsdb.query.TSSubQuery;
 import net.opentsdb.query.QueryContext;
@@ -221,7 +221,6 @@ final public class QueryRpc {
       trace = null;
       query_span = null;
     }
-    
     Span parse_span = null;
     if (query_span != null) {
       parse_span = trace.newSpanWithThread("parseAndValidate")
@@ -243,6 +242,7 @@ final public class QueryRpc {
     } catch (Exception e) {
       throw new QueryExecutionException("Invalid query", 400, e);
     }
+    
     if (parse_span != null) {
       parse_span.setTag("Status", "OK")
                 .setTag("finalThread", Thread.currentThread().getName())
@@ -359,7 +359,6 @@ final public class QueryRpc {
       }
     }
     
-    
     // start the Async context and pass it around. 
     // WARNING After this point, make sure to catch all exceptions and dispatch
     // the context, otherwise the client will wait for the timeout handler.
@@ -367,7 +366,7 @@ final public class QueryRpc {
     async.setTimeout((Integer) servlet_config.getServletContext()
         .getAttribute(OpenTSDBApplication.ASYNC_TIMEOUT_ATTRIBUTE));
     
-    final QueryContext ctx = DefaultQueryContextBuilder.newBuilder(tsdb)
+    final QueryContext ctx = TSDBV2QueryContextBuilder.newBuilder(tsdb)
         .setQuery(query)
         .setMode(QueryMode.SINGLE)
         .addQuerySink(new LocalSink(async))
@@ -499,7 +498,16 @@ final public class QueryRpc {
         json.writeStartArray();
         
         final JsonV2QuerySerdes serdes = new JsonV2QuerySerdes(json);
-        serdes.serialize(context, options, output, result, serdes_span);
+        try {
+          // TODO - ug ug ugggg!!!
+          serdes.serialize(context, options, output, result, serdes_span).join();
+        } catch (InterruptedException e) {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
+        } catch (Exception e) {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
+        }
         
 //        if (options.showSummary()) {
 //          json.writeObjectFieldStart("summary");
@@ -551,7 +559,7 @@ final public class QueryRpc {
             .put("query", request.getAttribute(V2_QUERY_KEY))
             .build()));
           
-          QUERY_LOG.info("Completing query=" 
+        QUERY_LOG.info("Completing query=" 
             + JSON.serializeToString(ImmutableMap.<String, Object>builder()
             // TODO - possible upstream headers
             .put("queryId", Bytes.byteArrayToString(query.buildHashCode().asBytes()))

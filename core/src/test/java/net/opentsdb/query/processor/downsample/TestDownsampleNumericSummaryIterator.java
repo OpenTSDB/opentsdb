@@ -18,11 +18,15 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.ZoneId;
 
+import net.opentsdb.core.Registry;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.BaseTimeSeriesStringId;
 import net.opentsdb.data.MillisecondTimeStamp;
 import net.opentsdb.data.MockTimeSeries;
@@ -31,18 +35,20 @@ import net.opentsdb.data.types.numeric.MutableNumericSummaryValue;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.QueryContext;
+import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryPipelineContext;
+import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.TimeSeriesQuery;
 import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
-import net.opentsdb.query.interpolation.DefaultInterpolationConfig;
-import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorFactory;
+import net.opentsdb.query.interpolation.DefaultInterpolatorFactory;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
 import net.opentsdb.query.pojo.Downsampler;
 import net.opentsdb.query.pojo.FillPolicy;
 import net.opentsdb.query.pojo.Metric;
 import net.opentsdb.query.pojo.Timespan;
-import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.rollup.RollupInterval;
 
 import org.junit.Before;
@@ -55,7 +61,8 @@ public class TestDownsampleNumericSummaryIterator {
   private QueryContext query_context;
   private QueryPipelineContext pipeline_context;
   private MockTimeSeries source;
-  private RollupConfig rollup_config;
+  private QueryResult result;
+  private DefaultRollupConfig rollup_config;
   
   private static final long BASE_TIME = 1356998400000L;
   //30 minute offset
@@ -69,7 +76,7 @@ public class TestDownsampleNumericSummaryIterator {
   
   @Before
   public void before() throws Exception {
-    rollup_config = RollupConfig.builder()
+    rollup_config = DefaultRollupConfig.builder()
         .addAggregationId("sum", 0)
         .addAggregationId("count", 2)
         .addAggregationId("avg", 5)
@@ -80,6 +87,8 @@ public class TestDownsampleNumericSummaryIterator {
             .setInterval("1h")
             .setRowSpan("1d"))
         .build();
+    result = mock(QueryResult.class);
+    when(result.rollupConfig()).thenReturn(rollup_config);
     
     query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
         .setTime(Timespan.newBuilder()
@@ -131,7 +140,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -157,7 +166,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -197,7 +206,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -236,7 +245,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -277,7 +286,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -311,7 +320,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -345,7 +354,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -371,7 +380,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -397,7 +406,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -423,7 +432,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -436,7 +445,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -494,7 +503,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -550,7 +559,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -605,7 +614,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -634,7 +643,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -693,7 +702,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -744,7 +753,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -796,7 +805,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -847,7 +856,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -899,7 +908,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -950,7 +959,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1002,7 +1011,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1052,7 +1061,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1102,7 +1111,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1131,7 +1140,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1157,7 +1166,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1196,7 +1205,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1264,7 +1273,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1332,7 +1341,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1396,7 +1405,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1460,7 +1469,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1524,7 +1533,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1588,7 +1597,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1654,7 +1663,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1718,7 +1727,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1782,7 +1791,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1821,7 +1830,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1884,7 +1893,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1947,7 +1956,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -1981,7 +1990,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -2015,7 +2024,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -2049,7 +2058,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -2075,7 +2084,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     net.opentsdb.query.processor.downsample.DownsampleNumericSummaryIterator
       .Downsampler ds = it.new Downsampler();
     
@@ -2087,7 +2096,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 24, 36, 2 };
     long[] counts = new long[] { 2, 5, 1, 4 };
@@ -2123,7 +2132,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 24, 36, 2 };
     long[] counts = new long[] { 2, 5, 1, 4 };
@@ -2160,7 +2169,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long ts = BASE_TIME + (3600 * 1L * 1000L);
     assertTrue(it.hasNext());
@@ -2192,7 +2201,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
    assertFalse(it.hasNext());
   }
@@ -2216,7 +2225,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
    assertFalse(it.hasNext());
   }
@@ -2255,7 +2264,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 36 };
     long[] counts = new long[] { 2, 1 };
@@ -2307,7 +2316,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 24, 2 };
     long[] counts = new long[] { 5, 4 };
@@ -2355,7 +2364,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 36 };
     long[] counts = new long[] { 2, 1 };
@@ -2403,7 +2412,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 24, 2 };
     long[] counts = new long[] { 5, 4 };
@@ -2451,7 +2460,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 36 };
     long[] counts = new long[] { 2, 1 };
@@ -2499,7 +2508,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 24, 2 };
     long[] counts = new long[] { 5, 4 };
@@ -2547,7 +2556,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 36 };
     long[] counts = new long[] { 2, 1 };
@@ -2595,7 +2604,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 24, 2 };
     long[] counts = new long[] { 5, 4 };
@@ -2622,7 +2631,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     assertFalse(it.hasNext());
   }
@@ -2646,7 +2655,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 66, 38 };
     long[] counts = new long[] { 7, 5 };
@@ -2683,7 +2692,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 38 };
     long[] counts = new long[] { 5 };
@@ -2749,7 +2758,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 36 };
     long[] counts = new long[] { 2, 1 };
@@ -2815,7 +2824,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 24, 2 };
     long[] counts = new long[] { 5, 4 };
@@ -2877,7 +2886,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 36 };
     long[] counts = new long[] { 2, 1 };
@@ -2939,7 +2948,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 24, 2 };
     long[] counts = new long[] { 5, 4 };
@@ -3001,7 +3010,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 36 };
     long[] counts = new long[] { 2, 1 };
@@ -3063,7 +3072,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 24, 2 };
     long[] counts = new long[] { 5, 4 };
@@ -3125,7 +3134,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 36 };
     long[] counts = new long[] { 2, 1 };
@@ -3187,7 +3196,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 24, 2 };
     long[] counts = new long[] { 5, 4 };
@@ -3224,7 +3233,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     // only one value as the second is truncated by the config end.
     assertTrue(it.hasNext());
@@ -3285,7 +3294,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     // only one value as the second is truncated by the config end.
     assertTrue(it.hasNext());
@@ -3346,7 +3355,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     // only one value as the second is truncated by the config end.
     assertTrue(it.hasNext());
@@ -3378,7 +3387,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     // only one value as the second is truncated by the config end.
     assertTrue(it.hasNext());
@@ -3410,7 +3419,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     // only one value as the second is truncated by the config end.
     assertTrue(it.hasNext());
@@ -3442,7 +3451,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     assertFalse(it.hasNext());
   }
@@ -3466,7 +3475,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     assertFalse(it.hasNext());
   }
@@ -3491,7 +3500,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { -1, 42, -1, 36, -1, 15, 6, -1 };
     long[] counts = new long[] { -1, 2, -1, 1, -1, 5, 3, -1 };
@@ -3538,7 +3547,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { -1, 42, -1, 36, -1, 15, 6, -1 };
     long[] counts = new long[] { -1, 2, -1, 1, -1, 5, 3, -1 };
@@ -3585,7 +3594,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 0, 42, 0, 36, 0, 15, 6, 0 };
     long[] counts = new long[] { 0, 2, 0, 1, 0, 5, 3, 0 };
@@ -3624,7 +3633,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { -1, 42, 42, 36, 36, 15, 6, 6 };
     long[] counts = new long[] { -1, 2, 2, 1, 1, 5, 3, 3 };
@@ -3672,7 +3681,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 42, 42, 36, 36, 15, 6, 6 };
     long[] counts = new long[] { 2, 2, 2, 1, 1, 5, 3, 3 };
@@ -3711,7 +3720,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 42, 36, 36, 15, 15, 6, 6 };
     long[] counts = new long[] { 2, 2, 1, 1, 5, 5, 3, 3 };
@@ -3750,7 +3759,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 42, 36, 36, 15, 15, 6, -1 };
     long[] counts = new long[] { 2, 2, 1, 1, 5, 5, 3, -1 };
@@ -3798,7 +3807,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { -1, 42, -1, 36, -1, -1, 6, -1 };
     long[] counts = new long[] { -1, -1, -1, 1, -1, 5, 3, -1 };
@@ -3845,7 +3854,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { -1, 42, 42, 36, 36, 36, 6, 6 };
     long[] counts = new long[] { -1, -1, -1, 1, 1, 5, 3, 3 };
@@ -3896,7 +3905,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 42, 42, 36, 36, 36, 6, 6 };
     long[] counts = new long[] { -1, 1, 1, 1, 1, 5, 3, 3 };
@@ -3942,7 +3951,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 42, 36, 36, 36, 6, 6 };
     long[] counts = new long[] { -1, 1, 1, 1, 5, 5, 3 };
@@ -3988,7 +3997,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 42, 36, 36, -1, 6, 6, -1 };
     long[] counts = new long[] { -1, 1, 1, 1, 5, 5, 3, -1 };
@@ -4039,7 +4048,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { -1, 42, 42, 36, 36, 36, 6, 6 };
     long[] counts = new long[] { -1, -1, -1, 1, 1, 5, 3, 3 };
@@ -4086,7 +4095,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 42, 42, 36, 36, 36, 6, 6 };
     long[] counts = new long[] { -1, 1, 1, 1, 1, 5, 3, 3 };
@@ -4132,7 +4141,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 42, 36, 36, 36, 6, 6, 6 };
     long[] counts = new long[] { -1, 1, 1, 1, 5, 5, 3, 3 };
@@ -4178,7 +4187,7 @@ public class TestDownsampleNumericSummaryIterator {
     setupMock();
     
     DownsampleNumericSummaryIterator it = 
-        new DownsampleNumericSummaryIterator(node, source);
+        new DownsampleNumericSummaryIterator(node, result, source);
     
     long[] sums = new long[] { 42, 42, 36, 36, -1, 6, 6, -1 };
     long[] counts = new long[] { -1, 1, 1, 1, 5, 5, 3, -1 };
@@ -4205,7 +4214,64 @@ public class TestDownsampleNumericSummaryIterator {
     assertEquals(8, i);
   }
   
-  private void setupMock() {
+  @Test
+  public void iteratorFromNumericInterpolatorConfig() throws Exception {
+    setGappyData(true);
+    query = net.opentsdb.query.pojo.TimeSeriesQuery.newBuilder()
+        .setTime(Timespan.newBuilder()
+            .setStart(Long.toString(BASE_TIME - (3600 * 1L * 1000L)))
+            .setEnd(Long.toString(BASE_TIME + (3600 * 7L * 1000L)))
+            .setDownsampler(Downsampler.newBuilder()
+                .setInterval("1h")
+                .setAggregator("sum"))
+            .setAggregator("sum"))
+        .addMetric(Metric.newBuilder()
+            .setId("m1")
+            .setMetric("a"))
+        .build();
+    
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
+        .setAggregator("sum")
+        .setId("foo")
+        .setInterval("1h")
+        .setQuery(query)
+        .setRunAll(false)
+        .setFill(true)
+        .addInterpolatorConfig(NumericInterpolatorConfig.newBuilder()
+                .setFillPolicy(FillPolicy.NOT_A_NUMBER)
+                .setRealFillPolicy(FillWithRealPolicy.NEXT_ONLY)
+                .setType(NumericType.TYPE.toString())
+                .build())
+        .build();
+    
+    setupMock();
+    
+    DownsampleNumericSummaryIterator it = 
+        new DownsampleNumericSummaryIterator(node, result, source);
+    
+    long[] sums = new long[] { 42, 42, 36, 36, -1, 6, 6, -1 };
+    long ts = BASE_TIME - (3600 * 1L * 1000L);
+    int i = 0;
+    while (it.hasNext()) {
+      final TimeSeriesValue<NumericSummaryType> tsv = 
+          (TimeSeriesValue<NumericSummaryType>) it.next();
+      assertEquals(ts, tsv.timestamp().msEpoch());
+      if (sums[i] < 0) {
+        assertTrue(Double.isNaN(tsv.value().value(0).doubleValue()));
+      } else {
+        assertEquals(sums[i], tsv.value().value(0).longValue());
+      }
+      // since we pull from the numeric, we only expect the sums, not the
+      // counts.
+      assertNull(tsv.value().value(2));
+      
+      ts += 3600 * 1000L;
+      i++;
+    }
+    assertEquals(8, i);
+  }
+  
+  private void setupMock() throws Exception {
     node = mock(QueryNode.class);
     when(node.config()).thenReturn(config);
     query_context = mock(QueryContext.class);
@@ -4213,6 +4279,13 @@ public class TestDownsampleNumericSummaryIterator {
     when(pipeline_context.queryContext()).thenReturn(query_context);
     when(query_context.query()).thenReturn(query);
     when(node.pipelineContext()).thenReturn(pipeline_context);
+    final TSDB tsdb = mock(TSDB.class);
+    when(pipeline_context.tsdb()).thenReturn(tsdb);
+    final Registry registry = mock(Registry.class);
+    when(tsdb.getRegistry()).thenReturn(registry);
+    final QueryInterpolatorFactory interp_factory = new DefaultInterpolatorFactory();
+    interp_factory.initialize(tsdb).join();
+    when(registry.getPlugin(any(Class.class), anyString())).thenReturn(interp_factory);
   }
 
   void setConfig(final String agg, final String interval, boolean runall) {
@@ -4220,23 +4293,20 @@ public class TestDownsampleNumericSummaryIterator {
   }
   
   void setConfig(final String agg, final String interval, boolean runall, FillPolicy fill, FillWithRealPolicy real) {
-    config = DownsampleConfig.newBuilder()
+    config = (DownsampleConfig) DownsampleConfig.newBuilder()
         .setAggregator(agg)
         .setId("foo")
         .setInterval(interval)
         .setQuery(query)
         .setRunAll(runall)
         .setFill(fill != FillPolicy.NONE || real != FillWithRealPolicy.NONE)
-        .setQueryInterpolationConfig(DefaultInterpolationConfig.newBuilder()
-            .add(NumericSummaryType.TYPE, NumericSummaryInterpolatorConfig.newBuilder()
+        .addInterpolatorConfig(NumericSummaryInterpolatorConfig.newBuilder()
                 .setDefaultFillPolicy(fill)
                 .setDefaultRealFillPolicy(real)
                 .addExpectedSummary(0)
                 .addExpectedSummary(2)
-                .setRollupConfig(rollup_config)
-                .build(), 
-                new NumericInterpolatorFactory.Default())
-            .build())
+                .setType(NumericSummaryType.TYPE.toString())
+                .build())
         .build();
   }
   

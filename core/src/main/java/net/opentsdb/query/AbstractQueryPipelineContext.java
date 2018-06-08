@@ -18,6 +18,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.jgrapht.experimental.dag.DirectedAcyclicGraph;
@@ -28,7 +29,9 @@ import org.jgrapht.traverse.DepthFirstIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 
@@ -37,6 +40,9 @@ import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.query.execution.graph.ExecutionGraph;
+import net.opentsdb.query.execution.graph.ExecutionGraphNode;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 
 /**
@@ -50,6 +56,14 @@ import net.opentsdb.stats.Span;
  * TODO - assumptions made: All query results in the SINGLE mode will have the 
  * same timespecs. This may not be the case.
  * 
+ * <b>Invariants:</b>
+ * <ul>
+ * <li>Each {@link ExecutionGraphNode} must have a unique ID within the graph.</li>
+ * <li>The graph must have at most one sink that will be used to execution a
+ * query.</li>
+ * <li>The graph must be a non-cyclical DAG.</li>
+ * </ul>
+ * 
  * @since 3.0
  */
 public abstract class AbstractQueryPipelineContext implements QueryPipelineContext {
@@ -60,13 +74,15 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   protected final TSDB tsdb;
   
   /** The query we're working on. */
-  protected TimeSeriesQuery query;
+  protected final TimeSeriesQuery query;
   
   /** The upstream query context this pipeline context belongs to. */
-  protected QueryContext context;
+  protected final QueryContext context;
+  
+  protected final ExecutionGraph execution_graph;
   
   /** The set of query sinks. */
-  protected Collection<QuerySink> sinks;
+  protected final Collection<QuerySink> sinks;
   
   /** The set of node roots to link to the sinks. */
   protected Set<QueryNode> roots;
@@ -94,7 +110,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   /** The graph of query nodes. 
    * PRIVATE so that we can swap out the graph implementation at a later date.
    */
-  private DirectedAcyclicGraph<QueryNode, DefaultEdge> graph;
+  protected DirectedAcyclicGraph<QueryNode, DefaultEdge> graph;
   
   /**
    * Default ctor.
@@ -107,6 +123,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   public AbstractQueryPipelineContext(final TSDB tsdb, 
                                       final TimeSeriesQuery query, 
                                       final QueryContext context,
+                                      final ExecutionGraph execution_graph,
                                       final Collection<QuerySink> sinks) {
     if (tsdb == null) {
       throw new IllegalArgumentException("TSDB object cannot be null.");
@@ -117,17 +134,26 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     if (context == null) {
       throw new IllegalArgumentException("The context cannot be null.");
     }
+    if (execution_graph == null) {
+      throw new IllegalArgumentException("Execution graph cannot be null.");
+    }
     if (sinks == null || sinks.isEmpty()) {
       throw new IllegalArgumentException("The sinks cannot be null or empty");
     }
     this.tsdb = tsdb;
     this.query = query;
     this.context = context;
+    this.execution_graph = execution_graph;
+    this.sinks = sinks;
     graph = new DirectedAcyclicGraph<QueryNode, DefaultEdge>(DefaultEdge.class);
     graph.addVertex(this);
-    this.sinks = sinks;
     roots = Sets.newHashSet();
     sources = Lists.newArrayList();
+  }
+  
+  @Override
+  public TSDB tsdb() {
+    return tsdb;
   }
   
   @Override
@@ -252,7 +278,14 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
         context.mode() == QueryMode.BOUNDED_SERVER_ASYNC_STREAM ||
         context.mode() == QueryMode.CONTINOUS_SERVER_ASYNC_STREAM) {
       for (final TimeSeriesDataSource source : sources) {
-        source.fetchNext(span);
+        try {
+          source.fetchNext(span);
+        } catch (Exception e) {
+          LOG.error("Failed to fetch next from source: " 
+              + source, e);
+          onError(e);
+          break;
+        }
       }
       return;
     }
@@ -332,63 +365,112 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
   }
   
   /**
-   * Adds a node to the execution graph.
-   * @param node The non-null node to add.
-   */
-  protected void addVertex(final QueryNode node) {
-    if (node == null) {
-      throw new IllegalArgumentException("Node cannot be null.");
-    }
-    graph.addVertex(node);
-  }
-  
-  /**
-   * Links the source to the target in the graph.
-   * @param source A non-null source node.
-   * @param target A non-null target node.
-   */
-  protected void addDagEdge(final QueryNode source, final QueryNode target) {
-    if (source == null) {
-      throw new IllegalArgumentException("Source cannot be null.");
-    }
-    if (target == null) {
-      throw new IllegalArgumentException("Target cannot be null.");
-    }
-    try {
-      graph.addDagEdge(source, target);
-    } catch (CycleFoundException e) {
-      throw new IllegalArgumentException("Cycles are not allowed", e);
-    }
-  }
-  
-  /**
    * A helper to initialize the nodes in depth-first order.
    */
   protected void initializeGraph(final Span span) {
-    if (graph.vertexSet().size() == 1) {
-      throw new IllegalStateException("Graph cannot be empty (with only the context).");
+    final Span child;
+    if (span != null) {
+      child = span.newChild(getClass() + ".initializeGraph").start();
+    } else {
+      child = null;
     }
-    final Set<TimeSeriesDataSource> source_set = Sets.newHashSet();
-    final DepthFirstIterator<QueryNode, DefaultEdge> df_iterator = 
-      new DepthFirstIterator<QueryNode, DefaultEdge>(graph);
-    while (df_iterator.hasNext()) {
-      final QueryNode node = df_iterator.next();
-      if (node == this) {
-        continue;
+  
+    final Map<String, QueryNodeConfig> node_configs = 
+        execution_graph.nodeConfigs();
+    final Map<String, QueryNode> map = 
+        Maps.newHashMapWithExpectedSize(execution_graph.getNodes().size());
+    final Set<String> unique_ids = 
+        Sets.newHashSetWithExpectedSize(execution_graph.getNodes().size());
+    
+    // first pass to instantiate the nodes.
+    for (final ExecutionGraphNode node : execution_graph.getNodes()) {
+      if (unique_ids.contains(node.getId())) {
+        throw new IllegalArgumentException("The node id \"" 
+            + node.getId() + "\" appeared more than once in the "
+            + "graph. It must be unique.");
       }
-      node.initialize(span);
-      final Set<DefaultEdge> incoming = graph.incomingEdgesOf(node);
-      if (incoming.size() == 1 && graph.getEdgeSource(incoming.iterator().next()) == this) {
-        roots.add(node);
-        if (node instanceof TimeSeriesDataSource) {
-          source_set.add((TimeSeriesDataSource) node);
-        } else {
-          source_set.addAll(downstreamSources(node));
+      unique_ids.add(node.getId());
+      
+      final QueryNodeFactory factory;
+      if (!Strings.isNullOrEmpty(node.getType())) {
+        factory = tsdb.getRegistry().getQueryNodeFactory(node.getType().toLowerCase());
+      } else {
+        factory = tsdb.getRegistry().getQueryNodeFactory(node.getId().toLowerCase());
+      }
+      if (factory == null) {
+        throw new IllegalArgumentException("No node factory found for "
+            + "configuration " + node);
+      }
+      
+      final QueryNode query_node;
+      QueryNodeConfig node_config = node.getConfig() != null ? 
+          node.getConfig() : node_configs.get(node.getId());
+      if (node_config == null) {
+        node_config = node_configs.get(node.getType());
+      }
+      if (node_config != null) {
+        query_node = factory.newNode(this, node.getId(), node_config);
+      } else {
+        query_node = factory.newNode(this, node.getId());
+      }
+      if (query_node == null) {
+        throw new IllegalStateException("Factory returned a null "
+            + "instance for " + node);
+      }
+      
+      map.put(node.getId(), query_node);
+      
+      graph.addVertex(query_node);
+    }
+    
+    // second pass to build the graph.
+    for (final ExecutionGraphNode node : execution_graph.getNodes()) {
+      if (node != null && 
+          node.getSources() != null && 
+          !node.getSources().isEmpty()) {
+        final QueryNode query_node = map.get(node.getId());
+        for (final String source : node.getSources()) {
+          try {
+            graph.addDagEdge(query_node, map.get(source));
+          } catch (CycleFoundException e) {
+            throw new IllegalArgumentException("A cycle was detected "
+                + "adding node: " + node, e);
+          }
         }
       }
     }
     
+    // depth first initiation of the executors since we have to init
+    // the ones without any downstream dependencies first.
+    final DepthFirstIterator<QueryNode, DefaultEdge> iterator = 
+        new DepthFirstIterator<QueryNode, DefaultEdge>(graph);
+    final Set<TimeSeriesDataSource> source_set = Sets.newHashSet();
+    while (iterator.hasNext()) {
+      final QueryNode node = iterator.next();
+      
+      final Set<DefaultEdge> incoming = graph.incomingEdgesOf(node);
+      if (incoming.size() == 0 && node != this) {
+        try {
+          graph.addDagEdge(this, node);
+        } catch (CycleFoundException e) {
+          throw new IllegalArgumentException(
+              "Invalid graph configuration", e);
+        }
+        roots.add(node);
+      }
+      
+      if (node instanceof TimeSeriesDataSource) {
+        source_set.add((TimeSeriesDataSource) node);
+      }
+      
+      if (node != this) {
+        node.initialize(child);
+      }
+    }
     sources.addAll(source_set);
+    if (child != null) {
+      child.setSuccessTags().finish();
+    }
   }
   
   /**
@@ -438,12 +520,16 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     /** The sequence ID to return. */
     private long sequence_id = 0;
     
+    /** Rollup config if a result gave us one. */
+    private RollupConfig rollup_config;
+    
     public CumulativeQueryResult(final QueryResult result) {
       series = Lists.newArrayList(result.timeSeries());
       time_specification = result.timeSpecification();
       id_type = result.idType();
       resolution = result.resolution();
       sequence_id = result.sequenceId();
+      rollup_config = result.rollupConfig();
     }
     
     @Override
@@ -477,6 +563,11 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
     }
     
     @Override
+    public RollupConfig rollupConfig() {
+      return rollup_config;
+    }
+    
+    @Override
     public void close() {
       // No-Op
     }
@@ -506,5 +597,7 @@ public abstract class AbstractQueryPipelineContext implements QueryPipelineConte
       }
       series.addAll(next.timeSeries());
     }
+
+    
   }
 }

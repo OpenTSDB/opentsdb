@@ -124,7 +124,7 @@ public class DefaultQueryExecutorFactory<T> extends QueryExecutorFactory<T> {
     if (node == null) {
       throw new IllegalArgumentException("Node cannot be null.");
     }
-    if (Strings.isNullOrEmpty(node.getExecutorId())) {
+    if (Strings.isNullOrEmpty(node.getId())) {
       throw new IllegalArgumentException("Node ID cannot be null.");
     }
     try {

@@ -45,6 +45,8 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.DefaultRegistry;
 import net.opentsdb.exceptions.QueryExecutionCanceled;
 import net.opentsdb.exceptions.QueryExecutionException;
+import net.opentsdb.query.BaseQueryNodeConfig;
+import net.opentsdb.query.QueryNodeConfig;
 import net.opentsdb.query.context.QueryContext;
 import net.opentsdb.query.execution.cache.QueryCachePlugin;
 import net.opentsdb.query.execution.cache.TimeSeriesCacheKeyGenerator;
@@ -114,42 +116,46 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
   @SuppressWarnings("unchecked")
   public TimeSlicedCachingExecutor(final ExecutionGraphNode node) {
     super(node);
-    if (node.getConfig() == null) {
-      throw new IllegalArgumentException("Config cannot be null.");
-    }
-    
-    plugin = (QueryCachePlugin) 
-        node.graph().tsdb().getRegistry().getPlugin(
-            QueryCachePlugin.class, 
-            ((Config) node.getConfig()).cache_id);
-    if (plugin == null) {
-      throw new IllegalArgumentException("Unable to find a caching plugin "
-          + "for ID: " + ((Config) node.getConfig()).cache_id);
-    }
-    serdes = (TimeSeriesSerdes) ((DefaultRegistry) node.graph().tsdb()
-        .getRegistry()).getSerdes(
-            ((Config) node.getConfig()).serdes_id);
-    if (serdes == null) {
-      throw new IllegalArgumentException("Unable to find a serdes implementation "
-          + "for ID: " + ((Config) node.getConfig()).serdes_id);
-    }
-    if (Strings.isNullOrEmpty(((Config) node.getConfig()).getPlannerId())) {
-      throw new IllegalArgumentException("Default planner ID must be non-empty.");
-    }
-    executor = (QueryExecutor<T>) node.graph()
-        .getDownstreamExecutor(node.getExecutorId());
-    if (executor == null) {
-      throw new IllegalArgumentException("Unable to find a downstream executor.");
-    }
-    registerDownstreamExecutor(executor);
-    key_generator = (TimeSeriesCacheKeyGenerator) 
-        node.graph().tsdb().getRegistry().getPlugin(
-            TimeSeriesCacheKeyGenerator.class, 
-            ((Config) node.getConfig()).getKeyGeneratorId());
-    if (key_generator == null) {
-      throw new IllegalArgumentException("Unable to find a key generator "
-          + "for ID: " + ((Config) node.getConfig()).getKeyGeneratorId());
-    }
+    executor = null;
+    plugin = null;
+    serdes = null;
+    key_generator = null;
+//    if (node.getConfig() == null) {
+//      throw new IllegalArgumentException("Config cannot be null.");
+//    }
+//    
+//    plugin = (QueryCachePlugin) 
+//        node.graph().tsdb().getRegistry().getPlugin(
+//            QueryCachePlugin.class, 
+//            ((Config) node.getConfig()).cache_id);
+//    if (plugin == null) {
+//      throw new IllegalArgumentException("Unable to find a caching plugin "
+//          + "for ID: " + ((Config) node.getConfig()).cache_id);
+//    }
+//    serdes = (TimeSeriesSerdes) ((DefaultRegistry) node.graph().tsdb()
+//        .getRegistry()).getSerdes(
+//            ((Config) node.getConfig()).serdes_id);
+//    if (serdes == null) {
+//      throw new IllegalArgumentException("Unable to find a serdes implementation "
+//          + "for ID: " + ((Config) node.getConfig()).serdes_id);
+//    }
+//    if (Strings.isNullOrEmpty(((Config) node.getConfig()).getPlannerId())) {
+//      throw new IllegalArgumentException("Default planner ID must be non-empty.");
+//    }
+//    executor = (QueryExecutor<T>) node.graph()
+//        .getDownstreamExecutor(node.getId());
+//    if (executor == null) {
+//      throw new IllegalArgumentException("Unable to find a downstream executor.");
+//    }
+//    registerDownstreamExecutor(executor);
+//    key_generator = (TimeSeriesCacheKeyGenerator) 
+//        node.graph().tsdb().getRegistry().getPlugin(
+//            TimeSeriesCacheKeyGenerator.class, 
+//            ((Config) node.getConfig()).getKeyGeneratorId());
+//    if (key_generator == null) {
+//      throw new IllegalArgumentException("Unable to find a key generator "
+//          + "for ID: " + ((Config) node.getConfig()).getKeyGeneratorId());
+//    }
   }
 
   @Override
@@ -198,20 +204,22 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
       outstanding_executions.add(this);
       
       final QueryExecutorConfig override = 
-          context.getConfigOverride(node.getExecutorId());
-      if (override != null) {
-        config = (Config) override;
-      } else {
-        config = (Config) node.getConfig();
-      }
-      
-      final String plan_id = Strings.isNullOrEmpty(config.getPlannerId()) ? 
-          ((Config) node.getConfig()).getPlannerId() : config.getPlannerId();
+          context.getConfigOverride(node.getId());
+      config = null;
+//      if (override != null) {
+//        config = (Config) override;
+//      } else {
+//        config = (Config) node.getConfig();
+//      }
+//      
+//      final String plan_id = Strings.isNullOrEmpty(config.getPlannerId()) ? 
+//          ((Config) node.getConfig()).getPlannerId() : config.getPlannerId();
+      final String plan_id = null;
       final QueryPlannnerFactory<?> plan_factory = ((DefaultRegistry) context.getTSDB().getRegistry())
           .getQueryPlanner(plan_id);
       if (plan_factory == null) {
         throw new IllegalArgumentException("No such query plan factory: " 
-            + config.getPlannerId());
+            );//+ config.getPlannerId());
       }
       final QueryPlanner<?> temp_planner = plan_factory.newPlanner(query);
       if (temp_planner == null) {
@@ -628,7 +636,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
   @JsonInclude(Include.NON_NULL)
   @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonDeserialize(builder = Config.Builder.class)
-  public static class Config extends QueryExecutorConfig {
+  public static class Config extends BaseQueryNodeConfig {
     private final String cache_id;
     private final String serdes_id;
     private final String planner_id;
@@ -696,8 +704,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
         return false;
       }
       final Config config = (Config) o;
-      return Objects.equal(executor_id, config.executor_id)
-          && Objects.equal(executor_type, config.executor_type)
+      return Objects.equal(id, config.id)
           && Objects.equal(cache_id, config.cache_id)
           && Objects.equal(serdes_id, config.serdes_id)
           && Objects.equal(planner_id, config.planner_id)
@@ -714,8 +721,7 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
     @Override
     public HashCode buildHashCode() {
       return Const.HASH_FUNCTION().newHasher()
-          .putString(Strings.nullToEmpty(executor_id), Const.UTF8_CHARSET)
-          .putString(Strings.nullToEmpty(executor_type), Const.UTF8_CHARSET)
+          .putString(Strings.nullToEmpty(id), Const.UTF8_CHARSET)
           .putString(Strings.nullToEmpty(cache_id), Const.UTF8_CHARSET)
           .putString(Strings.nullToEmpty(serdes_id), Const.UTF8_CHARSET)
           .putString(Strings.nullToEmpty(planner_id), Const.UTF8_CHARSET)
@@ -726,12 +732,9 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
     }
 
     @Override
-    public int compareTo(final QueryExecutorConfig config) {
+    public int compareTo(final QueryNodeConfig config) {
       return ComparisonChain.start()
-          .compare(executor_id, config.executor_id, 
-              Ordering.natural().nullsFirst())
-          .compare(executor_type, config.executor_type, 
-              Ordering.natural().nullsFirst())
+          .compare(id, config.getId(), Ordering.natural().nullsFirst())
           .compare(cache_id, ((Config) config).cache_id, 
               Ordering.natural().nullsFirst())
           .compare(serdes_id, ((Config) config).serdes_id, 
@@ -762,11 +765,10 @@ public class TimeSlicedCachingExecutor<T> extends QueryExecutor<T> {
           .setKeyGeneratorId(config.key_generator_id)
           .setExpiration(config.expiration)
           .setBypass(config.bypass)
-          .setExecutorId(config.executor_id)
-          .setExecutorType(config.executor_type);
+          .setId(config.id);
     }
     
-    public static class Builder extends QueryExecutorConfig.Builder {
+    public static class Builder extends BaseQueryNodeConfig.Builder {
       @JsonProperty
       private String cacheId;
       @JsonProperty

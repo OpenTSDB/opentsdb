@@ -34,10 +34,17 @@ import net.opentsdb.data.types.numeric.NumericAccumulator;
 import net.opentsdb.data.types.numeric.NumericAggregator;
 import net.opentsdb.data.types.numeric.NumericSummaryType;
 import net.opentsdb.data.types.numeric.NumericType;
+import net.opentsdb.exceptions.QueryExecutionException;
 import net.opentsdb.query.QueryInterpolator;
+import net.opentsdb.query.QueryInterpolatorConfig;
+import net.opentsdb.query.QueryInterpolatorFactory;
 import net.opentsdb.query.QueryIterator;
 import net.opentsdb.query.QueryNode;
+import net.opentsdb.query.QueryResult;
+import net.opentsdb.query.QueryFillPolicy.FillWithRealPolicy;
+import net.opentsdb.query.interpolation.types.numeric.NumericInterpolatorConfig;
 import net.opentsdb.query.interpolation.types.numeric.NumericSummaryInterpolatorConfig;
+import net.opentsdb.rollup.DefaultRollupConfig;
 
 /**
  * A group by iterator for summary data. Note that for the special case
@@ -88,21 +95,25 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
   /**
    * Default ctor from a map of time series.
    * @param node The non-null owner.
+   * @param result A query result to pull the rollup config from.
    * @param sources A non-null map of sources.
    */
   public GroupByNumericSummaryIterator(
       final QueryNode node, 
+      final QueryResult result,
       final Map<String, TimeSeries> sources) {
-    this(node, sources == null ? null : sources.values());
+    this(node, result, sources == null ? null : sources.values());
   }
   
   /**
    * Alternate ctor with a collection of sources.
    * @param node The non-null owner.
+   * @param result A query result to pull the rollup config from.
    * @param sources A non-null collection of sources.
    */
   public GroupByNumericSummaryIterator(
       final QueryNode node, 
+      final QueryResult result,
       final Collection<TimeSeries> sources) {
     if (node == null) {
       throw new IllegalArgumentException("Query node cannot be null.");
@@ -122,15 +133,49 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
     aggregator = Aggregators.get(((GroupByConfig) node.config()).getAggregator());
     infectious_nan = ((GroupByConfig) node.config()).getInfectiousNan();
     interpolators = new QueryInterpolator[sources.size()];
+    
+    QueryInterpolatorConfig interpolator_config = ((GroupByConfig) node.config()).interpolatorConfig(NumericSummaryType.TYPE);
+    if (interpolator_config == null) {
+      interpolator_config = ((GroupByConfig) node.config()).interpolatorConfig(NumericType.TYPE);
+      if (interpolator_config == null) {
+        throw new IllegalArgumentException("No interpolator config found for type");
+      }
+      
+      NumericSummaryInterpolatorConfig.Builder nsic = 
+          NumericSummaryInterpolatorConfig.newBuilder()
+          .setDefaultFillPolicy(((NumericInterpolatorConfig) interpolator_config).fillPolicy())
+          .setDefaultRealFillPolicy(((NumericInterpolatorConfig) interpolator_config).realFillPolicy());
+      if (((GroupByConfig) node.config()).getAggregator().equals("avg")) {
+        nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator("sum"))
+        .addExpectedSummary(result.rollupConfig().getIdForAggregator("count"))
+        .setSync(true)
+        .setComponentAggregator(Aggregators.SUM);
+      } else {
+        nsic.addExpectedSummary(result.rollupConfig().getIdForAggregator(
+            DefaultRollupConfig.queryToRollupAggregation(
+                ((GroupByConfig) node.config()).getAggregator())));
+      }
+      interpolator_config = nsic
+          .setType(NumericSummaryType.TYPE.toString())
+          .setId(null).build();
+    }
+    config = (NumericSummaryInterpolatorConfig) interpolator_config;
+    
+    QueryInterpolatorFactory factory = node.pipelineContext().tsdb().getRegistry().getPlugin(QueryInterpolatorFactory.class, 
+        interpolator_config.id());
+    if (factory == null) {
+      throw new IllegalArgumentException("No interpolator factory found for: " + 
+          interpolator_config.type() == null ? "Default" : interpolator_config.type());
+    }
+    
     for (final TimeSeries source : sources) {
       if (source == null) {
         throw new IllegalArgumentException("Null time series are not "
             + "allowed in the sources.");
       }
-      
       interpolators[iterator_max] = (QueryInterpolator<NumericSummaryType>) 
-          ((GroupByConfig) node.config()).interpolationConfig()
-          .newInterpolator(NumericSummaryType.TYPE, source);
+          factory.newInterpolator(NumericSummaryType.TYPE, source, config);
+      
       if (interpolators[iterator_max].hasNext()) {
         has_next = true;
         if (interpolators[iterator_max].nextReal().compare(Op.LT, next_ts)) {
@@ -140,17 +185,14 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
       iterator_max++;
     }
     
-    config = (NumericSummaryInterpolatorConfig) 
-        ((GroupByConfig) node.config()).interpolationConfig()
-        .config(NumericSummaryType.TYPE);
     accumulators = Maps.newHashMapWithExpectedSize(
         config.expectedSummaries().size());
     for (final int summary : config.expectedSummaries()) {
       accumulators.put(summary, new NumericAccumulator());
     }
-    sum_id = config.rollupConfig().getIdForAggregator("sum");
-    count_id = config.rollupConfig().getIdForAggregator("count");
-    avg_id = config.rollupConfig().getIdForAggregator("avg");
+    sum_id = result.rollupConfig().getIdForAggregator("sum");
+    count_id = result.rollupConfig().getIdForAggregator("count");
+    avg_id = result.rollupConfig().getIdForAggregator("avg");
   }
   
   @Override
@@ -209,8 +251,7 @@ public class GroupByNumericSummaryIterator implements QueryIterator,
     }
     
     if (aggregator.name().equals("avg") && 
-        !config.expectedSummaries().contains(
-            config.rollupConfig().getIdForAggregator("avg"))) {
+        !config.expectedSummaries().contains(avg_id)) {
       for (final Entry<Integer, NumericAccumulator> entry : accumulators.entrySet()) {
         final NumericAccumulator accumulator = entry.getValue();
         if (accumulator.valueIndex() > 0) {

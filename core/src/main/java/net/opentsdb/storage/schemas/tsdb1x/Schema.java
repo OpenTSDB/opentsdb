@@ -51,7 +51,7 @@ import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.filter.TagVLiteralOrFilter;
 import net.opentsdb.query.pojo.Filter;
-import net.opentsdb.rollup.RollupConfig;
+import net.opentsdb.rollup.DefaultRollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.storage.StorageException;
 import net.opentsdb.storage.TimeSeriesDataStore;
@@ -112,7 +112,7 @@ public class Schema implements TimeSeriesDataStore {
   
   protected final boolean timeless_salting;
   protected final boolean old_salting;
-  protected final RollupConfig rollup_config;
+  protected final DefaultRollupConfig rollup_config;
   
   protected Map<TypeToken<?>, Codec> codecs;
   
@@ -214,7 +214,7 @@ public class Schema implements TimeSeriesDataStore {
               + value, e);
         }
       }
-      rollup_config = JSON.parseToObject(value, RollupConfig.class);
+      rollup_config = JSON.parseToObject(value, DefaultRollupConfig.class);
     } else {
       rollup_config = null;
     }
@@ -263,11 +263,24 @@ public class Schema implements TimeSeriesDataStore {
   }
   
   @Override
-  public QueryNode newNode(QueryPipelineContext context,
-      QueryNodeConfig config) {
-    return data_store.newNode(context, config);
+  public QueryNode newNode(final QueryPipelineContext context,
+                           final String id,
+                           final QueryNodeConfig config) {
+    return data_store.newNode(context, id, config);
   }
 
+  @Override
+  public QueryNode newNode(QueryPipelineContext context, String id) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public Class<? extends QueryNodeConfig> nodeConfigClass() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+  
   @Override
   public Deferred<List<byte[]>> encodeJoinKeys(final List<String> join_keys, final Span span) {
     return getIds(UniqueIdType.TAGK, join_keys, span);
@@ -714,7 +727,7 @@ public class Schema implements TimeSeriesDataStore {
     }
   }
   
-  public RollupConfig rollupConfig() {
+  public DefaultRollupConfig rollupConfig() {
     return rollup_config;
   }
   

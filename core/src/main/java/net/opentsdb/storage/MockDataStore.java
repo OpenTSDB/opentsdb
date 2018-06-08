@@ -55,16 +55,15 @@ import net.opentsdb.data.types.numeric.MutableNumericValue;
 import net.opentsdb.data.types.numeric.NumericMillisecondShard;
 import net.opentsdb.data.types.numeric.NumericType;
 import net.opentsdb.query.AbstractQueryNode;
-import net.opentsdb.query.QueryIteratorFactory;
 import net.opentsdb.query.QueryMode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.query.pojo.Metric;
+import net.opentsdb.rollup.RollupConfig;
 import net.opentsdb.stats.Span;
 import net.opentsdb.utils.DateTime;
 
@@ -110,8 +109,21 @@ public class MockDataStore implements TimeSeriesDataStore {
   
   @Override
   public QueryNode newNode(final QueryPipelineContext context,
+                           final String id,
                            final QueryNodeConfig config) {
-    return new LocalNode(this, context, (QuerySourceConfig) config);
+    return new LocalNode(context, id, (QuerySourceConfig) config);
+  }
+  
+  @Override
+  public QueryNode newNode(QueryPipelineContext context, String id) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public Class<? extends QueryNodeConfig> nodeConfigClass() {
+    // TODO Auto-generated method stub
+    return null;
   }
   
   @Override
@@ -316,10 +328,10 @@ public class MockDataStore implements TimeSeriesDataStore {
     private QuerySourceConfig config;
     private final net.opentsdb.stats.Span trace_span;
     
-    public LocalNode(final QueryNodeFactory factory,
-                     final QueryPipelineContext context, 
+    public LocalNode(final QueryPipelineContext context,
+                     final String id,
                      final QuerySourceConfig config) {
-      super(factory, context);
+      super(null, context, id);
       this.config = config;
       if (context.queryContext().stats() != null && 
           context.queryContext().stats().trace() != null) {
@@ -665,6 +677,12 @@ public class MockDataStore implements TimeSeriesDataStore {
     }
     
     @Override
+    public RollupConfig rollupConfig() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+    
+    @Override
     public void close() {
       if (trace_span != null) {
         trace_span.setSuccessTags().finish();
@@ -695,5 +713,6 @@ public class MockDataStore implements TimeSeriesDataStore {
                                                     final Span span) {
     return Deferred.fromError(new UnsupportedOperationException());
   }
+
   
 }

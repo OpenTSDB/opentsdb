@@ -79,7 +79,7 @@ public class RollupInterval {
   private int intervals;
 
   /** A pointer back to the config this interval belongs to. */
-  private RollupConfig config; 
+  private DefaultRollupConfig config; 
   
   /** Tells whether it is the default rollup interval
    * Default interval is of 1m interval, and will be stored in normal
@@ -311,12 +311,12 @@ public class RollupInterval {
   }
   
   /** @param config The rollup config this interval belongs to. */
-  public void setConfig(final RollupConfig config) {
+  public void setConfig(final DefaultRollupConfig config) {
     this.config = config;
   }
   
   /** @return The rollup config this interval belongs to. */
-  public RollupConfig rollupConfig() {
+  public DefaultRollupConfig rollupConfig() {
     return config;
   }
   

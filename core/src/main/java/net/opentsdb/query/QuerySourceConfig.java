@@ -12,9 +12,17 @@
 //see <http://www.gnu.org/licenses/>.
 package net.opentsdb.query;
 
+import java.util.List;
+
 import com.google.common.base.Strings;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
 
 import net.opentsdb.configuration.Configuration;
+import net.opentsdb.core.Const;
 
 /**
  * A simple base config class for {@link TimeSeriesDataSource} nodes.
@@ -66,6 +74,32 @@ public class QuerySourceConfig implements QueryNodeConfig {
     return configuration;
   }
   
+  @Override
+  public int compareTo(final QueryNodeConfig o) {
+    if (!(o instanceof QuerySourceConfig)) {
+      return -1;
+    }
+    
+    return ComparisonChain.start()
+        .compare(id, ((QuerySourceConfig) o).id, Ordering.natural().nullsFirst())
+        .compare(query, ((QuerySourceConfig) o).query, Ordering.natural().nullsFirst())
+        .result();
+  }
+
+  @Override
+  public int hashCode() {
+    return buildHashCode().asInt();
+  }
+  
+  @Override
+  public HashCode buildHashCode() {
+    final List<HashCode> hashes = Lists.newArrayListWithCapacity(2);
+    hashes.add(Const.HASH_FUNCTION().newHasher().putString(id, 
+        Const.UTF8_CHARSET).hash());
+    hashes.add(query.buildHashCode());
+    return Hashing.combineOrdered(hashes);
+  }
+  
   /** @return A new builder. */
   public static Builder newBuilder() {
     return new Builder();
@@ -98,4 +132,5 @@ public class QuerySourceConfig implements QueryNodeConfig {
       return new QuerySourceConfig(this);
     }
   }
+
 }

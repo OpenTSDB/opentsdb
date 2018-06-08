@@ -16,6 +16,7 @@ package net.opentsdb.query;
 
 import java.util.Collection;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.stats.Span;
 
@@ -30,6 +31,9 @@ import net.opentsdb.stats.Span;
  */
 public interface QueryPipelineContext extends QueryNode {
 
+  /** @return The TSDB this context runs under. */
+  public TSDB tsdb();
+  
   /**
    * @return The original query passed by the user.
    */

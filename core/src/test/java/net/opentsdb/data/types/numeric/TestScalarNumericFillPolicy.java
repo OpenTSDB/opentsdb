@@ -34,6 +34,7 @@ public class TestScalarNumericFillPolicy {
           .setValue(42)
           .setFillPolicy(FillPolicy.NOT_A_NUMBER)
           .setRealFillPolicy(FillWithRealPolicy.NONE)
+          .setType(NumericType.TYPE.toString())
           .build());
     assertTrue(policy.fill().isInteger());
     assertEquals(42, policy.fill().longValue());
@@ -48,6 +49,7 @@ public class TestScalarNumericFillPolicy {
           .setValue(42.5D)
           .setFillPolicy(FillPolicy.NOT_A_NUMBER)
           .setRealFillPolicy(FillWithRealPolicy.NONE)
+          .setType(NumericType.TYPE.toString())
           .build());
     assertFalse(policy.fill().isInteger());
     try {

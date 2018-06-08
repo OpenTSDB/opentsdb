@@ -45,8 +45,7 @@ import net.opentsdb.utils.DateTime;
 @JsonInclude(Include.NON_DEFAULT)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonDeserialize(builder = RateOptions.Builder.class)
-public class RateOptions extends Validatable implements Comparable<RateOptions>,
-  QueryNodeConfig {
+public class RateOptions extends Validatable implements QueryNodeConfig {
   public static final long DEFAULT_RESET_VALUE = 0;
   public static final String DEFAULT_INTERVAL = "1s";
   public static final long DEFAULT_COUNTER_MAX = Long.MAX_VALUE;
@@ -202,13 +201,17 @@ public class RateOptions extends Validatable implements Comparable<RateOptions>,
   }
   
   @Override
-  public int compareTo(final RateOptions o) {
+  public int compareTo(final QueryNodeConfig o) {
+    if (!(o instanceof RateOptions)) {
+      return -1;
+    }
+    final RateOptions other = (RateOptions) o;
     return ComparisonChain.start()
-        .compareTrueFirst(counter, o.counter)
-        .compareTrueFirst(drop_resets, o.drop_resets)
-        .compare(counter_max, o.counter_max)
-        .compare(reset_value, o.reset_value)
-        .compare(interval, o.interval)
+        .compareTrueFirst(counter, other.counter)
+        .compareTrueFirst(drop_resets, other.drop_resets)
+        .compare(counter_max, other.counter_max)
+        .compare(reset_value, other.reset_value)
+        .compare(interval, other.interval)
         .result();
   }
   

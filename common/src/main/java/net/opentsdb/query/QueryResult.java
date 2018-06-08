@@ -22,6 +22,7 @@ import com.google.common.reflect.TypeToken;
 import net.opentsdb.data.TimeSeries;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSpecification;
+import net.opentsdb.rollup.RollupConfig;
 
 /**
  * Represents a query result, returning zero or more time series from a data
@@ -39,6 +40,9 @@ public interface QueryResult {
    * if timestamps should be calculated.
    */
   public TimeSpecification timeSpecification();
+  
+  // TODO - I may need to reorg the time series by data source. That way
+  // we can link to the schema.
   
   /**
    * The collection of time series results. May be empty but will not be null.
@@ -69,6 +73,10 @@ public interface QueryResult {
   /** @return The non-null resolution of the underlying time series 
    * timestamps. */
   public ChronoUnit resolution();
+  
+  /** @return A rollup config associated with this result if applicable. 
+   * May be null. */
+  public RollupConfig rollupConfig();
   
   /**
    * Closes and releases resources used by this result set. Should be called

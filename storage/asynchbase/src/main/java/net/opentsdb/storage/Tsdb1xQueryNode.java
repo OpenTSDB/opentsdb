@@ -15,6 +15,7 @@
 package net.opentsdb.storage;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -26,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -35,16 +37,16 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.common.Const;
 import net.opentsdb.data.TimeSeriesByteId;
+import net.opentsdb.data.TimeSeriesDataSource;
 import net.opentsdb.data.TimeSeriesId;
 import net.opentsdb.data.TimeSeriesStringId;
 import net.opentsdb.data.TimeStamp;
 import net.opentsdb.exceptions.IllegalDataException;
 import net.opentsdb.exceptions.QueryDownstreamException;
+import net.opentsdb.exceptions.QueryUpstreamException;
 import net.opentsdb.meta.MetaDataStorageResult;
-import net.opentsdb.query.AbstractQueryNode;
 import net.opentsdb.query.QueryNode;
 import net.opentsdb.query.QueryNodeConfig;
-import net.opentsdb.query.QueryNodeFactory;
 import net.opentsdb.query.QueryPipelineContext;
 import net.opentsdb.query.QueryResult;
 import net.opentsdb.query.QuerySourceConfig;
@@ -70,9 +72,27 @@ import net.opentsdb.utils.Exceptions;
  * 
  * @since 3.0
  */
-public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
+public class Tsdb1xQueryNode implements SourceNode {
   private static final Logger LOG = LoggerFactory.getLogger(
       Tsdb1xQueryNode.class);
+
+  /** A reference to the parent of this node. */
+  protected final Tsdb1xHBaseDataStore parent;
+  
+  /** The name of this node. */
+  protected final String id;
+  
+  /** The pipeline context. */
+  protected final QueryPipelineContext context;
+  
+  /** The upstream query nodes. */
+  protected Collection<QueryNode> upstream;
+  
+  /** The downstream query nodes. */
+  protected Collection<QueryNode> downstream;
+  
+  /** The downstream source nodes. */
+  protected Collection<TimeSeriesDataSource> downstream_sources;
   
   /** The query source config. */
   protected final QuerySourceConfig config;
@@ -113,15 +133,25 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
    * Default ctor.
    * @param factory The Tsdb1xHBaseDataStore that instantiated this node.
    * @param context A non-null query pipeline context.
+   * @param id An ID for the node.
    * @param config A non-null config.
    */
-  public Tsdb1xQueryNode(final QueryNodeFactory factory,
+  public Tsdb1xQueryNode(final Tsdb1xHBaseDataStore parent, 
                          final QueryPipelineContext context,
+                         final String id,
                          final QuerySourceConfig config) {
-    super(factory, context);
+    if (parent == null) {
+      throw new IllegalArgumentException("Parent cannot be null.");
+    }
+    if (context == null) {
+      throw new IllegalArgumentException("Context cannot be null.");
+    }
     if (config == null) {
       throw new IllegalArgumentException("Configuration cannot be null.");
     }
+    this.parent = parent;
+    this.context = context;
+    this.id = id;
     this.config = config;
     if (config.query() == null) {
       throw new IllegalArgumentException("Can't execute a query without "
@@ -145,50 +175,50 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
       skip_nsun_tagks = query.getBoolean(config.configuration(), 
           Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY);
     } else {
-      skip_nsun_tagks = ((Tsdb1xHBaseDataStore) factory)
+      skip_nsun_tagks = parent
           .dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGK_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY)) {
       skip_nsun_tagvs = query.getBoolean(config.configuration(), 
           Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY);
     } else {
-      skip_nsun_tagvs = ((Tsdb1xHBaseDataStore) factory)
+      skip_nsun_tagvs = parent
           .dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUN_TAGV_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.SKIP_NSUI_KEY)) {
       skip_nsui = query.getBoolean(config.configuration(), 
           Tsdb1xHBaseDataStore.SKIP_NSUI_KEY);
     } else {
-      skip_nsui = ((Tsdb1xHBaseDataStore) factory)
+      skip_nsui = parent
           .dynamicBoolean(Tsdb1xHBaseDataStore.SKIP_NSUI_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.DELETE_KEY)) {
       delete = query.getBoolean(config.configuration(), 
           Tsdb1xHBaseDataStore.DELETE_KEY);
     } else {
-      delete = ((Tsdb1xHBaseDataStore) factory)
+      delete = parent
           .dynamicBoolean(Tsdb1xHBaseDataStore.DELETE_KEY);
     }
     if (query.hasKey(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY)) {
       rollup_usage = RollupUsage.parse(query.getString(config.configuration(),
           Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY));
     } else {
-      rollup_usage = RollupUsage.parse(((Tsdb1xHBaseDataStore) factory)
+      rollup_usage = RollupUsage.parse(parent
           .dynamicString(Tsdb1xHBaseDataStore.ROLLUP_USAGE_KEY));
     }
     
-    if (((Tsdb1xHBaseDataStore) factory).schema().rollupConfig() != null && 
+    if (parent.schema().rollupConfig() != null && 
         rollup_usage != RollupUsage.ROLLUP_RAW) {
       Downsampler ds = query.getMetrics().get(0).getDownsampler();
       if (ds != null) {
-        rollup_intervals = ((Tsdb1xHBaseDataStore) factory).schema()
+        rollup_intervals = parent.schema()
             .rollupConfig().getRollupIntervals(
                 DateTime.parseDuration(ds.getInterval()) / 1000, 
                 ds.getInterval(), 
                 true);
       } else if (query.getTime().getDownsampler() != null) {
         ds = query.getTime().getDownsampler();
-        rollup_intervals = ((Tsdb1xHBaseDataStore) factory).schema()
+        rollup_intervals = parent.schema()
             .rollupConfig().getRollupIntervals(
                 DateTime.parseDuration(ds.getInterval()) / 1000, 
                 ds.getInterval(), 
@@ -235,7 +265,7 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
     executor.fetchNext(new Tsdb1xQueryResult(
           sequence_id.getAndIncrement(), 
           Tsdb1xQueryNode.this, 
-          ((Tsdb1xHBaseDataStore) factory).schema()), 
+          parent.schema()), 
     span);
 
   }
@@ -268,9 +298,117 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
 
   @Override
   public Schema schema() {
-    return ((Tsdb1xHBaseDataStore) factory).schema();
+    return parent.schema();
+  }
+  
+  @Override
+  public void initialize(final Span span) {
+    final Span child;
+    if (span != null) {
+      child = span.newChild(getClass() + ".initialize()").start();
+    } else {
+      child = null;
+    }
+    upstream = context.upstream(this);
+    downstream = context.downstream(this);
+    downstream_sources = context.downstreamSources(this);
+    if (child != null) {
+      child.setSuccessTags().finish();
+    }
+  }
+  
+  @Override
+  public QueryPipelineContext pipelineContext() {
+    return context;
+  }
+  
+  /**
+   * Calls {@link #fetchNext(Span)} on all of the downstream nodes.
+   * @param span An optional tracing span.
+   */
+  protected void fetchDownstream(final Span span) {
+    for (final TimeSeriesDataSource source : downstream_sources) {
+      source.fetchNext(span);
+    }
+  }
+  
+  /**
+   * Sends the result to each of the upstream subscribers.
+   * 
+   * @param result A non-null result.
+   * @throws QueryUpstreamException if the upstream 
+   * {@link #onNext(QueryResult)} handler throws an exception. I hate
+   * checked exceptions but each node needs to be able to handle this
+   * ideally by cancelling the query.
+   * @throws IllegalArgumentException if the result was null.
+   */
+  protected void sendUpstream(final QueryResult result) 
+        throws QueryUpstreamException {
+    if (result == null) {
+      throw new IllegalArgumentException("Result cannot be null.");
+    }
+    
+    for (final QueryNode node : upstream) {
+      try {
+        node.onNext(result);
+      } catch (Exception e) {
+        throw new QueryUpstreamException("Failed to send results "
+            + "upstream to node: " + node, e);
+      }
+    }
+  }
+  
+  /**
+   * Sends the throwable upstream to each of the subscribing nodes. If 
+   * one or more upstream consumers throw an exception, it's caught and
+   * logged as a warning.
+   * 
+   * @param t A non-null throwable.
+   * @throws IllegalArgumentException if the throwable was null.
+   */
+  protected void sendUpstream(final Throwable t) {
+    if (t == null) {
+      throw new IllegalArgumentException("Throwable cannot be null.");
+    }
+    
+    for (final QueryNode node : upstream) {
+      try {
+        node.onError(t);
+      } catch (Exception e) {
+        LOG.warn("Failed to send exception upstream to node: " + node, e);
+      }
+    }
+  }
+  
+  /**
+   * Passes the sequence info upstream to all subscribers. If one or 
+   * more upstream consumers throw an exception, it's caught and logged 
+   * as a warning.
+   * 
+   * @param final_sequence The final sequence number to pass.
+   * @param total_sequences The total sequence count to pass.
+   */
+  protected void completeUpstream(final long final_sequence,
+                                  final long total_sequences) {
+    for (final QueryNode node : upstream) {
+      try {
+        node.onComplete(this, final_sequence, total_sequences);
+      } catch (Exception e) {
+        LOG.warn("Failed to mark upstream node complete: " + node, e);
+      }
+    }
+  }
+  
+  @Override
+  public int hashCode() {
+    return (getClass().getCanonicalName() + id).hashCode();
   }
 
+  /** @return The parent for this node. */
+  Tsdb1xHBaseDataStore parent() {
+    return parent;
+  }
+  
   /** @return Whether or not to skip name-less UIDs found in storage. */
   boolean skipNSUI() {
     return skip_nsui;
@@ -307,8 +445,8 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
    */
   @VisibleForTesting
   void setup(final Span span) {
-    if (((Tsdb1xHBaseDataStore) factory).schema().metaSchema() != null) {
-      ((Tsdb1xHBaseDataStore) factory).schema().metaSchema()
+    if (parent.schema().metaSchema() != null) {
+      parent.schema().metaSchema()
         .runQuery(config.query(), span)
           .addCallback(new MetaCB(span))
           .addErrback(new MetaErrorCB(span));
@@ -320,7 +458,7 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
           executor.fetchNext(new Tsdb1xQueryResult(
               sequence_id.incrementAndGet(), 
               Tsdb1xQueryNode.this, 
-              ((Tsdb1xHBaseDataStore) factory).schema()), 
+              parent.schema()), 
           span);
         } else {
           LOG.error("WTF? We lost an initialization race??");
@@ -385,7 +523,7 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
         }
         initialized.compareAndSet(false, true);
         sendUpstream(new Tsdb1xQueryResult(0, Tsdb1xQueryNode.this, 
-            ((Tsdb1xHBaseDataStore) factory).schema()));
+            parent.schema()));
         completeUpstream(0, 0);
         return null;
       case EXCEPTION:
@@ -420,7 +558,7 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
           executor.fetchNext(new Tsdb1xQueryResult(
               sequence_id.incrementAndGet(), 
               Tsdb1xQueryNode.this, 
-              ((Tsdb1xHBaseDataStore) factory).schema()), 
+              parent.schema()), 
           span);
         } else {
           LOG.error("WTF? We lost an initialization race??");
@@ -447,9 +585,9 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
       child = span;
     }
     
-    final int metric_width = ((Tsdb1xHBaseDataStore) factory).schema().metricWidth();
-    final int tagk_width = ((Tsdb1xHBaseDataStore) factory).schema().tagkWidth();
-    final int tagv_width = ((Tsdb1xHBaseDataStore) factory).schema().tagvWidth();
+    final int metric_width = parent.schema().metricWidth();
+    final int tagk_width = parent.schema().tagkWidth();
+    final int tagv_width = parent.schema().tagvWidth();
     
     if (result.idType() == Const.TS_BYTE_ID) {
       // easy! Just flatten the bytes.
@@ -493,7 +631,7 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
           executor.fetchNext(new Tsdb1xQueryResult(
               sequence_id.incrementAndGet(), 
               Tsdb1xQueryNode.this, 
-              ((Tsdb1xHBaseDataStore) factory).schema()), 
+              parent.schema()), 
           span);
         } else {
           LOG.error("WTF? We lost an initialization race??");
@@ -524,7 +662,7 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
       // now resolve
       final List<String> tagks = Lists.newArrayList(dedupe_tagks);
       final List<String> tagvs = Lists.newArrayList(dedupe_tagvs);
-      final byte[] metric_uid = new byte[((Tsdb1xHBaseDataStore) factory)
+      final byte[] metric_uid = new byte[parent
                                          .schema().metricWidth()];
       final Map<String, byte[]> tagk_map = 
           Maps.newHashMapWithExpectedSize(tagks.size());
@@ -692,7 +830,7 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
               executor.fetchNext(new Tsdb1xQueryResult(
                   sequence_id.incrementAndGet(), 
                   Tsdb1xQueryNode.this, 
-                  ((Tsdb1xHBaseDataStore) factory).schema()), 
+                  parent.schema()), 
               span);
             } else {
               LOG.error("WTF? We lost an initialization race??");
@@ -704,13 +842,13 @@ public class Tsdb1xQueryNode extends AbstractQueryNode implements SourceNode {
       }
       
       final List<Deferred<Object>> deferreds = Lists.newArrayListWithCapacity(3);
-      deferreds.add(((Tsdb1xHBaseDataStore) factory).schema()
+      deferreds.add(parent.schema()
           .getId(UniqueIdType.METRIC, metric, span)
             .addCallbacks(new MetricCB(), new ErrorCB()));
-      deferreds.add(((Tsdb1xHBaseDataStore) factory).schema()
+      deferreds.add(parent.schema()
           .getIds(UniqueIdType.TAGK, tagks, span)
             .addCallbacks(new TagCB(false), new ErrorCB()));
-      deferreds.add(((Tsdb1xHBaseDataStore) factory).schema()
+      deferreds.add(parent.schema()
           .getIds(UniqueIdType.TAGV, tagvs, span)
             .addCallbacks(new TagCB(true), new ErrorCB()));
       Deferred.group(deferreds).addCallbacks(new GroupCB(), new ErrorCB());

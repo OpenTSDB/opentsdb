@@ -47,8 +47,7 @@ import net.opentsdb.query.QueryNodeConfig;
   property = "executorType",
   visible = true)
 @JsonTypeIdResolver(QueryExecutorConfigResolver.class)
-public abstract class QueryExecutorConfig implements QueryNodeConfig,
-    Comparable<QueryExecutorConfig> {
+public abstract class QueryExecutorConfig implements QueryNodeConfig {
   /** The class type of executor. */
   protected final String executor_type;
   
@@ -119,7 +118,7 @@ public abstract class QueryExecutorConfig implements QueryNodeConfig,
   public abstract HashCode buildHashCode();
   
   @Override
-  public abstract int compareTo(final QueryExecutorConfig config);
+  public abstract int compareTo(final QueryNodeConfig config);
   
   /** Base builder for QueryExecutorConfigs. */
   public static abstract class Builder {
